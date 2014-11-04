@@ -17,17 +17,20 @@
  */
 package com.cloudera.dataflow.spark;
 
+import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.PrimitivePTransform;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.collect.ImmutableMap;
@@ -39,17 +42,30 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
-import scala.collection.JavaConversions;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.logging.Logger;
 
-public class SparkPipelineRunner extends PipelineRunner<SparkPipelineRunner.EvaluationResults> {
+public class SparkPipelineRunner extends PipelineRunner<SparkPipelineRunner.EvaluationResult> {
+
+  private static final Logger LOG =
+      Logger.getLogger(SparkPipelineRunner.class.getName());
+
+  private final String master;
+
+  public SparkPipelineRunner() {
+    this("local");
+  }
+
+  public SparkPipelineRunner(String master) {
+    this.master = Preconditions.checkNotNull(master);
+  }
 
   @Override
-  public EvaluationResults run(Pipeline pipeline) {
-    EvaluationContext ctxt = new EvaluationContext();
+  public EvaluationResult run(Pipeline pipeline) {
+    EvaluationContext ctxt = new EvaluationContext(this.master);
     pipeline.traverseTopologically(new Evaluator(ctxt));
     return ctxt;
   }
@@ -63,23 +79,40 @@ public class SparkPipelineRunner extends PipelineRunner<SparkPipelineRunner.Eval
     }
 
     @Override
-    public void visitTransform(PrimitivePTransform<?, ?> primitive) {
-      EVALUATORS.get(primitive.getClass()).evaluate(primitive, ctxt);
+    public void enterCompositeTransform(TransformTreeNode node) {
     }
 
     @Override
-    public void visitValue(PValue value) {
-      System.out.println("VV: " + value);
+    public void leaveCompositeTransform(TransformTreeNode node) {
+    }
+
+    @Override
+    public void visitTransform(TransformTreeNode node) {
+      PTransform<?, ?> transform = node.getTransform();
+      TransformEvaluator evaluator = EVALUATORS.get(transform.getClass());
+      if (evaluator == null) {
+        throw new IllegalStateException(
+            "no evaluator registered for " + transform);
+      }
+      LOG.info("Evaluating " + transform);
+      evaluator.evaluate(transform, ctxt);
+    }
+
+    @Override
+    public void visitValue(PValue pvalue, TransformTreeNode node) {
     }
   }
 
-  public static interface EvaluationResults {
-
+  public static interface EvaluationResult extends PipelineResult {
   }
 
-  public static class EvaluationContext implements EvaluationResults {
-    JavaSparkContext jsc = new JavaSparkContext("local", "dataflow");
+  public static class EvaluationContext implements EvaluationResult {
+    final JavaSparkContext jsc;
     JavaRDDLike last;
+
+    public EvaluationContext(String master) {
+      this.jsc = new JavaSparkContext(master, "dataflow");
+    }
 
     JavaSparkContext getSparkContext() {
       return jsc;
@@ -91,7 +124,7 @@ public class SparkPipelineRunner extends PipelineRunner<SparkPipelineRunner.Eval
     JavaRDDLike getLast() { return last; }
   }
 
-  public static interface TransformEvaluator<PT extends PrimitivePTransform> extends Serializable {
+  public static interface TransformEvaluator<PT extends PTransform> extends Serializable {
     void evaluate(PT transform, EvaluationContext context);
   }
 
@@ -144,7 +177,7 @@ public class SparkPipelineRunner extends PipelineRunner<SparkPipelineRunner.Eval
       if (coder != null) {
         //TODO
       }
-      String pattern = WRITE_TEXT_FG.get("filepattern", transform);
+      String pattern = WRITE_TEXT_FG.get("filenamePrefix", transform);
       last.saveAsTextFile(pattern);
     }
   };

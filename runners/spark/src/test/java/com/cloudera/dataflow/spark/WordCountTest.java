@@ -18,6 +18,7 @@
 package com.cloudera.dataflow.spark;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -72,13 +73,13 @@ public class WordCountTest {
 
   @Test
   public void testRun() throws Exception {
-    Pipeline p = Pipeline.create();
+    SparkPipeline p = SparkPipeline.create("local");
 
     p.apply(TextIO.Read.named("ReadLines").from("/tmp/test.txt"))
         .apply(new CountWords())
         .apply(TextIO.Write.named("WriteCounts").to("/tmp/dfout.txt"));
 
-    SparkPipelineRunner.EvaluationResults results = p.run(new SparkPipelineRunner());
-    System.out.println(results);
+    PipelineResult result = p.run();
+    System.out.println(result);
   }
 }

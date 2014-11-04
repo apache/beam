@@ -20,7 +20,10 @@ package com.cloudera.dataflow.spark;
 import com.google.api.client.util.Lists;
 import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
 import com.google.cloud.dataflow.sdk.streaming.KeyedState;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
@@ -68,6 +71,20 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
+    }
+
+    @Override
+    public <AI, AA, AO> Aggregator<AI> createAggregator(
+        String s,
+        Combine.CombineFn<? super AI, AA, AO> combineFn) {
+      return null;
+    }
+
+    @Override
+    public <AI, AO> Aggregator<AI> createAggregator(
+        String s,
+        SerializableFunction<Iterable<AI>, AO> sfunc) {
+      return null;
     }
 
     @Override
