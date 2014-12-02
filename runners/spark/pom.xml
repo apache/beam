@@ -93,7 +93,7 @@
     <dependency>
       <groupId>com.google.cloud.dataflow</groupId>
       <artifactId>dataflow-sdk</artifactId>
-      <version>1.0.141027</version>
+      <version>0.0.1</version>
     </dependency>
     <dependency>
       <groupId>com.google.apis</groupId>
