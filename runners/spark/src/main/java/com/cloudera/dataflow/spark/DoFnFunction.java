@@ -24,18 +24,26 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.collect.ImmutableMap;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
   private final DoFn<I, O> fn;
+  private final Map<TupleTag<?>, BroadcastHelper<?>> sideInputs;
 
   public DoFnFunction(DoFn<I, O> fn) {
+    this(fn, ImmutableMap.<TupleTag<?>, BroadcastHelper<?>>of());
+  }
+
+  public DoFnFunction(DoFn<I, O> fn, Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     this.fn = fn;
+    this.sideInputs = sideInputs;
   }
 
   @Override
@@ -71,6 +79,7 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
+      // A no-op if we don't know about it ahead of time
     }
 
     @Override
@@ -88,8 +97,9 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     }
 
     @Override
-    public <T> T sideInput(TupleTag<T> tupleTag) {
-      return null;
+    public <T> T sideInput(TupleTag<T> tag) {
+      BroadcastHelper<T> bh = (BroadcastHelper<T>) sideInputs.get(tag);
+      return bh == null ? null : bh.getValue();
     }
 
     @Override
@@ -99,7 +109,7 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public KeyedState keyedState() {
-      return null;
+      throw new UnsupportedOperationException();
     }
   }
 }
