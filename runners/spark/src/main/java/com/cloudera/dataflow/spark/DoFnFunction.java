@@ -17,7 +17,6 @@
  */
 package com.cloudera.dataflow.spark;
 
-import com.google.api.client.util.Lists;
 import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
 import com.google.cloud.dataflow.sdk.streaming.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
@@ -28,6 +27,7 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
@@ -50,9 +50,9 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     return ctxt.outputs;
   }
 
-  private static class ProcCtxt<I, O> extends DoFn<I, O>.ProcessContext {
+  private class ProcCtxt<I, O> extends DoFn<I, O>.ProcessContext {
 
-    private List<O> outputs = Lists.newArrayList();
+    private List<O> outputs = new LinkedList<>();
     private I element;
 
     public ProcCtxt(DoFn<I, O> fn) {
@@ -65,7 +65,7 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     }
 
     @Override
-    public void output(O o) {
+    public synchronized void output(O o) {
       outputs.add(o);
     }
 
@@ -75,14 +75,14 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public <AI, AA, AO> Aggregator<AI> createAggregator(
-        String s,
+        String named,
         Combine.CombineFn<? super AI, AA, AO> combineFn) {
       return null;
     }
 
     @Override
     public <AI, AO> Aggregator<AI> createAggregator(
-        String s,
+        String named,
         SerializableFunction<Iterable<AI>, AO> sfunc) {
       return null;
     }
