@@ -17,14 +17,20 @@
  */
 package com.cloudera.dataflow.spark;
 
+import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.ApproximateUnique;
 import com.google.cloud.dataflow.sdk.transforms.Count;
+import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.cloud.dataflow.sdk.values.PObject;
 import org.junit.Test;
 
 public class WordCountTest {
@@ -42,43 +48,30 @@ public class WordCountTest {
     }
   }
 
-  /** A DoFn that converts a Word and Count into a printable string. */
-  static class FormatCountsFn extends DoFn<KV<String, Long>, String> {
+  public static class CountWords extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
     @Override
-    public void processElement(ProcessContext c) {
-      c.output(c.element().getKey() + ": " + c.element().getValue());
-    }
-  }
-
-  public static class CountWords extends PTransform<PCollection<String>, PCollection<String>> {
-    @Override
-    public PCollection<String> apply(PCollection<String> lines) {
-
+    public PCollection<KV<String, Long>> apply(PCollection<String> lines) {
       // Convert lines of text into individual words.
       PCollection<String> words = lines.apply(
           ParDo.of(new ExtractWordsFn()));
-
       // Count the number of times each word occurs.
-      PCollection<KV<String, Long>> wordCounts =
-          words.apply(Count.<String>create());
-
-      // Format each word and count into a printable string.
-      PCollection<String> results = wordCounts.apply(
-          ParDo.of(new FormatCountsFn()));
-
-      return results;
+      return words.apply(Count.<String>create());
     }
   }
 
   @Test
   public void testRun() throws Exception {
-    SparkPipeline p = SparkPipeline.create("local");
+    Pipeline p = Pipeline.create(new PipelineOptions());
+    PCollection<String> w1 = p.apply(Create.of("Here are some words to count"));
+    PCollection<String> w2 = p.apply(Create.of("Here are some more words"));
+    PCollectionList<String> list = PCollectionList.of(w1).and(w2);
 
-    p.apply(TextIO.Read.named("ReadLines").from("/tmp/test.txt"))
-        .apply(new CountWords())
-        .apply(TextIO.Write.named("WriteCounts").to("/tmp/dfout.txt"));
+    PCollection<String> union = list.apply(Flatten.<String>create());
+    PCollection<KV<String, Long>> counts = union.apply(new CountWords());
+    PObject<Long> unique = counts.apply(ApproximateUnique.<KV<String, Long>>globally(16));
 
-    PipelineResult result = p.run();
-    System.out.println(result);
+    EvaluationResult res = new SparkPipelineRunner("local[2]").run(p);
+    System.out.println(res.get(counts));
+    System.out.println(res.get(unique));
   }
 }

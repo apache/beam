@@ -17,21 +17,11 @@
  */
 package com.cloudera.dataflow.spark;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import com.google.cloud.dataflow.sdk.PipelineResult;
+import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PObject;
 
-public class SparkPipeline extends Pipeline {
-
-  public static SparkPipeline create(String master) {
-    return new SparkPipeline(new SparkPipelineRunner(master));
-  }
-
-  protected SparkPipeline(PipelineRunner<?> runner) {
-    super(runner);
-  }
-
-  protected SparkPipeline(PipelineRunner<?> runner, PipelineOptions options) {
-    super(runner, options);
-  }
+public interface EvaluationResult extends PipelineResult {
+  <T> Iterable<T> get(PCollection<T> pcollection);
+  <T> T get(PObject<T> pobject);
 }

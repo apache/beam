@@ -20,9 +20,15 @@ package com.cloudera.dataflow.spark;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.SeqDo;
+import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.PObject;
+import com.google.cloud.dataflow.sdk.values.PObjectTuple;
+import com.google.cloud.dataflow.sdk.values.PObjectValueTuple;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -33,7 +39,7 @@ import org.apache.spark.broadcast.Broadcast;
 import java.util.Map;
 import java.util.Set;
 
-public class EvaluationContext implements SparkPipelineRunner.EvaluationResult {
+public class EvaluationContext implements EvaluationResult {
   final JavaSparkContext jsc;
   final Pipeline pipeline;
   final Map<PValue, JavaRDDLike> rdds = Maps.newHashMap();
@@ -49,6 +55,10 @@ public class EvaluationContext implements SparkPipelineRunner.EvaluationResult {
     return jsc;
   }
   Pipeline getPipeline() { return pipeline; }
+
+  PInput getInput(PTransform transform) {
+    return pipeline.getInput(transform);
+  }
 
   POutput getOutput(PTransform transform) {
     return pipeline.getOutput(transform);
@@ -79,11 +89,12 @@ public class EvaluationContext implements SparkPipelineRunner.EvaluationResult {
 
   <T> BroadcastHelper<T> getBroadcastHelper(PObject<T> value) {
     Coder<T> coder = value.getCoder();
-    Broadcast<byte[]> bcast = jsc.broadcast(CoderHelpers.toByteArray(resolve(value), coder));
+    Broadcast<byte[]> bcast = jsc.broadcast(CoderHelpers.toByteArray(get(value), coder));
     return new BroadcastHelper<>(bcast, coder);
   }
 
-  <T> T resolve(PObject<T> value) {
+  @Override
+  public <T> T get(PObject<T> value) {
     if (localPObjects.containsKey(value)) {
       return (T) localPObjects.get(value);
     } else if (rdds.containsKey(value)) {
@@ -94,5 +105,26 @@ public class EvaluationContext implements SparkPipelineRunner.EvaluationResult {
       return res;
     }
     throw new IllegalStateException("Cannot resolve un-known PObject: " + value);
+  }
+
+  @Override
+  public <T> Iterable<T> get(PCollection<T> pcollection) {
+    return getRDD(pcollection).collect();
+  }
+
+  PObjectValueTuple getPObjectTuple(PTransform transform) {
+    PObjectTuple pot = (PObjectTuple) pipeline.getInput(transform);
+    PObjectValueTuple povt = PObjectValueTuple.empty();
+    for (Map.Entry<TupleTag<?>, PObject<?>> e : pot.getAll().entrySet()) {
+      povt = povt.and((TupleTag) e.getKey(), get(e.getValue()));
+    }
+    return povt;
+  }
+
+  void setPObjectTuple(PTransform transform, PObjectValueTuple outputValues) {
+    PObjectTuple pot = (PObjectTuple) pipeline.getOutput(transform);
+    for (Map.Entry<TupleTag<?>, PObject<?>> e : pot.getAll().entrySet()) {
+      setPObjectValue(e.getValue(), outputValues.get(e.getKey()));
+    }
   }
 }

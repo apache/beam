@@ -19,29 +19,29 @@ package com.cloudera.dataflow.spark;
 
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.Convert;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.CreatePObject;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.SeqDo;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PObject;
 import com.google.cloud.dataflow.sdk.values.PObjectTuple;
+import com.google.cloud.dataflow.sdk.values.PObjectValueTuple;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.cloud.dataflow.sdk.values.TypedPValue;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
@@ -52,7 +52,7 @@ import scala.Tuple2;
 import java.util.Map;
 import java.util.logging.Logger;
 
-public class SparkPipelineRunner extends PipelineRunner<SparkPipelineRunner.EvaluationResult> {
+public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
   private static final Logger LOG =
       Logger.getLogger(SparkPipelineRunner.class.getName());
@@ -105,9 +105,6 @@ public class SparkPipelineRunner extends PipelineRunner<SparkPipelineRunner.Eval
     @Override
     public void visitValue(PValue pvalue, TransformTreeNode node) {
     }
-  }
-
-  public static interface EvaluationResult extends PipelineResult {
   }
 
   private static TransformEvaluator<TextIO.Read.Bound> READ_TEXT = new TransformEvaluator<TextIO.Read.Bound>() {
@@ -171,6 +168,15 @@ public class SparkPipelineRunner extends PipelineRunner<SparkPipelineRunner.Eval
     }
   };
 
+  private static TransformEvaluator<Convert.ToIterable> TO_ITER = new TransformEvaluator<Convert.ToIterable>() {
+    @Override
+    public void evaluate(Convert.ToIterable transform, EvaluationContext context) {
+      PCollection<?> in = (PCollection<?>) context.getInput(transform);
+      PObject<?> out = (PObject<?>) context.getOutput(transform);
+      context.setPObjectValue(out, context.get(in));
+    }
+  };
+
   private static TransformEvaluator<ParDo.Bound> PARDO = new TransformEvaluator<ParDo.Bound>() {
     @Override
     public void evaluate(ParDo.Bound transform, EvaluationContext context) {
@@ -209,6 +215,15 @@ public class SparkPipelineRunner extends PipelineRunner<SparkPipelineRunner.Eval
       }
     });
   }
+
+  private static TransformEvaluator<SeqDo.BoundMulti> SEQDO  = new TransformEvaluator<SeqDo.BoundMulti>() {
+    @Override
+    public void evaluate(SeqDo.BoundMulti transform, EvaluationContext context) {
+      PObjectValueTuple inputValues = context.getPObjectTuple(transform);
+      PObjectValueTuple outputValues = transform.getFn().process(inputValues);
+      context.setPObjectTuple(transform, outputValues);
+    }
+  };
 
   private static TransformEvaluator<GroupByKey> GBK = new TransformEvaluator<GroupByKey>() {
     @Override
@@ -257,10 +272,12 @@ public class SparkPipelineRunner extends PipelineRunner<SparkPipelineRunner.Eval
     registerEvaluator(AvroIO.Read.Bound.class, READ_AVRO);
     registerEvaluator(AvroIO.Write.Bound.class, WRITE_AVRO);
     registerEvaluator(ParDo.Bound.class, PARDO);
+    registerEvaluator(SeqDo.BoundMulti.class, SEQDO);
     registerEvaluator(GroupByKey.class, GBK);
     registerEvaluator(Combine.GroupedValues.class, GROUPED);
     registerEvaluator(Flatten.class, FLATTEN);
     registerEvaluator(Create.class, CREATE);
     registerEvaluator(CreatePObject.class, CREATE_POBJ);
+    registerEvaluator(Convert.ToIterable.class, TO_ITER);
   }
 }
