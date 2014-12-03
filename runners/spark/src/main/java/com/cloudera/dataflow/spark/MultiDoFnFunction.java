@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
@@ -38,17 +37,17 @@ import java.util.Map;
 class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleTag<?>, Object> {
 
   private final DoFn<I, O> fn;
+  private final SparkRuntimeContext runtimeContext;
   private final TupleTag<?> mainOutputTag;
   private final Map<TupleTag<?>, BroadcastHelper<?>> sideInputs;
 
-  public MultiDoFnFunction(DoFn<I, O> fn, TupleTag<O> mainOutputTag) {
-    this(fn, mainOutputTag, ImmutableMap.<TupleTag<?>, BroadcastHelper<?>>of());
-  }
-
-  public MultiDoFnFunction(DoFn<I, O> fn,
+  public MultiDoFnFunction(
+      DoFn<I, O> fn,
+      SparkRuntimeContext runtimeContext,
       TupleTag<O> mainOutputTag,
       Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     this.fn = fn;
+    this.runtimeContext = runtimeContext;
     this.mainOutputTag = mainOutputTag;
     this.sideInputs = sideInputs;
   }
@@ -81,7 +80,7 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
 
     @Override
     public PipelineOptions getPipelineOptions() {
-      return null;
+      return runtimeContext.getPipelineOptions();
     }
 
     @Override
@@ -98,14 +97,14 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
     public <AI, AA, AO> Aggregator<AI> createAggregator(
         String named,
         Combine.CombineFn<? super AI, AA, AO> combineFn) {
-      return null;
+      return runtimeContext.createAggregator(named, combineFn);
     }
 
     @Override
     public <AI, AO> Aggregator<AI> createAggregator(
         String named,
         SerializableFunction<Iterable<AI>, AO> sfunc) {
-      return null;
+      return runtimeContext.createAggregator(named, sfunc);
     }
 
     @Override

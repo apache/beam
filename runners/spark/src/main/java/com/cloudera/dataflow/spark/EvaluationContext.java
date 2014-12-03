@@ -39,21 +39,24 @@ import java.util.Map;
 import java.util.Set;
 
 public class EvaluationContext implements EvaluationResult {
-  final JavaSparkContext jsc;
-  final Pipeline pipeline;
-  final Map<PValue, JavaRDDLike> rdds = Maps.newHashMap();
-  final Set<PValue> multireads = Sets.newHashSet();
-  final Map<PObject, Object> pobjects = Maps.newHashMap();
+  private final JavaSparkContext jsc;
+  private final Pipeline pipeline;
+  private final SparkRuntimeContext runtime;
+  private final Map<PValue, JavaRDDLike> rdds = Maps.newHashMap();
+  private final Set<PValue> multireads = Sets.newHashSet();
+  private final Map<PObject, Object> pobjects = Maps.newHashMap();
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
     this.pipeline = pipeline;
+    this.runtime = new SparkRuntimeContext(jsc, pipeline);
   }
 
   JavaSparkContext getSparkContext() {
     return jsc;
   }
   Pipeline getPipeline() { return pipeline; }
+  SparkRuntimeContext getRuntimeContext() { return runtime; }
 
   <I extends PInput> I getInput(PTransform<I, ?> transform) {
     return (I) pipeline.getInput(transform);

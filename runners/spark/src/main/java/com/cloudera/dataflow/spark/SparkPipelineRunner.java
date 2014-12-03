@@ -44,6 +44,7 @@ import com.google.cloud.dataflow.sdk.values.PObjectValueTuple;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
@@ -188,43 +189,42 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     }
   };
 
+  private static Map<TupleTag<?>, BroadcastHelper<?>> getSideInputs(
+      PObjectTuple pot,
+      EvaluationContext context) {
+    if (pot == null || pot.getAll().isEmpty()) {
+      return ImmutableMap.of();
+    } else {
+      Map<TupleTag<?>, BroadcastHelper<?>>sideInputs = Maps.newHashMap();
+      for (Map.Entry<TupleTag<?>, PObject<?>> e : pot.getAll().entrySet()) {
+        sideInputs.put(e.getKey(), context.getBroadcastHelper(e.getValue()));
+      }
+      return sideInputs;
+    }
+  }
+
   private static TransformEvaluator<ParDo.Bound> PARDO = new TransformEvaluator<ParDo.Bound>() {
     @Override
     public void evaluate(ParDo.Bound transform, EvaluationContext context) {
-      JavaRDDLike last = context.getInputRDD(transform);
-      PObjectTuple pot = transform.getSideInputs();
-      DoFnFunction dofn;
-      if (pot == null || pot.getAll().isEmpty()) {
-        dofn = new DoFnFunction(transform.getFn());
-      } else {
-        Map<TupleTag<?>, BroadcastHelper<?>> sideInputs = Maps.newHashMap();
-        for (Map.Entry<TupleTag<?>, PObject<?>> e : pot.getAll().entrySet()) {
-          sideInputs.put(e.getKey(), context.getBroadcastHelper(e.getValue()));
-        }
-        dofn = new DoFnFunction(transform.getFn(), sideInputs);
-      }
-      context.setOutputRDD(transform, last.mapPartitions(dofn));
+      DoFnFunction dofn = new DoFnFunction(transform.getFn(),
+          context.getRuntimeContext(),
+          getSideInputs(transform.getSideInputs(), context));
+      context.setOutputRDD(transform, context.getInputRDD(transform).mapPartitions(dofn));
     }
   };
 
   private static TransformEvaluator<ParDo.BoundMulti> MULTIDO = new TransformEvaluator<ParDo.BoundMulti>() {
     @Override
     public void evaluate(ParDo.BoundMulti transform, EvaluationContext context) {
-      JavaRDDLike last = context.getInputRDD(transform);
-      PObjectTuple pot = transform.getSideInputs();
-      MultiDoFnFunction multifn;
-      if (pot == null || pot.getAll().isEmpty()) {
-        multifn = new MultiDoFnFunction(transform.getFn(), transform.getMainOutputTag());
-      } else {
-        Map<TupleTag<?>, BroadcastHelper<?>> sideInputs = Maps.newHashMap();
-        for (Map.Entry<TupleTag<?>, PObject<?>> e : pot.getAll().entrySet()) {
-          sideInputs.put(e.getKey(), context.getBroadcastHelper(e.getValue()));
-        }
-        multifn = new MultiDoFnFunction(transform.getFn(), transform.getMainOutputTag(), sideInputs);
-      }
+      MultiDoFnFunction multifn = new MultiDoFnFunction(
+          transform.getFn(),
+          context.getRuntimeContext(),
+          transform.getMainOutputTag(),
+          getSideInputs(transform.getSideInputs(), context));
 
-      JavaPairRDD<TupleTag, Object> all = last.mapPartitionsToPair(multifn);
-      all.cache();
+      JavaPairRDD<TupleTag, Object> all = context.getInputRDD(transform)
+          .mapPartitionsToPair(multifn)
+          .cache();
 
       PCollectionTuple pct = (PCollectionTuple) context.getOutput(transform);
       for (Map.Entry<TupleTag<?>, PCollection<?>> e : pct.getAll().entrySet()) {

@@ -35,14 +35,15 @@ import java.util.Map;
 class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
   private final DoFn<I, O> fn;
+  private final SparkRuntimeContext runtimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> sideInputs;
 
-  public DoFnFunction(DoFn<I, O> fn) {
-    this(fn, ImmutableMap.<TupleTag<?>, BroadcastHelper<?>>of());
-  }
-
-  public DoFnFunction(DoFn<I, O> fn, Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
+  public DoFnFunction(
+      DoFn<I, O> fn,
+      SparkRuntimeContext runtime,
+      Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     this.fn = fn;
+    this.runtimeContext = runtime;
     this.sideInputs = sideInputs;
   }
 
@@ -69,7 +70,7 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public PipelineOptions getPipelineOptions() {
-      return null;
+      return runtimeContext.getPipelineOptions();
     }
 
     @Override

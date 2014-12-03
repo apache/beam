@@ -39,40 +39,49 @@ public class WordCountTest {
 
   /** A DoFn that tokenizes lines of text into individual words. */
   static class ExtractWordsFn extends DoFn<String, String> {
-
-    private TupleTag<String> regex;
-
-    public ExtractWordsFn(TupleTag<String> regex) {
-      this.regex = regex;
-    }
     @Override
     public void processElement(ProcessContext c) {
       String[] words = c.element().split(c.sideInput(regex));
       for (String word : words) {
         if (!word.isEmpty()) {
+          if (Character.isLowerCase(word.charAt(0)))
           c.output(word);
+        } else {
+          c.sideOutput(upper, word);
         }
       }
     }
   }
 
+  static TupleTag<String> regex = new TupleTag<>();
+  static TupleTag<String> upper = new TupleTag<>();
+  static TupleTag<String> lower = new TupleTag<>();
+  static TupleTag<KV<String, Long>> lowerCnts = new TupleTag<>();
+  static TupleTag<KV<String, Long>> upperCnts = new TupleTag<>();
+
   public static class CountWords extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
 
-    private final PObject<String> regex;
+    private final PObject<String> regexObj;
 
-    public CountWords(PObject<String> regex) {
-      this.regex = regex;
+    public CountWords(PObject<String> regexObj) {
+      this.regexObj = regexObj;
     }
 
     @Override
     public PCollection<KV<String, Long>> apply(PCollection<String> lines) {
       // Convert lines of text into individual words.
-      TupleTag<String> tag = new TupleTag<String>();
-      PCollection<String> words = lines.apply(
-          ParDo.of(new ExtractWordsFn(tag))
-          .withSideInputs(PObjectTuple.of(tag, regex)));
-      // Count the number of times each word occurs.
-      return words.apply(Count.<String>create());
+     return lines
+         .apply(ParDo.of(new ExtractWordsFn())
+                .withSideInputs(PObjectTuple.of(regex, regexObj)))
+         .apply(Count.<String>create());
+              //.withOutputTags(lower, TupleTagList.of(upper)));
+      /*
+      PCollection<KV<String, Long>> lowerCounts = lowerUpper.get(lower).apply(Count.<String>create());
+      PCollection<KV<String, Long>> upperCounts = lowerUpper.get(upper).apply(Count.<String>create());
+      return PCollectionTuple
+          .of(lowerCnts, lowerCounts)
+          .and(upperCnts, upperCounts);
+          */
     }
   }
 
@@ -80,16 +89,16 @@ public class WordCountTest {
   public void testRun() throws Exception {
     Pipeline p = Pipeline.create(new PipelineOptions());
     PObject<String> regex = p.apply(CreatePObject.of("[^a-zA-Z']+"));
-    PCollection<String> w1 = p.apply(Create.of("Here are some words to count"));
-    PCollection<String> w2 = p.apply(Create.of("Here are some more words"));
+    PCollection<String> w1 = p.apply(Create.of("Here are some words to count", "and some others"));
+    PCollection<String> w2 = p.apply(Create.of("Here are some more words", "and even more words"));
     PCollectionList<String> list = PCollectionList.of(w1).and(w2);
 
     PCollection<String> union = list.apply(Flatten.<String>create());
-    PCollection<KV<String, Long>> counts = union.apply(new CountWords(regex));
-    PObject<Long> unique = counts.apply(ApproximateUnique.<KV<String, Long>>globally(16));
+    PCollection<KV<String, Long>> lowerCounts = union.apply(new CountWords(regex));
+    PObject<Long> unique = lowerCounts.apply(ApproximateUnique.<KV<String, Long>>globally(16));
 
     EvaluationResult res = new SparkPipelineRunner("local[2]").run(p);
-    System.out.println(res.get(counts));
+    System.out.println(res.get(lowerCounts));
     System.out.println(res.get(unique));
   }
 }
