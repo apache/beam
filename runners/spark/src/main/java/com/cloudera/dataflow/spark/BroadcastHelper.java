@@ -43,10 +43,9 @@ class BroadcastHelper<T> implements Serializable {
 
   private T deserialize() {
     try {
-      coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
+      return coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
     } catch (IOException e) {
       throw new RuntimeException("Error deserializing broadcast variable", e);
     }
-    return null;
   }
 }

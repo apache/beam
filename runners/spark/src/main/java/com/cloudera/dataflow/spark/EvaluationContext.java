@@ -43,7 +43,7 @@ public class EvaluationContext implements EvaluationResult {
   final Pipeline pipeline;
   final Map<PValue, JavaRDDLike> rdds = Maps.newHashMap();
   final Set<PValue> multireads = Sets.newHashSet();
-  final Map<PObject, Object> localPObjects = Maps.newHashMap();
+  final Map<PObject, Object> pobjects = Maps.newHashMap();
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
@@ -68,7 +68,7 @@ public class EvaluationContext implements EvaluationResult {
   }
 
   void setPObjectValue(PObject pobj, Object value) {
-    localPObjects.put(pobj, value);
+    pobjects.put(pobj, value);
   }
 
   JavaRDDLike getRDD(PValue pvalue) {
@@ -98,13 +98,13 @@ public class EvaluationContext implements EvaluationResult {
 
   @Override
   public <T> T get(PObject<T> value) {
-    if (localPObjects.containsKey(value)) {
-      return (T) localPObjects.get(value);
+    if (pobjects.containsKey(value)) {
+      return (T) pobjects.get(value);
     } else if (rdds.containsKey(value)) {
       JavaRDDLike rdd = rdds.get(value);
       //TODO: probably some work to do here
       T res = (T) Iterables.getOnlyElement(rdd.collect());
-      localPObjects.put(value, res);
+      pobjects.put(value, res);
       return res;
     }
     throw new IllegalStateException("Cannot resolve un-known PObject: " + value);
