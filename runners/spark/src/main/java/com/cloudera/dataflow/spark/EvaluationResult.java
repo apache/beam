@@ -24,4 +24,5 @@ import com.google.cloud.dataflow.sdk.values.PObject;
 public interface EvaluationResult extends PipelineResult {
   <T> Iterable<T> get(PCollection<T> pcollection);
   <T> T get(PObject<T> pobject);
+  <T> T getAggregatorValue(String named, Class<T> resultType);
 }

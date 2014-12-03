@@ -87,14 +87,14 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     public <AI, AA, AO> Aggregator<AI> createAggregator(
         String named,
         Combine.CombineFn<? super AI, AA, AO> combineFn) {
-      return null;
+      return runtimeContext.createAggregator(named, combineFn);
     }
 
     @Override
     public <AI, AO> Aggregator<AI> createAggregator(
         String named,
         SerializableFunction<Iterable<AI>, AO> sfunc) {
-      return null;
+      return runtimeContext.createAggregator(named, sfunc);
     }
 
     @Override

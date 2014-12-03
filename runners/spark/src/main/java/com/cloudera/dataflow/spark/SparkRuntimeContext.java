@@ -47,6 +47,10 @@ class SparkRuntimeContext implements Serializable {
     this.accum = jsc.accumulator(new Agg(), new AggAccumParam());
   }
 
+  public <T> T getAggregatorValue(String named, Class<T> typeClass) {
+    return accum.value().getValue(named, typeClass);
+  }
+
   private static String optionsToJson(PipelineOptions options) {
     try {
       return createMapper().writeValueAsString(options);

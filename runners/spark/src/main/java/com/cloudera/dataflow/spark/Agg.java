@@ -43,6 +43,10 @@ public class Agg implements Serializable {
     this.states.put(named, state);
   }
 
+  public <T> T getValue(String named, Class<T> typeClass) {
+    return typeClass.cast(states.get(named).render());
+  }
+
   public Agg merge(Agg other) {
     for (Map.Entry<String, State> e : other.states.entrySet()) {
       State cur = states.get(e.getKey());
@@ -103,6 +107,7 @@ public class Agg implements Serializable {
 
     public SerState(SerializableFunction<Iterable<VI>, VO> sfunc) {
       this.sfunc = sfunc;
+      this.state = sfunc.apply(ImmutableList.<VI>of());
     }
 
     @Override

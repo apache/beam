@@ -19,14 +19,17 @@ package com.cloudera.dataflow.spark;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.ApproximateUnique;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.CreatePObject;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
+import com.google.cloud.dataflow.sdk.transforms.Max;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
@@ -39,11 +42,25 @@ public class WordCountTest {
 
   /** A DoFn that tokenizes lines of text into individual words. */
   static class ExtractWordsFn extends DoFn<String, String> {
+
+    Aggregator<Integer> totalWords;
+    Aggregator<Integer> maxWordLength;
+
+    @Override
+    public void startBatch(Context ctxt) {
+      this.totalWords = ctxt.createAggregator("totalWords",
+          new Sum.SumIntegerFn());
+      this.maxWordLength = ctxt.createAggregator("maxWordLength",
+          new Max.MaxIntegerFn());
+    }
+
     @Override
     public void processElement(ProcessContext c) {
       String[] words = c.element().split(c.sideInput(regex));
       for (String word : words) {
+        totalWords.addValue(1);
         if (!word.isEmpty()) {
+          maxWordLength.addValue(word.length());
           if (Character.isLowerCase(word.charAt(0)))
           c.output(word);
         } else {
@@ -72,7 +89,7 @@ public class WordCountTest {
       // Convert lines of text into individual words.
      return lines
          .apply(ParDo.of(new ExtractWordsFn())
-                .withSideInputs(PObjectTuple.of(regex, regexObj)))
+             .withSideInputs(PObjectTuple.of(regex, regexObj)))
          .apply(Count.<String>create());
               //.withOutputTags(lower, TupleTagList.of(upper)));
       /*
@@ -100,5 +117,7 @@ public class WordCountTest {
     EvaluationResult res = new SparkPipelineRunner("local[2]").run(p);
     System.out.println(res.get(lowerCounts));
     System.out.println(res.get(unique));
+    System.out.println(res.getAggregatorValue("totalWords", Integer.class));
+    System.out.println(res.getAggregatorValue("maxWordLength", Integer.class));
   }
 }

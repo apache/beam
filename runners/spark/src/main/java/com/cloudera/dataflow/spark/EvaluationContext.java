@@ -114,6 +114,11 @@ public class EvaluationContext implements EvaluationResult {
   }
 
   @Override
+  public <T> T getAggregatorValue(String named, Class<T> resultType) {
+    return runtime.getAggregatorValue(named, resultType);
+  }
+
+  @Override
   public <T> Iterable<T> get(PCollection<T> pcollection) {
     return getRDD(pcollection).collect();
   }
