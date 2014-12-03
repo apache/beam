@@ -22,6 +22,8 @@ import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.common.collect.ImmutableMap;
+import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.codehaus.jackson.map.DeserializationConfig;
@@ -30,14 +32,19 @@ import org.codehaus.jackson.map.SerializationConfig;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 class SparkRuntimeContext implements Serializable {
 
   private transient PipelineOptions pipelineOptions;
   private Broadcast<String> jsonOptions;
+  private Accumulator<Agg> accum;
+  private Map<String, Aggregator> aggregators = new HashMap<>();
 
   public SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsonOptions = jsc.broadcast(optionsToJson(pipeline.getOptions()));
+    this.accum = jsc.accumulator(new Agg(), new AggAccumParam());
   }
 
   private static String optionsToJson(PipelineOptions options) {
@@ -52,16 +59,30 @@ class SparkRuntimeContext implements Serializable {
     return null;
   }
 
-  public <AI, AO> Aggregator<AI> createAggregator(
+  public synchronized <AI, AO> Aggregator<AI> createAggregator(
       String named,
       SerializableFunction<Iterable<AI>, AO> sfunc) {
-    return null;
+    Aggregator aggregator = aggregators.get(named);
+    if (aggregator == null) {
+      Agg.SerState<AI, AO> state = new Agg.SerState<>(sfunc);
+      accum.add(new Agg(named, state));
+      aggregator = new SparkAggregator(state);
+      aggregators.put(named, aggregator);
+    }
+    return aggregator;
   }
 
-  public <AI, AA, AO> Aggregator<AI> createAggregator(
+  public synchronized <AI, AA, AO> Aggregator<AI> createAggregator(
       String named,
       Combine.CombineFn<? super AI, AA, AO> combineFn) {
-    return null;
+    Aggregator aggregator = aggregators.get(named);
+    if (aggregator == null) {
+      Agg.CombineState<? super AI, AA, AO> state = new Agg.CombineState<>(combineFn);
+      accum.add(new Agg(named, state));
+      aggregator = new SparkAggregator(state);
+      aggregators.put(named, aggregator);
+    }
+    return aggregator;
   }
 
   private static ObjectMapper createMapper() {
@@ -69,5 +90,18 @@ class SparkRuntimeContext implements Serializable {
     mapper.configure(SerializationConfig.Feature.FAIL_ON_EMPTY_BEANS, false);
     mapper.configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     return mapper;
+  }
+
+  private static class SparkAggregator<VI> implements Aggregator<VI> {
+    private final Agg.State<VI, ?, ?> state;
+
+    public SparkAggregator(Agg.State<VI, ?, ?> state) {
+      this.state = state;
+    }
+
+    @Override
+    public void addValue(VI vi) {
+      state.update(vi);
+    }
   }
 }
