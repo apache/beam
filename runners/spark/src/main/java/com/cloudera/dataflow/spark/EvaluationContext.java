@@ -20,7 +20,6 @@ package com.cloudera.dataflow.spark;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.SeqDo;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.PObject;
@@ -46,8 +45,8 @@ public class EvaluationContext implements EvaluationResult {
   final Set<PValue> multireads = Sets.newHashSet();
   final Map<PObject, Object> localPObjects = Maps.newHashMap();
 
-  public EvaluationContext(String master, Pipeline pipeline) {
-    this.jsc = new JavaSparkContext(master, "dataflow");
+  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
+    this.jsc = jsc;
     this.pipeline = pipeline;
   }
 
@@ -56,12 +55,12 @@ public class EvaluationContext implements EvaluationResult {
   }
   Pipeline getPipeline() { return pipeline; }
 
-  PInput getInput(PTransform transform) {
-    return pipeline.getInput(transform);
+  <I extends PInput> I getInput(PTransform<I, ?> transform) {
+    return (I) pipeline.getInput(transform);
   }
 
-  POutput getOutput(PTransform transform) {
-    return pipeline.getOutput(transform);
+  <O extends POutput> O getOutput(PTransform<?, O> transform) {
+    return (O) pipeline.getOutput(transform);
   }
 
   void setOutputRDD(PTransform transform, JavaRDDLike rdd) {
@@ -81,6 +80,10 @@ public class EvaluationContext implements EvaluationResult {
       multireads.add(pvalue);
     }
     return rdd;
+  }
+
+  void setRDD(PValue pvalue, JavaRDDLike rdd) {
+    rdds.put(pvalue, rdd);
   }
 
   JavaRDDLike getInputRDD(PTransform transform) {

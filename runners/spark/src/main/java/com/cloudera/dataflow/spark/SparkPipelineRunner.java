@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -36,6 +37,7 @@ import com.google.cloud.dataflow.sdk.transforms.SeqDo;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PObject;
 import com.google.cloud.dataflow.sdk.values.PObjectTuple;
 import com.google.cloud.dataflow.sdk.values.PObjectValueTuple;
@@ -45,8 +47,12 @@ import com.google.common.base.Preconditions;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
+import scala.Function1;
+import scala.Option;
+import scala.PartialFunction;
 import scala.Tuple2;
 
 import java.util.Map;
@@ -69,12 +75,17 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
   @Override
   public EvaluationResult run(Pipeline pipeline) {
-    EvaluationContext ctxt = new EvaluationContext(this.master, pipeline);
+    JavaSparkContext jsc = getContextFromOptions(pipeline.getOptions());
+    EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
     pipeline.traverseTopologically(new Evaluator(ctxt));
     return ctxt;
   }
 
-  private class Evaluator implements Pipeline.PipelineVisitor {
+  private JavaSparkContext getContextFromOptions(PipelineOptions options) {
+    return new JavaSparkContext(master, options.getJobNameOrDefault());
+  }
+
+  private static class Evaluator implements Pipeline.PipelineVisitor {
 
     private final EvaluationContext ctxt;
 
@@ -196,6 +207,56 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     }
   };
 
+  private static TransformEvaluator<ParDo.BoundMulti> MULTIDO = new TransformEvaluator<ParDo.BoundMulti>() {
+    @Override
+    public void evaluate(ParDo.BoundMulti transform, EvaluationContext context) {
+      JavaRDDLike last = context.getInputRDD(transform);
+      PObjectTuple pot = transform.getSideInputs();
+      MultiDoFnFunction multifn;
+      if (pot == null || pot.getAll().isEmpty()) {
+        multifn = new MultiDoFnFunction(transform.getFn(), transform.getMainOutputTag());
+      } else {
+        Map<TupleTag<?>, BroadcastHelper<?>> sideInputs = Maps.newHashMap();
+        for (Map.Entry<TupleTag<?>, PObject<?>> e : pot.getAll().entrySet()) {
+          sideInputs.put(e.getKey(), context.getBroadcastHelper(e.getValue()));
+        }
+        multifn = new MultiDoFnFunction(transform.getFn(), transform.getMainOutputTag(), sideInputs);
+      }
+
+      JavaPairRDD<TupleTag, Object> all = last.mapPartitionsToPair(multifn);
+      all.cache();
+
+      PCollectionTuple pct = (PCollectionTuple) context.getOutput(transform);
+      for (Map.Entry<TupleTag<?>, PCollection<?>> e : pct.getAll().entrySet()) {
+        TupleTagFilter filter = new TupleTagFilter(e.getKey());
+        JavaPairRDD<TupleTag, Object> filtered = all.filter(filter);
+        context.setRDD(e.getValue(), filtered.values());
+      }
+    }
+  };
+
+  private static class TupleTagFilter implements Function<Tuple2<TupleTag, Object>, Boolean> {
+    private TupleTag tag;
+
+    public TupleTagFilter(TupleTag tag) {
+      this.tag = tag;
+    }
+
+    @Override
+    public Boolean call(Tuple2<TupleTag, Object> input) throws Exception {
+      return tag.equals(input._1());
+    }
+  }
+
+  private static TransformEvaluator<SeqDo.BoundMulti> SEQDO = new TransformEvaluator<SeqDo.BoundMulti>() {
+    @Override
+    public void evaluate(SeqDo.BoundMulti transform, EvaluationContext context) {
+      PObjectValueTuple inputValues = context.getPObjectTuple(transform);
+      PObjectValueTuple outputValues = transform.getFn().process(inputValues);
+      context.setPObjectTuple(transform, outputValues);
+    }
+  };
+
   private static JavaPairRDD toPair(JavaRDDLike rdd) {
     return rdd.mapToPair(new PairFunction() {
       @Override
@@ -215,15 +276,6 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
       }
     });
   }
-
-  private static TransformEvaluator<SeqDo.BoundMulti> SEQDO  = new TransformEvaluator<SeqDo.BoundMulti>() {
-    @Override
-    public void evaluate(SeqDo.BoundMulti transform, EvaluationContext context) {
-      PObjectValueTuple inputValues = context.getPObjectTuple(transform);
-      PObjectValueTuple outputValues = transform.getFn().process(inputValues);
-      context.setPObjectTuple(transform, outputValues);
-    }
-  };
 
   private static TransformEvaluator<GroupByKey> GBK = new TransformEvaluator<GroupByKey>() {
     @Override
@@ -272,6 +324,7 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     registerEvaluator(AvroIO.Read.Bound.class, READ_AVRO);
     registerEvaluator(AvroIO.Write.Bound.class, WRITE_AVRO);
     registerEvaluator(ParDo.Bound.class, PARDO);
+    registerEvaluator(ParDo.BoundMulti.class, MULTIDO);
     registerEvaluator(SeqDo.BoundMulti.class, SEQDO);
     registerEvaluator(GroupByKey.class, GBK);
     registerEvaluator(Combine.GroupedValues.class, GROUPED);

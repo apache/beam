@@ -24,30 +24,37 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
-import org.apache.spark.api.java.function.FlatMapFunction;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.LinkedListMultimap;
+import com.google.common.collect.Multimap;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
+import scala.Tuple2;
 
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
-class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
+class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleTag<?>, Object> {
 
   private final DoFn<I, O> fn;
+  private final TupleTag<?> mainOutputTag;
   private final Map<TupleTag<?>, BroadcastHelper<?>> sideInputs;
 
-  public DoFnFunction(DoFn<I, O> fn) {
-    this(fn, ImmutableMap.<TupleTag<?>, BroadcastHelper<?>>of());
+  public MultiDoFnFunction(DoFn<I, O> fn, TupleTag<O> mainOutputTag) {
+    this(fn, mainOutputTag, ImmutableMap.<TupleTag<?>, BroadcastHelper<?>>of());
   }
 
-  public DoFnFunction(DoFn<I, O> fn, Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
+  public MultiDoFnFunction(DoFn<I, O> fn,
+      TupleTag<O> mainOutputTag,
+      Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     this.fn = fn;
+    this.mainOutputTag = mainOutputTag;
     this.sideInputs = sideInputs;
   }
 
   @Override
-  public Iterable<O> call(Iterator<I> iter) throws Exception {
+  public Iterable<Tuple2<TupleTag<?>, Object>> call(Iterator<I> iter) throws Exception {
     ProcCtxt<I, O> ctxt = new ProcCtxt(fn);
     fn.startBatch(ctxt);
     while (iter.hasNext()) {
@@ -55,12 +62,17 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
       fn.processElement(ctxt);
     }
     fn.finishBatch(ctxt);
-    return ctxt.outputs;
+    return Iterables.transform(ctxt.outputs.entries(),
+        new Function<Map.Entry<TupleTag<?>, Object>, Tuple2<TupleTag<?>, Object>>() {
+          public Tuple2<TupleTag<?>, Object> apply(Map.Entry<TupleTag<?>, Object> input) {
+            return new Tuple2<TupleTag<?>, Object>(input.getKey(), input.getValue());
+          }
+        });
   }
 
   private class ProcCtxt<I, O> extends DoFn<I, O>.ProcessContext {
 
-    private List<O> outputs = new LinkedList<>();
+    private Multimap<TupleTag<?>, Object> outputs = LinkedListMultimap.create();
     private I element;
 
     public ProcCtxt(DoFn<I, O> fn) {
@@ -74,12 +86,12 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public synchronized void output(O o) {
-      outputs.add(o);
+      outputs.put(mainOutputTag, o);
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
-      // A no-op if we don't know about it ahead of time
+    public synchronized <T> void sideOutput(TupleTag<T> tag, T t) {
+      outputs.put(tag, t);
     }
 
     @Override
