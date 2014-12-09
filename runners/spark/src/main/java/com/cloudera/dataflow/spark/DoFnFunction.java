@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.collect.ImmutableList;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.joda.time.Instant;
 
@@ -116,16 +117,17 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public void outputWithTimestamp(O output, Instant timestamp) {
+      output(output);
     }
 
     @Override
     public Instant timestamp() {
-      return null;
+      return Instant.now();
     }
 
     @Override
     public Collection<? extends BoundedWindow> windows() {
-      return null;
+      return ImmutableList.of();
     }
   }
 }

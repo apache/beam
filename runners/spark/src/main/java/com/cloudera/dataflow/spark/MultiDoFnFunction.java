@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
@@ -127,16 +128,17 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
 
     @Override
     public void outputWithTimestamp(O output, Instant timestamp) {
+      output(output);
     }
 
     @Override
     public Instant timestamp() {
-      return null;
+      return Instant.now();
     }
 
     @Override
     public Collection<? extends BoundedWindow> windows() {
-      return null;
+      return ImmutableList.of();
     }
   }
 }
