@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.values.PObjectValueTuple;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -35,6 +36,8 @@ import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 
+import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -105,7 +108,7 @@ public class EvaluationContext implements EvaluationResult {
       return (T) pobjects.get(value);
     } else if (rdds.containsKey(value)) {
       JavaRDDLike rdd = rdds.get(value);
-      //TODO: probably some work to do here
+      //TODO: need same logic from get() method below here for serialization of bytes
       T res = (T) Iterables.getOnlyElement(rdd.collect());
       pobjects.put(value, res);
       return res;
@@ -120,7 +123,15 @@ public class EvaluationContext implements EvaluationResult {
 
   @Override
   public <T> Iterable<T> get(PCollection<T> pcollection) {
-    return getRDD(pcollection).collect();
+    JavaRDDLike rdd = getRDD(pcollection);
+    final Coder coder = pcollection.getCoder();
+    JavaRDDLike bytes = rdd.map(CoderHelpers.toByteFunction(coder));
+    List clientBytes = bytes.collect();
+    return Iterables.transform(clientBytes, new Function<byte[], T>() {
+      public T apply(byte[] bytes) {
+        return (T) CoderHelpers.fromByteArray(bytes, coder);
+      }
+    });
   }
 
   PObjectValueTuple getPObjectTuple(PTransform transform) {

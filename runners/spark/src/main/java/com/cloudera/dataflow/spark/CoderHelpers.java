@@ -18,15 +18,12 @@
 package com.cloudera.dataflow.spark;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import org.apache.spark.api.java.function.Function;
 
-import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 
 public class CoderHelpers {
