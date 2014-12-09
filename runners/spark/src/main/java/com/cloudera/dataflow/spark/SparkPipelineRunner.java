@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -34,28 +34,28 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.SeqDo;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PObject;
-import com.google.cloud.dataflow.sdk.values.PObjectTuple;
 import com.google.cloud.dataflow.sdk.values.PObjectValueTuple;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
-import scala.Function1;
-import scala.Option;
-import scala.PartialFunction;
 import scala.Tuple2;
 
+import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -83,7 +83,7 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
   }
 
   private JavaSparkContext getContextFromOptions(PipelineOptions options) {
-    return new JavaSparkContext(master, options.getJobNameOrDefault());
+    return new JavaSparkContext(master, options.getJobName());
   }
 
   private static class Evaluator implements Pipeline.PipelineVisitor {
@@ -116,6 +116,30 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
     @Override
     public void visitValue(PValue pvalue, TransformTreeNode node) {
+    }
+  }
+
+  private static class FieldGetter {
+    private Map<String, Field> fields;
+
+    public FieldGetter(Class<?> clazz) {
+      this.fields = Maps.newHashMap();
+      for (Field f : clazz.getDeclaredFields()) {
+        try {
+          f.setAccessible(true);
+          this.fields.put(f.getName(), f);
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+
+    public <T> T get(String fieldname, Object value) {
+      try {
+        return (T) fields.get(fieldname).get(value);
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
@@ -189,15 +213,31 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     }
   };
 
+  private static TransformEvaluator<Convert.ToIterableWindowedValue> TO_ITER_WIN =
+      new TransformEvaluator<Convert.ToIterableWindowedValue>() {
+    @Override
+    public void evaluate(Convert.ToIterableWindowedValue transform, EvaluationContext context) {
+      PCollection<?> in = (PCollection<?>) context.getInput(transform);
+      PObject<?> out = (PObject<?>) context.getOutput(transform);
+      context.setPObjectValue(out, Iterables.transform(context.get(in),
+          new com.google.common.base.Function<Object, WindowedValue>() {
+            @Override
+            public WindowedValue apply(Object o) {
+              return WindowedValue.valueInGlobalWindow(o);
+            }
+          }));
+    }
+  };
+
   private static Map<TupleTag<?>, BroadcastHelper<?>> getSideInputs(
-      PObjectTuple pot,
+      Iterable<PCollectionView<?, ?>> views,
       EvaluationContext context) {
-    if (pot == null || pot.getAll().isEmpty()) {
+    if (views == null) {
       return ImmutableMap.of();
     } else {
       Map<TupleTag<?>, BroadcastHelper<?>>sideInputs = Maps.newHashMap();
-      for (Map.Entry<TupleTag<?>, PObject<?>> e : pot.getAll().entrySet()) {
-        sideInputs.put(e.getKey(), context.getBroadcastHelper(e.getValue()));
+      for (PCollectionView<?, ?> view : views) {
+        sideInputs.put(view.getTagInternal(), context.getBroadcastHelper(view.getPObjectInternal()));
       }
       return sideInputs;
     }
@@ -213,13 +253,14 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     }
   };
 
+  private static FieldGetter MULTIDO_FG = new FieldGetter(ParDo.BoundMulti.class);
   private static TransformEvaluator<ParDo.BoundMulti> MULTIDO = new TransformEvaluator<ParDo.BoundMulti>() {
     @Override
     public void evaluate(ParDo.BoundMulti transform, EvaluationContext context) {
       MultiDoFnFunction multifn = new MultiDoFnFunction(
           transform.getFn(),
           context.getRuntimeContext(),
-          transform.getMainOutputTag(),
+          (TupleTag) MULTIDO_FG.get("mainOutputTag", transform),
           getSideInputs(transform.getSideInputs(), context));
 
       JavaPairRDD<TupleTag, Object> all = context.getInputRDD(transform)
@@ -277,17 +318,18 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     });
   }
 
-  private static TransformEvaluator<GroupByKey> GBK = new TransformEvaluator<GroupByKey>() {
+  private static TransformEvaluator<GroupByKey.GroupByKeyOnly> GBK = new TransformEvaluator<GroupByKey.GroupByKeyOnly>() {
     @Override
-    public void evaluate(GroupByKey transform, EvaluationContext context) {
+    public void evaluate(GroupByKey.GroupByKeyOnly transform, EvaluationContext context) {
       context.setOutputRDD(transform, fromPair(toPair(context.getInputRDD(transform)).groupByKey()));
     }
   };
 
+  private static FieldGetter GROUPED_FG = new FieldGetter(Combine.GroupedValues.class);
   private static TransformEvaluator<Combine.GroupedValues> GROUPED = new TransformEvaluator<Combine.GroupedValues>() {
     @Override
     public void evaluate(Combine.GroupedValues transform, EvaluationContext context) {
-      final Combine.KeyedCombineFn keyed = transform.getFn();
+      final Combine.KeyedCombineFn keyed = GROUPED_FG.get("fn", transform);
       context.setOutputRDD(transform, context.getInputRDD(transform).map(new Function() {
         @Override
         public Object call(Object input) throws Exception {
@@ -326,11 +368,12 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     registerEvaluator(ParDo.Bound.class, PARDO);
     registerEvaluator(ParDo.BoundMulti.class, MULTIDO);
     registerEvaluator(SeqDo.BoundMulti.class, SEQDO);
-    registerEvaluator(GroupByKey.class, GBK);
+    registerEvaluator(GroupByKey.GroupByKeyOnly.class, GBK);
     registerEvaluator(Combine.GroupedValues.class, GROUPED);
     registerEvaluator(Flatten.class, FLATTEN);
     registerEvaluator(Create.class, CREATE);
     registerEvaluator(CreatePObject.class, CREATE_POBJ);
     registerEvaluator(Convert.ToIterable.class, TO_ITER);
+    registerEvaluator(Convert.ToIterableWindowedValue.class, TO_ITER_WIN);
   }
 }

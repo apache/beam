@@ -70,9 +70,9 @@ public class EvaluationContext implements EvaluationResult {
     rdds.put((PValue) getOutput(transform), rdd);
   }
 
-  void setPObjectValue(PObject pobj, Object value) {
-    pobjects.put(pobj, value);
-  }
+ void setPObjectValue(PObject pobject, Object value) {
+   pobjects.put(pobject, value);
+ }
 
   JavaRDDLike getRDD(PValue pvalue) {
     JavaRDDLike rdd = rdds.get(pvalue);
@@ -135,7 +135,7 @@ public class EvaluationContext implements EvaluationResult {
   void setPObjectTuple(PTransform transform, PObjectValueTuple outputValues) {
     PObjectTuple pot = (PObjectTuple) pipeline.getOutput(transform);
     for (Map.Entry<TupleTag<?>, PObject<?>> e : pot.getAll().entrySet()) {
-      setPObjectValue(e.getValue(), outputValues.get(e.getKey()));
+      pobjects.put(e.getValue(), outputValues.get(e.getKey()));
     }
   }
 }

@@ -18,12 +18,12 @@
 package com.cloudera.dataflow.spark;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.ApproximateUnique;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.CreatePObject;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.Max;
@@ -33,10 +33,14 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
-import com.google.cloud.dataflow.sdk.values.PObject;
-import com.google.cloud.dataflow.sdk.values.PObjectTuple;
+import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.SingletonPCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import org.junit.Test;
+
+import java.util.List;
 
 public class WordCountTest {
 
@@ -45,9 +49,13 @@ public class WordCountTest {
 
     Aggregator<Integer> totalWords;
     Aggregator<Integer> maxWordLength;
+    PCollectionView<String, ?> regex;
 
+    public ExtractWordsFn(PCollectionView<String, ?> regex) {
+      this.regex = regex;
+    }
     @Override
-    public void startBatch(Context ctxt) {
+    public void startBundle(Context ctxt) {
       this.totalWords = ctxt.createAggregator("totalWords",
           new Sum.SumIntegerFn());
       this.maxWordLength = ctxt.createAggregator("maxWordLength",
@@ -61,62 +69,65 @@ public class WordCountTest {
         totalWords.addValue(1);
         if (!word.isEmpty()) {
           maxWordLength.addValue(word.length());
-          if (Character.isLowerCase(word.charAt(0)))
-          c.output(word);
-        } else {
-          c.sideOutput(upper, word);
+          if (Character.isLowerCase(word.charAt(0))) {
+            c.output(word);
+          } else {
+            c.sideOutput(upper, word);
+          }
         }
       }
     }
   }
 
-  static TupleTag<String> regex = new TupleTag<>();
   static TupleTag<String> upper = new TupleTag<>();
   static TupleTag<String> lower = new TupleTag<>();
   static TupleTag<KV<String, Long>> lowerCnts = new TupleTag<>();
   static TupleTag<KV<String, Long>> upperCnts = new TupleTag<>();
 
-  public static class CountWords extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
+  public static class CountWords extends PTransform<PCollection<String>, PCollectionTuple> {
 
-    private final PObject<String> regexObj;
+    private final PCollectionView<String, ?> regex;
 
-    public CountWords(PObject<String> regexObj) {
-      this.regexObj = regexObj;
+    public CountWords(PCollectionView<String, ?> regex) {
+      this.regex = regex;
     }
 
     @Override
-    public PCollection<KV<String, Long>> apply(PCollection<String> lines) {
+    public PCollectionTuple apply(PCollection<String> lines) {
       // Convert lines of text into individual words.
-     return lines
-         .apply(ParDo.of(new ExtractWordsFn())
-             .withSideInputs(PObjectTuple.of(regex, regexObj)))
-         .apply(Count.<String>create());
-              //.withOutputTags(lower, TupleTagList.of(upper)));
-      /*
-      PCollection<KV<String, Long>> lowerCounts = lowerUpper.get(lower).apply(Count.<String>create());
-      PCollection<KV<String, Long>> upperCounts = lowerUpper.get(upper).apply(Count.<String>create());
+     PCollectionTuple lowerUpper = lines
+         .apply(ParDo.of(new ExtractWordsFn(regex))
+             .withSideInputs(regex)
+             .withOutputTags(lower, TupleTagList.of(upper)));
+      lowerUpper.get(lower).setCoder(StringUtf8Coder.of());
+      lowerUpper.get(upper).setCoder(StringUtf8Coder.of());
+      PCollection<KV<String, Long>> lowerCounts = lowerUpper.get(lower).apply(Count.<String>perElement());
+      PCollection<KV<String, Long>> upperCounts = lowerUpper.get(upper).apply(Count.<String>perElement());
       return PCollectionTuple
           .of(lowerCnts, lowerCounts)
           .and(upperCnts, upperCounts);
-          */
     }
   }
 
   @Test
   public void testRun() throws Exception {
-    Pipeline p = Pipeline.create(new PipelineOptions());
-    PObject<String> regex = p.apply(CreatePObject.of("[^a-zA-Z']+"));
+    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+    PCollection<String> regex = p.apply(Create.of("[^a-zA-Z']+"));
     PCollection<String> w1 = p.apply(Create.of("Here are some words to count", "and some others"));
     PCollection<String> w2 = p.apply(Create.of("Here are some more words", "and even more words"));
     PCollectionList<String> list = PCollectionList.of(w1).and(w2);
 
     PCollection<String> union = list.apply(Flatten.<String>create());
-    PCollection<KV<String, Long>> lowerCounts = union.apply(new CountWords(regex));
-    PObject<Long> unique = lowerCounts.apply(ApproximateUnique.<KV<String, Long>>globally(16));
+    PCollectionTuple luc = union.apply(new CountWords(SingletonPCollectionView.of(regex)));
+    PCollection<Long> unique = luc.get(lowerCnts).apply(ApproximateUnique.<KV<String, Long>>globally(16));
 
     EvaluationResult res = new SparkPipelineRunner("local[2]").run(p);
-    System.out.println(res.get(lowerCounts));
-    System.out.println(res.get(unique));
+    Iterable<KV<String, Long>> lower = res.get(luc.get(lowerCnts));
+    Iterable<KV<String, Long>> upper = res.get(luc.get(upperCnts));
+    Iterable<Long> uniqCount = res.get(unique);
+    System.out.println(lower);
+    System.out.println(upper);
+    System.out.println(uniqCount);
     System.out.println(res.getAggregatorValue("totalWords", Integer.class));
     System.out.println(res.getAggregatorValue("maxWordLength", Integer.class));
   }

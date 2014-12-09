@@ -17,20 +17,23 @@
  */
 package com.cloudera.dataflow.spark;
 
-import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
-import com.google.cloud.dataflow.sdk.streaming.KeyedState;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
+import org.joda.time.Instant;
 import scala.Tuple2;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -55,12 +58,12 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
   @Override
   public Iterable<Tuple2<TupleTag<?>, Object>> call(Iterator<I> iter) throws Exception {
     ProcCtxt<I, O> ctxt = new ProcCtxt(fn);
-    fn.startBatch(ctxt);
+    fn.startBundle(ctxt);
     while (iter.hasNext()) {
       ctxt.element = iter.next();
       fn.processElement(ctxt);
     }
-    fn.finishBatch(ctxt);
+    fn.finishBundle(ctxt);
     return Iterables.transform(ctxt.outputs.entries(),
         new Function<Map.Entry<TupleTag<?>, Object>, Tuple2<TupleTag<?>, Object>>() {
           public Tuple2<TupleTag<?>, Object> apply(Map.Entry<TupleTag<?>, Object> input) {
@@ -81,6 +84,11 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
     @Override
     public PipelineOptions getPipelineOptions() {
       return runtimeContext.getPipelineOptions();
+    }
+
+    @Override
+    public <T> T sideInput(PCollectionView<T, ?> view) {
+      return (T) sideInputs.get(view.getTagInternal()).getValue();
     }
 
     @Override
@@ -108,19 +116,27 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
     }
 
     @Override
-    public <T> T sideInput(TupleTag<T> tag) {
-      BroadcastHelper<T> bh = (BroadcastHelper<T>) sideInputs.get(tag);
-      return bh == null ? null : bh.getValue();
-    }
-
-    @Override
     public I element() {
       return element;
     }
 
     @Override
-    public KeyedState keyedState() {
+    public DoFn.KeyedState keyedState() {
       throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void outputWithTimestamp(O output, Instant timestamp) {
+    }
+
+    @Override
+    public Instant timestamp() {
+      return null;
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> windows() {
+      return null;
     }
   }
 }

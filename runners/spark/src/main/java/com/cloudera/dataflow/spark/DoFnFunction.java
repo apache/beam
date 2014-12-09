@@ -17,16 +17,18 @@
  */
 package com.cloudera.dataflow.spark;
 
-import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
-import com.google.cloud.dataflow.sdk.streaming.KeyedState;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.collect.ImmutableMap;
 import org.apache.spark.api.java.function.FlatMapFunction;
+import org.joda.time.Instant;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -50,12 +52,12 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
   @Override
   public Iterable<O> call(Iterator<I> iter) throws Exception {
     ProcCtxt<I, O> ctxt = new ProcCtxt(fn);
-    fn.startBatch(ctxt);
+    fn.startBundle(ctxt);
     while (iter.hasNext()) {
       ctxt.element = iter.next();
       fn.processElement(ctxt);
     }
-    fn.finishBatch(ctxt);
+    fn.finishBundle(ctxt);
     return ctxt.outputs;
   }
 
@@ -74,13 +76,18 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     }
 
     @Override
+    public <T> T sideInput(PCollectionView<T, ?> view) {
+      return (T) sideInputs.get(view.getTagInternal()).getValue();
+    }
+
+    @Override
     public synchronized void output(O o) {
       outputs.add(o);
     }
 
     @Override
     public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
-      // A no-op if we don't know about it ahead of time
+      // A no-op in this context; maybe add some logging
     }
 
     @Override
@@ -98,19 +105,27 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     }
 
     @Override
-    public <T> T sideInput(TupleTag<T> tag) {
-      BroadcastHelper<T> bh = (BroadcastHelper<T>) sideInputs.get(tag);
-      return bh == null ? null : bh.getValue();
-    }
-
-    @Override
     public I element() {
       return element;
     }
 
     @Override
-    public KeyedState keyedState() {
+    public DoFn.KeyedState keyedState() {
       throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void outputWithTimestamp(O output, Instant timestamp) {
+    }
+
+    @Override
+    public Instant timestamp() {
+      return null;
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> windows() {
+      return null;
     }
   }
 }

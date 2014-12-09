@@ -18,32 +18,23 @@
 package com.cloudera.dataflow.spark;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.runners.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.common.collect.ImmutableMap;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.SerializationConfig;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
 class SparkRuntimeContext implements Serializable {
 
-  private transient PipelineOptions pipelineOptions;
-  private Broadcast<String> jsonOptions;
   private Accumulator<Agg> accum;
   private Map<String, Aggregator> aggregators = new HashMap<>();
 
   public SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
-    this.jsonOptions = jsc.broadcast(optionsToJson(pipeline.getOptions()));
     this.accum = jsc.accumulator(new Agg(), new AggAccumParam());
   }
 
@@ -51,16 +42,8 @@ class SparkRuntimeContext implements Serializable {
     return accum.value().getValue(named, typeClass);
   }
 
-  private static String optionsToJson(PipelineOptions options) {
-    try {
-      return createMapper().writeValueAsString(options);
-    } catch (IOException e) {
-      throw new RuntimeException("Could not write PipelineOptions as JSON", e);
-    }
-  }
-
   public synchronized PipelineOptions getPipelineOptions() {
-    return null;
+    return null; // TODO
   }
 
   public synchronized <AI, AO> Aggregator<AI> createAggregator(
@@ -87,13 +70,6 @@ class SparkRuntimeContext implements Serializable {
       aggregators.put(named, aggregator);
     }
     return aggregator;
-  }
-
-  private static ObjectMapper createMapper() {
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.configure(SerializationConfig.Feature.FAIL_ON_EMPTY_BEANS, false);
-    mapper.configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    return mapper;
   }
 
   private static class SparkAggregator<VI> implements Aggregator<VI> {
