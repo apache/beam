@@ -59,23 +59,40 @@ import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.logging.Logger;
 
+/**
+ * The SparkPipelineRunner translate operations defined on a pipeline to a representation
+ * executable by Spark, and then submitting the job to Spark to be executed. If we wanted to run
+ * a dataflow pipeline in Spark's local mode with two threads, we would do the following:
+ *    Pipeline p = <logic for pipeline creation >
+ *    EvaluationResult result = new SparkPipelineRunner("local[2]").run(p);
+ */
 public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
   private static final Logger LOG =
       Logger.getLogger(SparkPipelineRunner.class.getName());
-
+    /** The url of the spark master to connect to. */
   private final String master;
 
+  /**
+   * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single
+   * thread.
+   */
   public SparkPipelineRunner() {
     this("local");
   }
 
+    /**
+     * Constructor for a pipeline runner.
+     *
+     * @param master Cluster URL to connect to (e.g. spark://host:port, local[4]).
+     */
   public SparkPipelineRunner(String master) {
     this.master = Preconditions.checkNotNull(master);
   }
 
   @Override
   public EvaluationResult run(Pipeline pipeline) {
+    // TODO: get master from options
     JavaSparkContext jsc = getContextFromOptions(pipeline.getOptions());
     EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
     pipeline.traverseTopologically(new Evaluator(ctxt));
@@ -104,6 +121,7 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
     @Override
     public void visitTransform(TransformTreeNode node) {
+
       PTransform<?, ?> transform = node.getTransform();
       TransformEvaluator evaluator = EVALUATORS.get(transform.getClass());
       if (evaluator == null) {
@@ -148,7 +166,6 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     public void evaluate(TextIO.Read.Bound transform, EvaluationContext context) {
       String pattern = transform.getFilepattern();
       JavaRDD rdd = context.getSparkContext().textFile(pattern);
-      // TODO: handle coders
       context.setOutputRDD(transform, rdd);
     }
   };
@@ -157,7 +174,6 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     @Override
     public void evaluate(TextIO.Write.Bound transform, EvaluationContext context) {
       JavaRDDLike last = context.getInputRDD(transform);
-      // TODO: handle coders
       String pattern = transform.getFilenamePrefix();
       last.saveAsTextFile(pattern);
     }
@@ -168,7 +184,6 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     public void evaluate(AvroIO.Read.Bound transform, EvaluationContext context) {
       String pattern = transform.getFilepattern();
       JavaRDD rdd = context.getSparkContext().textFile(pattern);
-      // TODO: handle coders
       context.setOutputRDD(transform, rdd);
     }
   };
@@ -177,10 +192,6 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     @Override
     public void evaluate(AvroIO.Write.Bound transform, EvaluationContext context) {
       JavaRDDLike last = context.getInputRDD(transform);
-      Coder coder = null;
-      if (coder != null) {
-        //TODO
-      }
       String pattern = transform.getFilenamePrefix();
       last.saveAsTextFile(pattern);
     }
@@ -212,7 +223,9 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
       context.setPObjectValue(out, context.get(in));
     }
   };
-
+    /**
+     * needs to handle coders
+     */
   private static TransformEvaluator<Convert.ToIterableWindowedValue> TO_ITER_WIN =
       new TransformEvaluator<Convert.ToIterableWindowedValue>() {
     @Override
@@ -359,6 +372,9 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     EVALUATORS.put(transformClass, evaluator);
   }
 
+    /**
+     * helps map from the functions being applied to transform evaluations
+     */
   private static final Map<Class<? extends PTransform>, TransformEvaluator> EVALUATORS = Maps.newHashMap();
   static {
     registerEvaluator(TextIO.Read.Bound.class, READ_TEXT);

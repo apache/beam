@@ -34,13 +34,27 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
+/**
+ * Dataflow's Do functions correspond to Spark's FlatMap functions.
+ *
+ * @param <I> Input element type.
+ * @param <O> Output element type.
+ */
 class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
+  private static final Logger LOG = Logger.getLogger(DoFnFunction.class.getName());
 
   private final DoFn<I, O> fn;
   private final SparkRuntimeContext runtimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> sideInputs;
 
+  /**
+   *
+   * @param fn DoFunction to be wrapped.
+   * @param runtime Runtime to apply function in.
+   * @param sideInputs Side inputs used in DoFunction.
+   */
   public DoFnFunction(
       DoFn<I, O> fn,
       SparkRuntimeContext runtime,
@@ -50,14 +64,18 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     this.sideInputs = sideInputs;
   }
 
+  
   @Override
   public Iterable<O> call(Iterator<I> iter) throws Exception {
-    ProcCtxt<I, O> ctxt = new ProcCtxt(fn);
+    ProcCtxt<I, O> ctxt = new ProcCtxt<>(fn);
+    //setup
     fn.startBundle(ctxt);
+    //operation
     while (iter.hasNext()) {
       ctxt.element = iter.next();
       fn.processElement(ctxt);
     }
+    //cleanup
     fn.finishBundle(ctxt);
     return ctxt.outputs;
   }
@@ -88,7 +106,10 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
-      // A no-op in this context; maybe add some logging
+      LOG.warning("sideoutput is an unsupported operation for DoFnFunctions. Use a " +
+          "MultiDoFunction");
+      throw new UnsupportedOperationException("sideOutput is an unsupported operation for " +
+          "doFunctions, use a MultiDoFunction instead.");
     }
 
     @Override

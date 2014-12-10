@@ -38,9 +38,8 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.SingletonPCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.List;
 
 public class WordCountTest {
 
@@ -122,13 +121,14 @@ public class WordCountTest {
     PCollection<Long> unique = luc.get(lowerCnts).apply(ApproximateUnique.<KV<String, Long>>globally(16));
 
     EvaluationResult res = new SparkPipelineRunner("local[2]").run(p);
-    Iterable<KV<String, Long>> lower = res.get(luc.get(lowerCnts));
-    Iterable<KV<String, Long>> upper = res.get(luc.get(upperCnts));
-    Iterable<Long> uniqCount = res.get(unique);
-    System.out.println(lower);
-    System.out.println(upper);
-    System.out.println(uniqCount);
-    System.out.println(res.getAggregatorValue("totalWords", Integer.class));
-    System.out.println(res.getAggregatorValue("maxWordLength", Integer.class));
+    Iterable<KV<String, Long>> actualLower = res.get(luc.get(lowerCnts));
+    Iterable<KV<String, Long>> actualUpper = res.get(luc.get(upperCnts));
+    Assert.assertEquals("Here", actualUpper.iterator().next().getKey());
+    Iterable<Long> actualUniqCount = res.get(unique);
+    Assert.assertEquals(9, (long) actualUniqCount.iterator().next());
+    int actualTotalWords = res.getAggregatorValue("totalWords", Integer.class);
+    Assert.assertEquals(18, actualTotalWords);
+    int actualMaxWordLength = res.getAggregatorValue("maxWordLength", Integer.class);
+    Assert.assertEquals(6, actualMaxWordLength);
   }
 }

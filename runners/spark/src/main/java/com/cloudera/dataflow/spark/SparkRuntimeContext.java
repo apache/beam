@@ -32,43 +32,73 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The SparkRuntimeContext exposes
+ * The SparkRuntimeContext allows us to define useful features on the client side before our
+ * data flow program is launched.
  */
 class SparkRuntimeContext implements Serializable {
+  /** An accumulator that is a map from names to aggregators. */
   private Accumulator<NamedAggregators> accum;
+  /** Map fo names to dataflow aggregators. */
   private Map<String, Aggregator> aggregators = new HashMap<>();
 
   public SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.accum = jsc.accumulator(new NamedAggregators(), new AggAccumParam());
   }
 
-  public <T> T getAggregatorValue(String named, Class<T> typeClass) {
-    return accum.value().getValue(named, typeClass);
+  /**
+   * Retrieves corresponding value of an aggregator.
+   *
+   * @param aggregatorName Name of the aggregator to retrieve the value of.
+   * @param typeClass Type class of value to be retrieved.
+   * @param <T> Type of object to be returned.
+   * @return The value of the aggregator.
+   */
+  public <T> T getAggregatorValue(String aggregatorName, Class<T> typeClass) {
+    return accum.value().getValue(aggregatorName, typeClass);
   }
 
   public synchronized PipelineOptions getPipelineOptions() {
-    return null; // TODO
+    //TODO: Support this.
+    throw new UnsupportedOperationException("getPipelineOptions is not yet supported.");
   }
 
-  public synchronized <AI, AO> Aggregator<AI> createAggregator(
+  /**
+   * Creates and aggregator and associates it with the specified name.
+   *
+   * @param named Name of aggregator.
+   * @param sfunc Serializable function used in aggregation.
+   * @param <In> Type of inputs to aggregator.
+   * @param <Out> Type of aggregator outputs.
+   * @return Specified aggregator
+   */
+  public synchronized <In, Out> Aggregator<In> createAggregator(
       String named,
-      SerializableFunction<Iterable<AI>, AO> sfunc) {
+      SerializableFunction<Iterable<In>, Out> sfunc) {
     Aggregator aggregator = aggregators.get(named);
     if (aggregator == null) {
-      NamedAggregators.SerFunctionState<AI, AO> state = new NamedAggregators.SerFunctionState<>(sfunc);
+      NamedAggregators.SerFunctionState<In, Out> state = new NamedAggregators
+          .SerFunctionState<>(sfunc);
       accum.add(new NamedAggregators(named, state));
       aggregator = new SparkAggregator(state);
       aggregators.put(named, aggregator);
     }
     return aggregator;
   }
-
-  public synchronized <AI, AA, AO> Aggregator<AI> createAggregator(
+  /**
+   * Creates and aggregator and associates it with the specified name.
+   *
+   * @param named Name of aggregator.
+   * @param combineFn Combine function used in aggregation.
+   * @param <In> Type of inputs to aggregator.
+   * @param <Out> Type of aggregator outputs.
+   * @return Specified aggregator
+   */
+  public synchronized <In, Inter, Out> Aggregator<In> createAggregator(
       String named,
-      Combine.CombineFn<? super AI, AA, AO> combineFn) {
+      Combine.CombineFn<? super In, Inter, Out> combineFn) {
     Aggregator aggregator = aggregators.get(named);
     if (aggregator == null) {
-      NamedAggregators.CombineFunctionState<? super AI, AA, AO> state = new NamedAggregators
+      NamedAggregators.CombineFunctionState<? super In, Inter, Out> state = new NamedAggregators
               .CombineFunctionState<>(combineFn);
       accum.add(new NamedAggregators(named, state));
       aggregator = new SparkAggregator(state);
@@ -77,16 +107,21 @@ class SparkRuntimeContext implements Serializable {
     return aggregator;
   }
 
-  private static class SparkAggregator<VI> implements Aggregator<VI> {
-    private final NamedAggregators.State<VI, ?, ?> state;
+  /**
+   * Initialize spark aggregators exactly once.
+   *
+   * @param <In> Type of element fed in to aggregator.
+   */
+  private static class SparkAggregator<In> implements Aggregator<In> {
+    private final NamedAggregators.State<In, ?, ?> state;
 
-    public SparkAggregator(NamedAggregators.State<VI, ?, ?> state) {
+    public SparkAggregator(NamedAggregators.State<In, ?, ?> state) {
       this.state = state;
     }
 
     @Override
-    public void addValue(VI vi) {
-      state.update(vi);
+    public void addValue(In elem) {
+      state.update(elem);
     }
   }
 }

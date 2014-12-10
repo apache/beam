@@ -38,7 +38,17 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
+/**
+ * DoFunctions ignore side outputs. MultiDoFunctions deal with side outputs by enrishing the
+ * undelrying data with multiple TupleTags.
+ *
+ * @param <I> Input type for DoFunction.
+ * @param <O> Output type for DoFunction.
+ */
 class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleTag<?>, Object> {
+  // TODO: I think implementing decoding logic will allow us to do away with having two types of
+  // DoFunctions. Josh originally made these two classes in order to help ease the typing of
+  // results. Correctly using coders should just fix this.
 
   private final DoFn<I, O> fn;
   private final SparkRuntimeContext runtimeContext;

@@ -26,7 +26,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Serialization utility class.
+ */
 public class CoderHelpers {
+  /**
+   * Utility method for serializing an object using the specified coder.
+   *
+   * @param value Value to serialize.
+   * @param coder Coder to serialize with.
+   * @return Byte array representing serialized object.
+   */
   static byte[] toByteArray(Object value, Coder coder) {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
@@ -37,6 +47,13 @@ public class CoderHelpers {
     return baos.toByteArray();
   }
 
+  /**
+   * Utility method for serializing a Iterable of values using the specified coder.
+   *
+   * @param values Values to serialize.
+   * @param coder Coder to serialize with.
+   * @return List of bytes representing serialized objects.
+   */
   static List<byte[]> toByteArrays(Iterable values, final Coder coder) {
     List<byte[]> res = Lists.newLinkedList();
     for (Object value : values) {
@@ -45,6 +62,14 @@ public class CoderHelpers {
     return res;
   }
 
+  /**
+   * Utility method for deserializing a byte array using the specified coder.
+   *
+   * @param serialized bytearray to be deserialized.
+   * @param coder Coder to deserialize with.
+   * @param <T> Type of object to be returned.
+   * @return Deserialized object.
+   */
   static <T> T fromByteArray(byte[] serialized, Coder<T> coder) {
     ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
     try {
@@ -54,6 +79,13 @@ public class CoderHelpers {
     }
   }
 
+  /**
+   * A function wrapper for converting an object to a bytearray.
+   *
+   * @param coder Coder to serialize with.
+   * @param <T> The type of the object being serialized.
+   * @return A function that accepts an object and returns its coder-serialized form.
+   */
   static <T> Function<T, byte[]> toByteFunction(final Coder<T> coder) {
     return new Function<T, byte[]>() {
       @Override
@@ -63,6 +95,13 @@ public class CoderHelpers {
     };
   }
 
+  /**
+   * A function wrapper for converting a byte array to an object.
+   *
+   * @param coder Coder to deserialize with.
+   * @param <T> The type of the object being deserialized.
+   * @return A function that accepts a byte array and returns its corresponding object.
+   */
   static <T> Function<byte[], T> fromByteFunction(final Coder<T> coder) {
     return new Function<byte[], T>() {
       @Override
