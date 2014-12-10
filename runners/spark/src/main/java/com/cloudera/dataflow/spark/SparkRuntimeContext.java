@@ -17,6 +17,8 @@
  */
 package com.cloudera.dataflow.spark;
 
+import com.cloudera.dataflow.spark.aggregators.AggAccumParam;
+import com.cloudera.dataflow.spark.aggregators.NamedAggregators;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
@@ -29,13 +31,15 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * The SparkRuntimeContext exposes
+ */
 class SparkRuntimeContext implements Serializable {
-
-  private Accumulator<Agg> accum;
+  private Accumulator<NamedAggregators> accum;
   private Map<String, Aggregator> aggregators = new HashMap<>();
 
   public SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
-    this.accum = jsc.accumulator(new Agg(), new AggAccumParam());
+    this.accum = jsc.accumulator(new NamedAggregators(), new AggAccumParam());
   }
 
   public <T> T getAggregatorValue(String named, Class<T> typeClass) {
@@ -51,8 +55,8 @@ class SparkRuntimeContext implements Serializable {
       SerializableFunction<Iterable<AI>, AO> sfunc) {
     Aggregator aggregator = aggregators.get(named);
     if (aggregator == null) {
-      Agg.SerState<AI, AO> state = new Agg.SerState<>(sfunc);
-      accum.add(new Agg(named, state));
+      NamedAggregators.SerFunctionState<AI, AO> state = new NamedAggregators.SerFunctionState<>(sfunc);
+      accum.add(new NamedAggregators(named, state));
       aggregator = new SparkAggregator(state);
       aggregators.put(named, aggregator);
     }
@@ -64,8 +68,9 @@ class SparkRuntimeContext implements Serializable {
       Combine.CombineFn<? super AI, AA, AO> combineFn) {
     Aggregator aggregator = aggregators.get(named);
     if (aggregator == null) {
-      Agg.CombineState<? super AI, AA, AO> state = new Agg.CombineState<>(combineFn);
-      accum.add(new Agg(named, state));
+      NamedAggregators.CombineFunctionState<? super AI, AA, AO> state = new NamedAggregators
+              .CombineFunctionState<>(combineFn);
+      accum.add(new NamedAggregators(named, state));
       aggregator = new SparkAggregator(state);
       aggregators.put(named, aggregator);
     }
@@ -73,9 +78,9 @@ class SparkRuntimeContext implements Serializable {
   }
 
   private static class SparkAggregator<VI> implements Aggregator<VI> {
-    private final Agg.State<VI, ?, ?> state;
+    private final NamedAggregators.State<VI, ?, ?> state;
 
-    public SparkAggregator(Agg.State<VI, ?, ?> state) {
+    public SparkAggregator(NamedAggregators.State<VI, ?, ?> state) {
       this.state = state;
     }
 
