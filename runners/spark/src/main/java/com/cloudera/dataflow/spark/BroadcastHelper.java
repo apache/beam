@@ -14,35 +14,35 @@
  */
 package com.cloudera.dataflow.spark;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import org.apache.spark.broadcast.Broadcast;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
 
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import org.apache.spark.broadcast.Broadcast;
+
 class BroadcastHelper<T> implements Serializable {
-  private final Broadcast<byte[]> bcast;
-  private final Coder<T> coder;
-  private transient T value;
+    private final Broadcast<byte[]> bcast;
+    private final Coder<T> coder;
+    private transient T value;
 
-  BroadcastHelper(Broadcast<byte[]> bcast, Coder<T> coder) {
-    this.bcast = bcast;
-    this.coder = coder;
-  }
-
-  public synchronized T getValue() {
-    if (value == null) {
-      value = deserialize();
+    BroadcastHelper(Broadcast<byte[]> bcast, Coder<T> coder) {
+        this.bcast = bcast;
+        this.coder = coder;
     }
-    return value;
-  }
 
-  private T deserialize() {
-    try {
-      return coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
-    } catch (IOException e) {
-      throw new RuntimeException("Error deserializing broadcast variable", e);
+    public synchronized T getValue() {
+        if (value == null) {
+            value = deserialize();
+        }
+        return value;
     }
-  }
+
+    private T deserialize() {
+        try {
+            return coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
+        } catch (IOException e) {
+            throw new RuntimeException("Error deserializing broadcast variable", e);
+        }
+    }
 }

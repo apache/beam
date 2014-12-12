@@ -28,27 +28,27 @@ public interface EvaluationResult extends PipelineResult {
      * Retrieves an iterable of results associated with the PCollection passed in.
      *
      * @param pcollection Collection we wish to translate.
-     * @param <T> Type of elements contained in collection.
+     * @param <T>         Type of elements contained in collection.
      * @return Natively types result associated with collection.
      */
-  <T> Iterable<T> get(PCollection<T> pcollection);
+    <T> Iterable<T> get(PCollection<T> pcollection);
 
     /**
      * Retrieve an object of Type T associated with the PObject passed in.
      *
      * @param pobject PObject we wish to translate.
-     * @param <T> Type of object to return.
+     * @param <T>     Type of object to return.
      * @return Native object.
      */
-  <T> T get(PObject<T> pobject);
+    <T> T get(PObject<T> pobject);
 
     /**
      * Retrieves the final value of the aggregator.
      *
-     * @param aggName name of aggragtor.
+     * @param aggName    name of aggragtor.
      * @param resultType Class of final result of aggregatiohn.
-     * @param <T> Type of final result of aggregation.
+     * @param <T>        Type of final result of aggregation.
      * @return Result of aggregation associated with specified name.
      */
-  <T> T getAggregatorValue(String aggName, Class<T> resultType);
+    <T> T getAggregatorValue(String aggName, Class<T> resultType);
 }

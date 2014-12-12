@@ -41,92 +41,95 @@ import org.junit.Test;
 
 public class WordCountTest {
 
-  /** A DoFn that tokenizes lines of text into individual words. */
-  static class ExtractWordsFn extends DoFn<String, String> {
+    static TupleTag<String> upper = new TupleTag<>();
+    static TupleTag<String> lower = new TupleTag<>();
+    static TupleTag<KV<String, Long>> lowerCnts = new TupleTag<>();
+    static TupleTag<KV<String, Long>> upperCnts = new TupleTag<>();
 
-    Aggregator<Integer> totalWords;
-    Aggregator<Integer> maxWordLength;
-    PCollectionView<String, ?> regex;
+    @Test
+    public void testRun() throws Exception {
+        Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+        PCollection<String> regex = p.apply(Create.of("[^a-zA-Z']+"));
+        PCollection<String> w1 = p.apply(Create.of("Here are some words to count", "and some others"));
+        PCollection<String> w2 = p.apply(Create.of("Here are some more words", "and even more words"));
+        PCollectionList<String> list = PCollectionList.of(w1).and(w2);
 
-    public ExtractWordsFn(PCollectionView<String, ?> regex) {
-      this.regex = regex;
+        PCollection<String> union = list.apply(Flatten.<String>create());
+        PCollectionTuple luc = union.apply(new CountWords(SingletonPCollectionView.of(regex)));
+        PCollection<Long> unique = luc.get(lowerCnts).apply(ApproximateUnique.<KV<String, Long>>globally(16));
+
+        EvaluationResult res = new SparkPipelineRunner("local[2]").run(p);
+        Iterable<KV<String, Long>> actualLower = res.get(luc.get(lowerCnts));
+        Iterable<KV<String, Long>> actualUpper = res.get(luc.get(upperCnts));
+        Assert.assertEquals("Here", actualUpper.iterator().next().getKey());
+        Iterable<Long> actualUniqCount = res.get(unique);
+        Assert.assertEquals(9, (long) actualUniqCount.iterator().next());
+        int actualTotalWords = res.getAggregatorValue("totalWords", Integer.class);
+        Assert.assertEquals(18, actualTotalWords);
+        int actualMaxWordLength = res.getAggregatorValue("maxWordLength", Integer.class);
+        Assert.assertEquals(6, actualMaxWordLength);
     }
-    @Override
-    public void startBundle(Context ctxt) {
-      this.totalWords = ctxt.createAggregator("totalWords",
-          new Sum.SumIntegerFn());
-      this.maxWordLength = ctxt.createAggregator("maxWordLength",
-          new Max.MaxIntegerFn());
-    }
 
-    @Override
-    public void processElement(ProcessContext c) {
-      String[] words = c.element().split(c.sideInput(regex));
-      for (String word : words) {
-        totalWords.addValue(1);
-        if (!word.isEmpty()) {
-          maxWordLength.addValue(word.length());
-          if (Character.isLowerCase(word.charAt(0))) {
-            c.output(word);
-          } else {
-            c.sideOutput(upper, word);
-          }
+    /**
+     * A DoFn that tokenizes lines of text into individual words.
+     */
+    static class ExtractWordsFn extends DoFn<String, String> {
+
+        Aggregator<Integer> totalWords;
+        Aggregator<Integer> maxWordLength;
+        PCollectionView<String, ?> regex;
+
+        public ExtractWordsFn(PCollectionView<String, ?> regex) {
+            this.regex = regex;
         }
-      }
+
+        @Override
+        public void startBundle(Context ctxt) {
+            this.totalWords = ctxt.createAggregator("totalWords",
+                    new Sum.SumIntegerFn());
+            this.maxWordLength = ctxt.createAggregator("maxWordLength",
+                    new Max.MaxIntegerFn());
+        }
+
+        @Override
+        public void processElement(ProcessContext c) {
+            String[] words = c.element().split(c.sideInput(regex));
+            for (String word : words) {
+                totalWords.addValue(1);
+                if (!word.isEmpty()) {
+                    maxWordLength.addValue(word.length());
+                    if (Character.isLowerCase(word.charAt(0))) {
+                        c.output(word);
+                    } else {
+                        c.sideOutput(upper, word);
+                    }
+                }
+            }
+        }
     }
-  }
 
-  static TupleTag<String> upper = new TupleTag<>();
-  static TupleTag<String> lower = new TupleTag<>();
-  static TupleTag<KV<String, Long>> lowerCnts = new TupleTag<>();
-  static TupleTag<KV<String, Long>> upperCnts = new TupleTag<>();
+    public static class CountWords extends PTransform<PCollection<String>, PCollectionTuple> {
 
-  public static class CountWords extends PTransform<PCollection<String>, PCollectionTuple> {
+        private final PCollectionView<String, ?> regex;
 
-    private final PCollectionView<String, ?> regex;
+        public CountWords(PCollectionView<String, ?> regex) {
+            this.regex = regex;
+        }
 
-    public CountWords(PCollectionView<String, ?> regex) {
-      this.regex = regex;
+        @Override
+        public PCollectionTuple apply(PCollection<String> lines) {
+            // Convert lines of text into individual words.
+            PCollectionTuple lowerUpper = lines
+                    .apply(ParDo.of(new ExtractWordsFn(regex))
+                            .withSideInputs(regex)
+                            .withOutputTags(lower, TupleTagList.of(upper)));
+            lowerUpper.get(lower).setCoder(StringUtf8Coder.of());
+            lowerUpper.get(upper).setCoder(StringUtf8Coder.of());
+            PCollection<KV<String, Long>> lowerCounts = lowerUpper.get(lower).apply(Count.<String>perElement());
+            PCollection<KV<String, Long>> upperCounts = lowerUpper.get(upper).apply(Count.<String>perElement());
+            return PCollectionTuple
+                    .of(lowerCnts, lowerCounts)
+                    .and(upperCnts, upperCounts);
+        }
     }
-
-    @Override
-    public PCollectionTuple apply(PCollection<String> lines) {
-      // Convert lines of text into individual words.
-     PCollectionTuple lowerUpper = lines
-         .apply(ParDo.of(new ExtractWordsFn(regex))
-             .withSideInputs(regex)
-             .withOutputTags(lower, TupleTagList.of(upper)));
-      lowerUpper.get(lower).setCoder(StringUtf8Coder.of());
-      lowerUpper.get(upper).setCoder(StringUtf8Coder.of());
-      PCollection<KV<String, Long>> lowerCounts = lowerUpper.get(lower).apply(Count.<String>perElement());
-      PCollection<KV<String, Long>> upperCounts = lowerUpper.get(upper).apply(Count.<String>perElement());
-      return PCollectionTuple
-          .of(lowerCnts, lowerCounts)
-          .and(upperCnts, upperCounts);
-    }
-  }
-
-  @Test
-  public void testRun() throws Exception {
-    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
-    PCollection<String> regex = p.apply(Create.of("[^a-zA-Z']+"));
-    PCollection<String> w1 = p.apply(Create.of("Here are some words to count", "and some others"));
-    PCollection<String> w2 = p.apply(Create.of("Here are some more words", "and even more words"));
-    PCollectionList<String> list = PCollectionList.of(w1).and(w2);
-
-    PCollection<String> union = list.apply(Flatten.<String>create());
-    PCollectionTuple luc = union.apply(new CountWords(SingletonPCollectionView.of(regex)));
-    PCollection<Long> unique = luc.get(lowerCnts).apply(ApproximateUnique.<KV<String, Long>>globally(16));
-
-    EvaluationResult res = new SparkPipelineRunner("local[2]").run(p);
-    Iterable<KV<String, Long>> actualLower = res.get(luc.get(lowerCnts));
-    Iterable<KV<String, Long>> actualUpper = res.get(luc.get(upperCnts));
-    Assert.assertEquals("Here", actualUpper.iterator().next().getKey());
-    Iterable<Long> actualUniqCount = res.get(unique);
-    Assert.assertEquals(9, (long) actualUniqCount.iterator().next());
-    int actualTotalWords = res.getAggregatorValue("totalWords", Integer.class);
-    Assert.assertEquals(18, actualTotalWords);
-    int actualMaxWordLength = res.getAggregatorValue("maxWordLength", Integer.class);
-    Assert.assertEquals(6, actualMaxWordLength);
-  }
 }
