@@ -20,6 +20,7 @@ import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.serializeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.byteArrayToJsonString;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.jsonStringToByteArray;
+import static com.google.cloud.dataflow.sdk.util.Structs.addBoolean;
 import static com.google.cloud.dataflow.sdk.util.Structs.addDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.addList;
 import static com.google.cloud.dataflow.sdk.util.Structs.addLong;
@@ -211,6 +212,12 @@ public class DataflowPipelineTranslator {
      * Sets the encoding for the current Dataflow step.
      */
     public void addEncodingInput(Coder<?> value);
+
+    /**
+     * Adds an input with the given name and value to the current
+     * Dataflow step.
+     */
+    public void addInput(String name, Boolean value);
 
     /**
      * Adds an input with the given name and value to the current
@@ -533,6 +540,11 @@ public class DataflowPipelineTranslator {
     public void addEncodingInput(Coder<?> coder) {
       CloudObject encoding = SerializableUtils.ensureSerializable(coder);
       addObject(getProperties(), PropertyNames.ENCODING, encoding);
+    }
+
+    @Override
+    public void addInput(String name, Boolean value) {
+      addBoolean(getProperties(), name, value);
     }
 
     @Override

@@ -23,7 +23,9 @@ import static com.google.cloud.dataflow.sdk.TestUtils.NO_INTS_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -409,5 +411,12 @@ public class TextIOTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("wildcard");
     pipeline.run();
+  }
+
+  @Test
+  public void testWithoutValidationFlag() throws Exception {
+    TextIO.Read.Bound<String> read = TextIO.Read.from("gs://bucket/foo*/baz");
+    assertTrue(read.needsValidation());
+    assertFalse(read.withoutValidation().needsValidation());
   }
 }

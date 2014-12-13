@@ -137,6 +137,18 @@ public class TextIO {
       return new Bound<>(coder);
     }
 
+    /**
+     * Returns a TextIO.Read PTransform that has GCS path validation on
+     * pipeline creation disabled.
+     *
+     * <p> This can be useful in the case where the GCS input does not
+     * exist at the pipeline creation time, but is expected to be
+     * available at execution time.
+     */
+    public static Bound<String> withoutValidation() {
+      return new Bound<>(DEFAULT_TEXT_CODER).withoutValidation();
+    }
+
     // TODO: strippingNewlines, gzipped, etc.
 
     /**
@@ -156,14 +168,18 @@ public class TextIO {
       /** The Coder to use to decode each line. */
       @Nullable final Coder<T> coder;
 
+      /** An option to indicate if input validation is desired. Default is true. */
+      final boolean validate;
+
       Bound(Coder<T> coder) {
-        this(null, null, coder);
+        this(null, null, coder, true);
       }
 
-      Bound(String name, String filepattern, Coder<T> coder) {
+      Bound(String name, String filepattern, Coder<T> coder, boolean validate) {
         super(name);
         this.coder = coder;
         this.filepattern = filepattern;
+        this.validate = validate;
       }
 
       /**
@@ -171,7 +187,7 @@ public class TextIO {
        * with the given step name.  Does not modify this object.
        */
       public Bound<T> named(String name) {
-        return new Bound<>(name, filepattern, coder);
+        return new Bound<>(name, filepattern, coder, validate);
       }
 
       /**
@@ -181,7 +197,7 @@ public class TextIO {
        * filepatterns.)  Does not modify this object.
        */
       public Bound<T> from(String filepattern) {
-        return new Bound<>(name, filepattern, coder);
+        return new Bound<>(name, filepattern, coder, validate);
       }
 
       /**
@@ -194,7 +210,20 @@ public class TextIO {
        * elements of the resulting PCollection
        */
       public <T1> Bound<T1> withCoder(Coder<T1> coder) {
-        return new Bound<>(name, filepattern, coder);
+        return new Bound<>(name, filepattern, coder, validate);
+      }
+
+      /**
+       * Returns a new TextIO.Read PTransform that's like this one but
+       * that has GCS path validation on pipeline creation disabled.
+       * Does not modify this object.
+       *
+       * <p> This can be useful in the case where the GCS input does not
+       * exist at the pipeline creation time, but is expected to be
+       * available at execution time.
+       */
+      public Bound<T> withoutValidation() {
+        return new Bound<>(name, filepattern, coder, false);
       }
 
       @Override
@@ -220,6 +249,10 @@ public class TextIO {
 
       public String getFilepattern() {
         return filepattern;
+      }
+
+      public boolean needsValidation() {
+        return validate;
       }
 
       static {
