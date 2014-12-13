@@ -1,0 +1,19 @@
+Greetings! Welcome to the (Alpha) Google Cloud Dataflow Java SDK.
+
+Dataflow provides a simple, powerful model for building both batch and
+streaming parallel data processing Pipelines.
+
+To use the Google Cloud Dataflow SDK, you build a Pipeline which manages a
+graph of PTransforms and PCollections that the PTransforms consume and produce.
+
+You then use a PipelineRunner to specify where and how the pipeline should
+execute. Currently there are two runners:
+  1. The DirectPipelineRunner runs the pipeline on your local machine.
+  2. The [Blocking]DataflowPipelineRunner runs the pipeline on the Dataflow
+     Service using the Google Cloud Platform. The Dataflow Service is
+     currently in the Alpha phase of development and access is limited to
+     whitelisted users.
+
+For more about both the Dataflow SDK and the Dataflow Service, visit:
+  http://cloud.google.com/dataflow
+
