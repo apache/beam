@@ -15,165 +15,183 @@
 
 package com.cloudera.dataflow.spark.aggregators;
 
-import java.io.Serializable;
-import java.util.Map;
-import java.util.TreeMap;
-
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.common.collect.ImmutableList;
 
+import java.io.Serializable;
+import java.util.Map;
+import java.util.TreeMap;
+
 /**
- * What is an Agg?
- * wrapper around a map of named aggregators.
- * This allows us to add a named aggregator on the fly.
- * we create an accumulable instance of aggs every time in the spark context.
- * When the dataflow
+ * This class wraps a map of named aggregators. Spark expects that all accumulators be declared
+ * before a job is launched. Dataflow allows aggregators to be used and incremented on the fly.
+ * We create a map of named aggregators and instanyiate in the the spark context before the job
+ * is launched. We can then add aggregators on the fly in Spark.
  */
 public class NamedAggregators implements Serializable {
-    /**
-     * Why is this final if you later add states to it?
-     */
-    private final Map<String, State> mNamedAggregators = new TreeMap<>();
+  /** Map from aggregator name to current state. */
+  private final Map<String, State<?, ?, ?>> mNamedAggregators = new TreeMap<>();
+  /** Constructs a new NamedAggregators instance. */
+  public NamedAggregators() {
+  }
 
-    public NamedAggregators() {
+  /**
+   * Constructs a new named aggrgators instance that contains a mapping from the specified
+   * `named` to the associated initial state.
+   *
+   * @param name Name of aggregator.
+   * @param state Associated State.
+   */
+  public NamedAggregators(String name, State<?, ?, ?> state) {
+    this.mNamedAggregators.put(name, state);
+  }
+
+  /**
+   * Returns the value of the aggregator associated with the specified name.
+   *
+   * @param name Name of aggregator to retrieve.
+   * @param typeClass Type class to cast the value to.
+   * @param <T> Type to be returned.
+   * @return
+   */
+  public <T> T getValue(String name, Class<T> typeClass) {
+    return typeClass.cast(mNamedAggregators.get(name).render());
+  }
+
+  /**
+   * Merges another NamedAggregators instance with this instance.
+   *
+   * @param other The other instance of named aggragtors ot merge.
+   * @return This instance of Named aggragtors with associated states updated to reflect the
+   *        other instance's aggregators.
+   */
+  public NamedAggregators merge(NamedAggregators other) {
+    for (Map.Entry<String, State<?, ?, ?>> e : other.mNamedAggregators.entrySet()) {
+      String key = e.getKey();
+      State<?, ?, ?> otherValue = e.getValue();
+      State<?, ?, ?> value = mNamedAggregators.get(key);
+      if (value == null) {
+        mNamedAggregators.put(key, otherValue);
+      } else {
+        mNamedAggregators.put(key, merge(value, otherValue));
+      }
     }
+    return this;
+  }
 
-    /**
-     * is "named" the label for a state?
-     *
-     * @param named
-     * @param state
-     */
-    public NamedAggregators(String named, State state) {
-        this.mNamedAggregators.put(named, state);
+  /**
+   * Helper method to merge States whose generic types aren't provably the same,
+   * so require some casting.
+   */
+  @SuppressWarnings("unchecked")
+  private static <A, B, C> State<A, B, C> merge(State<?, ?, ?> s1, State<?, ?, ?> s2) {
+    return ((State<A, B, C>) s1).merge((State<A, B, C>) s2);
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    for (Map.Entry<String, State<?, ?, ?>> e : mNamedAggregators.entrySet()) {
+      sb.append(e.getKey()).append(": ").append(e.getValue().render());
     }
+    return sb.toString();
+  }
 
+  /**
+   * @param <In>    Input data type
+   * @param <Inter> Intermediate data type (useful for averages)
+   * @param <Out>   Output datatype
+   */
+  public interface State<In, Inter, Out> extends Serializable {
     /**
-     * @param named
-     * @param typeClass
-     * @param <T>
-     * @return
+     * @param element
      */
-    public <T> T getValue(String named, Class<T> typeClass) {
-        return typeClass.cast(mNamedAggregators.get(named).render());
-    }
+    void update(In element);
 
-    public NamedAggregators merge(NamedAggregators other) {
-        for (Map.Entry<String, State> e : other.mNamedAggregators.entrySet()) {
-            State cur = mNamedAggregators.get(e.getKey());
-            if (cur == null) {
-                mNamedAggregators.put(e.getKey(), e.getValue());
-            } else {
-                mNamedAggregators.put(e.getKey(), cur.merge(e.getValue()));
-            }
-        }
-        return this;
+    State<In, Inter, Out> merge(State<In, Inter, Out> other);
+
+    Inter current();
+
+    Out render();
+  }
+
+  /**
+   * => combineFunction in data flow.
+   *
+   * @param <In>
+   * @param <Inter>
+   * @param <Out>
+   */
+  public static class CombineFunctionState<In, Inter, Out> implements State<In, Inter, Out> {
+
+    private Combine.CombineFn<In, Inter, Out> combineFn;
+    private Inter state;
+
+    public CombineFunctionState(Combine.CombineFn<In, Inter, Out> combineFn) {
+      this.combineFn = combineFn;
+      this.state = combineFn.createAccumulator();
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        for (Map.Entry<String, State> e : mNamedAggregators.entrySet()) {
-            sb.append(e.getKey()).append(": ").append(e.getValue().render());
-        }
-        return sb.toString();
+    public void update(In element) {
+      combineFn.addInput(state, element);
     }
 
-    /**
-     * @param <In>    Input data type
-     * @param <Inter> Intermediate data type (useful for averages)
-     * @param <Out>   Output datatype
-     */
-    public interface State<In, Inter, Out> extends Serializable {
-        /**
-         * @param element
-         */
-        void update(In element);
-
-        State<In, Inter, Out> merge(State<In, Inter, Out> other);
-
-        Inter current();
-
-        Out render();
+    @Override
+    public State<In, Inter, Out> merge(State<In, Inter, Out> other) {
+      this.state = combineFn.mergeAccumulators(ImmutableList.of(current(), other.current()));
+      return this;
     }
 
-    /**
-     * => combineFunction in data flow.
-     *
-     * @param <In>
-     * @param <Inter>
-     * @param <Out>
-     */
-    public static class CombineFunctionState<In, Inter, Out> implements State<In, Inter, Out> {
-
-        private Combine.CombineFn<In, Inter, Out> combineFn;
-        private Inter state;
-
-        public CombineFunctionState(Combine.CombineFn<In, Inter, Out> combineFn) {
-            this.combineFn = combineFn;
-            this.state = combineFn.createAccumulator();
-        }
-
-        @Override
-        public void update(In element) {
-            combineFn.addInput(state, element);
-        }
-
-        @Override
-        public State<In, Inter, Out> merge(State<In, Inter, Out> other) {
-            this.state = combineFn.mergeAccumulators(ImmutableList.of(current(), other.current()));
-            return this;
-        }
-
-        @Override
-        public Inter current() {
-            return state;
-        }
-
-        @Override
-        public Out render() {
-            return combineFn.extractOutput(state);
-        }
+    @Override
+    public Inter current() {
+      return state;
     }
 
-    /**
-     * states correspond to dataflow objects. this one => seriazable function
-     *
-     * @param <In>
-     * @param <Out>
-     */
-    public static class SerFunctionState<In, Out> implements State<In, Out, Out> {
-
-        private SerializableFunction<Iterable<In>, Out> sfunc;
-        private Out state;
-
-        public SerFunctionState(SerializableFunction<Iterable<In>, Out> sfunc) {
-            this.sfunc = sfunc;
-            this.state = sfunc.apply(ImmutableList.<In>of());
-        }
-
-        @Override
-        public void update(In element) {
-            this.state = sfunc.apply(ImmutableList.of(element, (In) state));
-        }
-
-        @Override
-        public State merge(State<In, Out, Out> other) {
-            // Add exception catching and logging here.
-            this.state = sfunc.apply(ImmutableList.of((In) state, (In) other.current()));
-            return this;
-        }
-
-        @Override
-        public Out current() {
-            return state;
-        }
-
-        @Override
-        public Out render() {
-            return state;
-        }
+    @Override
+    public Out render() {
+      return combineFn.extractOutput(state);
     }
+  }
+
+  /**
+   * states correspond to dataflow objects. this one => serializable function
+   *
+   * @param <In>
+   * @param <Out>
+   */
+  public static class SerFunctionState<In, Out> implements State<In, Out, Out> {
+
+    private final SerializableFunction<Iterable<In>, Out> sfunc;
+    private Out state;
+
+    public SerFunctionState(SerializableFunction<Iterable<In>, Out> sfunc) {
+      this.sfunc = sfunc;
+      this.state = sfunc.apply(ImmutableList.<In>of());
+    }
+
+    @Override
+    public void update(In element) {
+      this.state = sfunc.apply(ImmutableList.of(element, (In) state));
+    }
+
+    @Override
+    public State merge(State<In, Out, Out> other) {
+      // Add exception catching and logging here.
+      this.state = sfunc.apply(ImmutableList.of((In) state, (In) other.current()));
+      return this;
+    }
+
+    @Override
+    public Out current() {
+      return state;
+    }
+
+    @Override
+    public Out render() {
+      return state;
+    }
+  }
 
 }

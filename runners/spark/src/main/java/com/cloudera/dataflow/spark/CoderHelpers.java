@@ -34,7 +34,7 @@ public class CoderHelpers {
      * @param coder Coder to serialize with.
      * @return Byte array representing serialized object.
      */
-    static byte[] toByteArray(Object value, Coder coder) {
+    static <T> byte[] toByteArray(T value, Coder<T> coder) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             coder.encode(value, baos, new Coder.Context(true));
@@ -51,9 +51,9 @@ public class CoderHelpers {
      * @param coder  Coder to serialize with.
      * @return List of bytes representing serialized objects.
      */
-    static List<byte[]> toByteArrays(Iterable values, final Coder coder) {
+    static <T> List<byte[]> toByteArrays(Iterable<T> values, final Coder<T> coder) {
         List<byte[]> res = Lists.newLinkedList();
-        for (Object value : values) {
+        for (T value : values) {
             res.add(toByteArray(value, coder));
         }
         return res;
