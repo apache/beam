@@ -107,7 +107,7 @@ public abstract class WindowingFn<T, W extends BoundedWindow>
    * Returns whether this performs the same merging as the given
    * {@code WindowingFn}.
    */
-  public abstract boolean isCompatible(WindowingFn other);
+  public abstract boolean isCompatible(WindowingFn<?, ?> other);
 
   /**
    * Returns the {@link Coder} used for serializing the windows used

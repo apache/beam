@@ -57,7 +57,7 @@ public class FixedWindows extends PartitioningWindowingFn<Object, IntervalWindow
    * [N * size + offset, (N + 1) * size + offset),
    * where 0 is the epoch.
    *
-   * @throws IllegalAgumentException if offset is not in [0, size)
+   * @throws IllegalArgumentException if offset is not in [0, size)
    */
   public FixedWindows withOffset(Duration offset) {
     return new FixedWindows(size, offset);
@@ -85,7 +85,7 @@ public class FixedWindows extends PartitioningWindowingFn<Object, IntervalWindow
   }
 
   @Override
-  public boolean isCompatible(WindowingFn other) {
+  public boolean isCompatible(WindowingFn<?, ?> other) {
     return (other instanceof FixedWindows)
         && (size.equals(((FixedWindows) other).size))
         && (offset.equals(((FixedWindows) other).offset));

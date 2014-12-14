@@ -118,7 +118,7 @@ public class SlidingWindows extends NonMergingWindowingFn<Object, IntervalWindow
   }
 
   @Override
-  public boolean isCompatible(WindowingFn other) {
+  public boolean isCompatible(WindowingFn<?, ?> other) {
     if (other instanceof SlidingWindows) {
       SlidingWindows that = (SlidingWindows) other;
       return period.equals(that.period)

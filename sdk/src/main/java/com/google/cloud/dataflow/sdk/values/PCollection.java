@@ -170,7 +170,7 @@ public class PCollection<T> extends TypedPValue<T> {
   /**
    * Returns the {@link WindowingFn} of this {@code PCollection}.
    */
-  public WindowingFn getWindowingFn() {
+  public WindowingFn<?, ?> getWindowingFn() {
     return windowingFn;
   }
 

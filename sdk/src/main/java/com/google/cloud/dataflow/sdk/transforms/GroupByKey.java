@@ -36,8 +36,6 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
-import org.joda.time.Instant;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -155,8 +153,8 @@ public class GroupByKey<K, V>
     @Override
     public PCollection<KV<K, WindowedValue<V>>> apply(
         PCollection<KV<K, V>> input) {
-      Coder<KV<K, V>> inputCoder = getInput().getCoder();
-      KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) inputCoder;
+      @SuppressWarnings("unchecked")
+      KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) getInput().getCoder();
       Coder<K> keyCoder = inputKvCoder.getKeyCoder();
       Coder<V> inputValueCoder = inputKvCoder.getValueCoder();
       Coder<WindowedValue<V>> outputValueCoder = FullWindowedValueCoder.of(
@@ -229,19 +227,18 @@ public class GroupByKey<K, V>
   public static class GroupAlsoByWindow<K, V>
       extends PTransform<PCollection<KV<K, Iterable<WindowedValue<V>>>>,
                          PCollection<KV<K, Iterable<V>>>> {
-    private final WindowingFn windowingFn;
+    private final WindowingFn<?, ?> windowingFn;
 
-    public GroupAlsoByWindow(WindowingFn windowingFn) {
+    public GroupAlsoByWindow(WindowingFn<?, ?> windowingFn) {
       this.windowingFn = windowingFn;
     }
 
     @Override
     public PCollection<KV<K, Iterable<V>>> apply(
         PCollection<KV<K, Iterable<WindowedValue<V>>>> input) {
-      Coder<KV<K, Iterable<WindowedValue<V>>>> inputCoder =
-          getInput().getCoder();
+      @SuppressWarnings("unchecked")
       KvCoder<K, Iterable<WindowedValue<V>>> inputKvCoder =
-          (KvCoder<K, Iterable<WindowedValue<V>>>) inputCoder;
+          (KvCoder<K, Iterable<WindowedValue<V>>>) getInput().getCoder();
       Coder<K> keyCoder = inputKvCoder.getKeyCoder();
       Coder<Iterable<WindowedValue<V>>> inputValueCoder =
           inputKvCoder.getValueCoder();
@@ -260,7 +257,7 @@ public class GroupByKey<K, V>
 
       return input.apply(ParDo.of(
           new GroupAlsoByWindowsDoFn<K, V, BoundedWindow>(
-              windowingFn, inputIterableElementValueCoder)))
+              (WindowingFn) windowingFn, inputIterableElementValueCoder)))
           .setCoder(outputKvCoder);
     }
   }
@@ -280,6 +277,7 @@ public class GroupByKey<K, V>
 
     public GroupByKeyOnly() { }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     public PCollection<KV<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
       WindowingFn windowingFn = getInput().getWindowingFn();
@@ -314,6 +312,7 @@ public class GroupByKey<K, V>
      * Returns the {@code Coder} of the input to this transform, which
      * should be a {@code KvCoder}.
      */
+    @SuppressWarnings("unchecked")
     KvCoder<K, V> getInputKvCoder() {
       Coder<KV<K, V>> inputCoder = getInput().getCoder();
       if (!(inputCoder instanceof KvCoder)) {
@@ -398,7 +397,6 @@ public class GroupByKey<K, V>
     for (ValueWithMetadata<KV<K, V>> elem : inputElems) {
       K key = elem.getValue().getKey();
       V value = elem.getValue().getValue();
-      Instant timestamp = elem.getTimestamp();
       byte[] encodedKey;
       try {
         encodedKey = encodeToByteArray(keyCoder, key);
@@ -447,9 +445,9 @@ public class GroupByKey<K, V>
     // merging windows as needed, using the windows assigned to the
     // key/value input elements and the window merge operation of the
     // windowing function associated with the input PCollection.
-    WindowingFn windowingFn = getInput().getWindowingFn();
+    WindowingFn<?, ?> windowingFn = getInput().getWindowingFn();
     if (windowingFn instanceof InvalidWindowingFn) {
-      String cause = ((InvalidWindowingFn) windowingFn).getCause();
+      String cause = ((InvalidWindowingFn<?>) windowingFn).getCause();
       throw new IllegalStateException(
           "GroupByKey must have a valid Window merge function.  "
           + "Invalid because: " + cause);

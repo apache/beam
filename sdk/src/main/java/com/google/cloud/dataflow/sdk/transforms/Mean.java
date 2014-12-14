@@ -137,7 +137,7 @@ public class Mean {
       // The casts are needed because CountSum.class is a
       // Class<MeanFn.CountSum>, but we need a
       // Class<MeanFn<N>.CountSum>.
-      return SerializableCoder.of((Class<CountSum>) (Class) CountSum.class);
+      return SerializableCoder.of((Class<CountSum>) (Class<?>) CountSum.class);
     }
   }
 }

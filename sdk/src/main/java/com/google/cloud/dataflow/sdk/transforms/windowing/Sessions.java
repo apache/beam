@@ -75,7 +75,7 @@ public class Sessions extends WindowingFn<Object, IntervalWindow> {
   }
 
   @Override
-  public boolean isCompatible(WindowingFn other) {
+  public boolean isCompatible(WindowingFn<?, ?> other) {
     return other instanceof Sessions;
   }
 }

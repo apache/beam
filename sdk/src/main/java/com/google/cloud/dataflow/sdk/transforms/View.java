@@ -70,7 +70,7 @@ public class View {
    * A {@PTransform} that produces a {@link PCollectionView} of a singleton {@link PCollection}
    * yielding the single element it contains.
    *
-   * <p> Instantiate via {@link View.asIterable}.
+   * <p> Instantiate via {@link View#asIterable}.
    */
   public static class AsIterable<T> extends PTransform<
       PCollection<T>,
@@ -91,7 +91,7 @@ public class View {
    * A {@PTransform} that produces a {@link PCollectionView} of a singleton {@link PCollection}
    * yielding the single element it contains.
    *
-   * <p> Instantiate via {@link View.asIterable}.
+   * <p> Instantiate via {@link View#asIterable}.
    */
   public static class AsSingleton<T>
       extends PTransform<PCollection<T>, PCollectionView<T, WindowedValue<T>>> {
@@ -164,6 +164,7 @@ public class View {
       setPipelineInternal(pipeline);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public T fromIterableInternal(Iterable<WindowedValue<?>> contents) {
       try {
@@ -189,6 +190,7 @@ public class View {
     @Override
     public Iterable<T> fromIterableInternal(Iterable<WindowedValue<?>> contents) {
       return Iterables.transform(contents, new Function<WindowedValue<?>, T>() {
+        @SuppressWarnings("unchecked")
         @Override
         public T apply(WindowedValue<?> input) {
           return (T) input.getValue();

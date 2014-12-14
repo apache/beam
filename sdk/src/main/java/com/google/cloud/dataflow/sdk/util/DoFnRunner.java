@@ -38,7 +38,7 @@ public class DoFnRunner<I, O, R> {
   public interface OutputManager<R> {
 
     /** Returns the receiver to use for a given tag. */
-    public R initialize(TupleTag tag);
+    public R initialize(TupleTag<?> tag);
 
     /** Outputs a single element to the provided receiver. */
     public void output(R receiver, WindowedValue<?> output);
@@ -91,7 +91,7 @@ public class DoFnRunner<I, O, R> {
         options, fn, sideInputs,
         new OutputManager<List>() {
           @Override
-          public List initialize(TupleTag tag) {
+          public List initialize(TupleTag<?> tag) {
             return new ArrayList<>();
           }
           @Override
@@ -141,7 +141,7 @@ public class DoFnRunner<I, O, R> {
   }
 
   /** Returns the receiver who gets outputs with the provided tag. */
-  public R getReceiver(TupleTag tag) {
+  public R getReceiver(TupleTag<?> tag) {
     return context.getReceiver(tag);
   }
 }

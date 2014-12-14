@@ -221,6 +221,7 @@ public class DoFnTester<I, O> {
     return Lists.transform(fnRunner.getReceiver(mainOutputTag),
                            new Function<Object, O>() {
                              @Override
+                             @SuppressWarnings("unchecked")
                              public O apply(Object input) {
                                return ((WindowedValue<O>) input).getValue();
                              }

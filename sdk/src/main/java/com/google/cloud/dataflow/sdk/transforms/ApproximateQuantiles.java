@@ -54,7 +54,7 @@ public class ApproximateQuantiles {
 
   /**
    * Returns a {@code PTransform} that takes a {@code PCollection<T>}
-   * and returns a {@code PCollection<List<T>>} whose sinlge value is a
+   * and returns a {@code PCollection<List<T>>} whose single value is a
    * {@code List} of the approximate {@code N}-tiles of the elements
    * of the input {@code PCollection}.  This gives an idea of the
    * distribution of the input elements.

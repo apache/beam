@@ -1020,6 +1020,7 @@ public class Combine {
             "Combine.GroupedValues requires its input values to use "
             + "IterableCoder");
       }
+      @SuppressWarnings("unchecked")
       IterableCoder<VI> inputValuesCoder = (IterableCoder<VI>) kvValueCoder;
       Coder<VI> inputValueCoder = inputValuesCoder.getElemCoder();
       return KvCoder.of(keyCoder, inputValueCoder);

@@ -460,7 +460,7 @@ public class Top {
           throws Exception {
         listCoder.registerByteSizeObserver(value.asList(), observer, context);
       }
-    };
+    }
   }
 
   /**

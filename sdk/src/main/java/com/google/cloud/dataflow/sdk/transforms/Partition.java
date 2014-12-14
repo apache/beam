@@ -162,7 +162,9 @@ public class Partition<T>
       T1 input = c.element();
       int partition = partitionFn.partitionFor(input, numPartitions);
       if (0 <= partition && partition < numPartitions) {
-        c.sideOutput((TupleTag<T1>) outputTags.get(partition), input);
+        @SuppressWarnings("unchecked")
+        TupleTag<T1> typedTag = (TupleTag<T1>) outputTags.get(partition);
+        c.sideOutput(typedTag, input);
       } else {
         throw new IndexOutOfBoundsException(
             "Partition function returned out of bounds index: " +

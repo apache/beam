@@ -52,7 +52,7 @@ import java.util.List;
 public class Flatten {
 
   /**
-   * Returns a {@link PTransform} that flattens a {@link PCollectionList<T>}
+   * Returns a {@link PTransform} that flattens a {@link CollectionList<T>}
    * into a {@link PCollection<T>} containing all the elements of all
    * the {@link PCollection}s in its input.
    *
@@ -112,7 +112,7 @@ public class Flatten {
 
     @Override
     public PCollection<T> apply(PCollectionList<T> inputs) {
-      WindowingFn windowingFn;
+      WindowingFn<?, ?> windowingFn;
       if (!getInput().getAll().isEmpty()) {
         windowingFn = getInput().get(0).getWindowingFn();
         for (PCollection<?> input : getInput().getAll()) {
@@ -145,7 +145,7 @@ public class Flatten {
   /**
    * {@code FlattenIterables<T>} takes a {@code PCollection<Iterable<T>>} and returns a
    * {@code PCollection<T>} that contains all the elements from each iterable.
-   * Implements {@link #fromIterable}.
+   * Implements {@link #iterables}.
    *
    * @param <T> the type of the elements of the input {@code Iterable}s and
    * the output {@code PCollection}

@@ -224,10 +224,10 @@ public class Window {
   public static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
-      WindowingFn windowingFn = getInput().getWindowingFn();
-      WindowingFn outputWindowingFn =
+      WindowingFn<?, ?> windowingFn = getInput().getWindowingFn();
+      WindowingFn<?, ?> outputWindowingFn =
           (windowingFn instanceof InvalidWindowingFn)
-          ? ((InvalidWindowingFn) windowingFn).getOriginalWindowingFn()
+          ? ((InvalidWindowingFn<?>) windowingFn).getOriginalWindowingFn()
           : windowingFn;
 
       return input.apply(ParDo.named("Identity").of(new DoFn<T, T>() {

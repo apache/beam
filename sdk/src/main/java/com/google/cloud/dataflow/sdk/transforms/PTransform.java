@@ -24,7 +24,6 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.TypedPValue;
 
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -95,9 +94,7 @@ import java.io.Serializable;
  *
  * <p> Each PCollection output produced by a PTransform,
  * either directly or within a "bundling" class, automatically gets
- * its own name derived from the name of its producing PTransform.  An
- * output's name can be changed by invoking
- * {@link com.google.cloud.dataflow.sdk.values.PValue#setName}.
+ * its own name derived from the name of its producing PTransform.
  *
  * <p> Each PCollection output produced by a PTransform
  * also records a {@link com.google.cloud.dataflow.sdk.coders.Coder}
@@ -348,14 +345,13 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
     return StringUtils.approximateSimpleName(getClass());
   }
 
-  private void writeObject(ObjectOutputStream oos) throws IOException {
+  private void writeObject(ObjectOutputStream oos) {
     // We don't really want to be serializing this object, but we
     // often have serializable anonymous DoFns nested within a
     // PTransform.
   }
 
-  private void readObject(ObjectInputStream oos)
-      throws IOException, ClassNotFoundException {
+  private void readObject(ObjectInputStream oos) {
     // We don't really want to be serializing this object, but we
     // often have serializable anonymous DoFns nested within a
     // PTransform.

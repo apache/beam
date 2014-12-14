@@ -47,7 +47,7 @@ public class InvalidWindowingFn<W extends BoundedWindow> extends WindowingFn<Obj
   public WindowingFn<?, W> getOriginalWindowingFn() {
     return originalWindowingFn;
   }
-  
+
   @Override
   public Collection<W> assignWindows(AssignContext c) {
     throw new UnsupportedOperationException();
@@ -67,9 +67,9 @@ public class InvalidWindowingFn<W extends BoundedWindow> extends WindowingFn<Obj
    * {@code InvalidWindowingFn} objects with the same {@code originalWindowingFn} are compatible.
    */
   @Override
-  public boolean isCompatible(WindowingFn other) {
+  public boolean isCompatible(WindowingFn<?, ?> other) {
     return getClass() == other.getClass()
         && getOriginalWindowingFn().isCompatible(
-            ((InvalidWindowingFn) other).getOriginalWindowingFn());
+            ((InvalidWindowingFn<?>) other).getOriginalWindowingFn());
   }
 }

@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
@@ -68,7 +69,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * Returns the value of the side input.
      *
      * @throws IllegalArgumentException if this is not a side input
-     * @see ParDo#withSideInput
+     * @see ParDo#withSideInputs
      */
     public abstract <T> T sideInput(PCollectionView<T, ?> view);
 
@@ -84,7 +85,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * windowed by the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
      * If this is the case, the output element will have a timestamp
-     * of negative infinity and be in the 
+     * of negative infinity and be in the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
      */
     public abstract void output(O output);
@@ -103,7 +104,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * windowed by the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
      * If this is the case, the output element's timestamp will be
-     * the given timestamp and its window will be the 
+     * the given timestamp and its window will be the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
      */
     public abstract void outputWithTimestamp(O output, Instant timestamp);

@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue.TimestampedValueCoder;
 import com.google.common.reflect.TypeToken;
 
 import org.joda.time.Instant;
@@ -151,8 +152,9 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
    *
    * <p> The argument should not be modified after this is called.
    */
+  @SuppressWarnings("unchecked")
   public static <T> CreateTimestamped<T> timestamped(TimestampedValue<T>... elems) {
-    return new CreateTimestamped(Arrays.asList(elems));
+    return new CreateTimestamped<>(Arrays.asList(elems));
   }
 
   /**
@@ -264,7 +266,10 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
         // There aren't any elements, so we can provide a fake coder instance.
         // If we don't set a Coder here, users of CreateTimestamped have
         // no way to set the coder of the intermediate PCollection.
-        intermediate.setCoder((Coder) TimestampedValue.TimestampedValueCoder.of(VoidCoder.of()));
+        @SuppressWarnings("unchecked")
+        TimestampedValueCoder<T> fakeCoder =
+            (TimestampedValueCoder<T>) TimestampedValue.TimestampedValueCoder.of(VoidCoder.of());
+        intermediate.setCoder(fakeCoder);
       }
 
       return intermediate.apply(ParDo.of(new ConvertTimestamps<T>()));
