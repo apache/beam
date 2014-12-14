@@ -79,9 +79,9 @@ public class WindowedValue<V> {
    * Returns a {@code WindowedValue} with the given value and default timestamp and empty windows.
    */
   public static <V> WindowedValue<V> valueInEmptyWindows(V value) {
-    return new WindowedValue<>(value,
-                               new Instant(Long.MIN_VALUE),
-                               new ArrayList());
+    return new WindowedValue(value,
+                             new Instant(Long.MIN_VALUE),
+                             new ArrayList<>());
   }
 
   private WindowedValue(V value,
@@ -140,11 +140,11 @@ public class WindowedValue<V> {
   @Override
   public boolean equals(Object o) {
     if (o instanceof WindowedValue) {
-      WindowedValue that = (WindowedValue) o;
+      WindowedValue<?> that = (WindowedValue) o;
       if (that.timestamp.isEqual(timestamp) && that.windows.size() == windows.size()) {
-        for (Iterator thatIterator = that.windows.iterator(), thisIterator = windows.iterator();
+        for (Iterator<?> thatIterator = that.windows.iterator(), thisIterator = windows.iterator();
             thatIterator.hasNext() && thisIterator.hasNext();
-            /* do nothng */) {
+            /* do nothing */) {
           if (!thatIterator.next().equals(thisIterator.next())) {
             return false;
           }
@@ -197,6 +197,8 @@ public class WindowedValue<V> {
    * Coder for {@code WindowedValue}.
    */
   public static class FullWindowedValueCoder<T> extends WindowedValueCoder<T> {
+    private static final long serialVersionUID = 0;
+
     private final Coder<? extends BoundedWindow> windowCoder;
     // Precompute and cache the coder for a list of windows.
     private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
@@ -213,8 +215,9 @@ public class WindowedValue<V> {
         List<Coder<?>> components) {
       checkArgument(components.size() == 2,
                     "Expecting 2 components, got " + components.size());
-      return of(components.get(0),
-                (Coder<? extends BoundedWindow>) components.get(1));
+      @SuppressWarnings("unchecked")
+      Coder<? extends BoundedWindow> window = (Coder<? extends BoundedWindow>) components.get(1);
+      return of(components.get(0), window);
     }
 
     @SuppressWarnings("unchecked")
@@ -305,6 +308,7 @@ public class WindowedValue<V> {
    * timestamp and windows for encoding, and uses defaults timestamp, and windows for decoding.
    */
   public static class ValueOnlyWindowedValueCoder<T> extends WindowedValueCoder<T> {
+    private static final long serialVersionUID = 0;
 
     public static <T> ValueOnlyWindowedValueCoder<T> of(
         Coder<T> valueCoder) {

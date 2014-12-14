@@ -41,6 +41,7 @@ import java.util.Map.Entry;
  * @param <V> the type of the values of the KVs being transcoded
  */
 public class MapCoder<K, V> extends MapCoderBase<Map<K, V>> {
+  private static final long serialVersionUID = 0;
 
   /**
    * Produces a MapCoder with the given keyCoder and valueCoder.

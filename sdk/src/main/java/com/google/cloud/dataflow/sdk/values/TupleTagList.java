@@ -52,6 +52,8 @@ import java.util.List;
  * } </pre>
  */
 public class TupleTagList implements Serializable {
+  private static final long serialVersionUID = 0;
+
   /**
    * Returns an empty TupleTagList.
    *

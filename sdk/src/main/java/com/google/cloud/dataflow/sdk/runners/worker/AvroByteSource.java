@@ -49,7 +49,7 @@ public class AvroByteSource<T> extends Source<T> {
                         @Nullable Long endPosition,
                         Coder<T> coder) {
     this.coder = coder;
-    avroSource = new AvroSource(
+    avroSource = new AvroSource<>(
         filename, startPosition, endPosition,
         WindowedValue.getValueOnlyCoder(AvroCoder.of(ByteBuffer.class, schema)));
   }

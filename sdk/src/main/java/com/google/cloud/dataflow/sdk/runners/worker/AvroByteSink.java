@@ -48,7 +48,7 @@ public class AvroByteSink<T> extends Sink<T> {
   public AvroByteSink(String filenamePrefix, String shardFormat, String filenameSuffix,
                       int shardCount, Coder<T> coder) {
     this.coder = coder;
-    avroSink = new AvroSink(
+    avroSink = new AvroSink<>(
         filenamePrefix, shardFormat, filenameSuffix, shardCount,
         WindowedValue.getValueOnlyCoder(AvroCoder.of(ByteBuffer.class, schema)));
   }

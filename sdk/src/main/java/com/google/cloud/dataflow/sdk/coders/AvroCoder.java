@@ -81,6 +81,7 @@ import java.util.List;
  * @param <T> the type of elements handled by this coder
  */
 public class AvroCoder<T> extends StandardCoder<T> {
+  private static final long serialVersionUID = 0;
 
   /**
    * Returns an {@code AvroCoder} instance for the provided element type.

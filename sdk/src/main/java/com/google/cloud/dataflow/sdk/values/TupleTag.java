@@ -51,6 +51,8 @@ import java.util.Random;
  * e.g., a {@code PCollection<V>}.
  */
 public class TupleTag<V> implements Serializable {
+  private static final long serialVersionUID = 0;
+
   /**
    * Constructs a new {@code TupleTag}, with a fresh unique id.
    *
@@ -113,7 +115,9 @@ public class TupleTag<V> implements Serializable {
    * e.g., {@code new TupleTag<SomeType>(){}}.
    */
   public TypeToken<V> getTypeToken() {
-    return new TypeToken<V>(getClass()) {};
+    return new TypeToken<V>(getClass()) {
+      private static final long serialVersionUID = 0;
+    };
   }
 
 
@@ -138,7 +142,7 @@ public class TupleTag<V> implements Serializable {
   private static TupleTag<?> fromJson(
       @JsonProperty(PropertyNames.VALUE) String id,
       @JsonProperty(PropertyNames.IS_GENERATED) boolean generated) {
-    return new TupleTag(id, generated);
+    return new TupleTag<>(id, generated);
   }
 
   private TupleTag(String id, boolean generated) {

@@ -162,6 +162,8 @@ public class TextIO {
      */
     public static class Bound<T>
         extends PTransform<PInput, PCollection<T>> {
+      private static final long serialVersionUID = 0;
+
       /** The filepattern to read from. */
       @Nullable final String filepattern;
 
@@ -367,6 +369,8 @@ public class TextIO {
      */
     public static class Bound<T>
         extends PTransform<PCollection<T>, PDone> {
+      private static final long serialVersionUID = 0;
+
       /** The filename to write to. */
       @Nullable final String filenamePrefix;
       /** Suffix to use for each filename. */

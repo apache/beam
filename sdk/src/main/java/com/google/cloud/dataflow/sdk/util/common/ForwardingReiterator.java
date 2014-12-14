@@ -41,7 +41,9 @@ public abstract class ForwardingReiterator<T>
   protected ForwardingReiterator<T> clone() {
     ForwardingReiterator<T> result;
     try {
-      result = (ForwardingReiterator<T>) super.clone();
+      @SuppressWarnings("unchecked")
+      ForwardingReiterator<T> declResult = (ForwardingReiterator<T>) super.clone();
+      result = declResult;
     } catch (CloneNotSupportedException e) {
       throw new AssertionError(
           "Object.clone() for a ForwardingReiterator<T> threw "
