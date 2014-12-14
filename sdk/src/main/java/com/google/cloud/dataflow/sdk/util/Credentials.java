@@ -152,7 +152,7 @@ public class Credentials {
     try {
       return GoogleCredential.getApplicationDefault().createScoped(USER_SCOPES);
     } catch (IOException e) {
-      LOG.info("Failed to get application default credentials, falling back to gcloud.");
+      LOG.debug("Failed to get application default credentials, falling back to gcloud.");
     }
 
     String gcloudPath = options.getGCloudPath();
@@ -196,7 +196,7 @@ public class Credentials {
       throw new RuntimeException("Could not obtain credential using gcloud", e);
     }
 
-    LOG.info("Got credential from GCloud");
+    LOG.info("Got user credential from GCloud");
     return credential;
   }
 

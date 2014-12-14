@@ -66,14 +66,14 @@ public class WordCount {
 
     @Override
     public void processElement(ProcessContext c) {
-      // Split the line into words.
-      String[] words = c.element().split("[^a-zA-Z']+");
-
-      // Keep track of the number of lines without any words encountered while tokenizing.
-      // This aggregator is visible in the monitoring UI when run using DataflowPipelineRunner.
-      if (words.length == 0) {
+      // Keep track of the number of empty lines. (When using the [Blocking]DataflowPipelineRunner, 
+      // Aggregators are shown in the monitoring UI.)
+      if (c.element().trim().isEmpty()) {
         emptyLines.addValue(1L);
       }
+      
+      // Split the line into words.
+      String[] words = c.element().split("[^a-zA-Z']+");
 
       // Output each word encountered into the output PCollection.
       for (String word : words) {

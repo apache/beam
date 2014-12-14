@@ -320,13 +320,17 @@ public class DirectPipelineRunner
 
   @Override
   public EvaluationResults run(Pipeline pipeline) {
+    LOG.info("Executing pipeline using the DirectPipelineRunner.");
+    
     Evaluator evaluator = new Evaluator();
     evaluator.run(pipeline);
 
     // Log all counter values for debugging purposes.
     for (Counter counter : evaluator.getCounters()) {
-      LOG.debug("Final aggregator value: {}", counter);
+      LOG.info("Final aggregator value: {}", counter);
     }
+    
+    LOG.info("Pipeline execution complete.");
 
     return evaluator;
   }

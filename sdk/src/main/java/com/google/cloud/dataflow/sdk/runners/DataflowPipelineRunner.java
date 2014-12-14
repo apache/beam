@@ -124,8 +124,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     if (dataflowOptions.getFilesToStage() == null) {
       dataflowOptions.setFilesToStage(detectClassPathResourcesToStage(
           DataflowPipelineRunner.class.getClassLoader()));
-      LOG.info("No specified files to stage. Defaulting to files: {}",
-          dataflowOptions.getFilesToStage());
+      LOG.info("PipelineOptions.filesToStage was not specified. "
+          + "Defaulting to files from the classpath: {}", dataflowOptions.getFilesToStage());
     }
 
     // Verify jobName according to service requirements.

@@ -66,7 +66,7 @@ class LoggingMediaHttpUploaderProgressListener implements MediaHttpUploaderProgr
       case INITIATION_STARTED:
         startTime = currentTime;
         prevTime = currentTime;
-        log.info("Uploading: {}", name);
+        log.debug("Uploading: {}", name);
         break;
       case MEDIA_IN_PROGRESS:
         // Limit messages to be emitted for in progress uploads.
@@ -75,7 +75,7 @@ class LoggingMediaHttpUploaderProgressListener implements MediaHttpUploaderProgr
                                / ((currentTime - startTime) / 1000.0);
           double currentRate = ((bytesUploaded - prevUploadedBytes) / BYTES_IN_MB)
                                / ((currentTime - prevTime) / 1000.0);
-          log.info(String.format(
+          log.debug(String.format(
               "Uploading: %s Average Rate: %.3f MiB/s, Current Rate: %.3f MiB/s, Total: %.3f MiB",
               name, averageRate, currentRate, bytesUploaded / BYTES_IN_MB));
           prevTime = currentTime;
@@ -83,7 +83,7 @@ class LoggingMediaHttpUploaderProgressListener implements MediaHttpUploaderProgr
         }
         break;
       case MEDIA_COMPLETE:
-        log.info("Finished Uploading: {}", name);
+        log.debug("Finished Uploading: {}", name);
         break;
       default:
     }

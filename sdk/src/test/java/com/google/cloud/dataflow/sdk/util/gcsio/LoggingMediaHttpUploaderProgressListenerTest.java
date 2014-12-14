@@ -46,7 +46,7 @@ public class LoggingMediaHttpUploaderProgressListenerTest {
   @Test
   public void testLoggingInitiation() {
     listener.progressChanged(mockLogger, UploadState.INITIATION_STARTED, 0L, 0L);
-    verify(mockLogger).info("Uploading: {}", "NAME");
+    verify(mockLogger).debug("Uploading: {}", "NAME");
     verifyNoMoreInteractions(mockLogger);
   }
 
@@ -54,9 +54,9 @@ public class LoggingMediaHttpUploaderProgressListenerTest {
   public void testLoggingProgressAfterSixtySeconds() {
     listener.progressChanged(mockLogger, UploadState.MEDIA_IN_PROGRESS, 10485760L, 60001L);
     listener.progressChanged(mockLogger, UploadState.MEDIA_IN_PROGRESS, 104857600L, 120002L);
-    verify(mockLogger).info(
+    verify(mockLogger).debug(
         "Uploading: NAME Average Rate: 0.167 MiB/s, Current Rate: 0.167 MiB/s, Total: 10.000 MiB");
-    verify(mockLogger).info(
+    verify(mockLogger).debug(
         "Uploading: NAME Average Rate: 0.833 MiB/s, Current Rate: 1.500 MiB/s, Total: 100.000 MiB");
     verifyNoMoreInteractions(mockLogger);
   }
@@ -70,7 +70,7 @@ public class LoggingMediaHttpUploaderProgressListenerTest {
   @Test
   public void testLoggingCompletion() {
     listener.progressChanged(mockLogger, UploadState.MEDIA_COMPLETE, 104857600L, 60000L);
-    verify(mockLogger).info("Finished Uploading: {}", "NAME");
+    verify(mockLogger).debug("Finished Uploading: {}", "NAME");
     verifyNoMoreInteractions(mockLogger);
   }
 

@@ -72,9 +72,9 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
         throws IOException {
       boolean willRetry = super.handleIOException(request, supportsRetry);
       if (willRetry) {
-        LOG.info("Request failed with IOException, will retry: {}", request.getUrl());
+        LOG.debug("Request failed with IOException, will retry: {}", request.getUrl());
       } else {
-        LOG.info("Request failed with IOException, will NOT retry: {}", request.getUrl());
+        LOG.debug("Request failed with IOException, will NOT retry: {}", request.getUrl());
       }
       return willRetry;
     }
@@ -104,11 +104,11 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
         boolean supportsRetry) throws IOException {
       boolean retry = handler.handleResponse(request, response, supportsRetry);
       if (retry) {
-        LOG.info("Request failed with code {} will retry: {}",
+        LOG.debug("Request failed with code {} will retry: {}",
             response.getStatusCode(), request.getUrl());
 
       } else if (!IGNORED_RESPONSE_CODES.contains(response.getStatusCode())) {
-        LOG.info("Request failed with code {}, will NOT retry: {}",
+        LOG.debug("Request failed with code {}, will NOT retry: {}",
             response.getStatusCode(), request.getUrl());
       }
 

@@ -108,6 +108,8 @@ public class PackageUtil {
       Collection<String> classpathElements,
       GcsPath gcsStaging,
       Sleeper retrySleeper) {
+    LOG.info("Uploading {} files from PipelineOptions.filesToStage to GCS to prepare for execution "
+        + "in the cloud.", classpathElements.size());
     ArrayList<DataflowPackage> packages = new ArrayList<>();
 
     if (gcsStaging == null) {
@@ -115,6 +117,8 @@ public class PackageUtil {
           "Can't stage classpath elements on GCS because no GCS location has been provided");
     }
 
+    int numUploaded = 0;
+    int numCached = 0;
     for (String classpathElement : classpathElements) {
       String packageName = null;
       if (classpathElement.contains("=")) {
@@ -134,7 +138,9 @@ public class PackageUtil {
       try {
         long remoteLength = gcsUtil.fileSize(target);
         if (remoteLength >= 0 && remoteLength == getClasspathElementLength(classpathElement)) {
-          LOG.info("Skipping classpath element already on gcs: {} at {}", classpathElement, target);
+          LOG.debug("Skipping classpath element already on gcs: {} at {}",
+              classpathElement, target);
+          numCached++;
           continue;
         }
 
@@ -144,10 +150,11 @@ public class PackageUtil {
             INITIAL_BACKOFF_INTERVAL_MS);
         while (true) {
           try {
-            LOG.info("Uploading classpath element {} to {}", classpathElement, target);
+            LOG.debug("Uploading classpath element {} to {}", classpathElement, target);
             try (WritableByteChannel writer = gcsUtil.create(target, MimeTypes.BINARY)) {
               copyContent(classpathElement, writer);
             }
+            numUploaded++;
             break;
           } catch (IOException e) {
             if (BackOffUtils.next(retrySleeper, backoff)) {
@@ -165,6 +172,10 @@ public class PackageUtil {
         throw new RuntimeException("Could not stage classpath element: " + classpathElement, e);
       }
     }
+    
+    LOG.info("Uploading PipelineOptions.filesToStage complete: {} files newly uploaded, "
+        + "{} files cached",
+        numUploaded, numCached);
 
     return packages;
   }
