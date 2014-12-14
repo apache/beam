@@ -44,7 +44,7 @@ public class TestPipelineTest {
   public void testCreationOfPipelineOptions() throws Exception {
     ObjectMapper mapper = new ObjectMapper();
     String stringOptions = mapper.writeValueAsString(
-        ImmutableMap.of("options", 
+        ImmutableMap.of("options",
           ImmutableMap.<String, String>builder()
           .put("runner", DataflowPipelineRunner.class.getName())
           .put("project", "testProject")
@@ -56,7 +56,6 @@ public class TestPipelineTest {
           .put("zone", "testZone")
           .put("numWorkers", "1")
           .put("diskSizeGb", "2")
-          .put("shuffleDiskSizeGb", "3")
           .build()));
     System.getProperties().put("dataflowOptions", stringOptions);
     TestDataflowPipelineOptions options = TestPipeline.getPipelineOptions();
@@ -71,6 +70,5 @@ public class TestPipelineTest {
     assertEquals("testServiceAccountKeyfile", options.getServiceAccountKeyfile());
     assertEquals("testZone", options.getZone());
     assertEquals(2, options.getDiskSizeGb());
-    assertEquals(3, options.getShuffleDiskSizeGb());
   }
 }

@@ -20,7 +20,6 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addObject;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -152,11 +151,9 @@ public class DataflowPipelineTranslatorTest {
     Job job = DataflowPipelineTranslator.fromOptions(options).translate(
         p, Collections.<DataflowPackage>emptyList());
 
-    assertEquals(2, job.getEnvironment().getWorkerPools().size());
+    assertEquals(1, job.getEnvironment().getWorkerPools().size());
     assertEquals(testZone,
         job.getEnvironment().getWorkerPools().get(0).getZone());
-    assertEquals(testZone,
-        job.getEnvironment().getWorkerPools().get(1).getZone());
   }
 
   @Test
@@ -171,27 +168,9 @@ public class DataflowPipelineTranslatorTest {
     Job job = DataflowPipelineTranslator.fromOptions(options).translate(
         p, Collections.<DataflowPackage>emptyList());
 
-    assertEquals(2, job.getEnvironment().getWorkerPools().size());
+    assertEquals(1, job.getEnvironment().getWorkerPools().size());
 
-    WorkerPool workerPool = null;
-
-    if (job
-        .getEnvironment()
-        .getWorkerPools()
-        .get(0)
-        .getKind()
-        .equals(DataflowPipelineTranslator.HARNESS_WORKER_POOL)) {
-      workerPool = job.getEnvironment().getWorkerPools().get(0);
-    } else if (job
-        .getEnvironment()
-        .getWorkerPools()
-        .get(1)
-        .getKind()
-        .equals(DataflowPipelineTranslator.HARNESS_WORKER_POOL)) {
-      workerPool = job.getEnvironment().getWorkerPools().get(1);
-    } else {
-      fail("Missing worker pool.");
-    }
+    WorkerPool workerPool = job.getEnvironment().getWorkerPools().get(0);
     assertEquals(testMachineType, workerPool.getMachineType());
   }
 
@@ -207,40 +186,9 @@ public class DataflowPipelineTranslatorTest {
     Job job = DataflowPipelineTranslator.fromOptions(options).translate(
         p, Collections.<DataflowPackage>emptyList());
 
-    assertEquals(2, job.getEnvironment().getWorkerPools().size());
+    assertEquals(1, job.getEnvironment().getWorkerPools().size());
     assertEquals(diskSizeGb,
         job.getEnvironment().getWorkerPools().get(0).getDiskSizeGb());
-    assertEquals(diskSizeGb,
-        job.getEnvironment().getWorkerPools().get(1).getDiskSizeGb());
-  }
-
-  @Test
-  public void testShufflePoolConfig() throws IOException {
-    final Integer numWorkers = 10;
-    final String diskSource = "test-disk-source";
-    final Integer diskSizeGb = 12345;
-    final String zone = "test-zone-1";
-
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setShuffleNumWorkers(numWorkers);
-    options.setShuffleDiskSourceImage(diskSource);
-    options.setShuffleDiskSizeGb(diskSizeGb);
-    options.setShuffleZone(zone);
-
-    Pipeline p = buildPipeline(options);
-    p.traverseTopologically(new RecordingPipelineVisitor());
-    Job job = DataflowPipelineTranslator.fromOptions(options).translate(
-        p, Collections.<DataflowPackage>emptyList());
-
-    assertEquals(2, job.getEnvironment().getWorkerPools().size());
-    WorkerPool shufflePool =
-        job.getEnvironment().getWorkerPools().get(1);
-    assertEquals(shufflePool.getKind(),
-        DataflowPipelineTranslator.SHUFFLE_WORKER_POOL);
-    assertEquals(numWorkers, shufflePool.getNumWorkers());
-    assertEquals(diskSource, shufflePool.getDiskSourceImage());
-    assertEquals(diskSizeGb, shufflePool.getDiskSizeGb());
-    assertEquals(zone, shufflePool.getZone());
   }
 
   @Test

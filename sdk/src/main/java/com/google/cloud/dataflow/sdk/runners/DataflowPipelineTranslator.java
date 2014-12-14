@@ -101,7 +101,6 @@ import javax.annotation.Nullable;
 public class DataflowPipelineTranslator {
   // Must be kept in sync with their internal counterparts.
   public static final String HARNESS_WORKER_POOL = "harness";
-  public static final String SHUFFLE_WORKER_POOL = "shuffle";
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineTranslator.class);
 
   /**
@@ -358,9 +357,6 @@ public class DataflowPipelineTranslator {
 
       workerPool.setTaskrunnerSettings(taskRunnerSettings);
 
-      WorkerPool shufflePool = new WorkerPool();
-      shufflePool.setKind(SHUFFLE_WORKER_POOL);
-
       if (options.isStreaming()) {
         job.setType("JOB_TYPE_STREAMING");
       } else {
@@ -373,10 +369,8 @@ public class DataflowPipelineTranslator {
 
       workerPool.setPackages(packages);
       workerPool.setNumWorkers(options.getNumWorkers());
-      shufflePool.setNumWorkers(options.getNumWorkers());
       if (options.getDiskSourceImage() != null) {
         workerPool.setDiskSourceImage(options.getDiskSourceImage());
-        shufflePool.setDiskSourceImage(options.getDiskSourceImage());
       }
 
       if (options.getMachineType() != null) {
@@ -396,33 +390,14 @@ public class DataflowPipelineTranslator {
       }
       if (!Strings.isNullOrEmpty(options.getZone())) {
         workerPool.setZone(options.getZone());
-        shufflePool.setZone(options.getZone());
       }
       if (options.getDiskSizeGb() > 0) {
         workerPool.setDiskSizeGb(options.getDiskSizeGb());
-        shufflePool.setDiskSizeGb(options.getDiskSizeGb());
-      }
-
-      // Set up any specific shuffle pool parameters
-      if (options.getShuffleNumWorkers() > 0) {
-        shufflePool.setNumWorkers(options.getShuffleNumWorkers());
-      }
-      if (options.getShuffleDiskSourceImage() != null) {
-        shufflePool.setDiskSourceImage(options.getShuffleDiskSourceImage());
-      }
-      if (!Strings.isNullOrEmpty(options.getShuffleZone())) {
-        shufflePool.setZone(options.getShuffleZone());
-      }
-      if (options.getShuffleDiskSizeGb() > 0) {
-        shufflePool.setDiskSizeGb(options.getShuffleDiskSizeGb());
       }
 
       List<WorkerPool> workerPools = new LinkedList<>();
 
       workerPools.add(workerPool);
-      if (!options.isStreaming()) {
-        workerPools.add(shufflePool);
-      }
       environment.setWorkerPools(workerPools);
 
       pipeline.traverseTopologically(this);

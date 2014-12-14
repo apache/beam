@@ -33,7 +33,7 @@ import org.joda.time.format.DateTimeFormatter;
  */
 public interface DataflowPipelineOptions extends
     PipelineOptions, GcpOptions, ApplicationNameOptions, DataflowPipelineDebugOptions,
-    DataflowPipelineShuffleOptions, DataflowPipelineWorkerPoolOptions, BigQueryOptions,
+    DataflowPipelineWorkerPoolOptions, BigQueryOptions,
     GcsOptions, StreamingOptions {
 
   /**
