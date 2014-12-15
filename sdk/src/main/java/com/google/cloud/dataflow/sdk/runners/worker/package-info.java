@@ -14,7 +14,7 @@
  * the License.
  */
 
-/** 
+/**
  * Implementation of the harness that runs on each Google Compute Engine instance to coordinate
  * execution of Pipeline code.
  */

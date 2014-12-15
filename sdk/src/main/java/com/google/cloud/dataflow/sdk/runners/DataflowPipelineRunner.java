@@ -96,7 +96,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * @return The newly created runner.
    */
   public static DataflowPipelineRunner fromOptions(PipelineOptions options) {
-    DataflowPipelineOptions dataflowOptions = 
+    DataflowPipelineOptions dataflowOptions =
         PipelineOptionsValidator.validate(DataflowPipelineOptions.class, options);
     ArrayList<String> missing = new ArrayList<>();
 
@@ -230,7 +230,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           .execute();
     } catch (GoogleJsonResponseException e) {
       throw new RuntimeException(
-          "Failed to create a workflow job: " 
+          "Failed to create a workflow job: "
               + (e.getDetails() != null ? e.getDetails().getMessage() : e), e);
     } catch (IOException e) {
       throw new RuntimeException("Failed to create a workflow job", e);

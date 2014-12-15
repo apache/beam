@@ -38,7 +38,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * An example that counts words in Shakespeare. For a detailed walkthrough of this
  * example see:
  *   https://developers.google.com/cloud-dataflow/java-sdk/wordcount-example
- *   
+ *
  * <p> Concepts: Reading/writing text files; counting a PCollection; user-defined PTransforms
  *
  * <p> To execute this pipeline locally, specify general pipeline configuration:
@@ -69,12 +69,12 @@ public class WordCount {
 
     @Override
     public void processElement(ProcessContext c) {
-      // Keep track of the number of empty lines. (When using the [Blocking]DataflowPipelineRunner, 
+      // Keep track of the number of empty lines. (When using the [Blocking]DataflowPipelineRunner,
       // Aggregators are shown in the monitoring UI.)
       if (c.element().trim().isEmpty()) {
         emptyLines.addValue(1L);
       }
-      
+
       // Split the line into words.
       String[] words = c.element().split("[^a-zA-Z']+");
 

@@ -125,7 +125,7 @@ public class TestPipeline extends Pipeline {
     Optional<StackTraceElement> stackTraceElement = findCallersStackTrace();
     if (stackTraceElement.isPresent()) {
       String className = stackTraceElement.get().getClassName();
-      return className.contains(".") 
+      return className.contains(".")
           ? className.substring(className.lastIndexOf(".") + 1)
               : className;
     }

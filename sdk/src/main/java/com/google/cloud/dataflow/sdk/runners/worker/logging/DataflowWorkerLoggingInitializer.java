@@ -34,14 +34,14 @@ import java.util.logging.Logger;
  * the logging level and location by specifying the Java system properties
  * "dataflow.worker.logging.level" and "dataflow.worker.logging.location" respectively.
  * The default log level is INFO and the default location is a file named dataflow-worker.log
- * within the systems temporary directory. 
+ * within the systems temporary directory.
  */
 public class DataflowWorkerLoggingInitializer {
   private static final String DEFAULT_LOGGING_LOCATION = "/tmp/dataflow-worker.log";
   private static final String ROOT_LOGGER_NAME = "";
   public static final String DATAFLOW_WORKER_LOGGING_LEVEL = "dataflow.worker.logging.level";
   public static final String DATAFLOW_WORKER_LOGGING_LOCATION = "dataflow.worker.logging.location";
-  public static final ImmutableBiMap<Level, String> LEVELS = 
+  public static final ImmutableBiMap<Level, String> LEVELS =
       ImmutableBiMap.<Level, String>builder()
       .put(Level.SEVERE, "ERROR")
       .put(Level.WARNING, "WARNING")

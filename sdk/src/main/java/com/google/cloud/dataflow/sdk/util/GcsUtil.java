@@ -47,7 +47,7 @@ import java.util.regex.Pattern;
  */
 public class GcsUtil {
   /**
-   * This is a {@link DefaultValueFactory} able to create a {@link GcsUtil} using 
+   * This is a {@link DefaultValueFactory} able to create a {@link GcsUtil} using
    * any transport flags specified on the {@link PipelineOptions}.
    */
   public static class GcsUtilFactory implements DefaultValueFactory<GcsUtil> {

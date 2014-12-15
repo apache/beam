@@ -37,14 +37,14 @@ public interface DataflowPipelineWorkerPoolOptions {
   @Default.Integer(3)
   int getNumWorkers();
   void setNumWorkers(int value);
-  
+
   /**
    * Type of autoscaling algorithm to use. These types are experimental and subject to change.
    */
   public enum AutoscalingAlgorithmType {
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
-    
+
     /** Autoscale the workerpool size up to maxNumWorkers until the job completes. */
     BASIC("AUTOSCALING_ALGORITHM_BASIC");
 
@@ -73,9 +73,9 @@ public interface DataflowPipelineWorkerPoolOptions {
       return AutoscalingAlgorithmType.NONE;
     }
   }
-  
+
   /**
-   * Max number of workers to use when using workerpool autoscaling. 
+   * Max number of workers to use when using workerpool autoscaling.
    * This option is experimental and subject to change.
    */
   @Description("Max number of workers to use, when using autoscaling")

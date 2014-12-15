@@ -127,7 +127,7 @@ public class Credentials {
    *     "service_account_name" to use this mechanism.
    *   </li>
    * </ol>
-   * The default mechanism is to use the 
+   * The default mechanism is to use the
    * <a href="https://developers.google.com/accounts/docs/application-default-credentials">
    * application default credentials</a> falling back to gcloud. The other options can be
    * used by providing the corresponding properties.

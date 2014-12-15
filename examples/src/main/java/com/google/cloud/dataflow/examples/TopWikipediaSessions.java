@@ -49,7 +49,7 @@ import java.util.List;
  * the longest string of edits separated by no more than an hour within each month.
  *
  * <p> Concepts: Using Windowing to perform time-based aggregations of data.
- *   
+ *
  * <p> It is not recommended to execute this pipeline locally, given the size of the default input
  * data.
  *
@@ -62,7 +62,7 @@ import java.util.List;
  *
  * <p> The default input is gs://dataflow-samples/wikipedia_edits/*.json and can be overridden with
  * --input.
- * 
+ *
  * <p> The input for this example is large enough that it's a good place to enable (experimental)
  * autoscaling:
  *   --autoscalingAlgorithm=BASIC

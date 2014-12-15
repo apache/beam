@@ -14,19 +14,19 @@
  * the License.
  */
 
-/** 
- * Provides a simple, powerful model for building both batch and 
+/**
+ * Provides a simple, powerful model for building both batch and
  * streaming parallel data processing
- * {@link com.google.cloud.dataflow.sdk.Pipeline}s. 
- * 
- * <p> To use the Google Cloud Dataflow SDK, you build a 
- * {@link com.google.cloud.dataflow.sdk.Pipeline} which manages a graph of 
- * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s 
- * and the {@link com.google.cloud.dataflow.sdk.values.PCollection}s that 
+ * {@link com.google.cloud.dataflow.sdk.Pipeline}s.
+ *
+ * <p> To use the Google Cloud Dataflow SDK, you build a
+ * {@link com.google.cloud.dataflow.sdk.Pipeline} which manages a graph of
+ * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s
+ * and the {@link com.google.cloud.dataflow.sdk.values.PCollection}s that
  * the PTransforms consume and produce.
  *
  * <p> Each Pipeline has a
- * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner} to specify 
+ * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner} to specify
  * where and how it should run after pipeline construction is complete.
  *
  */

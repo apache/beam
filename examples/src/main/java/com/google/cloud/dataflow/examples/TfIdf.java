@@ -60,7 +60,7 @@ import java.util.Set;
 
 /**
  * An example that computes a basic TF-IDF search table for a directory or GCS prefix.
- * 
+ *
  * <p> Concepts: joining data; side inputs
  *
  * <p> To execute this pipeline locally, specify general pipeline configuration:
@@ -69,7 +69,7 @@ import java.util.Set;
  *   --output=[<LOCAL FILE> | gs://<OUTPUT PREFIX>]
  *
  * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=<PROJECT ID> 
+ *   --project=<PROJECT ID>
  *   --stagingLocation=gs://<STAGING DIRECTORY>
  *   --runner=BlockingDataflowPipelineRunner
  * and an output prefix on GCS:

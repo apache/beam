@@ -172,7 +172,7 @@ public class PackageUtil {
         throw new RuntimeException("Could not stage classpath element: " + classpathElement, e);
       }
     }
-    
+
     LOG.info("Uploading PipelineOptions.filesToStage complete: {} files newly uploaded, "
         + "{} files cached",
         numUploaded, numCached);

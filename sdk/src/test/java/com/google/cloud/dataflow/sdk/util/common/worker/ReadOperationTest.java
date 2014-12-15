@@ -295,7 +295,7 @@ public class ReadOperationTest {
   private static ApproximateProgress makeApproximateProgress(long offset) {
     return makeApproximateProgress(makePosition(offset));
   }
-  
+
   private static ApproximateProgress makeApproximateProgress(
       com.google.api.services.dataflow.model.Position position) {
     return new ApproximateProgress().setPosition(position);

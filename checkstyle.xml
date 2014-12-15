@@ -44,8 +44,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
   </module>
 
   <module name="FileTabCharacter">
-    <!-- Checks that there are no tab characters in the file.
-    -->
+    <!-- Checks that there are no tab characters in the file. -->
   </module>
 
   <module name="NewlineAtEndOfFile"/>
@@ -60,7 +59,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
   <module name="RegexpSingleline">
     <property name="format" value="[ \t]+$"/>
     <property name="message" value="Trailing whitespace"/>
-    <property name="severity" value="warning"/>
+    <property name="severity" value="error"/>
   </module>
 
   <module name="RegexpSingleline">

@@ -199,7 +199,7 @@ public abstract class FileBasedSource<T> extends Source<T> {
       // CloudPosition in a file-based Source. If stop position in
       // other types is proposed, the end position in iterator will
       // not be updated, and return null.
-      com.google.api.services.dataflow.model.ApproximateProgress stopPosition = 
+      com.google.api.services.dataflow.model.ApproximateProgress stopPosition =
           sourceProgressToCloudProgress(proposedStopPosition);
       if (stopPosition == null) {
         LOG.warn(

@@ -34,7 +34,7 @@ public class PipelineOptionsValidatorTest {
     public String getObject();
     public void setObject(String value);
   }
-  
+
   @Test
   public void testWhenRequiredOptionIsSet() {
     Required required = PipelineOptionsFactory.as(Required.class);

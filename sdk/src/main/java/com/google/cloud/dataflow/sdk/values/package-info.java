@@ -14,18 +14,18 @@
  * the License.
  */
 
-/** 
- * Defines {@link com.google.cloud.dataflow.sdk.values.PCollection} and other classes for 
+/**
+ * Defines {@link com.google.cloud.dataflow.sdk.values.PCollection} and other classes for
  * representing data in a {@link com.google.cloud.dataflow.sdk.Pipeline}.
- * 
- * <p> A {@link com.google.cloud.dataflow.sdk.values.PCollection} is an immutable collection of 
- * values of type {@code T} and is the main representation for data. 
+ *
+ * <p> A {@link com.google.cloud.dataflow.sdk.values.PCollection} is an immutable collection of
+ * values of type {@code T} and is the main representation for data.
  * A {@link com.google.cloud.dataflow.sdk.values.PCollectionTuple} is a tuple of PCollections
- * used in cases where PTransforms take or return multiple PCollections. 
- * 
+ * used in cases where PTransforms take or return multiple PCollections.
+ *
  * <p> A {@link com.google.cloud.dataflow.sdk.values.PCollectionTuple} is an immutable tuple of
  * heterogeneously-typed {@link com.google.cloud.dataflow.sdk.values.PCollection}s, "keyed" by
- * {@link com.google.cloud.dataflow.sdk.values.TupleTag}s.  
+ * {@link com.google.cloud.dataflow.sdk.values.TupleTag}s.
  * A PCollectionTuple can be used as the input or
  * output of a
  * {@link com.google.cloud.dataflow.sdk.transforms.PTransform} taking
@@ -33,10 +33,10 @@
  * different types, for instance a
  * {@link com.google.cloud.dataflow.sdk.transforms.ParDo} with side
  * outputs.
- * 
+ *
  * <p> A {@link com.google.cloud.dataflow.sdk.values.PCollectionView} is an immutable view of a
  * PCollection that can be accessed from a DoFn and other user Fns
  * as a side input.
- * 
+ *
  */
 package com.google.cloud.dataflow.sdk.values;

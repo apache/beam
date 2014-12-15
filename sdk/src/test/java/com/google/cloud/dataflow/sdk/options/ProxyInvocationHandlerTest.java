@@ -111,7 +111,7 @@ public class ProxyInvocationHandlerTest {
   public static class TestOptionFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
-      return "testOptionFactory"; 
+      return "testOptionFactory";
     }
   }
 
@@ -224,7 +224,7 @@ public class ProxyInvocationHandlerTest {
     expectedException.expectMessage("Unknown method [public abstract void com.google.cloud."
         + "dataflow.sdk.options.ProxyInvocationHandlerTest$UnknownMethod.unknownMethod()] "
         + "invoked with args [null].");
-    
+
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
     handler.invoke(handler, UnknownMethod.class.getMethod("unknownMethod"), null);
   }
@@ -292,7 +292,7 @@ public class ProxyInvocationHandlerTest {
   public void testMethodConflictProvidesSameValue() throws Exception {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
     MethodConflict methodConflict = handler.as(MethodConflict.class);
-    
+
     methodConflict.setString("conflictValue");
     assertEquals("conflictValue", methodConflict.getString());
     assertEquals("conflictValue", methodConflict.as(Simple.class).getString());
@@ -364,7 +364,7 @@ public class ProxyInvocationHandlerTest {
     @Override
     void setPrimitive(int value);
   }
-  
+
   @Test
   public void testPartialMethodConflictProvidesSameValue() throws Exception {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
@@ -404,13 +404,13 @@ public class ProxyInvocationHandlerTest {
     assertEquals(5, options2.getInteger());
     assertEquals("TestValue", options2.getString());
   }
-  
+
   @Test
   public void testJsonConversionOfAJsonConvertedType() throws Exception {
     SimpleTypes options = PipelineOptionsFactory.as(SimpleTypes.class);
     options.setString("TestValue");
     options.setInteger(5);
-    SimpleTypes options2 = serializeDeserialize(SimpleTypes.class, 
+    SimpleTypes options2 = serializeDeserialize(SimpleTypes.class,
         serializeDeserialize(SimpleTypes.class, options));
     assertEquals(5, options2.getInteger());
     assertEquals("TestValue", options2.getString());
@@ -478,7 +478,7 @@ public class ProxyInvocationHandlerTest {
     @Override
     public boolean equals(Object obj) {
       return obj != null
-          && getClass().equals(obj.getClass()) 
+          && getClass().equals(obj.getClass())
           && Objects.equals(doubleField, ((InnerType) obj).doubleField);
     }
   }
@@ -493,7 +493,7 @@ public class ProxyInvocationHandlerTest {
     @Override
     public boolean equals(Object obj) {
       return obj != null
-          && getClass().equals(obj.getClass()) 
+          && getClass().equals(obj.getClass())
           && Objects.equals(stringField, ((ComplexType) obj).stringField)
           && Objects.equals(intField, ((ComplexType) obj).intField)
           && Objects.equals(genericType, ((ComplexType) obj).genericType)
@@ -531,7 +531,7 @@ public class ProxyInvocationHandlerTest {
   public void testJsonConversionOfIgnoredProperty() throws Exception {
     IgnoredProperty options = PipelineOptionsFactory.as(IgnoredProperty.class);
     options.setValue("TestValue");
-    
+
     IgnoredProperty options2 = serializeDeserialize(IgnoredProperty.class, options);
     assertNull(options2.getValue());
   }
@@ -577,7 +577,7 @@ public class ProxyInvocationHandlerTest {
     IgnoredNotSerializableProperty options =
         PipelineOptionsFactory.as(IgnoredNotSerializableProperty.class);
     options.setValue(new NotSerializable("TestString"));
-    
+
     IgnoredNotSerializableProperty options2 =
         serializeDeserialize(IgnoredNotSerializableProperty.class, options);
     assertNull(options2.getValue());

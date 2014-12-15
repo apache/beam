@@ -138,7 +138,7 @@ class ProxyInvocationHandler implements InvocationHandler {
     Preconditions.checkNotNull(iface);
     Preconditions.checkArgument(iface.isInterface());
     if (!interfaceToProxyCache.containsKey(iface)) {
-      Registration<T> registration = 
+      Registration<T> registration =
           PipelineOptionsFactory.validateWellFormed(iface, knownInterfaces);
       List<PropertyDescriptor> propertyDescriptors = registration.getPropertyDescriptors();
       Class<T> proxyClass = registration.getProxyClass();

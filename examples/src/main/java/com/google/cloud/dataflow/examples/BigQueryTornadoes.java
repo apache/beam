@@ -39,19 +39,19 @@ import java.util.List;
 /**
  * An example that reads the public samples of weather data from BigQuery, counts the number of
  * tornadoes that occur in each month, and writes the results to BigQuery.
- * 
+ *
  * <p> Concepts: Reading/writing BigQuery; counting a PCollection; user-defined PTransforms
- * 
- * <p> Note: Before running this example, you must create a BigQuery dataset to contain your output 
+ *
+ * <p> Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
- * 
+ *
  * <p> To execute this pipeline locally, specify general pipeline configuration:
  *   --project=<PROJECT ID>
  * and the BigQuery table for the output:
  *   --output=<project_id>:<dataset_id>.<table_id>
  *
  * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=<PROJECT ID> 
+ *   --project=<PROJECT ID>
  *   --stagingLocation=gs://<STAGING DIRECTORY>
  *   --runner=BlockingDataflowPipelineRunner
  * and the BigQuery table for the output:

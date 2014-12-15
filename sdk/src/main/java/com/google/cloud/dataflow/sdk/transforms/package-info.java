@@ -14,12 +14,12 @@
  * the License.
  */
 
-/** 
- * Defines {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s for transforming 
+/**
+ * Defines {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s for transforming
  * data in a pipeline.
- * 
+ *
  * <p>A {@link com.google.cloud.dataflow.sdk.transforms.PTransform} is an operation that takes an
- * {@code Input} (some subtype of {@link com.google.cloud.dataflow.sdk.values.PInput}) 
+ * {@code Input} (some subtype of {@link com.google.cloud.dataflow.sdk.values.PInput})
  * and produces an
  * {@code Output} (some subtype of {@link com.google.cloud.dataflow.sdk.values.POutput}).
  *
@@ -29,15 +29,15 @@
  * conversion operations like {@link com.google.cloud.dataflow.sdk.transforms.ParDo},
  * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey},
  * {@link com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey},
- * {@link com.google.cloud.dataflow.sdk.transforms.Combine}, and 
+ * {@link com.google.cloud.dataflow.sdk.transforms.Combine}, and
  * {@link com.google.cloud.dataflow.sdk.transforms.Count}, and outputting
  * PTransforms like
- * {@link com.google.cloud.dataflow.sdk.io.TextIO.Write}.  
- * 
- * <p>New PTransforms can be created by composing existing PTransforms. 
+ * {@link com.google.cloud.dataflow.sdk.io.TextIO.Write}.
+ *
+ * <p>New PTransforms can be created by composing existing PTransforms.
  * Most PTransforms in this package are composites, and users can also create composite PTransforms
- * for their own application-specific logic. 
- * 
+ * for their own application-specific logic.
+ *
  */
 package com.google.cloud.dataflow.sdk.transforms;
 

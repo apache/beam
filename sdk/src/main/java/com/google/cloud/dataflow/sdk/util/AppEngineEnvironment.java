@@ -32,7 +32,7 @@ public class AppEngineEnvironment {
    * Purposely copied and left private from private <a href="https://code.google.com/p/
    * guava-libraries/source/browse/guava/src/com/google/common/util/concurrent/
    * MoreExecutors.java#785">code.google.common.util.concurrent.MoreExecutors#isAppEngine</a>.
-   * 
+   *
    * @return true if we are inside of AppEngine, false otherwise.
    */
   static boolean isAppEngine() {

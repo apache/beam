@@ -14,10 +14,10 @@
  * the License.
  */
 
-/** 
- * Defines {@link com.google.cloud.dataflow.sdk.options.PipelineOptions} for 
+/**
+ * Defines {@link com.google.cloud.dataflow.sdk.options.PipelineOptions} for
  * configuring pipeline execution.
- * 
+ *
  * <p> {@link com.google.cloud.dataflow.sdk.options.PipelineOptions} encapsulates the various
  * parameters that describe how a pipeline should be run. {@code PipelineOptions} are created
  * using a {@link com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory}.

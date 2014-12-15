@@ -14,8 +14,8 @@
  * the License.
  */
 
-/** 
+/**
  * Defines utilities for unit testing Dataflow pipelines. The tests for the {@code PTransform}s and
- * examples included the Dataflow SDK provide examples of using these utilities. 
+ * examples included the Dataflow SDK provide examples of using these utilities.
  */
 package com.google.cloud.dataflow.sdk.testing;

@@ -14,7 +14,7 @@
  * the License.
  */
 
-/** 
+/**
  * Defines the {@link com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey} transform
  * for joining multiple PCollections.
  */

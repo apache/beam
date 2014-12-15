@@ -56,7 +56,7 @@ public class AttemptBoundedExponentialBackOffTest {
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
     assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
   }
-  
+
   @Test
   public void testThatResettingAllowsReuse() throws Exception {
     BackOff backOff = new AttemptBoundedExponentialBackOff(3, 500);

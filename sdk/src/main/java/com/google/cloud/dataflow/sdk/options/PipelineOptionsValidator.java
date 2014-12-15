@@ -53,7 +53,7 @@ public class PipelineOptionsValidator {
     }
     return options.as(klass);
   }
-  
+
   private static String getDescription(Method method) {
     Description description = method.getAnnotation(Description.class);
     return description == null ? "" : description.value();

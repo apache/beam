@@ -120,7 +120,7 @@ public class Count {
    * encoding each element using the input {@code PCollection}'s
    * {@code Coder}, then comparing the encoded bytes. Because of this,
    * the input coder must be deterministic. (See
-   * {@link com.google.cloud.dataflow.sdk.coders.Coder#isDeterministic()} for more detail). 
+   * {@link com.google.cloud.dataflow.sdk.coders.Coder#isDeterministic()} for more detail).
    * Performing the comparison in this manner admits efficient parallel evaluation.
    *
    * <p> By default, the {@code Coder} of the keys of the output

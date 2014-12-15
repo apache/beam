@@ -104,7 +104,7 @@ public class DataflowWorkerHarness {
   static DataflowWorker createFromSystemProperties() {
     return create(PipelineOptionsFactory.createFromSystemProperties());
   }
-  
+
   static DataflowWorker create(DataflowWorkerHarnessOptions options) {
     MDC.put(DataflowWorkerLoggingFormatter.MDC_DATAFLOW_JOB_ID, options.getJobId());
     MDC.put(DataflowWorkerLoggingFormatter.MDC_DATAFLOW_WORKER_ID, options.getWorkerId());

@@ -35,9 +35,9 @@ import java.util.regex.Pattern;
  * <p> <b>Important:</b> PubsubIO is experimental. It is not supported by the
  * {@link com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner} and is only supported in the
  * {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner} for users whitelisted in a
- * streaming early access program and who enable 
+ * streaming early access program and who enable
  * {@link com.google.cloud.dataflow.sdk.options.StreamingOptions#setStreaming(boolean)}.
- * 
+ *
  * <p> You should expect this class to change significantly in future versions of the SDK
  * or be removed entirely.
  */

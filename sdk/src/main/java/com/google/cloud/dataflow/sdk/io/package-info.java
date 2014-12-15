@@ -19,7 +19,7 @@
  * {@link com.google.cloud.dataflow.sdk.io.AvroIO},
  * {@link com.google.cloud.dataflow.sdk.io.BigQueryIO}, and
  * {@link com.google.cloud.dataflow.sdk.io.TextIO}.
- * 
+ *
  * <p>The classes in this package provide {@code Read} transforms which create PCollections
  * from existing storage:
  * <pre>{@code

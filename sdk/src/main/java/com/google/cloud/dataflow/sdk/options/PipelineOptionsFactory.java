@@ -385,7 +385,7 @@ public class PipelineOptionsFactory {
       Class<T> iface, Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces) {
     Preconditions.checkArgument(iface.isInterface(), "Only interface types are supported.");
 
-    Set<Class<? extends PipelineOptions>> combinedPipelineOptionsInterfaces = 
+    Set<Class<? extends PipelineOptions>> combinedPipelineOptionsInterfaces =
         FluentIterable.from(validatedPipelineOptionsInterfaces).append(iface).toSet();
     // Validate that the view of all currently passed in options classes is well formed.
     if (!COMBINED_CACHE.containsKey(combinedPipelineOptionsInterfaces)) {

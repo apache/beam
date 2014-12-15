@@ -18,11 +18,11 @@ package com.google.cloud.dataflow.sdk.options;
 
 /**
  * [Whitelisting Required] Options used to configure the streaming backend.
- * 
+ *
  * <p> <b>Important:</b> Streaming support is experimental. It is only supported in the
  * {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner} for users whitelisted in a
- * streaming early access program. 
- * 
+ * streaming early access program.
+ *
  * <p> You should expect this class to change significantly in future
  * versions of the SDK or be removed entirely.
  */

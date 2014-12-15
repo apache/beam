@@ -47,7 +47,7 @@ public class DataflowWorkerLoggingFormatter extends Formatter {
   public String format(LogRecord record) {
     String exception = formatException(record.getThrown());
     return DATE_FORMATTER.print(record.getMillis())
-        + " " + MoreObjects.firstNonNull(LEVELS.get(record.getLevel()), 
+        + " " + MoreObjects.firstNonNull(LEVELS.get(record.getLevel()),
                                          record.getLevel().getName())
         + " " + MoreObjects.firstNonNull(MDC.get(MDC_DATAFLOW_JOB_ID), "unknown")
         + " " + MoreObjects.firstNonNull(MDC.get(MDC_DATAFLOW_WORKER_ID), "unknown")

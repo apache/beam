@@ -99,7 +99,7 @@ public class GcsUtilTest {
     // Release the last latch starting the chain reaction.
     countDownLatches[countDownLatches.length - 1].countDown();
     executorService.shutdown();
-    assertTrue("Expected tasks to complete", 
+    assertTrue("Expected tasks to complete",
         executorService.awaitTermination(10, TimeUnit.SECONDS));
   }
 }

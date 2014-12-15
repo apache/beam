@@ -62,7 +62,7 @@ public interface GcsOptions extends
       }
       /* The SDK requires an unbounded thread pool because a step may create X writers
        * each requiring their own thread to perform the writes otherwise a writer may
-       * block causing deadlock for the step because the writers buffer is full. 
+       * block causing deadlock for the step because the writers buffer is full.
        * Also, the MapTaskExecutor launches the steps in reverse order and completes
        * them in forward order thus requiring enough threads so that each step's writers
        * can be active.

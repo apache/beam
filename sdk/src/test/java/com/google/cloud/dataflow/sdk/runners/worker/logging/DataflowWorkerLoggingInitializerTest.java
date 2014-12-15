@@ -94,7 +94,7 @@ public class DataflowWorkerLoggingInitializerTest {
     assertTrue(isConsoleHandler(handlers.get(0), Level.WARNING));
     assertTrue(isFileHandler(handlers.get(1), Level.WARNING));
   }
-  
+
   private boolean isConsoleHandler(Handler handler, Level level) {
     return handler instanceof ConsoleHandler
         && level.equals(handler.getLevel())

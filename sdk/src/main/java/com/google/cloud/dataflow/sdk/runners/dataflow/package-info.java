@@ -14,7 +14,7 @@
  * the License.
  */
 
-/** 
+/**
  * Implementation of the {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner}.
  */
 package com.google.cloud.dataflow.sdk.runners.dataflow;
