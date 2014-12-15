@@ -108,10 +108,10 @@
         <version>2.4.0</version>
         <extensions>true</extensions>
         <configuration>
-        <finalName>${project.artifactId}-bundled-${project.version}</finalName>
+          <finalName>${project.artifactId}-bundled-${project.version}</finalName>
           <instructions>
-            <!-- Embed all dependencies, except for the dataflow sdk -->
-            <Embed-Dependency>*;scope=compile|runtime;artifactId=!google-cloud-dataflow-java-sdk-all;inline=true</Embed-Dependency>
+            <!-- Embed all dependencies -->
+            <Embed-Dependency>*;scope=compile|runtime;inline=true</Embed-Dependency>
           </instructions>
         </configuration>
       </plugin>
