@@ -40,7 +40,7 @@ public class CalendarWindows {
    * <p> For example, {@code CalendarWindows.days(1)} will window elements into
    * separate windows for each day.
    */
-  public static <T> DaysWindows<T> days(int number) {
+  public static DaysWindows days(int number) {
     return new DaysWindows(number, new DateTime(0, DateTimeZone.UTC), DateTimeZone.UTC);
   }
 
@@ -50,7 +50,7 @@ public class CalendarWindows {
    * <p> For example, {@code CalendarWindows.weeks(1, DateTimeConstants.TUESDAY)} will
    * window elements into week-long windows starting on Tuesdays.
    */
-  public static <T> DaysWindows<T> weeks(int number, int startDayOfWeek) {
+  public static DaysWindows weeks(int number, int startDayOfWeek) {
     return new DaysWindows(
         7 * number,
         new DateTime(0, DateTimeZone.UTC).withDayOfWeek(startDayOfWeek),
@@ -65,7 +65,7 @@ public class CalendarWindows {
    * will window elements into 8 month windows where that start on the 10th day of month,
    * and the first window begins in January 2014.
    */
-  public static <T> MonthsWindows<T> months(int number) {
+  public static MonthsWindows months(int number) {
     return new MonthsWindows(number, 1, new DateTime(0, DateTimeZone.UTC), DateTimeZone.UTC);
   }
 
@@ -77,7 +77,7 @@ public class CalendarWindows {
    * will window elements into year-long windows that start at midnight on Jan 1, in the
    * America/Los_Angeles time zone.
    */
-  public static <T> YearsWindows<T> years(int number) {
+  public static YearsWindows years(int number) {
     return new YearsWindows(number, 1, 1, new DateTime(0, DateTimeZone.UTC), DateTimeZone.UTC);
   }
 
@@ -90,15 +90,15 @@ public class CalendarWindows {
    * <p> The time zone used to determine calendar boundaries is UTC, unless this
    * is overridden with the {@link #withTimeZone} method.
    */
-  public static class DaysWindows<T> extends PartitioningWindowingFn<T, IntervalWindow> {
+  public static class DaysWindows extends PartitioningWindowingFn<Object, IntervalWindow> {
 
-    public DaysWindows<T> withStartingDay(int year, int month, int day) {
-      return new DaysWindows<T>(
+    public DaysWindows withStartingDay(int year, int month, int day) {
+      return new DaysWindows(
           number, new DateTime(year, month, day, 0, 0, timeZone), timeZone);
     }
 
-    public DaysWindows<T> withTimeZone(DateTimeZone timeZone) {
-      return new DaysWindows<T>(
+    public DaysWindows withTimeZone(DateTimeZone timeZone) {
+      return new DaysWindows(
           number, startDate.withZoneRetainFields(timeZone), timeZone);
     }
 
@@ -155,20 +155,20 @@ public class CalendarWindows {
    * <p> The time zone used to determine calendar boundaries is UTC, unless this
    * is overridden with the {@link #withTimeZone} method.
    */
-  public static class MonthsWindows<T> extends PartitioningWindowingFn<T, IntervalWindow> {
+  public static class MonthsWindows extends PartitioningWindowingFn<Object, IntervalWindow> {
 
-    public MonthsWindows<T> beginningOnDay(int dayOfMonth) {
-      return new MonthsWindows<T>(
+    public MonthsWindows beginningOnDay(int dayOfMonth) {
+      return new MonthsWindows(
           number, dayOfMonth, startDate, timeZone);
     }
 
-    public MonthsWindows<T> withStartingMonth(int year, int month) {
-      return new MonthsWindows<T>(
+    public MonthsWindows withStartingMonth(int year, int month) {
+      return new MonthsWindows(
           number, dayOfMonth, new DateTime(year, month, 1, 0, 0, timeZone), timeZone);
     }
 
-    public MonthsWindows<T> withTimeZone(DateTimeZone timeZone) {
-      return new MonthsWindows<T>(
+    public MonthsWindows withTimeZone(DateTimeZone timeZone) {
+      return new MonthsWindows(
           number, dayOfMonth, startDate.withZoneRetainFields(timeZone), timeZone);
     }
 
@@ -230,20 +230,20 @@ public class CalendarWindows {
    * <p> The time zone used to determine calendar boundaries is UTC, unless this
    * is overridden with the {@link #withTimeZone} method.
    */
-  public static class YearsWindows<T> extends PartitioningWindowingFn<T, IntervalWindow> {
+  public static class YearsWindows extends PartitioningWindowingFn<Object, IntervalWindow> {
 
-    public YearsWindows<T> beginningOnDay(int monthOfYear, int dayOfMonth) {
-      return new YearsWindows<T>(
+    public YearsWindows beginningOnDay(int monthOfYear, int dayOfMonth) {
+      return new YearsWindows(
           number, monthOfYear, dayOfMonth, startDate, timeZone);
     }
 
-    public YearsWindows<T> withStartingYear(int year) {
-      return new YearsWindows<T>(
+    public YearsWindows withStartingYear(int year) {
+      return new YearsWindows(
           number, monthOfYear, dayOfMonth, new DateTime(year, 1, 1, 0, 0, timeZone), timeZone);
     }
 
-    public YearsWindows<T> withTimeZone(DateTimeZone timeZone) {
-      return new YearsWindows<T>(
+    public YearsWindows withTimeZone(DateTimeZone timeZone) {
+      return new YearsWindows(
           number, monthOfYear, dayOfMonth, startDate.withZoneRetainFields(timeZone), timeZone);
     }
 
