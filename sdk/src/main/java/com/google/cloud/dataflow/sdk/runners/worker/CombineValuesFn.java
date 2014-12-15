@@ -49,11 +49,10 @@ public class CombineValuesFn extends NormalParDoFn {
    * phases (ADD, MERGE, and EXTRACT), on separate VMs, as it sees
    * fit. The CombinerPhase dictates which DoFn is actually running in
    * the worker.
-   *
-   * TODO: These strings are part of the service definition, and
-   * should be added into the definition of the ParDoInstruction,
-   * but the protiary definitions don't allow for enums yet.
    */
+   // TODO: These strings are part of the service definition, and
+   // should be added into the definition of the ParDoInstruction,
+   // but the protiary definitions don't allow for enums yet.
   public static class CombinePhase {
     public static final String ALL = "all";
     public static final String ADD = "add";
@@ -149,8 +148,8 @@ public class CombineValuesFn extends NormalParDoFn {
     }
   }
 
-  /**
-   * ADD phase: KV<K, Iterable<VI>> -> KV<K, VA>
+  /*
+   * ADD phase: KV<K, Iterable<VI>> -> KV<K, VA>.
    */
   private static class AddInputsDoFn<K, VI, VA>
       extends DoFn<KV<K, Iterable<VI>>, KV<K, VA>>{
@@ -174,8 +173,8 @@ public class CombineValuesFn extends NormalParDoFn {
     }
   }
 
-  /**
-   * MERGE phase: KV<K, Iterable<VA>> -> KV<K, VA>
+  /*
+   * MERGE phase: KV<K, Iterable<VA>> -> KV<K, VA>.
    */
   private static class MergeAccumulatorsDoFn<K, VA>
       extends DoFn<KV<K, Iterable<VA>>, KV<K, VA>>{
@@ -196,8 +195,8 @@ public class CombineValuesFn extends NormalParDoFn {
     }
   }
 
-  /**
-   * EXTRACT phase: KV<K, Iterable<VA>> -> KV<K, VA>
+  /*
+   * EXTRACT phase: KV<K, Iterable<VA>> -> KV<K, VA>.
    */
   private static class ExtractOutputDoFn<K, VA, VO>
       extends DoFn<KV<K, VA>, KV<K, VO>>{

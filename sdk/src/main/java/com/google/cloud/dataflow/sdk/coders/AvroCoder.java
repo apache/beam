@@ -58,7 +58,7 @@ import java.util.List;
  * null unless annotated by
  * <a href="http://avro.apache.org/docs/current/api/java/org/apache/avro/reflect/Nullable.html">
  * org.apache.avro.reflect.Nullable</a> or a
- * <http://avro.apache.org/docs/current/api/java/org/apache/avro/reflect/Union.html>
+ * <a href="http://avro.apache.org/docs/current/api/java/org/apache/avro/reflect/Union.html">
  * org.apache.avro.reflect.Union</a> containing null.
  * <p>
  * To use, specify the {@code Coder} type on a PCollection:

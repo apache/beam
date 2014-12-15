@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
  */
 public interface GcsOptions extends
     ApplicationNameOptions, GcpOptions, PipelineOptions {
-  /** Alternative GcsUtil instance */
+  /** Alternative GcsUtil instance. */
   @JsonIgnore
   @Default.InstanceFactory(GcsUtil.GcsUtilFactory.class)
   GcsUtil getGcsUtil();

@@ -406,7 +406,7 @@ public class CombineTest {
     }
 
     /**
-     * A Coder for CountSum
+     * A {@link Coder} for {@link CountSum}.
      */
     public class CountSumCoder extends CustomCoder<CountSum> {
       @Override
@@ -450,7 +450,7 @@ public class CombineTest {
       Combine.AccumulatingCombineFn<
           Integer, TestCounter.Counter, Iterable<Long>> {
 
-    /** An accumulator that observes its merges and outputs */
+    /** An accumulator that observes its merges and outputs. */
     public class Counter implements
         Combine.AccumulatingCombineFn.Accumulator<Integer, Counter, Iterable<Long>>,
         Serializable {

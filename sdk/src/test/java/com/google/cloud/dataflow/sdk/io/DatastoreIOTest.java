@@ -67,7 +67,7 @@ public class DatastoreIOTest {
   }
 
   /**
-   * Test for reading one entity from kind "food"
+   * Test for reading one entity from kind "food".
    */
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)

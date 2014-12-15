@@ -73,7 +73,7 @@ public class TopWikipediaSessions {
   private static final String EXPORTED_WIKI_TABLE = "gs://dataflow-samples/wikipedia_edits/*.json";
 
   /**
-   * Extracts user and timestamp from a TableRow representing a Wikipedia edit
+   * Extracts user and timestamp from a TableRow representing a Wikipedia edit.
    */
   static class ExtractUserAndTimestamp extends DoFn<TableRow, String> {
     @Override

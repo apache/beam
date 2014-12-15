@@ -51,7 +51,7 @@ public class GlobalWindow
    * The default window into which all data is placed.
    */
   public static class Window extends BoundedWindow {
-    public static Window INSTANCE = new Window();
+    public static final Window INSTANCE = new Window();
 
     @Override
     public Instant maxTimestamp() {
@@ -64,7 +64,7 @@ public class GlobalWindow
      * {@link Coder} for encoding and decoding {@code Window}s.
      */
     public static class Coder extends AtomicCoder<Window> {
-      public static Coder INSTANCE = new Coder();
+      public static final Coder INSTANCE = new Coder();
 
       @Override
       public void encode(Window window, OutputStream outStream, Context context) {}

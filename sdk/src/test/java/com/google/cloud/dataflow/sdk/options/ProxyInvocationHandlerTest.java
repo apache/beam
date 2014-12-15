@@ -387,7 +387,7 @@ public class ProxyInvocationHandlerTest {
     assertNotNull(serializeDeserialize(PipelineOptions.class, options));
   }
 
-  /** Test interface for JSON conversion of simple types */
+  /** Test interface for JSON conversion of simple types. */
   private static interface SimpleTypes extends PipelineOptions {
     int getInteger();
     void setInteger(int value);
@@ -440,7 +440,7 @@ public class ProxyInvocationHandlerTest {
     assertEquals("TestValue", options3.getString());
   }
 
-  /** Test interface for JSON conversion of container types */
+  /** Test interface for JSON conversion of container types. */
   private static interface ContainerTypes extends PipelineOptions {
     List<String> getList();
     void setList(List<String> values);
@@ -465,7 +465,7 @@ public class ProxyInvocationHandlerTest {
     assertEquals(set, options2.getSet());
   }
 
-  /** Test interface for conversion of inner types */
+  /** Test interface for conversion of inner types. */
   private static class InnerType {
     public double doubleField;
 
@@ -483,7 +483,7 @@ public class ProxyInvocationHandlerTest {
     }
   }
 
-  /** Test interface for conversion of generics and inner types */
+  /** Test interface for conversion of generics and inner types. */
   private static class ComplexType {
     public String stringField;
     public Integer intField;

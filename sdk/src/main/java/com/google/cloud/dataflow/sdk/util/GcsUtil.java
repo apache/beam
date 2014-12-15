@@ -42,8 +42,6 @@ import java.util.regex.Pattern;
 
 /**
  * Provides operations on GCS.
- *
- * TODO: re-implement as a FileSystemProvider?
  */
 public class GcsUtil {
   /**
@@ -92,7 +90,7 @@ public class GcsUtil {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /** Client for the GCS API */
+  /** Client for the GCS API. */
   private final Storage storage;
 
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
@@ -110,7 +108,7 @@ public class GcsUtil {
    * Expands a pattern into matched paths. The input path may contain
    * globs (in the last component only!), which are expanded in the result.
    *
-   * TODO: add support for full path matching.
+   * <p> TODO: add support for full path matching.
    */
   public List<GcsPath> expand(GcsPath path) throws IOException {
     if (!GCS_READ_PATTERN.matcher(path.getObject()).matches()) {
@@ -187,7 +185,7 @@ public class GcsUtil {
   /**
    * Opens an object in GCS.
    *
-   * Returns a SeekableByteChannel which provides access to data in the bucket.
+   * <p> Returns a SeekableByteChannel which provides access to data in the bucket.
    *
    * @param path the GCS filename to read from
    * @return a SeekableByteChannel which can read the object data
@@ -202,7 +200,7 @@ public class GcsUtil {
   /**
    * Creates an object in GCS.
    *
-   * Returns a WritableByteChannel which can be used to write data to the
+   * <p> Returns a WritableByteChannel which can be used to write data to the
    * object.
    *
    * @param path the GCS file to write to

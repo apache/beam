@@ -96,7 +96,7 @@ public class DataflowAssert<T> {
   }
 
   /**
-   * An assertion about the contents of a {@link PCollectionView<<Iterable<T>, ?>}
+   * An assertion about the contents of a {@link PCollectionView<<Iterable<T>, ?>}.
    */
   @SuppressWarnings("serial")
   public static class IterableAssert<T> implements Serializable {

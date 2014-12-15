@@ -28,7 +28,7 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link PipelineOptions}. */
 @RunWith(JUnit4.class)
 public class PipelineOptionsTest {
-  /** Interface used for testing that {@link PipelineOptions#as(Class)} functions */
+  /** Interface used for testing that {@link PipelineOptions#as(Class)} functions. */
   public static interface TestOptions extends PipelineOptions {
   }
 

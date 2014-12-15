@@ -235,7 +235,7 @@ public class PipelineOptionsFactoryTest {
     assertEquals("testProject", options.as(GcpOptions.class).getProject());
   }
 
-  /** A test interface containing all the primitives */
+  /** A test interface containing all the primitives. */
   public static interface Primitives extends PipelineOptions {
     boolean getBoolean();
     void setBoolean(boolean value);
@@ -286,7 +286,7 @@ public class PipelineOptionsFactoryTest {
     assertTrue(options.getBoolean());
   }
 
-  /** A test interface containing all supported objects */
+  /** A test interface containing all supported objects. */
   public static interface Objects extends PipelineOptions {
     Boolean getBoolean();
     void setBoolean(Boolean value);
@@ -345,7 +345,7 @@ public class PipelineOptionsFactoryTest {
     assertNull(options.getString());
   }
 
-  /** A test interface containing all supported array return types */
+  /** A test interface containing all supported array return types. */
   public static interface Arrays extends PipelineOptions {
     boolean[] getBoolean();
     void setBoolean(boolean[] value);
@@ -429,7 +429,7 @@ public class PipelineOptionsFactoryTest {
     assertArrayEquals(new char[] {'d', 'e', 'f'}, options.getChar());
   }
 
-  /** A test interface containing all supported List return types */
+  /** A test interface containing all supported List return types. */
   public static interface Lists extends PipelineOptions {
     List<String> getString();
     void setString(List<String> value);

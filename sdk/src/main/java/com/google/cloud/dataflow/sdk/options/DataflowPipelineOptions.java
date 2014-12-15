@@ -112,7 +112,7 @@ public interface DataflowPipelineOptions extends
     }
   }
 
-  /** Alternative Dataflow client */
+  /** Alternative Dataflow client. */
   @JsonIgnore
   @Default.InstanceFactory(DataflowClientFactory.class)
   Dataflow getDataflowClient();

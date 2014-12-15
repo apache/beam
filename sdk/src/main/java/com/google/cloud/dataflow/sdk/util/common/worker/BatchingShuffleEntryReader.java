@@ -36,7 +36,7 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
   private final ShuffleBatchReader batchReader;
 
   /**
-   * Constructs a {@link BatchingShuffleEntryReader}
+   * Constructs a {@link BatchingShuffleEntryReader}.
    *
    * @param batchReader supplies the underlying
    * {@link ShuffleBatchReader} to read batches of entries from

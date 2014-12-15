@@ -100,14 +100,14 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * Creates and returns an object which implements @{code <T>}.
+   * Creates and returns an object which implements {@code <T>}.
    * This sets the {@link ApplicationNameOptions#getAppName() "appName"} to the calling
    * {@link Class#getSimpleName() classes simple name}.
-   * <p>
-   * Note that @{code <T>} must be composable with every registered interface with this factory.
+   *
+   * <p> Note that {@code <T>} must be composable with every registered interface with this factory.
    * See {@link PipelineOptionsFactory#validateWellFormed(Class, Set)} for more details.
    *
-   * @return An object which implements @{code <T>}.
+   * @return An object which implements {@code <T>}.
    */
   public static <T extends PipelineOptions> T as(Class<T> klass) {
     return new Builder(getAppName(3)).as(klass);
@@ -124,13 +124,13 @@ public class PipelineOptionsFactory {
    *   --x=1 --x=2 --x=3 (list style property, will set the "x" property to [1, 2, 3])
    *   --x=1,2,3 (shorthand list style property, will set the "x" property to [1, 2, 3])
    * </pre>
-   * Properties are able to bound to {@link String} and Java primitives @{code boolean},
-   * @{code byte}, @{code short}, @{code int}, @{code long}, @{code float}, @{code double} and
+   * Properties are able to bound to {@link String} and Java primitives {@code boolean},
+   * {@code byte}, {@code short}, {@code int}, {@code long}, {@code float}, {@code double} and
    * their primitive wrapper classes.
    * <p>
-   * List style properties are able to be bound to @{code boolean[]}, @{code char[]},
-   * @{code short[]}, @{code int[]}, @{code long[]}, @{code float[]}, @{code double[]},
-   * @{code String[]} and @{code List<String>}.
+   * List style properties are able to be bound to {@code boolean[]}, {@code char[]},
+   * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
+   * {@code String[]} and {@code List<String>}.
    */
   public static Builder fromArgs(String[] args) {
     return new Builder(getAppName(3)).fromArgs(args);
@@ -174,13 +174,13 @@ public class PipelineOptionsFactory {
      *   --x=1 --x=2 --x=3 (list style property, will set the "x" property to [1, 2, 3])
      *   --x=1,2,3 (shorthand list style property, will set the "x" property to [1, 2, 3])
      * </pre>
-     * Properties are able to bound to {@link String} and Java primitives @{code boolean},
-     * @{code byte}, @{code short}, @{code int}, @{code long}, @{code float}, @{code double} and
+     * Properties are able to bound to {@link String} and Java primitives {@code boolean},
+     * {@code byte}, {@code short}, {@code int}, {@code long}, {@code float}, {@code double} and
      * their primitive wrapper classes.
      * <p>
-     * List style properties are able to be bound to @{code boolean[]}, @{code char[]},
-     * @{code short[]}, @{code int[]}, @{code long[]}, @{code float[]}, @{code double[]},
-     * @{code String[]} and @{code List<String>}.
+     * List style properties are able to be bound to {@code boolean[]}, {@code char[]},
+     * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
+     * {@code String[]} and {@code List<String>}.
      */
     public Builder fromArgs(String[] args) {
       Preconditions.checkNotNull(args, "Arguments should not be null.");
@@ -208,13 +208,13 @@ public class PipelineOptionsFactory {
     }
 
     /**
-     * Creates and returns an object which implements @{code <T>} using the values configured on
+     * Creates and returns an object which implements {@code <T>} using the values configured on
      * this builder during construction.
      * <p>
      * Note that {@code <T>} must be composable with every registered interface with this factory.
      * See {@link PipelineOptionsFactory#validateWellFormed(Class, Set)} for more details.
      *
-     * @return An object which implements @{code <T>}.
+     * @return An object which implements {@code <T>}.
      */
     public <T extends PipelineOptions> T as(Class<T> klass) {
       Map<String, Object> initialOptions = Maps.newHashMap();
@@ -296,7 +296,7 @@ public class PipelineOptionsFactory {
                BlockingDataflowPipelineRunner.class)
           .build();
 
-  /** Methods which are ignored when validating the proxy class */
+  /** Methods which are ignored when validating the proxy class. */
   private static final Set<Method> IGNORED_METHODS;
 
   /** The set of options which have been registered and visible to the user. */
@@ -779,8 +779,9 @@ public class PipelineOptionsFactory {
 
   /**
    * Splits string arguments based upon expected pattern of --argName=value.
-   * <p>
-   * Example GNU style command line arguments:
+   *
+   * <p> Example GNU style command line arguments:
+   *
    * <pre>
    *   --project=MyProject (simple property, will set the "project" property to "MyProject")
    *   --readOnly=true (for boolean properties, will set the "readOnly" property to "true")
@@ -788,12 +789,14 @@ public class PipelineOptionsFactory {
    *   --x=1 --x=2 --x=3 (list style property, will set the "x" property to [1, 2, 3])
    *   --x=1,2,3 (shorthand list style property, will set the "x" property to [1, 2, 3])
    * </pre>
-   * Properties are able to bound to {@link String} and Java primitives boolean, byte,
-   * short, int, long, float, double and their primitive wrapper classes.
-   * <p>
-   * List style properties are able to be bound to boolean[], char[], short[],
-   * int[], long[], float[], double[], String[] and List<String>.
-   * <p>
+   *
+   * <p> Properties are able to bound to {@link String} and Java primitives {@code boolean},
+   * {@code byte}, {@code short}, {@code int}, {@code long}, {@code float}, {@code double}
+   * and their primitive wrapper classes.
+   *
+   * <p> List style properties are able to be bound to {@code boolean[]}, {@code char[]},
+   * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
+   * {@code String[]}, and {@code List<String>}.
    */
   private static ListMultimap<String, String> parseCommandLine(String[] args) {
     ImmutableListMultimap.Builder<String, String> builder = ImmutableListMultimap.builder();

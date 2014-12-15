@@ -126,7 +126,7 @@ public interface GcpOptions extends PipelineOptions {
   String getCredentialId();
   void setCredentialId(String value);
 
-  /** Alternative Google Cloud Platform Credential */
+  /** Alternative Google Cloud Platform Credential. */
   @JsonIgnore
   @Description("Google Cloud Platform user credentials.")
   @Default.InstanceFactory(GcpUserCredentialsFactory.class)

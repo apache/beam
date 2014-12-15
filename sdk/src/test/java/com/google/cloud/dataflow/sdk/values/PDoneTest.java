@@ -24,8 +24,10 @@ import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -72,9 +74,10 @@ public class PDoneTest {
 
   // TODO: This test doesn't work, because we can't handle composite
   // transforms that contain no nested transforms.
-  // @Test
-  // @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
-  public void DISABLED_testEmptyTransform() {
+  @Ignore
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testEmptyTransform() {
     Pipeline p = TestPipeline.create();
 
     p.begin().apply(new EmptyTransform());

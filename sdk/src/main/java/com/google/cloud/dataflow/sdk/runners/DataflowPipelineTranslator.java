@@ -134,7 +134,7 @@ public class DataflowPipelineTranslator {
   }
 
   /**
-   * Translates a Pipeline into a Job
+   * Translates a {@link Pipeline} into a {@code Job}.
    */
   public Job translate(Pipeline pipeline, List<DataflowPackage> packages) {
     Translator translator = new Translator(pipeline);
@@ -174,7 +174,7 @@ public class DataflowPipelineTranslator {
   }
 
   /**
-   * An translator of a PTransform.
+   * A translator of a {@link PTransform}.
    */
   public interface TransformTranslator<PT extends PTransform> {
     public void translate(PT transform,
@@ -183,8 +183,8 @@ public class DataflowPipelineTranslator {
 
   /**
    * The interface provided to registered callbacks for interacting
-   * with the DataflowPipelineRunner, including reading and writing the
-   * values of PCollections and side inputs ({@link PCollectionViews}).
+   * with the {@link DataflowPipelineRunner}, including reading and writing the
+   * values of {@link PCollection}s and side inputs ({@link PCollectionView}s).
    */
   public interface TranslationContext {
     /**

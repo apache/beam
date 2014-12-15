@@ -64,12 +64,12 @@ import java.util.NoSuchElementException;
  */
 @RunWith(JUnit4.class)
 public class GroupingShuffleSourceTest {
-  static final List<KV<Integer, List<String>>> NO_KVS = Collections.emptyList();
+  private static final List<KV<Integer, List<String>>> NO_KVS = Collections.emptyList();
 
-  static final Instant timestamp = new Instant(123000);
-  static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
+  private static final Instant timestamp = new Instant(123000);
+  private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
 
-  static final List<KV<Integer, List<String>>> KVS = Arrays.asList(
+  private static final List<KV<Integer, List<String>>> KVS = Arrays.asList(
       KV.of(1, Arrays.asList("in 1a", "in 1b")),
       KV.of(2, Arrays.asList("in 2a", "in 2b")),
       KV.of(3, Arrays.asList("in 3")),
@@ -77,7 +77,7 @@ public class GroupingShuffleSourceTest {
       KV.of(5, Arrays.asList("in 5")));
 
   /** How many of the values with each key are to be read. */
-  enum ValuesToRead {
+  private enum ValuesToRead {
     /** Don't even ask for the values iterator. */
     SKIP_VALUES,
     /** Get the iterator, but don't read any values. */
@@ -88,7 +88,7 @@ public class GroupingShuffleSourceTest {
     READ_ALL_VALUES
   }
 
-  void runTestReadShuffleSource(List<KV<Integer, List<String>>> input,
+  private void runTestReadShuffleSource(List<KV<Integer, List<String>>> input,
                                 ValuesToRead valuesToRead)
       throws Exception {
     Coder<WindowedValue<String>> elemCoder =
@@ -319,7 +319,7 @@ public class GroupingShuffleSourceTest {
 
       int i = 0;
       for (; iter.hasNext(); ++i) {
-        KV<Integer, Reiterable<Integer>> elem = iter.next().getValue();
+        iter.next().getValue(); // ignored
         if (i == 0) {
           // First record
           byte[] key = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);

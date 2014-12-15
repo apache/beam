@@ -140,9 +140,11 @@ public class PubsubIO {
     /**
      * Creates and returns a PubsubIO.Read PTransform for reading from
      * a Pubsub topic with the specified publisher topic. Format for
-     * Cloud Pubsub topic names should be of the form /topics/<project>/<topic>,
-     * where <project> is the name of the publishing project.
-     * The <topic> component must comply with the below requirements.
+     * Cloud Pubsub topic names should be of the form
+     * {@code /topics/<project>/<topic>}, where {@code <project>} is the name of
+     * the publishing project. The {@code <topic>} component must comply with
+     * the below requirements.
+     *
      * <ul>
      * <li>Can only contain lowercase letters, numbers, dashes ('-'), underscores ('_') and periods
      * ('.').</li>
@@ -161,9 +163,10 @@ public class PubsubIO {
      * a specific Pubsub subscription. Mutually exclusive with
      * PubsubIO.Read.topic().
      * Cloud Pubsub subscription names should be of the form
-     * /subscriptions/<project>/<<subscription>,
-     * where <project> is the name of the project the subscription belongs to.
-     * The <subscription> component must comply with the below requirements.
+     * {@code /subscriptions/<project>/<<subscription>},
+     * where {@code <project>} is the name of the project the subscription belongs to.
+     * The {@code <subscription>} component must comply with the below requirements.
+     *
      * <ul>
      * <li>Can only contain lowercase letters, numbers, dashes ('-'), underscores ('_') and periods
      * ('.').</li>
@@ -186,7 +189,7 @@ public class PubsubIO {
         extends PTransform<PInput, PCollection<String>> {
       /** The Pubsub topic to read from. */
       String topic;
-      /** The Pubsub subscription to read from */
+      /** The Pubsub subscription to read from. */
       String subscription;
 
       Bound() {}
@@ -268,8 +271,8 @@ public class PubsubIO {
     }
 
     /** The topic to publish to.
-     * Cloud Pubsub topic names should be /topics/<project>/<topic>,
-     * where <project> is the name of the publishing project.
+     * Cloud Pubsub topic names should be {@code /topics/<project>/<topic>},
+     * where {@code <project>} is the name of the publishing project.
      */
     public static Bound topic(String topic) {
       return new Bound().topic(topic);

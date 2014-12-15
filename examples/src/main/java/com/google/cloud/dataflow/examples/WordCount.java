@@ -138,7 +138,9 @@ public class WordCount {
     String getOutput();
     void setOutput(String value);
 
-    /** Returns gs://${STAGING_LOCATION}/"counts.txt" */
+    /**
+     * Returns gs://${STAGING_LOCATION}/"counts.txt" as the default destination.
+     */
     public static class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {

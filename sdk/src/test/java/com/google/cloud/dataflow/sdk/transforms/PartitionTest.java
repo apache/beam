@@ -39,7 +39,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Tests for Partition
+ * Tests for {@link Partition}.
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
@@ -93,8 +93,7 @@ public class PartitionTest implements Serializable {
 
     PCollection<Integer> input = createInts(p, Arrays.asList(-1));
 
-    PCollectionList<Integer> outputs =
-        input.apply(Partition.of(5, new IdentityFn()));
+    input.apply(Partition.of(5, new IdentityFn()));
 
     try {
       p.run();
@@ -111,8 +110,7 @@ public class PartitionTest implements Serializable {
     PCollection<Integer> input = createInts(p, Arrays.asList(591));
 
     try {
-      PCollectionList<Integer> outputs =
-          input.apply(Partition.of(0, new IdentityFn()));
+      input.apply(Partition.of(0, new IdentityFn()));
       fail("should have failed");
     } catch (IllegalArgumentException exn) {
       assertThat(exn.toString(), containsString("numPartitions must be > 0"));

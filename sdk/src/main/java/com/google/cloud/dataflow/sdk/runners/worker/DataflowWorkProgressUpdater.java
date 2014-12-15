@@ -45,7 +45,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkProgressUpdater.class);
 
-  /** The Dataflow Worker WorkItem client */
+  /** The Dataflow Worker WorkItem client. */
   private final DataflowWorker.WorkUnitClient workUnitClient;
 
   /** The WorkItem for which work progress updates are sent. */

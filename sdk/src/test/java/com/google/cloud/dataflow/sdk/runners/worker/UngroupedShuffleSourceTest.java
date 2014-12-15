@@ -43,20 +43,20 @@ import java.util.NoSuchElementException;
  */
 @RunWith(JUnit4.class)
 public class UngroupedShuffleSourceTest {
-  static final Instant timestamp = new Instant(123000);
-  static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
+  private static final Instant timestamp = new Instant(123000);
+  private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
 
-  byte[] asShuffleKey(long seqNum) throws Exception {
+  private byte[] asShuffleKey(long seqNum) throws Exception {
     return CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), seqNum);
   }
 
-  byte[] asShuffleValue(Integer value) throws Exception {
+  private byte[] asShuffleValue(Integer value) throws Exception {
     return CoderUtils.encodeToByteArray(
         WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), IntervalWindow.getCoder()),
         WindowedValue.of(value, timestamp, Lists.newArrayList(window)));
   }
 
-  void runTestReadShuffleSource(List<Integer> expected) throws Exception {
+  private void runTestReadShuffleSource(List<Integer> expected) throws Exception {
     UngroupedShuffleSource<WindowedValue<Integer>> shuffleSource =
         new UngroupedShuffleSource<>(
             PipelineOptionsFactory.create(),

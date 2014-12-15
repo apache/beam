@@ -45,13 +45,13 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Tests for ShuffleSink.
+ * Tests for {@link ShuffleSink}.
  */
 @RunWith(JUnit4.class)
 public class ShuffleSinkTest {
-  static final List<KV<Integer, String>> NO_KVS = Collections.emptyList();
+  private static final List<KV<Integer, String>> NO_KVS = Collections.emptyList();
 
-  static final List<KV<Integer, String>> KVS = Arrays.asList(
+  private static final List<KV<Integer, String>> KVS = Arrays.asList(
       KV.of(1, "in 1a"),
       KV.of(1, "in 1b"),
       KV.of(2, "in 2a"),
@@ -63,10 +63,10 @@ public class ShuffleSinkTest {
       KV.of(4, "in 4d"),
       KV.of(5, "in 5"));
 
-  static final List<KV<Integer, KV<String, Integer>>> NO_SORTING_KVS =
+  private static final List<KV<Integer, KV<String, Integer>>> NO_SORTING_KVS =
       Collections.emptyList();
 
-  static final List<KV<Integer, KV<String, Integer>>> SORTING_KVS =
+  private static final List<KV<Integer, KV<String, Integer>>> SORTING_KVS =
       Arrays.asList(
           KV.of(1, KV.of("in 1a", 3)),
           KV.of(1, KV.of("in 1b", 9)),
@@ -79,10 +79,10 @@ public class ShuffleSinkTest {
           KV.of(4, KV.of("in 4d", 1)),
           KV.of(5, KV.of("in 5", 666)));
 
-  static final Instant timestamp = new Instant(123000);
-  static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
+  private static final Instant timestamp = new Instant(123000);
+  private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
 
-  void runTestWriteUngroupingShuffleSink(List<Integer> expected)
+  private void runTestWriteUngroupingShuffleSink(List<Integer> expected)
       throws Exception {
     Coder<WindowedValue<Integer>> windowedValueCoder =
         WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), new GlobalWindow().windowCoder());

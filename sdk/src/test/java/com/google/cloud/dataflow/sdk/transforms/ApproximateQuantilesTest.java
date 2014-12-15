@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.ApproximateQuantiles.ApproximateQuantilesCombineFn;
@@ -45,7 +44,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Tests for ApproximateQuantiles
+ * Tests for {@link ApproximateQuantiles}.
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
@@ -74,7 +73,7 @@ public class ApproximateQuantilesTest {
     PCollection<List<Integer>> quantiles =
         input.apply(ApproximateQuantiles.<Integer>globally(5));
 
-    DirectPipelineRunner.EvaluationResults results = p.run();
+    p.run();
 
     DataflowAssert.that(quantiles)
         .containsInAnyOrder(Arrays.asList(0, 25, 50, 75, 100));
@@ -89,7 +88,7 @@ public class ApproximateQuantilesTest {
         input.apply(
             ApproximateQuantiles.globally(5, new DescendingIntComparator()));
 
-    DirectPipelineRunner.EvaluationResults results = p.run();
+    p.run();
 
     DataflowAssert.that(quantiles)
         .containsInAnyOrder(Arrays.asList(100, 75, 50, 25, 0));

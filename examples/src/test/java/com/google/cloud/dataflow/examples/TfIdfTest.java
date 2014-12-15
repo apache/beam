@@ -34,12 +34,12 @@ import java.net.URI;
 import java.util.Arrays;
 
 /**
- * Tests of TfIdf
+ * Tests of {@link TfIdf}.
  */
 @RunWith(JUnit4.class)
 public class TfIdfTest {
 
-  /** Test that the example runs */
+  /** Test that the example runs. */
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testTfIdf() throws Exception {

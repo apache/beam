@@ -158,7 +158,7 @@ public class GroupingShuffleSource<K, V>
      */
     private ByteArrayShufflePosition stopPosition = null;
 
-    /** The next group to be consumed, if available */
+    /** The next group to be consumed, if available. */
     private KeyGroupedShuffleEntries nextGroup = null;
 
     public GroupingShuffleSourceIterator(ShuffleEntryReader reader) {

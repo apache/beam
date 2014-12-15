@@ -93,7 +93,7 @@ import java.util.List;
  * <pre> {@code
  * // Read a query from Datastore
  * PipelineOptions options =
- *     CliPipelineOptionsFactory.create(PipelineOptions.class, args);
+ *     PipelineOptionsFactory.fromArgs(args).create();
  * Pipeline p = Pipeline.create(options);
  * PCollection<Entity> entities =
  *     p.apply(DatastoreIO.Read
@@ -233,12 +233,12 @@ public class DatastoreIO {
 
   ///////////////////// Write Class /////////////////////////////////
   /**
-   * A PTransform that writes a {@code PCollection<Entity>} containing
+   * A {@link PTransform} that writes a {@code PCollection<Entity>} containing
    * entities to a Datastore kind.
    *
-   * Current version only supports Write operation running on
-   * DirectPipelineRunner.  If Write is used on DataflowPipelineRunner,
-   * it throws UnsupportedOperationException and won't continue on the
+   * <p> Current version only supports Write operation running on
+   * {@link DirectPipelineRunner}.  If Write is used on {@link DataflowPipelineRunner},
+   * it throws {@link UnsupportedOperationException} and won't continue on the
    * operation.
    *
    */

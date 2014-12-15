@@ -42,7 +42,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-/** Tests for Top */
+/** Tests for Top. */
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class TopTest {
@@ -175,15 +175,14 @@ public class TopTest {
   @Test
   public void testPerKeySerializabilityRequirement() {
     DirectPipeline p = DirectPipeline.createForTest();
-    PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION)))
+    p.apply(Create.of(Arrays.asList(COLLECTION)))
             .setCoder(StringUtf8Coder.of());
 
-    PCollection<KV<String, List<Integer>>> top1 = createInputTable(p)
+    createInputTable(p)
         .apply(Top.<String, Integer, IntegerComparator>perKey(1,
             new IntegerComparator()));
 
-    PCollection<KV<String, List<Integer>>> top2 = createInputTable(p)
+    createInputTable(p)
         .apply(Top.<String, Integer, IntegerComparator2>perKey(1,
             new IntegerComparator2()));
   }

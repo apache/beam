@@ -344,7 +344,7 @@ public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
     }
 
     /**
-     * Returns the timestamp of the next window
+     * Returns the timestamp of the next window.
      */
     public Instant nextTimestamp() {
       return windows.peek().maxTimestamp();

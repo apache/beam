@@ -29,7 +29,7 @@ import java.util.Comparator;
  */
 @RunWith(JUnit4.class)
 public class KVTest {
-  static final Integer testValues[] =
+  private static final Integer TEST_VALUES[] =
       {null, Integer.MIN_VALUE, -1, 0, 1, Integer.MAX_VALUE};
 
   // Wrapper around Integer.compareTo() to support null values.
@@ -44,10 +44,10 @@ public class KVTest {
   @Test
   public void testOrderByKey() {
     Comparator<KV<Integer, Integer>> orderByKey = new KV.OrderByKey<>();
-    for (Integer key1 : testValues) {
-      for (Integer val1 : testValues) {
-        for (Integer key2 : testValues) {
-          for (Integer val2 : testValues) {
+    for (Integer key1 : TEST_VALUES) {
+      for (Integer val1 : TEST_VALUES) {
+        for (Integer key2 : TEST_VALUES) {
+          for (Integer val2 : TEST_VALUES) {
             assertEquals(compareInt(key1, key2),
                 orderByKey.compare(KV.of(key1, val1), KV.of(key2, val2)));
           }
@@ -59,10 +59,10 @@ public class KVTest {
   @Test
   public void testOrderByValue() {
     Comparator<KV<Integer, Integer>> orderByValue = new KV.OrderByValue<>();
-    for (Integer key1 : testValues) {
-      for (Integer val1 : testValues) {
-        for (Integer key2 : testValues) {
-          for (Integer val2 : testValues) {
+    for (Integer key1 : TEST_VALUES) {
+      for (Integer val1 : TEST_VALUES) {
+        for (Integer key2 : TEST_VALUES) {
+          for (Integer val2 : TEST_VALUES) {
             assertEquals(compareInt(val1, val2),
                 orderByValue.compare(KV.of(key1, val1), KV.of(key2, val2)));
           }

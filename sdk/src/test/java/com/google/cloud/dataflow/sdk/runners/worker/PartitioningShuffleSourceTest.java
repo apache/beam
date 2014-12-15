@@ -47,12 +47,12 @@ import java.util.NoSuchElementException;
  */
 @RunWith(JUnit4.class)
 public class PartitioningShuffleSourceTest {
-  static final List<WindowedValue<KV<Integer, String>>> NO_KVS = Collections.emptyList();
+  private static final List<WindowedValue<KV<Integer, String>>> NO_KVS = Collections.emptyList();
 
-  static final Instant timestamp = new Instant(123000);
-  static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
+  private static final Instant timestamp = new Instant(123000);
+  private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
 
-  static final List<WindowedValue<KV<Integer, String>>> KVS = Arrays.asList(
+  private static final List<WindowedValue<KV<Integer, String>>> KVS = Arrays.asList(
       WindowedValue.of(KV.of(1, "in 1a"), timestamp, Lists.newArrayList(window)),
       WindowedValue.of(KV.of(1, "in 1b"), timestamp, Lists.newArrayList(window)),
       WindowedValue.of(KV.of(2, "in 2a"), timestamp, Lists.newArrayList(window)),
@@ -64,7 +64,7 @@ public class PartitioningShuffleSourceTest {
       WindowedValue.of(KV.of(4, "in 4d"), timestamp, Lists.newArrayList(window)),
       WindowedValue.of(KV.of(5, "in 5"), timestamp, Lists.newArrayList(window)));
 
-  void runTestReadShuffleSource(List<WindowedValue<KV<Integer, String>>> expected)
+  private void runTestReadShuffleSource(List<WindowedValue<KV<Integer, String>>> expected)
       throws Exception {
     Coder<WindowedValue<KV<Integer, String>>> elemCoder = WindowedValue.getFullCoder(
             KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()),
