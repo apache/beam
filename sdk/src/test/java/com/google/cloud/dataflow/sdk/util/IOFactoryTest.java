@@ -52,7 +52,7 @@ public class IOFactoryTest {
     tmpFolder.newFile("barf").createNewFile();
 
     FileIOChannelFactory factory = new FileIOChannelFactory();
-    Collection<String> paths = factory.match(tmpFolder.getRoot() + "/f*");
+    Collection<String> paths = factory.match(tmpFolder.getRoot().getCanonicalPath() + "/f*");
 
     Assert.assertEquals(2, paths.size());
     Assert.assertTrue(paths.contains(foo1.getCanonicalPath()));
