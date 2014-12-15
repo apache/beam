@@ -45,7 +45,7 @@ import org.joda.time.Instant;
 import java.util.List;
 
 /**
- * An example that reads Wikipedia edit data from BigQuery and computes the user with
+ * An example that reads Wikipedia edit data from Cloud Storage and computes the user with
  * the longest string of edits separated by no more than an hour within each month.
  *
  * <p> Concepts: Using Windowing to perform time-based aggregations of data.
@@ -59,9 +59,15 @@ import java.util.List;
  *   --runner=BlockingDataflowPipelineRunner
  * and an output prefix on GCS:
  *   --output=gs://<OUTPUT PREFIX>
- * 
+ *
  * <p> The default input is gs://dataflow-samples/wikipedia_edits/*.json and can be overridden with
  * --input.
+ * 
+ * <p> The input for this example is large enough that it's a good place to enable (experimental)
+ * autoscaling:
+ *   --autoscalingAlgorithm=BASIC
+ *   --maxNumWorkers=20
+ * This will automatically scale the number of workers up over time until the job completes.
  */
 public class TopWikipediaSessions {
   private static final String EXPORTED_WIKI_TABLE = "gs://dataflow-samples/wikipedia_edits/*.json";

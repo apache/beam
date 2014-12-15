@@ -37,6 +37,51 @@ public interface DataflowPipelineWorkerPoolOptions {
   @Default.Integer(3)
   int getNumWorkers();
   void setNumWorkers(int value);
+  
+  /**
+   * Type of autoscaling algorithm to use. These types are experimental and subject to change.
+   */
+  public enum AutoscalingAlgorithmType {
+    /** Use numWorkers machines. Do not autoscale the worker pool. */
+    NONE("AUTOSCALING_ALGORITHM_NONE"),
+    
+    /** Autoscale the workerpool size up to maxNumWorkers until the job completes. */
+    BASIC("AUTOSCALING_ALGORITHM_BASIC");
+
+    private final String algorithm;
+
+    private AutoscalingAlgorithmType(String algorithm) {
+      this.algorithm = algorithm;
+    }
+
+    /** Returns the string representation of this type. */
+    public String getAlgorithm() {
+      return this.algorithm;
+    }
+  }
+
+  @Description("(experimental) The autoscaling algorithm to use for the workerpool.")
+  @Default.InstanceFactory(AutoscalingAlgorithmTypeFactory.class)
+  AutoscalingAlgorithmType getAutoscalingAlgorithm();
+  void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);
+
+  /** Returns the default NONE AutoscalingAlgorithmType. */
+  public static class AutoscalingAlgorithmTypeFactory implements
+      DefaultValueFactory<AutoscalingAlgorithmType> {
+    @Override
+    public AutoscalingAlgorithmType create(PipelineOptions options) {
+      return AutoscalingAlgorithmType.NONE;
+    }
+  }
+  
+  /**
+   * Max number of workers to use when using workerpool autoscaling. 
+   * This option is experimental and subject to change.
+   */
+  @Description("Max number of workers to use, when using autoscaling")
+  @Default.Integer(20)
+  int getMaxNumWorkers();
+  void setMaxNumWorkers(int value);
 
   /**
    * Remote worker disk size, in gigabytes, or 0 to use the default size.

@@ -29,6 +29,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
 import com.google.api.client.util.Preconditions;
+import com.google.api.services.dataflow.model.AutoscalingSettings;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Disk;
 import com.google.api.services.dataflow.model.Environment;
@@ -48,6 +49,7 @@ import com.google.cloud.dataflow.sdk.io.DatastoreIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType;
 import com.google.cloud.dataflow.sdk.runners.dataflow.AvroIOTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.BigQueryIOTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.DatastoreIOTranslator;
@@ -393,6 +395,12 @@ public class DataflowPipelineTranslator {
       }
       if (options.getDiskSizeGb() > 0) {
         workerPool.setDiskSizeGb(options.getDiskSizeGb());
+      }
+      if (!options.getAutoscalingAlgorithm().equals(AutoscalingAlgorithmType.NONE)) {
+        AutoscalingSettings settings = new AutoscalingSettings();
+        settings.setAlgorithm(options.getAutoscalingAlgorithm().getAlgorithm());
+        settings.setMaxNumWorkers(options.getMaxNumWorkers());
+        workerPool.setAutoscalingSettings(settings);
       }
 
       List<WorkerPool> workerPools = new LinkedList<>();
