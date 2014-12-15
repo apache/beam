@@ -25,6 +25,7 @@ import java.io.OutputStream;
 /**
  * A TextualIntegerCoder encodes Integers as text.
  */
+@SuppressWarnings("serial")
 public class TextualIntegerCoder extends AtomicCoder<Integer> {
   @JsonCreator
   public static TextualIntegerCoder of() {

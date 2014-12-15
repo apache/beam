@@ -156,6 +156,7 @@ public class ApproximateUnique {
    *
    * @param <T> the type of the elements in the input {@code PCollection}
    */
+  @SuppressWarnings("serial")
   static class Globally<T> extends PTransform<PCollection<T>, PCollection<Long>> {
 
     /**
@@ -212,6 +213,7 @@ public class ApproximateUnique {
    *        {@code PCollection}s
    * @param <V> the type of the values in the input {@code PCollection}
    */
+  @SuppressWarnings("serial")
   static class PerKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> {
 
@@ -281,6 +283,7 @@ public class ApproximateUnique {
    *
    * @param <T> the type of the values being combined
    */
+  @SuppressWarnings("serial")
   public static class ApproximateUniqueCombineFn<T> extends
       CombineFn<T, ApproximateUniqueCombineFn.LargestUnique, Long> {
 

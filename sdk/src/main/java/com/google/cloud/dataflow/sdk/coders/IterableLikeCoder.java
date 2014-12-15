@@ -42,6 +42,14 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
 
   public Coder<T> getElemCoder() { return elemCoder; }
 
+  /**
+   * Builds an instance of the coder's associated {@code Iterable} from a list
+   * of decoded elements.  If {@code IT} is a supertype of {@code List<T>}, the
+   * derived class implementation is permitted to return {@code decodedElements}
+   * directly.
+   */
+  protected abstract IT decodeToIterable(List<T> decodedElements);
+
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
 
@@ -106,7 +114,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
       for (int i = 0; i < size; i++) {
         elements.add(elemCoder.decode(dataInStream, nestedContext));
       }
-      return (IT) elements;
+      return decodeToIterable(elements);
     } else {
       // We don't know the size a priori.  Check if we're done with
       // each element.
@@ -114,7 +122,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
       while (dataInStream.readBoolean()) {
         elements.add(elemCoder.decode(dataInStream, nestedContext));
       }
-      return (IT) elements;
+      return decodeToIterable(elements);
     }
   }
 

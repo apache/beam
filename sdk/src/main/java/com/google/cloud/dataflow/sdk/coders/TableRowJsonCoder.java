@@ -29,6 +29,7 @@ import java.io.OutputStream;
 /**
  * A TableRowJsonCoder encodes BigQuery TableRow objects.
  */
+@SuppressWarnings("serial")
 public class TableRowJsonCoder extends AtomicCoder<TableRow> {
 
   @JsonCreator

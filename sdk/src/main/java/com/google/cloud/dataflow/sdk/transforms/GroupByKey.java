@@ -235,6 +235,7 @@ public class GroupByKey<K, V>
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public PCollection<KV<K, Iterable<V>>> apply(
         PCollection<KV<K, Iterable<WindowedValue<V>>>> input) {
       @SuppressWarnings("unchecked")
@@ -371,6 +372,11 @@ public class GroupByKey<K, V>
   /////////////////////////////////////////////////////////////////////////////
 
   static {
+    registerWithDirectPipelineRunner();
+  }
+
+  @SuppressWarnings("rawtypes")
+  private static <K, V> void registerWithDirectPipelineRunner() {
     DirectPipelineRunner.registerDefaultTransformEvaluator(
         GroupByKeyOnly.class,
         new DirectPipelineRunner.TransformEvaluator<GroupByKeyOnly>() {

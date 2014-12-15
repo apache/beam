@@ -63,6 +63,7 @@ public final class SinkFactory {
    * @throws Exception if the sink could not be decoded and
    * constructed
    */
+  @SuppressWarnings("serial")
   public static <T> Sink<T> create(
       PipelineOptions options,
       com.google.api.services.dataflow.model.Sink cloudSink,

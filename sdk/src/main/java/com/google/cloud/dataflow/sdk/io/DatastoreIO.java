@@ -154,6 +154,7 @@ public class DatastoreIO {
      * A PTransform that reads from a Datastore query and returns a bounded
      * {@code PCollection<Entity>}.
      */
+    @SuppressWarnings("serial")
     public static class Bound extends PTransform<PBegin, PCollection<Entity>> {
       String host;
       String datasetId;
@@ -268,6 +269,7 @@ public class DatastoreIO {
      * A PTransform that writes a bounded {@code PCollection<Entities>}
      * to a Datastore.
      */
+    @SuppressWarnings("serial")
     public static class Bound extends PTransform<PCollection<Entity>, PDone> {
       String host;
       String datasetId;
@@ -352,6 +354,7 @@ public class DatastoreIO {
    * A DoFn that performs query request to Datastore and converts
    * each QueryOptions into Entities.
    */
+  @SuppressWarnings("serial")
   private static class ReadEntitiesFn extends DoFn<QueryOptions, Entity> {
     @Override
     public void processElement(ProcessContext c) {

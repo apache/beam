@@ -31,6 +31,7 @@ import org.joda.time.Instant;
  *   Window.<Integer>by(FixedWindows.of(Duration.standardMinutes(10))));
  * } </pre>
  */
+@SuppressWarnings("serial")
 public class FixedWindows extends PartitioningWindowingFn<Object, IntervalWindow> {
 
   /**

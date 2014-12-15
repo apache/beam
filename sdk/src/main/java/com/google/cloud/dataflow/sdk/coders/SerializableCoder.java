@@ -45,6 +45,7 @@ import java.io.Serializable;
  *
  * @param <T> the type of elements handled by this coder
  */
+@SuppressWarnings("serial")
 public class SerializableCoder<T extends Serializable>
     extends AtomicCoder<T> {
   /**

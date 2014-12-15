@@ -38,6 +38,7 @@ import java.util.Set;
  *
  * @param <T> the type of the elements of the set
  */
+@SuppressWarnings("serial")
 public class SetCoder<T> extends StandardCoder<Set<T>> {
 
   /**

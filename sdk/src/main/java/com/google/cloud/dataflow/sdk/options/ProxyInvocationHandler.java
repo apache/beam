@@ -105,7 +105,9 @@ class ProxyInvocationHandler implements InvocationHandler {
     } else if (args == null && "hashCode".equals(method.getName())) {
       return hashCode();
     } else if (args != null && "as".equals(method.getName()) && args[0] instanceof Class) {
-      return as((Class<? extends PipelineOptions>) args[0]);
+      @SuppressWarnings("unchecked")
+      Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
+      return as(clazz);
     }
     String methodName = method.getName();
     synchronized (this) {

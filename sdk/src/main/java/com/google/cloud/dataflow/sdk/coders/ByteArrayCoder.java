@@ -32,6 +32,7 @@ import java.io.OutputStream;
  * If in a nested context, prefixes the encoded array with a VarInt encoding
  * of the length.
  */
+@SuppressWarnings("serial")
 public class ByteArrayCoder extends AtomicCoder<byte[]> {
   @JsonCreator
   public static ByteArrayCoder of() {

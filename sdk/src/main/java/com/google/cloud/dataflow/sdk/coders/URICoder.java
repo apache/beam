@@ -28,6 +28,7 @@ import java.net.URISyntaxException;
  * A {@code URICoder} encodes/decodes {@link URI}s by conversion to/from {@link String}, delegating
  * encoding/decoding of the string to {@link StringUtf8Coder}.
  */
+@SuppressWarnings("serial")
 public class URICoder extends AtomicCoder<URI> {
 
   @JsonCreator

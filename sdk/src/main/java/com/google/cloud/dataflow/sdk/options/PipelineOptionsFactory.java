@@ -385,19 +385,22 @@ public class PipelineOptionsFactory {
       Class<T> iface, Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces) {
     Preconditions.checkArgument(iface.isInterface(), "Only interface types are supported.");
 
+    @SuppressWarnings("unchecked")
     Set<Class<? extends PipelineOptions>> combinedPipelineOptionsInterfaces =
         FluentIterable.from(validatedPipelineOptionsInterfaces).append(iface).toSet();
     // Validate that the view of all currently passed in options classes is well formed.
     if (!COMBINED_CACHE.containsKey(combinedPipelineOptionsInterfaces)) {
-      Class<?> allProxyClass = Proxy.getProxyClass(PipelineOptionsFactory.class.getClassLoader(),
-          combinedPipelineOptionsInterfaces.toArray(EMPTY_CLASS_ARRAY));
+      @SuppressWarnings("unchecked")
+      Class<T> allProxyClass =
+          (Class<T>) Proxy.getProxyClass(PipelineOptionsFactory.class.getClassLoader(),
+              combinedPipelineOptionsInterfaces.toArray(EMPTY_CLASS_ARRAY));
       try {
         List<PropertyDescriptor> propertyDescriptors =
             getPropertyDescriptors(allProxyClass);
         validateClass(iface, validatedPipelineOptionsInterfaces,
             allProxyClass, propertyDescriptors);
         COMBINED_CACHE.put(combinedPipelineOptionsInterfaces,
-            new Registration<T>((Class<T>) allProxyClass, propertyDescriptors));
+            new Registration<T>(allProxyClass, propertyDescriptors));
       } catch (IntrospectionException e) {
         throw Throwables.propagate(e);
       }
@@ -405,20 +408,22 @@ public class PipelineOptionsFactory {
 
     // Validate that the local view of the class is well formed.
     if (!INTERFACE_CACHE.containsKey(iface)) {
-      @SuppressWarnings("rawtypes")
-      Class<?> proxyClass = Proxy.getProxyClass(
+      @SuppressWarnings({"rawtypes", "unchecked"})
+      Class<T> proxyClass = (Class<T>) Proxy.getProxyClass(
           PipelineOptionsFactory.class.getClassLoader(), new Class[] {iface});
       try {
         List<PropertyDescriptor> propertyDescriptors =
             getPropertyDescriptors(proxyClass);
         validateClass(iface, validatedPipelineOptionsInterfaces, proxyClass, propertyDescriptors);
         INTERFACE_CACHE.put(iface,
-            new Registration<T>((Class<T>) proxyClass, propertyDescriptors));
+            new Registration<T>(proxyClass, propertyDescriptors));
       } catch (IntrospectionException e) {
         throw Throwables.propagate(e);
       }
     }
-    return (Registration<T>) INTERFACE_CACHE.get(iface);
+    @SuppressWarnings("unchecked")
+    Registration<T> result = (Registration<T>) INTERFACE_CACHE.get(iface);
+    return result;
   }
 
   public static Set<Class<? extends PipelineOptions>> getRegisteredOptions() {
@@ -822,6 +827,7 @@ public class PipelineOptionsFactory {
       Class<T> klass, ListMultimap<String, String> options) {
     Map<String, Method> propertyNamesToGetters = Maps.newHashMap();
     PipelineOptionsFactory.validateWellFormed(klass, getRegisteredOptions());
+    @SuppressWarnings("unchecked")
     Iterable<PropertyDescriptor> propertyDescriptors =
         PipelineOptionsFactory.getPropertyDescriptors(
             FluentIterable.from(getRegisteredOptions()).append(klass).toSet());

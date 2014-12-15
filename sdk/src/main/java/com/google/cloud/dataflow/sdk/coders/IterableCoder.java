@@ -32,6 +32,7 @@ import java.util.List;
  *
  * @param <T> the type of the elements of the Iterables being transcoded
  */
+@SuppressWarnings("serial")
 public class IterableCoder<T> extends IterableLikeCoder<T, Iterable<T>> {
 
   public static <T> IterableCoder<T> of(Coder<T> elemCoder) {
@@ -40,6 +41,11 @@ public class IterableCoder<T> extends IterableLikeCoder<T, Iterable<T>> {
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
+
+  @Override
+  protected final Iterable<T> decodeToIterable(List<T> decodedElements) {
+    return decodedElements;
+  }
 
   @JsonCreator
   public static IterableCoder<?> of(

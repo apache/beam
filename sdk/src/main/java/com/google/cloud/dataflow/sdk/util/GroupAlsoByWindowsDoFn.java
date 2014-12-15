@@ -47,6 +47,7 @@ import java.util.PriorityQueue;
  * @param <V> input value element type
  * @param <W> window type
  */
+@SuppressWarnings("serial")
 public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
     extends DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> {
   // TODO: Add back RequiresKeyed state once that is supported.

@@ -98,6 +98,7 @@ public class DataflowAssert<T> {
   /**
    * An assertion about the contents of a {@link PCollectionView<<Iterable<T>, ?>}
    */
+  @SuppressWarnings("serial")
   public static class IterableAssert<T> implements Serializable {
     private final PCollectionView<Iterable<T>, ?> actualResults;
 
@@ -175,6 +176,7 @@ public class DataflowAssert<T> {
      * operation using a {@code Matcher} operation that takes an array
      * of elements.
      */
+    @SuppressWarnings("serial")
     static class AssertThatIterable<T> extends AssertThat<Iterable<T>, T[]> {
       AssertThatIterable(T[] expected,
                          String matcherClassName,
@@ -188,6 +190,7 @@ public class DataflowAssert<T> {
      * SerializableFunction that verifies that an Iterable contains
      * expected items in any order.
      */
+    @SuppressWarnings("serial")
     static class AssertContainsInAnyOrder<T> extends AssertThatIterable<T> {
       AssertContainsInAnyOrder(T... expected) {
         super(expected,
@@ -204,6 +207,7 @@ public class DataflowAssert<T> {
      * SerializableFunction that verifies that an Iterable contains
      * expected items in the provided order.
      */
+    @SuppressWarnings("serial")
     static class AssertContainsInOrder<T> extends AssertThatIterable<T> {
       AssertContainsInOrder(T... expected) {
         super(expected,
@@ -230,6 +234,7 @@ public class DataflowAssert<T> {
   /**
    * An assertion about a single value.
    */
+  @SuppressWarnings("serial")
   public static class SingletonAssert<T> implements Serializable {
     private final PCollectionView<T, ?> actualResult;
 
@@ -274,6 +279,7 @@ public class DataflowAssert<T> {
      * SerializableFunction that performs an {@code Assert.assertThat()}
      * operation using a {@code Matcher} operation that takes a single element.
      */
+    @SuppressWarnings("serial")
     static class AssertThatValue<T> extends AssertThat<T, T> {
       AssertThatValue(T expected,
                       String matcherClassName,
@@ -287,6 +293,7 @@ public class DataflowAssert<T> {
      * SerializableFunction that verifies that a value is equal to an
      * expected value.
      */
+    @SuppressWarnings("serial")
     public static class AssertIs<T> extends AssertThatValue<T> {
       AssertIs(T expected) {
         super(expected, "org.hamcrest.core.IsEqual", "equalTo");
@@ -308,6 +315,7 @@ public class DataflowAssert<T> {
    * produce a Matcher to be used to check an {@code Actual} value
    * against.
    */
+  @SuppressWarnings("serial")
   public static class AssertThat<Actual, Expected>
       implements SerializableFunction<Actual, Void> {
     final Expected expected;
@@ -353,6 +361,7 @@ public class DataflowAssert<T> {
    * SerializableFunction that performs an {@code Assert.assertThat()}
    * operation using a {@code Matcher} operation that takes a single element.
    */
+  @SuppressWarnings("serial")
   static class AssertThatValue<T> extends AssertThat<T, T> {
     AssertThatValue(T expected,
                     String matcherClassName,
@@ -366,6 +375,7 @@ public class DataflowAssert<T> {
    * SerializableFunction that verifies that a value is equal to an
    * expected value.
    */
+  @SuppressWarnings("serial")
   public static class AssertIs<T> extends AssertThatValue<T> {
     public AssertIs(T expected) {
       super(expected, "org.hamcrest.core.IsEqual", "equalTo");
