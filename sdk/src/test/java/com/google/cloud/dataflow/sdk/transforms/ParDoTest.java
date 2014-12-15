@@ -35,10 +35,13 @@ import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
+import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -266,10 +269,37 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  static class TestUnexpectedKeyedStateDoFn extends DoFn<Integer, String> {
+  /**
+   * Output the keys which have appeared at least three times.
+   */
+  static class TestKeyedStateCountAtLeastThreeDoFn
+      extends DoFn<KV<String, Integer>, String> implements DoFn.RequiresKeyedState{
+    @Override
+    public void processElement(ProcessContext c) throws IOException {
+      String key = c.element().getKey();
+      CodedTupleTag<Long> tag = CodedTupleTag.of(key, BigEndianLongCoder.of());
+      Long result = c.keyedState().lookup(tag);
+      long count = result == null ? 0 : result;
+      c.keyedState().store(tag, ++count);
+      if (count == 3) {
+        c.output(key);
+      }
+    }
+  }
+
+  static class TestUnexpectedKeyedStateDoFn extends DoFn<KV<String, Integer>, String> {
     @Override
     public void processElement(ProcessContext c) {
       // Will fail since this DoFn doesn't implement RequiresKeyedState.
+      c.keyedState();
+    }
+  }
+
+  static class TestKeyedStateDoFnWithNonKvInput
+      extends DoFn<Integer, String> implements DoFn.RequiresKeyedState {
+    @Override
+    public void processElement(ProcessContext c) {
+      // Will fail since this DoFn's input isn't KV.
       c.keyedState();
     }
   }
@@ -647,7 +677,51 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testParDoKeyedState() {
+    Pipeline p = TestPipeline.create();
+
+    List<String> inputs = Arrays.asList(
+        "A", "A", "B", "C", "B", "A", "D", "D", "D", "D");
+
+    PCollection<String> output =
+        p.apply(Create.of(inputs))
+         .apply(ParDo.named("ToKv")
+                     .of(new DoFn<String, KV<String, Integer>>() {
+                         @Override
+                         public void processElement(ProcessContext c) {
+                           c.output(KV.of(c.element(), 1));
+                         }
+                     }))
+     .apply(ParDo.of(new TestKeyedStateCountAtLeastThreeDoFn()));
+
+    DataflowAssert.that(output).containsInAnyOrder("A", "D");
+    p.run();
+  }
+
+  @Test
   public void testParDoWithUnexpectedKeyedState() {
+    Pipeline p = TestPipeline.create();
+
+    List<KV<String, Integer>> inputs = Arrays.asList(
+        KV.of("a", 1));
+
+    PCollection<KV<String, Integer>> input = p.apply(Create.of(inputs));
+
+    input
+        .apply(ParDo.of(new TestUnexpectedKeyedStateDoFn()));
+
+    try {
+      p.run();
+      fail("should have failed");
+    } catch (RuntimeException exn) {
+      assertThat(exn.toString(),
+                 containsString("Keyed state is only available"));
+    }
+  }
+
+  @Test
+  public void testParDoKeyedStateDoFnWithNonKvInput() {
     Pipeline p = TestPipeline.create();
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -655,8 +729,7 @@ public class ParDoTest implements Serializable {
     PCollection<Integer> input = createInts(p, inputs);
 
     input
-        .apply(ParDo.of(new TestUnexpectedKeyedStateDoFn()));
-
+        .apply(ParDo.of(new TestKeyedStateDoFnWithNonKvInput()));
     try {
       p.run();
       fail("should have failed");
