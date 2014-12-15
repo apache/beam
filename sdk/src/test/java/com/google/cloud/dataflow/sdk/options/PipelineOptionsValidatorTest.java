@@ -30,6 +30,7 @@ public class PipelineOptionsValidatorTest {
   /** A test interface with an {@link Validation.Required} annotation. */
   public static interface Required extends PipelineOptions {
     @Validation.Required
+    @Description("Fake Description")
     public String getObject();
     public void setObject(String value);
   }
@@ -44,9 +45,9 @@ public class PipelineOptionsValidatorTest {
   @Test
   public void testWhenRequiredOptionIsSetAndCleared() {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Expected non-null property to be set for "
+    expectedException.expectMessage("Missing required value for "
         + "[public abstract java.lang.String com.google.cloud.dataflow."
-        + "sdk.options.PipelineOptionsValidatorTest$Required.getObject()].");
+        + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
 
     Required required = PipelineOptionsFactory.as(Required.class);
     required.setObject("blah");
@@ -57,9 +58,9 @@ public class PipelineOptionsValidatorTest {
   @Test
   public void testWhenRequiredOptionIsNeverSet() {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Expected non-null property to be set for "
+    expectedException.expectMessage("Missing required value for "
         + "[public abstract java.lang.String com.google.cloud.dataflow."
-        + "sdk.options.PipelineOptionsValidatorTest$Required.getObject()].");
+        + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
 
     Required required = PipelineOptionsFactory.as(Required.class);
     PipelineOptionsValidator.validate(Required.class, required);
@@ -76,9 +77,9 @@ public class PipelineOptionsValidatorTest {
   @Test
   public void testValidationOnOverriddenMethods() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Expected non-null property to be set for "
+    expectedException.expectMessage("Missing required value for "
         + "[public abstract java.lang.String com.google.cloud.dataflow."
-        + "sdk.options.PipelineOptionsValidatorTest$Required.getObject()].");
+        + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
 
     SubClassValidation required = PipelineOptionsFactory.as(SubClassValidation.class);
     PipelineOptionsValidator.validate(Required.class, required);

@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.options;
 
 import com.google.common.base.Preconditions;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
@@ -47,13 +46,17 @@ public class PipelineOptionsValidator {
     ProxyInvocationHandler handler =
         (ProxyInvocationHandler) Proxy.getInvocationHandler(options);
     for (Method method : PipelineOptionsFactory.getClosureOfMethodsOnInterface(klass)) {
-      for (Annotation annotation : method.getAnnotations()) {
-        if (annotation instanceof Validation.Required) {
-          Preconditions.checkArgument(handler.invoke(options, method, null) != null,
-              "Expected non-null property to be set for [" + method + "].");
-        }
+      if (method.getAnnotation(Validation.Required.class) != null) {
+        Preconditions.checkArgument(handler.invoke(options, method, null) != null,
+            "Missing required value for [" + method + ", \"" + getDescription(method) + "\"]. ");
       }
     }
     return options.as(klass);
   }
+  
+  private static String getDescription(Method method) {
+    Description description = method.getAnnotation(Description.class);
+    return description == null ? "" : description.value();
+  }
 }
+

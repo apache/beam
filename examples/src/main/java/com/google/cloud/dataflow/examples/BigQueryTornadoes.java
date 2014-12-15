@@ -39,6 +39,26 @@ import java.util.List;
 /**
  * An example that reads the public samples of weather data from BigQuery, counts the number of
  * tornadoes that occur in each month, and writes the results to BigQuery.
+ * 
+ * <p> Concepts: Reading/writing BigQuery; counting a PCollection; user-defined PTransforms
+ * 
+ * <p> Note: Before running this example, you must create a BigQuery dataset to contain your output 
+ * table.
+ * 
+ * <p> To execute this pipeline locally, specify general pipeline configuration:
+ *   --project=<PROJECT ID>
+ * and the BigQuery table for the output:
+ *   --output=<project_id>:<dataset_id>.<table_id>
+ *
+ * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ *   --project=<PROJECT ID> 
+ *   --stagingLocation=gs://<STAGING DIRECTORY>
+ *   --runner=BlockingDataflowPipelineRunner
+ * and the BigQuery table for the output:
+ *   --output=<project_id>:<dataset_id>.<table_id>
+ *
+ * <p> The BigQuery input table defaults to clouddataflow-readonly:samples.weather_stations and can
+ * be overridden with --input.
  */
 public class BigQueryTornadoes {
   // Default to using a 1000 row subset of the public weather station table publicdata:samples.gsod.
@@ -118,8 +138,8 @@ public class BigQueryTornadoes {
     String getInput();
     void setInput(String value);
 
-    @Description("Table to write to, specified as "
-        + "<project_id>:<dataset_id>.<table_id>")
+    @Description("BigQuery table to write to, specified as "
+        + "<project_id>:<dataset_id>.<table_id>. The dataset must already exist.")
     @Validation.Required
     String getOutput();
     void setOutput(String value);

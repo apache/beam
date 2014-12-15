@@ -60,39 +60,22 @@ import java.util.Set;
 
 /**
  * An example that computes a basic TF-IDF search table for a directory or GCS prefix.
+ * 
+ * <p> Concepts: joining data; side inputs
  *
- * <p> Command-line usage for this example:
+ * <p> To execute this pipeline locally, specify general pipeline configuration:
+ *   --project=<PROJECT ID>
+ * and a local output file or output prefix on GCS:
+ *   --output=[<LOCAL FILE> | gs://<OUTPUT PREFIX>]
  *
- * <pre>
- *     java com.google.cloud.dataflow.examples.TfIdf \
- *       --runner=<RUNNER> \
- *       --input=<INPUT URI> \
- *       --output=<OUTPUT URI PREFIX>
- * </pre>
+ * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ *   --project=<PROJECT ID> 
+ *   --stagingLocation=gs://<STAGING DIRECTORY>
+ *   --runner=BlockingDataflowPipelineRunner
+ * and an output prefix on GCS:
+ *   --output=gs://<OUTPUT PREFIX>
  *
- * <p> For example, to execute this pipeline locally to index a local directory:
- *
- * <pre>
- *     java com.google.cloud.dataflow.examples.TfIdf \
- *       --runner=DirectPipelineRunner \
- *       --input=<LOCAL PATH TO DIRECTORY> \
- *       --output=<OUTPUT PREFIX>
- * </pre>
- *
- * <p> To execute this pipeline using the Dataflow service
- * to index the works of Shakespeare and write the results to a GCS bucket:
- * (For execution via the Dataflow service, only GCS locations are supported)
- *
- * <pre>
- *     java com.google.cloud.dataflow.examples.TfIdf \
- *       --project=<PROJECT ID> \
- *       --stagingLocation=gs://<STAGING DIRECTORY> \
- *       --runner=BlockingDataflowPipelineRunner \
- *       [--input=gs://<INPUT DIRECTORY>] \
- *       --output=gs://<OUTPUT PREFIX>
- * </pre>
- *
- * <p> The default input is gs://dataflow-samples/shakespeare/
+ * <p> The default input is gs://dataflow-samples/shakespeare/ and can be overridden with --input.
  */
 public class TfIdf {
   /**

@@ -150,7 +150,8 @@ public class BigQueryIOTranslator {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
       if (errorExtractor.itemNotFound(e)) {
         throw new IllegalArgumentException(
-            "BigQuery dataset not found for table: " + BigQueryIO.toTableSpec(table), e);
+            "BigQuery dataset not found for table \"" + BigQueryIO.toTableSpec(table)
+            + "\". Please create the dataset before pipeline execution.");
       } else {
         throw new RuntimeException(
             "unable to confirm BigQuery dataset presence", e);

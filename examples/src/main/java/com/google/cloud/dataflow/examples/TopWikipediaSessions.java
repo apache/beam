@@ -45,24 +45,23 @@ import org.joda.time.Instant;
 import java.util.List;
 
 /**
- * Pipeline that reads Wikipedia edit data from BigQuery and computes the user with
+ * An example that reads Wikipedia edit data from BigQuery and computes the user with
  * the longest string of edits separated by no more than an hour within each month.
  *
- * <p> This pipeline demonstrates how the Windowing API can be used to perform
- * various time-based aggregations of data.
+ * <p> Concepts: Using Windowing to perform time-based aggregations of data.
+ *   
+ * <p> It is not recommended to execute this pipeline locally, given the size of the default input
+ * data.
  *
- * <p> To run this pipeline, the following options must be provided:
- * <pre>{@code
+ * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
  *   --project=<PROJECT ID>
- *   --output=gs://<OUTPUT PATH>
- *   --stagingLocation=gs://<STAGING PATH>
- *   --runner=(Blocking)DataflowPipelineRunner
- * }</pre>
- *
- * <p> To run this example using Dataflow service, you must additionally
- * provide either {@literal --stagingLocation} or {@literal --tempLocation}, and
- * select one of the Dataflow pipeline runners, eg
- * {@literal --runner=BlockingDataflowPipelineRunner}.
+ *   --stagingLocation=gs://<STAGING DIRECTORY>
+ *   --runner=BlockingDataflowPipelineRunner
+ * and an output prefix on GCS:
+ *   --output=gs://<OUTPUT PREFIX>
+ * 
+ * <p> The default input is gs://dataflow-samples/wikipedia_edits/*.json and can be overridden with
+ * --input.
  */
 public class TopWikipediaSessions {
   private static final String EXPORTED_WIKI_TABLE = "gs://dataflow-samples/wikipedia_edits/*.json";

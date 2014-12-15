@@ -38,19 +38,22 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * An example that counts words in Shakespeare. For a detailed walkthrough of this
  * example see:
  *   https://developers.google.com/cloud-dataflow/java-sdk/wordcount-example
+ *   
+ * <p> Concepts: Reading/writing text files; counting a PCollection; user-defined PTransforms
  *
- * To execute this pipeline locally, specify general pipeline configuration:
+ * <p> To execute this pipeline locally, specify general pipeline configuration:
  *   --project=<PROJECT ID>
- * and example configuration:
- *   --output=[<LOCAL FILE> | gs://<OUTPUT PATH>]
+ * and a local output file or output prefix on GCS:
+ *   --output=[<LOCAL FILE> | gs://<OUTPUT PREFIX>]
  *
- * To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=<PROJECT ID> --stagingLocation=gs://<STAGING DIRECTORY>
+ * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ *   --project=<PROJECT ID>
+ *   --stagingLocation=gs://<STAGING DIRECTORY>
  *   --runner=BlockingDataflowPipelineRunner
- * and example configuration:
- *   --output=gs://<OUTPUT PATH>
+ * and an output prefix on GCS:
+ *   --output=gs://<OUTPUT PREFIX>
  *
- * The input file defaults to gs://dataflow-samples/shakespeare/kinglear.txt and can be
+ * <p> The input file defaults to gs://dataflow-samples/shakespeare/kinglear.txt and can be
  * overridden with --input.
  */
 public class WordCount {

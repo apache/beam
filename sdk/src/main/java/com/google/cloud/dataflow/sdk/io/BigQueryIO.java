@@ -106,7 +106,7 @@ import java.util.regex.Pattern;
  * <p>
  * See {@link BigQueryIO.Write} for details on how to specify if a write should
  * append to an existing table, replace the table, or verify that the table is
- * empty.
+ * empty. Note that the dataset being written to must already exist.
  *
  * @see <a href="https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/com/google/api/services/bigquery/model/TableRow.html">TableRow</a>
  */
@@ -348,6 +348,8 @@ public class BigQueryIO {
    * which matches the default of BigQuery's Jobs API.  A schema must be
    * provided (via {@link Write#withSchema}), or else the transform may fail
    * at runtime with an {@link java.lang.IllegalArgumentException}.
+   * <p>
+   * The dataset being written must already exist.
    * <p>
    * By default, writes require an empty table, which corresponds to
    * a {@code WriteDisposition.WRITE_EMPTY} disposition which matches the
