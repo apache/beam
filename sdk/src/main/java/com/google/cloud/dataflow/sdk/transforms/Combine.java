@@ -355,6 +355,10 @@ public class Combine {
      * for {@code VI} values and the enclosing {@code Pipeline}'s
      * {@code CoderRegistry} to try to infer the Coder for {@code VA}
      * values.
+     *
+     * <p> This is the Coder used to send data through a communication-intensive
+     * shuffle step, so a compact and efficient representation may have
+     * significant performance benefits.
      */
     public Coder<VA> getAccumulatorCoder(
         CoderRegistry registry, Coder<VI> inputCoder) {
@@ -476,14 +480,14 @@ public class Combine {
    * @param <VO> type of output values
    */
   public abstract static class AccumulatingCombineFn
-      <VI, VA extends AccumulatingCombineFn<VI, VA, VO>.Accumulator, VO>
+      <VI, VA extends AccumulatingCombineFn.Accumulator<VI, VA, VO>, VO>
       extends CombineFn<VI, VA, VO> {
 
     /**
      * The type of mutable accumulator values used by this
      * {@code AccumulatingCombineFn}.
      */
-    public abstract class Accumulator implements Serializable {
+    public abstract static interface Accumulator<VI, VA, VO> {
       /**
        * Adds the given input value to this accumulator, modifying
        * this accumulator.
@@ -675,6 +679,10 @@ public class Combine {
      * used for {@code K} keys and input {@code VI} values and the
      * enclosing {@code Pipeline}'s {@code CoderRegistry} to try to
      * infer the Coder for {@code VA} values.
+     *
+     * <p> This is the Coder used to send data through a communication-intensive
+     * shuffle step, so a compact and efficient representation may have
+     * significant performance benefits.
      */
     public Coder<VA> getAccumulatorCoder(
         CoderRegistry registry, Coder<K> keyCoder, Coder<VI> inputCoder) {

@@ -63,8 +63,8 @@ public class CombineValuesFnTest {
   public static class MeanInts extends
       Combine.AccumulatingCombineFn<Integer, MeanInts.CountSum, String> {
 
-    class CountSum extends
-        Combine.AccumulatingCombineFn<Integer, CountSum, String>.Accumulator {
+    class CountSum implements
+        Combine.AccumulatingCombineFn.Accumulator<Integer, CountSum, String> {
 
       long count;
       double sum;

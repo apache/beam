@@ -367,9 +367,8 @@ public class ApproximateQuantiles {
      * estimated.
      */
     class QuantileState
-        extends AccumulatingCombineFn
-        <T, ApproximateQuantilesCombineFn<T, C>.QuantileState, List<T>>
-        .Accumulator {
+        implements AccumulatingCombineFn.Accumulator
+        <T, ApproximateQuantilesCombineFn<T, C>.QuantileState, List<T>> {
 
       private T min;
       private T max;

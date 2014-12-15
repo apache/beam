@@ -337,11 +337,7 @@ public class Top {
       this.compareFn = compareFn;
     }
 
-    class Heap
-        // TODO: Why do I have to fully qualify the
-        // Accumulator class here?
-        extends AccumulatingCombineFn<T, TopCombineFn<T>.Heap, List<T>>
-                .Accumulator {
+    class Heap implements AccumulatingCombineFn.Accumulator<T, TopCombineFn<T>.Heap, List<T>> {
 
       // Exactly one of these should be set.
       private List<T> asList;            // ordered largest first

@@ -58,6 +58,7 @@ import org.junit.runners.JUnit4;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -365,8 +366,8 @@ public class CombineTest {
     private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
     private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
 
-    class CountSum extends
-        Combine.AccumulatingCombineFn<Integer, CountSum, Double>.Accumulator {
+    class CountSum implements
+        Combine.AccumulatingCombineFn.Accumulator<Integer, CountSum, Double> {
       long count = 0;
       double sum = 0.0;
 
@@ -450,9 +451,9 @@ public class CombineTest {
           Integer, TestCounter.Counter, Iterable<Long>> {
 
     /** An accumulator that observes its merges and outputs */
-    public class Counter extends
-        Combine.AccumulatingCombineFn<
-            Integer, Counter, Iterable<Long>>.Accumulator {
+    public class Counter implements
+        Combine.AccumulatingCombineFn.Accumulator<Integer, Counter, Iterable<Long>>,
+        Serializable {
 
       public long sum = 0;
       public long inputs = 0;
@@ -522,6 +523,8 @@ public class CombineTest {
     @Override
     public Coder<Counter> getAccumulatorCoder(
         CoderRegistry registry, Coder<Integer> inputCoder) {
+      // This is a *very* inefficient encoding to send over the wire, but suffices
+      // for tests.
       return SerializableCoder.of(Counter.class);
     }
   }

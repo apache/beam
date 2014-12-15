@@ -16,9 +16,16 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
+import com.google.cloud.dataflow.sdk.coders.CustomCoder;
+import com.google.cloud.dataflow.sdk.coders.DoubleCoder;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
  * {@code PTransform}s for computing the arithmetic mean
@@ -102,10 +109,19 @@ public class Mean {
      * Accumulator helper class for MeanFn.
      */
     class CountSum
-        extends Combine.AccumulatingCombineFn<N, CountSum, Double>.Accumulator {
+        implements Combine.AccumulatingCombineFn.Accumulator<N, CountSum, Double> {
 
       long count = 0;
       double sum = 0.0;
+
+      public CountSum() {
+        this(0, 0);
+      }
+
+      public CountSum(long count, double sum) {
+        this.count = count;
+        this.sum = sum;
+      }
 
       @Override
       public void addInput(N element) {
@@ -130,14 +146,36 @@ public class Mean {
       return new CountSum();
     }
 
+    private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
+    private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
+
     @SuppressWarnings("unchecked")
     @Override
     public Coder<CountSum> getAccumulatorCoder(
         CoderRegistry registry, Coder<N> inputCoder) {
-      // The casts are needed because CountSum.class is a
-      // Class<MeanFn.CountSum>, but we need a
-      // Class<MeanFn<N>.CountSum>.
-      return SerializableCoder.of((Class<CountSum>) (Class<?>) CountSum.class);
+      return new CustomCoder<CountSum> () {
+        @Override
+        public void encode(CountSum value, OutputStream outStream, Coder.Context context)
+            throws CoderException, IOException {
+          Coder.Context nestedContext = context.nested();
+          LONG_CODER.encode(value.count, outStream, nestedContext);
+          DOUBLE_CODER.encode(value.sum, outStream, nestedContext);
+        }
+
+        @Override
+        public CountSum decode(InputStream inStream, Coder.Context context)
+            throws CoderException, IOException {
+          Coder.Context nestedContext = context.nested();
+          return new CountSum(
+              LONG_CODER.decode(inStream, nestedContext),
+              DOUBLE_CODER.decode(inStream, nestedContext));
+        }
+
+        @Override
+        public boolean isDeterministic() {
+          return true;
+        }
+      };
     }
   }
 }
