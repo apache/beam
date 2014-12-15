@@ -42,6 +42,7 @@ import java.util.TreeSet;
  * Tests for First.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class FirstTest
     implements Serializable /* to allow anon inner classes */ {
   // PRE: lines contains no duplicates.

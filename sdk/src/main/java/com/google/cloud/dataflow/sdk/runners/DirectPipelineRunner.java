@@ -232,6 +232,7 @@ public class DirectPipelineRunner
    * question.
    */
   // @VisibleForTesting
+  @SuppressWarnings("serial")
   public static class TestCombineDoFn<K, VI, VA, VO>
       extends DoFn<KV<K, Iterable<VI>>, KV<K, VO>> {
     private final KeyedCombineFn<? super K, ? super VI, VA, VO> fn;
@@ -321,7 +322,7 @@ public class DirectPipelineRunner
   @Override
   public EvaluationResults run(Pipeline pipeline) {
     LOG.info("Executing pipeline using the DirectPipelineRunner.");
-    
+
     Evaluator evaluator = new Evaluator();
     evaluator.run(pipeline);
 
@@ -329,7 +330,7 @@ public class DirectPipelineRunner
     for (Counter counter : evaluator.getCounters()) {
       LOG.info("Final aggregator value: {}", counter);
     }
-    
+
     LOG.info("Pipeline execution complete.");
 
     return evaluator;

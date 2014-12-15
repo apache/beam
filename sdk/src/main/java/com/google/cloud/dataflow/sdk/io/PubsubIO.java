@@ -181,6 +181,7 @@ public class PubsubIO {
      * A PTransform that reads from a PubSub source and returns
      * a unbounded PCollection containing the items from the stream.
      */
+    @SuppressWarnings("serial")
     public static class Bound
         extends PTransform<PInput, PCollection<String>> {
       /** The Pubsub topic to read from. */
@@ -278,6 +279,7 @@ public class PubsubIO {
      * A PTransfrom that writes a unbounded {@code PCollection<String>}
      * to a PubSub stream.
      */
+    @SuppressWarnings("serial")
     public static class Bound
         extends PTransform<PCollection<String>, PDone> {
       /** The Pubsub topic to publish to. */

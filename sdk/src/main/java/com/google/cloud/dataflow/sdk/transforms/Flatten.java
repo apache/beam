@@ -105,6 +105,7 @@ public class Flatten {
    * @param <T> the type of the elements in the input and output
    * {@code PCollection}s.
    */
+  @SuppressWarnings("serial")
   public static class FlattenPCollectionList<T>
       extends PTransform<PCollectionList<T>, PCollection<T>> {
 
@@ -150,6 +151,7 @@ public class Flatten {
    * @param <T> the type of the elements of the input {@code Iterable}s and
    * the output {@code PCollection}
    */
+  @SuppressWarnings("serial")
   public static class FlattenIterables<T>
       extends PTransform<PCollection<Iterable<T>>, PCollection<T>> {
 

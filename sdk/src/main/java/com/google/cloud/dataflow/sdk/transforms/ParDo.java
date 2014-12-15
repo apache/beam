@@ -638,6 +638,7 @@ public class ParDo {
    * @param <I> the type of the (main) input {@code PCollection} elements
    * @param <O> the type of the (main) output {@code PCollection} elements
    */
+  @SuppressWarnings("serial")
   public static class Bound<I, O>
       extends PTransform<PCollection<? extends I>, PCollection<O>> {
     // Inherits name.
@@ -831,6 +832,7 @@ public class ParDo {
    * @param <I> the type of the (main) input {@code PCollection} elements
    * @param <O> the type of the main output {@code PCollection} elements
    */
+  @SuppressWarnings("serial")
   public static class BoundMulti<I, O>
       extends PTransform<PCollection<? extends I>, PCollectionTuple> {
     // Inherits name.

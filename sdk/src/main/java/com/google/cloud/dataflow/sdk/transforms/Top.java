@@ -321,6 +321,7 @@ public class Top {
    *
    * @param <T> type of element being compared
    */
+  @SuppressWarnings("serial")
   public static class TopCombineFn<T>
       extends AccumulatingCombineFn<T, TopCombineFn<T>.Heap, List<T>> {
 
@@ -423,6 +424,7 @@ public class Top {
       return new HeapCoder(inputCoder);
     }
 
+    @SuppressWarnings("serial")
     private class HeapCoder extends CustomCoder<Heap> {
       private final Coder<List<T>> listCoder;
 
@@ -467,6 +469,7 @@ public class Top {
    * {@code Serializable} {@code Comparator} that that uses the
    * compared elements' natural ordering.
    */
+  @SuppressWarnings("serial")
   public static class Largest<T extends Comparable<T>>
       implements Comparator<T>, Serializable {
     @Override
@@ -479,6 +482,7 @@ public class Top {
    * {@code Serializable} {@code Comparator} that that uses the
    * reverse of the compared elements' natural ordering.
    */
+  @SuppressWarnings("serial")
   public static class Smallest<T extends Comparable<T>>
       implements Comparator<T>, Serializable {
     @Override

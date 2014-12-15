@@ -76,6 +76,7 @@ import java.util.Map;
  * Tests for DataflowPipelineTranslator.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class DataflowPipelineTranslatorTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();

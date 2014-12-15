@@ -39,6 +39,7 @@ import java.util.List;
  * Tests for Sample transform.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class SampleTest {
   static final Integer[] EMPTY = new Integer[] { };
   static final Integer[] DATA = new Integer[] {1, 2, 3, 4, 5};

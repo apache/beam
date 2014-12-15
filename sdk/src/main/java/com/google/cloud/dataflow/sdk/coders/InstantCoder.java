@@ -26,6 +26,7 @@ import java.io.OutputStream;
 /**
  * A InstantCoder encodes joda Instant.
  */
+@SuppressWarnings("serial")
 public class InstantCoder extends AtomicCoder<Instant> {
   @JsonCreator
   public static InstantCoder of() {

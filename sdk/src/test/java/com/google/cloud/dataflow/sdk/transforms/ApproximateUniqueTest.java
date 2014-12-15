@@ -52,6 +52,7 @@ import java.util.List;
  * Tests for the ApproximateUnique aggregator transform.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class ApproximateUniqueTest {
 
   @Test

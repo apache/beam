@@ -35,6 +35,7 @@ import java.nio.charset.Charset;
  * A StringUtf8Coder encodes Java Strings in UTF-8 encoding.
  * If in a nested context, prefixes the string with a VarInt length field.
  */
+@SuppressWarnings("serial")
 public class StringUtf8Coder extends AtomicCoder<String> {
   @JsonCreator
   public static StringUtf8Coder of() {

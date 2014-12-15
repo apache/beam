@@ -43,6 +43,7 @@ import java.util.Map;
  * Tests for CoderRegistry.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class CoderRegistryTest {
 
   public static CoderRegistry getStandardRegistry() {

@@ -282,10 +282,10 @@ public class Pipeline {
    * Returns all producing transforms for the {@link PValue}s contained
    * in {@code output}.
    */
-  private List<PTransform> getProducingTransforms(POutput output) {
-    List<PTransform> producingTransforms = new ArrayList<>();
+  private List<PTransform<?, ?>> getProducingTransforms(POutput output) {
+    List<PTransform<?, ?>> producingTransforms = new ArrayList<>();
     for (PValue value : output.expand()) {
-      PTransform transform = value.getProducingTransformInternal();
+      PTransform<?, ?> transform = value.getProducingTransformInternal();
       if (transform != null) {
         producingTransforms.add(transform);
       }
@@ -301,9 +301,9 @@ public class Pipeline {
    */
   private void verifyOutputState(POutput output, TransformTreeNode node) {
     if (!node.isCompositeNode()) {
-      PTransform thisTransform = node.getTransform();
-      List<PTransform> producingTransforms = getProducingTransforms(output);
-      for (PTransform producingTransform : producingTransforms) {
+      PTransform<?, ?> thisTransform = node.getTransform();
+      List<PTransform<?, ?>> producingTransforms = getProducingTransforms(output);
+      for (PTransform<?, ?> producingTransform : producingTransforms) {
         if (thisTransform != producingTransform) {
           throw new IllegalArgumentException("Output of non-composite transform "
               + thisTransform + " is registered as being produced by"

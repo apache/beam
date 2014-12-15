@@ -52,6 +52,7 @@ import java.util.List;
  * @param <I> the type of the (main) input elements
  * @param <O> the type of the (main) output elements
  */
+@SuppressWarnings("serial")
 public abstract class DoFn<I, O> implements Serializable {
 
   /** Information accessible to all methods in this {@code DoFn}. */

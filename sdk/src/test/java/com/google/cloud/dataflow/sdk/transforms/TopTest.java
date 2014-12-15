@@ -44,6 +44,7 @@ import java.util.List;
 
 /** Tests for Top */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class TopTest {
 
   @Rule

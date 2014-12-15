@@ -34,6 +34,7 @@ import java.util.List;
 /**
  * A UnionCoder encodes RawUnionValues.
  */
+@SuppressWarnings("serial")
 class UnionCoder extends StandardCoder<RawUnionValue> {
   // TODO: Think about how to integrate this with a schema object (i.e.
   // a tuple of tuple tags).

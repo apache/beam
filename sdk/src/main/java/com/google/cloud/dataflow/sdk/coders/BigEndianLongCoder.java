@@ -29,6 +29,7 @@ import java.io.UTFDataFormatException;
 /**
  * A BigEndianLongCoder encodes Longs in 8 bytes, big-endian.
  */
+@SuppressWarnings("serial")
 public class BigEndianLongCoder extends AtomicCoder<Long> {
   @JsonCreator
   public static BigEndianLongCoder of() {

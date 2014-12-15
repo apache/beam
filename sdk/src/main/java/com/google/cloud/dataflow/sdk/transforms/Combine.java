@@ -38,6 +38,7 @@ import java.util.List;
  * {@code PTransform}s for combining {@code PCollection} elements
  * globally and per-key.
  */
+@SuppressWarnings("serial")
 public class Combine {
 
   /**

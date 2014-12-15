@@ -40,6 +40,7 @@ import java.io.OutputStream;
  * Tests for CoderUtils.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class CoderUtilsTest {
   static class TestCoder extends AtomicCoder<Integer> {
     public static TestCoder of() { return new TestCoder(); }

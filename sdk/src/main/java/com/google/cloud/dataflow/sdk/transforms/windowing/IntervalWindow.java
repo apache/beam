@@ -178,6 +178,7 @@ public class IntervalWindow extends BoundedWindow
     return FixedSizeIntervalWindowCoder.of(size);
   }
 
+  @SuppressWarnings("serial")
   private static class IntervalWindowCoder extends AtomicCoder<IntervalWindow> {
     private static final IntervalWindowCoder INSTANCE =
         new IntervalWindowCoder();
@@ -209,6 +210,7 @@ public class IntervalWindow extends BoundedWindow
     public boolean isDeterministic() { return true; }
   }
 
+  @SuppressWarnings("serial")
   private static class FixedSizeIntervalWindowCoder
       extends AtomicCoder<IntervalWindow> {
     private static final Coder<Instant> instantCoder = InstantCoder.of();

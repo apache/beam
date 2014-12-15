@@ -31,6 +31,7 @@ import java.io.UTFDataFormatException;
  * numbers always take 5 bytes, so BigEndianIntegerCoder may be preferable for
  * ints that are known to often be large or negative.
  */
+@SuppressWarnings("serial")
 public class VarIntCoder extends AtomicCoder<Integer> {
   @JsonCreator
   public static VarIntCoder of() {

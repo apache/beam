@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Tests for RateLimiter.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class RateLimitingTest {
 
   /**

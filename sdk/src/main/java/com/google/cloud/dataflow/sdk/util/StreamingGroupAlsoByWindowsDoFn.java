@@ -33,6 +33,7 @@ import java.io.IOException;
  * @param <VO> output value element type
  * @param <W> window type
  */
+@SuppressWarnings("serial")
 public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
     extends DoFn<TimerOrElement<KV<K, VI>>, KV<K, VO>> implements DoFn.RequiresKeyedState {
 

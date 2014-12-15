@@ -37,6 +37,7 @@ import java.util.List;
  * between TupleTags and Union Tags (which are used as secondary keys in the
  * CoGroupByKey).
  */
+@SuppressWarnings("serial")
 class CoGbkResultSchema implements Serializable {
 
   private final TupleTagList tupleTagList;

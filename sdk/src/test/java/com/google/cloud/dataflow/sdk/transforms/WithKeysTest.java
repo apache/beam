@@ -34,6 +34,7 @@ import java.util.List;
  * Tests for ExtractKeys transform.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class WithKeysTest {
   static final String[] COLLECTION = new String[] {
     "a",

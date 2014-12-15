@@ -52,7 +52,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
   final DoFn<I, O> fn;
   final PTuple sideInputs;
   final OutputManager<R> outputManager;
-  final Map<TupleTag, R> outputMap;
+  final Map<TupleTag<?>, R> outputMap;
   final TupleTag<O> mainOutputTag;
   final StepContext stepContext;
   final CounterSet.AddCounterMutator addCounterMutator;

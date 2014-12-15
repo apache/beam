@@ -139,6 +139,7 @@ public class Max {
    *
    * @param <N> the type of the {@code Number}s being compared
    */
+  @SuppressWarnings("serial")
   public static class MaxFn<N extends Number & Comparable<N>>
       implements SerializableFunction<Iterable<N>, N> {
 
@@ -172,6 +173,7 @@ public class Max {
    * {@code Iterable} of {@code Integer}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
+  @SuppressWarnings("serial")
   public static class MaxIntegerFn extends MaxFn<Integer> {
     public MaxIntegerFn() { super(Integer.MIN_VALUE); }
   }
@@ -181,6 +183,7 @@ public class Max {
    * {@code Iterable} of {@code Long}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
+  @SuppressWarnings("serial")
   public static class MaxLongFn extends MaxFn<Long> {
     public MaxLongFn() { super(Long.MIN_VALUE); }
   }
@@ -190,6 +193,7 @@ public class Max {
    * {@code Iterable} of {@code Double}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
+  @SuppressWarnings("serial")
   public static class MaxDoubleFn extends MaxFn<Double> {
     public MaxDoubleFn() { super(Double.MIN_VALUE); }
   }

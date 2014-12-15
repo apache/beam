@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
  *
  * @param <T> the type of the values associated with this tag
  */
+@SuppressWarnings("serial")
 public class CodedTupleTag<T> extends TupleTag<T> {
   /**
    * Returns a {@code CodedTupleTag} with the given id which uses the

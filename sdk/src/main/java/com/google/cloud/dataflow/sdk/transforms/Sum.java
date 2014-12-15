@@ -35,6 +35,7 @@ package com.google.cloud.dataflow.sdk.transforms;
  *     .apply(Sum.<String>integersPerKey());
  * } </pre>
  */
+@SuppressWarnings("serial")
 public class Sum {
 
   /**

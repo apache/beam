@@ -31,6 +31,7 @@ import java.io.Serializable;
  * Tests of Coder defaults.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class DefaultCoderTest {
 
   @DefaultCoder(AvroCoder.class)

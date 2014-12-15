@@ -29,6 +29,7 @@ import java.io.UTFDataFormatException;
 /**
  * A BigEndianIntegerCoder encodes Integers in 4 bytes, big-endian.
  */
+@SuppressWarnings("serial")
 public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
   @JsonCreator
   public static BigEndianIntegerCoder of() {

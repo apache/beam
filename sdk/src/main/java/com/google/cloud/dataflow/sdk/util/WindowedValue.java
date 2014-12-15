@@ -37,9 +37,9 @@ import org.joda.time.Instant;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -79,9 +79,9 @@ public class WindowedValue<V> {
    * Returns a {@code WindowedValue} with the given value and default timestamp and empty windows.
    */
   public static <V> WindowedValue<V> valueInEmptyWindows(V value) {
-    return new WindowedValue(value,
-                             new Instant(Long.MIN_VALUE),
-                             new ArrayList<>());
+    return new WindowedValue<V>(value,
+                                new Instant(Long.MIN_VALUE),
+                                Collections.<BoundedWindow>emptyList());
   }
 
   private WindowedValue(V value,

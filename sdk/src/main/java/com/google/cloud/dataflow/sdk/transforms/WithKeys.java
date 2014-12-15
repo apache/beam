@@ -48,6 +48,7 @@ import com.google.common.reflect.TypeToken;
  * {@code PCollection} and the values in the output
  * {@code PCollection}
  */
+@SuppressWarnings("serial")
 public class WithKeys<K, V> extends PTransform<PCollection<V>,
                                                PCollection<KV<K, V>>> {
   /**

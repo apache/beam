@@ -29,6 +29,7 @@ import java.util.Collection;
 /**
  * Default {@link WindowingFn} where all data is in the same bucket.
  */
+@SuppressWarnings("serial")
 public class GlobalWindow
     extends NonMergingWindowingFn<Object, GlobalWindow.Window> {
   @Override

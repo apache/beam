@@ -280,6 +280,7 @@ public class PipelineOptionsFactory {
 
 
   private static final Logger LOG = LoggerFactory.getLogger(PipelineOptionsFactory.class);
+  @SuppressWarnings("rawtypes")
   private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class[0];
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -404,6 +405,7 @@ public class PipelineOptionsFactory {
 
     // Validate that the local view of the class is well formed.
     if (!INTERFACE_CACHE.containsKey(iface)) {
+      @SuppressWarnings("rawtypes")
       Class<?> proxyClass = Proxy.getProxyClass(
           PipelineOptionsFactory.class.getClassLoader(), new Class[] {iface});
       try {

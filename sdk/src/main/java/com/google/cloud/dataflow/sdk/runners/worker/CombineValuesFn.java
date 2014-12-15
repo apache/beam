@@ -42,6 +42,7 @@ import javax.annotation.Nullable;
 /**
  * A wrapper around a decoded user value combining function.
  */
+@SuppressWarnings("serial")
 public class CombineValuesFn extends NormalParDoFn {
   /**
    * The optimizer may split run the user combiner in 3 separate

@@ -51,6 +51,7 @@ import java.util.List;
  * Tests for CoGroupByKeyTest.  Implements Serializable for anonymous DoFns.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class CoGroupByKeyTest implements Serializable {
 
   /**

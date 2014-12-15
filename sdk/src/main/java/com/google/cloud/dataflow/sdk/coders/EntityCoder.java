@@ -27,6 +27,7 @@ import java.io.OutputStream;
 /**
  * An EntityCoder encodes/decodes Datastore Entity objects.
  */
+@SuppressWarnings("serial")
 public class EntityCoder extends AtomicCoder<Entity> {
 
   @JsonCreator

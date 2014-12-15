@@ -50,6 +50,7 @@ import java.util.Arrays;
 
 /** Unit tests for bucketing. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class WindowingTest implements Serializable {
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();

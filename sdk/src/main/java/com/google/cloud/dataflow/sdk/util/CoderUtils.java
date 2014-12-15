@@ -112,6 +112,7 @@ public final class CoderUtils {
    * A {@link com.fasterxml.jackson.databind.module.Module} which adds the type
    * resolver needed for Coder definitions created by the Dataflow service.
    */
+  @SuppressWarnings("serial")
   static final class Jackson2Module extends SimpleModule {
     /**
      * The Coder custom type resolver.

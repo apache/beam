@@ -29,6 +29,7 @@ import java.io.Serializable;
  * Tests for SerializableUtils.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class SerializableUtilsTest {
   static class TestClass implements Serializable {
     final String stringValue;

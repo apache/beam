@@ -167,6 +167,7 @@ public class Window {
    *
    * @param <T> The type of elements this {@code Window} is applied to
    */
+  @SuppressWarnings("serial")
   public static class Bound<T> extends PTransform<PCollection<T>, PCollection<T>> {
     WindowingFn<? super T, ?> fn;
 
@@ -221,6 +222,7 @@ public class Window {
    *  windows to be merged again as part of the next
    * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}.
    */
+  @SuppressWarnings("serial")
   public static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {

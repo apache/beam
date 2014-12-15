@@ -42,6 +42,7 @@ import java.util.List;
  * Tests for Partition
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class PartitionTest implements Serializable {
   static class ModFn implements PartitionFn<Integer> {
     public int partitionFor(Integer elem, int numPartitions) {

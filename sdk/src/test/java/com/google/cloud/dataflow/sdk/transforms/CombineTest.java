@@ -68,6 +68,7 @@ import java.util.Set;
  * Tests for Combine transforms.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class CombineTest {
 
   @SuppressWarnings("unchecked")

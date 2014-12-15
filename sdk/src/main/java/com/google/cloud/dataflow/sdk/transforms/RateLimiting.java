@@ -87,6 +87,7 @@ public class RateLimiting {
    * @param <I> the type of the (main) input elements
    * @param <O> the type of the (main) output elements
    */
+  @SuppressWarnings("serial")
   public static class RateLimitingTransform<I, O>
       extends PTransform<PCollection<? extends I>, PCollection<O>> {
     private final DoFn<I, O> doFn;

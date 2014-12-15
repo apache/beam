@@ -43,6 +43,7 @@ import java.io.ByteArrayOutputStream;
  * Tests for AvroCoder.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class AvroCoderTest {
 
   @DefaultCoder(AvroCoder.class)

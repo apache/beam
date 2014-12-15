@@ -88,6 +88,7 @@ public class Count {
    *
    * @param <T> the type of the elements of the input {@code PCollection}
    */
+  @SuppressWarnings("serial")
   public static class Globally<T>
       extends PTransform<PCollection<T>, PCollection<Long>> {
 
@@ -136,6 +137,7 @@ public class Count {
    * @param <T> the type of the elements of the input {@code PCollection}, and
    * the type of the keys of the output {@code PCollection}
    */
+  @SuppressWarnings("serial")
   public static class PerElement<T>
       extends PTransform<PCollection<T>, PCollection<KV<T, Long>>> {
 

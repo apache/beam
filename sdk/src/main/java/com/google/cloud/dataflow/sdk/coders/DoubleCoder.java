@@ -29,6 +29,7 @@ import java.io.UTFDataFormatException;
 /**
  * A DoubleCoder encodes Doubles in 8 bytes.
  */
+@SuppressWarnings("serial")
 public class DoubleCoder extends AtomicCoder<Double> {
   @JsonCreator
   public static DoubleCoder of() {

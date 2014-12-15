@@ -51,6 +51,7 @@ import java.util.List;
  * Tests for NormalParDoFn.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class NormalParDoFnTest {
   static class TestDoFn extends DoFn<Integer, String> {
     enum State { UNSTARTED, STARTED, PROCESSING, FINISHED }

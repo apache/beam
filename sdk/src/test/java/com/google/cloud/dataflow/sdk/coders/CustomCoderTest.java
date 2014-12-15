@@ -33,6 +33,7 @@ import java.io.OutputStream;
 
 /** Unit tests for {@link CustomCoder}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class CustomCoderTest {
 
   private static class MyCustomCoder extends CustomCoder<KV<String, Long>> {

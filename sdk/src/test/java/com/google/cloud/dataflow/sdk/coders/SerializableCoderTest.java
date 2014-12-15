@@ -46,6 +46,7 @@ import java.util.List;
  * Tests SerializableCoder.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class SerializableCoderTest implements Serializable {
 
   @DefaultCoder(SerializableCoder.class)
