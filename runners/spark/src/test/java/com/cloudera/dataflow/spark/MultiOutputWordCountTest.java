@@ -39,7 +39,7 @@ import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class WordCountTest {
+public class MultiOutputWordCountTest {
 
   static TupleTag<String> upper = new TupleTag<>();
   static TupleTag<String> lower = new TupleTag<>();
