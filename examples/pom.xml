@@ -111,6 +111,7 @@
           <finalName>${project.artifactId}-bundled-${project.version}</finalName>
           <instructions>
             <!-- Embed all dependencies -->
+            <Embed-Transitive>true</Embed-Transitive>
             <Embed-Dependency>*;scope=compile|runtime;inline=true</Embed-Dependency>
           </instructions>
         </configuration>
