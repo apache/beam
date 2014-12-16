@@ -165,12 +165,28 @@
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
       <version>v2-rev167-1.19.0</version>
+      <exclusions>
+        <!-- Exclude an old version of guava which is being pulled
+             in by a transitive dependency google-api-client 1.19.0 -->
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client-jackson2</artifactId>
       <version>1.19.0</version>
+      <exclusions>
+        <!-- Exclude an old version of guava which is being pulled
+             in by a transitive dependency google-api-client 1.19.0 -->
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
