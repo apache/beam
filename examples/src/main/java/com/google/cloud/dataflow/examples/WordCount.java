@@ -37,7 +37,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 /**
  * An example that counts words in Shakespeare. For a detailed walkthrough of this
  * example see:
- *   https://developers.google.com/cloud-dataflow/java-sdk/wordcount-example
+ *   https://cloud.google.com/dataflow/java-sdk/wordcount-example
  *
  * <p> Concepts: Reading/writing text files; counting a PCollection; user-defined PTransforms
  *

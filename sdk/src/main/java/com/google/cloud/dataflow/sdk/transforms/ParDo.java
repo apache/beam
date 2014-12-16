@@ -434,9 +434,8 @@ import java.util.Map;
  * Dataflow service's optimizer to "flatten out" all the compositions
  * into highly optimized stages.
  *
- * @see <a href=
- * "https://developers.google.com/cloud-dataflow/java-sdk/primitive-transforms#Using-ParDo"
- * >Using ParDo</a>
+ * @see <a href="https://cloud.google.com/dataflow/java-sdk/par-do">Parallel
+ * Processing with ParDo</a>
  */
 public class ParDo {
 
