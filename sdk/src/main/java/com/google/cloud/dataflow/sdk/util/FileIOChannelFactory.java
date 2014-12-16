@@ -47,13 +47,13 @@ public class FileIOChannelFactory implements IOChannelFactory {
   public Collection<String> match(String spec) throws IOException {
     File file = new File(spec);
 
-    File parent = file.getParentFile();
+    File parent = file.getAbsoluteFile().getParentFile();
     if (!parent.exists()) {
       throw new IOException("Unable to find parent directory of " + spec);
     }
 
     final PathMatcher matcher =
-        FileSystems.getDefault().getPathMatcher("glob:" + spec);
+        FileSystems.getDefault().getPathMatcher("glob:" + file.getAbsolutePath());
     File[] files = parent.listFiles(new FileFilter() {
       @Override
       public boolean accept(File pathname) {
