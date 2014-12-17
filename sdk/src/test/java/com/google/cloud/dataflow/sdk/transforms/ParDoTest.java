@@ -735,7 +735,7 @@ public class ParDoTest implements Serializable {
       fail("should have failed");
     } catch (RuntimeException exn) {
       assertThat(exn.toString(),
-                 containsString("Keyed state is only available"));
+                 containsString("'RequiresKeyedState' but input elements were not of type KV"));
     }
   }
 

@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -1044,7 +1045,16 @@ public class ParDo {
 
     for (DirectPipelineRunner.ValueWithMetadata<? extends I> elem
              : context.getPCollectionValuesWithMetadata(input)) {
-      executionContext.setKey(elem.getKey());
+      if (doFn instanceof DoFn.RequiresKeyedState) {
+        // If the DoFn needs keyed state, set the implicit keys to the keys in the input elements.
+        if (!(elem.getValue() instanceof KV)) {
+          throw new IllegalStateException(
+              name + " marked as 'RequiresKeyedState' but input elements were not of type KV.");
+        }
+        executionContext.setKey(((KV) elem.getValue()).getKey());
+      } else {
+        executionContext.setKey(elem.getKey());
+      }
       fnRunner.processElement((WindowedValue<I>) elem.getWindowedValue());
     }
 
