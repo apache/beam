@@ -244,7 +244,7 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
     when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
-        .thenThrow(new IOException("Upload error"));
+        .thenThrow(new IOException("Fake Exception: Upload error"));
 
     try {
       PackageUtil.stageClasspathElementsToGcs(mockGcsUtil,
@@ -264,8 +264,8 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
     when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
-        .thenThrow(new IOException("410 Gone")) // First attempt fails
-        .thenReturn(pipe.sink());               // second attempt succeeds
+        .thenThrow(new IOException("Fake Exception: 410 Gone")) // First attempt fails
+        .thenReturn(pipe.sink());                               // second attempt succeeds
 
     try {
       PackageUtil.stageClasspathElementsToGcs(mockGcsUtil,

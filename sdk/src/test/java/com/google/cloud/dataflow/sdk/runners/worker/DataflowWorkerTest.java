@@ -63,7 +63,8 @@ public class DataflowWorkerTest {
   @Test
   public void testWhenProcessingWorkUnitFailsWeReportStatus() throws Exception {
     DataflowWorker worker = new DataflowWorker(mockWorkUnitClient, options);
-    when(mockWorkUnitClient.getWorkItem()).thenReturn(new WorkItem().setId(1L)).thenReturn(null);
+    when(mockWorkUnitClient.getWorkItem()).thenReturn(
+        new WorkItem().setId(1L).setJobId("Expected to fail the job")).thenReturn(null);
 
     assertFalse(worker.getAndPerformWork());
     verify(mockWorkUnitClient).reportWorkItemStatus(argThat(cloudWorkHasErrors()));

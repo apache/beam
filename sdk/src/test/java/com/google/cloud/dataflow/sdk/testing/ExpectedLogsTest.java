@@ -54,7 +54,6 @@ public class ExpectedLogsTest {
     expectedLogs.after();
   }
 
-
   @Test
   public void testWhenExpectationIsMatchedPartially() throws Throwable {
     String expected = generateRandomString();
@@ -69,7 +68,7 @@ public class ExpectedLogsTest {
     String expected = generateRandomString();
     expectedLogs.before();
     expectedLogs.expectError(expected);
-    LOG.error(expected, new IOException());
+    LOG.error(expected, new IOException("Fake Exception"));
     expectedLogs.after();
   }
 
@@ -90,13 +89,9 @@ public class ExpectedLogsTest {
     expectedLogs.after();
   }
 
-  // Generates random strings of 10 characters.
+  // Generates a random fake error message.
   private static String generateRandomString() {
     Random random = new Random();
-    StringBuilder builder = new StringBuilder();
-    for (int i = 0; i < 10; i++) {
-      builder.append('a' + (char) random.nextInt(26));
-    }
-    return builder.toString();
+    return "Fake error message: " + random.nextInt();
   }
 }
