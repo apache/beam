@@ -59,7 +59,7 @@ public class MultiOutputWordCountTest {
     PCollection<Long> unique = luc.get(lowerCnts).apply(ApproximateUnique.<KV<String,
         Long>>globally(16));
 
-    EvaluationResult res = new SparkPipelineRunner("local[2]").run(p);
+    EvaluationResult res = SparkPipelineRunner.create().run(p);
     Iterable<KV<String, Long>> actualLower = res.get(luc.get(lowerCnts));
     Iterable<KV<String, Long>> actualUpper = res.get(luc.get(upperCnts));
     Assert.assertEquals("Here", actualUpper.iterator().next().getKey());

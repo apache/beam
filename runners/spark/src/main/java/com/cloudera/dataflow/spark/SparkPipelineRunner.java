@@ -15,90 +15,78 @@
 
 package com.cloudera.dataflow.spark;
 
-import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.io.AvroIO;
-import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
-import com.google.cloud.dataflow.sdk.transforms.Combine;
-import com.google.cloud.dataflow.sdk.transforms.Convert;
-import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.CreatePObject;
-import com.google.cloud.dataflow.sdk.transforms.Flatten;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.SeqDo;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollectionList;
-import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
-import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.PObject;
-import com.google.cloud.dataflow.sdk.values.PObjectValueTuple;
 import com.google.cloud.dataflow.sdk.values.PValue;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.PairFunction;
-import scala.Tuple2;
 
-import java.lang.reflect.Field;
-import java.util.Map;
 import java.util.logging.Logger;
 
 /**
  * The SparkPipelineRunner translate operations defined on a pipeline to a representation
  * executable by Spark, and then submitting the job to Spark to be executed. If we wanted to run
- * a dataflow pipeline in Spark's local mode with two threads, we would do the following:
+ * a dataflow pipeline with the default options of a single threaded spark instance in local mode,
+ * we would do the following:
  *    Pipeline p = <logic for pipeline creation >
- *    EvaluationResult result = new SparkPipelineRunner("local[2]").run(p);
+ *    EvaluationResult result = SparkPipelineRunner.create().run(p);
+ *
+ *  To create a pipeline runner to run against a different spark cluster, with a custom master url
+ *  we would do the following:
+ *    Pipeline p = <logic for pipeline creation >
+ *    SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
+ *    options.setSparkMaster("spark://host:port");
+ *    EvaluationResult result = SparkPipelineRunner.create(options).run(p);
+ *
  */
 public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
-  private static final Logger LOG =
-      Logger.getLogger(SparkPipelineRunner.class.getName());
-    /** The url of the spark master to connect to. */
-  private final String master;
+  private static final Logger LOG = Logger.getLogger(SparkPipelineRunner.class.getName());
+  /** Options used in this pipeline runner.*/
+  private SparkPipelineOptions mOptions;
+
+  /**
+   * Creates and returns a new SparkPipelineRunner with default options. In particular, against a
+   * spark instance running in local mode.
+   *
+   * @return A pipeline runner with default options.
+   */
+  public static SparkPipelineRunner create() {
+    SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
+    return new SparkPipelineRunner(options);
+  }
+
+  /**
+   * Creates and returns a new SparkPipelineRunner with specified options.
+   *
+   * @param options The SparkPipelineOptions to use when executing the job.
+   * @return A pipeline runner that will execute with specified options.
+   */
+  public static SparkPipelineRunner create(SparkPipelineOptions options) {
+    return new SparkPipelineRunner(options);
+  }
+
 
   /**
    * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single
    * thread.
    */
-  public SparkPipelineRunner() {
-    this("local");
+  private SparkPipelineRunner(SparkPipelineOptions options) {
+    mOptions = options;
   }
 
-    /**
-     * Constructor for a pipeline runner.
-     *
-     * @param master Cluster URL to connect to (e.g. spark://host:port, local[4]).
-     */
-  public SparkPipelineRunner(String master) {
-    this.master = Preconditions.checkNotNull(master);
-  }
 
   @Override
   public EvaluationResult run(Pipeline pipeline) {
-    // TODO: get master from options
-    JavaSparkContext jsc = getContextFromOptions(pipeline.getOptions());
+    JavaSparkContext jsc = getContext();
     EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
     pipeline.traverseTopologically(new Evaluator(ctxt));
     return ctxt;
   }
 
-  private JavaSparkContext getContextFromOptions(PipelineOptions options) {
-    return new JavaSparkContext(master, options.getJobName());
+  private JavaSparkContext getContext() {
+    return new JavaSparkContext(mOptions.getSparkMaster(), mOptions.getJobName());
   }
 
   private static class Evaluator implements Pipeline.PipelineVisitor {

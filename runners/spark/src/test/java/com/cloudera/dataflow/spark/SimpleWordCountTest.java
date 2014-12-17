@@ -50,7 +50,7 @@ public class SimpleWordCountTest {
     Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
     PCollection<String> inputWords = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
     PCollection<String> output = inputWords.apply(new CountWords());
-    EvaluationResult res = new SparkPipelineRunner("local[2]").run(p);
+    EvaluationResult res = SparkPipelineRunner.create().run(p);
     Set<String> actualCountSet = new HashSet<String>();
     Iterator<String> resultIter = res.get(output).iterator();
     while (resultIter.hasNext()) {
