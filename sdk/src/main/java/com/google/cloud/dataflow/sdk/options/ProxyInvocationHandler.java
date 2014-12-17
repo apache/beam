@@ -252,6 +252,9 @@ class ProxyInvocationHandler implements InvocationHandler {
         return ((Default.String) annotation).value();
       } else if (annotation instanceof Default.String) {
         return ((Default.String) annotation).value();
+      } else if (annotation instanceof Default.Enum) {
+        return Enum.valueOf((Class<Enum>) method.getReturnType(),
+            ((Default.Enum) annotation).value());
       } else if (annotation instanceof Default.InstanceFactory) {
         return InstanceBuilder.ofType(((Default.InstanceFactory) annotation).value())
             .build()

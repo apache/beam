@@ -115,6 +115,21 @@ public class ProxyInvocationHandlerTest {
     }
   }
 
+  /** A test enum for testing {@link Default.Enum @Default.Enum}. */
+  public enum EnumType {
+    MyEnum("MyTestEnum");
+
+    private final String value;
+    private EnumType(String value) {
+      this.value = value;
+    }
+
+    @Override
+    public String toString() {
+      return value;
+    }
+  }
+
   /** A test interface containing all the {@link Default} annotations. */
   public static interface DefaultAnnotations extends PipelineOptions {
     @Default.Boolean(true)
@@ -147,6 +162,9 @@ public class ProxyInvocationHandlerTest {
     @Default.Class(DefaultAnnotations.class)
     Class<?> getClassOption();
     void setClassOption(Class<?> value);
+    @Default.Enum("MyEnum")
+    EnumType getEnum();
+    void setEnum(EnumType value);
     @Default.InstanceFactory(TestOptionFactory.class)
     String getComplex();
     void setComplex(String value);
@@ -166,6 +184,7 @@ public class ProxyInvocationHandlerTest {
     assertEquals(9d, proxy.getDouble(), 0d);
     assertEquals("testString", proxy.getString());
     assertEquals(DefaultAnnotations.class, proxy.getClassOption());
+    assertEquals(EnumType.MyEnum, proxy.getEnum());
     assertEquals("testOptionFactory", proxy.getComplex());
   }
 

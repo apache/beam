@@ -117,6 +117,16 @@ public @interface Default {
   }
 
   /**
+   * This represents that the default of the option is the specified enum.
+   * The value should equal the enum's {@link java.lang.Enum#name() name}.
+   */
+  @Target(ElementType.METHOD)
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface Enum {
+    java.lang.String value();
+  }
+
+  /**
    * Value must be of type {@link DefaultValueFactory} and have a default constructor.
    * Value is instantiated and then used as a type factory to generate the default.
    * <p>

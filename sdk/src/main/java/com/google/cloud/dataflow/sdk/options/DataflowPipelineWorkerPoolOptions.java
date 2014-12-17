@@ -61,18 +61,9 @@ public interface DataflowPipelineWorkerPoolOptions {
   }
 
   @Description("(experimental) The autoscaling algorithm to use for the workerpool.")
-  @Default.InstanceFactory(AutoscalingAlgorithmTypeFactory.class)
+  @Default.Enum("NONE")
   AutoscalingAlgorithmType getAutoscalingAlgorithm();
   void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);
-
-  /** Returns the default NONE AutoscalingAlgorithmType. */
-  public static class AutoscalingAlgorithmTypeFactory implements
-      DefaultValueFactory<AutoscalingAlgorithmType> {
-    @Override
-    public AutoscalingAlgorithmType create(PipelineOptions options) {
-      return AutoscalingAlgorithmType.NONE;
-    }
-  }
 
   /**
    * Max number of workers to use when using workerpool autoscaling.
@@ -120,18 +111,9 @@ public interface DataflowPipelineWorkerPoolOptions {
   }
 
   @Description("Type of API for handling cluster management,i.e. resizing, healthchecking, etc.")
-  @Default.InstanceFactory(ClusterManagerApiTypeFactory.class)
+  @Default.Enum("COMPUTE_ENGINE")
   ClusterManagerApiType getClusterManagerApi();
   void setClusterManagerApi(ClusterManagerApiType value);
-
-  /** Returns the default COMPUTE_ENGINE ClusterManagerApiType. */
-  public static class ClusterManagerApiTypeFactory implements
-      DefaultValueFactory<ClusterManagerApiType> {
-    @Override
-    public ClusterManagerApiType create(PipelineOptions options) {
-      return ClusterManagerApiType.COMPUTE_ENGINE;
-    }
-  }
 
   /**
    * Machine type to create worker VMs as.
