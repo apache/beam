@@ -185,6 +185,33 @@ public class CombineTest {
 
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testWindowedCombine() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<KV<String, Integer>> input =
+        p.apply(Create.timestamped(Arrays.asList(TABLE),
+                                   Arrays.asList(0L, 1L, 6L, 7L, 8L)))
+         .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()))
+         .apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(2))));
+
+    PCollection<Integer> sum = input
+        .apply(Values.<Integer>create())
+        .apply(Combine.globally(new SumInts()));
+
+    PCollection<KV<String, Integer>> sumPerKey = input
+        .apply(Combine.<String, Integer>perKey(new SumInts()));
+
+    DataflowAssert.that(sum).containsInAnyOrder(2, 5, 13);
+    DataflowAssert.that(sumPerKey).containsInAnyOrder(
+        KV.of("a", 2),
+        KV.of("a", 4),
+        KV.of("b", 1),
+        KV.of("b", 13));
+    p.run();
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testWindowedCombineEmpty() {
     Pipeline p = TestPipeline.create();
 
@@ -510,6 +537,7 @@ public class CombineTest {
         return false;
       }
 
+      @Override
       public String toString() {
         return sum + ":" + inputs + ":" + merges + ":" + outputs;
       }
