@@ -16,13 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
-import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
 import com.google.cloud.dataflow.sdk.runners.worker.DataflowWorkerHarness;
-import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineOptions;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -63,6 +59,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -283,18 +280,7 @@ public class PipelineOptionsFactory {
   @SuppressWarnings("rawtypes")
   private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class[0];
   private static final ObjectMapper MAPPER = new ObjectMapper();
-
-  // TODO: Add dynamic registration of pipeline runners.
-  private static final Map<String, Class<? extends PipelineRunner<? extends PipelineResult>>>
-      SUPPORTED_PIPELINE_RUNNERS =
-          ImmutableMap.<String, Class<? extends PipelineRunner<? extends PipelineResult>>>builder()
-          .put(DirectPipelineRunner.class.getSimpleName(),
-               DirectPipelineRunner.class)
-          .put(DataflowPipelineRunner.class.getSimpleName(),
-               DataflowPipelineRunner.class)
-          .put(BlockingDataflowPipelineRunner.class.getSimpleName(),
-               BlockingDataflowPipelineRunner.class)
-          .build();
+  private static final Map<String, Class<? extends PipelineRunner<?>>> SUPPORTED_PIPELINE_RUNNERS;
 
   /** Methods which are ignored when validating the proxy class. */
   private static final Set<Method> IGNORED_METHODS;
@@ -327,12 +313,31 @@ public class PipelineOptionsFactory {
       throw new ExceptionInInitializerError(e);
     }
 
-    // TODO Add support for dynamically loading and registering the options interfaces.
+    // Store the list of all available pipeline runners.
+    ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
+            new ImmutableMap.Builder<>();
+    Set<PipelineRunnerRegistrar> pipelineRunnerRegistrars =
+        Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
+    pipelineRunnerRegistrars.addAll(
+        Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class)));
+    for (PipelineRunnerRegistrar registrar : pipelineRunnerRegistrars) {
+      for (Class<? extends PipelineRunner<?>> klass : registrar.getPipelineRunners()) {
+        builder.put(klass.getSimpleName(), klass);
+      }
+    }
+    SUPPORTED_PIPELINE_RUNNERS = builder.build();
+
+    // Load and register the list of all classes that extend PipelineOptions.
     register(PipelineOptions.class);
-    register(DirectPipelineOptions.class);
-    register(DataflowPipelineOptions.class);
-    register(BlockingDataflowPipelineOptions.class);
-    register(TestDataflowPipelineOptions.class);
+    Set<PipelineOptionsRegistrar> pipelineOptionsRegistrars =
+        Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
+    pipelineOptionsRegistrars.addAll(
+        Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class)));
+    for (PipelineOptionsRegistrar registrar : pipelineOptionsRegistrars) {
+      for (Class<? extends PipelineOptions> klass : registrar.getPipelineOptions()) {
+        register(klass);
+      }
+    }
   }
 
   /**
@@ -430,11 +435,14 @@ public class PipelineOptionsFactory {
     return Collections.unmodifiableSet(REGISTERED_OPTIONS);
   }
 
+  static Map<String, Class<? extends PipelineRunner<?>>> getRegisteredRunners() {
+    return SUPPORTED_PIPELINE_RUNNERS;
+  }
+
   static List<PropertyDescriptor> getPropertyDescriptors(
       Set<Class<? extends PipelineOptions>> interfaces) {
     return COMBINED_CACHE.get(interfaces).getPropertyDescriptors();
   }
-
 
   /**
    * Creates a set of {@link DataflowWorkerHarnessOptions} based of a set of known system
@@ -701,6 +709,15 @@ public class PipelineOptionsFactory {
         iface.getName());
   }
 
+  /** A {@link Comparator} which uses the classes canonical name to compare them. */
+  private static class ObjectsClassComparator implements Comparator<Object> {
+    static final ObjectsClassComparator INSTANCE = new ObjectsClassComparator();
+    @Override
+    public int compare(Object o1, Object o2) {
+      return o1.getClass().getCanonicalName().compareTo(o2.getClass().getCanonicalName());
+    }
+  }
+
   /** A {@link Comparator} which uses the generic method signature to sort them. */
   private static class MethodComparator implements Comparator<Method> {
     static final MethodComparator INSTANCE = new MethodComparator();
@@ -850,7 +867,7 @@ public class PipelineOptionsFactory {
         String runner = Iterables.getOnlyElement(entry.getValue());
         Preconditions.checkArgument(SUPPORTED_PIPELINE_RUNNERS.containsKey(runner),
             "Unknown 'runner' specified %s, supported pipeline runners %s",
-            runner, SUPPORTED_PIPELINE_RUNNERS.keySet());
+            runner, Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
         convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
       } else if (method.getReturnType().isArray()
           || Collection.class.isAssignableFrom(method.getReturnType())) {

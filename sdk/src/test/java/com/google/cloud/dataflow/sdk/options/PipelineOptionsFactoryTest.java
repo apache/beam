@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -43,6 +44,17 @@ import java.util.List;
 public class PipelineOptionsFactoryTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
+
+  @Test
+  public void testAutomaticRegistrationOfPipelineOptions() {
+    assertTrue(PipelineOptionsFactory.getRegisteredOptions().contains(DirectPipelineOptions.class));
+  }
+
+  @Test
+  public void testAutomaticRegistrationOfRunners() {
+    assertEquals(DirectPipelineRunner.class,
+        PipelineOptionsFactory.getRegisteredRunners().get("DirectPipelineRunner"));
+  }
 
   @Test
   public void testCreationFromSystemProperties() {
@@ -493,7 +505,7 @@ public class PipelineOptionsFactoryTest {
   public void testSettingUnknownRunner() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Unknown 'runner' specified UnknownRunner, supported pipeline "
-        + "runners [DirectPipelineRunner, DataflowPipelineRunner, BlockingDataflowPipelineRunner]");
+        + "runners [BlockingDataflowPipelineRunner, DataflowPipelineRunner, DirectPipelineRunner]");
     String[] args = new String[] {"--runner=UnknownRunner"};
 
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
