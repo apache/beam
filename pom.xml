@@ -169,6 +169,7 @@
               <projectName>${dataflowProjectName}</projectName>
             </systemPropertyVariables>
             <useManifestOnlyJar>false</useManifestOnlyJar>
+            <trimStackTrace>false</trimStackTrace>
           </configuration>
           <dependencies>
             <dependency>
