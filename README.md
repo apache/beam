@@ -4,6 +4,18 @@
 provides a simple, powerful programming model for building both batch
 and streaming parallel data processing pipelines.
 
+## Status
+
+The Cloud Dataflow SDK is used to access the Google Cloud Dataflow service,
+which is currently in Alpha and restricted to whitelisted users.
+
+The SDK is publicly available and can be used for local execution by anyone.
+Note, however, that the SDK is also an Alpha release and may change
+significantly over time. The SDK is built to be extensible and support
+additional execution environments ("runners") beyond local execution and the
+Google Cloud Dataflow service. As the product matures, we look forward to
+working with you to improve Cloud Dataflow.
+
 ## Overview
 
 The key concepts in this programming model are:
