@@ -41,10 +41,7 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
    */
   public Coder<T> getCoder() {
     if (coder == null) {
-      throw new IllegalStateException(
-          "coder for " + this + " not set, and couldn't be inferred; "
-          + "either register a default Coder for its element type, "
-          + "or use setCoder() to specify one explicitly");
+      inferCoderOrFail();
     }
     return coder;
   }
@@ -131,15 +128,13 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
     return this;
   }
 
-
   /**
    * If the coder is not explicitly set, this sets the coder for
    * this {@code TypedPValue<T>} to the best coder that can be inferred
    * based upon the known {@code TypeToken<T>}. By default, this is null,
    * but can and should be improved by subclasses.
    */
-  @Override
-  public void finishSpecifyingOutput() {
+  private void inferCoderOrFail() {
     if (coder == null) {
       TypeToken<T> token = getTypeToken();
       CoderRegistry registry = getProducingTransformInternal()
@@ -161,7 +156,7 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
             + "or use setCoder() to specify one explicitly. "
             + "If a default coder is registered, it may not be found "
             + "due to type erasure; again, use setCoder() to specify "
-            + "a Coder explicitly");
+            + "a Coder explicitly.");
       }
     }
   }

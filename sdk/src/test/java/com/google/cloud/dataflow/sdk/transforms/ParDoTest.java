@@ -27,6 +27,7 @@ import static org.hamcrest.core.AnyOf.anyOf;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -974,9 +975,15 @@ public class ParDoTest implements Serializable {
     PCollectionTuple outputTuple = input.apply(ParDo.of(new SideOutputDummyFn(sideTag))
         .withOutputTags(mainTag, TupleTagList.of(sideTag)));
 
-    outputTuple.get(sideTag)
-        .setCoder(new TestDummyCoder());
+    assertNull(pipeline.getCoderRegistry().getDefaultCoder(TestDummy.class));
 
+    outputTuple.get(sideTag).setCoder(new TestDummyCoder());
+
+    outputTuple.get(sideTag).apply(View.<TestDummy>asSingleton());
+
+    assertEquals(new TestDummyCoder(), outputTuple.get(sideTag).getCoder());
+    outputTuple.get(sideTag).finishSpecifyingOutput(); // Check for crashes
+    assertEquals(new TestDummyCoder(), outputTuple.get(sideTag).getCoder()); // Check for corruption
     pipeline.run();
   }
 
@@ -993,6 +1000,47 @@ public class ParDoTest implements Serializable {
 
     outputTuple.get(mainTag)
         .setCoder(new TestDummyCoder());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testMainOutputApplySideOutputNoCoder() {
+    // Regression test: applying a transform to the main output
+    // should not cause a crash based on lack of a coder for the
+    // side output.
+
+    Pipeline pipeline = TestPipeline.create();
+    final TupleTag<TestDummy> mainOutputTag = new TupleTag<TestDummy>();
+    final TupleTag<TestDummy> sideOutputTag = new TupleTag<TestDummy>();
+    PCollectionTuple tuple = pipeline
+        .apply(Create.of(new TestDummy()))
+        .setCoder(TestDummyCoder.of())
+        .apply(ParDo
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+            .of(
+                new DoFn<TestDummy, TestDummy>() {
+                  @Override public void processElement(ProcessContext context) {
+                    TestDummy element = context.element();
+                    context.output(element);
+                    context.sideOutput(sideOutputTag, element);
+                  }
+                })
+    );
+
+    // Before fix, tuple.get(mainOutputTag).apply(...) would indirectly trigger
+    // tuple.get(sideOutputTag).finishSpecifyingOutput() which would crash
+    // on a missing coder.
+    PCollection<Integer> foo = tuple
+        .get(mainOutputTag)
+        .setCoder(TestDummyCoder.of())
+        .apply(ParDo.of(new DoFn<TestDummy, Integer>() {
+          public void processElement(ProcessContext context) {
+            context.output(1);
+          }
+        }));
+
+    tuple.get(sideOutputTag).setCoder(TestDummyCoder.of());
 
     pipeline.run();
   }
