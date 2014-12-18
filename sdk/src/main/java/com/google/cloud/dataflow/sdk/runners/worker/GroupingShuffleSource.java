@@ -20,7 +20,6 @@ import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToSourcePosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToSourceProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
-import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
 
 import com.google.api.client.util.Preconditions;
 
@@ -43,7 +42,6 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.Source;
 import com.google.cloud.dataflow.sdk.values.KV;
 
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -158,15 +156,27 @@ public class GroupingShuffleSource<K, V>
      */
     private ByteArrayShufflePosition stopPosition = null;
 
+    /**
+     * Position that this @GroupingShuffleSourceIterator is guaranteed
+     * not to stop before reaching (inclusive); @promisedPosition can
+     * only increase monotonically and is updated when advancing to a
+     * new group of records (either in the most recent call to next()
+     * or when peeked at in hasNext()).
+     */
+    private ByteArrayShufflePosition promisedPosition = null;
+
     /** The next group to be consumed, if available. */
     private KeyGroupedShuffleEntries nextGroup = null;
 
     public GroupingShuffleSourceIterator(ShuffleEntryReader reader) {
+      promisedPosition = ByteArrayShufflePosition.fromBase64(
+          startShufflePosition);
+      if (promisedPosition == null) {
+        promisedPosition = new ByteArrayShufflePosition(new byte[0]);
+      }
       stopPosition = ByteArrayShufflePosition.fromBase64(stopShufflePosition);
-      this.groups =
-          new GroupingShuffleEntryIterator(reader.read(
-              ByteArrayShufflePosition.fromBase64(startShufflePosition),
-              stopPosition)) {
+      this.groups = new GroupingShuffleEntryIterator(reader.read(
+          promisedPosition, stopPosition)) {
           @Override
           protected void notifyElementRead(long byteSize) {
             GroupingShuffleSource.this.notifyElementRead(byteSize);
@@ -177,26 +187,18 @@ public class GroupingShuffleSource<K, V>
     private void advanceIfNecessary() {
       if (nextGroup == null && groups.hasNext()) {
         nextGroup = groups.next();
+        promisedPosition = ByteArrayShufflePosition.of(nextGroup.position);
       }
     }
 
     @Override
     public boolean hasNext() throws IOException {
-      return hasNextInternal();
-    }
-
-    /**
-     * Returns false if the next group does not exist (i.e., no more
-     * records available) or the group is beyond @stopPosition.
-     */
-    private boolean hasNextInternal() {
       advanceIfNecessary();
       if (nextGroup == null) {
         return false;
       }
-      ByteArrayShufflePosition current =
-          ByteArrayShufflePosition.of(nextGroup.position);
-      return stopPosition == null || current.compareTo(stopPosition) < 0;
+      return stopPosition == null
+          || promisedPosition.compareTo(stopPosition) < 0;
     }
 
     @Override
@@ -223,27 +225,11 @@ public class GroupingShuffleSource<K, V>
      */
     @Override
     public Progress getProgress() {
-      com.google.api.services.dataflow.model.Position currentPosition =
+      com.google.api.services.dataflow.model.Position position =
           new com.google.api.services.dataflow.model.Position();
       ApproximateProgress progress = new ApproximateProgress();
-      if (hasNextInternal()) {
-        ByteArrayShufflePosition current =
-            ByteArrayShufflePosition.of(nextGroup.position);
-        currentPosition.setShufflePosition(current.encodeBase64());
-      } else {
-        if (stopPosition != null) {
-          currentPosition.setShufflePosition(stopPosition.encodeBase64());
-        } else {
-          // The original stop position described the end of the
-          // shuffle-position-space (or infinity) and all records have
-          // been consumed.
-          progress.setPercentComplete((float) 1.0);
-          progress.setRemainingTime(toCloudDuration(Duration.ZERO));
-          return cloudProgressToSourceProgress(progress);
-        }
-      }
-
-      progress.setPosition(currentPosition);
+      position.setShufflePosition(promisedPosition.encodeBase64());
+      progress.setPosition(position);
       return cloudProgressToSourceProgress(progress);
     }
 
@@ -272,18 +258,10 @@ public class GroupingShuffleSource<K, V>
       ByteArrayShufflePosition newStopPosition =
           ByteArrayShufflePosition.fromBase64(stopCloudPosition.getShufflePosition());
 
-      if (!hasNextInternal()) {
-        LOG.warn("Cannot update stop position to "
-            + stopCloudPosition.getShufflePosition()
-            + " since all input was consumed.");
-        return null;
-      }
-      ByteArrayShufflePosition current =
-          ByteArrayShufflePosition.of(nextGroup.position);
-      if (newStopPosition.compareTo(current) <= 0) {
+      if (newStopPosition.compareTo(promisedPosition) <= 0) {
         LOG.warn("Proposed stop position: "
-            + stopCloudPosition.getShufflePosition() + " <= current position: "
-            + current.encodeBase64());
+            + stopCloudPosition.getShufflePosition() + " <= promised position: "
+            + promisedPosition.encodeBase64());
         return null;
       }
 

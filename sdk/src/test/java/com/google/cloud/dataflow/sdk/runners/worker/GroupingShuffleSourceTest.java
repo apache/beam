@@ -20,7 +20,6 @@ import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToSourceProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourcePositionToCloudPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
-import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudDuration;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.Position;
@@ -43,7 +42,6 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Source.SourceIterator;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.collect.Lists;
 
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
@@ -265,14 +263,29 @@ public class GroupingShuffleSourceTest {
     try (Source.SourceIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
         shuffleSource.iterator(shuffleReader)) {
 
+
+      // Can update the stop position, the source range spans all interval
       Position proposedStopPosition = new Position();
       String stop = encodeBase64URLSafeString(fabricatePosition(0, null));
       proposedStopPosition.setShufflePosition(stop);
 
-      // Cannot update stop position since all input was consumed.
+      Assert.assertEquals(
+          stop,
+          sourcePositionToCloudPosition(
+              iter.updateStopPosition(
+                  cloudProgressToSourceProgress(
+                      createApproximateProgress(proposedStopPosition))))
+          .getShufflePosition());
+
+
+      // Cannot update stop position to a position >= the current stop position
+      stop = encodeBase64URLSafeString(fabricatePosition(1, null));
+      proposedStopPosition.setShufflePosition(stop);
+
       Assert.assertEquals(null, iter.updateStopPosition(
-          cloudProgressToSourceProgress(createApproximateProgress(proposedStopPosition))));
-      }
+          cloudProgressToSourceProgress(
+              createApproximateProgress(proposedStopPosition))));
+    }
   }
 
   @Test
@@ -430,10 +443,6 @@ public class GroupingShuffleSourceTest {
         Assert.assertEquals(j, 1);
         ++i;
       }
-
-      ApproximateProgress progress =
-          sourceProgressToCloudProgress(iter.getProgress());
-      Assert.assertEquals(stop, progress.getPosition().getShufflePosition());
     }
     Assert.assertEquals(i, kNumRecords);
   }
@@ -484,11 +493,12 @@ public class GroupingShuffleSourceTest {
       }
       Assert.assertFalse(sourceIterator.hasNext());
 
-      ApproximateProgress finalProgress =
-          sourceProgressToCloudProgress(sourceIterator.getProgress());
-      Assert.assertEquals(1.0,
-          (float) finalProgress.getPercentComplete(), 0.000000001);
-      Assert.assertEquals(Duration.ZERO, fromCloudDuration(finalProgress.getRemainingTime()));
+      // Cannot update stop position since all input was consumed.
+      Position proposedStopPosition = new Position();
+      String stop = encodeBase64URLSafeString(fabricatePosition(0, null));
+      proposedStopPosition.setShufflePosition(stop);
+      Assert.assertEquals(null, sourceIterator.updateStopPosition(
+          cloudProgressToSourceProgress(createApproximateProgress(proposedStopPosition))));
     }
   }
 
