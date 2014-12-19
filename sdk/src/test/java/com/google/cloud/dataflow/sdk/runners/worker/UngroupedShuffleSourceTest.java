@@ -18,13 +18,13 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
-import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
+import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.util.common.worker.Source;
 import com.google.common.collect.Lists;
 
@@ -46,35 +46,44 @@ public class UngroupedShuffleSourceTest {
   private static final Instant timestamp = new Instant(123000);
   private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
 
-  private byte[] asShuffleKey(long seqNum) throws Exception {
-    return CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), seqNum);
-  }
+  void runTestReadShuffleSource(List<Integer> expected) throws Exception {
+    Coder<WindowedValue<Integer>> elemCoder =
+        WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), IntervalWindow.getCoder());
 
-  private byte[] asShuffleValue(Integer value) throws Exception {
-    return CoderUtils.encodeToByteArray(
-        WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), IntervalWindow.getCoder()),
-        WindowedValue.of(value, timestamp, Lists.newArrayList(window)));
-  }
+    // Write to shuffle with UNGROUPED ShuffleSink.
+    ShuffleSink<Integer> shuffleSink = new ShuffleSink<>(
+        PipelineOptionsFactory.create(),
+        null, ShuffleSink.ShuffleKind.UNGROUPED,
+        elemCoder);
 
-  private void runTestReadShuffleSource(List<Integer> expected) throws Exception {
+    TestShuffleWriter shuffleWriter = new TestShuffleWriter();
+
+    List<Long> actualSizes = new ArrayList<>();
+    try (Sink.SinkWriter<WindowedValue<Integer>> shuffleSinkWriter =
+             shuffleSink.writer(shuffleWriter)) {
+      for (Integer value : expected) {
+        actualSizes.add(shuffleSinkWriter.add(
+            WindowedValue.of(value, timestamp, Lists.newArrayList(window))));
+      }
+    }
+    List<ShuffleEntry> records = shuffleWriter.getRecords();
+    Assert.assertEquals(expected.size(), records.size());
+    Assert.assertEquals(shuffleWriter.getSizes(), actualSizes);
+
+    // Read from shuffle with UngroupedShuffleSource.
     UngroupedShuffleSource<WindowedValue<Integer>> shuffleSource =
         new UngroupedShuffleSource<>(
             PipelineOptionsFactory.create(),
             null, null, null,
-            WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), IntervalWindow.getCoder()));
+            elemCoder);
     ExecutorTestUtils.TestSourceObserver observer =
         new ExecutorTestUtils.TestSourceObserver(shuffleSource);
 
     TestShuffleReader shuffleReader = new TestShuffleReader();
     List<Integer> expectedSizes = new ArrayList<>();
-    long seqNum = 0;
-    for (Integer value : expected) {
-      byte[] shuffleKey = asShuffleKey(seqNum++);
-      byte[] shuffleValue = asShuffleValue(value);
-      shuffleReader.addEntry(shuffleKey, shuffleValue);
-
-      ShuffleEntry record = new ShuffleEntry(shuffleKey, null, shuffleValue);
+    for (ShuffleEntry record : records) {
       expectedSizes.add(record.length());
+      shuffleReader.addEntry(record);
     }
 
     List<Integer> actual = new ArrayList<>();
@@ -84,6 +93,8 @@ public class UngroupedShuffleSourceTest {
         Assert.assertTrue(iter.hasNext());
         Assert.assertTrue(iter.hasNext());
         WindowedValue<Integer> elem = iter.next();
+        Assert.assertEquals(timestamp, elem.getTimestamp());
+        Assert.assertEquals(Lists.newArrayList(window), elem.getWindows());
         actual.add(elem.getValue());
       }
       Assert.assertFalse(iter.hasNext());

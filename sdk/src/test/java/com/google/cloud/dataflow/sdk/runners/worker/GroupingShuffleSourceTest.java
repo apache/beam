@@ -25,7 +25,6 @@ import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -37,6 +36,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
+import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.util.common.worker.Source;
 import com.google.cloud.dataflow.sdk.util.common.worker.Source.SourceIterator;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -89,52 +89,81 @@ public class GroupingShuffleSourceTest {
   private void runTestReadShuffleSource(List<KV<Integer, List<String>>> input,
                                 ValuesToRead valuesToRead)
       throws Exception {
-    Coder<WindowedValue<String>> elemCoder =
-        WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+    Coder<WindowedValue<KV<Integer, String>>> sinkElemCoder =
+        WindowedValue.getFullCoder(
+            KvCoder.of(BigEndianIntegerCoder.of(),
+                       StringUtf8Coder.of()),
+            IntervalWindow.getCoder());
+
+    Coder<WindowedValue<KV<Integer, Iterable<String>>>> sourceElemCoder =
+        WindowedValue.getFullCoder(
+            KvCoder.of(
+                BigEndianIntegerCoder.of(),
+                IterableCoder.of(StringUtf8Coder.of())),
+            IntervalWindow.getCoder());
+
+    // Write to shuffle with GROUP_KEYS ShuffleSink.
+    ShuffleSink<KV<Integer, String>> shuffleSink = new ShuffleSink<>(
+        PipelineOptionsFactory.create(),
+        null, ShuffleSink.ShuffleKind.GROUP_KEYS,
+        sinkElemCoder);
+
+    TestShuffleWriter shuffleWriter = new TestShuffleWriter();
+
+    int kvCount = 0;
+    List<Long> actualSizes = new ArrayList<>();
+    try (Sink.SinkWriter<WindowedValue<KV<Integer, String>>> shuffleSinkWriter =
+             shuffleSink.writer(shuffleWriter)) {
+      for (KV<Integer, List<String>> kvs : input) {
+        Integer key = kvs.getKey();
+        for (String value : kvs.getValue()) {
+          ++kvCount;
+          actualSizes.add(shuffleSinkWriter.add(
+              WindowedValue.of(KV.of(key, value),
+                               timestamp,
+                               Lists.newArrayList(window))));
+        }
+      }
+    }
+    List<ShuffleEntry> records = shuffleWriter.getRecords();
+    Assert.assertEquals(kvCount, records.size());
+    Assert.assertEquals(shuffleWriter.getSizes(), actualSizes);
+
+    // Read from shuffle with GroupingShuffleSource.
     BatchModeExecutionContext context = new BatchModeExecutionContext();
-    GroupingShuffleSource<Integer, WindowedValue<String>> shuffleSource =
+    GroupingShuffleSource<Integer, String> shuffleSource =
         new GroupingShuffleSource<>(
             PipelineOptionsFactory.create(),
             null, null, null,
-            WindowedValue.getFullCoder(
-                KvCoder.of(
-                    BigEndianIntegerCoder.of(),
-                    IterableCoder.of(
-                        WindowedValue.getFullCoder(StringUtf8Coder.of(),
-                        IntervalWindow.getCoder()))),
-                IntervalWindow.getCoder()),
+            sourceElemCoder,
             context);
     ExecutorTestUtils.TestSourceObserver observer =
         new ExecutorTestUtils.TestSourceObserver(shuffleSource);
 
     TestShuffleReader shuffleReader = new TestShuffleReader();
     List<Integer> expectedSizes = new ArrayList<>();
-    for (KV<Integer, List<String>> kvs : input) {
-      Integer key = kvs.getKey();
-      byte[] keyByte = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), key);
-
-      for (String value : kvs.getValue()) {
-        byte[] valueByte = CoderUtils.encodeToByteArray(
-            elemCoder, WindowedValue.of(value, timestamp, Lists.newArrayList(window)));
-        byte[] skey =  CoderUtils.encodeToByteArray(InstantCoder.of(), timestamp);
-        ShuffleEntry shuffleEntry = new ShuffleEntry(keyByte, skey, valueByte);
-        shuffleReader.addEntry(shuffleEntry);
-        expectedSizes.add(shuffleEntry.length());
-      }
+    for (ShuffleEntry record : records) {
+      expectedSizes.add(record.length());
+      shuffleReader.addEntry(record);
     }
 
-    List<KV<Integer, List<WindowedValue<String>>>> actual = new ArrayList<>();
-    try (SourceIterator<WindowedValue<KV<Integer, Reiterable<WindowedValue<String>>>>> iter =
+    List<KV<Integer, List<String>>> actual = new ArrayList<>();
+    try (SourceIterator<WindowedValue<KV<Integer, Reiterable<String>>>> iter =
              shuffleSource.iterator(shuffleReader)) {
-      Iterable<WindowedValue<String>> prevValuesIterable = null;
-      Iterator<WindowedValue<String>> prevValuesIterator = null;
+      Iterable<String> prevValuesIterable = null;
+      Iterator<String> prevValuesIterator = null;
       while (iter.hasNext()) {
         Assert.assertTrue(iter.hasNext());
         Assert.assertTrue(iter.hasNext());
 
-        KV<Integer, Reiterable<WindowedValue<String>>> elem = iter.next().getValue();
+        WindowedValue<KV<Integer, Reiterable<String>>> windowedValue = iter.next();
+        // Verify value is in an empty windows.
+        Assert.assertEquals(Long.MIN_VALUE, windowedValue.getTimestamp().getMillis());
+        Assert.assertEquals(0, windowedValue.getWindows().size());
+
+        KV<Integer, Reiterable<String>> elem = windowedValue.getValue();
         Integer key = elem.getKey();
-        List<WindowedValue<String>> values = new ArrayList<>();
+        List<String> values = new ArrayList<>();
         if (valuesToRead.ordinal() > ValuesToRead.SKIP_VALUES.ordinal()) {
           if (prevValuesIterable != null) {
             prevValuesIterable.iterator();  // Verifies that this does not throw.
@@ -143,8 +172,8 @@ public class GroupingShuffleSourceTest {
             prevValuesIterator.hasNext();  // Verifies that this does not throw.
           }
 
-          Iterable<WindowedValue<String>> valuesIterable = elem.getValue();
-          Iterator<WindowedValue<String>> valuesIterator = valuesIterable.iterator();
+          Iterable<String> valuesIterable = elem.getValue();
+          Iterator<String> valuesIterator = valuesIterable.iterator();
 
           if (valuesToRead.ordinal() >= ValuesToRead.READ_ONE_VALUE.ordinal()) {
             while (valuesIterator.hasNext()) {
@@ -187,13 +216,13 @@ public class GroupingShuffleSourceTest {
       }
     }
 
-    List<KV<Integer, List<WindowedValue<String>>>> expected = new ArrayList<>();
+    List<KV<Integer, List<String>>> expected = new ArrayList<>();
     for (KV<Integer, List<String>> kvs : input) {
       Integer key = kvs.getKey();
-      List<WindowedValue<String>> values = new ArrayList<>();
+      List<String> values = new ArrayList<>();
       if (valuesToRead.ordinal() >= ValuesToRead.READ_ONE_VALUE.ordinal()) {
         for (String value : kvs.getValue()) {
-          values.add(WindowedValue.of(value, timestamp, Lists.newArrayList(window)));
+          values.add(value);
           if (valuesToRead == ValuesToRead.READ_ONE_VALUE) {
             break;
           }
