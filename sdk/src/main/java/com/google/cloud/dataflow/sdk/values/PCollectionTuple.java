@@ -183,7 +183,7 @@ public class PCollectionTuple implements PInput, POutput {
    * <p> For use by primitive transformations only.
    */
   public static PCollectionTuple ofPrimitiveOutputsInternal(
-      TupleTagList outputTags, WindowingFn windowingFn) {
+      TupleTagList outputTags, WindowingFn<?, ?> windowingFn) {
     Map<TupleTag<?>, PCollection<?>> pcollectionMap = new LinkedHashMap<>();
     for (TupleTag<?> outputTag : outputTags.tupleTags) {
       if (pcollectionMap.containsKey(outputTag)) {

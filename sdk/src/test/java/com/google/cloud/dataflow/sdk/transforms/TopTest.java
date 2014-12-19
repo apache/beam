@@ -59,7 +59,7 @@ public class TopTest {
   static final String[] EMPTY_COLLECTION = new String[] {
   };
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"rawtypes", "unchecked"})
   static final KV<String, Integer>[] TABLE = new KV[] {
     KV.of("a", 1),
     KV.of("a", 2),
@@ -70,7 +70,7 @@ public class TopTest {
     KV.of("b", 100),
   };
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"rawtypes", "unchecked"})
   static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {
   };
 

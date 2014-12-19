@@ -95,6 +95,7 @@ public class CounterTest {
     cc = flush(c3);
     assertEquals("c3", cc.getName().getName());
     assertEquals("SET", cc.getKind());
+    @SuppressWarnings("unchecked")
     Set<String> s = (Set<String>) cc.getSet();
     assertEquals(2, s.size());
     assertTrue(s.containsAll(Arrays.asList(

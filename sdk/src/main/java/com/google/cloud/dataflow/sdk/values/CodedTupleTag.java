@@ -46,7 +46,7 @@ public class CodedTupleTag<T> extends TupleTag<T> {
    * @param <T> the type of the values associated with the tag
    */
   public static <T> CodedTupleTag<T> of(String id, Coder<T> coder) {
-    return new CodedTupleTag(id, coder);
+    return new CodedTupleTag<>(id, coder);
   }
 
   /**

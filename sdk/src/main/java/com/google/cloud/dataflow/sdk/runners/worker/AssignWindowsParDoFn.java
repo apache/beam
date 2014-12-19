@@ -41,6 +41,7 @@ import javax.annotation.Nullable;
  * A wrapper around an AssignWindowsDoFn.  This class is the same as
  * NormalParDoFn, except that it gets deserialized differently.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 class AssignWindowsParDoFn extends NormalParDoFn {
   public static AssignWindowsParDoFn create(
       PipelineOptions options,

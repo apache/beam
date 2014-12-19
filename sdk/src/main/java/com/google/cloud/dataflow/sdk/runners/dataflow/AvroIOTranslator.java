@@ -34,6 +34,7 @@ public class AvroIOTranslator {
   /**
    * Implements AvroIO Read translation for the Dataflow backend.
    */
+  @SuppressWarnings("rawtypes")
   public static class ReadTranslator implements TransformTranslator<AvroIO.Read.Bound> {
 
     @Override
@@ -63,6 +64,7 @@ public class AvroIOTranslator {
   /**
    * Implements AvroIO Write translation for the Dataflow backend.
    */
+  @SuppressWarnings("rawtypes")
   public static class WriteTranslator implements TransformTranslator<AvroIO.Write.Bound> {
 
     @Override

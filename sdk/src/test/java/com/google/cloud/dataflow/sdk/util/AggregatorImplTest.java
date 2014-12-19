@@ -53,6 +53,7 @@ public class AggregatorImplTest {
 
   private static final String AGGREGATOR_NAME = "aggregator_name";
 
+  @SuppressWarnings("rawtypes")
   private <V> void testAggregator(List<V> items,
                                   SerializableFunction<Iterable<V>, V> combiner,
                                   Counter expectedCounter) {

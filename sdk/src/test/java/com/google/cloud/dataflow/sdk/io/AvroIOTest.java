@@ -249,6 +249,7 @@ public class AvroIOTest {
     User[] users = generateAvroObjects();
 
     DirectPipeline p = DirectPipeline.createForTest();
+    @SuppressWarnings("unchecked")
     PCollection<T> input = p.apply(Create.of(Arrays.asList((T[]) users)))
                             .setCoder((Coder<T>) AvroCoder.of(User.class));
     PDone output = input.apply(write.withoutSharding());

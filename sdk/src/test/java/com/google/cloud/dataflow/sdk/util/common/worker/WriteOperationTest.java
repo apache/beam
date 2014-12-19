@@ -33,6 +33,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class WriteOperationTest {
   @Test
+  @SuppressWarnings("unchecked")
   public void testRunWriteOperation() throws Exception {
     ExecutorTestUtils.TestSink sink = new ExecutorTestUtils.TestSink();
     CounterSet counterSet = new CounterSet();

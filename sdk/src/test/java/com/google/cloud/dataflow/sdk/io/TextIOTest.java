@@ -69,6 +69,7 @@ import java.util.List;
  * Tests for TextIO Read and Write transforms.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("unchecked")
 public class TextIOTest {
 
   @Rule
@@ -152,7 +153,7 @@ public class TextIOTest {
     if (coder.equals(StringUtf8Coder.of())) {
       TextIO.Read.Bound<String> readStrings = TextIO.Read.from(filename);
       // T==String
-      read = (TextIO.Read.Bound) readStrings;
+      read = (TextIO.Read.Bound<T>) readStrings;
     } else {
       read = TextIO.Read.from(filename).withCoder(coder);
     }
@@ -222,7 +223,7 @@ public class TextIOTest {
       TextIO.Write.Bound<String> writeStrings =
           TextIO.Write.to(filename).withoutSharding();
       // T==String
-      write = (TextIO.Write.Bound) writeStrings;
+      write = (TextIO.Write.Bound<T>) writeStrings;
     } else {
       write = TextIO.Write.to(filename).withCoder(coder).withoutSharding();
     }

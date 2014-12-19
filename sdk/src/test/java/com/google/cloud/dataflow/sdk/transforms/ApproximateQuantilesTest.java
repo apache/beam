@@ -47,7 +47,7 @@ import java.util.List;
  * Tests for {@link ApproximateQuantiles}.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "unchecked"})
 public class ApproximateQuantilesTest {
 
   static final List<KV<String, Integer>> TABLE = Arrays.asList(

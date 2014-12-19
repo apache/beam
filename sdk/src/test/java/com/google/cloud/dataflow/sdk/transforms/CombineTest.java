@@ -72,7 +72,7 @@ import java.util.Set;
 @SuppressWarnings("serial")
 public class CombineTest {
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"rawtypes", "unchecked"})
   static final KV<String, Integer>[] TABLE = new KV[] {
     KV.of("a", 1),
     KV.of("a", 1),
@@ -81,7 +81,7 @@ public class CombineTest {
     KV.of("b", 13),
   };
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"rawtypes", "unchecked"})
   static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {
   };
 
@@ -117,6 +117,7 @@ public class CombineTest {
 
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public void testSimpleCombine() {
     runTestSimpleCombine(TABLE, 20, new KV[] {
         KV.of("a", 6), KV.of("b", 14) });
@@ -124,10 +125,12 @@ public class CombineTest {
 
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public void testSimpleCombineEmpty() {
     runTestSimpleCombine(EMPTY_TABLE, 0, new KV[] { });
   }
 
+  @SuppressWarnings("unchecked")
   private void runTestBasicCombine(KV<String, Integer>[] table,
                                    Set<Integer> globalUnique,
                                    KV<String, Set<Integer>>[] perKeyUnique) {
@@ -151,6 +154,7 @@ public class CombineTest {
 
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public void testBasicCombine() {
     runTestBasicCombine(TABLE, ImmutableSet.of(1, 13, 4), new KV[] {
         KV.of("a", (Set<Integer>) ImmutableSet.of(1, 4)),
@@ -159,6 +163,7 @@ public class CombineTest {
 
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @SuppressWarnings("rawtypes")
   public void testBasicCombineEmpty() {
     runTestBasicCombine(EMPTY_TABLE, ImmutableSet.<Integer>of(), new KV[] { });
   }

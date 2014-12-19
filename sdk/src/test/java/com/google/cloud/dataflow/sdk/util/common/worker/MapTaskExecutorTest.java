@@ -149,6 +149,7 @@ public class MapTaskExecutorTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testGetOutputCounters() throws Exception {
     CounterSet counters = new CounterSet();
     String counterPrefix = "test-";

@@ -375,7 +375,7 @@ public class GroupByKey<K, V>
     registerWithDirectPipelineRunner();
   }
 
-  @SuppressWarnings("rawtypes")
+  @SuppressWarnings({"rawtypes", "unchecked"})
   private static <K, V> void registerWithDirectPipelineRunner() {
     DirectPipelineRunner.registerDefaultTransformEvaluator(
         GroupByKeyOnly.class,

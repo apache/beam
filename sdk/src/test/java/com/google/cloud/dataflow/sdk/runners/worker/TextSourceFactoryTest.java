@@ -70,7 +70,7 @@ public class TextSourceFactoryTest {
                                             cloudSource,
                                             new BatchModeExecutionContext());
     Assert.assertThat(source, new IsInstanceOf(TextSource.class));
-    TextSource textSource = (TextSource) source;
+    TextSource<?> textSource = (TextSource<?>) source;
     Assert.assertEquals(filename, textSource.filename);
     Assert.assertEquals(
         stripTrailingNewlines == null ? true : stripTrailingNewlines,

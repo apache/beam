@@ -239,6 +239,7 @@ public class DataflowPipelineTranslatorTest {
    */
   private static OutputReference getOutputPortReference(Step step) throws Exception {
     // TODO: This should be done via a Structs accessor.
+    @SuppressWarnings("unchecked")
     List<Map<String, Object>> output =
         (List<Map<String, Object>>) step.getProperties().get(PropertyNames.OUTPUT_INFO);
     String outputTagId = getString(Iterables.getOnlyElement(output), PropertyNames.OUTPUT_NAME);

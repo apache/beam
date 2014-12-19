@@ -40,6 +40,7 @@ import javax.annotation.Nullable;
  * Tests for AvroSourceFactory.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("rawtypes")
 public class AvroSourceFactoryTest {
   private final String pathToAvroFile = "/path/to/file.avro";
 

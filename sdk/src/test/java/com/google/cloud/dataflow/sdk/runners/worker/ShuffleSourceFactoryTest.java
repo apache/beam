@@ -45,6 +45,7 @@ import javax.annotation.Nullable;
  * and PartitioningShuffleSourceFactory.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class ShuffleSourceFactoryTest {
   <T extends Source>
   T runTestCreateShuffleSource(byte[] shuffleReaderConfig,

@@ -63,6 +63,7 @@ import java.util.Random;
  * Tests for PartialGroupByKeyOperation.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class PartialGroupByKeyOperationTest {
   @Test
   public void testRunPartialGroupByKeyOperation() throws Exception {

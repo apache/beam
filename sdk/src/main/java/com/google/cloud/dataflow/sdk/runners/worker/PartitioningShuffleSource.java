@@ -75,7 +75,7 @@ public class PartitioningShuffleSource<K, V> extends Source<WindowedValue<KV<K, 
           "unexpected kind of coder for elements read from "
           + "a key-partitioning shuffle: " + elemCoder);
     }
-    KvCoder<K, V> kvCoder = (KvCoder) elemCoder;
+    KvCoder<K, V> kvCoder = (KvCoder<K, V>) elemCoder;
     this.keyCoder = kvCoder.getKeyCoder();
     windowedValueCoder = windowedElemCoder.withValueCoder(kvCoder.getValueCoder());
   }

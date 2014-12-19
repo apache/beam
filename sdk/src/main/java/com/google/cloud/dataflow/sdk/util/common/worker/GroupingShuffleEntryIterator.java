@@ -61,7 +61,7 @@ public abstract class GroupingShuffleEntryIterator
   public GroupingShuffleEntryIterator(
       Reiterator<ShuffleEntry> shuffleIterator) {
     this.shuffleIterator =
-        new PeekingReiterator(
+        new PeekingReiterator<>(
             new ProgressTrackingReiterator<>(
                 shuffleIterator,
                 new ProgressTrackerGroup<ShuffleEntry>() {

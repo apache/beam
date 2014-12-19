@@ -47,6 +47,7 @@ import java.util.List;
 
 /** Unit tests for {@link StreamingGroupAlsoByWindowsDoFn}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class StreamingGroupAlsoByWindowsDoFnTest {
   ExecutionContext execContext;
   CounterSet counters;

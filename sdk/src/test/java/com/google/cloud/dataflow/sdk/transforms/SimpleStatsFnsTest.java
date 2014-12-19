@@ -47,6 +47,8 @@ public class SimpleStatsFnsTest {
     final N sum;
     final Double mean;
 
+    @SafeVarargs
+    @SuppressWarnings("all")
     public TestCase(N min, N max, N sum, N... values) {
       this.data = Arrays.asList(values);
       this.min = min;
@@ -115,6 +117,7 @@ public class SimpleStatsFnsTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testMeanCountSumSerializable() {
     Pipeline p = TestPipeline.create();
 

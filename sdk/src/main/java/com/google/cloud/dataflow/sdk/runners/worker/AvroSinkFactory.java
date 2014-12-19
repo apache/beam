@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 /**
  * Creates an AvroSink from a CloudObject spec.
  */
+@SuppressWarnings("rawtypes")
 public final class AvroSinkFactory {
   // Do not instantiate.
   private AvroSinkFactory() {}

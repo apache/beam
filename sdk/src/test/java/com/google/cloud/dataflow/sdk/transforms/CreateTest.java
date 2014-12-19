@@ -47,7 +47,7 @@ import java.util.List;
  * Tests for Create.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "unchecked"})
 public class CreateTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
 

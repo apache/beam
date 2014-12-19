@@ -114,6 +114,7 @@ public class ReadOperation extends Operation {
   @Override
   public void start() throws Exception {
     try (StateSampler.ScopedState start = stateSampler.scopedState(startState)) {
+      assert start != null;
       super.start();
       runReadLoop();
     }
@@ -129,6 +130,7 @@ public class ReadOperation extends Operation {
     source.addObserver(new SourceObserver());
 
     try (StateSampler.ScopedState process = stateSampler.scopedState(processState)) {
+      assert process != null;
       synchronized (sourceIteratorLock) {
         sourceIterator = source.iterator();
       }
@@ -162,6 +164,7 @@ public class ReadOperation extends Operation {
           // Stop position update request comes concurrently.
           // Accesses to iterator need to be synchronized.
           try (StateSampler.ScopedState read = stateSampler.scopedState(readState)) {
+            assert read != null;
             synchronized (sourceIteratorLock) {
               if (!sourceIterator.hasNext()) {
                 break;

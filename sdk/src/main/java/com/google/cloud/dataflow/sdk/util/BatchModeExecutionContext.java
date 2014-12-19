@@ -142,6 +142,7 @@ public class BatchModeExecutionContext extends ExecutionContext {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) {
       Map<CodedTupleTag<?>, List<Object>> perKeyTagLists = tagLists.get(getKey());
       if (perKeyTagLists == null || perKeyTagLists.get(tag) == null) {

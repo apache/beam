@@ -28,7 +28,7 @@ public class WriteOperation extends ReceivingOperation {
   /**
    * The Sink this operation writes to.
    */
-  public final Sink sink;
+  public final Sink<?> sink;
 
   /**
    * The total byte counter for all data written by this operation.
@@ -38,10 +38,10 @@ public class WriteOperation extends ReceivingOperation {
   /**
    * The Sink's writer this operation writes to, created by start().
    */
-  Sink.SinkWriter writer;
+  Sink.SinkWriter<Object> writer;
 
   public WriteOperation(String operationName,
-                        Sink sink,
+                        Sink<?> sink,
                         OutputReceiver[] receivers,
                         String counterPrefix,
                         CounterSet.AddCounterMutator addCounterMutator,
@@ -54,7 +54,7 @@ public class WriteOperation extends ReceivingOperation {
   }
 
   /** Invoked by tests. */
-  public WriteOperation(Sink sink,
+  public WriteOperation(Sink<?> sink,
                         String counterPrefix,
                         CounterSet.AddCounterMutator addCounterMutator,
                         StateSampler stateSampler) {
@@ -67,7 +67,7 @@ public class WriteOperation extends ReceivingOperation {
     return operationName + "-ByteCount";
   }
 
-  public Sink getSink() {
+  public Sink<?> getSink() {
     return sink;
   }
 
@@ -75,8 +75,9 @@ public class WriteOperation extends ReceivingOperation {
   public void start() throws Exception {
     try (StateSampler.ScopedState start =
         stateSampler.scopedState(startState)) {
+      assert start != null;
       super.start();
-      writer = sink.writer();
+      writer = (Sink.SinkWriter<Object>) sink.writer();
     }
   }
 
@@ -84,6 +85,7 @@ public class WriteOperation extends ReceivingOperation {
   public void process(Object outputElem) throws Exception {
     try (StateSampler.ScopedState process =
         stateSampler.scopedState(processState)) {
+      assert process != null;
       checkStarted();
       byteCount.addValue(writer.add(outputElem));
     }
@@ -93,6 +95,7 @@ public class WriteOperation extends ReceivingOperation {
   public void finish() throws Exception {
     try (StateSampler.ScopedState finish =
         stateSampler.scopedState(finishState)) {
+      assert finish != null;
       checkStarted();
       writer.close();
       super.finish();

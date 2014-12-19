@@ -49,10 +49,10 @@ public class BlockingDataflowPipelineRunnerTest {
   // This class mocks a call to DataflowPipelineJob.waitToFinish():
   //    it blocks the thread to simulate waiting,
   //    and releases the blocking once signaled
-  static class MockWaitToFinish implements Answer {
+  static class MockWaitToFinish implements Answer<JobState> {
     NotificationHelper jobCompleted = new NotificationHelper();
 
-    public Object answer(InvocationOnMock invocation) throws InterruptedException {
+    public JobState answer(InvocationOnMock invocation) throws InterruptedException {
       System.out.println("MockWaitToFinish.answer(): Wait for signaling job completion.");
       assertTrue("Test did not receive mock job completion signal",
           jobCompleted.waitTillSet(10000));

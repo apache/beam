@@ -119,6 +119,7 @@ public final class Serializer {
    * URI value from the {@link CloudKnownType} enum.  Upon finding this type
    * information, it converts it into the correspondingly typed Java value.
    */
+  @SuppressWarnings("unchecked")
   private static Object deserializeCloudKnownTypes(Object src) {
     if (src instanceof Map) {
       Map<String, Object> srcMap = (Map<String, Object>) src;

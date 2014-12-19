@@ -100,6 +100,7 @@ import javax.annotation.Nullable;
  * DataflowPipelineTranslator knows how to translate Pipeline objects
  * into Dataflow API Jobs.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class DataflowPipelineTranslator {
   // Must be kept in sync with their internal counterparts.
   public static final String HARNESS_WORKER_POOL = "harness";
@@ -495,7 +496,10 @@ public class DataflowPipelineTranslator {
         @Nullable List<Map<String, Object>> outputInfoList = null;
         try {
           // TODO: This should be done via a Structs accessor.
-          outputInfoList = (List<Map<String, Object>>) properties.get(PropertyNames.OUTPUT_INFO);
+          @SuppressWarnings("unchecked")
+          @Nullable List<Map<String, Object>> list =
+              (List<Map<String, Object>>) properties.get(PropertyNames.OUTPUT_INFO);
+          outputInfoList = list;
         } catch (Exception e) {
           throw new RuntimeException("Inconsistent dataflow pipeline translation", e);
         }

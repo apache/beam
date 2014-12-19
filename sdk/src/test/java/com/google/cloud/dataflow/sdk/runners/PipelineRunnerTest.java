@@ -58,7 +58,7 @@ public class PipelineRunnerTest {
     options.setGcsUtil(mockGcsUtil);
     options.setRunner(DirectPipelineRunner.class);
     options.setGcpCredential(new TestCredential());
-    PipelineRunner runner = PipelineRunner.fromOptions(options);
+    PipelineRunner<?> runner = PipelineRunner.fromOptions(options);
     assertTrue(runner instanceof DirectPipelineRunner);
   }
 
@@ -71,7 +71,7 @@ public class PipelineRunnerTest {
     options.setGcsUtil(mockGcsUtil);
     options.setRunner(DirectPipelineRunner.class);
     options.setGcpCredential(new TestCredential());
-    PipelineRunner runner = PipelineRunner.fromOptions(options);
+    PipelineRunner<?> runner = PipelineRunner.fromOptions(options);
     assertTrue(runner instanceof DirectPipelineRunner);
   }
 

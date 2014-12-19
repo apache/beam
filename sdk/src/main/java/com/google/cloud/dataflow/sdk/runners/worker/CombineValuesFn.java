@@ -42,7 +42,7 @@ import javax.annotation.Nullable;
 /**
  * A wrapper around a decoded user value combining function.
  */
-@SuppressWarnings("serial")
+@SuppressWarnings({"rawtypes", "serial", "unchecked"})
 public class CombineValuesFn extends NormalParDoFn {
   /**
    * The optimizer may split run the user combiner in 3 separate
@@ -141,8 +141,8 @@ public class CombineValuesFn extends NormalParDoFn {
 
     @Override
     public void processElement(ProcessContext c) {
-      KV<K, Iterable<VI>> kv = (KV<K, Iterable<VI>>) c.element();
-      K key = (K) kv.getKey();
+      KV<K, Iterable<VI>> kv = c.element();
+      K key = kv.getKey();
 
       c.output(KV.of(key, this.combineFn.apply(key, kv.getValue())));
     }
@@ -162,7 +162,7 @@ public class CombineValuesFn extends NormalParDoFn {
 
     @Override
     public void processElement(ProcessContext c) {
-      KV<K, Iterable<VI>> kv = (KV<K, Iterable<VI>>) c.element();
+      KV<K, Iterable<VI>> kv = c.element();
       K key = kv.getKey();
       VA accum = this.combineFn.createAccumulator(key);
       for (VI input : kv.getValue()) {
@@ -187,7 +187,7 @@ public class CombineValuesFn extends NormalParDoFn {
 
     @Override
     public void processElement(ProcessContext c) {
-      KV<K, Iterable<VA>> kv = (KV<K, Iterable<VA>>) c.element();
+      KV<K, Iterable<VA>> kv = c.element();
       K key = kv.getKey();
       VA accum = this.combineFn.mergeAccumulators(key, kv.getValue());
 
@@ -209,7 +209,7 @@ public class CombineValuesFn extends NormalParDoFn {
 
     @Override
     public void processElement(ProcessContext c) {
-      KV<K, VA> kv = (KV<K, VA>) c.element();
+      KV<K, VA> kv = c.element();
       K key = kv.getKey();
       VO output = this.combineFn.extractOutput(key, kv.getValue());
 

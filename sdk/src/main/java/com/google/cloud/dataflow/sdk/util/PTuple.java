@@ -132,6 +132,7 @@ public class PTuple {
 
   private final Map<TupleTag<?>, ?> valueMap;
 
+  @SuppressWarnings("rawtypes")
   private PTuple() {
     this(new LinkedHashMap());
   }

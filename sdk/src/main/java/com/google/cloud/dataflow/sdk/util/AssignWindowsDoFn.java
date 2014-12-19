@@ -30,6 +30,7 @@ import java.util.Collection;
  * @param <T> Type of elements being windowed
  * @param <W> Window type
  */
+@SuppressWarnings("serial")
 public class AssignWindowsDoFn<T, W extends BoundedWindow> extends DoFn<T, T> {
   private WindowingFn<? super T, W> fn;
 
@@ -38,6 +39,7 @@ public class AssignWindowsDoFn<T, W extends BoundedWindow> extends DoFn<T, T> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public void processElement(ProcessContext c) throws Exception {
     final DoFnProcessContext<T, T> context = (DoFnProcessContext<T, T>) c;
     Collection<W> windows =

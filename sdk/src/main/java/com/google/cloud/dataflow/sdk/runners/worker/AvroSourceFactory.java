@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Source;
 /**
  * Creates an AvroSource from a CloudObject spec.
  */
+@SuppressWarnings("rawtypes")
 public class AvroSourceFactory {
   // Do not instantiate.
   private AvroSourceFactory() {}

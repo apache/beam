@@ -32,7 +32,8 @@ import java.io.IOException;
 /** Unit tests for {@link ByteArrayCoder}. */
 @RunWith(JUnit4.class)
 public class ByteArrayCoderTest {
-  @Test public void testOuterContext() throws CoderException, IOException {
+  @Test
+  public void testOuterContext() throws CoderException, IOException {
     byte[] buffer = {0xa, 0xb, 0xc};
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
@@ -44,7 +45,8 @@ public class ByteArrayCoderTest {
     assertThat(decoded, equalTo(buffer));
   }
 
-  @Test public void testNestedContext() throws CoderException, IOException {
+  @Test
+  public void testNestedContext() throws CoderException, IOException {
     byte[][] buffers = {{0xa, 0xb, 0xc}, {}, {}, {0xd, 0xe}, {}};
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
@@ -60,7 +62,8 @@ public class ByteArrayCoderTest {
     }
   }
 
-  @Test public void testRegisterByteSizeObserver() throws Exception {
+  @Test
+  public void testRegisterByteSizeObserver() throws Exception {
     CounterTestUtils.testByteCount(ByteArrayCoder.of(), Coder.Context.OUTER,
                                    new byte[][]{{ 0xa, 0xb, 0xc }});
 

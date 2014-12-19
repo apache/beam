@@ -868,7 +868,7 @@ public class ParDoTest implements Serializable {
   @Test
   public void testJsonEscaping() {
     // Declare an arbitrary function and make sure we can serialize it
-    DoFn doFn = new DoFn<Integer, Integer>() {
+    DoFn<Integer, Integer> doFn = new DoFn<Integer, Integer>() {
       @Override
       public void processElement(ProcessContext c) {
         c.output(c.element() + 1);

@@ -69,7 +69,7 @@ public final class PeekingReiterator<T> implements Reiterator<T> {
 
   @Override
   public PeekingReiterator<T> copy() {
-    return new PeekingReiterator(this);
+    return new PeekingReiterator<>(this);
   }
 
   /**

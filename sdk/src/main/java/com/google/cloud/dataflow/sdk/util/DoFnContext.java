@@ -73,14 +73,14 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
     this.mainOutputTag = mainOutputTag;
     this.outputMap = new HashMap<>();
     outputMap.put(mainOutputTag, outputManager.initialize(mainOutputTag));
-    for (TupleTag sideOutputTag : sideOutputTags) {
+    for (TupleTag<?> sideOutputTag : sideOutputTags) {
       outputMap.put(sideOutputTag, outputManager.initialize(sideOutputTag));
     }
     this.stepContext = stepContext;
     this.addCounterMutator = addCounterMutator;
   }
 
-  public R getReceiver(TupleTag tag) {
+  public R getReceiver(TupleTag<?> tag) {
     R receiver = outputMap.get(tag);
     if (receiver == null) {
       throw new IllegalArgumentException(
@@ -97,6 +97,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> T sideInput(PCollectionView<T, ?> view) {
     TupleTag<?> tag = view.getTagInternal();
     if (!sideInputs.has(tag)) {

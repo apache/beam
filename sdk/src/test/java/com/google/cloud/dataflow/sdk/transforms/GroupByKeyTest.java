@@ -53,7 +53,7 @@ import java.util.Map;
  * Tests for GroupByKey.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
+@SuppressWarnings({"rawtypes", "serial", "unchecked"})
 public class GroupByKeyTest {
 
   @Rule

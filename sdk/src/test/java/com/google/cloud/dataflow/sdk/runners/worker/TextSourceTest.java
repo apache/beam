@@ -25,7 +25,6 @@ import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.TextualIntegerCoder;
-import com.google.cloud.dataflow.sdk.runners.worker.TextSource.TextFileIterator;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.Source;
@@ -421,7 +420,8 @@ public class TextSourceTest {
       ExecutorTestUtils.TestSourceObserver observer =
           new ExecutorTestUtils.TestSourceObserver(textSource);
 
-      try (TextFileIterator iterator = (TextFileIterator) textSource.iterator()) {
+      try (TextSource<String>.TextFileIterator iterator =
+          (TextSource<String>.TextFileIterator) textSource.iterator()) {
           Assert.assertNull(iterator.updateStopPosition(
               cloudProgressToSourceProgress(createApproximateProgress(proposedStopPosition))));
         }
@@ -437,7 +437,8 @@ public class TextSourceTest {
       ExecutorTestUtils.TestSourceObserver observer =
           new ExecutorTestUtils.TestSourceObserver(textSource);
 
-      try (TextFileIterator iterator = (TextFileIterator) textSource.iterator()) {
+      try (TextSource<String>.TextFileIterator iterator =
+          (TextSource<String>.TextFileIterator) textSource.iterator()) {
         Assert.assertNull(iterator.getEndOffset());
         Assert.assertEquals(
             stop,
@@ -463,7 +464,8 @@ public class TextSourceTest {
       ExecutorTestUtils.TestSourceObserver observer =
           new ExecutorTestUtils.TestSourceObserver(textSource);
 
-      try (TextFileIterator iterator = (TextFileIterator) textSource.iterator()) {
+      try (TextSource<String>.TextFileIterator iterator =
+          (TextSource<String>.TextFileIterator) textSource.iterator()) {
         Assert.assertEquals(fileContent[0], iterator.next());
         Assert.assertEquals(fileContent[1], iterator.next());
         Assert.assertThat(sourceProgressToCloudProgress(iterator.getProgress())
@@ -488,7 +490,8 @@ public class TextSourceTest {
       ExecutorTestUtils.TestSourceObserver observer =
           new ExecutorTestUtils.TestSourceObserver(textSource);
 
-      try (TextFileIterator iterator = (TextFileIterator) textSource.iterator()) {
+      try (TextSource<String>.TextFileIterator iterator =
+          (TextSource<String>.TextFileIterator) textSource.iterator()) {
         Assert.assertEquals(fileContent[0], iterator.next());
         Assert.assertNull(iterator.updateStopPosition(
             cloudProgressToSourceProgress(createApproximateProgress(proposedStopPosition))));
@@ -535,7 +538,8 @@ public class TextSourceTest {
         tmpFile.getPath(), false, startOffset, endOffset,
         StringUtf8Coder.of());
 
-    try (TextFileIterator iterator = (TextFileIterator) textSource.iterator()) {
+    try (TextSource<String>.TextFileIterator iterator =
+        (TextSource<String>.TextFileIterator) textSource.iterator()) {
       while (iterator.hasNext()) {
         accumulatedRead.append((String) iterator.next());
       }
@@ -548,7 +552,8 @@ public class TextSourceTest {
         StringUtf8Coder.of());
     accumulatedRead = new StringBuilder();
 
-    try (TextFileIterator iterator = (TextFileIterator) textSource.iterator()) {
+    try (TextSource<String>.TextFileIterator iterator =
+        (TextSource<String>.TextFileIterator) textSource.iterator()) {
       while (iterator.hasNext()) {
         accumulatedRead.append((String) iterator.next());
       }
@@ -561,7 +566,8 @@ public class TextSourceTest {
         StringUtf8Coder.of());
     accumulatedRead = new StringBuilder();
 
-    try (TextFileIterator iterator = (TextFileIterator) textSource.iterator()) {
+    try (TextSource<String>.TextFileIterator iterator =
+        (TextSource<String>.TextFileIterator) textSource.iterator()) {
       while (iterator.hasNext()) {
         accumulatedRead.append((String) iterator.next());
       }

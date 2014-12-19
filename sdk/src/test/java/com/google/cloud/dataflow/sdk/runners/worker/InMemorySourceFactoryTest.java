@@ -82,7 +82,7 @@ public class InMemorySourceFactoryTest {
     Source<?> source = SourceFactory.create(PipelineOptionsFactory.create(), cloudSource,
                                             new BatchModeExecutionContext());
     Assert.assertThat(source, new IsInstanceOf(InMemorySource.class));
-    InMemorySource inMemorySource = (InMemorySource) source;
+    InMemorySource<?> inMemorySource = (InMemorySource<?>) source;
     Assert.assertEquals(encodedElements(elements, coder),
                         inMemorySource.encodedElements);
     Assert.assertEquals(expectedStart, inMemorySource.startIndex);

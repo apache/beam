@@ -104,13 +104,13 @@ public class CounterTestUtils {
    * they are mutually consistent. This is useful for testing coder
    * implementations.
    */
-  public static void testByteCount(Coder coder, Coder.Context context, Object[] elements)
+  public static <T> void testByteCount(Coder<T> coder, Coder.Context context, T[] elements)
       throws Exception {
     Counter<Long> meanByteCount = Counter.longs("meanByteCount", MEAN);
     ElementByteSizeObserver observer = new ElementByteSizeObserver(meanByteCount);
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
-    for (Object elem : elements) {
+    for (T elem : elements) {
       coder.registerByteSizeObserver(elem, observer, context);
       coder.encode(elem, os, context);
       observer.advance();
@@ -118,6 +118,6 @@ public class CounterTestUtils {
     long expectedLength = os.toByteArray().length;
 
     Assert.assertEquals(expectedLength, (long) getTotalAggregate(meanByteCount));
-    Assert.assertEquals(elements.length, (long) getTotalCount(meanByteCount));
+    Assert.assertEquals(elements.length, getTotalCount(meanByteCount));
   }
 }

@@ -50,11 +50,13 @@ public class StateSamplerTest {
 
     try (StateSampler.ScopedState s1 =
       stateSampler.scopedState(state1)) {
+      assert s1 != null;
       Thread.sleep(2 * periodMs);
     }
 
     try (StateSampler.ScopedState s2 =
       stateSampler.scopedState(state2)) {
+      assert s2 != null;
       Thread.sleep(3 * periodMs);
     }
 
@@ -85,14 +87,17 @@ public class StateSamplerTest {
 
     try (StateSampler.ScopedState s1 =
         stateSampler.scopedState(state1)) {
+      assert s1 != null;
       Thread.sleep(2 * periodMs);
 
       try (StateSampler.ScopedState s2 =
           stateSampler.scopedState(state2)) {
+        assert s2 != null;
         Thread.sleep(2 * periodMs);
 
         try (StateSampler.ScopedState s3 =
             stateSampler.scopedState(state3)) {
+          assert s3 != null;
           Thread.sleep(2 * periodMs);
         }
         Thread.sleep(periodMs);

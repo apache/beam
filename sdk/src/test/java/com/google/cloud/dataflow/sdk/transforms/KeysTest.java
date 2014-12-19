@@ -37,6 +37,7 @@ import java.util.Arrays;
  */
 @RunWith(JUnit4.class)
 public class KeysTest {
+  @SuppressWarnings({"rawtypes", "unchecked"})
   static final KV<String, Integer>[] TABLE = new KV[] {
     KV.of("one", 1),
     KV.of("two", 2),
@@ -45,6 +46,7 @@ public class KeysTest {
     KV.of("dup", 5)
   };
 
+  @SuppressWarnings({"rawtypes", "unchecked"})
   static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {
   };
 

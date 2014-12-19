@@ -45,6 +45,7 @@ public class CodedTupleTagMap {
    * {@code CodedTupleTagMap}, or {@code null} if the tag has no
    * asssociated value.
    */
+  @SuppressWarnings("unchecked")
   public <T> T get(CodedTupleTag<T> tag) {
     return (T) map.get(tag);
   }

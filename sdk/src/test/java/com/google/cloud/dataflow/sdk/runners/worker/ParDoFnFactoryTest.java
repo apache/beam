@@ -43,7 +43,7 @@ import java.util.List;
  * Tests for ParDoFnFactory.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
+@SuppressWarnings({"rawtypes", "serial", "unchecked"})
 public class ParDoFnFactoryTest {
   static class TestDoFn extends DoFn<Integer, String> {
     final String stringState;

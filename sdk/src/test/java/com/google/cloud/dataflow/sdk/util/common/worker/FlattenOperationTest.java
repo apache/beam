@@ -32,6 +32,7 @@ import org.junit.runners.JUnit4;
  * Tests for FlattenOperation.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("unchecked")
 public class FlattenOperationTest {
   @Test
   public void testRunFlattenOperation() throws Exception {

@@ -77,6 +77,7 @@ import java.util.Objects;
  *
  * @param <T> the type of the elements of the resulting {@code PCollection}
  */
+@SuppressWarnings("serial")
 public class Create<T> extends PTransform<PInput, PCollection<T>> {
 
   /**
@@ -111,6 +112,7 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
    * {@link Coder} specified explicitly, via a call to
    * {@link PCollection#setCoder}.
    */
+  @SafeVarargs
   public static <T> Create<T> of(T... elems) {
     return of(Arrays.asList(elems));
   }
@@ -287,6 +289,11 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
   /////////////////////////////////////////////////////////////////////////////
 
   static {
+    registerDefaultTransformEvaluator();
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  private static void registerDefaultTransformEvaluator() {
     DirectPipelineRunner.registerDefaultTransformEvaluator(
         Create.class,
         new DirectPipelineRunner.TransformEvaluator<Create>() {

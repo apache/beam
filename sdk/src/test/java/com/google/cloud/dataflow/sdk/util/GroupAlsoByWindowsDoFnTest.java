@@ -45,6 +45,7 @@ import java.util.List;
 
 /** Unit tests for {@link GroupAlsoByWindowsDoFn}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class GroupAlsoByWindowsDoFnTest {
   ExecutionContext execContext;
   CounterSet counters;

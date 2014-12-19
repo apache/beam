@@ -30,6 +30,7 @@ import java.util.List;
 /**
  * Abstract executor for WorkItem tasks.
  */
+@SuppressWarnings("resource")
 public abstract class WorkExecutor implements AutoCloseable {
   /** The output counters for this task. */
   private final CounterSet outputCounters;

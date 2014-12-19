@@ -380,6 +380,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
+  @SuppressWarnings("rawtypes")
   public void testArrays() {
     String[] args = new String[] {
         "--boolean=true",

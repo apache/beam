@@ -191,7 +191,7 @@ public class PCollection<T> extends TypedPValue<T> {
    *
    * <p> By default, no merging is performed.
    */
-  private WindowingFn windowingFn;
+  private WindowingFn<?, ?> windowingFn;
 
   private PCollection() {}
 
@@ -212,7 +212,7 @@ public class PCollection<T> extends TypedPValue<T> {
    *
    * <p> For use by primitive transformations only.
    */
-  public PCollection<T> setWindowingFnInternal(WindowingFn windowingFn) {
+  public PCollection<T> setWindowingFnInternal(WindowingFn<?, ?> windowingFn) {
      this.windowingFn = windowingFn;
      return this;
   }
@@ -234,7 +234,7 @@ public class PCollection<T> extends TypedPValue<T> {
    * <p> For use by primitive transformations only.
    */
   public static <T> PCollection<T> createPrimitiveOutputInternal(
-      WindowingFn windowingFn) {
+      WindowingFn<?, ?> windowingFn) {
     return new PCollection<T>().setWindowingFnInternal(windowingFn);
   }
 }

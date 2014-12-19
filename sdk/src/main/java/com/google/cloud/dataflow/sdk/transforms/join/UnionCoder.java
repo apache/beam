@@ -110,6 +110,7 @@ class UnionCoder extends StandardCoder<RawUnionValue> {
   @Override
   public boolean isRegisterByteSizeObserverCheap(RawUnionValue union, Context context) {
     int index = getIndexForEncoding(union);
+    @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
     return coder.isRegisterByteSizeObserverCheap(union.getValue(), context);
   }
@@ -125,6 +126,7 @@ class UnionCoder extends StandardCoder<RawUnionValue> {
     // Write out the union tag.
     observer.update(VarInt.getLength(index));
     // Write out the actual value.
+    @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
     coder.registerByteSizeObserver(union.getValue(), observer, context);
   }

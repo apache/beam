@@ -59,6 +59,7 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
       extends WindowingFn<T, W>.MergeContext {
     private final AbstractWindowSet<?, ?, ?, W> windowSet;
 
+    @SuppressWarnings("unchecked")
     public WindowMergeContext(
         AbstractWindowSet<?, ?, ?, W> windowSet,
         WindowingFn<?, W> windowingFn) {

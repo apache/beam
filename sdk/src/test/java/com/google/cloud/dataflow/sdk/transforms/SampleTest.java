@@ -49,6 +49,7 @@ public class SampleTest {
    * Verifies that the result of a Sample operation contains the expected number of elements,
    * and that those elements are a subset of the items in expected.
    */
+  @SuppressWarnings("rawtypes")
   public static class VerifyCorrectSample<T extends Comparable>
       implements SerializableFunction<Iterable<T>, Void> {
     private T[] expectedValues;
@@ -58,12 +59,14 @@ public class SampleTest {
      * expectedSize is the number of elements that the Sample should contain. expected is the set
      * of elements that the sample may contain.
      */
+    @SafeVarargs
     VerifyCorrectSample(int expectedSize, T... expected) {
       this.expectedValues = expected;
       this.expectedSize = expectedSize;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Void apply(Iterable<T> in) {
       List<T> actual = new ArrayList<>();
       for (T elem : in) {

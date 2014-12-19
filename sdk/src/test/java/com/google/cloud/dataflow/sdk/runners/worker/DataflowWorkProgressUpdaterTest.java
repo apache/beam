@@ -77,6 +77,7 @@ import javax.annotation.Nullable;
 
 /** Unit tests for {@link DataflowWorkProgressUpdater}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings("resource")
 public class DataflowWorkProgressUpdaterTest {
   static class TestMapTaskExecutor extends MapTaskExecutor {
     ApproximateProgress progress = null;

@@ -42,6 +42,7 @@ import org.junit.runners.JUnit4;
  * Tests for ShuffleSinkFactory.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("rawtypes")
 public class ShuffleSinkFactoryTest {
   ShuffleSink runTestCreateShuffleSinkHelper(byte[] shuffleWriterConfig,
                                              String shuffleKind,

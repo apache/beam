@@ -34,6 +34,7 @@ public class TextIOTranslator {
   /**
    * Implements TextIO Read translation for the Dataflow backend.
    */
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public static class ReadTranslator implements TransformTranslator<TextIO.Read.Bound> {
     @Override
     public void translate(
@@ -75,6 +76,7 @@ public class TextIOTranslator {
   /**
    * Implements TextIO Write translation for the Dataflow backend.
    */
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public static class WriteTranslator implements TransformTranslator<TextIO.Write.Bound> {
     @Override
     public void translate(

@@ -42,7 +42,7 @@ public class UnionCoderTest {
         UnionCoder.of(Arrays.<Coder<?>>asList(StringUtf8Coder.of(),
             DoubleCoder.of()));
     CloudObject encoding = newCoder.asCloudObject();
-    Coder<Object> decodedCoder = Serializer.deserialize(encoding, Coder.class);
+    Coder<?> decodedCoder = Serializer.deserialize(encoding, Coder.class);
     assertEquals(newCoder, decodedCoder);
   }
 }

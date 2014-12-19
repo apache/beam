@@ -57,6 +57,7 @@ public class SerializableCoder<T extends Serializable>
   }
 
   @JsonCreator
+  @SuppressWarnings("unchecked")
   public static SerializableCoder<?> of(@JsonProperty("type") String classType)
       throws ClassNotFoundException {
     Class<?> clazz = Class.forName(classType);

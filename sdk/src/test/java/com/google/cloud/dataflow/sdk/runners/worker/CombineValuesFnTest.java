@@ -184,6 +184,7 @@ public class CombineValuesFnTest {
     }
   }
 
+  @SuppressWarnings("rawtypes")
   private static ParDoFn createCombineValuesFn(
       String phase, Combine.KeyedCombineFn combineFn) throws Exception {
     // This partially mirrors the work that

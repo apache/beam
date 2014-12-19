@@ -206,6 +206,7 @@ public class ApproximateQuantiles {
    *
    * @param <T> the type of the values being combined
    */
+  @SuppressWarnings("serial")
   public static class ApproximateQuantilesCombineFn
       <T, C extends Comparator<T> & Serializable>
       extends AccumulatingCombineFn

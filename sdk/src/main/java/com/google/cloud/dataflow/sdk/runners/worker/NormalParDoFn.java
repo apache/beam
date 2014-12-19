@@ -48,6 +48,7 @@ import javax.annotation.Nullable;
 /**
  * A wrapper around a decoded user DoFn.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class NormalParDoFn extends ParDoFn {
   public static NormalParDoFn create(
       PipelineOptions options,
@@ -67,14 +68,14 @@ public class NormalParDoFn extends ParDoFn {
     if (!(deserializedFn instanceof DoFn)) {
       throw new Exception("unexpected kind of DoFn: " + deserializedFn.getClass().getName());
     }
-    DoFn fn = (DoFn) deserializedFn;
+    DoFn<Object, Object> fn = (DoFn<Object, Object>) deserializedFn;
 
     PTuple sideInputValues = PTuple.empty();
     if (sideInputInfos != null) {
       for (SideInputInfo sideInputInfo : sideInputInfos) {
         Object sideInputValue = SideInputUtils.readSideInput(
             options, sideInputInfo, executionContext);
-        TupleTag tag = new TupleTag(sideInputInfo.getTag());
+        TupleTag<Object> tag = new TupleTag<>(sideInputInfo.getTag());
         sideInputValues = sideInputValues.and(tag, sideInputValue);
       }
     }
@@ -119,16 +120,16 @@ public class NormalParDoFn extends ParDoFn {
                        ExecutionContext executionContext,
                        CounterSet.AddCounterMutator addCounterMutator) {
     this.options = options;
-    this.fn = fn;
+    this.fn = (DoFn<Object, Object>) fn;
     this.sideInputValues = sideInputValues;
     if (outputTags.size() < 1) {
       throw new AssertionError("expected at least one output");
     }
-    this.mainOutputTag = new TupleTag(outputTags.get(0));
+    this.mainOutputTag = new TupleTag<>(outputTags.get(0));
     this.sideOutputTags = new ArrayList<>();
     if (outputTags.size() > 1) {
       for (String tag : outputTags.subList(1, outputTags.size())) {
-        this.sideOutputTags.add(new TupleTag(tag));
+        this.sideOutputTags.add(new TupleTag<Object>(tag));
       }
     }
     this.stepName = stepName;
@@ -202,8 +203,9 @@ public class NormalParDoFn extends ParDoFn {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public void processElement(Object elem) throws Exception {
-    fnRunner.processElement((WindowedValue) elem);
+    fnRunner.processElement((WindowedValue<Object>) elem);
   }
 
   @Override

@@ -79,6 +79,7 @@ public class DoFnRunner<I, O, R> {
         mainOutputTag, sideOutputTags, stepContext, addCounterMutator);
   }
 
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public static <I, O> DoFnRunner<I, O, List> createWithListOutputs(
       PipelineOptions options,
       DoFn<I, O> fn,

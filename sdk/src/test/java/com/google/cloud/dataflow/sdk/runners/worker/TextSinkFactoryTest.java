@@ -70,7 +70,7 @@ public class TextSinkFactoryTest {
                                       cloudSink,
                                       new BatchModeExecutionContext());
     Assert.assertThat(sink, new IsInstanceOf(TextSink.class));
-    TextSink textSink = (TextSink) sink;
+    TextSink<?> textSink = (TextSink<?>) sink;
     Assert.assertEquals(filename, textSink.namePrefix);
     Assert.assertEquals(
         appendTrailingNewlines == null ? true : appendTrailingNewlines,

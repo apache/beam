@@ -44,6 +44,7 @@ public class OutputReceiverTest {
       this(new CounterSet());
     }
 
+    @SuppressWarnings("rawtypes")
     public TestOutputReceiver(CounterSet counters) {
       super("output_name",
             new ElementByteSizeObservableCoder(StringUtf8Coder.of()),
@@ -72,7 +73,7 @@ public class OutputReceiverTest {
         (long) CounterTestUtils.getTotalAggregate(fanOut.getMeanByteCount()));
     Assert.assertEquals(
         2,
-        (long) CounterTestUtils.getTotalCount(fanOut.getMeanByteCount()));
+        CounterTestUtils.getTotalCount(fanOut.getMeanByteCount()));
   }
 
   @Test
@@ -100,7 +101,7 @@ public class OutputReceiverTest {
         (long) CounterTestUtils.getTotalAggregate(fanOut.getMeanByteCount()));
     Assert.assertEquals(
         2,
-        (long) CounterTestUtils.getTotalCount(fanOut.getMeanByteCount()));
+        CounterTestUtils.getTotalCount(fanOut.getMeanByteCount()));
     Assert.assertThat(receiver1.outputElems,
                       CoreMatchers.<Object>hasItems("hi", "bob"));
     Assert.assertThat(receiver2.outputElems,

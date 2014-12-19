@@ -36,6 +36,7 @@ import java.util.Arrays;
  * Tests for KvSwap transform.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class KvSwapTest {
   static final KV<String, Integer>[] TABLE = new KV[] {
     KV.of("one", 1),

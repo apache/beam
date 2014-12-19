@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 /**
  * An executor for a source operation, defined by a {@code SourceOperationRequest}.
  */
+@SuppressWarnings("resource")
 public class SourceOperationExecutor extends WorkExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(MapTaskExecutor.class);
 

@@ -186,7 +186,7 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   private Map<W, Set<W>> deepCopy(Map<W, Set<W>> mergeTree) {
     Map<W, Set<W>> newMergeTree = new HashMap<>();
     for (Map.Entry<W, Set<W>> entry : mergeTree.entrySet()) {
-      newMergeTree.put(entry.getKey(), new HashSet(entry.getValue()));
+      newMergeTree.put(entry.getKey(), new HashSet<W>(entry.getValue()));
     }
     return newMergeTree;
   }

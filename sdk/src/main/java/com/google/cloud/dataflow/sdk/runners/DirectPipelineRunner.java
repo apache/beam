@@ -67,6 +67,7 @@ import java.util.Random;
  *
  * <p> Throws an exception from {@link #run} if execution fails.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class DirectPipelineRunner
     extends PipelineRunner<DirectPipelineRunner.EvaluationResults> {
   private static final Logger LOG = LoggerFactory.getLogger(DirectPipelineRunner.class);

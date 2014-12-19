@@ -65,6 +65,7 @@ public class TimestampedValue<V> {
   /**
    * Coder for {@code TimestampedValue}.
    */
+  @SuppressWarnings("serial")
   public static class TimestampedValueCoder<T>
       extends StandardCoder<TimestampedValue<T>> {
 

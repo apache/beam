@@ -34,6 +34,7 @@ import java.util.Observer;
 /**
  * Utilities for tests.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class ExecutorTestUtils {
   // Do not instantiate.
   private ExecutorTestUtils() { }

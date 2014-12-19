@@ -30,6 +30,7 @@ import org.junit.runners.JUnit4;
  * Tests of InstanceBuilder.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("rawtypes")
 public class InstanceBuilderTest {
 
   @Rule

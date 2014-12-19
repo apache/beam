@@ -139,6 +139,7 @@ public class ReadOperationTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testRunReadOperation() throws Exception {
     TestSource source = new TestSource();
     source.addInput("hi", "there", "", "bob");

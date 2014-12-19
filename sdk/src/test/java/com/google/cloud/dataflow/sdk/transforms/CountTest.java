@@ -46,6 +46,7 @@ public class CountTest {
 
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @SuppressWarnings("unchecked")
   public void testCountPerElementBasic() {
     Pipeline p = TestPipeline.create();
 
@@ -67,6 +68,7 @@ public class CountTest {
 
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @SuppressWarnings("unchecked")
   public void testCountPerElementEmpty() {
     Pipeline p = TestPipeline.create();
 
@@ -75,8 +77,7 @@ public class CountTest {
     PCollection<KV<String, Long>> output =
         input.apply(Count.<String>perElement());
 
-    DataflowAssert.that(output)
-        .containsInAnyOrder();
+    DataflowAssert.that(output).containsInAnyOrder();
     p.run();
   }
 

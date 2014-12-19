@@ -37,7 +37,7 @@ public class OutputReceiver implements Receiver {
   private final String outputName;
   // Might be null, e.g., undeclared outputs will not have an
   // elementByteSizeObservable.
-  private final ElementByteSizeObservable elementByteSizeObservable;
+  private final ElementByteSizeObservable<Object> elementByteSizeObservable;
   private final Counter<Long> elementCount;
   private Counter<Long> byteCount = null;
   private Counter<Long> meanByteCount = null;
@@ -52,16 +52,16 @@ public class OutputReceiver implements Receiver {
   public OutputReceiver(String outputName,
                         String counterPrefix,
                         CounterSet.AddCounterMutator addCounterMutator) {
-    this(outputName, (ElementByteSizeObservable) null,
-         counterPrefix, addCounterMutator);
+    this(outputName, null, counterPrefix, addCounterMutator);
   }
 
+  @SuppressWarnings("unchecked")
   public OutputReceiver(String outputName,
-                        ElementByteSizeObservable elementByteSizeObservable,
+                        ElementByteSizeObservable<?> elementByteSizeObservable,
                         String counterPrefix,
                         CounterSet.AddCounterMutator addCounterMutator) {
     this.outputName = outputName;
-    this.elementByteSizeObservable = elementByteSizeObservable;
+    this.elementByteSizeObservable = (ElementByteSizeObservable<Object>) elementByteSizeObservable;
 
     elementCount = addCounterMutator.addCounter(
         Counter.longs(elementsCounterName(counterPrefix, outputName), SUM));
