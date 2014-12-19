@@ -348,6 +348,9 @@ public class DataflowPipelineTranslator {
       WorkerPool workerPool = new WorkerPool();
 
       workerPool.setKind(HARNESS_WORKER_POOL);
+      if (options.getTeardownPolicy() != null) {
+        workerPool.setTeardownPolicy(options.getTeardownPolicy().getTeardownPolicyName());
+      }
 
       // Pass the URL and endpoint to use to the worker pool.
       WorkerSettings workerSettings = new WorkerSettings();

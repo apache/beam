@@ -130,6 +130,33 @@ public interface DataflowPipelineWorkerPoolOptions {
   void setMachineType(String value);
 
   /**
+   * The policy for tearing down the workers spun up by the service.
+   */
+  public enum TeardownPolicy {
+    TEARDOWN_ALWAYS("TEARDOWN_ALWAYS"),
+    TEARDOWN_NEVER("TEARDOWN_NEVER");
+
+    private final String teardownPolicy;
+
+    private TeardownPolicy(String teardownPolicy) {
+      this.teardownPolicy = teardownPolicy;
+    }
+
+    public String getTeardownPolicyName() {
+      return this.teardownPolicy;
+    }
+  }
+
+  /**
+   * Teardown policy for the VMs.
+   *
+   * <p> By default this is left unset and the service sets the default policy.
+   */
+  @Description("The teardown policy for the VMs.")
+  TeardownPolicy getTeardownPolicy();
+  void setTeardownPolicy(TeardownPolicy value);
+
+  /**
    * List of local files to make available to workers.
    * <p>
    * Jars are placed on the worker's classpath.
