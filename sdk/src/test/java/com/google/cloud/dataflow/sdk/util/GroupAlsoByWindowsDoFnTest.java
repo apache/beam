@@ -100,7 +100,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
     assertEquals("k", item0.getValue().getKey());
-    assertThat(item0.getValue().getValue(), Matchers.contains("v1", "v2"));
+    assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v1", "v2"));
     assertEquals(new Instant(9), item0.getTimestamp());
     assertThat(item0.getWindows(),
         Matchers.contains(window(0, 10)));
@@ -146,7 +146,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
-    assertThat(item1.getValue().getValue(), Matchers.contains("v1", "v2"));
+    assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v1", "v2"));
     assertEquals(new Instant(19), item1.getTimestamp());
     assertThat(item1.getWindows(),
         Matchers.contains(window(0, 20)));
@@ -189,7 +189,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
     assertEquals("k", item0.getValue().getKey());
-    assertThat(item0.getValue().getValue(), Matchers.contains("v1", "v2"));
+    assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v1", "v2"));
     assertEquals(new Instant(14), item0.getTimestamp());
     assertThat(item0.getWindows(),
         Matchers.contains(window(0, 15)));
