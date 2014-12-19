@@ -23,7 +23,7 @@ The key concepts in this programming model are:
 * [PCollection](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/values/PCollection.java):
 represents a collection of data, which could be bounded or unbounded in size.
 * [PTransform](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/transforms/PTransform.java):
-represents a computation that transform input PCollections into output
+represents a computation that transforms input PCollections into output
 PCollections.
 * [Pipeline](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/Pipeline.java):
 manages a directed acyclic graph of PTransforms and PCollections, which is ready
@@ -31,7 +31,7 @@ for execution.
 * [PipelineRunner](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/PipelineRunner.java):
 specifies where and how the pipeline should execute.
 
-Currently there are three runners:
+Currently there are three PipelineRunners:
 
   1. The [DirectPipelineRunner](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/DirectPipelineRunner.java)
 runs the pipeline on your local machine.
@@ -105,7 +105,7 @@ Google Cloud Platform.
 
 Other examples can be run similarly by replacing the WordCount class name with
 BigQueryTornadoes, DatastoreWordCount, TfIdf, TopWikipediaSessions, etc. and
-adjusting runtime options under Dexec.args parameter, as specified in the
+adjusting runtime options under the Dexec.args parameter, as specified in the
 example itself.
 
 ## More Information
