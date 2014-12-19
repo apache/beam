@@ -1,6 +1,6 @@
 # Cloud Dataflow Java SDK (Alpha)
 
-[Google Cloud Dataflow](http://cloud.google.com/dataflow)
+[Google Cloud Dataflow](https://cloud.google.com/dataflow/)
 provides a simple, powerful programming model for building both batch
 and streaming parallel data processing pipelines.
 
@@ -97,11 +97,10 @@ the Google Cloud Platform (GCP):
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
     -Dexec.args="--project=<YOUR GCP PROJECT NAME> --stagingLocation=<YOUR GCS LOCATION> --runner=BlockingDataflowPipelineRunner"
 
-Google Cloud Storage (GCS) location should be entered in the form of
+[Google Cloud Storage](https://cloud.google.com/storage/) (GCS) location should be entered in the form of
 gs://bucket/path/to/staging/directory. Google Cloud Platform (GCP) project
 refers to its name (not number), which has been whitelisted for Cloud Dataflow.
-Refer [here](https://cloud.google.com/) for instructions to get started with
-Google Cloud Platform.
+Refer to [Google Cloud Platform](https://cloud.google.com/) for instructions on getting started.
 
 Other examples can be run similarly by replacing the WordCount class name with
 BigQueryTornadoes, DatastoreWordCount, TfIdf, TopWikipediaSessions, etc. and
@@ -110,6 +109,6 @@ example itself.
 
 ## More Information
 
-* [Google Cloud Dataflow](http://cloud.google.com/dataflow)
+* [Google Cloud Dataflow](https://cloud.google.com/dataflow/)
 * [Dataflow Concepts and Programming Model](https://cloud.google.com/dataflow/java-sdk/building-a-pipeline)
 * [Javadoc](https://cloud.google.com/dataflow/java-sdk/JavaDoc/index)
