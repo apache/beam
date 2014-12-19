@@ -12,6 +12,7 @@
  * the specific language governing permissions and limitations under the
  * License.
  */
+
 package com.cloudera.dataflow.spark;
 
 import java.util.List;
@@ -111,7 +112,8 @@ public class EvaluationContext implements EvaluationResult {
     public <T> T get(PObject<T> value) {
         if (pobjects.containsKey(value)) {
             return (T) pobjects.get(value);
-        } else if (rdds.containsKey(value)) {
+        }
+        if (rdds.containsKey(value)) {
             JavaRDDLike rdd = rdds.get(value);
             //TODO: need same logic from get() method below here for serialization of bytes
             T res = (T) Iterables.getOnlyElement(rdd.collect());
@@ -133,6 +135,7 @@ public class EvaluationContext implements EvaluationResult {
         JavaRDDLike bytes = rdd.map(CoderHelpers.toByteFunction(coder));
         List clientBytes = bytes.collect();
         return Iterables.transform(clientBytes, new Function<byte[], T>() {
+            @Override
             public T apply(byte[] bytes) {
                 return (T) CoderHelpers.fromByteArray(bytes, coder);
             }

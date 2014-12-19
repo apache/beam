@@ -12,6 +12,7 @@
  * the specific language governing permissions and limitations under the
  * License.
  */
+
 package com.cloudera.dataflow.spark;
 
 import java.io.ByteArrayInputStream;
@@ -26,7 +27,10 @@ import org.apache.spark.api.java.function.Function;
 /**
  * Serialization utility class.
  */
-public class CoderHelpers {
+public final class CoderHelpers {
+    private CoderHelpers() {
+    }
+
     /**
      * Utility method for serializing an object using the specified coder.
      *
@@ -39,7 +43,7 @@ public class CoderHelpers {
         try {
             coder.encode(value, baos, new Coder.Context(true));
         } catch (IOException e) {
-            throw new RuntimeException("Error encoding value: " + value, e);
+            throw new IllegalStateException("Error encoding value: " + value, e);
         }
         return baos.toByteArray();
     }
@@ -51,7 +55,7 @@ public class CoderHelpers {
      * @param coder  Coder to serialize with.
      * @return List of bytes representing serialized objects.
      */
-    static <T> List<byte[]> toByteArrays(Iterable<T> values, final Coder<T> coder) {
+    static <T> List<byte[]> toByteArrays(Iterable<T> values, Coder<T> coder) {
         List<byte[]> res = Lists.newLinkedList();
         for (T value : values) {
             res.add(toByteArray(value, coder));
@@ -72,7 +76,7 @@ public class CoderHelpers {
         try {
             return coder.decode(bais, new Coder.Context(true));
         } catch (IOException e) {
-            throw new RuntimeException("Error decoding bytes for coder: " + coder, e);
+            throw new IllegalStateException("Error decoding bytes for coder: " + coder, e);
         }
     }
 

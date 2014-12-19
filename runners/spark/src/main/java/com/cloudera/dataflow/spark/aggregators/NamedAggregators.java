@@ -26,7 +26,7 @@ import java.util.TreeMap;
 /**
  * This class wraps a map of named aggregators. Spark expects that all accumulators be declared
  * before a job is launched. Dataflow allows aggregators to be used and incremented on the fly.
- * We create a map of named aggregators and instanyiate in the the spark context before the job
+ * We create a map of named aggregators and instantiate in the the spark context before the job
  * is launched. We can then add aggregators on the fly in Spark.
  */
 public class NamedAggregators implements Serializable {
@@ -37,7 +37,7 @@ public class NamedAggregators implements Serializable {
   }
 
   /**
-   * Constructs a new named aggrgators instance that contains a mapping from the specified
+   * Constructs a new named aggregators instance that contains a mapping from the specified
    * `named` to the associated initial state.
    *
    * @param name Name of aggregator.
@@ -48,12 +48,10 @@ public class NamedAggregators implements Serializable {
   }
 
   /**
-   * Returns the value of the aggregator associated with the specified name.
-   *
    * @param name Name of aggregator to retrieve.
    * @param typeClass Type class to cast the value to.
    * @param <T> Type to be returned.
-   * @return
+   * @return the value of the aggregator associated with the specified name
    */
   public <T> T getValue(String name, Class<T> typeClass) {
     return typeClass.cast(mNamedAggregators.get(name).render());
@@ -62,8 +60,8 @@ public class NamedAggregators implements Serializable {
   /**
    * Merges another NamedAggregators instance with this instance.
    *
-   * @param other The other instance of named aggragtors ot merge.
-   * @return This instance of Named aggragtors with associated states updated to reflect the
+   * @param other The other instance of named aggregators ot merge.
+   * @return This instance of Named aggregators with associated states updated to reflect the
    *        other instance's aggregators.
    */
   public NamedAggregators merge(NamedAggregators other) {
@@ -105,7 +103,7 @@ public class NamedAggregators implements Serializable {
    */
   public interface State<In, Inter, Out> extends Serializable {
     /**
-     * @param element
+     * @param element new element to update state
      */
     void update(In element);
 
@@ -125,7 +123,7 @@ public class NamedAggregators implements Serializable {
    */
   public static class CombineFunctionState<In, Inter, Out> implements State<In, Inter, Out> {
 
-    private Combine.CombineFn<In, Inter, Out> combineFn;
+    private final Combine.CombineFn<In, Inter, Out> combineFn;
     private Inter state;
 
     public CombineFunctionState(Combine.CombineFn<In, Inter, Out> combineFn) {

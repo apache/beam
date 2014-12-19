@@ -12,6 +12,7 @@
  * the specific language governing permissions and limitations under the
  * License.
  */
+
 package com.cloudera.dataflow.spark;
 
 import java.io.ByteArrayInputStream;
@@ -42,7 +43,7 @@ class BroadcastHelper<T> implements Serializable {
         try {
             return coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
         } catch (IOException e) {
-            throw new RuntimeException("Error deserializing broadcast variable", e);
+            throw new IllegalStateException("Error deserializing broadcast variable", e);
         }
     }
 }

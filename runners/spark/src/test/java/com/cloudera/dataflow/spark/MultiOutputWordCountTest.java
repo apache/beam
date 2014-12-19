@@ -41,10 +41,10 @@ import org.junit.Test;
 
 public class MultiOutputWordCountTest {
 
-  static TupleTag<String> upper = new TupleTag<>();
-  static TupleTag<String> lower = new TupleTag<>();
-  static TupleTag<KV<String, Long>> lowerCnts = new TupleTag<>();
-  static TupleTag<KV<String, Long>> upperCnts = new TupleTag<>();
+  private static final TupleTag<String> upper = new TupleTag<>();
+  private static final TupleTag<String> lower = new TupleTag<>();
+  private static final TupleTag<KV<String, Long>> lowerCnts = new TupleTag<>();
+  private static final TupleTag<KV<String, Long>> upperCnts = new TupleTag<>();
 
   @Test
   public void testRun() throws Exception {
@@ -78,7 +78,7 @@ public class MultiOutputWordCountTest {
 
     Aggregator<Integer> totalWords;
     Aggregator<Integer> maxWordLength;
-    PCollectionView<String, ?> regex;
+    final PCollectionView<String, ?> regex;
 
     public ExtractWordsFn(PCollectionView<String, ?> regex) {
       this.regex = regex;

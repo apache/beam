@@ -79,7 +79,7 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     private class ProcCtxt<I, O> extends DoFn<I, O>.ProcessContext {
 
-        private List<O> outputs = new LinkedList<>();
+        private final List<O> outputs = new LinkedList<>();
         private I element;
 
         public ProcCtxt(DoFn<I, O> fn) {

@@ -33,16 +33,15 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
 public class SimpleWordCountTest {
-  static final String[] WORDS_ARRAY = {
+  private static final String[] WORDS_ARRAY = {
       "hi there", "hi", "hi sue bob",
       "hi sue", "", "bob hi"};
-  static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
-  static final Set<String> EXPECTED_COUNT_SET = Sets.newHashSet("hi: 5", "there: 1", "sue: 2",
+  private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
+  private static final Set<String> EXPECTED_COUNT_SET = Sets.newHashSet("hi: 5", "there: 1", "sue: 2",
       "bob: 2");
 
   @Test
@@ -51,15 +50,14 @@ public class SimpleWordCountTest {
     PCollection<String> inputWords = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
     PCollection<String> output = inputWords.apply(new CountWords());
     EvaluationResult res = SparkPipelineRunner.create().run(p);
-    Set<String> actualCountSet = new HashSet<String>();
-    Iterator<String> resultIter = res.get(output).iterator();
-    while (resultIter.hasNext()) {
-      actualCountSet.add(resultIter.next());
+    Set<String> actualCountSet = new HashSet<>();
+    for (String s : res.get(output)) {
+      actualCountSet.add(s);
     }
 
-    Assert.assertTrue(String.format("Actual counts of words [%s] does not equal expected " +
-            "count[%s].", actualCountSet, EXPECTED_COUNT_SET),
-        EXPECTED_COUNT_SET.equals(actualCountSet));
+    Assert.assertEquals(String.format("Actual counts of words [%s] does not equal expected count[%s].",
+                                      actualCountSet, EXPECTED_COUNT_SET),
+                        EXPECTED_COUNT_SET, actualCountSet);
   }
 
   /**
@@ -96,14 +94,14 @@ public class SimpleWordCountTest {
   /**
    * A DoFn that converts a Word and Count into a printable string.
    */
-  static class FormatCountsFn extends DoFn<KV<String, Long>, String> {
+  private static class FormatCountsFn extends DoFn<KV<String, Long>, String> {
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element().getKey() + ": " + c.element().getValue());
     }
   }
 
-  public static class CountWords extends PTransform<PCollection<String>, PCollection<String>> {
+  private static class CountWords extends PTransform<PCollection<String>, PCollection<String>> {
     @Override
     public PCollection<String> apply(PCollection<String> lines) {
 
@@ -116,10 +114,8 @@ public class SimpleWordCountTest {
           words.apply(Count.<String>perElement());
 
       // Format each word and count into a printable string.
-      PCollection<String> results = wordCounts.apply(
-          ParDo.of(new FormatCountsFn()));
 
-      return results;
+      return wordCounts.apply(ParDo.of(new FormatCountsFn()));
     }
 
   }

@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2014, Cloudera, Inc. All Rights Reserved.
+ *
+ * Cloudera, Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"). You may not use this file except in
+ * compliance with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * This software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied. See the License for
+ * the specific language governing permissions and limitations under the
+ * License.
+ */
+
 package com.cloudera.dataflow.spark;
 
 import com.google.api.client.util.Maps;
@@ -22,19 +37,18 @@ import java.util.Map;
 /**
  * Supports translation between a DataFlow transform, and Spark's operations on RDDs.
  */
-public class TransformTranslator {
+public final class TransformTranslator {
+    private TransformTranslator() {
+    }
+
     private static class FieldGetter {
-        private Map<String, Field> fields;
+        private final Map<String, Field> fields;
 
         public FieldGetter(Class<?> clazz) {
             this.fields = Maps.newHashMap();
             for (Field f : clazz.getDeclaredFields()) {
-                try {
-                    f.setAccessible(true);
-                    this.fields.put(f.getName(), f);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
+                f.setAccessible(true);
+                this.fields.put(f.getName(), f);
             }
         }
 
@@ -42,12 +56,12 @@ public class TransformTranslator {
             try {
                 return (T) fields.get(fieldname).get(value);
             } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
+                throw new IllegalStateException(e);
             }
         }
     }
 
-    private static TransformEvaluator<Flatten> FLATTEN = new TransformEvaluator<Flatten>() {
+    private static final TransformEvaluator<Flatten> FLATTEN = new TransformEvaluator<Flatten>() {
         @Override
         public void evaluate(Flatten transform, EvaluationContext context) {
             PCollectionList<?> pcs = (PCollectionList<?>) context.getPipeline().getInput(transform);
@@ -59,15 +73,15 @@ public class TransformTranslator {
             context.setOutputRDD(transform, rdd);
         }
     };
-    private static TransformEvaluator<GroupByKey.GroupByKeyOnly> GBK = new TransformEvaluator<GroupByKey.GroupByKeyOnly>() {
+    private static final TransformEvaluator<GroupByKey.GroupByKeyOnly> GBK = new TransformEvaluator<GroupByKey.GroupByKeyOnly>() {
         @Override
         public void evaluate(GroupByKey.GroupByKeyOnly transform, EvaluationContext context) {
             context.setOutputRDD(transform, fromPair(toPair(context.getInputRDD(transform)).groupByKey()));
         }
     };
 
-    private static FieldGetter GROUPED_FG = new FieldGetter(Combine.GroupedValues.class);
-    private static TransformEvaluator<Combine.GroupedValues> GROUPED = new TransformEvaluator<Combine.GroupedValues>() {
+    private static final FieldGetter GROUPED_FG = new FieldGetter(Combine.GroupedValues.class);
+    private static final TransformEvaluator<Combine.GroupedValues> GROUPED = new TransformEvaluator<Combine.GroupedValues>() {
         @Override
         public void evaluate(Combine.GroupedValues transform, EvaluationContext context) {
             final Combine.KeyedCombineFn keyed = GROUPED_FG.get("fn", transform);
@@ -102,7 +116,7 @@ public class TransformTranslator {
     }
 
 
-    private static TransformEvaluator<ParDo.Bound> PARDO = new TransformEvaluator<ParDo.Bound>() {
+    private static final TransformEvaluator<ParDo.Bound> PARDO = new TransformEvaluator<ParDo.Bound>() {
         @Override
         public void evaluate(ParDo.Bound transform, EvaluationContext context) {
             DoFnFunction dofn = new DoFnFunction(transform.getFn(),
@@ -112,8 +126,8 @@ public class TransformTranslator {
         }
     };
 
-    private static FieldGetter MULTIDO_FG = new FieldGetter(ParDo.BoundMulti.class);
-    private static TransformEvaluator<ParDo.BoundMulti> MULTIDO = new TransformEvaluator<ParDo.BoundMulti>() {
+    private static final FieldGetter MULTIDO_FG = new FieldGetter(ParDo.BoundMulti.class);
+    private static final TransformEvaluator<ParDo.BoundMulti> MULTIDO = new TransformEvaluator<ParDo.BoundMulti>() {
         @Override
         public void evaluate(ParDo.BoundMulti transform, EvaluationContext context) {
             MultiDoFnFunction multifn = new MultiDoFnFunction(
@@ -136,7 +150,7 @@ public class TransformTranslator {
     };
 
 
-    private static TransformEvaluator<TextIO.Read.Bound> READ_TEXT = new TransformEvaluator<TextIO.Read.Bound>() {
+    private static final TransformEvaluator<TextIO.Read.Bound> READ_TEXT = new TransformEvaluator<TextIO.Read.Bound>() {
         @Override
         public void evaluate(TextIO.Read.Bound transform, EvaluationContext context) {
             String pattern = transform.getFilepattern();
@@ -145,7 +159,7 @@ public class TransformTranslator {
         }
     };
 
-    private static TransformEvaluator<TextIO.Write.Bound> WRITE_TEXT = new TransformEvaluator<TextIO.Write.Bound>() {
+    private static final TransformEvaluator<TextIO.Write.Bound> WRITE_TEXT = new TransformEvaluator<TextIO.Write.Bound>() {
         @Override
         public void evaluate(TextIO.Write.Bound transform, EvaluationContext context) {
             JavaRDDLike last = context.getInputRDD(transform);
@@ -154,7 +168,7 @@ public class TransformTranslator {
         }
     };
 
-    private static TransformEvaluator<AvroIO.Read.Bound> READ_AVRO = new TransformEvaluator<AvroIO.Read.Bound>() {
+    private static final TransformEvaluator<AvroIO.Read.Bound> READ_AVRO = new TransformEvaluator<AvroIO.Read.Bound>() {
         @Override
         public void evaluate(AvroIO.Read.Bound transform, EvaluationContext context) {
             String pattern = transform.getFilepattern();
@@ -163,7 +177,7 @@ public class TransformTranslator {
         }
     };
 
-    private static TransformEvaluator<AvroIO.Write.Bound> WRITE_AVRO = new TransformEvaluator<AvroIO.Write.Bound>() {
+    private static final TransformEvaluator<AvroIO.Write.Bound> WRITE_AVRO = new TransformEvaluator<AvroIO.Write.Bound>() {
         @Override
         public void evaluate(AvroIO.Write.Bound transform, EvaluationContext context) {
             JavaRDDLike last = context.getInputRDD(transform);
@@ -172,7 +186,7 @@ public class TransformTranslator {
         }
     };
 
-    private static TransformEvaluator<Create> CREATE = new TransformEvaluator<Create>() {
+    private static final TransformEvaluator<Create> CREATE = new TransformEvaluator<Create>() {
         @Override
         public void evaluate(Create transform, EvaluationContext context) {
             Iterable elems = transform.getElements();
@@ -183,14 +197,14 @@ public class TransformTranslator {
         }
     };
 
-    private static TransformEvaluator<CreatePObject> CREATE_POBJ = new TransformEvaluator<CreatePObject>() {
+    private static final TransformEvaluator<CreatePObject> CREATE_POBJ = new TransformEvaluator<CreatePObject>() {
         @Override
         public void evaluate(CreatePObject transform, EvaluationContext context) {
             context.setPObjectValue((PObject) context.getOutput(transform), transform.getElement());
         }
     };
 
-    private static TransformEvaluator<Convert.ToIterable> TO_ITER = new TransformEvaluator<Convert.ToIterable>() {
+    private static final TransformEvaluator<Convert.ToIterable> TO_ITER = new TransformEvaluator<Convert.ToIterable>() {
         @Override
         public void evaluate(Convert.ToIterable transform, EvaluationContext context) {
             PCollection<?> in = (PCollection<?>) context.getInput(transform);
@@ -199,7 +213,7 @@ public class TransformTranslator {
         }
     };
 
-    private static TransformEvaluator<Convert.ToIterableWindowedValue> TO_ITER_WIN =
+    private static final TransformEvaluator<Convert.ToIterableWindowedValue> TO_ITER_WIN =
             new TransformEvaluator<Convert.ToIterableWindowedValue>() {
                 @Override
                 public void evaluate(Convert.ToIterableWindowedValue transform, EvaluationContext context) {
@@ -216,7 +230,7 @@ public class TransformTranslator {
             };
 
     private static class TupleTagFilter implements Function<Tuple2<TupleTag, Object>, Boolean> {
-        private TupleTag tag;
+        private final TupleTag tag;
 
         public TupleTagFilter(TupleTag tag) {
             this.tag = tag;
@@ -228,7 +242,7 @@ public class TransformTranslator {
         }
     }
 
-    private static TransformEvaluator<SeqDo.BoundMulti> SEQDO = new TransformEvaluator<SeqDo.BoundMulti>() {
+    private static final TransformEvaluator<SeqDo.BoundMulti> SEQDO = new TransformEvaluator<SeqDo.BoundMulti>() {
         @Override
         public void evaluate(SeqDo.BoundMulti transform, EvaluationContext context) {
             PObjectValueTuple inputValues = context.getPObjectTuple(transform);

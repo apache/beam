@@ -12,6 +12,7 @@
  * the specific language governing permissions and limitations under the
  * License.
  */
+
 package com.cloudera.dataflow.spark;
 
 import java.io.Serializable;
@@ -37,11 +38,11 @@ class SparkRuntimeContext implements Serializable {
     /**
      * An accumulator that is a map from names to aggregators.
      */
-    private Accumulator<NamedAggregators> accum;
+    private final Accumulator<NamedAggregators> accum;
     /**
      * Map fo names to dataflow aggregators.
      */
-    private Map<String, Aggregator> aggregators = new HashMap<>();
+    private final Map<String, Aggregator> aggregators = new HashMap<>();
 
     public SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
         this.accum = jsc.accumulator(new NamedAggregators(), new AggAccumParam());

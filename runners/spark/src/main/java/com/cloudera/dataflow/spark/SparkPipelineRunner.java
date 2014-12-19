@@ -44,7 +44,7 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
   private static final Logger LOG = Logger.getLogger(SparkPipelineRunner.class.getName());
   /** Options used in this pipeline runner.*/
-  private SparkPipelineOptions mOptions;
+  private final SparkPipelineOptions mOptions;
 
   /**
    * Creates and returns a new SparkPipelineRunner with default options. In particular, against a

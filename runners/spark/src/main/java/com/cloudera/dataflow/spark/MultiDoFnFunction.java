@@ -12,6 +12,7 @@
  * the specific language governing permissions and limitations under the
  * License.
  */
+
 package com.cloudera.dataflow.spark;
 
 import java.util.Collection;
@@ -36,8 +37,8 @@ import org.joda.time.Instant;
 import scala.Tuple2;
 
 /**
- * DoFunctions ignore side outputs. MultiDoFunctions deal with side outputs by enrishing the
- * undelrying data with multiple TupleTags.
+ * DoFunctions ignore side outputs. MultiDoFunctions deal with side outputs by enriching the
+ * underlying data with multiple TupleTags.
  *
  * @param <I> Input type for DoFunction.
  * @param <O> Output type for DoFunction.
@@ -52,7 +53,7 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
     private final TupleTag<?> mMainOutputTag;
     private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
-    public MultiDoFnFunction(
+    MultiDoFnFunction(
             DoFn<I, O> fn,
             SparkRuntimeContext runtimeContext,
             TupleTag<O> mainOutputTag,
@@ -74,6 +75,7 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
         mFunction.finishBundle(ctxt);
         return Iterables.transform(ctxt.outputs.entries(),
                 new Function<Map.Entry<TupleTag<?>, Object>, Tuple2<TupleTag<?>, Object>>() {
+                    @Override
                     public Tuple2<TupleTag<?>, Object> apply(Map.Entry<TupleTag<?>, Object> input) {
                         return new Tuple2<TupleTag<?>, Object>(input.getKey(), input.getValue());
                     }
@@ -82,10 +84,10 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
 
     private class ProcCtxt<I, O> extends DoFn<I, O>.ProcessContext {
 
-        private Multimap<TupleTag<?>, Object> outputs = LinkedListMultimap.create();
+        private final Multimap<TupleTag<?>, Object> outputs = LinkedListMultimap.create();
         private I element;
 
-        public ProcCtxt(DoFn<I, O> fn) {
+        ProcCtxt(DoFn<I, O> fn) {
             fn.super();
         }
 
