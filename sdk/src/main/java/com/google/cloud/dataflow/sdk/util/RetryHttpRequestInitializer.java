@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -52,7 +54,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
   /**
    * Http response codes that should be silently ignored.
    */
-  private static final Set<Integer> IGNORED_RESPONSE_CODES = new HashSet<>(
+  private static final Set<Integer> DEFAULT_IGNORED_RESPONSE_CODES = new HashSet<>(
       Arrays.asList(307 /* Redirect, handled by Apiary client */,
                     308 /* Resume Incomplete, handled by Apiary client */));
 
@@ -74,7 +76,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
       if (willRetry) {
         LOG.debug("Request failed with IOException, will retry: {}", request.getUrl());
       } else {
-        LOG.debug("Request failed with IOException, will NOT retry: {}", request.getUrl());
+        LOG.warn("Request failed with IOException, will NOT retry: {}", request.getUrl());
       }
       return willRetry;
     }
@@ -83,9 +85,11 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
   private static class LoggingHttpBackoffUnsuccessfulResponseHandler
       implements HttpUnsuccessfulResponseHandler {
     private final HttpBackOffUnsuccessfulResponseHandler handler;
+    private final Set<Integer> ignoredResponseCodes;
 
     public LoggingHttpBackoffUnsuccessfulResponseHandler(BackOff backoff,
-        Sleeper sleeper) {
+        Sleeper sleeper, Set<Integer> ignoredResponseCodes) {
+      this.ignoredResponseCodes = ignoredResponseCodes;
       handler = new HttpBackOffUnsuccessfulResponseHandler(backoff);
       handler.setSleeper(sleeper);
       handler.setBackOffRequired(
@@ -107,8 +111,8 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
         LOG.debug("Request failed with code {} will retry: {}",
             response.getStatusCode(), request.getUrl());
 
-      } else if (!IGNORED_RESPONSE_CODES.contains(response.getStatusCode())) {
-        LOG.debug("Request failed with code {}, will NOT retry: {}",
+      } else if (!ignoredResponseCodes.contains(response.getStatusCode())) {
+        LOG.warn("Request failed with code {}, will NOT retry: {}",
             response.getStatusCode(), request.getUrl());
       }
 
@@ -122,19 +126,22 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
   private final Sleeper sleeper;  // used for testing
 
+  private Set<Integer> ignoredResponseCodes = new HashSet<>(DEFAULT_IGNORED_RESPONSE_CODES);
+
   /**
    * @param chained a downstream HttpRequestInitializer, which will also be
    *                applied to HttpRequest initialization.  May be null.
    */
   public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained) {
-    this(chained, NanoClock.SYSTEM, Sleeper.DEFAULT);
+    this(chained, NanoClock.SYSTEM, Sleeper.DEFAULT, Collections.<Integer>emptyList());
   }
 
   public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained,
-      NanoClock nanoClock, Sleeper sleeper) {
+      NanoClock nanoClock, Sleeper sleeper, Collection<Integer> ignoredResponseCodes) {
     this.chained = chained;
     this.nanoClock = nanoClock;
     this.sleeper = sleeper;
+    this.ignoredResponseCodes = new HashSet<>(ignoredResponseCodes);
   }
 
   @Override
@@ -155,7 +162,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
         new LoggingHttpBackoffUnsuccessfulResponseHandler(
             new ExponentialBackOff.Builder().setNanoClock(nanoClock)
                                             .setMultiplier(2).build(),
-            sleeper));
+            sleeper, ignoredResponseCodes));
 
     // Retry immediately on IOExceptions.
     LoggingHttpBackOffIOExceptionHandler loggingBackoffHandler =

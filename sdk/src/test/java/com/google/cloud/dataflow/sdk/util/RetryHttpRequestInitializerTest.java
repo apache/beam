@@ -53,6 +53,7 @@ import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.security.PrivateKey;
+import java.util.Arrays;
 
 /**
  * Tests for RetryHttpRequestInitializer.
@@ -99,7 +100,7 @@ public class RetryHttpRequestInitializerTest {
         mockCredential, new MockNanoClock(), new Sleeper() {
           @Override
           public void sleep(long millis) throws InterruptedException {}
-        });
+        }, Arrays.asList(418 /* I'm a teapot */));
     storage = new Storage.Builder(lowLevelTransport, jsonFactory, initializer)
         .setApplicationName("test").build();
   }

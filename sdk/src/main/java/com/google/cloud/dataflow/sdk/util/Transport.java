@@ -20,6 +20,8 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.util.NanoClock;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.pubsub.Pubsub;
@@ -34,6 +36,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 
 /**
  * Helpers for cloud communication.
@@ -135,7 +138,10 @@ public class Transport {
   public static Storage.Builder
       newStorageClient(GcsOptions options) {
     return new Storage.Builder(getTransport(), getJsonFactory(),
-        new RetryHttpRequestInitializer(options.getGcpCredential()))
+        new RetryHttpRequestInitializer(
+            // Do not log the code 404. Code up the stack will deal with 404's if needed, and
+            // logging it by default clutters the output during file staging.
+            options.getGcpCredential(), NanoClock.SYSTEM, Sleeper.DEFAULT, Arrays.asList(404)))
         .setApplicationName(options.getAppName());
   }
 }
