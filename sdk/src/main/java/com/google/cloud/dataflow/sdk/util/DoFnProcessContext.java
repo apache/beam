@@ -88,12 +88,7 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
 
   @Override
   public void outputWithTimestamp(O output, Instant timestamp) {
-    Instant originalTimestamp = windowedValue.getTimestamp();
-
-    if (originalTimestamp != null) {
-      Preconditions.checkArgument(
-          !timestamp.isBefore(originalTimestamp.minus(fn.getAllowedTimestampSkew())));
-    }
+    checkTimestamp(timestamp);
     context.outputWindowedValue(output, timestamp, windowedValue.getWindows());
   }
 
@@ -110,6 +105,12 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
                                     output,
                                     windowedValue.getTimestamp(),
                                     windowedValue.getWindows());
+  }
+
+  @Override
+  public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+    checkTimestamp(timestamp);
+    context.sideOutputWindowedValue(tag, output, timestamp, windowedValue.getWindows());
   }
 
   @Override
@@ -132,5 +133,10 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
   @Override
   public Collection<? extends BoundedWindow> windows() {
     return windowedValue.getWindows();
+  }
+
+  private void checkTimestamp(Instant timestamp) {
+    Preconditions.checkArgument(
+        !timestamp.isBefore(windowedValue.getTimestamp().minus(fn.getAllowedTimestampSkew())));
   }
 }

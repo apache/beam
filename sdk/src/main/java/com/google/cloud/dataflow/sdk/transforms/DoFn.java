@@ -128,7 +128,29 @@ public abstract class DoFn<I, O> implements Serializable {
      */
     public abstract <T> void sideOutput(TupleTag<T> tag, T output);
 
-    // TODO: add sideOutputWithTimestamp[AndWindows]
+    /**
+     * Adds the given element to the specified side output {@code PCollection},
+     * with the given timestamp.
+     *
+     * <p> If invoked from {@link DoFn#processElement}), the timestamp
+     * must not be older than the input element's timestamp minus
+     * {@link DoFn#getAllowedTimestampSkew}.  The output element will
+     * be in the same windows as the input element.
+     *
+     * <p> Is is illegal to invoke this from {@link #startBundle} or
+     * {@link #finishBundle} unless the input {@code PCollection} is
+     * windowed by the
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
+     * If this is the case, the output element's timestamp will be
+     * the given timestamp and its window will be the
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
+     *
+     * @throws IllegalArgumentException if the number of outputs exceeds
+     * the limit of 1,000 outputs per DoFn
+     * @see ParDo#withOutputTags
+     */
+    public abstract <T> void sideOutputWithTimestamp(
+        TupleTag<T> tag, T output, Instant timestamp);
 
     /**
      * Returns an aggregator with aggregation logic specified by the CombineFn

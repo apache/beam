@@ -297,6 +297,13 @@ public class RateLimiting {
       }
 
       @Override
+      public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        synchronized (RateLimitingDoFn.this) {
+          context.sideOutputWithTimestamp(tag, output, timestamp);
+        }
+      }
+
+      @Override
       public <AI, AA, AO> Aggregator<AI> createAggregator(
           String name, Combine.CombineFn<? super AI, AA, AO> combiner) {
         return context.createAggregator(name, combiner);

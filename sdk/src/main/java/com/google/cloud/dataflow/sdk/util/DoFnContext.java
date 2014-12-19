@@ -174,6 +174,11 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
                             Arrays.asList(GlobalWindow.Window.INSTANCE));
   }
 
+  @Override
+  public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+    sideOutputWindowedValue(tag, output, timestamp, Arrays.asList(GlobalWindow.Window.INSTANCE));
+  }
+
   private String generateInternalAggregatorName(String userName) {
     return "user-" + stepContext.getStepName() + "-" + userName;
   }

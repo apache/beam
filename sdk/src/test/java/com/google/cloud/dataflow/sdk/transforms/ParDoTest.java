@@ -1067,6 +1067,37 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  public void testParDoSideOutputWithTimestamp() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<Integer> input =
+        createInts(p, Arrays.asList(3, 42, 6)).setOrdered(true);
+
+    final TupleTag<Integer> mainTag = new TupleTag<Integer>(){};
+    final TupleTag<Integer> sideTag = new TupleTag<Integer>(){};
+
+    PCollection<String> output =
+        input
+        .apply(ParDo.withOutputTags(mainTag, TupleTagList.of(sideTag)).of(
+            new DoFn<Integer, Integer>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                c.sideOutputWithTimestamp(
+                    sideTag, c.element(), new Instant(c.element().longValue()));
+              }
+            })).get(sideTag)
+        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.ZERO, Duration.ZERO)))
+        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+
+    DataflowAssert.that(output).containsInAnyOrder(
+                   "processing: 3, timestamp: 3",
+                   "processing: 42, timestamp: 42",
+                   "processing: 6, timestamp: 6");
+
+    p.run();
+  }
+
+  @Test
   public void testParDoShiftTimestamp() {
     Pipeline p = TestPipeline.create();
 
