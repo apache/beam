@@ -134,20 +134,21 @@ public class ReadOperation extends Operation {
       }
 
       // TODO: Consider using the ExecutorService from PipelineOptions instead.
-      Thread updateRequester = new Thread() {
-        @Override
-        public void run() {
-          while (true) {
-            isProgressUpdateRequested.set(true);
-            try {
-              Thread.sleep(progressUpdatePeriodMs);
-            } catch (InterruptedException e) {
-              break;
+      Thread updateRequester = null;
+      if (progressUpdatePeriodMs != 0) {
+        updateRequester = new Thread() {
+          @Override
+          public void run() {
+            while (true) {
+              isProgressUpdateRequested.set(true);
+              try {
+                Thread.sleep(progressUpdatePeriodMs);
+              } catch (InterruptedException e) {
+                break;
+              }
             }
           }
-        }
-      };
-      if (progressUpdatePeriodMs != 0) {
+        };
         updateRequester.start();
       }
 
