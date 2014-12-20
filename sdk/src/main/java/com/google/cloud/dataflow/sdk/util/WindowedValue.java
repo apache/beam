@@ -141,7 +141,9 @@ public class WindowedValue<V> {
   public boolean equals(Object o) {
     if (o instanceof WindowedValue) {
       WindowedValue<?> that = (WindowedValue) o;
-      if (that.timestamp.isEqual(timestamp) && that.windows.size() == windows.size()) {
+      if (Objects.equals(that.value, this.value)
+          && that.timestamp.isEqual(timestamp)
+          && that.windows.size() == windows.size()) {
         for (Iterator<?> thatIterator = that.windows.iterator(), thisIterator = windows.iterator();
             thatIterator.hasNext() && thisIterator.hasNext();
             /* do nothing */) {
