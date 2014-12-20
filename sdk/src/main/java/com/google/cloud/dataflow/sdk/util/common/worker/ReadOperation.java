@@ -41,20 +41,20 @@ public class ReadOperation extends Operation {
   private static final Logger LOG = LoggerFactory.getLogger(ReadOperation.class);
   private static final long DEFAULT_PROGRESS_UPDATE_PERIOD_MS = TimeUnit.SECONDS.toMillis(1);
 
-  /** The Source this operation reads from. */
-  public final Source<?> source;
+  /** The Reader this operation reads from. */
+  public final Reader<?> reader;
 
   /** The total byte counter for all data read by this operation. */
   final Counter<Long> byteCount;
 
-  /** StateSampler state for advancing the SourceIterator. */
+  /** StateSampler state for advancing the ReaderIterator. */
   private final int readState;
 
   /**
-   * The Source's reader this operation reads from, created by start().
+   * The Reader's iterator this operation reads from, created by start().
    * Guarded by sourceIteratorLock.
    */
-  volatile Source.SourceIterator<?> sourceIterator = null;
+  volatile Reader.ReaderIterator<?> readerIterator = null;
   private final Object sourceIteratorLock = new Object();
 
   /**
@@ -64,7 +64,7 @@ public class ReadOperation extends Operation {
    * wait for a read to complete (which can take an unbounded time, delay a worker progress update,
    * and cause lease expiration and all sorts of trouble).
    */
-  private AtomicReference<Source.Progress> progress = new AtomicReference<>();
+  private AtomicReference<Reader.Progress> progress = new AtomicReference<>();
 
   /**
    * On every iteration of the read loop, "progress" is fetched from sourceIterator if requested.
@@ -78,21 +78,21 @@ public class ReadOperation extends Operation {
   private AtomicBoolean isProgressUpdateRequested = new AtomicBoolean(true);
 
 
-  public ReadOperation(String operationName, Source<?> source, OutputReceiver[] receivers,
+  public ReadOperation(String operationName, Reader<?> reader, OutputReceiver[] receivers,
       String counterPrefix, CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler) {
     super(operationName, receivers, counterPrefix, addCounterMutator, stateSampler);
-    this.source = source;
+    this.reader = reader;
     this.byteCount = addCounterMutator.addCounter(
         Counter.longs(bytesCounterName(counterPrefix, operationName), SUM));
     readState = stateSampler.stateForName(operationName + "-read");
   }
 
   /** Invoked by tests. */
-  ReadOperation(Source<?> source, OutputReceiver outputReceiver, String counterPrefix,
+  ReadOperation(Reader<?> reader, OutputReceiver outputReceiver, String counterPrefix,
       CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) {
-    this("ReadOperation", source, new OutputReceiver[] {outputReceiver}, counterPrefix,
-         addCounterMutator, stateSampler);
+    this("ReadOperation", reader, new OutputReceiver[] {outputReceiver}, counterPrefix,
+        addCounterMutator, stateSampler);
   }
 
   /**
@@ -107,8 +107,8 @@ public class ReadOperation extends Operation {
     return operationName + "-ByteCount";
   }
 
-  public Source<?> getSource() {
-    return source;
+  public Reader<?> getReader() {
+    return reader;
   }
 
   @Override
@@ -127,12 +127,12 @@ public class ReadOperation extends Operation {
       return;
     }
 
-    source.addObserver(new SourceObserver());
+    reader.addObserver(new ReaderObserver());
 
     try (StateSampler.ScopedState process = stateSampler.scopedState(processState)) {
       assert process != null;
       synchronized (sourceIteratorLock) {
-        sourceIterator = source.iterator();
+        readerIterator = reader.iterator();
       }
 
       // TODO: Consider using the ExecutorService from PipelineOptions instead.
@@ -157,7 +157,7 @@ public class ReadOperation extends Operation {
       try {
         // Force a progress update at the beginning and at the end.
         synchronized (sourceIteratorLock) {
-          progress.set(sourceIterator.getProgress());
+          progress.set(readerIterator.getProgress());
         }
         while (true) {
           Object value;
@@ -166,24 +166,24 @@ public class ReadOperation extends Operation {
           try (StateSampler.ScopedState read = stateSampler.scopedState(readState)) {
             assert read != null;
             synchronized (sourceIteratorLock) {
-              if (!sourceIterator.hasNext()) {
+              if (!readerIterator.hasNext()) {
                 break;
               }
-              value = sourceIterator.next();
+              value = readerIterator.next();
 
               if (isProgressUpdateRequested.getAndSet(false) || progressUpdatePeriodMs == 0) {
-                progress.set(sourceIterator.getProgress());
+                progress.set(readerIterator.getProgress());
               }
             }
           }
           receiver.process(value);
         }
         synchronized (sourceIteratorLock) {
-          progress.set(sourceIterator.getProgress());
+          progress.set(readerIterator.getProgress());
         }
       } finally {
         synchronized (sourceIteratorLock) {
-          sourceIterator.close();
+          readerIterator.close();
         }
         if (progressUpdatePeriodMs != 0) {
           updateRequester.interrupt();
@@ -200,24 +200,24 @@ public class ReadOperation extends Operation {
    * @return the task progress, or {@code null} if the source iterator has not
    * been initialized
    */
-  public Source.Progress getProgress() {
+  public Reader.Progress getProgress() {
     return progress.get();
   }
 
   /**
-   * Relays the request to update the stop position to {@code SourceIterator}.
+   * Relays the request to update the stop position to {@code ReaderIterator}.
    *
    * @param proposedStopPosition the proposed stop position
-   * @return the new stop position updated in {@code SourceIterator}, or
+   * @return the new stop position updated in {@code ReaderIterator}, or
    * {@code null} if the source iterator has not been initialized
    */
-  public Source.Position proposeStopPosition(Source.Progress proposedStopPosition) {
+  public Reader.Position proposeStopPosition(Reader.Progress proposedStopPosition) {
     synchronized (sourceIteratorLock) {
-      if (sourceIterator == null) {
+      if (readerIterator == null) {
         LOG.warn("Iterator has not been initialized, returning null stop position.");
         return null;
       }
-      return sourceIterator.updateStopPosition(proposedStopPosition);
+      return readerIterator.updateStopPosition(proposedStopPosition);
     }
   }
 
@@ -226,10 +226,10 @@ public class ReadOperation extends Operation {
    * an element, update() gets called with the byte size of the element, which
    * gets added up into the ReadOperation's byte counter.
    */
-  private class SourceObserver implements Observer {
+  private class ReaderObserver implements Observer {
     @Override
     public void update(Observable obs, Object obj) {
-      Preconditions.checkArgument(obs == source, "unexpected observable" + obs);
+      Preconditions.checkArgument(obs == reader, "unexpected observable" + obs);
       Preconditions.checkArgument(obj instanceof Long, "unexpected parameter object: " + obj);
       byteCount.addValue((long) obj);
     }

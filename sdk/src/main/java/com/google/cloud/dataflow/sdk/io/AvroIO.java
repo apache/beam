@@ -17,17 +17,17 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
-import static com.google.cloud.dataflow.sdk.util.CloudSourceUtils.readElemsFromSource;
 
 import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.worker.AvroReader;
 import com.google.cloud.dataflow.sdk.runners.worker.AvroSink;
-import com.google.cloud.dataflow.sdk.runners.worker.AvroSource;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -116,14 +116,12 @@ import javax.annotation.Nullable;
  * } </pre>
  */
 public class AvroIO {
-
   /**
    * A root PTransform that reads from an Avro file (or multiple Avro
    * files matching a pattern) and returns a PCollection containing
    * the decoding of each record.
    */
   public static class Read {
-
     /**
      * Returns an AvroIO.Read PTransform with the given step name.
      */
@@ -181,16 +179,17 @@ public class AvroIO {
      * @param <T> the type of each of the elements of the resulting
      * PCollection
      */
-    public static class Bound<T>
-        extends PTransform<PInput, PCollection<T>> {
+    public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
       private static final long serialVersionUID = 0;
 
       /** The filepattern to read from. */
-      @Nullable final String filepattern;
+      @Nullable
+      final String filepattern;
       /** The class type of the records. */
       final Class<T> type;
       /** The schema of the input file. */
-      @Nullable final Schema schema;
+      @Nullable
+      final Schema schema;
 
       Bound(Class<T> type) {
         this(null, null, type, null);
@@ -258,8 +257,7 @@ public class AvroIO {
               "need to set the filepattern of an AvroIO.Read transform");
         }
         if (schema == null) {
-          throw new IllegalStateException(
-              "need to set the schema of an AvroIO.Read transform");
+          throw new IllegalStateException("need to set the schema of an AvroIO.Read transform");
         }
 
         // Force the output's Coder to be what the read is using, and
@@ -275,7 +273,9 @@ public class AvroIO {
       }
 
       @Override
-      protected String getKindString() { return "AvroIO.Read"; }
+      protected String getKindString() {
+        return "AvroIO.Read";
+      }
 
       public String getFilepattern() {
         return filepattern;
@@ -287,12 +287,10 @@ public class AvroIO {
 
       static {
         DirectPipelineRunner.registerDefaultTransformEvaluator(
-            Bound.class,
-            new DirectPipelineRunner.TransformEvaluator<Bound>() {
+            Bound.class, new DirectPipelineRunner.TransformEvaluator<Bound>() {
               @Override
               public void evaluate(
-                  Bound transform,
-                  DirectPipelineRunner.EvaluationContext context) {
+                  Bound transform, DirectPipelineRunner.EvaluationContext context) {
                 evaluateReadHelper(transform, context);
               }
             });
@@ -307,7 +305,6 @@ public class AvroIO {
    * multiple Avro files matching a sharding pattern).
    */
   public static class Write {
-
     /**
      * Returns an AvroIO.Write PTransform with the given step name.
      */
@@ -407,12 +404,12 @@ public class AvroIO {
      *
      * @param <T> the type of each of the elements of the input PCollection
      */
-    public static class Bound<T>
-        extends PTransform<PCollection<T>, PDone> {
+    public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
       private static final long serialVersionUID = 0;
 
       /** The filename to write to. */
-      @Nullable final String filenamePrefix;
+      @Nullable
+      final String filenamePrefix;
       /** Suffix to use for each filename. */
       final String filenameSuffix;
       /** Requested number of shards.  0 for automatic. */
@@ -422,15 +419,15 @@ public class AvroIO {
       /** The class type of the records. */
       final Class<T> type;
       /** The schema of the output file. */
-      @Nullable final Schema schema;
+      @Nullable
+      final Schema schema;
 
       Bound(Class<T> type) {
         this(null, null, "", 0, ShardNameTemplate.INDEX_OF_MAX, type, null);
       }
 
-      Bound(String name, String filenamePrefix, String filenameSuffix,
-            int numShards, String shardTemplate,
-            Class<T> type, Schema schema) {
+      Bound(String name, String filenamePrefix, String filenameSuffix, int numShards,
+          String shardTemplate, Class<T> type, Schema schema) {
         super(name);
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
@@ -445,8 +442,8 @@ public class AvroIO {
        * with the given step name.  Does not modify this object.
        */
       public Bound<T> named(String name) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
-                           type, schema);
+        return new Bound<>(
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema);
       }
 
       /**
@@ -459,8 +456,8 @@ public class AvroIO {
        */
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
-                           type, schema);
+        return new Bound<>(
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema);
       }
 
       /**
@@ -473,8 +470,8 @@ public class AvroIO {
        */
       public Bound<T> withSuffix(String filenameSuffix) {
         validateOutputComponent(filenameSuffix);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
-                           type, schema);
+        return new Bound<>(
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema);
       }
 
       /**
@@ -493,8 +490,8 @@ public class AvroIO {
        */
       public Bound<T> withNumShards(int numShards) {
         Preconditions.checkArgument(numShards >= 0);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
-                           type, schema);
+        return new Bound<>(
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema);
       }
 
       /**
@@ -506,8 +503,8 @@ public class AvroIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
-                           type, schema);
+        return new Bound<>(
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema);
       }
 
       /**
@@ -531,9 +528,8 @@ public class AvroIO {
        * @param <T1> the type of the elements of the input PCollection
        */
       public <T1> Bound<T1> withSchema(Class<T1> type) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix,
-                           numShards, shardTemplate,
-                           type, ReflectData.get().getSchema(type));
+        return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type,
+            ReflectData.get().getSchema(type));
       }
 
       /**
@@ -542,9 +538,8 @@ public class AvroIO {
        * schema.  Does not modify this object.
        */
       public Bound<GenericRecord> withSchema(Schema schema) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix,
-                           numShards, shardTemplate,
-                           GenericRecord.class, schema);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
+            GenericRecord.class, schema);
       }
 
       /**
@@ -563,8 +558,7 @@ public class AvroIO {
               "need to set the filename prefix of an AvroIO.Write transform");
         }
         if (schema == null) {
-          throw new IllegalStateException(
-              "need to set the schema of an AvroIO.Write transform");
+          throw new IllegalStateException("need to set the schema of an AvroIO.Write transform");
         }
 
         return new PDone();
@@ -583,7 +577,9 @@ public class AvroIO {
       }
 
       @Override
-      protected String getKindString() { return "AvroIO.Write"; }
+      protected String getKindString() {
+        return "AvroIO.Write";
+      }
 
       public String getFilenamePrefix() {
         return filenamePrefix;
@@ -611,12 +607,10 @@ public class AvroIO {
 
       static {
         DirectPipelineRunner.registerDefaultTransformEvaluator(
-            Bound.class,
-            new DirectPipelineRunner.TransformEvaluator<Bound>() {
+            Bound.class, new DirectPipelineRunner.TransformEvaluator<Bound>() {
               @Override
               public void evaluate(
-                  Bound transform,
-                  DirectPipelineRunner.EvaluationContext context) {
+                  Bound transform, DirectPipelineRunner.EvaluationContext context) {
                 evaluateWriteHelper(transform, context);
               }
             });
@@ -626,25 +620,22 @@ public class AvroIO {
 
   // Pattern which matches old-style shard output patterns, which are now
   // disallowed.
-  private static final Pattern SHARD_OUTPUT_PATTERN =
-      Pattern.compile("@([0-9]+|\\*)");
+  private static final Pattern SHARD_OUTPUT_PATTERN = Pattern.compile("@([0-9]+|\\*)");
 
   private static void validateOutputComponent(String partialFilePattern) {
     Preconditions.checkArgument(
         !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
         "Output name components are not allowed to contain @* or @N patterns: "
-            + partialFilePattern);
+        + partialFilePattern);
   }
 
   /////////////////////////////////////////////////////////////////////////////
 
   private static <T> void evaluateReadHelper(
-      Read.Bound<T> transform,
-      DirectPipelineRunner.EvaluationContext context) {
-    AvroSource<T> source = new AvroSource<>(
-        transform.filepattern, null, null, WindowedValue.getValueOnlyCoder(
-            transform.getDefaultOutputCoder()));
-    List<WindowedValue<T>> elems = readElemsFromSource(source);
+      Read.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
+    AvroReader<T> reader = new AvroReader<>(transform.filepattern, null, null,
+        WindowedValue.getValueOnlyCoder(transform.getDefaultOutputCoder()));
+    List<WindowedValue<T>> elems = ReaderUtils.readElemsFromReader(reader);
     List<ValueWithMetadata<T>> output = new ArrayList<>();
     for (WindowedValue<T> elem : elems) {
       output.add(ValueWithMetadata.of(elem));
@@ -653,8 +644,7 @@ public class AvroIO {
   }
 
   private static <T> void evaluateWriteHelper(
-      Write.Bound<T> transform,
-      DirectPipelineRunner.EvaluationContext context) {
+      Write.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
     List<WindowedValue<T>> elems = context.getPCollectionWindowedValues(transform.getInput());
     int numShards = transform.numShards;
     if (numShards < 1) {
@@ -662,17 +652,15 @@ public class AvroIO {
       numShards = 1;
     }
     AvroSink<T> writer = new AvroSink<>(transform.filenamePrefix, transform.shardTemplate,
-                                        transform.filenameSuffix, numShards,
-                                        WindowedValue.getValueOnlyCoder(
-                                            AvroCoder.of(transform.type, transform.schema)));
+        transform.filenameSuffix, numShards,
+        WindowedValue.getValueOnlyCoder(AvroCoder.of(transform.type, transform.schema)));
     try (Sink.SinkWriter<WindowedValue<T>> sink = writer.writer()) {
       for (WindowedValue<T> elem : elems) {
         sink.add(elem);
       }
     } catch (IOException exn) {
       throw new RuntimeException(
-          "unable to write to output file \"" + transform.filenamePrefix + "\"",
-          exn);
+          "unable to write to output file \"" + transform.filenamePrefix + "\"", exn);
     }
   }
 }

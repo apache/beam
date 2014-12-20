@@ -25,8 +25,7 @@ public interface CustomSourceFormat {
    * Performs an operation on the specification of a source.
    * See {@code SourceOperationRequest} for details.
    */
-  public SourceOperationResponse performSourceOperation(SourceOperationRequest operation)
-      throws Exception;
+  public OperationResponse performSourceOperation(OperationRequest operation) throws Exception;
 
   /**
    * A representation of an operation on the specification of a source,
@@ -38,24 +37,21 @@ public interface CustomSourceFormat {
    * about the implementation, and so the concrete Source subclasses used
    * by a tool-specific framework should match.
    */
-  public interface SourceOperationRequest {
-  }
+  public interface OperationRequest {}
 
   /**
    * A representation of the result of a SourceOperationRequest.
    *
-   * <p> See the comment on {@link SourceOperationRequest} for how instances of this
+   * <p> See the comment on {@link OperationRequest} for how instances of this
    * interface are used by the rest of the framework.
    */
-  public interface SourceOperationResponse {
-  }
+  public interface OperationResponse {}
 
   /**
    * A representation of a specification of a source.
    *
-   * <p> See the comment on {@link SourceOperationRequest} for how instances of this
+   * <p> See the comment on {@link OperationRequest} for how instances of this
    * interface are used by the rest of the framework.
    */
-  public interface SourceSpec {
-  }
+  public interface SourceSpec {}
 }

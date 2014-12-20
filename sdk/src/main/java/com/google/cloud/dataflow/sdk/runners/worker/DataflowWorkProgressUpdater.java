@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.DataflowWorker.buildStatus;
 import static com.google.cloud.dataflow.sdk.runners.worker.DataflowWorker.uniqueId;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToSourceProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudDuration;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudTime;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
@@ -54,11 +54,8 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   /** Options specifying information about the pipeline run by the worker.*/
   private final DataflowWorkerHarnessOptions options;
 
-  public DataflowWorkProgressUpdater(
-      WorkItem workItem,
-      WorkExecutor worker,
-      DataflowWorker.WorkUnitClient workUnitClient,
-      DataflowWorkerHarnessOptions options) {
+  public DataflowWorkProgressUpdater(WorkItem workItem, WorkExecutor worker,
+      DataflowWorker.WorkUnitClient workUnitClient, DataflowWorkerHarnessOptions options) {
     super(worker);
     this.workItem = workItem;
     this.workUnitClient = workUnitClient;
@@ -77,11 +74,9 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   @Override
   protected void reportProgressHelper() throws Exception {
-    WorkItemStatus status = buildStatus(
-        workItem, false /*completed*/,
-        worker.getOutputCounters(), worker.getOutputMetrics(), options,
-        worker.getWorkerProgress(), stopPositionToService,
-        null /*sourceOperationResponse*/, null /*errors*/);
+    WorkItemStatus status = buildStatus(workItem, false/*completed*/, worker.getOutputCounters(),
+        worker.getOutputMetrics(), options, worker.getWorkerProgress(), stopPositionToService,
+        null/*sourceOperationResponse*/, null/*errors*/);
     status.setRequestedLeaseDuration(toCloudDuration(Duration.millis(requestedLeaseDurationMs)));
 
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
@@ -95,16 +90,15 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
       ApproximateProgress suggestedStopPoint = result.getSuggestedStopPoint();
       if (suggestedStopPoint == null && result.getSuggestedStopPosition() != null) {
-        suggestedStopPoint = new ApproximateProgress()
-            .setPosition(result.getSuggestedStopPosition());
+        suggestedStopPoint =
+            new ApproximateProgress().setPosition(result.getSuggestedStopPosition());
       }
 
       if (suggestedStopPoint != null) {
         LOG.info("Proposing stop progress on work unit {} at proposed stopping point {}",
             workString(), suggestedStopPoint);
         stopPositionToService =
-                 worker.proposeStopPosition(
-                     cloudProgressToSourceProgress(suggestedStopPoint));
+            worker.proposeStopPosition(cloudProgressToReaderProgress(suggestedStopPoint));
       }
     }
   }

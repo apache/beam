@@ -17,8 +17,8 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.runners.worker.TextSource;
-import com.google.cloud.dataflow.sdk.util.common.worker.Source;
+import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -38,7 +38,6 @@ import java.util.TreeSet;
  */
 @RunWith(JUnit4.class)
 public class IOFactoryTest {
-
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -77,13 +76,11 @@ public class IOFactoryTest {
     output.close();
 
 
-    TextSource<String> source = new TextSource<>(
-        tmpFolder.getRoot() + "/file*",
-        true /* strip newlines */,
-        null, null, StringUtf8Coder.of());
+    TextReader<String> reader = new TextReader<>(
+        tmpFolder.getRoot() + "/file*", true/* strip newlines */, null, null, StringUtf8Coder.of());
 
     Set<String> records = new TreeSet<>();
-    try (Source.SourceIterator<String> iterator = source.iterator()) {
+    try (Reader.ReaderIterator<String> iterator = reader.iterator()) {
       while (iterator.hasNext()) {
         records.add(iterator.next());
       }

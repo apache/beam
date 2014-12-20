@@ -16,7 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToSourceProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourcePositionToCloudPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
@@ -29,8 +29,8 @@ import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReceiver;
-import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestSource;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
@@ -53,19 +53,18 @@ public class ReadOperationTest {
   private static final long ITERATIONS = 3L;
 
   /**
-   * The test Source for testing updating stop position and progress report.
+   * The test Reader for testing updating stop position and progress report.
    * The number of read iterations is controlled by ITERATIONS.
    */
-  static class TestTextSource extends Source<String> {
+  static class TestTextReader extends Reader<String> {
     @Override
-    public SourceIterator<String> iterator() {
-      return new TestTextSourceIterator();
+    public ReaderIterator<String> iterator() {
+      return new TestTextReaderIterator();
     }
 
-    class TestTextSourceIterator extends AbstractSourceIterator<String> {
+    class TestTextReaderIterator extends AbstractReaderIterator<String> {
       long offset = 0L;
-      List<com.google.api.services.dataflow.model.Position> proposedPositions =
-          new ArrayList<>();
+      List<com.google.api.services.dataflow.model.Position> proposedPositions = new ArrayList<>();
 
       @Override
       public boolean hasNext() {
@@ -91,7 +90,7 @@ public class ReadOperationTest {
         ApproximateProgress progress = new ApproximateProgress();
         progress.setPosition(currentPosition);
 
-        return cloudProgressToSourceProgress(progress);
+        return cloudProgressToReaderProgress(progress);
       }
 
       @Override
@@ -105,7 +104,7 @@ public class ReadOperationTest {
 
   /**
    * The OutputReceiver for testing updating stop position and progress report.
-   * The offset of the Source (iterator) will be advanced each time this
+   * The offset of the Reader (iterator) will be advanced each time this
    * Receiver processes a record.
    */
   static class TestTextReceiver extends OutputReceiver {
@@ -131,18 +130,17 @@ public class ReadOperationTest {
       progresses.add(sourceProgressToCloudProgress(readOperation.getProgress()));
       // We expect that call to proposeStopPosition is a no-op that does not
       // update the stop position for every iteration. We will verify it is
-      // delegated to SourceIterator after ReadOperation finishes.
-      Assert.assertNull(
-          readOperation.proposeStopPosition(
-               cloudProgressToSourceProgress(makeApproximateProgress(proposedStopPosition))));
+      // delegated to ReaderIterator after ReadOperation finishes.
+      Assert.assertNull(readOperation.proposeStopPosition(
+          cloudProgressToReaderProgress(makeApproximateProgress(proposedStopPosition))));
     }
   }
 
   @Test
   @SuppressWarnings("unchecked")
   public void testRunReadOperation() throws Exception {
-    TestSource source = new TestSource();
-    source.addInput("hi", "there", "", "bob");
+    TestReader reader = new TestReader();
+    reader.addInput("hi", "there", "", "bob");
 
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
@@ -150,7 +148,7 @@ public class ReadOperationTest {
     TestReceiver receiver = new TestReceiver(counterSet, counterPrefix);
 
     ReadOperation readOperation = new ReadOperation(
-        source, receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
+        reader, receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
 
     readOperation.start();
     readOperation.finish();
@@ -158,35 +156,36 @@ public class ReadOperationTest {
     Assert.assertThat(
         receiver.outputElems, CoreMatchers.<Object>hasItems("hi", "there", "", "bob"));
 
-    Assert.assertEquals(
-        new CounterSet(
-            Counter.longs("ReadOperation-ByteCount", SUM).resetToValue(2L + 5 + 0 + 3),
-            Counter.longs("test_receiver_out-ElementCount", SUM).resetToValue(4L),
-            Counter.longs("test_receiver_out-MeanByteCount", MEAN).resetToValue(4, 10L),
-            Counter.longs("test-ReadOperation-start-msecs", SUM)
-                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                   "test-ReadOperation-start-msecs")).getAggregate(false)),
-            Counter.longs("test-ReadOperation-read-msecs", SUM)
-                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                   "test-ReadOperation-read-msecs")).getAggregate(false)),
-            Counter.longs("test-ReadOperation-process-msecs", SUM)
-                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                   "test-ReadOperation-process-msecs")).getAggregate(false)),
-            Counter.longs("test-ReadOperation-finish-msecs", SUM)
-                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                   "test-ReadOperation-finish-msecs")).getAggregate(false))),
-        counterSet);
+    Assert
+        .assertEquals(
+            new CounterSet(
+                Counter.longs("ReadOperation-ByteCount", SUM).resetToValue(2L + 5 + 0 + 3),
+                Counter.longs("test_receiver_out-ElementCount", SUM).resetToValue(4L),
+                Counter.longs("test_receiver_out-MeanByteCount", MEAN).resetToValue(4, 10L),
+                Counter.longs("test-ReadOperation-start-msecs", SUM)
+                    .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                                       "test-ReadOperation-start-msecs")).getAggregate(false)),
+                Counter.longs("test-ReadOperation-read-msecs", SUM)
+                    .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                                       "test-ReadOperation-read-msecs")).getAggregate(false)),
+                Counter.longs("test-ReadOperation-process-msecs", SUM)
+                    .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                                       "test-ReadOperation-process-msecs")).getAggregate(false)),
+                Counter.longs("test-ReadOperation-finish-msecs", SUM)
+                    .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                                       "test-ReadOperation-finish-msecs")).getAggregate(false))),
+            counterSet);
   }
 
   @Test
   public void testGetProgressAndProposeStopPosition() throws Exception {
-    TestTextSource testSource = new TestTextSource();
+    TestTextReader testTextReader = new TestTextReader();
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     TestTextReceiver receiver = new TestTextReceiver(counterSet, counterPrefix);
     ReadOperation readOperation = new ReadOperation(
-        testSource, receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
+        testTextReader, receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
     readOperation.setProgressUpdatePeriodMs(0);
     receiver.setReadOperation(readOperation);
 
@@ -195,37 +194,36 @@ public class ReadOperationTest {
 
     Assert.assertNull(readOperation.getProgress());
     Assert.assertNull(readOperation.proposeStopPosition(
-                          cloudProgressToSourceProgress(
-                              makeApproximateProgress(proposedStopPosition))));
+        cloudProgressToReaderProgress(makeApproximateProgress(proposedStopPosition))));
 
     readOperation.start();
     readOperation.finish();
 
-    TestTextSource.TestTextSourceIterator testIterator =
-        (TestTextSource.TestTextSourceIterator) readOperation.sourceIterator;
+    TestTextReader.TestTextReaderIterator testIterator =
+        (TestTextReader.TestTextReaderIterator) readOperation.readerIterator;
 
-    Assert.assertEquals(sourceProgressToCloudProgress(testIterator.getProgress()),
-                        sourceProgressToCloudProgress(readOperation.getProgress()));
-    Assert.assertEquals(sourcePositionToCloudPosition(testIterator.updateStopPosition(
-                            cloudProgressToSourceProgress(
-                                makeApproximateProgress(proposedStopPosition)))),
-                        sourcePositionToCloudPosition(readOperation.proposeStopPosition(
-                            cloudProgressToSourceProgress(
-                                makeApproximateProgress(proposedStopPosition)))));
+    Assert.assertEquals(
+        sourceProgressToCloudProgress(testIterator.getProgress()),
+        sourceProgressToCloudProgress(readOperation.getProgress()));
+    Assert.assertEquals(
+        sourcePositionToCloudPosition(testIterator.updateStopPosition(
+            cloudProgressToReaderProgress(makeApproximateProgress(proposedStopPosition)))),
+        sourcePositionToCloudPosition(readOperation.proposeStopPosition(
+            cloudProgressToReaderProgress(makeApproximateProgress(proposedStopPosition)))));
 
     // Verifies progress report and stop position updates.
     Assert.assertEquals(testIterator.proposedPositions.size(), ITERATIONS + 2);
+    Assert.assertThat(testIterator.proposedPositions, everyItem(equalTo(makePosition(3L))));
     Assert.assertThat(
-        testIterator.proposedPositions, everyItem(equalTo(makePosition(3L))));
-    Assert.assertThat(
-        receiver.progresses, contains(makeApproximateProgress(1L), makeApproximateProgress(2L),
-            makeApproximateProgress(3L)));
+        receiver.progresses,
+        contains(
+            makeApproximateProgress(1L), makeApproximateProgress(2L), makeApproximateProgress(3L)));
   }
 
   @Test
   public void testGetProgressDoesNotBlock() throws Exception {
     final BlockingQueue<Integer> queue = new LinkedBlockingQueue<>();
-    final Source.SourceIterator<Integer> iterator = new Source.AbstractSourceIterator<Integer>() {
+    final Reader.ReaderIterator<Integer> iterator = new Reader.AbstractReaderIterator<Integer>() {
       private int itemsReturned = 0;
 
       @Override
@@ -244,15 +242,15 @@ public class ReadOperationTest {
       }
 
       @Override
-      public Source.Progress getProgress() {
-        return cloudProgressToSourceProgress(new ApproximateProgress().setPosition(
+      public Reader.Progress getProgress() {
+        return cloudProgressToReaderProgress(new ApproximateProgress().setPosition(
             new Position().setRecordIndex((long) itemsReturned)));
       }
     };
 
-    Source<Integer> source = new Source<Integer>() {
+    Reader<Integer> reader = new Reader<Integer>() {
       @Override
-      public SourceIterator<Integer> iterator() throws IOException {
+      public ReaderIterator<Integer> iterator() throws IOException {
         return iterator;
       }
     };
@@ -262,7 +260,7 @@ public class ReadOperationTest {
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     TestTextReceiver receiver = new TestTextReceiver(counterSet, counterPrefix);
     final ReadOperation readOperation = new ReadOperation(
-        source, receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
+        reader, receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
     // Update progress not continuously, but so that it's never more than 1 record stale.
     readOperation.setProgressUpdatePeriodMs(150);
     receiver.setReadOperation(readOperation);

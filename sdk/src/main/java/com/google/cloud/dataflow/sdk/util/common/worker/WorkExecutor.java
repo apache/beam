@@ -49,8 +49,7 @@ public abstract class WorkExecutor implements AutoCloseable {
    */
   public WorkExecutor(CounterSet outputCounters) {
     this.outputCounters = outputCounters;
-    this.os =
-        (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+    this.os = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
   }
 
   /**
@@ -78,7 +77,7 @@ public abstract class WorkExecutor implements AutoCloseable {
   /**
    * Returns the worker's current progress.
    */
-  public Source.Progress getWorkerProgress() throws Exception {
+  public Reader.Progress getWorkerProgress() throws Exception {
     // By default, return null indicating worker progress not available.
     return null;
   }
@@ -87,8 +86,8 @@ public abstract class WorkExecutor implements AutoCloseable {
    * Proposes that the worker changes the stop position for the current work.
    * Returns the new position if accepted, otherwise {@code null}.
    */
-  public Source.Position proposeStopPosition(
-      Source.Progress proposedStopPosition) throws Exception {
+  public Reader.Position proposeStopPosition(Reader.Progress proposedStopPosition)
+      throws Exception {
     // By default, returns null indicating that no task splitting happens.
     return null;
   }

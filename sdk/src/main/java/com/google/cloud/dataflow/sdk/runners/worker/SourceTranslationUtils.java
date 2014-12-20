@@ -23,12 +23,13 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.Position;
+import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.SourceMetadata;
 import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceOperationResponse;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.worker.CustomSourceFormat;
-import com.google.cloud.dataflow.sdk.util.common.worker.Source;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,97 +37,81 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * Utilities for representing Source-specific objects
+ * Utilities for representing input-specific objects
  * using Dataflow model protos.
  */
 public class SourceTranslationUtils {
-  public static Source.Progress cloudProgressToSourceProgress(
+  public static Reader.Progress cloudProgressToReaderProgress(
       @Nullable ApproximateProgress cloudProgress) {
-    return cloudProgress == null ? null
-        : new DataflowSourceProgress(cloudProgress);
+    return cloudProgress == null ? null : new DataflowReaderProgress(cloudProgress);
   }
 
-  public static Source.Position cloudPositionToSourcePosition(
-      @Nullable Position cloudPosition) {
-    return cloudPosition == null ? null
-        : new DataflowSourcePosition(cloudPosition);
+  public static Reader.Position cloudPositionToReaderPosition(@Nullable Position cloudPosition) {
+    return cloudPosition == null ? null : new DataflowReaderPosition(cloudPosition);
   }
 
-  public static CustomSourceFormat.SourceOperationRequest
-  cloudSourceOperationRequestToSourceOperationRequest(
-      @Nullable SourceOperationRequest request) {
-    return request == null ? null
-        : new DataflowSourceOperationRequest(request);
+  public static CustomSourceFormat.OperationRequest
+      cloudSourceOperationRequestToSourceOperationRequest(
+          @Nullable SourceOperationRequest request) {
+    return request == null ? null : new DataflowSourceOperationRequest(request);
   }
 
-  public static CustomSourceFormat.SourceOperationResponse
-  cloudSourceOperationResponseToSourceOperationResponse(
-      @Nullable SourceOperationResponse response) {
-    return response == null ? null
-        : new DataflowSourceOperationResponse(response);
+  public static CustomSourceFormat.OperationResponse
+      cloudSourceOperationResponseToSourceOperationResponse(
+          @Nullable SourceOperationResponse response) {
+    return response == null ? null : new DataflowSourceOperationResponse(response);
   }
 
   public static CustomSourceFormat.SourceSpec cloudSourceToSourceSpec(
-      @Nullable com.google.api.services.dataflow.model.Source cloudSource) {
-    return cloudSource == null ? null
-        : new DataflowSourceSpec(cloudSource);
+      @Nullable Source cloudSource) {
+    return cloudSource == null ? null : new DataflowSourceSpec(cloudSource);
   }
 
   public static ApproximateProgress sourceProgressToCloudProgress(
-      @Nullable Source.Progress sourceProgress) {
-    return sourceProgress == null ? null
-        : ((DataflowSourceProgress) sourceProgress).cloudProgress;
+      @Nullable Reader.Progress sourceProgress) {
+    return sourceProgress == null ? null : ((DataflowReaderProgress) sourceProgress).cloudProgress;
   }
 
-  public static Position sourcePositionToCloudPosition(
-      @Nullable Source.Position sourcePosition) {
-    return sourcePosition == null ? null
-        : ((DataflowSourcePosition) sourcePosition).cloudPosition;
+  public static Position sourcePositionToCloudPosition(@Nullable Reader.Position sourcePosition) {
+    return sourcePosition == null ? null : ((DataflowReaderPosition) sourcePosition).cloudPosition;
   }
 
-  public static SourceOperationRequest
-  sourceOperationRequestToCloudSourceOperationRequest(
-      @Nullable CustomSourceFormat.SourceOperationRequest request) {
-    return (request == null) ? null
-        : ((DataflowSourceOperationRequest) request).cloudRequest;
+  public static SourceOperationRequest sourceOperationRequestToCloudSourceOperationRequest(
+      @Nullable CustomSourceFormat.OperationRequest request) {
+    return (request == null) ? null : ((DataflowSourceOperationRequest) request).cloudRequest;
   }
 
-  public static SourceOperationResponse
-  sourceOperationResponseToCloudSourceOperationResponse(
-      @Nullable CustomSourceFormat.SourceOperationResponse response) {
-    return (response == null) ? null
-        : ((DataflowSourceOperationResponse) response).cloudResponse;
+  public static SourceOperationResponse sourceOperationResponseToCloudSourceOperationResponse(
+      @Nullable CustomSourceFormat.OperationResponse response) {
+    return (response == null) ? null : ((DataflowSourceOperationResponse) response).cloudResponse;
   }
 
-  public static com.google.api.services.dataflow.model.Source sourceSpecToCloudSource(
-      @Nullable CustomSourceFormat.SourceSpec spec) {
-    return (spec == null) ? null
-        : ((DataflowSourceSpec) spec).cloudSource;
+  public static Source sourceSpecToCloudSource(@Nullable CustomSourceFormat.SourceSpec spec) {
+    return (spec == null) ? null : ((DataflowSourceSpec) spec).cloudSource;
   }
 
-  static class DataflowSourceProgress implements Source.Progress {
+  static class DataflowReaderProgress implements Reader.Progress {
     public final ApproximateProgress cloudProgress;
-    public DataflowSourceProgress(ApproximateProgress cloudProgress) {
+    public DataflowReaderProgress(ApproximateProgress cloudProgress) {
       this.cloudProgress = cloudProgress;
     }
   }
 
-  static class DataflowSourcePosition implements Source.Position {
+  static class DataflowReaderPosition implements Reader.Position {
     public final Position cloudPosition;
-    public DataflowSourcePosition(Position cloudPosition) {
+    public DataflowReaderPosition(Position cloudPosition) {
       this.cloudPosition = cloudPosition;
     }
   }
 
-  static class DataflowSourceOperationRequest implements CustomSourceFormat.SourceOperationRequest {
+  static class DataflowSourceOperationRequest implements CustomSourceFormat.OperationRequest {
     public final SourceOperationRequest cloudRequest;
     public DataflowSourceOperationRequest(SourceOperationRequest cloudRequest) {
       this.cloudRequest = cloudRequest;
     }
   }
 
-  static class DataflowSourceOperationResponse
-      implements CustomSourceFormat.SourceOperationResponse {
+  static class DataflowSourceOperationResponse implements CustomSourceFormat.OperationResponse {
     public final SourceOperationResponse cloudResponse;
     public DataflowSourceOperationResponse(SourceOperationResponse cloudResponse) {
       this.cloudResponse = cloudResponse;
@@ -134,16 +119,15 @@ public class SourceTranslationUtils {
   }
 
   static class DataflowSourceSpec implements CustomSourceFormat.SourceSpec {
-    public final com.google.api.services.dataflow.model.Source cloudSource;
-    public DataflowSourceSpec(com.google.api.services.dataflow.model.Source cloudSource) {
+    public final Source cloudSource;
+    public DataflowSourceSpec(Source cloudSource) {
       this.cloudSource = cloudSource;
     }
   }
 
   // Represents a cloud Source as a dictionary for encoding inside the CUSTOM_SOURCE
   // property of CloudWorkflowStep.input.
-  public static Map<String, Object> cloudSourceToDictionary(
-      com.google.api.services.dataflow.model.Source source) {
+  public static Map<String, Object> cloudSourceToDictionary(Source source) {
     // Do not translate encoding - the source's encoding is translated elsewhere
     // to the step's output info.
     Map<String, Object> res = new HashMap<>();
@@ -159,28 +143,24 @@ public class SourceTranslationUtils {
     return res;
   }
 
-  private static Map<String, Object> cloudSourceMetadataToDictionary(
-      SourceMetadata metadata) {
+  private static Map<String, Object> cloudSourceMetadataToDictionary(SourceMetadata metadata) {
     Map<String, Object> res = new HashMap<>();
     if (metadata.getProducesSortedKeys() != null) {
-      addBoolean(res, PropertyNames.CUSTOM_SOURCE_PRODUCES_SORTED_KEYS,
-          metadata.getProducesSortedKeys());
+      addBoolean(
+          res, PropertyNames.CUSTOM_SOURCE_PRODUCES_SORTED_KEYS, metadata.getProducesSortedKeys());
     }
     if (metadata.getEstimatedSizeBytes() != null) {
-      addLong(res, PropertyNames.CUSTOM_SOURCE_ESTIMATED_SIZE_BYTES,
-          metadata.getEstimatedSizeBytes());
+      addLong(
+          res, PropertyNames.CUSTOM_SOURCE_ESTIMATED_SIZE_BYTES, metadata.getEstimatedSizeBytes());
     }
     if (metadata.getInfinite() != null) {
-      addBoolean(res, PropertyNames.CUSTOM_SOURCE_IS_INFINITE,
-          metadata.getInfinite());
+      addBoolean(res, PropertyNames.CUSTOM_SOURCE_IS_INFINITE, metadata.getInfinite());
     }
     return res;
   }
 
-  public static com.google.api.services.dataflow.model.Source dictionaryToCloudSource(
-      Map<String, Object> params) throws Exception {
-    com.google.api.services.dataflow.model.Source res =
-        new com.google.api.services.dataflow.model.Source();
+  public static Source dictionaryToCloudSource(Map<String, Object> params) throws Exception {
+    Source res = new Source();
     res.setSpec(getDictionary(params, PropertyNames.CUSTOM_SOURCE_SPEC));
     // CUSTOM_SOURCE_METADATA and CUSTOM_SOURCE_DOES_NOT_NEED_SPLITTING do not have to be
     // translated, because they only make sense in cloud Source objects produced by the user.

@@ -27,13 +27,13 @@ import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.worker.BigQuerySource;
+import com.google.cloud.dataflow.sdk.runners.worker.BigQueryReader;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
-import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
+import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -125,8 +125,7 @@ public class BigQueryIO {
    * This regex isn't exact - this allows for patterns that would be rejected by
    * the service, but this is sufficient for basic parsing of table references.
    */
-  private static final String PROJECT_ID_REGEXP =
-      "[a-z][-a-z0-9:.]{4,61}[a-z0-9]";
+  private static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]{4,61}[a-z0-9]";
 
   /**
    * Regular expression which matches Dataset IDs.
@@ -142,12 +141,11 @@ public class BigQueryIO {
    * Matches table specifications in the form
    * "[project_id]:[dataset_id].[table_id]" or "[dataset_id].[table_id]".
    */
-  private static final String DATASET_TABLE_REGEXP = String.format(
-      "((?<PROJECT>%s):)?(?<DATASET>%s)\\.(?<TABLE>%s)",
-      PROJECT_ID_REGEXP, DATASET_REGEXP, TABLE_REGEXP);
+  private static final String DATASET_TABLE_REGEXP =
+      String.format("((?<PROJECT>%s):)?(?<DATASET>%s)\\.(?<TABLE>%s)", PROJECT_ID_REGEXP,
+          DATASET_REGEXP, TABLE_REGEXP);
 
-  private static final Pattern TABLE_SPEC =
-      Pattern.compile(DATASET_TABLE_REGEXP);
+  private static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
 
   /**
    * Parse a table specification in the form
@@ -160,15 +158,13 @@ public class BigQueryIO {
     if (!match.matches()) {
       throw new IllegalArgumentException(
           "Table reference is not in [project_id]:[dataset_id].[table_id] "
-              + "format: " + tableSpec);
+          + "format: " + tableSpec);
     }
 
     TableReference ref = new TableReference();
     ref.setProjectId(match.group("PROJECT"));
 
-    return ref
-        .setDatasetId(match.group("DATASET"))
-        .setTableId(match.group("TABLE"));
+    return ref.setDatasetId(match.group("DATASET")).setTableId(match.group("TABLE"));
   }
 
   /**
@@ -181,9 +177,7 @@ public class BigQueryIO {
       sb.append(":");
     }
 
-    sb.append(ref.getDatasetId())
-        .append('.')
-        .append(ref.getTableId());
+    sb.append(ref.getDatasetId()).append('.').append(ref.getTableId());
     return sb.toString();
   }
 
@@ -241,8 +235,7 @@ public class BigQueryIO {
      * A PTransform that reads from a BigQuery table and returns a bounded
      * {@code PCollection<TableRow>}.
      */
-    public static class Bound
-        extends PTransform<PInput, PCollection<TableRow>> {
+    public static class Bound extends PTransform<PInput, PCollection<TableRow>> {
       TableReference table;
       final boolean validate;
 
@@ -292,8 +285,7 @@ public class BigQueryIO {
           throw new IllegalStateException(
               "must set the table reference of a BigQueryIO.Read transform");
         }
-        return PCollection.<TableRow>createPrimitiveOutputInternal(
-            new GlobalWindow())
+        return PCollection.<TableRow>createPrimitiveOutputInternal(new GlobalWindow())
             // Force the output's Coder to be what the read is using, and
             // unchangeable later, to ensure that we read the input in the
             // format specified by the Read transform.
@@ -306,16 +298,16 @@ public class BigQueryIO {
       }
 
       @Override
-      protected String getKindString() { return "BigQueryIO.Read"; }
+      protected String getKindString() {
+        return "BigQueryIO.Read";
+      }
 
       static {
         DirectPipelineRunner.registerDefaultTransformEvaluator(
-            Bound.class,
-            new DirectPipelineRunner.TransformEvaluator<Bound>() {
+            Bound.class, new DirectPipelineRunner.TransformEvaluator<Bound>() {
               @Override
               public void evaluate(
-                  Bound transform,
-                  DirectPipelineRunner.EvaluationContext context) {
+                  Bound transform, DirectPipelineRunner.EvaluationContext context) {
                 evaluateReadHelper(transform, context);
               }
             });
@@ -370,7 +362,6 @@ public class BigQueryIO {
    * </code></pre>
    */
   public static class Write {
-
     /**
      * An enumeration type for the BigQuery create disposition strings publicly
      * documented as {@code CREATE_NEVER}, and {@code CREATE_IF_NEEDED}.
@@ -488,8 +479,7 @@ public class BigQueryIO {
      * A PTransform that can write either a bounded or unbounded
      * {@code PCollection<TableRow>}s to a BigQuery table.
      */
-    public static class Bound
-        extends PTransform<PCollection<TableRow>, PDone> {
+    public static class Bound extends PTransform<PCollection<TableRow>, PDone> {
       final TableReference table;
 
       // Table schema. The schema is required only if the table does not exist.
@@ -515,8 +505,7 @@ public class BigQueryIO {
       }
 
       Bound(String name, TableReference ref, TableSchema schema,
-          CreateDisposition createDisposition,
-          WriteDisposition writeDisposition,
+          CreateDisposition createDisposition, WriteDisposition writeDisposition,
           boolean validate) {
         super(name);
         this.table = ref;
@@ -530,8 +519,7 @@ public class BigQueryIO {
        * Sets the name associated with this transformation.
        */
       public Bound named(String name) {
-        return new Bound(name, table, schema, createDisposition,
-            writeDisposition, validate);
+        return new Bound(name, table, schema, createDisposition, writeDisposition, validate);
       }
 
       /**
@@ -547,28 +535,24 @@ public class BigQueryIO {
        * Specifies the table to be written to.
        */
       public Bound to(TableReference table) {
-        return new Bound(name, table, schema, createDisposition,
-            writeDisposition, validate);
+        return new Bound(name, table, schema, createDisposition, writeDisposition, validate);
       }
 
       /**
        * Specifies the table schema, used if the table is created.
        */
       public Bound withSchema(TableSchema schema) {
-        return new Bound(name, table, schema, createDisposition,
-            writeDisposition, validate);
+        return new Bound(name, table, schema, createDisposition, writeDisposition, validate);
       }
 
       /** Specifies options for creating the table. */
       public Bound withCreateDisposition(CreateDisposition createDisposition) {
-        return new Bound(name, table, schema, createDisposition,
-            writeDisposition, validate);
+        return new Bound(name, table, schema, createDisposition, writeDisposition, validate);
       }
 
       /** Specifies options for writing the table. */
       public Bound withWriteDisposition(WriteDisposition writeDisposition) {
-        return new Bound(name, table, schema, createDisposition,
-            writeDisposition, validate);
+        return new Bound(name, table, schema, createDisposition, writeDisposition, validate);
       }
 
       /**
@@ -585,11 +569,9 @@ public class BigQueryIO {
               "must set the table reference of a BigQueryIO.Write transform");
         }
 
-        if (createDisposition == CreateDisposition.CREATE_IF_NEEDED &&
-            schema == null) {
-          throw new IllegalArgumentException(
-              "CreateDisposition is CREATE_IF_NEEDED, "
-                  + "however no schema was provided.");
+        if (createDisposition == CreateDisposition.CREATE_IF_NEEDED && schema == null) {
+          throw new IllegalArgumentException("CreateDisposition is CREATE_IF_NEEDED, "
+              + "however no schema was provided.");
         }
 
         // In streaming, BigQuery write is taken care of by StreamWithDeDup transform.
@@ -607,16 +589,16 @@ public class BigQueryIO {
       }
 
       @Override
-      protected String getKindString() { return "BigQueryIO.Write"; }
+      protected String getKindString() {
+        return "BigQueryIO.Write";
+      }
 
       static {
         DirectPipelineRunner.registerDefaultTransformEvaluator(
-            Bound.class,
-            new DirectPipelineRunner.TransformEvaluator<Bound>() {
+            Bound.class, new DirectPipelineRunner.TransformEvaluator<Bound>() {
               @Override
               public void evaluate(
-                  Bound transform,
-                  DirectPipelineRunner.EvaluationContext context) {
+                  Bound transform, DirectPipelineRunner.EvaluationContext context) {
                 evaluateWriteHelper(transform, context);
               }
             });
@@ -654,9 +636,8 @@ public class BigQueryIO {
   /**
    * Implementation of DoFn to perform streaming BigQuery write.
    */
-  private static class StreamingWriteFn extends DoFn<KV<Integer, KV<String, TableRow>>, Void>
-      implements DoFn.RequiresKeyedState {
-
+  private static class StreamingWriteFn
+      extends DoFn<KV<Integer, KV<String, TableRow>>, Void> implements DoFn.RequiresKeyedState {
     /**
      * Class to accumulate BigQuery row data as a list of String.
      * DoFn implementation must be Serializable, but BigQuery classes,
@@ -664,13 +645,11 @@ public class BigQueryIO {
      * for accumulation.
      */
     private static class JsonTableRows implements Iterable<TableRow>, Serializable {
-
       /** The list where BigQuery row data is accumulated. */
       private final List<String> jsonRows = new ArrayList<>();
 
       /** Iterator of JsonTableRows converts the row in String to TableRow. */
       static class JsonTableRowIterator implements Iterator<TableRow> {
-
         private final Iterator<String> iteratorInternal;
 
         /** Constructor. */
@@ -730,9 +709,9 @@ public class BigQueryIO {
 
     /** The list of tables created so far, so we don't try the creation
         each time. */
-    private static ThreadLocal<HashSet<String>> createdTables =
-        new ThreadLocal<HashSet<String>>() {
-      @Override protected HashSet<String> initialValue() {
+    private static ThreadLocal<HashSet<String>> createdTables = new ThreadLocal<HashSet<String>>() {
+      @Override
+      protected HashSet<String> initialValue() {
         return new HashSet<>();
       }
     };
@@ -760,10 +739,9 @@ public class BigQueryIO {
       HashSet<String> tables = createdTables.get();
       if (!tables.contains(jsonTableSchema)) {
         try {
-          TableSchema tableSchema = JSON_FACTORY.fromString(
-              jsonTableSchema, TableSchema.class);
-          TableReference tableReference = JSON_FACTORY.fromString(
-              jsonTableReference, TableReference.class);
+          TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
+          TableReference tableReference =
+              JSON_FACTORY.fromString(jsonTableReference, TableReference.class);
 
 
           BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
@@ -791,8 +769,8 @@ public class BigQueryIO {
       Bigquery client = Transport.newBigQueryClient(options).build();
 
       try {
-        TableReference tableReference = JSON_FACTORY.fromString(
-            jsonTableReference, TableReference.class);
+        TableReference tableReference =
+            JSON_FACTORY.fromString(jsonTableReference, TableReference.class);
 
         BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
         inserter.insertAll(jsonTableRows.iterator(), uniqueIdsForTableRows.iterator());
@@ -810,8 +788,7 @@ public class BigQueryIO {
    * a randomUUID is generated only once per bucket of data. The actual unique
    * id is created by concatenating this randomUUID with a sequential number.
    */
-  private static class TagWithUniqueIds extends DoFn<TableRow,
-                                        KV<Integer, KV<String, TableRow>>> {
+  private static class TagWithUniqueIds extends DoFn<TableRow, KV<Integer, KV<String, TableRow>>> {
     private transient String randomUUID;
     private transient AtomicLong sequenceNo;
 
@@ -828,8 +805,7 @@ public class BigQueryIO {
       ThreadLocalRandom randomGenerator = ThreadLocalRandom.current();
       // We output on keys 0-50 to ensure that there's enough batching for
       // BigQuery.
-      context.output(KV.of(randomGenerator.nextInt(0, 50),
-              KV.of(uniqueId, context.element())));
+      context.output(KV.of(randomGenerator.nextInt(0, 50), KV.of(uniqueId, context.element())));
     }
   }
 
@@ -839,9 +815,7 @@ public class BigQueryIO {
   * PTransform that performs streaming BigQuery write. To increase consistency,
   * it leverages BigQuery best effort de-dup mechanism.
    */
-  private static class StreamWithDeDup
-    extends PTransform<PCollection<TableRow>, PDone> {
-
+  private static class StreamWithDeDup extends PTransform<PCollection<TableRow>, PDone> {
     private final TableReference tableReference;
     private final TableSchema tableSchema;
 
@@ -851,7 +825,10 @@ public class BigQueryIO {
       this.tableSchema = tableSchema;
     }
 
-    @Override protected Coder<Void> getDefaultOutputCoder() { return VoidCoder.of(); }
+    @Override
+    protected Coder<Void> getDefaultOutputCoder() {
+      return VoidCoder.of();
+    }
 
     @Override
     public PDone apply(PCollection<TableRow> in) {
@@ -891,8 +868,7 @@ public class BigQueryIO {
    * This loads the entire table into an in-memory PCollection.
    */
   private static void evaluateReadHelper(
-      Read.Bound transform,
-      DirectPipelineRunner.EvaluationContext context) {
+      Read.Bound transform, DirectPipelineRunner.EvaluationContext context) {
     BigQueryOptions options = context.getPipelineOptions();
     Bigquery client = Transport.newBigQueryClient(options).build();
     TableReference ref = transform.table;
@@ -901,7 +877,7 @@ public class BigQueryIO {
     }
 
     LOG.info("Reading from BigQuery table {}", toTableSpec(ref));
-    List<TableRow> elems = CloudSourceUtils.readElemsFromSource(new BigQuerySource(client, ref));
+    List<TableRow> elems = ReaderUtils.readElemsFromReader(new BigQueryReader(client, ref));
     LOG.info("Number of records read from BigQuery: {}", elems.size());
     context.setPCollection(transform.getOutput(), elems);
   }
@@ -913,8 +889,7 @@ public class BigQueryIO {
    * The table will be created if necessary.
    */
   private static void evaluateWriteHelper(
-      Write.Bound transform,
-      DirectPipelineRunner.EvaluationContext context) {
+      Write.Bound transform, DirectPipelineRunner.EvaluationContext context) {
     BigQueryOptions options = context.getPipelineOptions();
     Bigquery client = Transport.newBigQueryClient(options).build();
     TableReference ref = transform.table;
@@ -927,8 +902,8 @@ public class BigQueryIO {
     try {
       BigQueryTableInserter inserter = new BigQueryTableInserter(client, ref);
 
-      inserter.getOrCreateTable(transform.writeDisposition,
-          transform.createDisposition, transform.schema);
+      inserter.getOrCreateTable(
+          transform.writeDisposition, transform.createDisposition, transform.schema);
 
       List<TableRow> tableRows = context.getPCollection(transform.getInput());
       inserter.insertAll(tableRows.iterator());

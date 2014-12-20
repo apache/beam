@@ -16,17 +16,16 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.runners.worker.SourceFactory;
-import com.google.cloud.dataflow.sdk.util.common.worker.Source;
+import com.google.api.services.dataflow.model.Source;
+import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Utilities for working with Source Dataflow API definitions and {@link Source}
+ * Utilities for working with Source Dataflow API definitions and
+ * {@link com.google.cloud.dataflow.sdk.util.common.worker.Reader}
  * objects.
  */
 public class CloudSourceUtils {
@@ -35,8 +34,7 @@ public class CloudSourceUtils {
    * On conflict for a parameter name, values in {@code spec} override values in {@code baseSpecs},
    * and later values in {@code baseSpecs} override earlier ones.
    */
-  public static com.google.api.services.dataflow.model.Source
-      flattenBaseSpecs(com.google.api.services.dataflow.model.Source source) {
+  public static Source flattenBaseSpecs(Source source) {
     if (source.getBaseSpecs() == null) {
       return source;
     }
@@ -46,33 +44,19 @@ public class CloudSourceUtils {
     }
     params.putAll(source.getSpec());
 
-    com.google.api.services.dataflow.model.Source result = source.clone();
+    Source result = source.clone();
     result.setSpec(params);
     result.setBaseSpecs(null);
     return result;
   }
 
-  /** Reads all elements from the given {@link Source}. */
-  public static <T> List<T> readElemsFromSource(Source<T> source) {
-    List<T> elems = new ArrayList<>();
-    try (Source.SourceIterator<T> it = source.iterator()) {
-      while (it.hasNext()) {
-        elems.add(it.next());
-      }
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to read from source: " + source, e);
-    }
-    return elems;
-  }
-
   /**
-   * Creates a {@link Source} from the given Dataflow Source API definition and
-   * reads all elements from it.
+   * Creates a {@link com.google.cloud.dataflow.sdk.util.common.worker.Reader}
+   * from the given Dataflow Source API definition and reads all elements from it.
    */
-  public static <T> List<T> readElemsFromSource(
-      com.google.api.services.dataflow.model.Source source) {
+  public static <T> List<T> readElemsFromSource(Source source) {
     try {
-      return readElemsFromSource(SourceFactory.<T>create(null, source, null));
+      return ReaderUtils.readElemsFromReader(ReaderFactory.<T>create(null, source, null));
     } catch (Exception e) {
       throw new RuntimeException("Failed to read from source: " + source.toString(), e);
     }

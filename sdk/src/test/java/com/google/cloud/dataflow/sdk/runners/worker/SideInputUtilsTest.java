@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
+import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
@@ -41,28 +42,23 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 public class SideInputUtilsTest {
-  SideInputInfo createSingletonSideInputInfo(
-      com.google.api.services.dataflow.model.Source sideInputSource) {
+  SideInputInfo createSingletonSideInputInfo(Source sideInputSource) {
     SideInputInfo sideInputInfo = new SideInputInfo();
     sideInputInfo.setSources(Arrays.asList(sideInputSource));
     sideInputInfo.setKind(CloudObject.forClassName("singleton"));
     return sideInputInfo;
   }
 
-  SideInputInfo createCollectionSideInputInfo(
-      com.google.api.services.dataflow.model.Source... sideInputSources) {
+  SideInputInfo createCollectionSideInputInfo(Source... sideInputSources) {
     SideInputInfo sideInputInfo = new SideInputInfo();
     sideInputInfo.setSources(Arrays.asList(sideInputSources));
     sideInputInfo.setKind(CloudObject.forClassName("collection"));
     return sideInputInfo;
   }
 
-  com.google.api.services.dataflow.model.Source createSideInputSource(Integer... ints)
-      throws Exception {
-    return InMemorySourceFactoryTest.createInMemoryCloudSource(
-        Arrays.asList(ints),
-        null, null,
-        BigEndianIntegerCoder.of());
+  Source createSideInputSource(Integer... ints) throws Exception {
+    return InMemoryReaderFactoryTest.createInMemoryCloudSource(
+        Arrays.asList(ints), null, null, BigEndianIntegerCoder.of());
   }
 
   void assertThatContains(Object actual, Object... expected) {
@@ -77,52 +73,41 @@ public class SideInputUtilsTest {
 
   @Test
   public void testReadSingletonSideInput() throws Exception {
-    SideInputInfo sideInputInfo =
-        createSingletonSideInputInfo(createSideInputSource(42));
+    SideInputInfo sideInputInfo = createSingletonSideInputInfo(createSideInputSource(42));
 
-    assertEquals(42,
-                 SideInputUtils.readSideInput(PipelineOptionsFactory.create(),
-                                              sideInputInfo,
-                                              new BatchModeExecutionContext()));
+    assertEquals(
+        42,
+        SideInputUtils.readSideInput(
+            PipelineOptionsFactory.create(), sideInputInfo, new BatchModeExecutionContext()));
   }
 
   @Test
   public void testReadEmptyCollectionSideInput() throws Exception {
-    SideInputInfo sideInputInfo =
-        createCollectionSideInputInfo(createSideInputSource());
+    SideInputInfo sideInputInfo = createCollectionSideInputInfo(createSideInputSource());
 
-    assertThatContains(
-        SideInputUtils.readSideInput(PipelineOptionsFactory.create(),
-                                     sideInputInfo,
-                                     new BatchModeExecutionContext()));
+    assertThatContains(SideInputUtils.readSideInput(
+        PipelineOptionsFactory.create(), sideInputInfo, new BatchModeExecutionContext()));
   }
 
   @Test
   public void testReadCollectionSideInput() throws Exception {
-    SideInputInfo sideInputInfo =
-        createCollectionSideInputInfo(createSideInputSource(3, 4, 5, 6));
+    SideInputInfo sideInputInfo = createCollectionSideInputInfo(createSideInputSource(3, 4, 5, 6));
 
     assertThatContains(
-        SideInputUtils.readSideInput(PipelineOptionsFactory.create(),
-                                     sideInputInfo,
-                                     new BatchModeExecutionContext()),
+        SideInputUtils.readSideInput(
+            PipelineOptionsFactory.create(), sideInputInfo, new BatchModeExecutionContext()),
         3, 4, 5, 6);
   }
 
   @Test
   public void testReadCollectionShardedSideInput() throws Exception {
     SideInputInfo sideInputInfo =
-        createCollectionSideInputInfo(
-            createSideInputSource(3),
-            createSideInputSource(),
-            createSideInputSource(4, 5),
-            createSideInputSource(6),
-            createSideInputSource());
+        createCollectionSideInputInfo(createSideInputSource(3), createSideInputSource(),
+            createSideInputSource(4, 5), createSideInputSource(6), createSideInputSource());
 
     assertThatContains(
-        SideInputUtils.readSideInput(PipelineOptionsFactory.create(),
-                                     sideInputInfo,
-                                     new BatchModeExecutionContext()),
+        SideInputUtils.readSideInput(
+            PipelineOptionsFactory.create(), sideInputInfo, new BatchModeExecutionContext()),
         3, 4, 5, 6);
   }
 
@@ -131,15 +116,13 @@ public class SideInputUtilsTest {
     CloudObject sideInputKind = CloudObject.forClassName("singleton");
     Object elem = "hi";
     List<Object> elems = Arrays.asList(elem);
-    assertEquals(elem,
-                 SideInputUtils.readSideInputValue(sideInputKind, elems));
+    assertEquals(elem, SideInputUtils.readSideInputValue(sideInputKind, elems));
   }
 
   @Test
   public void testReadCollectionSideInputValue() throws Exception {
     CloudObject sideInputKind = CloudObject.forClassName("collection");
     List<Object> elems = Arrays.<Object>asList("hi", "there", "bob");
-    assertEquals(elems,
-                 SideInputUtils.readSideInputValue(sideInputKind, elems));
+    assertEquals(elems, SideInputUtils.readSideInputValue(sideInputKind, elems));
   }
 }

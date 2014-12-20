@@ -36,7 +36,7 @@ import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.Metric;
 import com.google.cloud.dataflow.sdk.util.common.worker.CustomSourceFormat;
-import com.google.cloud.dataflow.sdk.util.common.worker.Source;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkProgressUpdater;
 
@@ -63,7 +63,6 @@ import javax.annotation.Nullable;
  * execute it, and update the work.
  */
 public class DataflowWorker {
-
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorker.class);
 
   /**
@@ -77,8 +76,7 @@ public class DataflowWorker {
    */
   private final DataflowWorkerHarnessOptions options;
 
-  public DataflowWorker(WorkUnitClient workUnitClient,
-      DataflowWorkerHarnessOptions options) {
+  public DataflowWorker(WorkUnitClient workUnitClient, DataflowWorkerHarnessOptions options) {
     this.workUnitClient = workUnitClient;
     this.options = options;
   }
@@ -114,20 +112,17 @@ public class DataflowWorker {
       ExecutionContext executionContext = new BatchModeExecutionContext();
 
       if (workItem.getMapTask() != null) {
-        worker = MapTaskExecutorFactory.create(options,
-                                               workItem.getMapTask(),
-                                               executionContext);
+        worker = MapTaskExecutorFactory.create(options, workItem.getMapTask(), executionContext);
 
       } else if (workItem.getSourceOperationTask() != null) {
-        worker = SourceOperationExecutorFactory.create(
-            workItem.getSourceOperationTask());
+        worker = SourceOperationExecutorFactory.create(workItem.getSourceOperationTask());
 
       } else {
         throw new RuntimeException("unknown kind of work item: " + workItem.toString());
       }
 
-      WorkProgressUpdater progressUpdater = new DataflowWorkProgressUpdater(
-          workItem, worker, workUnitClient, options);
+      WorkProgressUpdater progressUpdater =
+          new DataflowWorkProgressUpdater(workItem, worker, workUnitClient, options);
       progressUpdater.startReportingProgress();
 
       // Blocks while executing the work.
@@ -155,13 +150,13 @@ public class DataflowWorker {
 
       // TODO: Find out a generic way for the WorkExecutor to report work-specific results
       // into the work update.
-      CustomSourceFormat.SourceOperationResponse sourceOperationResponse =
+      CustomSourceFormat.OperationResponse sourceOperationResponse =
           (worker instanceof SourceOperationExecutor)
               ? cloudSourceOperationResponseToSourceOperationResponse(
-              ((SourceOperationExecutor) worker).getResponse())
+                  ((SourceOperationExecutor) worker).getResponse())
               : null;
-      reportStatus(options, "Success", workItem, counters, metrics, sourceOperationResponse,
-          null /*errors*/);
+      reportStatus(
+          options, "Success", workItem, counters, metrics, sourceOperationResponse, null/*errors*/);
 
       return true;
 
@@ -181,8 +176,7 @@ public class DataflowWorker {
   }
 
   /** Handles the exception thrown when reading and executing the work. */
-  private void handleWorkError(
-      WorkItem workItem, WorkExecutor worker, Throwable e)
+  private void handleWorkError(WorkItem workItem, WorkExecutor worker, Throwable e)
       throws IOException {
     LOG.warn("Uncaught exception occurred during work unit execution:", e);
 
@@ -190,14 +184,12 @@ public class DataflowWorker {
     // into the client.
     Throwable t = e instanceof UserCodeException ? e.getCause() : e;
     Status error = new Status();
-    error.setCode(2);  // Code.UNKNOWN.  TODO: Replace with a generated definition.
+    error.setCode(2); // Code.UNKNOWN.  TODO: Replace with a generated definition.
     // TODO: Attach the stack trace as exception details, not to the message.
     error.setMessage(buildCloudStackTrace(t));
 
-    reportStatus(options, "Failure", workItem,
-        worker == null ? null : worker.getOutputCounters(),
-        worker == null ? null : worker.getOutputMetrics(),
-        null /*sourceOperationResponse*/,
+    reportStatus(options, "Failure", workItem, worker == null ? null : worker.getOutputCounters(),
+        worker == null ? null : worker.getOutputMetrics(), null/*sourceOperationResponse*/,
         error == null ? null : Collections.singletonList(error));
   }
 
@@ -225,30 +217,21 @@ public class DataflowWorker {
     return result.toString();
   }
 
-  private void reportStatus(DataflowWorkerHarnessOptions options,
-                            String status,
-                            WorkItem workItem,
-                            @Nullable CounterSet counters,
-                            @Nullable Collection<Metric<?>> metrics,
-                            @Nullable CustomSourceFormat.SourceOperationResponse
-                                sourceOperationResponse,
-                            @Nullable List<Status> errors)
-      throws IOException {
+  private void reportStatus(DataflowWorkerHarnessOptions options, String status, WorkItem workItem,
+      @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
+      @Nullable CustomSourceFormat.OperationResponse sourceOperationResponse,
+      @Nullable List<Status> errors) throws IOException {
     LOG.info("{} processing work item {}", status, uniqueId(workItem));
-    WorkItemStatus workItemStatus = buildStatus(workItem, true /*completed*/,
-        counters, metrics, options, null, null, sourceOperationResponse, errors);
+    WorkItemStatus workItemStatus = buildStatus(workItem, true/*completed*/, counters, metrics,
+        options, null, null, sourceOperationResponse, errors);
     workUnitClient.reportWorkItemStatus(workItemStatus);
   }
 
-  static WorkItemStatus buildStatus(
-      WorkItem workItem,
-      boolean completed,
-      @Nullable CounterSet counters,
-      @Nullable Collection<Metric<?>> metrics,
-      DataflowWorkerHarnessOptions options,
-      @Nullable Source.Progress progress,
-      @Nullable Source.Position stopPosition,
-      @Nullable CustomSourceFormat.SourceOperationResponse sourceOperationResponse,
+  static WorkItemStatus buildStatus(WorkItem workItem, boolean completed,
+      @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
+      DataflowWorkerHarnessOptions options, @Nullable Reader.Progress progress,
+      @Nullable Reader.Position stopPosition,
+      @Nullable CustomSourceFormat.OperationResponse sourceOperationResponse,
       @Nullable List<Status> errors) {
     WorkItemStatus status = new WorkItemStatus();
     status.setWorkItemId(Long.toString(workItem.getId()));
@@ -323,8 +306,7 @@ public class DataflowWorker {
      * @param workItemStatus the status to report
      * @return a {@link WorkServiceState} (e.g. a new stop position)
      */
-    public abstract WorkItemServiceState reportWorkItemStatus(
-        WorkItemStatus workItemStatus)
+    public abstract WorkItemServiceState reportWorkItemStatus(WorkItemStatus workItemStatus)
         throws IOException;
   }
 }

@@ -16,8 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToSourcePosition;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToSourceProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourcePositionToCloudPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.util.CloudCounterUtils.extractCounter;
@@ -52,7 +52,7 @@ import com.google.cloud.dataflow.sdk.util.common.Metric;
 import com.google.cloud.dataflow.sdk.util.common.Metric.DoubleMetric;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
 import com.google.cloud.dataflow.sdk.util.common.worker.Operation;
-import com.google.cloud.dataflow.sdk.util.common.worker.Source;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 
 import org.hamcrest.Description;
@@ -83,24 +83,23 @@ public class DataflowWorkProgressUpdaterTest {
     ApproximateProgress progress = null;
 
     public TestMapTaskExecutor(CounterSet counters) {
-      super(new ArrayList<Operation>(),
-            counters,
-            new StateSampler("test", counters.getAddCounterMutator()));
+      super(new ArrayList<Operation>(), counters,
+          new StateSampler("test", counters.getAddCounterMutator()));
     }
 
     @Override
-    public Source.Progress getWorkerProgress() {
-      return cloudProgressToSourceProgress(progress);
+    public Reader.Progress getWorkerProgress() {
+      return cloudProgressToReaderProgress(progress);
     }
 
     @Override
-    public Source.Position proposeStopPosition(
-        Source.Progress suggestedStopPoint) {
-      @Nullable ApproximateProgress progress = sourceProgressToCloudProgress(suggestedStopPoint);
+    public Reader.Position proposeStopPosition(Reader.Progress suggestedStopPoint) {
+      @Nullable
+      ApproximateProgress progress = sourceProgressToCloudProgress(suggestedStopPoint);
       if (progress == null) {
         return null;
       }
-      return cloudPositionToSourcePosition(progress.getPosition());
+      return cloudPositionToReaderPosition(progress.getPosition());
     }
 
     public void setWorkerProgress(ApproximateProgress progress) {
@@ -124,8 +123,10 @@ public class DataflowWorkProgressUpdaterTest {
   private static final Double COUNTER_VALUE2 = Math.PI;
   private static final String COUNTER_VALUE3 = "value";
 
-  @Rule public final ExpectedException thrown = ExpectedException.none();
-  @Mock private DataflowWorker.WorkUnitClient workUnitClient;
+  @Rule
+  public final ExpectedException thrown = ExpectedException.none();
+  @Mock
+  private DataflowWorker.WorkUnitClient workUnitClient;
   private CounterSet counters;
   private List<Metric<?>> metrics;
   private TestMapTaskExecutor worker;
@@ -160,8 +161,7 @@ public class DataflowWorkProgressUpdaterTest {
     workItem.setLeaseExpireTime(toCloudTime(new Instant(nowMillis + 1000)));
     workItem.setReportStatusInterval(toCloudDuration(Duration.millis(500)));
 
-    progressUpdater = new DataflowWorkProgressUpdater(
-        workItem, worker, workUnitClient, options);
+    progressUpdater = new DataflowWorkProgressUpdater(workItem, worker, workUnitClient, options);
   }
 
   // TODO: Remove sleeps from this test by using a mock sleeper.  This
@@ -169,18 +169,17 @@ public class DataflowWorkProgressUpdaterTest {
   // not use a ScheduledThreadExecutor which relies on real time passing.
   @Test(timeout = 2000)
   public void workProgressUpdaterUpdates() throws Exception {
-    when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class))).thenReturn(
-        generateServiceState(nowMillis + 2000, 1000, null));
+    when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
+        .thenReturn(generateServiceState(nowMillis + 2000, 1000, null));
     setUpCounters(2);
     setUpMetrics(3);
     setUpProgress(makeRecordIndexProgress(1L));
     progressUpdater.startReportingProgress();
     // The initial update should be sent after leaseRemainingTime / 2.
-    verify(workUnitClient, timeout(600)).reportWorkItemStatus(argThat(
-        new ExpectedDataflowProgress()
-        .withCounters(2)
-        .withMetrics(3)
-        .withProgress(makeRecordIndexProgress(1L))));
+    verify(workUnitClient, timeout(600))
+        .reportWorkItemStatus(
+            argThat(new ExpectedDataflowProgress().withCounters(2).withMetrics(3).withProgress(
+                makeRecordIndexProgress(1L))));
     progressUpdater.stopReportingProgress();
   }
 
@@ -192,8 +191,7 @@ public class DataflowWorkProgressUpdaterTest {
     // us to truncate the task at index 3, and the next two will not ask us to
     // truncate at all.
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
-        .thenReturn(generateServiceState(nowMillis + 2000, 1000,
-                                         makeRecordIndexPosition(3L)))
+        .thenReturn(generateServiceState(nowMillis + 2000, 1000, makeRecordIndexPosition(3L)))
         .thenReturn(generateServiceState(nowMillis + 3000, 2000, null))
         .thenReturn(generateServiceState(nowMillis + 4000, 3000, null));
 
@@ -203,22 +201,22 @@ public class DataflowWorkProgressUpdaterTest {
     progressUpdater.startReportingProgress();
     // The initial update should be sent after
     // leaseRemainingTime (1000) / 2 = 500.
-    verify(workUnitClient, timeout(600)).reportWorkItemStatus(argThat(
-        new ExpectedDataflowProgress()
-        .withCounters(3)
-        .withMetrics(2)
-        .withProgress(makeRecordIndexProgress(1L))));
+    verify(workUnitClient, timeout(600))
+        .reportWorkItemStatus(
+            argThat(new ExpectedDataflowProgress().withCounters(3).withMetrics(2).withProgress(
+                makeRecordIndexProgress(1L))));
 
     setUpCounters(5);
     setUpMetrics(6);
     setUpProgress(makeRecordIndexProgress(2L));
     // The second update should be sent after one second (2000 / 2).
-    verify(workUnitClient, timeout(1100)).reportWorkItemStatus(argThat(
-        new ExpectedDataflowProgress()
-        .withCounters(5)
-        .withMetrics(6)
-        .withProgress(makeRecordIndexProgress(2L))
-        .withStopPosition(makeRecordIndexPosition(3L))));
+    verify(workUnitClient, timeout(1100))
+        .reportWorkItemStatus(argThat(
+            new ExpectedDataflowProgress()
+                .withCounters(5)
+                .withMetrics(6)
+                .withProgress(makeRecordIndexProgress(2L))
+                .withStopPosition(makeRecordIndexPosition(3L))));
 
     // After the request is sent, reset stop position cache to null.
     assertNull(progressUpdater.getStopPosition());
@@ -226,9 +224,9 @@ public class DataflowWorkProgressUpdaterTest {
     setUpProgress(makeRecordIndexProgress(3L));
 
     // The third update should be sent after one and half seconds (3000 / 2).
-    verify(workUnitClient, timeout(1600)).reportWorkItemStatus(argThat(
-        new ExpectedDataflowProgress()
-        .withProgress(makeRecordIndexProgress(3L))));
+    verify(workUnitClient, timeout(1600))
+        .reportWorkItemStatus(
+            argThat(new ExpectedDataflowProgress().withProgress(makeRecordIndexProgress(3L))));
 
     progressUpdater.stopReportingProgress();
   }
@@ -237,29 +235,30 @@ public class DataflowWorkProgressUpdaterTest {
   @Test(timeout = 3000)
   public void workProgressUpdaterLastUpdate() throws Exception {
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
-        .thenReturn(generateServiceState(nowMillis + 2000, 1000,
-                                         makeRecordIndexPosition(2L)))
+        .thenReturn(generateServiceState(nowMillis + 2000, 1000, makeRecordIndexPosition(2L)))
         .thenReturn(generateServiceState(nowMillis + 3000, 2000, null));
 
     setUpProgress(makeRecordIndexProgress(1L));
     progressUpdater.startReportingProgress();
     // The initial update should be sent after leaseRemainingTime / 2 = 500 msec.
     Thread.sleep(600);
-    verify(workUnitClient, timeout(200)).reportWorkItemStatus(argThat(
-        new ExpectedDataflowProgress()
-        .withProgress(makeRecordIndexProgress(1L))));
+    verify(workUnitClient, timeout(200))
+        .reportWorkItemStatus(
+            argThat(new ExpectedDataflowProgress().withProgress(makeRecordIndexProgress(1L))));
 
     // The first update should include the new actual stop position.
     // Verify that the progressUpdater has recorded it.
-    assertEquals(makeRecordIndexPosition(2L),
+    assertEquals(
+        makeRecordIndexPosition(2L),
         sourcePositionToCloudPosition(progressUpdater.getStopPosition()));
 
     setUpProgress(makeRecordIndexProgress(2L));
     // The second update should be sent after one second (2000 / 2).
-    Thread.sleep(200);  // not enough time for an update so the latest stop position is not
-                        // acknowledged.
+    Thread.sleep(200); // not enough time for an update so the latest stop position is not
+    // acknowledged.
     // Check that the progressUpdater still has a pending stop position to send
-    assertEquals(makeRecordIndexPosition(2L),
+    assertEquals(
+        makeRecordIndexPosition(2L),
         sourcePositionToCloudPosition(progressUpdater.getStopPosition()));
 
     progressUpdater.stopReportingProgress(); // should send the last update
@@ -267,9 +266,9 @@ public class DataflowWorkProgressUpdaterTest {
     assertNull(progressUpdater.getStopPosition());
 
     // Verify that the last update contained the latest stop position
-    verify(workUnitClient, timeout(1000)).reportWorkItemStatus(argThat(
-        new ExpectedDataflowProgress()
-        .withStopPosition(makeRecordIndexPosition(2L))));
+    verify(workUnitClient, timeout(1000))
+        .reportWorkItemStatus(
+            argThat(new ExpectedDataflowProgress().withStopPosition(makeRecordIndexPosition(2L))));
   }
 
   private void setUpCounters(int n) {
@@ -282,13 +281,16 @@ public class DataflowWorkProgressUpdaterTest {
   private static Counter<?> makeCounter(int i) {
     if (i % 3 == 0) {
       return Counter.longs(COUNTER_NAME + i, COUNTER_KINDS[0])
-          .addValue(COUNTER_VALUE1 + i).addValue(COUNTER_VALUE1 + i * 2);
+          .addValue(COUNTER_VALUE1 + i)
+          .addValue(COUNTER_VALUE1 + i * 2);
     } else if (i % 3 == 1) {
       return Counter.doubles(COUNTER_NAME + i, COUNTER_KINDS[1])
-          .addValue(COUNTER_VALUE2 + i).addValue(COUNTER_VALUE2 + i * 3);
+          .addValue(COUNTER_VALUE2 + i)
+          .addValue(COUNTER_VALUE2 + i * 3);
     } else {
       return Counter.strings(COUNTER_NAME + i, COUNTER_KINDS[2])
-          .addValue(COUNTER_VALUE3 + i).addValue(COUNTER_NAME + i * 5);
+          .addValue(COUNTER_VALUE3 + i)
+          .addValue(COUNTER_NAME + i * 5);
     }
   }
 
@@ -318,10 +320,8 @@ public class DataflowWorkProgressUpdaterTest {
     return new ApproximateProgress().setPosition(makeRecordIndexPosition(index));
   }
 
-  private WorkItemServiceState generateServiceState(
-      long leaseExpirationTimestamp, int progressReportIntervalMs,
-      Position suggestedStopPosition)
-      throws IOException {
+  private WorkItemServiceState generateServiceState(long leaseExpirationTimestamp,
+      int progressReportIntervalMs, Position suggestedStopPosition) throws IOException {
     WorkItemServiceState responseState = new WorkItemServiceState();
     responseState.setFactory(Transport.getJsonFactory());
     responseState.setLeaseExpireTime(toCloudTime(new Instant(leaseExpirationTimestamp)));
@@ -336,10 +336,14 @@ public class DataflowWorkProgressUpdaterTest {
   }
 
   private static final class ExpectedDataflowProgress extends ArgumentMatcher<WorkItemStatus> {
-    @Nullable Integer counterCount;
-    @Nullable Integer metricCount;
-    @Nullable ApproximateProgress expectedProgress;
-    @Nullable Position expectedStopPosition;
+    @Nullable
+    Integer counterCount;
+    @Nullable
+    Integer metricCount;
+    @Nullable
+    ApproximateProgress expectedProgress;
+    @Nullable
+    Position expectedStopPosition;
 
     public ExpectedDataflowProgress withCounters(Integer counterCount) {
       this.counterCount = counterCount;
@@ -388,9 +392,7 @@ public class DataflowWorkProgressUpdaterTest {
     @Override
     public boolean matches(Object status) {
       WorkItemStatus st = (WorkItemStatus) status;
-      return matchCountersAndMetrics(st)
-          && matchProgress(st)
-          && matchStopPosition(st);
+      return matchCountersAndMetrics(st) && matchProgress(st) && matchStopPosition(st);
     }
 
     private boolean matchCountersAndMetrics(WorkItemStatus status) {
@@ -405,8 +407,7 @@ public class DataflowWorkProgressUpdaterTest {
       }
 
       for (int i = 0; i < counterCount; i++) {
-        if (!sentUpdates.contains(
-            CounterTestUtils.extractCounterUpdate(makeCounter(i), false))) {
+        if (!sentUpdates.contains(CounterTestUtils.extractCounterUpdate(makeCounter(i), false))) {
           return false;
         }
       }

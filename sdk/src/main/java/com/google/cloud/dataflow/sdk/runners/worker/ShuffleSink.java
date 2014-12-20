@@ -37,8 +37,12 @@ import java.io.IOException;
  * @param <T> the type of the elements written to the sink
  */
 public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
-
-  enum ShuffleKind { UNGROUPED, PARTITION_KEYS, GROUP_KEYS, GROUP_KEYS_AND_SORT_VALUES }
+  enum ShuffleKind {
+    UNGROUPED,
+    PARTITION_KEYS,
+    GROUP_KEYS,
+    GROUP_KEYS_AND_SORT_VALUES
+  }
 
   static final long SHUFFLE_WRITER_BUFFER_SIZE = 128 << 20;
 
@@ -58,8 +62,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
   Coder sortKeyCoder;
   Coder sortValueCoder;
 
-  public static ShuffleKind parseShuffleKind(String shuffleKind)
-      throws Exception {
+  public static ShuffleKind parseShuffleKind(String shuffleKind) throws Exception {
     try {
       return Enum.valueOf(ShuffleKind.class, shuffleKind.trim().toUpperCase());
     } catch (IllegalArgumentException e) {
@@ -67,11 +70,8 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     }
   }
 
-  public ShuffleSink(PipelineOptions options,
-                     byte[] shuffleWriterConfig,
-                     ShuffleKind shuffleKind,
-                     Coder<WindowedValue<T>> coder)
-      throws Exception {
+  public ShuffleSink(PipelineOptions options, byte[] shuffleWriterConfig, ShuffleKind shuffleKind,
+      Coder<WindowedValue<T>> coder) throws Exception {
     this.shuffleWriterConfig = shuffleWriterConfig;
     this.shuffleKind = shuffleKind;
     initCoder(coder);
@@ -107,8 +107,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     this.elemCoder = windowedElemCoder.getValueCoder();
     if (shardByKey) {
       if (!(elemCoder instanceof KvCoder)) {
-        throw new Exception(
-            "unexpected kind of coder for elements written to "
+        throw new Exception("unexpected kind of coder for elements written to "
             + "a key-grouping shuffle");
       }
       KvCoder<?, ?> kvCoder = (KvCoder) elemCoder;
@@ -118,8 +117,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
         // TODO: Decide the representation of sort-keyed values.
         // For now, we'll just use KVs.
         if (!(valueCoder instanceof KvCoder)) {
-          throw new Exception(
-              "unexpected kind of coder for values written to "
+          throw new Exception("unexpected kind of coder for values written to "
               + "a value-sorting shuffle");
         }
         KvCoder<?, ?> kvValueCoder = (KvCoder) valueCoder;
@@ -168,8 +166,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       T elem = windowedElem.getValue();
       if (shardByKey) {
         if (!(elem instanceof KV)) {
-          throw new AssertionError(
-              "expecting the values written to a key-grouping shuffle "
+          throw new AssertionError("expecting the values written to a key-grouping shuffle "
               + "to be KVs");
         }
         KV<?, ?> kv = (KV) elem;
@@ -180,8 +177,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
 
         if (sortValues) {
           if (!(value instanceof KV)) {
-            throw new AssertionError(
-                "expecting the value parts of the KVs written to "
+            throw new AssertionError("expecting the value parts of the KVs written to "
                 + "a value-sorting shuffle to also be KVs");
           }
           KV<?, ?> kvValue = (KV) value;
@@ -189,12 +185,11 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
           Object sortValue = kvValue.getValue();
 
           // TODO: Need to coordinate with the
-          // GroupingShuffleSource, to make sure it knows how to
+          // GroupingShuffleReader, to make sure it knows how to
           // reconstruct the value from the sortKeyBytes and
           // sortValueBytes.  Right now, it doesn't know between
           // sorting and non-sorting GBKs.
-          secondaryKeyBytes =
-              CoderUtils.encodeToByteArray(sortKeyCoder, sortKey);
+          secondaryKeyBytes = CoderUtils.encodeToByteArray(sortKeyCoder, sortKey);
           valueBytes = CoderUtils.encodeToByteArray(sortValueCoder, sortValue);
 
         } else if (groupValues) {
@@ -222,15 +217,13 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
         // for writing a single-sharded ordered PCollection through a
         // shuffle, since the order of elements in the input will be
         // preserved in the output.
-        keyBytes =
-            CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), seqNum++);
+        keyBytes = CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), seqNum++);
 
         secondaryKeyBytes = null;
         valueBytes = CoderUtils.encodeToByteArray(windowedElemCoder, windowedElem);
       }
 
-      return writer.put(new ShuffleEntry(
-          keyBytes, secondaryKeyBytes, valueBytes));
+      return writer.put(new ShuffleEntry(keyBytes, secondaryKeyBytes, valueBytes));
     }
 
     @Override
@@ -242,7 +235,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
   @Override
   public SinkWriter<WindowedValue<T>> writer() throws IOException {
     Preconditions.checkArgument(shuffleWriterConfig != null);
-    return writer(new ChunkingShuffleEntryWriter(new ApplianceShuffleWriter(
-        shuffleWriterConfig, SHUFFLE_WRITER_BUFFER_SIZE)));
+    return writer(new ChunkingShuffleEntryWriter(
+        new ApplianceShuffleWriter(shuffleWriterConfig, SHUFFLE_WRITER_BUFFER_SIZE)));
   }
 }

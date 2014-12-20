@@ -63,16 +63,14 @@ public class AvroSinkTest {
 
     // Read back the file.
 
-    SeekableByteChannel inChannel = (SeekableByteChannel)
-        IOChannelUtils.getFactory(filename).open(filename);
+    SeekableByteChannel inChannel =
+        (SeekableByteChannel) IOChannelUtils.getFactory(filename).open(filename);
 
-    SeekableInput seekableInput =
-        new AvroSource.SeekableByteChannelInput(inChannel);
+    SeekableInput seekableInput = new AvroReader.SeekableByteChannelInput(inChannel);
 
     DatumReader<T> datumReader = new GenericDatumReader<>(coder.getSchema());
 
-    DataFileReader<T> fileReader = new DataFileReader<>(
-        seekableInput, datumReader);
+    DataFileReader<T> fileReader = new DataFileReader<>(seekableInput, datumReader);
 
     List<T> actual = new ArrayList<>();
     List<Long> expectedSizes = new ArrayList<>();

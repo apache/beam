@@ -42,7 +42,7 @@ import com.google.common.reflect.TypeToken;
  * an unbounded {@code PCollection}.
  *
  * <p> Each element in a {@code PCollection} may have an associated implicit
- * timestamp.  Sources assign timestamps to elements when they create
+ * timestamp.  Readers assign timestamps to elements when they create
  * {@code PCollection}s, and other {@code PTransform}s propagate these
  * timestamps from their input to their output. For example, PubsubIO.Read
  * assigns pubsub message timestamps to elements, and TextIO.Read assigns
@@ -150,8 +150,7 @@ public class PCollection<T> extends TypedPValue<T> {
     if (this.isOrdered != isOrdered) {
       if (isFinishedSpecifyingInternal()) {
         throw new IllegalStateException(
-            "cannot change the orderedness of " + this +
-            " once it's been used");
+            "cannot change the orderedness of " + this + " once it's been used");
       }
       this.isOrdered = isOrdered;
     }
@@ -162,8 +161,7 @@ public class PCollection<T> extends TypedPValue<T> {
    * Applies the given PTransform to this input PCollection, and
    * returns the PTransform's Output.
    */
-  public <Output extends POutput> Output apply(
-      PTransform<? super PCollection<T>, Output> t) {
+  public <Output extends POutput> Output apply(PTransform<? super PCollection<T>, Output> t) {
     return Pipeline.applyTransform(this, t);
   }
 

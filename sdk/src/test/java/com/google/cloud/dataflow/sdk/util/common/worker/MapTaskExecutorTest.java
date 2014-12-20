@@ -16,8 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToSourcePosition;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToSourceProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourcePositionToCloudPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
@@ -26,8 +26,8 @@ import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet.AddCounterMutator;
+import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReceiver;
-import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestSource;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
@@ -50,29 +50,22 @@ public class MapTaskExecutorTest {
 
     private static CounterSet counterSet = new CounterSet();
     private static String counterPrefix = "test-";
-    private static StateSampler stateSampler = new StateSampler(
-        counterPrefix, counterSet.getAddCounterMutator());
+    private static StateSampler stateSampler =
+        new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
 
     TestOperation(String label, List<String> log) {
-      super(label,
-            new OutputReceiver[]{},
-            counterPrefix,
-            counterSet.getAddCounterMutator(),
-            stateSampler);
+      super(label, new OutputReceiver[] {}, counterPrefix, counterSet.getAddCounterMutator(),
+          stateSampler);
       this.label = label;
       this.log = log;
     }
 
-    TestOperation(String outputName,
-                  String counterPrefix,
-                  CounterSet.AddCounterMutator addCounterMutator,
-                  StateSampler stateSampler,
-                  long outputCount) {
-      super(outputName, new OutputReceiver[]{},
-            counterPrefix, addCounterMutator, stateSampler);
+    TestOperation(String outputName, String counterPrefix,
+        CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler,
+        long outputCount) {
+      super(outputName, new OutputReceiver[] {}, counterPrefix, addCounterMutator, stateSampler);
       addCounterMutator.addCounter(
-          Counter.longs(outputName + "-ElementCount", SUM)
-          .resetToValue(outputCount));
+          Counter.longs(outputName + "-ElementCount", SUM).resetToValue(outputCount));
     }
 
     @Override
@@ -92,26 +85,21 @@ public class MapTaskExecutorTest {
   static class TestReadOperation extends ReadOperation {
     private ApproximateProgress progress = null;
 
-    TestReadOperation(OutputReceiver outputReceiver,
-                      String counterPrefix,
-                      AddCounterMutator addCounterMutator,
-                      StateSampler stateSampler) {
-      super(new TestSource(), outputReceiver,
-            counterPrefix, addCounterMutator, stateSampler);
+    TestReadOperation(OutputReceiver outputReceiver, String counterPrefix,
+        AddCounterMutator addCounterMutator, StateSampler stateSampler) {
+      super(new TestReader(), outputReceiver, counterPrefix, addCounterMutator, stateSampler);
     }
 
     @Override
-    public Source.Progress getProgress() {
-      return cloudProgressToSourceProgress(progress);
+    public Reader.Progress getProgress() {
+      return cloudProgressToReaderProgress(progress);
     }
 
     @Override
-    public Source.Position proposeStopPosition(
-        Source.Progress proposedStopPosition) {
+    public Reader.Position proposeStopPosition(Reader.Progress proposedStopPosition) {
       // Fakes the return with the same position as proposed.
-      return cloudPositionToSourcePosition(
-          sourceProgressToCloudProgress(proposedStopPosition)
-          .getPosition());
+      return cloudPositionToReaderPosition(
+          sourceProgressToCloudProgress(proposedStopPosition).getPosition());
     }
 
     public void setProgress(ApproximateProgress progress) {
@@ -123,27 +111,20 @@ public class MapTaskExecutorTest {
   public void testExecuteMapTaskExecutor() throws Exception {
     List<String> log = new ArrayList<>();
 
-    List<Operation> operations = Arrays.asList(new Operation[]{
-        new TestOperation("o1", log),
-        new TestOperation("o2", log),
-        new TestOperation("o3", log)});
+    List<Operation> operations = Arrays.asList(new Operation[] {
+        new TestOperation("o1", log), new TestOperation("o2", log), new TestOperation("o3", log)});
 
     CounterSet counters = new CounterSet();
     String counterPrefix = "test-";
-    StateSampler stateSampler = new StateSampler(
-        counterPrefix, counters.getAddCounterMutator());
-    MapTaskExecutor executor =
-        new MapTaskExecutor(operations, counters, stateSampler);
+    StateSampler stateSampler = new StateSampler(counterPrefix, counters.getAddCounterMutator());
+    MapTaskExecutor executor = new MapTaskExecutor(operations, counters, stateSampler);
 
     executor.execute();
 
-    Assert.assertThat(log, CoreMatchers.hasItems(
-        "o3 started",
-        "o2 started",
-        "o1 started",
-        "o1 finished",
-        "o2 finished",
-        "o3 finished"));
+    Assert.assertThat(
+        log,
+        CoreMatchers.hasItems(
+            "o3 started", "o2 started", "o1 started", "o1 finished", "o2 finished", "o3 finished"));
 
     executor.close();
   }
@@ -153,55 +134,51 @@ public class MapTaskExecutorTest {
   public void testGetOutputCounters() throws Exception {
     CounterSet counters = new CounterSet();
     String counterPrefix = "test-";
-    StateSampler stateSampler = new StateSampler(
-        counterPrefix, counters.getAddCounterMutator());
-    List<Operation> operations = Arrays.asList(new Operation[]{
-          new TestOperation(
-              "o1", counterPrefix, counters.getAddCounterMutator(),
-              stateSampler, 1),
-          new TestOperation(
-              "o2", counterPrefix, counters.getAddCounterMutator(),
-              stateSampler, 2),
-          new TestOperation(
-              "o3", counterPrefix, counters.getAddCounterMutator(),
-              stateSampler, 3)});
+    StateSampler stateSampler = new StateSampler(counterPrefix, counters.getAddCounterMutator());
+    List<Operation> operations = Arrays.asList(new Operation[] {
+        new TestOperation("o1", counterPrefix, counters.getAddCounterMutator(), stateSampler, 1),
+        new TestOperation("o2", counterPrefix, counters.getAddCounterMutator(), stateSampler, 2),
+        new TestOperation("o3", counterPrefix, counters.getAddCounterMutator(), stateSampler, 3)});
 
-    MapTaskExecutor executor =
-        new MapTaskExecutor(operations, counters, stateSampler);
+    MapTaskExecutor executor = new MapTaskExecutor(operations, counters, stateSampler);
 
     CounterSet counterSet = executor.getOutputCounters();
     Assert.assertEquals(
-        new CounterSet(
-            Counter.longs("o1-ElementCount", SUM).resetToValue(1L),
+        new CounterSet(Counter.longs("o1-ElementCount", SUM).resetToValue(1L),
             Counter.longs("test-o1-start-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-o1-start-msecs")).getAggregate(false)),
+                .resetToValue(
+                    ((Counter<Long>)
+                        counterSet.getExistingCounter("test-o1-start-msecs")).getAggregate(false)),
             Counter.longs("test-o1-process-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-o1-process-msecs")).getAggregate(false)),
+                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                                   "test-o1-process-msecs")).getAggregate(false)),
             Counter.longs("test-o1-finish-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-o1-finish-msecs")).getAggregate(false)),
+                .resetToValue(
+                    ((Counter<Long>)
+                        counterSet.getExistingCounter("test-o1-finish-msecs")).getAggregate(false)),
             Counter.longs("o2-ElementCount", SUM).resetToValue(2L),
             Counter.longs("test-o2-start-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-o2-start-msecs")).getAggregate(false)),
+                .resetToValue(
+                    ((Counter<Long>)
+                        counterSet.getExistingCounter("test-o2-start-msecs")).getAggregate(false)),
             Counter.longs("test-o2-process-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-o2-process-msecs")).getAggregate(false)),
+                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                                   "test-o2-process-msecs")).getAggregate(false)),
             Counter.longs("test-o2-finish-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-o2-finish-msecs")).getAggregate(false)),
+                .resetToValue(
+                    ((Counter<Long>)
+                        counterSet.getExistingCounter("test-o2-finish-msecs")).getAggregate(false)),
             Counter.longs("o3-ElementCount", SUM).resetToValue(3L),
             Counter.longs("test-o3-start-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-o3-start-msecs")).getAggregate(false)),
+                .resetToValue(
+                    ((Counter<Long>)
+                        counterSet.getExistingCounter("test-o3-start-msecs")).getAggregate(false)),
             Counter.longs("test-o3-process-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-o3-process-msecs")).getAggregate(false)),
+                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                                   "test-o3-process-msecs")).getAggregate(false)),
             Counter.longs("test-o3-finish-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-o3-finish-msecs")).getAggregate(false))),
+                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                                   "test-o3-finish-msecs")).getAggregate(false))),
         counterSet);
 
     executor.close();
@@ -211,12 +188,10 @@ public class MapTaskExecutorTest {
   public void testGetReadOperation() throws Exception {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
-    StateSampler stateSampler = new StateSampler(
-        counterPrefix, counterSet.getAddCounterMutator());
+    StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     // Test MapTaskExecutor without a single operation.
     MapTaskExecutor executor =
-        new MapTaskExecutor(new ArrayList<Operation>(),
-                            counterSet, stateSampler);
+        new MapTaskExecutor(new ArrayList<Operation>(), counterSet, stateSampler);
 
     try {
       ReadOperation readOperation = executor.getReadOperation();
@@ -225,13 +200,10 @@ public class MapTaskExecutorTest {
       // Exception expected
     }
 
-    List<Operation> operations = Arrays.asList(new Operation[]{
-        new TestOperation("o1",
-                          counterPrefix, counterSet.getAddCounterMutator(),
-                          stateSampler, 1),
-        new TestOperation("o2",
-                          counterPrefix, counterSet.getAddCounterMutator(),
-                          stateSampler, 2)});
+    List<Operation> operations = Arrays.asList(new Operation[] {
+        new TestOperation("o1", counterPrefix, counterSet.getAddCounterMutator(), stateSampler, 1),
+        new TestOperation(
+            "o2", counterPrefix, counterSet.getAddCounterMutator(), stateSampler, 2)});
     // Test MapTaskExecutor without ReadOperation.
     executor = new MapTaskExecutor(operations, counterSet, stateSampler);
 
@@ -245,10 +217,8 @@ public class MapTaskExecutorTest {
     executor.close();
 
     TestReceiver receiver = new TestReceiver(counterSet, counterPrefix);
-    operations = Arrays.asList(new Operation[]{
-        new TestReadOperation(
-            receiver, counterPrefix, counterSet.getAddCounterMutator(),
-            stateSampler)});
+    operations = Arrays.asList(new Operation[] {new TestReadOperation(
+        receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler)});
     executor = new MapTaskExecutor(operations, counterSet, stateSampler);
     Assert.assertEquals(operations.get(0), executor.getReadOperation());
     executor.close();
@@ -258,15 +228,12 @@ public class MapTaskExecutorTest {
   public void testGetProgressAndRequestSplit() throws Exception {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
-    StateSampler stateSampler = new StateSampler(
-        counterPrefix, counterSet.getAddCounterMutator());
+    StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     TestReceiver receiver = new TestReceiver(counterSet, counterPrefix);
-    TestReadOperation operation =
-        new TestReadOperation(receiver,
-                              counterPrefix, counterSet.getAddCounterMutator(),
-                              stateSampler);
-    MapTaskExecutor executor = new MapTaskExecutor(
-        Arrays.asList(new Operation[]{operation}), counterSet, stateSampler);
+    TestReadOperation operation = new TestReadOperation(
+        receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
+    MapTaskExecutor executor =
+        new MapTaskExecutor(Arrays.asList(new Operation[] {operation}), counterSet, stateSampler);
 
     operation.setProgress(new ApproximateProgress().setPosition(makePosition(1L)));
     Assert.assertEquals(
@@ -274,10 +241,8 @@ public class MapTaskExecutorTest {
         sourceProgressToCloudProgress(executor.getWorkerProgress()).getPosition());
     Assert.assertEquals(
         makePosition(1L),
-        sourcePositionToCloudPosition(
-            executor.proposeStopPosition(
-                cloudProgressToSourceProgress(
-                    new ApproximateProgress().setPosition(makePosition(1L))))));
+        sourcePositionToCloudPosition(executor.proposeStopPosition(cloudProgressToReaderProgress(
+            new ApproximateProgress().setPosition(makePosition(1L))))));
 
     executor.close();
   }

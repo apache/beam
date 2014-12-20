@@ -37,7 +37,7 @@ import java.util.Observer;
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class ExecutorTestUtils {
   // Do not instantiate.
-  private ExecutorTestUtils() { }
+  private ExecutorTestUtils() {}
 
   /** An Operation with a specified number of outputs. */
   public static class TestOperation extends Operation {
@@ -51,33 +51,23 @@ public class ExecutorTestUtils {
 
     TestOperation(int numOutputs, CounterSet counters, String counterPrefix) {
       this(numOutputs, counterPrefix, counters.getAddCounterMutator(),
-           new StateSampler(counterPrefix, counters.getAddCounterMutator()));
+          new StateSampler(counterPrefix, counters.getAddCounterMutator()));
     }
 
-    TestOperation(int numOutputs,
-                  String counterPrefix,
-                  CounterSet.AddCounterMutator addCounterMutator,
-                  StateSampler stateSampler) {
+    TestOperation(int numOutputs, String counterPrefix,
+        CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) {
       super("TestOperation",
-            createOutputReceivers(numOutputs, counterPrefix,
-                                  addCounterMutator, stateSampler),
-            counterPrefix,
-            addCounterMutator,
-            stateSampler);
+          createOutputReceivers(numOutputs, counterPrefix, addCounterMutator, stateSampler),
+          counterPrefix, addCounterMutator, stateSampler);
     }
 
-    private static OutputReceiver[] createOutputReceivers(
-        int numOutputs,
-        String counterPrefix,
-        CounterSet.AddCounterMutator addCounterMutator,
-        StateSampler stateSampler) {
+    private static OutputReceiver[] createOutputReceivers(int numOutputs, String counterPrefix,
+        CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) {
       OutputReceiver[] receivers = new OutputReceiver[numOutputs];
       for (int i = 0; i < numOutputs; i++) {
-        receivers[i] = new OutputReceiver(
-            "out_" + i,
-            new ElementByteSizeObservableCoder(StringUtf8Coder.of()),
-            counterPrefix,
-            addCounterMutator);
+        receivers[i] =
+            new OutputReceiver("out_" + i, new ElementByteSizeObservableCoder(StringUtf8Coder.of()),
+                counterPrefix, addCounterMutator);
       }
       return receivers;
     }
@@ -96,10 +86,7 @@ public class ExecutorTestUtils {
     }
 
     public TestReceiver(Coder<?> coder, CounterSet counterSet) {
-      this("test_receiver_out",
-          new ElementByteSizeObservableCoder(coder),
-          counterSet,
-          "test-");
+      this("test_receiver_out", new ElementByteSizeObservableCoder(coder), counterSet, "test-");
     }
 
     public TestReceiver(CounterSet counterSet, String counterPrefix) {
@@ -110,27 +97,20 @@ public class ExecutorTestUtils {
       this(outputName, counterSet, "test-");
     }
 
-    public TestReceiver(String outputName,
-                        CounterSet counterSet, String counterPrefix) {
-      this(outputName,
-           new ElementByteSizeObservableCoder(StringUtf8Coder.of()),
-           counterSet,
-           counterPrefix);
+    public TestReceiver(String outputName, CounterSet counterSet, String counterPrefix) {
+      this(outputName, new ElementByteSizeObservableCoder(StringUtf8Coder.of()), counterSet,
+          counterPrefix);
     }
 
-    public TestReceiver(ElementByteSizeObservable elementByteSizeObservable,
-                        CounterSet counterSet, String counterPrefix) {
-      this("test_receiver_out", elementByteSizeObservable,
-           counterSet, counterPrefix);
+    public TestReceiver(ElementByteSizeObservable elementByteSizeObservable, CounterSet counterSet,
+        String counterPrefix) {
+      this("test_receiver_out", elementByteSizeObservable, counterSet, counterPrefix);
     }
 
-    public TestReceiver(String outputName,
-                        ElementByteSizeObservable elementByteSizeObservable,
-                        CounterSet counterSet, String counterPrefix) {
-      super(outputName,
-            elementByteSizeObservable,
-            counterPrefix,
-            counterSet.getAddCounterMutator());
+    public TestReceiver(String outputName, ElementByteSizeObservable elementByteSizeObservable,
+        CounterSet counterSet, String counterPrefix) {
+      super(
+          outputName, elementByteSizeObservable, counterPrefix, counterSet.getAddCounterMutator());
     }
 
     @Override
@@ -145,8 +125,8 @@ public class ExecutorTestUtils {
     }
   }
 
-  /** A {@code Source<String>} that yields a specified set of values. */
-  public static class TestSource extends Source<String> {
+  /** A {@code Reader<String>} that yields a specified set of values. */
+  public static class TestReader extends Reader<String> {
     List<String> inputs = new ArrayList<>();
 
     public void addInput(String... inputs) {
@@ -154,20 +134,22 @@ public class ExecutorTestUtils {
     }
 
     @Override
-    public SourceIterator<String> iterator() {
-      return new TestSourceIterator(inputs);
+    public ReaderIterator<String> iterator() {
+      return new TestReaderIterator(inputs);
     }
 
-    class TestSourceIterator extends AbstractSourceIterator<String> {
+    class TestReaderIterator extends AbstractReaderIterator<String> {
       Iterator<String> iter;
       boolean closed = false;
 
-      public TestSourceIterator(List<String> inputs) {
+      public TestReaderIterator(List<String> inputs) {
         iter = inputs.iterator();
       }
 
       @Override
-      public boolean hasNext() { return iter.hasNext(); }
+      public boolean hasNext() {
+        return iter.hasNext();
+      }
 
       @Override
       public String next() {
@@ -188,18 +170,18 @@ public class ExecutorTestUtils {
    * An Observer that stores all sizes into an ArrayList, to compare
    * against the gold standard during testing.
    */
-  public static class TestSourceObserver implements Observer {
-    private final Source source;
+  public static class TestReaderObserver implements Observer {
+    private final Reader reader;
     private final List<Integer> sizes;
 
-    public TestSourceObserver(Source source) {
-      this(source, new ArrayList<Integer>());
+    public TestReaderObserver(Reader reader) {
+      this(reader, new ArrayList<Integer>());
     }
 
-    public TestSourceObserver(Source source, List<Integer> sizes) {
-      this.source = source;
+    public TestReaderObserver(Reader reader, List<Integer> sizes) {
+      this.reader = reader;
       this.sizes = sizes;
-      source.addObserver(this);
+      reader.addObserver(this);
     }
 
     @Override

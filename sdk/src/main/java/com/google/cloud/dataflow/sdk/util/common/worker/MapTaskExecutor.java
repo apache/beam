@@ -28,8 +28,7 @@ import java.util.ListIterator;
  * An executor for a map task, defined by a list of Operations.
  */
 public class MapTaskExecutor extends WorkExecutor {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(MapTaskExecutor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MapTaskExecutor.class);
 
   /** The operations in the map task, in execution order. */
   public final List<Operation> operations;
@@ -45,9 +44,8 @@ public class MapTaskExecutor extends WorkExecutor {
    * operations, which may get extended during execution
    * @param stateSampler a state sampler for tracking where time is being spent
    */
-  public MapTaskExecutor(List<Operation> operations,
-                         CounterSet counters,
-                         StateSampler stateSampler) {
+  public MapTaskExecutor(
+      List<Operation> operations, CounterSet counters, StateSampler stateSampler) {
     super(counters);
     this.operations = operations;
     this.stateSampler = stateSampler;
@@ -62,8 +60,7 @@ public class MapTaskExecutor extends WorkExecutor {
     // Starting a root operation such as a ReadOperation does the work
     // of processing the input dataset.
     LOG.debug("starting operations");
-    ListIterator<Operation> iterator =
-        operations.listIterator(operations.size());
+    ListIterator<Operation> iterator = operations.listIterator(operations.size());
     while (iterator.hasPrevious()) {
       Operation op = iterator.previous();
       op.start();
@@ -83,26 +80,24 @@ public class MapTaskExecutor extends WorkExecutor {
   }
 
   @Override
-  public Source.Progress getWorkerProgress() throws Exception {
+  public Reader.Progress getWorkerProgress() throws Exception {
     return getReadOperation().getProgress();
   }
 
   @Override
-  public Source.Position proposeStopPosition(
-      Source.Progress proposedStopPosition) throws Exception {
+  public Reader.Position proposeStopPosition(Reader.Progress proposedStopPosition)
+      throws Exception {
     return getReadOperation().proposeStopPosition(proposedStopPosition);
   }
 
   ReadOperation getReadOperation() throws Exception {
     if (operations == null || operations.isEmpty()) {
-      throw new IllegalStateException(
-          "Map task has no operation.");
+      throw new IllegalStateException("Map task has no operation.");
     }
 
     Operation readOperation = operations.get(0);
     if (!(readOperation instanceof ReadOperation)) {
-      throw new IllegalStateException(
-          "First operation in the map task is not a ReadOperation.");
+      throw new IllegalStateException("First operation in the map task is not a ReadOperation.");
     }
 
     return (ReadOperation) readOperation;

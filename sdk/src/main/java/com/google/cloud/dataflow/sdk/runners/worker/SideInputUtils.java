@@ -19,10 +19,11 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
+import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.common.worker.Source;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -41,20 +42,15 @@ public class SideInputUtils {
    * Reads the given side input, producing the contents associated
    * with a a {@link PCollectionView}.
    */
-  public static Object readSideInput(PipelineOptions options,
-                                     SideInputInfo sideInputInfo,
-                                     ExecutionContext executionContext)
-      throws Exception {
+  public static Object readSideInput(PipelineOptions options, SideInputInfo sideInputInfo,
+      ExecutionContext executionContext) throws Exception {
     Iterable<Object> elements =
         readSideInputSources(options, sideInputInfo.getSources(), executionContext);
     return readSideInputValue(sideInputInfo.getKind(), elements);
   }
 
-  static Iterable<Object> readSideInputSources(
-      PipelineOptions options,
-      List<com.google.api.services.dataflow.model.Source> sideInputSources,
-      ExecutionContext executionContext)
-      throws Exception {
+  static Iterable<Object> readSideInputSources(PipelineOptions options,
+      List<Source> sideInputSources, ExecutionContext executionContext) throws Exception {
     int numSideInputSources = sideInputSources.size();
     if (numSideInputSources == 0) {
       throw new Exception("expecting at least one side input Source");
@@ -62,25 +58,19 @@ public class SideInputUtils {
       return readSideInputSource(options, sideInputSources.get(0), executionContext);
     } else {
       List<Iterable<Object>> shards = new ArrayList<>();
-      for (com.google.api.services.dataflow.model.Source sideInputSource
-               : sideInputSources) {
+      for (Source sideInputSource : sideInputSources) {
         shards.add(readSideInputSource(options, sideInputSource, executionContext));
       }
       return new ShardedIterable<>(shards);
     }
   }
 
-  static Iterable<Object> readSideInputSource(
-      PipelineOptions options,
-      com.google.api.services.dataflow.model.Source sideInputSource,
-      ExecutionContext executionContext)
-      throws Exception {
-    return new SourceIterable<>(
-        SourceFactory.create(options, sideInputSource, executionContext));
+  static Iterable<Object> readSideInputSource(PipelineOptions options, Source sideInputSource,
+      ExecutionContext executionContext) throws Exception {
+    return new ReaderIterable<>(ReaderFactory.create(options, sideInputSource, executionContext));
   }
 
-  static Object readSideInputValue(Map<String, Object> sideInputKind,
-                                   Iterable<Object> elements)
+  static Object readSideInputValue(Map<String, Object> sideInputKind, Iterable<Object> elements)
       throws Exception {
     String className = getString(sideInputKind, PropertyNames.OBJECT_TYPE_NAME);
     if (SINGLETON_KIND.equals(className)) {
@@ -91,8 +81,7 @@ public class SideInputUtils {
           return elem;
         }
       }
-      throw new Exception(
-          "expecting a singleton side input to have a single value");
+      throw new Exception("expecting a singleton side input to have a single value");
 
     } else if (COLLECTION_KIND.equals(className)) {
       return elements;
@@ -106,27 +95,27 @@ public class SideInputUtils {
   /////////////////////////////////////////////////////////////////////////////
 
 
-  static class SourceIterable<T> implements Iterable<T> {
-    final Source<T> source;
+  static class ReaderIterable<T> implements Iterable<T> {
+    final Reader<T> reader;
 
-    public SourceIterable(Source<T> source) {
-      this.source = source;
+    public ReaderIterable(Reader<T> reader) {
+      this.reader = reader;
     }
 
     @Override
     public Iterator<T> iterator() {
       try {
-        return new SourceIterator<>(source.iterator());
+        return new ReaderIterator<>(reader.iterator());
       } catch (Exception exn) {
         throw new RuntimeException(exn);
       }
     }
   }
 
-  static class SourceIterator<T> implements Iterator<T> {
-    final Source.SourceIterator<T> iterator;
+  static class ReaderIterator<T> implements Iterator<T> {
+    final Reader.ReaderIterator<T> iterator;
 
-    public SourceIterator(Source.SourceIterator<T> iterator) {
+    public ReaderIterator(Reader.ReaderIterator<T> iterator) {
       this.iterator = iterator;
     }
 
