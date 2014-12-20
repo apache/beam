@@ -70,7 +70,7 @@ import java.util.List;
  * PCollection<String> windowed_items = item.apply(
  *   Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES)));
  * PCollection<KV<String, Long>> windowed_counts = windowed_items.apply(
- *   Count.<String>create());
+ *   Count.<String>perElement());
  * } </pre>
  *
  * <p> Let (data, timestamp) denote a data element along with its timestamp.

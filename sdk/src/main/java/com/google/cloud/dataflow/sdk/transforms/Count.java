@@ -46,7 +46,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * <pre> {@code
  * PCollection<String> words = ...;
  * PCollection<KV<String, Long>> wordCounts =
- *     words.apply(Count.<String>create());
+ *     words.apply(Count.<String>perElement());
  * } </pre>
  */
 public class Count {
