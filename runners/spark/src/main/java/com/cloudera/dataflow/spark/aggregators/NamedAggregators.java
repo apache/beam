@@ -171,13 +171,19 @@ public class NamedAggregators implements Serializable {
 
     @Override
     public void update(In element) {
-      this.state = sfunc.apply(ImmutableList.of(element, (In) state));
+      @SuppressWarnings("unchecked")
+      In thisState = (In) state;
+      this.state = sfunc.apply(ImmutableList.of(element, thisState));
     }
 
     @Override
-    public State merge(State<In, Out, Out> other) {
+    public State<In, Out, Out> merge(State<In, Out, Out> other) {
       // Add exception catching and logging here.
-      this.state = sfunc.apply(ImmutableList.of((In) state, (In) other.current()));
+      @SuppressWarnings("unchecked")
+      In thisState = (In) state;
+      @SuppressWarnings("unchecked")
+      In otherCurrent = (In) other.current();
+      this.state = sfunc.apply(ImmutableList.of(thisState, otherCurrent));
       return this;
     }
 

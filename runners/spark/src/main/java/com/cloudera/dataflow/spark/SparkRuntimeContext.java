@@ -42,7 +42,7 @@ class SparkRuntimeContext implements Serializable {
     /**
      * Map fo names to dataflow aggregators.
      */
-    private final Map<String, Aggregator> aggregators = new HashMap<>();
+    private final Map<String, Aggregator<?>> aggregators = new HashMap<>();
 
     public SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
         this.accum = jsc.accumulator(new NamedAggregators(), new AggAccumParam());
@@ -77,12 +77,13 @@ class SparkRuntimeContext implements Serializable {
     public synchronized <In, Out> Aggregator<In> createAggregator(
             String named,
             SerializableFunction<Iterable<In>, Out> sfunc) {
-        Aggregator aggregator = aggregators.get(named);
+        @SuppressWarnings("unchecked")
+        Aggregator<In> aggregator = (Aggregator<In>) aggregators.get(named);
         if (aggregator == null) {
             NamedAggregators.SerFunctionState<In, Out> state = new NamedAggregators
                     .SerFunctionState<>(sfunc);
             accum.add(new NamedAggregators(named, state));
-            aggregator = new SparkAggregator(state);
+            aggregator = new SparkAggregator<>(state);
             aggregators.put(named, aggregator);
         }
         return aggregator;
@@ -100,12 +101,14 @@ class SparkRuntimeContext implements Serializable {
     public synchronized <In, Inter, Out> Aggregator<In> createAggregator(
             String named,
             Combine.CombineFn<? super In, Inter, Out> combineFn) {
-        Aggregator aggregator = aggregators.get(named);
+        @SuppressWarnings("unchecked")
+        Aggregator<In> aggregator = (Aggregator<In>) aggregators.get(named);
         if (aggregator == null) {
-            NamedAggregators.CombineFunctionState<? super In, Inter, Out> state = new NamedAggregators
-                    .CombineFunctionState<>(combineFn);
+            @SuppressWarnings("unchecked")
+            NamedAggregators.CombineFunctionState<In, Inter, Out> state = new NamedAggregators
+                    .CombineFunctionState<>((Combine.CombineFn<In, Inter, Out>) combineFn);
             accum.add(new NamedAggregators(named, state));
-            aggregator = new SparkAggregator(state);
+            aggregator = new SparkAggregator<>(state);
             aggregators.put(named, aggregator);
         }
         return aggregator;

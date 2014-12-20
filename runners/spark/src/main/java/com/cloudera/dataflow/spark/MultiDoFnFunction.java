@@ -50,7 +50,7 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
 
     private final DoFn<I, O> mFunction;
     private final SparkRuntimeContext mRuntimeContext;
-    private final TupleTag<?> mMainOutputTag;
+    private final TupleTag<O> mMainOutputTag;
     private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
     MultiDoFnFunction(
@@ -61,12 +61,12 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
         this.mFunction = fn;
         this.mRuntimeContext = runtimeContext;
         this.mMainOutputTag = mainOutputTag;
-        this. mSideInputs = sideInputs;
+        this.mSideInputs = sideInputs;
     }
 
     @Override
     public Iterable<Tuple2<TupleTag<?>, Object>> call(Iterator<I> iter) throws Exception {
-        ProcCtxt<I, O> ctxt = new ProcCtxt(mFunction);
+        ProcCtxt ctxt = new ProcCtxt(mFunction);
         mFunction.startBundle(ctxt);
         while (iter.hasNext()) {
             ctxt.element = iter.next();
@@ -82,7 +82,7 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
                 });
     }
 
-    private class ProcCtxt<I, O> extends DoFn<I, O>.ProcessContext {
+    private class ProcCtxt extends DoFn<I, O>.ProcessContext {
 
         private final Multimap<TupleTag<?>, Object> outputs = LinkedListMultimap.create();
         private I element;
@@ -98,7 +98,9 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
 
         @Override
         public <T> T sideInput(PCollectionView<T, ?> view) {
-            return (T)  mSideInputs.get(view.getTagInternal()).getValue();
+            @SuppressWarnings("unchecked")
+            T value = (T) mSideInputs.get(view.getTagInternal()).getValue();
+            return value;
         }
 
         @Override

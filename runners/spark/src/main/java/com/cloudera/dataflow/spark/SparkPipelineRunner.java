@@ -107,8 +107,13 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
     @Override
     public void visitTransform(TransformTreeNode node) {
-      PTransform<?, ?> transform = node.getTransform();
-      TransformEvaluator evaluator = TransformTranslator.getTransformEvaluator(transform.getClass());
+      doVisitTransform(node.getTransform());
+    }
+
+    private <PT extends PTransform> void doVisitTransform(PT transform) {
+      @SuppressWarnings("unchecked")
+      TransformEvaluator<PT> evaluator = (TransformEvaluator<PT>)
+          TransformTranslator.getTransformEvaluator(transform.getClass());
       LOG.info("Evaluating " + transform);
       evaluator.evaluate(transform, ctxt);
     }

@@ -19,9 +19,23 @@ import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.transforms.*;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.Convert;
+import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.CreatePObject;
+import com.google.cloud.dataflow.sdk.transforms.Flatten;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.SeqDo;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.values.*;
+import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.PObjectValueTuple;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -44,7 +58,7 @@ public final class TransformTranslator {
     private static class FieldGetter {
         private final Map<String, Field> fields;
 
-        public FieldGetter(Class<?> clazz) {
+        FieldGetter(Class<?> clazz) {
             this.fields = Maps.newHashMap();
             for (Field f : clazz.getDeclaredFields()) {
                 f.setAccessible(true);
@@ -54,202 +68,250 @@ public final class TransformTranslator {
 
         public <T> T get(String fieldname, Object value) {
             try {
-                return (T) fields.get(fieldname).get(value);
+                @SuppressWarnings("unchecked")
+                T fieldValue = (T) fields.get(fieldname).get(value);
+                return fieldValue;
             } catch (IllegalAccessException e) {
                 throw new IllegalStateException(e);
             }
         }
     }
 
-    private static final TransformEvaluator<Flatten> FLATTEN = new TransformEvaluator<Flatten>() {
-        @Override
-        public void evaluate(Flatten transform, EvaluationContext context) {
-            PCollectionList<?> pcs = (PCollectionList<?>) context.getPipeline().getInput(transform);
-            JavaRDD[] rdds = new JavaRDD[pcs.size()];
-            for (int i = 0; i < rdds.length; i++) {
-                rdds[i] = (JavaRDD) context.getRDD(pcs.get(i));
+    private static <T> TransformEvaluator<Flatten<T>> flatten() {
+        return new TransformEvaluator<Flatten<T>>() {
+            @SuppressWarnings("unchecked")
+            @Override
+            public void evaluate(Flatten<T> transform, EvaluationContext context) {
+                PCollectionList<T> pcs = (PCollectionList<T>) context.getPipeline().getInput(transform);
+                JavaRDD<T>[] rdds = new JavaRDD[pcs.size()];
+                for (int i = 0; i < rdds.length; i++) {
+                    rdds[i] = (JavaRDD<T>) context.getRDD(pcs.get(i));
+                }
+                JavaRDD<T> rdd = context.getSparkContext().union(rdds);
+                context.setOutputRDD(transform, rdd);
             }
-            JavaRDD rdd = context.getSparkContext().union(rdds);
-            context.setOutputRDD(transform, rdd);
-        }
-    };
-    private static final TransformEvaluator<GroupByKey.GroupByKeyOnly> GBK = new TransformEvaluator<GroupByKey.GroupByKeyOnly>() {
-        @Override
-        public void evaluate(GroupByKey.GroupByKeyOnly transform, EvaluationContext context) {
-            context.setOutputRDD(transform, fromPair(toPair(context.getInputRDD(transform)).groupByKey()));
-        }
-    };
+        };
+    }
+
+    private static <K,V> TransformEvaluator<GroupByKey.GroupByKeyOnly<K,V>> gbk() {
+        return new TransformEvaluator<GroupByKey.GroupByKeyOnly<K,V>>() {
+            @Override
+            public void evaluate(GroupByKey.GroupByKeyOnly<K,V> transform, EvaluationContext context) {
+                @SuppressWarnings("unchecked")
+                JavaRDDLike<KV<K,V>,?> inRDD =
+                    (JavaRDDLike<KV<K,V>,?>) context.getInputRDD(transform);
+                context.setOutputRDD(transform, fromPair(toPair(inRDD).groupByKey()));
+            }
+        };
+    }
 
     private static final FieldGetter GROUPED_FG = new FieldGetter(Combine.GroupedValues.class);
-    private static final TransformEvaluator<Combine.GroupedValues> GROUPED = new TransformEvaluator<Combine.GroupedValues>() {
-        @Override
-        public void evaluate(Combine.GroupedValues transform, EvaluationContext context) {
-            final Combine.KeyedCombineFn keyed = GROUPED_FG.get("fn", transform);
-            context.setOutputRDD(transform, context.getInputRDD(transform).map(new Function() {
-                @Override
-                public Object call(Object input) throws Exception {
-                    KV<Object, Iterable> kv = (KV<Object, Iterable>) input;
-                    return KV.of(kv.getKey(), keyed.apply(kv.getKey(), kv.getValue()));
-                }
-            }));
-        }
-    };
-
-    private static JavaPairRDD toPair(JavaRDDLike rdd) {
-        return rdd.mapToPair(new PairFunction() {
+    private static <K,VI,VO> TransformEvaluator<Combine.GroupedValues<K,VI,VO>> grouped() {
+        return new TransformEvaluator<Combine.GroupedValues<K,VI,VO>>() {
             @Override
-            public Tuple2 call(Object o) throws Exception {
-                KV kv = (KV) o;
-                return new Tuple2(kv.getKey(), kv.getValue());
+            public void evaluate(Combine.GroupedValues<K,VI,VO> transform, EvaluationContext context) {
+                Combine.KeyedCombineFn<K,VI,?,VI> keyed = GROUPED_FG.get("fn", transform);
+                @SuppressWarnings("unchecked")
+                JavaRDDLike<KV<K,Iterable<VI>>,?> inRDD =
+                    (JavaRDDLike<KV<K,Iterable<VI>>,?>) context.getInputRDD(transform);
+                context.setOutputRDD(transform, inRDD.map(new KVFunction<>(keyed)));
+            }
+        };
+    }
+
+    private static final class KVFunction<K,V> implements Function<KV<K,Iterable<V>>, KV<K,V>> {
+        private final Combine.KeyedCombineFn<K,V,?,V> keyed;
+
+        KVFunction(Combine.KeyedCombineFn<K,V,?,V> keyed) {
+            this.keyed = keyed;
+        }
+
+        @Override
+        public KV<K,V> call(KV<K, Iterable<V>> kv) throws Exception {
+            return KV.of(kv.getKey(), keyed.apply(kv.getKey(), kv.getValue()));
+        }
+    }
+
+    private static <K,V> JavaPairRDD<K,V> toPair(JavaRDDLike<KV<K,V>,?> rdd) {
+        return rdd.mapToPair(new PairFunction<KV<K,V>,K,V>() {
+            @Override
+            public Tuple2<K,V> call(KV<K,V> kv) {
+                return new Tuple2<>(kv.getKey(), kv.getValue());
             }
         });
     }
 
-    private static JavaRDDLike fromPair(JavaPairRDD rdd) {
-        return rdd.map(new Function() {
+    private static <K,V> JavaRDDLike<KV<K,V>,?> fromPair(JavaPairRDD<K,V> rdd) {
+        return rdd.map(new Function<Tuple2<K,V>,KV<K,V>>() {
             @Override
-            public Object call(Object o) throws Exception {
-                Tuple2 t2 = (Tuple2) o;
+            public KV<K,V> call(Tuple2<K,V> t2) {
                 return KV.of(t2._1(), t2._2());
             }
         });
     }
 
-
-    private static final TransformEvaluator<ParDo.Bound> PARDO = new TransformEvaluator<ParDo.Bound>() {
-        @Override
-        public void evaluate(ParDo.Bound transform, EvaluationContext context) {
-            DoFnFunction dofn = new DoFnFunction(transform.getFn(),
-                    context.getRuntimeContext(),
-                    getSideInputs(transform.getSideInputs(), context));
-            context.setOutputRDD(transform, context.getInputRDD(transform).mapPartitions(dofn));
-        }
-    };
+    private static <I,O> TransformEvaluator<ParDo.Bound<I,O>> parDo()  {
+        return new TransformEvaluator<ParDo.Bound<I,O>>() {
+            @Override
+            public void evaluate(ParDo.Bound<I,O> transform, EvaluationContext context) {
+                DoFnFunction<I,O> dofn =
+                    new DoFnFunction<>(transform.getFn(),
+                                       context.getRuntimeContext(),
+                                       getSideInputs(transform.getSideInputs(), context));
+                @SuppressWarnings("unchecked")
+                JavaRDDLike<I,?> inRDD = (JavaRDDLike<I,?>) context.getInputRDD(transform);
+                context.setOutputRDD(transform, inRDD.mapPartitions(dofn));
+            }
+        };
+    }
 
     private static final FieldGetter MULTIDO_FG = new FieldGetter(ParDo.BoundMulti.class);
-    private static final TransformEvaluator<ParDo.BoundMulti> MULTIDO = new TransformEvaluator<ParDo.BoundMulti>() {
-        @Override
-        public void evaluate(ParDo.BoundMulti transform, EvaluationContext context) {
-            MultiDoFnFunction multifn = new MultiDoFnFunction(
+    private static <I,O> TransformEvaluator<ParDo.BoundMulti<I,O>> multiDo() {
+        return new TransformEvaluator<ParDo.BoundMulti<I,O>>() {
+            @Override
+            public void evaluate(ParDo.BoundMulti<I,O> transform, EvaluationContext context) {
+                TupleTag<O> mainOutputTag = MULTIDO_FG.get("mainOutputTag", transform);
+                MultiDoFnFunction<I,O> multifn = new MultiDoFnFunction<>(
                     transform.getFn(),
                     context.getRuntimeContext(),
-                    (TupleTag) MULTIDO_FG.get("mainOutputTag", transform),
+                    mainOutputTag,
                     getSideInputs(transform.getSideInputs(), context));
 
-            JavaPairRDD<TupleTag, Object> all = context.getInputRDD(transform)
+                @SuppressWarnings("unchecked")
+                JavaRDDLike<I,?> inRDD = (JavaRDDLike<I,?>) context.getInputRDD(transform);
+                JavaPairRDD<TupleTag<?>, Object> all = inRDD
                     .mapPartitionsToPair(multifn)
                     .cache();
 
-            PCollectionTuple pct = (PCollectionTuple) context.getOutput(transform);
-            for (Map.Entry<TupleTag<?>, PCollection<?>> e : pct.getAll().entrySet()) {
-                TupleTagFilter filter = new TupleTagFilter(e.getKey());
-                JavaPairRDD<TupleTag, Object> filtered = all.filter(filter);
-                context.setRDD(e.getValue(), filtered.values());
-            }
-        }
-    };
-
-
-    private static final TransformEvaluator<TextIO.Read.Bound> READ_TEXT = new TransformEvaluator<TextIO.Read.Bound>() {
-        @Override
-        public void evaluate(TextIO.Read.Bound transform, EvaluationContext context) {
-            String pattern = transform.getFilepattern();
-            JavaRDD rdd = context.getSparkContext().textFile(pattern);
-            context.setOutputRDD(transform, rdd);
-        }
-    };
-
-    private static final TransformEvaluator<TextIO.Write.Bound> WRITE_TEXT = new TransformEvaluator<TextIO.Write.Bound>() {
-        @Override
-        public void evaluate(TextIO.Write.Bound transform, EvaluationContext context) {
-            JavaRDDLike last = context.getInputRDD(transform);
-            String pattern = transform.getFilenamePrefix();
-            last.saveAsTextFile(pattern);
-        }
-    };
-
-    private static final TransformEvaluator<AvroIO.Read.Bound> READ_AVRO = new TransformEvaluator<AvroIO.Read.Bound>() {
-        @Override
-        public void evaluate(AvroIO.Read.Bound transform, EvaluationContext context) {
-            String pattern = transform.getFilepattern();
-            JavaRDD rdd = context.getSparkContext().textFile(pattern);
-            context.setOutputRDD(transform, rdd);
-        }
-    };
-
-    private static final TransformEvaluator<AvroIO.Write.Bound> WRITE_AVRO = new TransformEvaluator<AvroIO.Write.Bound>() {
-        @Override
-        public void evaluate(AvroIO.Write.Bound transform, EvaluationContext context) {
-            JavaRDDLike last = context.getInputRDD(transform);
-            String pattern = transform.getFilenamePrefix();
-            last.saveAsTextFile(pattern);
-        }
-    };
-
-    private static final TransformEvaluator<Create> CREATE = new TransformEvaluator<Create>() {
-        @Override
-        public void evaluate(Create transform, EvaluationContext context) {
-            Iterable elems = transform.getElements();
-            Coder coder = ((PCollection) context.getOutput(transform)).getCoder();
-            JavaRDD rdd = context.getSparkContext().parallelize(
-                    CoderHelpers.toByteArrays(elems, coder));
-            context.setOutputRDD(transform, rdd.map(CoderHelpers.fromByteFunction(coder)));
-        }
-    };
-
-    private static final TransformEvaluator<CreatePObject> CREATE_POBJ = new TransformEvaluator<CreatePObject>() {
-        @Override
-        public void evaluate(CreatePObject transform, EvaluationContext context) {
-            context.setPObjectValue((PObject) context.getOutput(transform), transform.getElement());
-        }
-    };
-
-    private static final TransformEvaluator<Convert.ToIterable> TO_ITER = new TransformEvaluator<Convert.ToIterable>() {
-        @Override
-        public void evaluate(Convert.ToIterable transform, EvaluationContext context) {
-            PCollection<?> in = (PCollection<?>) context.getInput(transform);
-            PObject<?> out = (PObject<?>) context.getOutput(transform);
-            context.setPObjectValue(out, context.get(in));
-        }
-    };
-
-    private static final TransformEvaluator<Convert.ToIterableWindowedValue> TO_ITER_WIN =
-            new TransformEvaluator<Convert.ToIterableWindowedValue>() {
-                @Override
-                public void evaluate(Convert.ToIterableWindowedValue transform, EvaluationContext context) {
-                    PCollection<?> in = (PCollection<?>) context.getInput(transform);
-                    PObject<?> out = (PObject<?>) context.getOutput(transform);
-                    context.setPObjectValue(out, Iterables.transform(context.get(in),
-                            new com.google.common.base.Function<Object, WindowedValue>() {
-                                @Override
-                                public WindowedValue apply(Object o) {
-                                    return WindowedValue.valueInGlobalWindow(o);
-                                }
-                            }));
+                PCollectionTuple pct = context.getOutput(transform);
+                for (Map.Entry<TupleTag<?>, PCollection<?>> e : pct.getAll().entrySet()) {
+                    @SuppressWarnings("unchecked")
+                    JavaPairRDD<TupleTag<?>, Object> filtered =
+                        all.filter(new TupleTagFilter(e.getKey()));
+                    context.setRDD(e.getValue(), filtered.values());
                 }
-            };
+            }
+        };
+    }
 
-    private static class TupleTagFilter implements Function<Tuple2<TupleTag, Object>, Boolean> {
-        private final TupleTag tag;
 
-        public TupleTagFilter(TupleTag tag) {
+    private static <T> TransformEvaluator<TextIO.Read.Bound<T>> readText() {
+        return new TransformEvaluator<TextIO.Read.Bound<T>>() {
+            @Override
+            public void evaluate(TextIO.Read.Bound<T> transform, EvaluationContext context) {
+                String pattern = transform.getFilepattern();
+                JavaRDD<String> rdd = context.getSparkContext().textFile(pattern);
+                context.setOutputRDD(transform, rdd);
+            }
+        };
+    }
+
+    private static <T> TransformEvaluator<TextIO.Write.Bound<T>> writeText() {
+        return new TransformEvaluator<TextIO.Write.Bound<T>>() {
+            @Override
+            public void evaluate(TextIO.Write.Bound<T> transform, EvaluationContext context) {
+                @SuppressWarnings("unchecked")
+                JavaRDDLike<T,?> last = (JavaRDDLike<T,?>) context.getInputRDD(transform);
+                String pattern = transform.getFilenamePrefix();
+                last.saveAsTextFile(pattern);
+            }
+        };
+    }
+
+    private static <T> TransformEvaluator<AvroIO.Read.Bound<T>> readAvro() {
+        return new TransformEvaluator<AvroIO.Read.Bound<T>>() {
+            @Override
+            public void evaluate(AvroIO.Read.Bound<T> transform, EvaluationContext context) {
+                String pattern = transform.getFilepattern();
+                JavaRDD<String> rdd = context.getSparkContext().textFile(pattern);
+                context.setOutputRDD(transform, rdd);
+            }
+        };
+    }
+
+    private static <T> TransformEvaluator<AvroIO.Write.Bound<T>> writeAvro() {
+        return new TransformEvaluator<AvroIO.Write.Bound<T>>() {
+            @Override
+            public void evaluate(AvroIO.Write.Bound<T> transform, EvaluationContext context) {
+                @SuppressWarnings("unchecked")
+                JavaRDDLike<T,?> last = (JavaRDDLike<T,?>) context.getInputRDD(transform);
+                String pattern = transform.getFilenamePrefix();
+                last.saveAsTextFile(pattern);
+            }
+        };
+    }
+
+    private static <T> TransformEvaluator<Create<T>> create() {
+        return new TransformEvaluator<Create<T>>() {
+            @Override
+            public void evaluate(Create<T> transform, EvaluationContext context) {
+                Iterable<T> elems = transform.getElements();
+                Coder<T> coder = context.getOutput(transform).getCoder();
+                JavaRDD<byte[]> rdd = context.getSparkContext().parallelize(
+                    CoderHelpers.toByteArrays(elems, coder));
+                context.setOutputRDD(transform, rdd.map(CoderHelpers.fromByteFunction(coder)));
+            }
+        };
+    }
+
+    private static <T> TransformEvaluator<CreatePObject<T>> createPObj() {
+        return new TransformEvaluator<CreatePObject<T>>() {
+            @Override
+            public void evaluate(CreatePObject<T> transform, EvaluationContext context) {
+                context.setPObjectValue(context.getOutput(transform), transform.getElement());
+            }
+        };
+    }
+
+    private static <T> TransformEvaluator<Convert.ToIterable<T>> toIter() {
+        return new TransformEvaluator<Convert.ToIterable<T>>() {
+            @Override
+            public void evaluate(Convert.ToIterable<T> transform, EvaluationContext context) {
+                context.setPObjectValue(context.getOutput(transform),
+                                        context.get(context.getInput(transform)));
+            }
+        };
+    }
+
+    private static <T> TransformEvaluator<Convert.ToIterableWindowedValue<T>> toIterWin() {
+        return new TransformEvaluator<Convert.ToIterableWindowedValue<T>>() {
+            @Override
+            public void evaluate(Convert.ToIterableWindowedValue<T> transform, EvaluationContext context) {
+                context.setPObjectValue(context.getOutput(transform),
+                    Iterables.transform(context.get(context.getInput(transform)),
+                                        new com.google.common.base.Function<T, WindowedValue<T>>() {
+                                            @Override
+                                            public WindowedValue<T> apply(T t) {
+                                                return WindowedValue.valueInGlobalWindow(t);
+                                            }
+                                         }));
+            }
+        };
+    }
+
+    private static class TupleTagFilter<V> implements Function<Tuple2<TupleTag<V>, Object>, Boolean> {
+        private final TupleTag<V> tag;
+
+        private TupleTagFilter(TupleTag<V> tag) {
             this.tag = tag;
         }
 
         @Override
-        public Boolean call(Tuple2<TupleTag, Object> input) throws Exception {
+        public Boolean call(Tuple2<TupleTag<V>, Object> input) {
             return tag.equals(input._1());
         }
     }
 
-    private static final TransformEvaluator<SeqDo.BoundMulti> SEQDO = new TransformEvaluator<SeqDo.BoundMulti>() {
-        @Override
-        public void evaluate(SeqDo.BoundMulti transform, EvaluationContext context) {
-            PObjectValueTuple inputValues = context.getPObjectTuple(transform);
-            PObjectValueTuple outputValues = transform.getFn().process(inputValues);
-            context.setPObjectTuple(transform, outputValues);
-        }
-    };
+    private static TransformEvaluator<SeqDo.BoundMulti> seqDo() {
+        return new TransformEvaluator<SeqDo.BoundMulti>() {
+            @Override
+            public void evaluate(SeqDo.BoundMulti transform, EvaluationContext context) {
+                PObjectValueTuple inputValues = context.getPObjectTuple(transform);
+                PObjectValueTuple outputValues = transform.getFn().process(inputValues);
+                context.setPObjectTuple(transform, outputValues);
+            }
+        };
+    }
 
     private static Map<TupleTag<?>, BroadcastHelper<?>> getSideInputs(
             Iterable<PCollectionView<?, ?>> views,
@@ -265,26 +327,27 @@ public final class TransformTranslator {
         }
     }
 
-    private static final Map<Class<? extends PTransform>, TransformEvaluator> mEvaluators = Maps.newHashMap();
+    private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> mEvaluators = Maps.newHashMap();
     static {
-        mEvaluators.put(TextIO.Read.Bound.class, READ_TEXT);
-        mEvaluators.put(TextIO.Write.Bound.class, WRITE_TEXT);
-        mEvaluators.put(AvroIO.Read.Bound.class, READ_AVRO);
-        mEvaluators.put(AvroIO.Write.Bound.class, WRITE_AVRO);
-        mEvaluators.put(ParDo.Bound.class, PARDO);
-        mEvaluators.put(ParDo.BoundMulti.class, MULTIDO);
-        mEvaluators.put(SeqDo.BoundMulti.class, SEQDO);
-        mEvaluators.put(GroupByKey.GroupByKeyOnly.class, GBK);
-        mEvaluators.put(Combine.GroupedValues.class, GROUPED);
-        mEvaluators.put(Flatten.class, FLATTEN);
-        mEvaluators.put(Create.class, CREATE);
-        mEvaluators.put(CreatePObject.class, CREATE_POBJ);
-        mEvaluators.put(Convert.ToIterable.class, TO_ITER);
-        mEvaluators.put(Convert.ToIterableWindowedValue.class, TO_ITER_WIN);
+        mEvaluators.put(TextIO.Read.Bound.class, readText());
+        mEvaluators.put(TextIO.Write.Bound.class, writeText());
+        mEvaluators.put(AvroIO.Read.Bound.class, readAvro());
+        mEvaluators.put(AvroIO.Write.Bound.class, writeAvro());
+        mEvaluators.put(ParDo.Bound.class, parDo());
+        mEvaluators.put(ParDo.BoundMulti.class, multiDo());
+        mEvaluators.put(SeqDo.BoundMulti.class, seqDo());
+        mEvaluators.put(GroupByKey.GroupByKeyOnly.class, gbk());
+        mEvaluators.put(Combine.GroupedValues.class, grouped());
+        mEvaluators.put(Flatten.class, flatten());
+        mEvaluators.put(Create.class, create());
+        mEvaluators.put(CreatePObject.class, createPObj());
+        mEvaluators.put(Convert.ToIterable.class, toIter());
+        mEvaluators.put(Convert.ToIterableWindowedValue.class, toIterWin());
     }
 
-    public static TransformEvaluator getTransformEvaluator(Class<? extends PTransform> clazz) {
-        TransformEvaluator transform = mEvaluators.get(clazz);
+    public static <PT extends PTransform> TransformEvaluator<PT> getTransformEvaluator(Class<PT> clazz) {
+        @SuppressWarnings("unchecked")
+        TransformEvaluator<PT> transform = (TransformEvaluator<PT>) mEvaluators.get(clazz);
         if (transform == null) {
             throw new IllegalStateException("No TransformEvaluator registered for " + clazz);
         }

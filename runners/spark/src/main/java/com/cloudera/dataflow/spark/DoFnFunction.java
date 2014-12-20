@@ -64,7 +64,7 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public Iterable<O> call(Iterator<I> iter) throws Exception {
-        ProcCtxt<I, O> ctxt = new ProcCtxt<>(mFunction);
+        ProcCtxt ctxt = new ProcCtxt(mFunction);
         //setup
         mFunction.startBundle(ctxt);
         //operation
@@ -77,7 +77,7 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
         return ctxt.outputs;
     }
 
-    private class ProcCtxt<I, O> extends DoFn<I, O>.ProcessContext {
+    private class ProcCtxt extends DoFn<I, O>.ProcessContext {
 
         private final List<O> outputs = new LinkedList<>();
         private I element;
@@ -93,7 +93,9 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
         @Override
         public <T> T sideInput(PCollectionView<T, ?> view) {
-            return (T) mSideInputs.get(view.getTagInternal()).getValue();
+            @SuppressWarnings("unchecked")
+            T value = (T) mSideInputs.get(view.getTagInternal()).getValue();
+            return value;
         }
 
         @Override
