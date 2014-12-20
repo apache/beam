@@ -26,7 +26,6 @@ import com.google.common.reflect.TypeToken;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.logging.Logger;
 
 /**
  * A Counter enables the aggregation of a stream of values over time.  The
@@ -40,8 +39,6 @@ import java.util.logging.Logger;
  * @param <T> the type of values aggregated by this counter
  */
 public abstract class Counter<T> {
-  private static final Logger LOG = Logger.getLogger(Counter.class.getName());
-
   /**
    * Possible kinds of counter aggregation.
    */

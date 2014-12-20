@@ -28,7 +28,6 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Source;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import java.util.logging.Logger;
 
 /**
  * A source that reads a BigQuery table and yields TableRow objects.
@@ -39,9 +38,6 @@ import java.util.logging.Logger;
  * read by each worker (i.e. the source is used as a side input).
  */
 public class BigQuerySource extends Source<TableRow> {
-  private static final Logger LOG =
-      Logger.getLogger(BigQuerySource.class.getName());
-
   final TableReference tableRef;
   final BigQueryOptions bigQueryOptions;
   final Bigquery bigQueryClient;
