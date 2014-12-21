@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.common.collect.Sets;
+import com.google.common.collect.ImmutableSet;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -41,8 +41,8 @@ public class SimpleWordCountTest {
       "hi there", "hi", "hi sue bob",
       "hi sue", "", "bob hi"};
   private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
-  private static final Set<String> EXPECTED_COUNT_SET = Sets.newHashSet("hi: 5", "there: 1", "sue: 2",
-      "bob: 2");
+  private static final Set<String> EXPECTED_COUNT_SET =
+      ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
 
   @Test
   public void testRun() throws Exception {

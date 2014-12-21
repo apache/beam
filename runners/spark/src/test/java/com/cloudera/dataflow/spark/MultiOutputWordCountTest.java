@@ -76,11 +76,11 @@ public class MultiOutputWordCountTest {
    */
   static class ExtractWordsFn extends DoFn<String, String> {
 
-    Aggregator<Integer> totalWords;
-    Aggregator<Integer> maxWordLength;
-    final PCollectionView<String, ?> regex;
+    private Aggregator<Integer> totalWords;
+    private Aggregator<Integer> maxWordLength;
+    private final PCollectionView<String, ?> regex;
 
-    public ExtractWordsFn(PCollectionView<String, ?> regex) {
+    ExtractWordsFn(PCollectionView<String, ?> regex) {
       this.regex = regex;
     }
 

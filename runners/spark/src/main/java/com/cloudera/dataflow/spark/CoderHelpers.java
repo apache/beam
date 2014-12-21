@@ -18,10 +18,10 @@ package com.cloudera.dataflow.spark;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.List;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.common.collect.Lists;
 import org.apache.spark.api.java.function.Function;
 
 /**
@@ -56,7 +56,7 @@ public final class CoderHelpers {
      * @return List of bytes representing serialized objects.
      */
     static <T> List<byte[]> toByteArrays(Iterable<T> values, Coder<T> coder) {
-        List<byte[]> res = Lists.newLinkedList();
+        List<byte[]> res = new LinkedList<>();
         for (T value : values) {
             res.add(toByteArray(value, coder));
         }

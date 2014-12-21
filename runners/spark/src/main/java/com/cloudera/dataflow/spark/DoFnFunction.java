@@ -52,10 +52,9 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
      * @param runtime    Runtime to apply function in.
      * @param sideInputs Side inputs used in DoFunction.
      */
-    public DoFnFunction(
-            DoFn<I, O> fn,
-            SparkRuntimeContext runtime,
-            Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
+    DoFnFunction(DoFn<I, O> fn,
+                 SparkRuntimeContext runtime,
+                 Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
         this.mFunction = fn;
         this.mRuntimeContext = runtime;
         this.mSideInputs = sideInputs;

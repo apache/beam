@@ -20,8 +20,8 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PObject;
 
 /**
- * Interfacing for retrieve the result(s) of running a pipeline. Allows us to translate between
- * PObjects<T> or PCollections<T> and T's or coolections of T's.
+ * Interface for retrieving the result(s) of running a pipeline. Allows us to translate between
+ * {@code PObject<T>}s or {@code PCollection<T>}s and Ts or collections of Ts.
  */
 public interface EvaluationResult extends PipelineResult {
     /**
@@ -45,8 +45,8 @@ public interface EvaluationResult extends PipelineResult {
     /**
      * Retrieves the final value of the aggregator.
      *
-     * @param aggName    name of aggragtor.
-     * @param resultType Class of final result of aggregatiohn.
+     * @param aggName    name of aggregator.
+     * @param resultType Class of final result of aggregation.
      * @param <T>        Type of final result of aggregation.
      * @return Result of aggregation associated with specified name.
      */

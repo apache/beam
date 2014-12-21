@@ -15,6 +15,8 @@
 
 package com.cloudera.dataflow.spark;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,8 +34,6 @@ import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
@@ -45,9 +45,9 @@ public class EvaluationContext implements EvaluationResult {
     private final JavaSparkContext jsc;
     private final Pipeline pipeline;
     private final SparkRuntimeContext runtime;
-    private final Map<PValue, JavaRDDLike<?,?>> rdds = Maps.newHashMap();
-    private final Set<PValue> multireads = Sets.newHashSet();
-    private final Map<PObject<?>, Object> pobjects = Maps.newHashMap();
+    private final Map<PValue, JavaRDDLike<?,?>> rdds = new HashMap<>();
+    private final Set<PValue> multireads = new HashSet<>();
+    private final Map<PObject<?>, Object> pobjects = new HashMap<>();
 
     public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
         this.jsc = jsc;

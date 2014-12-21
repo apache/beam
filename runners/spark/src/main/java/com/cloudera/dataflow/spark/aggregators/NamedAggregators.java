@@ -99,7 +99,7 @@ public class NamedAggregators implements Serializable {
   /**
    * @param <In>    Input data type
    * @param <Inter> Intermediate data type (useful for averages)
-   * @param <Out>   Output datatype
+   * @param <Out>   Output data type
    */
   public interface State<In, Inter, Out> extends Serializable {
     /**
@@ -115,11 +115,7 @@ public class NamedAggregators implements Serializable {
   }
 
   /**
-   * => combineFunction in data flow.
-   *
-   * @param <In>
-   * @param <Inter>
-   * @param <Out>
+   * =&gt; combineFunction in data flow.
    */
   public static class CombineFunctionState<In, Inter, Out> implements State<In, Inter, Out> {
 
@@ -154,10 +150,7 @@ public class NamedAggregators implements Serializable {
   }
 
   /**
-   * states correspond to dataflow objects. this one => serializable function
-   *
-   * @param <In>
-   * @param <Out>
+   * states correspond to dataflow objects. this one =&gt; serializable function
    */
   public static class SerFunctionState<In, Out> implements State<In, Out, Out> {
 

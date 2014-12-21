@@ -44,7 +44,7 @@ class SparkRuntimeContext implements Serializable {
      */
     private final Map<String, Aggregator<?>> aggregators = new HashMap<>();
 
-    public SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
+    SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
         this.accum = jsc.accumulator(new NamedAggregators(), new AggAccumParam());
     }
 
@@ -122,7 +122,7 @@ class SparkRuntimeContext implements Serializable {
     private static class SparkAggregator<In> implements Aggregator<In> {
         private final NamedAggregators.State<In, ?, ?> state;
 
-        public SparkAggregator(NamedAggregators.State<In, ?, ?> state) {
+        SparkAggregator(NamedAggregators.State<In, ?, ?> state) {
             this.state = state;
         }
 
