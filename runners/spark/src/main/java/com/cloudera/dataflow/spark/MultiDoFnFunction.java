@@ -44,112 +44,112 @@ import scala.Tuple2;
  * @param <O> Output type for DoFunction.
  */
 class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleTag<?>, Object> {
-    // TODO: I think implementing decoding logic will allow us to do away with having two types of
-    // DoFunctions. Josh originally made these two classes in order to help ease the typing of
-    // results. Correctly using coders should just fix this.
+  // TODO: I think implementing decoding logic will allow us to do away with having two types of
+  // DoFunctions. Josh originally made these two classes in order to help ease the typing of
+  // results. Correctly using coders should just fix this.
 
-    private final DoFn<I, O> mFunction;
-    private final SparkRuntimeContext mRuntimeContext;
-    private final TupleTag<O> mMainOutputTag;
-    private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
+  private final DoFn<I, O> mFunction;
+  private final SparkRuntimeContext mRuntimeContext;
+  private final TupleTag<O> mMainOutputTag;
+  private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
-    MultiDoFnFunction(
-            DoFn<I, O> fn,
-            SparkRuntimeContext runtimeContext,
-            TupleTag<O> mainOutputTag,
-            Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
-        this.mFunction = fn;
-        this.mRuntimeContext = runtimeContext;
-        this.mMainOutputTag = mainOutputTag;
-        this.mSideInputs = sideInputs;
+  MultiDoFnFunction(
+      DoFn<I, O> fn,
+      SparkRuntimeContext runtimeContext,
+      TupleTag<O> mainOutputTag,
+      Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
+    this.mFunction = fn;
+    this.mRuntimeContext = runtimeContext;
+    this.mMainOutputTag = mainOutputTag;
+    this.mSideInputs = sideInputs;
+  }
+
+  @Override
+  public Iterable<Tuple2<TupleTag<?>, Object>> call(Iterator<I> iter) throws Exception {
+    ProcCtxt ctxt = new ProcCtxt(mFunction);
+    mFunction.startBundle(ctxt);
+    while (iter.hasNext()) {
+      ctxt.element = iter.next();
+      mFunction.processElement(ctxt);
+    }
+    mFunction.finishBundle(ctxt);
+    return Iterables.transform(ctxt.outputs.entries(),
+        new Function<Map.Entry<TupleTag<?>, Object>, Tuple2<TupleTag<?>, Object>>() {
+          @Override
+          public Tuple2<TupleTag<?>, Object> apply(Map.Entry<TupleTag<?>, Object> input) {
+            return new Tuple2<TupleTag<?>, Object>(input.getKey(), input.getValue());
+          }
+        });
+  }
+
+  private class ProcCtxt extends DoFn<I, O>.ProcessContext {
+
+    private final Multimap<TupleTag<?>, Object> outputs = LinkedListMultimap.create();
+    private I element;
+
+    ProcCtxt(DoFn<I, O> fn) {
+      fn.super();
     }
 
     @Override
-    public Iterable<Tuple2<TupleTag<?>, Object>> call(Iterator<I> iter) throws Exception {
-        ProcCtxt ctxt = new ProcCtxt(mFunction);
-        mFunction.startBundle(ctxt);
-        while (iter.hasNext()) {
-            ctxt.element = iter.next();
-            mFunction.processElement(ctxt);
-        }
-        mFunction.finishBundle(ctxt);
-        return Iterables.transform(ctxt.outputs.entries(),
-                new Function<Map.Entry<TupleTag<?>, Object>, Tuple2<TupleTag<?>, Object>>() {
-                    @Override
-                    public Tuple2<TupleTag<?>, Object> apply(Map.Entry<TupleTag<?>, Object> input) {
-                        return new Tuple2<TupleTag<?>, Object>(input.getKey(), input.getValue());
-                    }
-                });
+    public PipelineOptions getPipelineOptions() {
+      return mRuntimeContext.getPipelineOptions();
     }
 
-    private class ProcCtxt extends DoFn<I, O>.ProcessContext {
-
-        private final Multimap<TupleTag<?>, Object> outputs = LinkedListMultimap.create();
-        private I element;
-
-        ProcCtxt(DoFn<I, O> fn) {
-            fn.super();
-        }
-
-        @Override
-        public PipelineOptions getPipelineOptions() {
-            return mRuntimeContext.getPipelineOptions();
-        }
-
-        @Override
-        public <T> T sideInput(PCollectionView<T, ?> view) {
-            @SuppressWarnings("unchecked")
-            T value = (T) mSideInputs.get(view.getTagInternal()).getValue();
-            return value;
-        }
-
-        @Override
-        public synchronized void output(O o) {
-            outputs.put(mMainOutputTag, o);
-        }
-
-        @Override
-        public synchronized <T> void sideOutput(TupleTag<T> tag, T t) {
-            outputs.put(tag, t);
-        }
-
-        @Override
-        public <AI, AA, AO> Aggregator<AI> createAggregator(
-                String named,
-                Combine.CombineFn<? super AI, AA, AO> combineFn) {
-            return mRuntimeContext.createAggregator(named, combineFn);
-        }
-
-        @Override
-        public <AI, AO> Aggregator<AI> createAggregator(
-                String named,
-                SerializableFunction<Iterable<AI>, AO> sfunc) {
-            return mRuntimeContext.createAggregator(named, sfunc);
-        }
-
-        @Override
-        public I element() {
-            return element;
-        }
-
-        @Override
-        public DoFn.KeyedState keyedState() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void outputWithTimestamp(O output, Instant timestamp) {
-            output(output);
-        }
-
-        @Override
-        public Instant timestamp() {
-            return Instant.now();
-        }
-
-        @Override
-        public Collection<? extends BoundedWindow> windows() {
-            return ImmutableList.of();
-        }
+    @Override
+    public <T> T sideInput(PCollectionView<T, ?> view) {
+      @SuppressWarnings("unchecked")
+      T value = (T) mSideInputs.get(view.getTagInternal()).getValue();
+      return value;
     }
+
+    @Override
+    public synchronized void output(O o) {
+      outputs.put(mMainOutputTag, o);
+    }
+
+    @Override
+    public synchronized <T> void sideOutput(TupleTag<T> tag, T t) {
+      outputs.put(tag, t);
+    }
+
+    @Override
+    public <AI, AA, AO> Aggregator<AI> createAggregator(
+        String named,
+        Combine.CombineFn<? super AI, AA, AO> combineFn) {
+      return mRuntimeContext.createAggregator(named, combineFn);
+    }
+
+    @Override
+    public <AI, AO> Aggregator<AI> createAggregator(
+        String named,
+        SerializableFunction<Iterable<AI>, AO> sfunc) {
+      return mRuntimeContext.createAggregator(named, sfunc);
+    }
+
+    @Override
+    public I element() {
+      return element;
+    }
+
+    @Override
+    public DoFn.KeyedState keyedState() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void outputWithTimestamp(O output, Instant timestamp) {
+      output(output);
+    }
+
+    @Override
+    public Instant timestamp() {
+      return Instant.now();
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> windows() {
+      return ImmutableList.of();
+    }
+  }
 }

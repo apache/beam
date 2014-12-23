@@ -152,8 +152,8 @@ License.
         </dependency>
         <dependency>
             <groupId>com.google.cloud.dataflow</groupId>
-            <artifactId>dataflow-sdk</artifactId>
-            <version>1.0.141206</version>
+            <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
+            <version>0.3.141216</version>
         </dependency>
 
         <!-- test dependencies -->

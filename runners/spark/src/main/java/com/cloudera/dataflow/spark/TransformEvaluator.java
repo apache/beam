@@ -20,5 +20,5 @@ import java.io.Serializable;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 
 public interface TransformEvaluator<PT extends PTransform> extends Serializable {
-    void evaluate(PT transform, EvaluationContext context);
+  void evaluate(PT transform, EvaluationContext context);
 }

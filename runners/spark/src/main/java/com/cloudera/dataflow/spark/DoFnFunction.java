@@ -15,13 +15,6 @@
 
 package com.cloudera.dataflow.spark;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Logger;
-
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -34,6 +27,13 @@ import com.google.common.collect.ImmutableList;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.joda.time.Instant;
 
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
+
 /**
  * Dataflow's Do functions correspond to Spark's FlatMap functions.
  *
@@ -41,112 +41,112 @@ import org.joda.time.Instant;
  * @param <O> Output element type.
  */
 class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
-    private static final Logger LOG = Logger.getLogger(DoFnFunction.class.getName());
+  private static final Logger LOG = Logger.getLogger(DoFnFunction.class.getName());
 
-    private final DoFn<I, O> mFunction;
-    private final SparkRuntimeContext mRuntimeContext;
-    private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
+  private final DoFn<I, O> mFunction;
+  private final SparkRuntimeContext mRuntimeContext;
+  private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
-    /**
-     * @param fn         DoFunction to be wrapped.
-     * @param runtime    Runtime to apply function in.
-     * @param sideInputs Side inputs used in DoFunction.
-     */
-    DoFnFunction(DoFn<I, O> fn,
-                 SparkRuntimeContext runtime,
-                 Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
-        this.mFunction = fn;
-        this.mRuntimeContext = runtime;
-        this.mSideInputs = sideInputs;
+  /**
+   * @param fn         DoFunction to be wrapped.
+   * @param runtime    Runtime to apply function in.
+   * @param sideInputs Side inputs used in DoFunction.
+   */
+  DoFnFunction(DoFn<I, O> fn,
+               SparkRuntimeContext runtime,
+               Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
+    this.mFunction = fn;
+    this.mRuntimeContext = runtime;
+    this.mSideInputs = sideInputs;
+  }
+
+
+  @Override
+  public Iterable<O> call(Iterator<I> iter) throws Exception {
+    ProcCtxt ctxt = new ProcCtxt(mFunction);
+    //setup
+    mFunction.startBundle(ctxt);
+    //operation
+    while (iter.hasNext()) {
+      ctxt.element = iter.next();
+      mFunction.processElement(ctxt);
     }
+    //cleanup
+    mFunction.finishBundle(ctxt);
+    return ctxt.outputs;
+  }
 
+  private class ProcCtxt extends DoFn<I, O>.ProcessContext {
+
+    private final List<O> outputs = new LinkedList<>();
+    private I element;
+
+    public ProcCtxt(DoFn<I, O> fn) {
+      fn.super();
+    }
 
     @Override
-    public Iterable<O> call(Iterator<I> iter) throws Exception {
-        ProcCtxt ctxt = new ProcCtxt(mFunction);
-        //setup
-        mFunction.startBundle(ctxt);
-        //operation
-        while (iter.hasNext()) {
-            ctxt.element = iter.next();
-            mFunction.processElement(ctxt);
-        }
-        //cleanup
-        mFunction.finishBundle(ctxt);
-        return ctxt.outputs;
+    public PipelineOptions getPipelineOptions() {
+      return mRuntimeContext.getPipelineOptions();
     }
 
-    private class ProcCtxt extends DoFn<I, O>.ProcessContext {
-
-        private final List<O> outputs = new LinkedList<>();
-        private I element;
-
-        public ProcCtxt(DoFn<I, O> fn) {
-            fn.super();
-        }
-
-        @Override
-        public PipelineOptions getPipelineOptions() {
-            return mRuntimeContext.getPipelineOptions();
-        }
-
-        @Override
-        public <T> T sideInput(PCollectionView<T, ?> view) {
-            @SuppressWarnings("unchecked")
-            T value = (T) mSideInputs.get(view.getTagInternal()).getValue();
-            return value;
-        }
-
-        @Override
-        public synchronized void output(O o) {
-            outputs.add(o);
-        }
-
-        @Override
-        public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
-            LOG.warning("sideoutput is an unsupported operation for DoFnFunctions. Use a " +
-                    "MultiDoFunction");
-            throw new UnsupportedOperationException("sideOutput is an unsupported operation for " +
-                    "doFunctions, use a MultiDoFunction instead.");
-        }
-
-        @Override
-        public <AI, AA, AO> Aggregator<AI> createAggregator(
-                String named,
-                Combine.CombineFn<? super AI, AA, AO> combineFn) {
-            return mRuntimeContext.createAggregator(named, combineFn);
-        }
-
-        @Override
-        public <AI, AO> Aggregator<AI> createAggregator(
-                String named,
-                SerializableFunction<Iterable<AI>, AO> sfunc) {
-            return mRuntimeContext.createAggregator(named, sfunc);
-        }
-
-        @Override
-        public I element() {
-            return element;
-        }
-
-        @Override
-        public DoFn.KeyedState keyedState() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void outputWithTimestamp(O output, Instant timestamp) {
-            output(output);
-        }
-
-        @Override
-        public Instant timestamp() {
-            return Instant.now();
-        }
-
-        @Override
-        public Collection<? extends BoundedWindow> windows() {
-            return ImmutableList.of();
-        }
+    @Override
+    public <T> T sideInput(PCollectionView<T, ?> view) {
+      @SuppressWarnings("unchecked")
+      T value = (T) mSideInputs.get(view.getTagInternal()).getValue();
+      return value;
     }
+
+    @Override
+    public synchronized void output(O o) {
+      outputs.add(o);
+    }
+
+    @Override
+    public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
+      String message = "sideOutput is an unsupported operation for doFunctions, use a" +
+          "MultiDoFunction instead.";
+      LOG.warning(message);
+      throw new UnsupportedOperationException(message);
+    }
+
+    @Override
+    public <AI, AA, AO> Aggregator<AI> createAggregator(
+        String named,
+        Combine.CombineFn<? super AI, AA, AO> combineFn) {
+      return mRuntimeContext.createAggregator(named, combineFn);
+    }
+
+    @Override
+    public <AI, AO> Aggregator<AI> createAggregator(
+        String named,
+        SerializableFunction<Iterable<AI>, AO> sfunc) {
+      return mRuntimeContext.createAggregator(named, sfunc);
+    }
+
+    @Override
+    public I element() {
+      return element;
+    }
+
+    @Override
+    public DoFn.KeyedState keyedState() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void outputWithTimestamp(O output, Instant timestamp) {
+      output(output);
+    }
+
+    @Override
+    public Instant timestamp() {
+      return Instant.now();
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> windows() {
+      return ImmutableList.of();
+    }
+  }
 }

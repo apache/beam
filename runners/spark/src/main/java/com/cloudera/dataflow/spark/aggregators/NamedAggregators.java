@@ -30,9 +30,14 @@ import java.util.TreeMap;
  * is launched. We can then add aggregators on the fly in Spark.
  */
 public class NamedAggregators implements Serializable {
-  /** Map from aggregator name to current state. */
+  /**
+   * Map from aggregator name to current state.
+   */
   private final Map<String, State<?, ?, ?>> mNamedAggregators = new TreeMap<>();
-  /** Constructs a new NamedAggregators instance. */
+
+  /**
+   * Constructs a new NamedAggregators instance.
+   */
   public NamedAggregators() {
   }
 
@@ -40,7 +45,7 @@ public class NamedAggregators implements Serializable {
    * Constructs a new named aggregators instance that contains a mapping from the specified
    * `named` to the associated initial state.
    *
-   * @param name Name of aggregator.
+   * @param name  Name of aggregator.
    * @param state Associated State.
    */
   public NamedAggregators(String name, State<?, ?, ?> state) {
@@ -48,9 +53,9 @@ public class NamedAggregators implements Serializable {
   }
 
   /**
-   * @param name Name of aggregator to retrieve.
+   * @param name      Name of aggregator to retrieve.
    * @param typeClass Type class to cast the value to.
-   * @param <T> Type to be returned.
+   * @param <T>       Type to be returned.
    * @return the value of the aggregator associated with the specified name
    */
   public <T> T getValue(String name, Class<T> typeClass) {
@@ -62,7 +67,7 @@ public class NamedAggregators implements Serializable {
    *
    * @param other The other instance of named aggregators ot merge.
    * @return This instance of Named aggregators with associated states updated to reflect the
-   *        other instance's aggregators.
+   * other instance's aggregators.
    */
   public NamedAggregators merge(NamedAggregators other) {
     for (Map.Entry<String, State<?, ?, ?>> e : other.mNamedAggregators.entrySet()) {

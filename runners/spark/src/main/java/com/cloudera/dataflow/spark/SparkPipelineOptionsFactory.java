@@ -22,6 +22,6 @@ public final class SparkPipelineOptionsFactory {
   }
 
   public static SparkPipelineOptions create() {
-    return PipelineOptionsFactory.create(SparkPipelineOptions.class);
+    return PipelineOptionsFactory.as(SparkPipelineOptions.class);
   }
 }

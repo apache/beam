@@ -55,9 +55,10 @@ public class SimpleWordCountTest {
       actualCountSet.add(s);
     }
 
-    Assert.assertEquals(String.format("Actual counts of words [%s] does not equal expected count[%s].",
-                                      actualCountSet, EXPECTED_COUNT_SET),
-                        EXPECTED_COUNT_SET, actualCountSet);
+    Assert.assertEquals(String.format("Actual counts of words [%s] does not equal expected " +
+                "count[%s].",
+            actualCountSet, EXPECTED_COUNT_SET),
+        EXPECTED_COUNT_SET, actualCountSet);
   }
 
   /**

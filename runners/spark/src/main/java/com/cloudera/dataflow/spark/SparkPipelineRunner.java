@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PValue;
+import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import java.util.logging.Logger;
@@ -29,21 +30,22 @@ import java.util.logging.Logger;
  * executable by Spark, and then submitting the job to Spark to be executed. If we wanted to run
  * a dataflow pipeline with the default options of a single threaded spark instance in local mode,
  * we would do the following:
- *    Pipeline p = [logic for pipeline creation]
- *    EvaluationResult result = SparkPipelineRunner.create().run(p);
- *
- *  To create a pipeline runner to run against a different spark cluster, with a custom master url
- *  we would do the following:
- *    Pipeline p = [logic for pipeline creation]
- *    SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
- *    options.setSparkMaster("spark://host:port");
- *    EvaluationResult result = SparkPipelineRunner.create(options).run(p);
- *
+ * Pipeline p = [logic for pipeline creation]
+ * EvaluationResult result = SparkPipelineRunner.create().run(p);
+ * <p/>
+ * To create a pipeline runner to run against a different spark cluster, with a custom master url
+ * we would do the following:
+ * Pipeline p = [logic for pipeline creation]
+ * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
+ * options.setSparkMaster("spark://host:port");
+ * EvaluationResult result = SparkPipelineRunner.create(options).run(p);
  */
 public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
   private static final Logger LOG = Logger.getLogger(SparkPipelineRunner.class.getName());
-  /** Options used in this pipeline runner.*/
+  /**
+   * Options used in this pipeline runner.
+   */
   private final SparkPipelineOptions mOptions;
 
   /**
@@ -86,7 +88,11 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
   }
 
   private JavaSparkContext getContext() {
-    return new JavaSparkContext(mOptions.getSparkMaster(), mOptions.getJobName());
+    SparkConf conf = new SparkConf();
+    conf.setMaster(mOptions.getSparkMaster());
+    conf.setAppName("spark pipeline job");
+    conf.set("sun.io.serialization.extendeddebuginfo", "true");
+    return new JavaSparkContext(conf);
   }
 
   private static class Evaluator implements Pipeline.PipelineVisitor {

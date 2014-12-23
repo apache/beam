@@ -18,18 +18,18 @@ package com.cloudera.dataflow.spark.aggregators;
 import org.apache.spark.AccumulatorParam;
 
 public class AggAccumParam implements AccumulatorParam<NamedAggregators> {
-    @Override
-    public NamedAggregators addAccumulator(NamedAggregators current, NamedAggregators added) {
-        return current.merge(added);
-    }
+  @Override
+  public NamedAggregators addAccumulator(NamedAggregators current, NamedAggregators added) {
+    return current.merge(added);
+  }
 
-    @Override
-    public NamedAggregators addInPlace(NamedAggregators current, NamedAggregators added) {
-        return addAccumulator(current, added);
-    }
+  @Override
+  public NamedAggregators addInPlace(NamedAggregators current, NamedAggregators added) {
+    return addAccumulator(current, added);
+  }
 
-    @Override
-    public NamedAggregators zero(NamedAggregators initialValue) {
-        return new NamedAggregators();
-    }
+  @Override
+  public NamedAggregators zero(NamedAggregators initialValue) {
+    return new NamedAggregators();
+  }
 }

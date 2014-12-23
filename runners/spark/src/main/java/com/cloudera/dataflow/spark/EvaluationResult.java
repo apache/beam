@@ -17,38 +17,38 @@ package com.cloudera.dataflow.spark;
 
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PObject;
+import com.google.cloud.dataflow.sdk.values.PValue;
 
 /**
  * Interface for retrieving the result(s) of running a pipeline. Allows us to translate between
  * {@code PObject<T>}s or {@code PCollection<T>}s and Ts or collections of Ts.
  */
 public interface EvaluationResult extends PipelineResult {
-    /**
-     * Retrieves an iterable of results associated with the PCollection passed in.
-     *
-     * @param pcollection Collection we wish to translate.
-     * @param <T>         Type of elements contained in collection.
-     * @return Natively types result associated with collection.
-     */
-    <T> Iterable<T> get(PCollection<T> pcollection);
+  /**
+   * Retrieves an iterable of results associated with the PCollection passed in.
+   *
+   * @param pcollection Collection we wish to translate.
+   * @param <T>         Type of elements contained in collection.
+   * @return Natively types result associated with collection.
+   */
+  <T> Iterable<T> get(PCollection<T> pcollection);
 
-    /**
-     * Retrieve an object of Type T associated with the PObject passed in.
-     *
-     * @param pobject PObject we wish to translate.
-     * @param <T>     Type of object to return.
-     * @return Native object.
-     */
-    <T> T get(PObject<T> pobject);
+  /**
+   * Retrieve an object of Type T associated with the PValue passed in.
+   *
+   * @param pval PValue to retireve associated data for.
+   * @param <T>  Type of object to return.
+   * @return Native object.
+   */
+  <T> T get(PValue pval);
 
-    /**
-     * Retrieves the final value of the aggregator.
-     *
-     * @param aggName    name of aggregator.
-     * @param resultType Class of final result of aggregation.
-     * @param <T>        Type of final result of aggregation.
-     * @return Result of aggregation associated with specified name.
-     */
-    <T> T getAggregatorValue(String aggName, Class<T> resultType);
+  /**
+   * Retrieves the final value of the aggregator.
+   *
+   * @param aggName    name of aggregator.
+   * @param resultType Class of final result of aggregation.
+   * @param <T>        Type of final result of aggregation.
+   * @return Result of aggregation associated with specified name.
+   */
+  <T> T getAggregatorValue(String aggName, Class<T> resultType);
 }

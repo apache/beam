@@ -15,35 +15,47 @@
 
 package com.cloudera.dataflow.spark;
 
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.broadcast.Broadcast;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
-
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import org.apache.spark.broadcast.Broadcast;
+import java.util.logging.Logger;
 
 class BroadcastHelper<T> implements Serializable {
-    private final Broadcast<byte[]> bcast;
-    private final Coder<T> coder;
-    private transient T value;
+  private static Logger LOG = Logger.getLogger(BroadcastHelper.class.getName());
+  private Broadcast<byte[]> bcast;
+  private final Coder<T> coder;
+  private final T input;
+  private transient T value;
 
-    BroadcastHelper(Broadcast<byte[]> bcast, Coder<T> coder) {
-        this.bcast = bcast;
-        this.coder = coder;
-    }
+  BroadcastHelper(T input, Coder<T> coder) {
+    this.input = input;
+    this.coder = coder;
+  }
 
-    public synchronized T getValue() {
-        if (value == null) {
-            value = deserialize();
-        }
-        return value;
+  public synchronized T getValue() {
+    if (value == null) {
+      value = deserialize();
     }
+    return value;
+  }
 
-    private T deserialize() {
-        try {
-            return coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
-        } catch (IOException e) {
-            throw new IllegalStateException("Error deserializing broadcast variable", e);
-        }
+  public void broadcast(JavaSparkContext jsc) {
+    this.bcast = jsc.broadcast(CoderHelpers.toByteArray(input, coder));
+  }
+
+  private T deserialize() {
+    T val;
+    try {
+      val = coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
+    } catch (IOException ioe) {
+      // this should not ever happen, log it if it does.
+      LOG.warning(ioe.getMessage());
+      val = null;
     }
+    return val;
+  }
 }
