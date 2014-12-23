@@ -67,18 +67,18 @@ public class CustomCoderTest {
     }
   }
 
-  @Test public void testEncodeDecode() throws Exception {
+  @Test
+  public void testEncodeDecode() throws Exception {
     MyCustomCoder coder = new MyCustomCoder("key");
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, KV.of("key", 3L));
-    Assert.assertEquals(
-        KV.of("key", 3L), CoderUtils.decodeFromByteArray(coder, encoded));
+    CoderProperties.coderDecodeEncodeEqual(coder, KV.of("key", 3L));
 
     byte[] encoded2 = CoderUtils.encodeToByteArray(coder, KV.of("ignored", 3L));
     Assert.assertEquals(
         KV.of("key", 3L), CoderUtils.decodeFromByteArray(coder, encoded2));
   }
 
-  @Test public void testEncodable() throws Exception {
+  @Test
+  public void testEncodable() throws Exception {
     SerializableUtils.ensureSerializable(new MyCustomCoder("key"));
   }
 }

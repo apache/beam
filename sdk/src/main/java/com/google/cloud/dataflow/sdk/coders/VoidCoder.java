@@ -26,11 +26,11 @@ import java.io.OutputStream;
  */
 @SuppressWarnings("serial")
 public class VoidCoder extends AtomicCoder<Void> {
+
   @JsonCreator
   public static VoidCoder of() {
     return INSTANCE;
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 

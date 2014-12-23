@@ -24,7 +24,6 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import org.apache.avro.Schema;
@@ -111,13 +110,10 @@ public class AvroCoderTest {
 
   @Test
   public void testPojoEncoding() throws Exception {
-    Pojo before = new Pojo("Hello", 42);
-
+    Pojo value = new Pojo("Hello", 42);
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
-    byte[] bytes = CoderUtils.encodeToByteArray(coder, before);
-    Pojo after = CoderUtils.decodeFromByteArray(coder, bytes);
 
-    Assert.assertEquals(before, after);
+    CoderProperties.coderDecodeEncodeEqual(coder, value);
   }
 
   @Test
@@ -140,11 +136,8 @@ public class AvroCoderTest {
     // Leave favorite_color null
 
     AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, schema);
-    byte[] bytes = CoderUtils.encodeToByteArray(coder, before);
-    GenericRecord after = CoderUtils.decodeFromByteArray(coder, bytes);
 
-    Assert.assertEquals(before, after);
-
+    CoderProperties.coderDecodeEncodeEqual(coder, before);
     Assert.assertEquals(schema, coder.getSchema());
   }
 

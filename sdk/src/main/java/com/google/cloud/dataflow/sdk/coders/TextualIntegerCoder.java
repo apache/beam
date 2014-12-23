@@ -27,11 +27,11 @@ import java.io.OutputStream;
  */
 @SuppressWarnings("serial")
 public class TextualIntegerCoder extends AtomicCoder<Integer> {
+
   @JsonCreator
   public static TextualIntegerCoder of() {
     return new TextualIntegerCoder();
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 

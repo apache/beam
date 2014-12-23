@@ -24,13 +24,30 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 /** Unit tests for {@link ListCoder}. */
 @RunWith(JUnit4.class)
 public class ListCoderTest {
+
+  private static final List<List<Integer>> TEST_VALUES = Arrays.<List<Integer>>asList(
+      Collections.<Integer>emptyList(),
+      Collections.singletonList(43),
+      Arrays.asList(1, 2, 3, 4),
+      new LinkedList<Integer>(Arrays.asList(7, 6, 5)));
+
   @Test
-  public void testGetInstanceComponentsNonempty() {
+  public void testDecodeEncodeContentsInSameOrder() throws Exception {
+    Coder<List<Integer>> coder = ListCoder.of(VarIntCoder.of());
+    for (List<Integer> value : TEST_VALUES) {
+      CoderProperties.<Integer, List<Integer>>coderDecodeEncodeContentsInSameOrder(coder, value);
+    }
+  }
+
+  @Test
+  public void testGetInstanceComponentsNonempty() throws Exception {
     List<Integer> list = Arrays.asList(21, 5, 3, 5);
     List<Object> components = ListCoder.getInstanceComponents(list);
     assertEquals(1, components.size());
@@ -38,9 +55,16 @@ public class ListCoderTest {
   }
 
   @Test
-  public void testGetInstanceComponentsEmpty() {
+  public void testGetInstanceComponentsEmpty() throws Exception {
     List<Integer> list = Arrays.asList();
     List<Object> components = ListCoder.getInstanceComponents(list);
     assertNull(components);
+  }
+
+  @Test
+  public void testEmptyList() throws Exception {
+    List<Integer> list = Collections.emptyList();
+    Coder<List<Integer>> coder = ListCoder.of(VarIntCoder.of());
+    CoderProperties.<List<Integer>>coderDecodeEncodeEqual(coder, list);
   }
 }

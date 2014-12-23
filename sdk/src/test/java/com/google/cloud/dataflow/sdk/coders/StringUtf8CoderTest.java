@@ -16,35 +16,30 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.util.common.CounterTestUtils;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
- * Unit tests for {@link ByteArrayCoder}.
+ * Test case for {@link StringUtf8Coder}.
  */
 @RunWith(JUnit4.class)
-public class ByteArrayCoderTest {
+public class StringUtf8CoderTest {
 
-  private static final byte[][] TEST_VALUES = {
-    {0xa, 0xb, 0xc}, {}, {}, {0xd, 0xe}, {}};
+  private static final List<String> TEST_VALUES = Arrays.asList(
+      "", "a", "13", "hello",
+      "a longer string with spaces and all that",
+      "a string with a \n newline",
+      "スタリング");
 
   @Test
-  public void testDecodeEncodeEquals() throws Exception {
-    ByteArrayCoder coder = ByteArrayCoder.of();
-    for (byte[] value : TEST_VALUES) {
+  public void testDecodeEncodeEqual() throws Exception {
+    Coder<String> coder = StringUtf8Coder.of();
+    for (String value : TEST_VALUES) {
       CoderProperties.coderDecodeEncodeEqual(coder, value);
     }
-  }
-
-  @Test
-  public void testRegisterByteSizeObserver() throws Exception {
-    CounterTestUtils.testByteCount(ByteArrayCoder.of(), Coder.Context.OUTER,
-                                   new byte[][]{{ 0xa, 0xb, 0xc }});
-
-    CounterTestUtils.testByteCount(ByteArrayCoder.of(), Coder.Context.NESTED,
-                                   new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
   }
 }

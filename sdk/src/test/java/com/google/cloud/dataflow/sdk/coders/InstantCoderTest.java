@@ -34,6 +34,7 @@ import java.util.List;
 /** Unit tests for {@link InstantCoder}. */
 @RunWith(JUnit4.class)
 public class InstantCoderTest {
+
   private final InstantCoder coder = InstantCoder.of();
   private final List<Long> timestamps =
       Arrays.asList(0L, 1L, -1L, -255L, 256L, Long.MIN_VALUE, Long.MAX_VALUE);
@@ -41,9 +42,7 @@ public class InstantCoderTest {
   @Test
   public void testBasicEncoding() throws Exception {
     for (long timestamp : timestamps) {
-      Assert.assertEquals(new Instant(timestamp),
-          CoderUtils.decodeFromByteArray(coder,
-              CoderUtils.encodeToByteArray(coder, new Instant(timestamp))));
+      CoderProperties.coderDecodeEncodeEqual(coder, new Instant(timestamp));
     }
   }
 

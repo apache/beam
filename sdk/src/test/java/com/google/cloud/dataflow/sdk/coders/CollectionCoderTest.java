@@ -20,34 +20,32 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.net.URI;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 
-/** Unit tests for {@link URICoder}. */
+/**
+ * Test case for {@link CollectionCoder}.
+ */
 @RunWith(JUnit4.class)
-public class URICoderTest {
+public class CollectionCoderTest {
 
-  private static final List<String> TEST_URI_STRINGS = Arrays.asList(
-      "http://www.example.com",
-      "gs://myproject/mybucket/a/gcs/path",
-      "/just/a/path",
-      "file:/path/with/no/authority",
-      "file:///path/with/empty/authority");
-
-  @Test
-  public void testDeterministic() throws Exception {
-    Coder<URI> coder = URICoder.of();
-    for (String uriString : TEST_URI_STRINGS) {
-      CoderProperties.coderDeterministic(coder, new URI(uriString), new URI(uriString));
-    }
-  }
+  private static final List<Collection<Integer>> TEST_VALUES = Arrays.<Collection<Integer>>asList(
+      Collections.<Integer>emptyList(),
+      Collections.<Integer>emptySet(),
+      Collections.singletonList(13),
+      Arrays.asList(1, 2, 3, 4),
+      new LinkedList<>(Arrays.asList(7, 6, 5)),
+      new HashSet<>(Arrays.asList(31, -5, 83)));
 
   @Test
-  public void testDecodeEncodeEqual() throws Exception {
-    Coder<URI> coder = URICoder.of();
-    for (String uriString : TEST_URI_STRINGS) {
-      CoderProperties.coderDecodeEncodeEqual(coder, new URI(uriString));
+  public void testDecodeEncodeContentsEqual() throws Exception {
+    Coder<Collection<Integer>> coder = CollectionCoder.of(VarIntCoder.of());
+    for (Collection<Integer> value : TEST_VALUES) {
+      CoderProperties.coderDecodeEncodeContentsEqual(coder, value);
     }
   }
 }

@@ -65,7 +65,7 @@ public class IterableCoder<T> extends IterableLikeCoder<T, Iterable<T>> {
     return getInstanceComponentsHelper(exampleValue);
   }
 
-  IterableCoder(Coder<T> elemCoder) {
+  protected IterableCoder(Coder<T> elemCoder) {
     super(elemCoder);
   }
 

@@ -16,35 +16,31 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.util.common.CounterTestUtils;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
- * Unit tests for {@link ByteArrayCoder}.
+ * Test case for {@link VarLongCoder}.
  */
 @RunWith(JUnit4.class)
-public class ByteArrayCoderTest {
+public class VarLongCoderTest {
 
-  private static final byte[][] TEST_VALUES = {
-    {0xa, 0xb, 0xc}, {}, {}, {0xd, 0xe}, {}};
+  private static final List<Long> TEST_VALUES = Arrays.asList(
+      -11L, -3L, -1L, 0L, 1L, 5L, 13L, 29L,
+      Integer.MAX_VALUE + 131L,
+      Integer.MIN_VALUE - 29L,
+      Long.MAX_VALUE,
+      Long.MIN_VALUE);
 
   @Test
-  public void testDecodeEncodeEquals() throws Exception {
-    ByteArrayCoder coder = ByteArrayCoder.of();
-    for (byte[] value : TEST_VALUES) {
+  public void testDecodeEncodeEqual() throws Exception {
+    Coder<Long> coder = VarLongCoder.of();
+    for (Long value : TEST_VALUES) {
       CoderProperties.coderDecodeEncodeEqual(coder, value);
     }
-  }
-
-  @Test
-  public void testRegisterByteSizeObserver() throws Exception {
-    CounterTestUtils.testByteCount(ByteArrayCoder.of(), Coder.Context.OUTER,
-                                   new byte[][]{{ 0xa, 0xb, 0xc }});
-
-    CounterTestUtils.testByteCount(ByteArrayCoder.of(), Coder.Context.NESTED,
-                                   new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
   }
 }

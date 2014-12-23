@@ -37,11 +37,11 @@ import java.nio.charset.Charset;
  */
 @SuppressWarnings("serial")
 public class StringUtf8Coder extends AtomicCoder<String> {
+
   @JsonCreator
   public static StringUtf8Coder of() {
     return INSTANCE;
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 

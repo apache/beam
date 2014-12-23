@@ -24,11 +24,29 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 /** Unit tests for {@link IterableCoder}. */
 @RunWith(JUnit4.class)
 public class IterableCoderTest {
+
+  private static final List<Iterable<Integer>> TEST_VALUES = Arrays.<Iterable<Integer>>asList(
+      Collections.<Integer>emptyList(),
+      Collections.<Integer>singletonList(13),
+      Arrays.<Integer>asList(1, 2, 3, 4),
+      new LinkedList<Integer>(Arrays.asList(7, 6, 5)));
+
+  @Test
+  public void testDecodeEncodeContentsInSameOrder() throws Exception {
+    Coder<Iterable<Integer>> coder = IterableCoder.of(VarIntCoder.of());
+    for (Iterable<Integer> value : TEST_VALUES) {
+      CoderProperties.<Integer, Iterable<Integer>>coderDecodeEncodeContentsInSameOrder(
+          coder, value);
+    }
+  }
+
   @Test
   public void testGetInstanceComponentsNonempty() {
     Iterable<Integer> iterable = Arrays.asList(2, 58, 99, 5);

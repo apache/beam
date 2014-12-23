@@ -67,8 +67,7 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
 
   private static final TableRowJsonCoder INSTANCE = new TableRowJsonCoder();
 
-  private TableRowJsonCoder() {
-  }
+  private TableRowJsonCoder() { }
 
   /**
    * TableCell can hold arbitrary Object instances, which makes the encoding

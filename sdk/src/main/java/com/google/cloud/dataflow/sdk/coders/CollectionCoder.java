@@ -63,7 +63,7 @@ public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
     return getInstanceComponentsHelper(exampleValue);
   }
 
-  CollectionCoder(Coder<T> elemCoder) {
+  protected CollectionCoder(Coder<T> elemCoder) {
     super(elemCoder);
   }
 }

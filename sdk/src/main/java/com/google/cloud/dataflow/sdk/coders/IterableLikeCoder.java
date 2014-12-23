@@ -40,7 +40,7 @@ import java.util.Observer;
 public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
     extends StandardCoder<IT> {
 
-  public Coder<T> getElemCoder() { return elemCoder; }
+  public Coder<T> getElemCoder() { return elementCoder; }
 
   /**
    * Builds an instance of the coder's associated {@code Iterable} from a list
@@ -53,7 +53,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
 
-  final Coder<T> elemCoder;
+  private final Coder<T> elementCoder;
 
   /**
    * Returns the first element in this iterable-like if it is non-empty,
@@ -68,8 +68,8 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
     return null;
   }
 
-  protected IterableLikeCoder(Coder<T> elemCoder) {
-    this.elemCoder = elemCoder;
+  protected IterableLikeCoder(Coder<T> elementCoder) {
+    this.elementCoder = elementCoder;
   }
 
   @Override
@@ -86,7 +86,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
       Collection<T> collection = (Collection<T>) iterable;
       dataOutStream.writeInt(collection.size());
       for (T elem : collection) {
-        elemCoder.encode(elem, dataOutStream, nestedContext);
+        elementCoder.encode(elem, dataOutStream, nestedContext);
       }
     } else {
       // We don't know the size without traversing it.  So use a
@@ -95,7 +95,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
       dataOutStream.writeInt(-1);
       for (T elem : iterable) {
         dataOutStream.writeBoolean(true);
-        elemCoder.encode(elem, dataOutStream, nestedContext);
+        elementCoder.encode(elem, dataOutStream, nestedContext);
       }
       dataOutStream.writeBoolean(false);
     }
@@ -112,7 +112,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
     if (size >= 0) {
       List<T> elements = new ArrayList<>(size);
       for (int i = 0; i < size; i++) {
-        elements.add(elemCoder.decode(dataInStream, nestedContext));
+        elements.add(elementCoder.decode(dataInStream, nestedContext));
       }
       return decodeToIterable(elements);
     } else {
@@ -120,7 +120,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
       // each element.
       List<T> elements = new ArrayList<>();
       while (dataInStream.readBoolean()) {
-        elements.add(elemCoder.decode(dataInStream, nestedContext));
+        elements.add(elementCoder.decode(dataInStream, nestedContext));
       }
       return decodeToIterable(elements);
     }
@@ -128,7 +128,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
 
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
-    return Arrays.asList(elemCoder);
+    return Arrays.asList(elementCoder);
   }
 
   /**
@@ -176,7 +176,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
         Collection<T> collection = (Collection<T>) iterable;
         observer.update(4L);
         for (T elem : collection) {
-          elemCoder.registerByteSizeObserver(elem, observer, nestedContext);
+          elementCoder.registerByteSizeObserver(elem, observer, nestedContext);
         }
       } else {
         // We don't know the size without traversing it.  So use a
@@ -185,7 +185,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
         observer.update(4L);
         for (T elem : iterable) {
           observer.update(1L);
-          elemCoder.registerByteSizeObserver(elem, observer, nestedContext);
+          elementCoder.registerByteSizeObserver(elem, observer, nestedContext);
         }
         observer.update(1L);
       }

@@ -33,11 +33,11 @@ import java.io.UTFDataFormatException;
  */
 @SuppressWarnings("serial")
 public class VarIntCoder extends AtomicCoder<Integer> {
+
   @JsonCreator
   public static VarIntCoder of() {
     return INSTANCE;
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 

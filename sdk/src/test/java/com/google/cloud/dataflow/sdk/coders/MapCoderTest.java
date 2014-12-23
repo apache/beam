@@ -19,10 +19,14 @@ package com.google.cloud.dataflow.sdk.coders;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import com.google.common.collect.ImmutableMap;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +34,18 @@ import java.util.Map;
 /** Unit tests for {@link MapCoder}. */
 @RunWith(JUnit4.class)
 public class MapCoderTest {
+  private static final List<Map<Integer, String>> TEST_VALUES = Arrays.<Map<Integer, String>>asList(
+      Collections.<Integer, String>emptyMap(),
+      new ImmutableMap.Builder<Integer, String>().put(1, "hello").put(-1, "foo").build());
+
+  @Test
+  public void testDecodeEncodeContentsInSameOrder() throws Exception {
+    Coder<Map<Integer, String>> coder = MapCoder.of(VarIntCoder.of(), StringUtf8Coder.of());
+    for (Map<Integer, String> value : TEST_VALUES) {
+      CoderProperties.coderDecodeEncodeEqual(coder, value);
+    }
+  }
+
   @Test
   public void testGetInstanceComponentsNonempty() {
     Map<Integer, String> map = new HashMap<>();
