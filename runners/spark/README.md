@@ -1,5 +1,10 @@
 spark-dataflow
 ==============
+
+Spark-dataflow is an early prototype. If this project interests you, you should know that we
+encourage outside contributions. So, hack away! To get an idea of what we have already identified as
+areas that need improvement, checkout the issues listed in the github repo.
+
 Spark-dataflow allows users to execute dataflow pipelines with Spark. Executing a pipeline on a
 spark cluster is easy: Depend on spark-dataflow in your project and execute your pipeline in a
 program by calling `SparkPipelineRunner.run`.
