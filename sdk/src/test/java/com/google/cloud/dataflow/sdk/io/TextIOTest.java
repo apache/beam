@@ -415,9 +415,16 @@ public class TextIOTest {
   }
 
   @Test
-  public void testWithoutValidationFlag() throws Exception {
+  public void testReadWithoutValidationFlag() throws Exception {
     TextIO.Read.Bound<String> read = TextIO.Read.from("gs://bucket/foo*/baz");
     assertTrue(read.needsValidation());
     assertFalse(read.withoutValidation().needsValidation());
+  }
+
+  @Test
+  public void testWriteWithoutValidationFlag() throws Exception {
+    TextIO.Write.Bound<String> write = TextIO.Write.to("gs://bucket/foo/baz");
+    assertTrue(write.needsValidation());
+    assertFalse(write.withoutValidation().needsValidation());
   }
 }

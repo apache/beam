@@ -355,6 +355,18 @@ public class TextIO {
       return new Bound<>(coder);
     }
 
+    /**
+     * Returns a TextIO.Write PTransform that has GCS path validation on
+     * pipeline creation disabled.
+     *
+     * <p> This can be useful in the case where the GCS output location does
+     * not exist at the pipeline creation time, but is expected to be available
+     * at execution time.
+     */
+    public static Bound<String> withoutValidation() {
+      return new Bound<>(DEFAULT_TEXT_CODER).withoutValidation();
+    }
+
     // TODO: appendingNewlines, gzipped, header, footer, etc.
 
     /**
@@ -382,18 +394,22 @@ public class TextIO {
       /** Shard template string. */
       final String shardTemplate;
 
+      /** An option to indicate if output validation is desired. Default is true. */
+      final boolean validate;
+
       Bound(Coder<T> coder) {
-        this(null, null, "", coder, 0, ShardNameTemplate.INDEX_OF_MAX);
+        this(null, null, "", coder, 0, ShardNameTemplate.INDEX_OF_MAX, true);
       }
 
       Bound(String name, String filenamePrefix, String filenameSuffix, Coder<T> coder,
-          int numShards, String shardTemplate) {
+          int numShards, String shardTemplate, boolean validate) {
         super(name);
         this.coder = coder;
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
         this.numShards = numShards;
         this.shardTemplate = shardTemplate;
+        this.validate = validate;
       }
 
       /**
@@ -401,7 +417,8 @@ public class TextIO {
        * with the given step name.  Does not modify this object.
        */
       public Bound<T> named(String name) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
+            validate);
       }
 
       /**
@@ -414,7 +431,8 @@ public class TextIO {
        */
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
+            validate);
       }
 
       /**
@@ -427,7 +445,8 @@ public class TextIO {
        */
       public Bound<T> withSuffix(String nameExtension) {
         validateOutputComponent(nameExtension);
-        return new Bound<>(name, filenamePrefix, nameExtension, coder, numShards, shardTemplate);
+        return new Bound<>(name, filenamePrefix, nameExtension, coder, numShards, shardTemplate,
+            validate);
       }
 
       /**
@@ -446,7 +465,8 @@ public class TextIO {
        */
       public Bound<T> withNumShards(int numShards) {
         Preconditions.checkArgument(numShards >= 0);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
+            validate);
       }
 
       /**
@@ -458,7 +478,8 @@ public class TextIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
+            validate);
       }
 
       /**
@@ -471,7 +492,7 @@ public class TextIO {
        * <p> Does not modify this object.
        */
       public Bound<T> withoutSharding() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, 1, "");
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, 1, "", validate);
       }
 
       /**
@@ -483,7 +504,22 @@ public class TextIO {
        * @param <T1> the type of the elements of the input PCollection
        */
       public <T1> Bound<T1> withCoder(Coder<T1> coder) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
+            validate);
+      }
+
+      /**
+       * Returns a new TextIO.Write PTransform that's like this one but
+       * that has GCS output path validation on pipeline creation disabled.
+       * Does not modify this object.
+       *
+       * <p> This can be useful in the case where the GCS output location does
+       * not exist at the pipeline creation time, but is expected to be
+       * available at execution time.
+       */
+      public Bound<T> withoutValidation() {
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
+            false);
       }
 
       @Override
@@ -530,6 +566,10 @@ public class TextIO {
 
       public Coder<T> getCoder() {
         return coder;
+      }
+
+      public boolean needsValidation() {
+        return validate;
       }
 
       static {

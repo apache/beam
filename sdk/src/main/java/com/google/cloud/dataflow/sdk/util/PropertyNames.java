@@ -83,6 +83,7 @@ public class PropertyNames {
   public static final String USER_FN = "user_fn";
   public static final String USER_NAME = "user_name";
   public static final String USES_KEYED_STATE = "uses_keyed_state";
+  public static final String VALIDATE_SINK = "validate_sink";
   public static final String VALIDATE_SOURCE = "validate_source";
   public static final String VALUE = "value";
 }

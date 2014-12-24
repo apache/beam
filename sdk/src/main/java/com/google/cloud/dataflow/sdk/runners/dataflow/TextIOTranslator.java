@@ -119,6 +119,7 @@ public class TextIOTranslator {
       context.addInput(PropertyNames.SHARD_NAME_TEMPLATE,
           transform.getShardNameTemplate());
       context.addInput(PropertyNames.FILENAME_SUFFIX, transform.getFilenameSuffix());
+      context.addInput(PropertyNames.VALIDATE_SINK, transform.needsValidation());
 
       long numShards = transform.getNumShards();
       if (numShards > 0) {
