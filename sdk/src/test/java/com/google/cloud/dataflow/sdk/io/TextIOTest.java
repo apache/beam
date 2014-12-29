@@ -228,9 +228,9 @@ public class TextIOTest {
       write = TextIO.Write.to(filename).withCoder(coder).withoutSharding();
     }
 
-    PDone output = input.apply(write);
+    input.apply(write);
 
-    EvaluationResults results = p.run();
+    p.run();
 
     BufferedReader reader = new BufferedReader(new FileReader(tmpFile));
     List<String> actual = new ArrayList<>();
@@ -285,10 +285,9 @@ public class TextIOTest {
         p.apply(Create.of(Arrays.asList(LINES_ARRAY)))
             .setCoder(StringUtf8Coder.of());
 
-    PDone done = input.apply(
-        TextIO.Write.to(filename).withNumShards(2).withSuffix(".txt"));
+    input.apply(TextIO.Write.to(filename).withNumShards(2).withSuffix(".txt"));
 
-    EvaluationResults results = p.run();
+    p.run();
 
     String[] files = outFolder.list();
 
@@ -334,9 +333,9 @@ public class TextIOTest {
         p.apply(Create.of(Arrays.asList(LINES_ARRAY)))
             .setCoder(StringUtf8Coder.of());
 
-    PDone done = input.apply(TextIO.Write.to(filename));
+    input.apply(TextIO.Write.to(filename));
 
-    EvaluationResults results = p.run();
+    p.run();
     Assert.fail("Expected failure due to unsupported output pattern");
   }
 
