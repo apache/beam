@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.examples;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.StringDelegateCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -44,6 +45,8 @@ public class TfIdfTest {
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testTfIdf() throws Exception {
     Pipeline pipeline = TestPipeline.create();
+
+    pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 
     PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = pipeline
         .apply(Create.of(

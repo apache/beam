@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeThat;
 
+import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.common.collect.Iterables;
 
 import java.io.ByteArrayInputStream;
@@ -157,6 +158,10 @@ public class CoderProperties {
       // This is the only Matchers.contains() overload that takes literal values
       assertThat(result, contains((T[]) Iterables.toArray(value, Object.class)));
     }
+  }
+
+  public static <T> void coderSerializable(Coder<T> coder) {
+    SerializableUtils.ensureSerializable(coder);
   }
 
   //////////////////////////////////////////////////////////////////////////

@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -24,30 +27,44 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 
-/** Unit tests for {@link URICoder}. */
+/** Unit tests for {@link StringDelegateCoder}. */
 @RunWith(JUnit4.class)
-public class URICoderTest {
+public class StringDelegateCoderTest {
+
+  // Test data
+
+  private static final Coder<URI> uriCoder = StringDelegateCoder.of(URI.class);
 
   private static final List<String> TEST_URI_STRINGS = Arrays.asList(
       "http://www.example.com",
-      "gs://myproject/mybucket/a/gcs/path",
-      "/just/a/path",
+      "gs://myproject/mybucket/some/gcs/path",
+      "/just/some/path",
       "file:/path/with/no/authority",
       "file:///path/with/empty/authority");
 
+  // Tests
+
+  private static final List<Coder.Context> TEST_CONTEXTS = Arrays.asList(
+      Coder.Context.NESTED,
+      Coder.Context.OUTER);
+
   @Test
   public void testDeterministic() throws Exception {
-    Coder<URI> coder = URICoder.of();
+    assertThat(uriCoder.isDeterministic(), equalTo(true));
     for (String uriString : TEST_URI_STRINGS) {
-      CoderProperties.coderDeterministic(coder, new URI(uriString), new URI(uriString));
+      CoderProperties.coderDeterministic(uriCoder, new URI(uriString), new URI(uriString));
     }
   }
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
-    Coder<URI> coder = URICoder.of();
     for (String uriString : TEST_URI_STRINGS) {
-      CoderProperties.coderDecodeEncodeEqual(coder, new URI(uriString));
+      CoderProperties.coderDecodeEncodeEqual(uriCoder, new URI(uriString));
     }
+  }
+
+  @Test
+  public void testSerializable() throws Exception {
+    CoderProperties.coderSerializable(uriCoder);
   }
 }
