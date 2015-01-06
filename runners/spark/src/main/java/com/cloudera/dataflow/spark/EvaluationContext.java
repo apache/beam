@@ -18,6 +18,7 @@ package com.cloudera.dataflow.spark;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
+import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -71,8 +72,12 @@ public class EvaluationContext implements EvaluationResult {
   <T> Coder<T> getDefaultCoder(T example) {
     Coder<T> defaultCoder = registry.getDefaultCoder(example);
     if (defaultCoder == null) {
-      throw new IllegalStateException(String.format("Couldn't determine the default coder for " +
-          "an example  of class [%s]", example.getClass()));
+      if (example instanceof Iterable) {
+        return (Coder<T>) IterableCoder.of(getDefaultCoder(((Iterable) example).iterator().next()));
+      } else {
+        throw new IllegalStateException(String.format("Couldn't determine the default coder for " +
+            "an example  of class [%s]", example.getClass()));
+      }
     }
     return defaultCoder;
   }

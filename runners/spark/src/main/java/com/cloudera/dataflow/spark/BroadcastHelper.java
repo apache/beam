@@ -28,11 +28,10 @@ class BroadcastHelper<T> implements Serializable {
   private static Logger LOG = Logger.getLogger(BroadcastHelper.class.getName());
   private Broadcast<byte[]> bcast;
   private final Coder<T> coder;
-  private final T input;
   private transient T value;
 
-  BroadcastHelper(T input, Coder<T> coder) {
-    this.input = input;
+  BroadcastHelper(T value, Coder<T> coder) {
+    this.value = value;
     this.coder = coder;
   }
 
@@ -44,7 +43,7 @@ class BroadcastHelper<T> implements Serializable {
   }
 
   public void broadcast(JavaSparkContext jsc) {
-    this.bcast = jsc.broadcast(CoderHelpers.toByteArray(input, coder));
+    this.bcast = jsc.broadcast(CoderHelpers.toByteArray(value, coder));
   }
 
   private T deserialize() {
