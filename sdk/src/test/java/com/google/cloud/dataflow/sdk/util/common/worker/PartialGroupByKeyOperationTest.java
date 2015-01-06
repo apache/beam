@@ -31,10 +31,10 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.CoderGroupingKeyCreator;
 import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.CoderSizeEstimator;
 import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.ElementByteSizeObservableCoder;
 import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.PairInfo;
+import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.WindowingCoderGroupingKeyCreator;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -54,7 +54,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -82,14 +81,15 @@ public class PartialGroupByKeyOperationTest {
             counterSet, counterPrefix);
 
     PartialGroupByKeyOperation pgbkOperation =
-        new PartialGroupByKeyOperation(new CoderGroupingKeyCreator(keyCoder),
-                                       new CoderSizeEstimator(keyCoder),
-                                       new CoderSizeEstimator(valueCoder),
-                                       PairInfo.create(),
-                                       receiver,
-                                       counterPrefix,
-                                       counterSet.getAddCounterMutator(),
-                                       stateSampler);
+        new PartialGroupByKeyOperation(
+            new WindowingCoderGroupingKeyCreator(keyCoder),
+            new CoderSizeEstimator(WindowedValue.getValueOnlyCoder(keyCoder)),
+            new CoderSizeEstimator(valueCoder),
+            PairInfo.create(),
+            receiver,
+            counterPrefix,
+            counterSet.getAddCounterMutator(),
+            stateSampler);
 
     pgbkOperation.start();
 
@@ -165,32 +165,46 @@ public class PartialGroupByKeyOperationTest {
     }
   }
 
+  private static class KvPairInfo implements PartialGroupByKeyOperation.PairInfo {
+    @Override
+    public Object getKeyFromInputPair(Object pair) {
+      return ((KV<?, ?>) pair).getKey();
+    }
+    @Override
+    public Object getValueFromInputPair(Object pair) {
+      return ((KV<?, ?>) pair).getValue();
+    }
+    @Override
+    public Object makeOutputPair(Object key, Object value) {
+      return KV.of(key, value);
+    }
+  }
+
   @Test
   public void testBufferingGroupingTable() throws Exception {
     BufferingGroupingTable<String, String> table =
         new BufferingGroupingTable<>(
-            1000, new IdentityGroupingKeyCreator(), PairInfo.create(),
+            1000, new IdentityGroupingKeyCreator(), new KvPairInfo(),
             new StringPowerSizeEstimator(), new StringPowerSizeEstimator());
     TestReceiver receiver = new TestReceiver(
-        WindowedValue.getValueOnlyCoder(
-            KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of()))));
+        KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
 
     table.put("A", "a", receiver);
     table.put("B", "b1", receiver);
     table.put("B", "b2", receiver);
     table.put("C", "c", receiver);
-    assertThat(unwindowed(receiver.outputElems), empty());
+    assertThat(receiver.outputElems, empty());
 
     table.put("C", "cccc", receiver);
-    assertThat(unwindowed(receiver.outputElems),
+    assertThat(receiver.outputElems,
                hasItem((Object) KV.of("C", Arrays.asList("c", "cccc"))));
 
     table.put("DDDD", "d", receiver);
-    assertThat(unwindowed(receiver.outputElems),
+    assertThat(receiver.outputElems,
                hasItem((Object) KV.of("DDDD", Arrays.asList("d"))));
 
     table.flush(receiver);
-    assertThat(unwindowed(receiver.outputElems),
+    assertThat(receiver.outputElems,
                IsIterableContainingInAnyOrder.<Object>containsInAnyOrder(
                    KV.of("A", Arrays.asList("a")),
                    KV.of("B", Arrays.asList("b1", "b2")),
@@ -220,41 +234,32 @@ public class PartialGroupByKeyOperationTest {
 
     CombiningGroupingTable<String, Integer, Long> table =
         new CombiningGroupingTable<String, Integer, Long>(
-            1000, new IdentityGroupingKeyCreator(), PairInfo.create(),
+            1000, new IdentityGroupingKeyCreator(), new KvPairInfo(),
             summingCombineFn,
             new StringPowerSizeEstimator(), new IdentitySizeEstimator());
 
     TestReceiver receiver = new TestReceiver(
-        WindowedValue.getValueOnlyCoder(
-            KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of())));
+        KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()));
 
     table.put("A", 1, receiver);
     table.put("B", 2, receiver);
     table.put("B", 3, receiver);
     table.put("C", 4, receiver);
-    assertThat(unwindowed(receiver.outputElems), empty());
+    assertThat(receiver.outputElems, empty());
 
     table.put("C", 5000, receiver);
-    assertThat(unwindowed(receiver.outputElems), hasItem((Object) KV.of("C", 5004L)));
+    assertThat(receiver.outputElems, hasItem((Object) KV.of("C", 5004L)));
 
     table.put("DDDD", 6, receiver);
-    assertThat(unwindowed(receiver.outputElems), hasItem((Object) KV.of("DDDD", 6L)));
+    assertThat(receiver.outputElems, hasItem((Object) KV.of("DDDD", 6L)));
 
     table.flush(receiver);
-    assertThat(unwindowed(receiver.outputElems),
+    assertThat(receiver.outputElems,
                IsIterableContainingInAnyOrder.<Object>containsInAnyOrder(
                    KV.of("A", 1L),
                    KV.of("B", 2L + 3),
                    KV.of("C", 5000L + 4),
                    KV.of("DDDD", 6L)));
-  }
-
-  private List<Object> unwindowed(Iterable<Object> windowed) {
-    List<Object> unwindowed = new ArrayList<>();
-    for (Object withWindow : windowed) {
-      unwindowed.add(((WindowedValue<?>) withWindow).getValue());
-    }
-    return unwindowed;
   }
 
 

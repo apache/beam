@@ -44,6 +44,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.OutputReceiver;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoOperation;
 import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation;
+import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.GroupingKeyCreator;
 import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ReceivingOperation;
@@ -51,6 +52,8 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.WriteOperation;
 import com.google.cloud.dataflow.sdk.values.KV;
+
+import org.joda.time.Instant;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -168,26 +171,27 @@ public class MapTaskExecutorFactory {
       CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) throws Exception {
     PartialGroupByKeyInstruction pgbk = instruction.getPartialGroupByKey();
 
-    Coder<?> coder = Serializer.deserialize(pgbk.getInputElementCodec(), Coder.class);
-    if (!(coder instanceof WindowedValueCoder)) {
+    Coder<?> windowedCoder = Serializer.deserialize(pgbk.getInputElementCodec(), Coder.class);
+    if (!(windowedCoder instanceof WindowedValueCoder)) {
       throw new Exception(
-          "unexpected kind of input coder for PartialGroupByKeyOperation: " + coder);
+          "unexpected kind of input coder for PartialGroupByKeyOperation: " + windowedCoder);
     }
-    Coder<?> elemCoder = ((WindowedValueCoder<?>) coder).getValueCoder();
+    Coder<?> elemCoder = ((WindowedValueCoder<?>) windowedCoder).getValueCoder();
     if (!(elemCoder instanceof KvCoder)) {
       throw new Exception(
           "unexpected kind of input element coder for PartialGroupByKeyOperation: " + elemCoder);
     }
-    KvCoder<Object, Object> kvCoder = (KvCoder<Object, Object>) elemCoder;
-    Coder keyCoder = kvCoder.getKeyCoder();
-    Coder valueCoder = kvCoder.getValueCoder();
+    KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) elemCoder;
+    Coder<?> keyCoder = kvCoder.getKeyCoder();
+    Coder<?> valueCoder = kvCoder.getValueCoder();
 
     OutputReceiver[] receivers =
         createOutputReceivers(instruction, counterPrefix, addCounterMutator, stateSampler, 1);
 
     PartialGroupByKeyOperation operation =
         new PartialGroupByKeyOperation(instruction.getSystemName(),
-            new CoderGroupingKeyCreator(keyCoder), new CoderSizeEstimator(keyCoder),
+            new WindowingCoderGroupingKeyCreator(keyCoder),
+            new CoderSizeEstimator(WindowedValue.getValueOnlyCoder(keyCoder)),
             new CoderSizeEstimator(valueCoder), 0.001/*sizeEstimatorSampleRate*/, PairInfo.create(),
             receivers, counterPrefix, addCounterMutator, stateSampler);
 
@@ -207,35 +211,52 @@ public class MapTaskExecutorFactory {
     private PairInfo() {}
     @Override
     public Object getKeyFromInputPair(Object pair) {
-      WindowedValue<KV<Object, Object>> windowedKv = (WindowedValue<KV<Object, Object>>) pair;
-      return windowedKv.getValue().getKey();
+      @SuppressWarnings("unchecked")
+      WindowedValue<KV<?, ?>> windowedKv = (WindowedValue<KV<?, ?>>) pair;
+      return WindowedValue.of(
+          windowedKv.getValue().getKey(), windowedKv.getTimestamp(), windowedKv.getWindows());
     }
     @Override
     public Object getValueFromInputPair(Object pair) {
-      WindowedValue<KV<Object, Object>> windowedKv = (WindowedValue<KV<Object, Object>>) pair;
+      @SuppressWarnings("unchecked")
+      WindowedValue<KV<?, ?>> windowedKv = (WindowedValue<KV<?, ?>>) pair;
       return windowedKv.getValue().getValue();
     }
     @Override
     public Object makeOutputPair(Object key, Object values) {
-      return WindowedValue.valueInEmptyWindows(KV.of(key, values));
+      WindowedValue<?> windowedKey = (WindowedValue<?>) key;
+      return WindowedValue.of(
+          KV.of(windowedKey.getValue(), values),
+          windowedKey.getTimestamp(),
+          windowedKey.getWindows());
     }
   }
 
   /**
    * Implements PGBKOp.GroupingKeyCreator via Coder.
    */
-  public static class CoderGroupingKeyCreator
-      implements PartialGroupByKeyOperation.GroupingKeyCreator {
-    final Coder coder;
+  // TODO: Actually support window merging in the combiner table.
+  public static class WindowingCoderGroupingKeyCreator
+      implements GroupingKeyCreator {
 
-    public CoderGroupingKeyCreator(Coder coder) {
+    private static final Instant ignored = new Instant(0);
+
+    private final Coder coder;
+
+    public WindowingCoderGroupingKeyCreator(Coder coder) {
       this.coder = coder;
     }
 
     @Override
-    public Object createGroupingKey(Object value) throws Exception {
-      return new PartialGroupByKeyOperation.StructuralByteArray(
-          CoderUtils.encodeToByteArray(coder, value));
+    public Object createGroupingKey(Object key) throws Exception {
+      WindowedValue<?> windowedKey = (WindowedValue<?>) key;
+      // Ignore timestamp for grouping purposes.
+      // The PGBK output will inherit the timestamp of one of its inputs.
+      return WindowedValue.of(
+          new PartialGroupByKeyOperation.StructuralByteArray(
+              CoderUtils.encodeToByteArray(coder, windowedKey.getValue())),
+          ignored,
+          windowedKey.getWindows());
     }
   }
 
