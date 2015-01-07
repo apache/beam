@@ -122,6 +122,7 @@ public class DataflowPipelineRunnerTest {
         .thenReturn(FileChannel.open(
             Files.createTempFile("channel-", ".tmp"),
             StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE));
+    when(mockGcsUtil.isGcsPatternSupported(anyString())).thenReturn(true);
     return mockGcsUtil;
   }
 

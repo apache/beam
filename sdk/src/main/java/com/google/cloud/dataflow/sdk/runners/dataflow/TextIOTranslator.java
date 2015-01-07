@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.io.ShardNameTemplate;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TransformTranslator;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TranslationContext;
-import com.google.cloud.dataflow.sdk.util.GcsUtil;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
@@ -50,16 +49,10 @@ public class TextIOTranslator {
         throw new IllegalArgumentException("TextIO not supported in streaming mode.");
       }
 
-      // Only GCS paths are permitted for filepatterns in the DataflowPipelineRunner.
+      // Validate the provided GCS path.
       GcsPath gcsPath = GcsPath.fromUri(transform.getFilepattern());
-      // Furthermore, on the service there is currently a limitation
-      // that the first wildcard character must occur after the last
-      // delimiter, and that the delimiter is fixed to '/'
-      if (!GcsUtil.GCS_READ_PATTERN.matcher(gcsPath.getObject()).matches()) {
-        throw new IllegalArgumentException(
-            "Unsupported wildcard usage in \"" + gcsPath + "\": "
-            + " all wildcards must occur after the final '/' delimiter.");
-      }
+      Preconditions.checkArgument(
+          context.getPipelineOptions().getGcsUtil().isGcsPatternSupported(gcsPath.getObject()));
 
       context.addStep(transform, "ParallelRead");
       // TODO: How do we want to specify format and

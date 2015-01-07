@@ -73,20 +73,13 @@ public class GcsUtil {
   /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
   private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^*?]*)[*?].*");
 
-  private static final String WILDCARD = "[\\[\\]*?]";
-  private static final String NON_WILDCARD = "[^\\[\\]*?]";
-  private static final String NON_DELIMITER = "[^/]";
-  private static final String OPTIONAL_WILDCARD_AND_SUFFIX = "(" + WILDCARD + NON_DELIMITER + "*)?";
+  private static final String RECURSIVE_WILDCARD = "[*]{2}";
 
   /**
-   * A {@link Pattern} that matches globs in which every wildcard is interpreted as such,
-   * assuming a delimiter of {@code '/'}.
-   *
-   * <p> Most importantly, if a {@code '*'} or {@code '?'} occurs before the
-   * final delimiter it will not be interpreted as a wildcard.
+   * A {@link Pattern} for globs with a recursive wildcard.
    */
-  public static final Pattern GCS_READ_PATTERN = Pattern.compile(
-      NON_WILDCARD + "*" + OPTIONAL_WILDCARD_AND_SUFFIX);
+  private static final Pattern RECURSIVE_GCS_PATTERN =
+      Pattern.compile(".*" + RECURSIVE_WILDCARD + ".*");
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -99,37 +92,44 @@ public class GcsUtil {
   // Exposed for testing.
   final ExecutorService executorService;
 
+  /**
+   * Returns true if the given GCS pattern is supported otherwise fails with an
+   * exception.
+   */
+  public boolean isGcsPatternSupported(String gcsPattern) {
+    if (RECURSIVE_GCS_PATTERN.matcher(gcsPattern).matches()) {
+      throw new IllegalArgumentException("Unsupported wildcard usage in \"" + gcsPattern + "\": "
+          + " recursive wildcards are not supported.");
+    }
+
+    return true;
+  }
+
   private GcsUtil(Storage storageClient, ExecutorService executorService) {
     storage = storageClient;
     this.executorService = executorService;
   }
 
   /**
-   * Expands a pattern into matched paths. The input path may contain
-   * globs (in the last component only!), which are expanded in the result.
-   *
-   * <p> TODO: add support for full path matching.
+   * Expands a pattern into matched paths. The pattern path may contain
+   * globs, which are expanded in the result.
    */
-  public List<GcsPath> expand(GcsPath path) throws IOException {
-    if (!GCS_READ_PATTERN.matcher(path.getObject()).matches()) {
-      throw new IllegalArgumentException(
-          "Unsupported wildcard usage in \"" + path + "\": "
-          + " all wildcards must occur after the final '/' delimiter.");
-    }
-
-    Matcher m = GLOB_PREFIX.matcher(path.getObject());
+  public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
+    Preconditions.checkArgument(isGcsPatternSupported(gcsPattern.getObject()));
+    Matcher m = GLOB_PREFIX.matcher(gcsPattern.getObject());
     if (!m.matches()) {
-      return Arrays.asList(path);
+      return Arrays.asList(gcsPattern);
     }
 
+    // Part before the first wildcard character.
     String prefix = m.group("PREFIX");
-    Pattern p = Pattern.compile(globToRegexp(path.getObject()));
+    Pattern p = Pattern.compile(globToRegexp(gcsPattern.getObject()));
     LOG.info("matching files in bucket {}, prefix {} against pattern {}",
-        path.getBucket(), prefix, p.toString());
+        gcsPattern.getBucket(), prefix, p.toString());
 
-    Storage.Objects.List listObject = storage.objects().list(path.getBucket());
+    // List all objects that start with the prefix (including objects in sub-directories).
+    Storage.Objects.List listObject = storage.objects().list(gcsPattern.getBucket());
     listObject.setMaxResults(MAX_LIST_ITEMS_PER_CALL);
-    listObject.setDelimiter("/");
     listObject.setPrefix(prefix);
 
     String pageToken = null;
@@ -146,7 +146,7 @@ public class GcsUtil {
         break;
       }
 
-      // Filter
+      // Filter objects based on the regex.
       for (StorageObject o : objects.getItems()) {
         String name = o.getName();
         // Skip directories, which end with a slash.

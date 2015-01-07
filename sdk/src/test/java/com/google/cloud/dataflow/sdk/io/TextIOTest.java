@@ -340,7 +340,6 @@ public class TextIOTest {
   }
 
   /**
-   * The first wildcard must occur after the last directory delimiter.
    * This tests a few corner cases that should not crash.
    */
   @Test
@@ -360,54 +359,26 @@ public class TextIOTest {
     pipeline.apply(TextIO.Read.from("gs://bucket/foo/[0-9]baz?"));
     pipeline.apply(TextIO.Read.from("gs://bucket/foo/baz/*"));
     pipeline.apply(TextIO.Read.from("gs://bucket/foo/baz/*wonka*"));
+    pipeline.apply(TextIO.Read.from("gs://bucket/foo/*baz/wonka*"));
+    pipeline.apply(TextIO.Read.from("gs://bucket/foo*/baz"));
+    pipeline.apply(TextIO.Read.from("gs://bucket/foo?/baz"));
+    pipeline.apply(TextIO.Read.from("gs://bucket/foo[0-9]/baz"));
 
     // Check that running doesn't fail.
     pipeline.run();
   }
 
   /**
-   * The first wildcard must occur after the last directory delimiter.
-   * This tests "*".
+   * Recursive wildcards are not supported.
+   * This tests "**".
    */
   @Test
-  public void testBadWildcardStar() throws Exception {
+  public void testBadWildcardRecursive() throws Exception {
     Pipeline pipeline = Pipeline.create(buildTestPipelineOptions());
 
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo*/baz"));
+    pipeline.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
 
     // Check that running does fail.
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("wildcard");
-    pipeline.run();
-  }
-
-  /**
-   * The first wildcard must occur after the last directory delimiter.
-   * This tests "?".
-   */
-  @Test
-  public void testBadWildcardOptional() throws Exception {
-    Pipeline pipeline = Pipeline.create(buildTestPipelineOptions());
-
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo?/baz"));
-
-    // Check that running does fail.
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("wildcard");
-    pipeline.run();
-  }
-
-  /**
-   * The first wildcard must occur after the last directory delimiter.
-   * This tests "[]" based character classes.
-   */
-  @Test
-  public void testBadWildcardBrackets() throws Exception {
-    Pipeline pipeline = Pipeline.create(buildTestPipelineOptions());
-
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo[0-9]/baz"));
-
-    // Check that translation does fail.
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("wildcard");
     pipeline.run();
