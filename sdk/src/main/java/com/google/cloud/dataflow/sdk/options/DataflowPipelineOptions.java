@@ -34,7 +34,7 @@ import org.joda.time.format.DateTimeFormatter;
 public interface DataflowPipelineOptions extends
     PipelineOptions, GcpOptions, ApplicationNameOptions, DataflowPipelineDebugOptions,
     DataflowPipelineWorkerPoolOptions, BigQueryOptions,
-    GcsOptions, StreamingOptions {
+    GcsOptions, StreamingOptions, CloudDebuggerOptions {
 
   /**
    * GCS path for temporary files.

@@ -48,6 +48,7 @@ import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.DatastoreIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.options.CloudDebuggerOptions.DebuggerConfig;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType;
 import com.google.cloud.dataflow.sdk.runners.dataflow.AvroIOTranslator;
@@ -362,6 +363,25 @@ public class DataflowPipelineTranslator {
       taskRunnerSettings.setParallelWorkerSettings(workerSettings);
 
       workerPool.setTaskrunnerSettings(taskRunnerSettings);
+
+      // Config Cloud Debugger
+      if (!Strings.isNullOrEmpty(options.getCdbgVersion())) {
+        String cdbgVersion = options.getCdbgVersion();
+        DebuggerConfig debuggerConfig = new DebuggerConfig();
+        debuggerConfig.setVersion(cdbgVersion);
+
+        Map<String, String> metadata = workerPool.getMetadata();
+        if (metadata == null) {
+          metadata = new HashMap<String, String>();
+        }
+
+        try {
+          metadata.put("debugger", debuggerConfig.computeMetadataString());
+        } catch (JsonProcessingException e) {
+          throw new IllegalArgumentException("Cannot format Debugger version.", e);
+        }
+        workerPool.setMetadata(metadata);
+      }
 
       if (options.isStreaming()) {
         job.setType("JOB_TYPE_STREAMING");

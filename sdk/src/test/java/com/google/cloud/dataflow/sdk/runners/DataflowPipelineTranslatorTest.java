@@ -176,6 +176,25 @@ public class DataflowPipelineTranslatorTest {
   }
 
   @Test
+  public void testDebuggerConfig() throws IOException {
+    final String cdbgVersion = "test-v1";
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setCdbgVersion(cdbgVersion);
+    String expectedConfig = "{\"version\":\"test-v1\"}";
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    Job job = DataflowPipelineTranslator.fromOptions(options).translate(
+        p, Collections.<DataflowPackage>emptyList());
+
+    for (WorkerPool pool : job.getEnvironment().getWorkerPools()) {
+      if (pool.getKind() == DataflowPipelineTranslator.HARNESS_WORKER_POOL) {
+        assertEquals(pool.getMetadata().get("debugger"), expectedConfig);
+      }
+    }
+  }
+
+  @Test
   public void testDiskSizeGbConfig() throws IOException {
     final Integer diskSizeGb = 1234;
 
