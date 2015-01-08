@@ -226,18 +226,24 @@ public class DataflowExampleUtils {
   }
 
   /**
-   * Waits for the pipeline to finish, and cancels it (and the injector) before the program exists.
+   * If {@literal DataflowPipelineRunner} or {@literal BlockingDataflowPipelineRunner} is used,
+   * waits for the pipeline to finish and cancels it (and the injector) before the program exists.
    */
   public void waitToFinish(PipelineResult result) {
-    final DataflowPipelineJob job = (DataflowPipelineJob) result;
-    jobsToCancel.add(job);
-    if (!options.as(DataflowExampleOptions.class).getKeepJobsRunning()) {
-      addShutdownHook(jobsToCancel);
-    }
-    try {
-      job.waitToFinish(-1, TimeUnit.SECONDS, new MonitoringUtil.PrintHandler(System.out));
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to wait for job to finish: " + job.getJobId());
+    if (result instanceof DataflowPipelineJob) {
+      final DataflowPipelineJob job = (DataflowPipelineJob) result;
+      jobsToCancel.add(job);
+      if (!options.as(DataflowExampleOptions.class).getKeepJobsRunning()) {
+        addShutdownHook(jobsToCancel);
+      }
+      try {
+        job.waitToFinish(-1, TimeUnit.SECONDS, new MonitoringUtil.PrintHandler(System.out));
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to wait for job to finish: " + job.getJobId());
+      }
+    } else {
+      // Do nothing if the given PipelineResult doesn't support waitToFinish(),
+      // such as EvaluationResults returned by DirectPipelineRunner.
     }
   }
 
