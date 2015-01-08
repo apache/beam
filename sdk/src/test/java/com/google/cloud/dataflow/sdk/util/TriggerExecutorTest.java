@@ -223,6 +223,10 @@ public class TriggerExecutorTest {
     injectElement(tester, 2, TriggerResult.FIRE);
     assertEquals(null, tester.getWatermarkHold());
 
+    // Late timers are ignored
+    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
+        new Instant(12), TimeDomain.EVENT_TIME);
+
     assertEquals(1, tester.getElementsDroppedDueToLateness());
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 

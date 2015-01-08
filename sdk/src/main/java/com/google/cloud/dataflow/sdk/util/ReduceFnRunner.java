@@ -260,18 +260,25 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     W window = windowNamespace.getWindow();
 
     if (TimeDomain.EVENT_TIME == timer.getDomain() && isCleanupTime(window, timer.getTimestamp())) {
+      // This may be a redundant cleanup (if we had lingering watermark timers after the cleanup
+      // time but it shouldn't hurt anything for us to process those again).
       try {
         doCleanup(windowNamespace.getWindow());
       } catch (Exception e) {
         LOG.error("Exception while garbage collecting window {}", windowNamespace.getWindow(), e);
       }
     } else {
-      ReduceFn<K, InputT, OutputT, W>.Context context =
-          contextFactory.base(windowNamespace.getWindow());
+      // Skip timers for expired windows.
+      if (isCleanupTime(window, timerInternals.currentWatermarkTime())) {
+        return;
+      }
+
+      ReduceFn<K, InputT, OutputT, W>.Context context = contextFactory.base(window);
 
       triggerRunner.prefetchForTimer(context.state());
+
+      // Skip timers for windows that were closed by triggers, but haven't expired yet.
       if (triggerRunner.isClosed(context.state())) {
-        LOG.info("Skipping timer for closed window " + context.window());
         return;
       }
 
@@ -420,6 +427,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
   }
 
+  /** Return true if {@code timestamp} is past the cleanup time for {@code window}. */
   private boolean isCleanupTime(W window, Instant timestamp) {
     return !timestamp.isBefore(cleanupTime(window));
   }
