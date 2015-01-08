@@ -34,6 +34,7 @@ import java.nio.file.PathMatcher;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.regex.Matcher;
 
 /**
  * Implements IOChannelFactory for local files.
@@ -52,8 +53,18 @@ public class FileIOChannelFactory implements IOChannelFactory {
       throw new IOException("Unable to find parent directory of " + spec);
     }
 
+    // Method getAbsolutePath() on Windows platform may return something like
+    // "c:\temp\file.txt". FileSystem.getPathMatcher() call below will treat
+    // '\' (backslash) as an escape character, instead of a directory
+    // separator. Replacing backslash with double-backslash solves the problem.
+    // We perform the replacement on all platforms, even those that allow
+    // backslash as a part of the filename, because Globs.toRegexPattern will
+    // eat one backslash.
+    String pathToMatch = file.getAbsolutePath().replaceAll(Matcher.quoteReplacement("\\"),
+                                                           Matcher.quoteReplacement("\\\\"));
+
     final PathMatcher matcher =
-        FileSystems.getDefault().getPathMatcher("glob:" + file.getAbsolutePath());
+        FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
     File[] files = parent.listFiles(new FileFilter() {
       @Override
       public boolean accept(File pathname) {
