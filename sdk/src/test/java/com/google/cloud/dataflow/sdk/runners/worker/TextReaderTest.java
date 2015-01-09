@@ -78,7 +78,7 @@ public class TextReaderTest {
   @Test
   public void testReadEmptyFile() throws Exception {
     TextReader<String> textReader =
-        new TextReader<>("/dev/null", true, null, null, StringUtf8Coder.of());
+        new TextReader<>(tmpFolder.newFile().getPath(), true, null, null, StringUtf8Coder.of());
     try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
       Assert.assertFalse(iterator.hasNext());
     }
