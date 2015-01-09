@@ -20,29 +20,29 @@ working with you to improve Cloud Dataflow.
 
 The key concepts in this programming model are:
 
-* [PCollection](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/values/PCollection.java):
+* [`PCollection`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/values/PCollection.java):
 represents a collection of data, which could be bounded or unbounded in size.
-* [PTransform](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/transforms/PTransform.java):
+* [`PTransform`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/transforms/PTransform.java):
 represents a computation that transforms input PCollections into output
 PCollections.
-* [Pipeline](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/Pipeline.java):
+* [`Pipeline`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/Pipeline.java):
 manages a directed acyclic graph of PTransforms and PCollections, which is ready
 for execution.
-* [PipelineRunner](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/PipelineRunner.java):
+* [`PipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/PipelineRunner.java):
 specifies where and how the pipeline should execute.
 
-Currently there are three PipelineRunners:
+Currently there are three `PipelineRunners`:
 
-  1. The [DirectPipelineRunner](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/DirectPipelineRunner.java)
+  1. The [`DirectPipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/DirectPipelineRunner.java)
 runs the pipeline on your local machine.
   2. The
-[DataflowPipelineRunner](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/DataflowPipelineRunner.java)
+[`DataflowPipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/DataflowPipelineRunner.java)
 submits the pipeline to the Dataflow Service, where it runs using managed
 resources in the [Google Cloud Platform](http://cloud.google.com).
   3. The
-[BlockingDataflowPipelineRunner](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/BlockingDataflowPipelineRunner.java)
-submits the pipeline to the Dataflow Service via the DataflowPipelineRunner and
-then prints messages about the job status until execution is complete.
+[`BlockingDataflowPipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/BlockingDataflowPipelineRunner.java)
+submits the pipeline to the Dataflow Service via the `DataflowPipelineRunner`
+and then prints messages about the job status until execution is complete.
 
 _The Dataflow Service is currently in the Alpha phase of development and
 access is limited to whitelisted users._
@@ -51,9 +51,9 @@ access is limited to whitelisted users._
 
 This repository consists of two modules:
 
-* [Java SDK](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk)
+* [`SDK`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk)
 module provides a set of basic Java APIs to program against.
-* [Examples](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples)
+* [`Examples`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples)
 module provides a few samples to get started. We recommend starting with the
 WordCount example.
 
@@ -69,7 +69,7 @@ You can speed up the build and install process by using the following options:
         mvn install -DskipTests
 
   2. While iterating on a specific module, use the following command to compile
-  and reinstall it. For example, to reinstall the 'examples' module, run:
+  and reinstall it. For example, to reinstall the `examples` module, run:
 
         mvn install -pl examples
 
@@ -81,22 +81,22 @@ You can speed up the build and install process by using the following options:
 
         mvn -T 4 install
 
-After building and installing, you can execute the Wordcount and other example
-pipelines locally or in the cloud using `mvn` with command-line options.
+After building and installing, you can execute the `WordCount` and other example
+pipelines locally or in the cloud using Maven with command-line options.
 
-To execute the Wordcount pipeline locally (using the default
+To execute the WordCount pipeline locally (using the default
 `DirectPipelineRunner`) and write output to a local or
 Google Cloud Storage (GCS) location, use the following command-line syntax:
 
     mvn exec:java -pl examples \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
-    -Dexec.args=" ---output=[<LOCAL FILE> | gs://<OUTPUT PREFIX>]
+    -Dexec.args="--output=[<LOCAL FILE> | gs://<OUTPUT PREFIX>]
 
 If you have been whitelisted for Alpha access to the Dataflow Service and
 followed the [developer setup](https://cloud.google.com/dataflow/java-sdk/getting-started#DeveloperSetup)
-steps, you can use the BlockingDataflowPipelineRunner to execute the Wordcount
-program in the Google Cloud Platform (GCP). In this case, you specify
-your project name, pipeline runner, the GCS staging location (staging
+steps, you can use the `BlockingDataflowPipelineRunner` to execute the
+`WordCount` example in the Google Cloud Platform (GCP). In this case, you
+specify your project name, pipeline runner, the GCS staging location (staging
 location should be entered in the form of `gs://bucket/staging-directory`),
 and the GCS output (in the form of `gs://bucket/filename_prefix`).
 
@@ -108,9 +108,9 @@ and the GCS output (in the form of `gs://bucket/filename_prefix`).
 Refer [here](https://cloud.google.com/) for instructions to get started with
 Google Cloud Platform.
 
-Other examples can be run similarly by replacing the WordCount class name with
-BigQueryTornadoes, DatastoreWordCount, TfIdf, TopWikipediaSessions, etc. and
-adjusting runtime options under the Dexec.args parameter, as specified in the
+Other examples can be run similarly by replacing the `WordCount` class name with
+`BigQueryTornadoes`, `DatastoreWordCount`, `TfIdf`, `TopWikipediaSessions`, etc. and
+adjusting runtime options under the `Dexec.args` parameter, as specified in the
 example itself.
 
 ## More Information
