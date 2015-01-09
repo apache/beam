@@ -81,25 +81,30 @@ You can speed up the build and install process by using the following options:
 
         mvn -T 4 install
 
-After building and installing, the following command will execute the WordCount
-example using the DirectPipelineRunner on your local machine:
+After building and installing, you can execute the Wordcount and other example
+pipelines locally or in the cloud using `mvn` with command-line options.
+
+To execute the Wordcount pipeline locally (using the default
+`DirectPipelineRunner`) and write output to a local or
+Google Cloud Storage (GCS) location, use the following command-line syntax:
 
     mvn exec:java -pl examples \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
-    -Dexec.args="--input=<INPUT FILE PATTERN> --output=<OUTPUT FILE>"
+    -Dexec.args=" ---output=[<LOCAL FILE> | gs://<OUTPUT PREFIX>]
 
 If you have been whitelisted for Alpha access to the Dataflow Service and
 followed the [developer setup](https://cloud.google.com/dataflow/java-sdk/getting-started#DeveloperSetup)
-steps, you can use the BlockingDataflowPipelineRunner to run the same program in
-the Google Cloud Platform (GCP):
+steps, you can use the BlockingDataflowPipelineRunner to execute the Wordcount
+program in the Google Cloud Platform (GCP). In this case, you specify
+your project name, pipeline runner, the GCS staging location (staging
+location should be entered in the form of `gs://bucket/staging-directory`),
+and the GCS output (in the form of `gs://bucket/filename_prefix`).
 
     mvn exec:java -pl examples \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
-    -Dexec.args="--project=<YOUR GCP PROJECT NAME> --stagingLocation=<YOUR GCS LOCATION> --runner=BlockingDataflowPipelineRunner"
+    -Dexec.args="--project=<YOUR GCP PROJECT NAME> --runner=BlockingDataflowPipelineRunner \
+    --stagingLocation=<GCS STAGING LOCATION> --output=<GCS OUTPUT PREFIX>"
 
-Google Cloud Storage (GCS) location should be entered in the form of
-gs://bucket/path/to/staging/directory. Google Cloud Platform (GCP) project
-refers to its name (not number), which has been whitelisted for Cloud Dataflow.
 Refer [here](https://cloud.google.com/) for instructions to get started with
 Google Cloud Platform.
 
