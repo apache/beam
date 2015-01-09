@@ -47,6 +47,7 @@ import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.DatastoreIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
+import com.google.cloud.dataflow.sdk.io.ReadSource;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.CloudDebuggerOptions.DebuggerConfig;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
@@ -55,6 +56,7 @@ import com.google.cloud.dataflow.sdk.runners.dataflow.AvroIOTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.BigQueryIOTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.DatastoreIOTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.PubsubIOTranslator;
+import com.google.cloud.dataflow.sdk.runners.dataflow.ReadSourceTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.TextIOTranslator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -923,7 +925,7 @@ public class DataflowPipelineTranslator {
         BigQueryIO.Write.Bound.class, new BigQueryIOTranslator.WriteTranslator());
 
     registerTransformTranslator(
-        DatastoreIO.Write.Bound.class, new DatastoreIOTranslator.WriteTranslator());
+        DatastoreIO.Sink.class, new DatastoreIOTranslator.WriteTranslator());
 
     registerTransformTranslator(
         PubsubIO.Read.Bound.class, new PubsubIOTranslator.ReadTranslator());
@@ -934,6 +936,9 @@ public class DataflowPipelineTranslator {
         TextIO.Read.Bound.class, new TextIOTranslator.ReadTranslator());
     registerTransformTranslator(
         TextIO.Write.Bound.class, new TextIOTranslator.WriteTranslator());
+
+    registerTransformTranslator(
+        ReadSource.Bound.class, new ReadSourceTranslator());
   }
 
   private static void translateInputs(

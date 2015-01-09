@@ -17,13 +17,25 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.google.api.services.datastore.DatastoreV1;
 import com.google.api.services.datastore.DatastoreV1.Entity;
 import com.google.api.services.datastore.DatastoreV1.Query;
+import com.google.api.services.datastore.client.Datastore;
+import com.google.api.services.datastore.client.DatastoreHelper;
+import com.google.api.services.datastore.client.QuerySplitter;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.EntityCoder;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.util.TestCredential;
+import com.google.common.base.Supplier;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -31,12 +43,14 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Tests for DatastoreIO Read and Write transforms.
  */
 @RunWith(JUnit4.class)
 public class DatastoreIOTest {
-
   private String host;
   private String datasetId;
   private Query query;
@@ -72,9 +86,8 @@ public class DatastoreIOTest {
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testBuildRead() throws Exception {
-    DatastoreIO.Read.Bound readQuery = DatastoreIO.Read
-        .withHost(this.host)
-        .from(this.datasetId, this.query);
+    DatastoreIO.Source readQuery =
+        DatastoreIO.read().withHost(this.host).withDataset(this.datasetId).withQuery(this.query);
     assertEquals(this.query, readQuery.query);
     assertEquals(this.datasetId, readQuery.datasetId);
     assertEquals(this.host, readQuery.host);
@@ -82,45 +95,87 @@ public class DatastoreIOTest {
 
   @Test
   public void testBuildReadAlt() throws Exception {
-    DatastoreIO.Read.Bound readQuery = DatastoreIO.Read
-        .from(this.datasetId, this.query)
-        .withHost(this.host);
+    DatastoreIO.Source readQuery =
+        DatastoreIO.read().withDataset(this.datasetId).withQuery(this.query).withHost(this.host);
     assertEquals(this.query, readQuery.query);
     assertEquals(this.datasetId, readQuery.datasetId);
     assertEquals(this.host, readQuery.host);
   }
 
-  @Test(expected = IllegalStateException.class)
-  public void testBuildReadWithoutDatastoreSettingToCatchException()
-      throws Exception {
+  @Test(expected = NullPointerException.class)
+  public void testBuildReadWithoutDatastoreSettingToCatchException() throws Exception {
     // create pipeline and run the pipeline to get result
     Pipeline p = DirectPipeline.createForTest();
-    p.apply(DatastoreIO.Read.named("ReadDatastore"));
+    p.apply(ReadSource.from(DatastoreIO.read().withHost(null)));
+  }
+
+  @Test
+  public void testQuerySplitWithMockSplitter() throws Exception {
+    String dataset = "mydataset";
+    DatastoreV1.KindExpression mykind =
+        DatastoreV1.KindExpression.newBuilder().setName("mykind").build();
+    Query query = Query.newBuilder().addKind(mykind).build();
+
+    DataflowPipelineOptions options = PipelineOptionsFactory.create()
+        .as(DataflowPipelineOptions.class);
+    options.setGcpCredential(new TestCredential());
+
+    List<Query> mockSplits = new ArrayList<>();
+    for (int i = 0; i < 8; ++i) {
+      mockSplits.add(
+          Query.newBuilder()
+              .addKind(mykind)
+              .setFilter(
+                  DatastoreHelper.makeFilter("foo", DatastoreV1.PropertyFilter.Operator.EQUAL,
+                      DatastoreV1.Value.newBuilder().setIntegerValue(i).build()))
+              .build());
+    }
+
+    QuerySplitter splitter = mock(QuerySplitter.class);
+    when(splitter.getSplits(any(Query.class), eq(8), any(Datastore.class))).thenReturn(mockSplits);
+
+    DatastoreIO.Source io =
+        DatastoreIO.read()
+            .withDataset(dataset)
+            .withQuery(query)
+            .withMockSplitter(splitter)
+            .withMockEstimateSizeBytes(new Supplier<Long>() {
+              @Override
+              public Long get() {
+                return 8 * 1024L;
+              }
+            });
+
+    List<DatastoreIO.Source> shards = io.splitIntoShards(1024, options);
+    assertEquals(8, shards.size());
+    for (int i = 0; i < 8; ++i) {
+      DatastoreIO.Source shard = shards.get(i);
+      Query shardQuery = shard.query;
+      assertEquals("mykind", shardQuery.getKind(0).getName());
+      assertEquals(i, shardQuery.getFilter().getPropertyFilter().getValue().getIntegerValue());
+    }
   }
 
   @Test
   public void testBuildWrite() throws Exception {
-    DatastoreIO.Write.Bound write = DatastoreIO.Write
-        .to(this.datasetId)
-        .withHost(this.host);
-    assertEquals(this.host, write.host);
-    assertEquals(this.datasetId, write.datasetId);
+    DatastoreIO.Sink sink = DatastoreIO.write().to(this.datasetId).withHost(this.host);
+    assertEquals(this.host, sink.host);
+    assertEquals(this.datasetId, sink.datasetId);
   }
 
   @Test
   public void testBuildWriteAlt() throws Exception {
-    DatastoreIO.Write.Bound write = DatastoreIO.Write
-        .withHost(this.host)
-        .to(this.datasetId);
-    assertEquals(this.host, write.host);
-    assertEquals(this.datasetId, write.datasetId);
+    DatastoreIO.Sink sink = DatastoreIO.write().withHost(this.host).to(this.datasetId);
+    assertEquals(this.host, sink.host);
+    assertEquals(this.datasetId, sink.datasetId);
   }
 
   @Test(expected = IllegalStateException.class)
   public void testBuildWriteWithoutDatastoreToCatchException() throws Exception {
     // create pipeline and run the pipeline to get result
     Pipeline p = DirectPipeline.createForTest();
-    p.apply(Create.<Entity>of()).setCoder(EntityCoder.of())
-        .apply(DatastoreIO.Write.named("WriteDatastore"));
+    p.apply(Create.<Entity>of())
+        .setCoder(EntityCoder.of())
+        .apply(DatastoreIO.write().named("WriteDatastore"));
   }
 }

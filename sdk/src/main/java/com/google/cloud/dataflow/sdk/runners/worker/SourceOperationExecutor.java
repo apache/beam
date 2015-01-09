@@ -22,6 +22,7 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceOperationResponse;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
@@ -36,12 +37,15 @@ import org.slf4j.LoggerFactory;
 public class SourceOperationExecutor extends WorkExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(MapTaskExecutor.class);
 
+  private final PipelineOptions options;
   private final SourceOperationRequest request;
   private SourceOperationResponse response;
 
-  public SourceOperationExecutor(SourceOperationRequest request,
+  public SourceOperationExecutor(PipelineOptions options,
+                                 SourceOperationRequest request,
                                  CounterSet counters) {
     super(counters);
+    this.options = options;
     this.request = request;
   }
 
@@ -58,11 +62,10 @@ public class SourceOperationExecutor extends WorkExecutor {
       throw new UnsupportedOperationException("Unknown source operation");
     }
 
-    this.response =
-        sourceOperationResponseToCloudSourceOperationResponse(
-            CustomSourceFormatFactory.create(sourceSpec)
-                .performSourceOperation(
-                    cloudSourceOperationRequestToSourceOperationRequest(request)));
+    this.response = sourceOperationResponseToCloudSourceOperationResponse(
+        SourceFormatFactory.create(options, sourceSpec)
+            .performSourceOperation(
+                cloudSourceOperationRequestToSourceOperationRequest(request)));
 
     LOG.debug("Source operation execution complete");
   }

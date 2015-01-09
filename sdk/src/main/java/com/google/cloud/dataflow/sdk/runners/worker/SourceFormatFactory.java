@@ -19,29 +19,31 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
 import com.google.api.services.dataflow.model.Source;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.common.worker.CustomSourceFormat;
+import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 
 import java.util.Map;
 
 /**
- * Creates {@code CustomSourceFormat} objects from {@code Source}.
+ * Creates {@code SourceFormat} objects from {@code Source}.
  */
-public class CustomSourceFormatFactory {
-  private CustomSourceFormatFactory() {}
+public class SourceFormatFactory {
+  private SourceFormatFactory() {}
 
-  public static CustomSourceFormat create(Source source) throws Exception {
+  public static SourceFormat create(PipelineOptions options, Source source) throws Exception {
     Map<String, Object> spec = source.getSpec();
 
     try {
-      return InstanceBuilder.ofType(CustomSourceFormat.class)
+      return InstanceBuilder.ofType(SourceFormat.class)
           .fromClassName(getString(spec, PropertyNames.OBJECT_TYPE_NAME))
+          .withArg(PipelineOptions.class, options)
           .build();
 
     } catch (ClassNotFoundException exn) {
       throw new Exception(
-          "unable to create a custom source format from " + source, exn);
+          "unable to create a source format from " + source, exn);
     }
   }
 }

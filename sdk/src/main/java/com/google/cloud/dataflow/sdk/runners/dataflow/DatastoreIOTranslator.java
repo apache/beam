@@ -28,10 +28,10 @@ public class DatastoreIOTranslator {
   /**
    * Implements DatastoreIO Write translation for the Dataflow backend.
    */
-  public static class WriteTranslator implements TransformTranslator<DatastoreIO.Write.Bound> {
+  public static class WriteTranslator implements TransformTranslator<DatastoreIO.Sink> {
     @Override
     public void translate(
-        DatastoreIO.Write.Bound transform,
+        DatastoreIO.Sink transform,
         TranslationContext context) {
       // TODO: Not implemented yet.
       // translateWriteHelper(transform, context);

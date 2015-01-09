@@ -17,15 +17,16 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.api.services.dataflow.model.SourceOperationRequest;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 
 /**
  * Creates a SourceOperationExecutor from a SourceOperation.
  */
 public class SourceOperationExecutorFactory {
-  public static SourceOperationExecutor create(SourceOperationRequest request)
-      throws Exception {
+  public static SourceOperationExecutor create(
+      PipelineOptions options, SourceOperationRequest request) throws Exception {
     CounterSet counters = new CounterSet();
-    return new SourceOperationExecutor(request, counters);
+    return new SourceOperationExecutor(options, request, counters);
   }
 }

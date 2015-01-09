@@ -28,8 +28,8 @@ import com.google.api.services.dataflow.model.SourceMetadata;
 import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceOperationResponse;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.common.worker.CustomSourceFormat;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -50,19 +50,19 @@ public class SourceTranslationUtils {
     return cloudPosition == null ? null : new DataflowReaderPosition(cloudPosition);
   }
 
-  public static CustomSourceFormat.OperationRequest
+  public static SourceFormat.OperationRequest
       cloudSourceOperationRequestToSourceOperationRequest(
           @Nullable SourceOperationRequest request) {
     return request == null ? null : new DataflowSourceOperationRequest(request);
   }
 
-  public static CustomSourceFormat.OperationResponse
+  public static SourceFormat.OperationResponse
       cloudSourceOperationResponseToSourceOperationResponse(
           @Nullable SourceOperationResponse response) {
     return response == null ? null : new DataflowSourceOperationResponse(response);
   }
 
-  public static CustomSourceFormat.SourceSpec cloudSourceToSourceSpec(
+  public static SourceFormat.SourceSpec cloudSourceToSourceSpec(
       @Nullable Source cloudSource) {
     return cloudSource == null ? null : new DataflowSourceSpec(cloudSource);
   }
@@ -76,17 +76,18 @@ public class SourceTranslationUtils {
     return sourcePosition == null ? null : ((DataflowReaderPosition) sourcePosition).cloudPosition;
   }
 
+
   public static SourceOperationRequest sourceOperationRequestToCloudSourceOperationRequest(
-      @Nullable CustomSourceFormat.OperationRequest request) {
+      @Nullable SourceFormat.OperationRequest request) {
     return (request == null) ? null : ((DataflowSourceOperationRequest) request).cloudRequest;
   }
 
   public static SourceOperationResponse sourceOperationResponseToCloudSourceOperationResponse(
-      @Nullable CustomSourceFormat.OperationResponse response) {
+      @Nullable SourceFormat.OperationResponse response) {
     return (response == null) ? null : ((DataflowSourceOperationResponse) response).cloudResponse;
   }
 
-  public static Source sourceSpecToCloudSource(@Nullable CustomSourceFormat.SourceSpec spec) {
+  public static Source sourceSpecToCloudSource(@Nullable SourceFormat.SourceSpec spec) {
     return (spec == null) ? null : ((DataflowSourceSpec) spec).cloudSource;
   }
 
@@ -104,40 +105,40 @@ public class SourceTranslationUtils {
     }
   }
 
-  static class DataflowSourceOperationRequest implements CustomSourceFormat.OperationRequest {
+  static class DataflowSourceOperationRequest implements SourceFormat.OperationRequest {
     public final SourceOperationRequest cloudRequest;
     public DataflowSourceOperationRequest(SourceOperationRequest cloudRequest) {
       this.cloudRequest = cloudRequest;
     }
   }
 
-  static class DataflowSourceOperationResponse implements CustomSourceFormat.OperationResponse {
+  static class DataflowSourceOperationResponse implements SourceFormat.OperationResponse {
     public final SourceOperationResponse cloudResponse;
     public DataflowSourceOperationResponse(SourceOperationResponse cloudResponse) {
       this.cloudResponse = cloudResponse;
     }
   }
 
-  static class DataflowSourceSpec implements CustomSourceFormat.SourceSpec {
+  static class DataflowSourceSpec implements SourceFormat.SourceSpec {
     public final Source cloudSource;
     public DataflowSourceSpec(Source cloudSource) {
       this.cloudSource = cloudSource;
     }
   }
 
-  // Represents a cloud Source as a dictionary for encoding inside the CUSTOM_SOURCE
+  // Represents a cloud Source as a dictionary for encoding inside the {@code SOURCE_STEP_INPUT}
   // property of CloudWorkflowStep.input.
   public static Map<String, Object> cloudSourceToDictionary(Source source) {
     // Do not translate encoding - the source's encoding is translated elsewhere
     // to the step's output info.
     Map<String, Object> res = new HashMap<>();
-    addDictionary(res, PropertyNames.CUSTOM_SOURCE_SPEC, source.getSpec());
+    addDictionary(res, PropertyNames.SOURCE_SPEC, source.getSpec());
     if (source.getMetadata() != null) {
-      addDictionary(res, PropertyNames.CUSTOM_SOURCE_METADATA,
+      addDictionary(res, PropertyNames.SOURCE_METADATA,
           cloudSourceMetadataToDictionary(source.getMetadata()));
     }
     if (source.getDoesNotNeedSplitting() != null) {
-      addBoolean(res, PropertyNames.CUSTOM_SOURCE_DOES_NOT_NEED_SPLITTING,
+      addBoolean(res, PropertyNames.SOURCE_DOES_NOT_NEED_SPLITTING,
           source.getDoesNotNeedSplitting());
     }
     return res;
@@ -147,22 +148,22 @@ public class SourceTranslationUtils {
     Map<String, Object> res = new HashMap<>();
     if (metadata.getProducesSortedKeys() != null) {
       addBoolean(
-          res, PropertyNames.CUSTOM_SOURCE_PRODUCES_SORTED_KEYS, metadata.getProducesSortedKeys());
+          res, PropertyNames.SOURCE_PRODUCES_SORTED_KEYS, metadata.getProducesSortedKeys());
     }
     if (metadata.getEstimatedSizeBytes() != null) {
       addLong(
-          res, PropertyNames.CUSTOM_SOURCE_ESTIMATED_SIZE_BYTES, metadata.getEstimatedSizeBytes());
+          res, PropertyNames.SOURCE_ESTIMATED_SIZE_BYTES, metadata.getEstimatedSizeBytes());
     }
     if (metadata.getInfinite() != null) {
-      addBoolean(res, PropertyNames.CUSTOM_SOURCE_IS_INFINITE, metadata.getInfinite());
+      addBoolean(res, PropertyNames.SOURCE_IS_INFINITE, metadata.getInfinite());
     }
     return res;
   }
 
   public static Source dictionaryToCloudSource(Map<String, Object> params) throws Exception {
     Source res = new Source();
-    res.setSpec(getDictionary(params, PropertyNames.CUSTOM_SOURCE_SPEC));
-    // CUSTOM_SOURCE_METADATA and CUSTOM_SOURCE_DOES_NOT_NEED_SPLITTING do not have to be
+    res.setSpec(getDictionary(params, PropertyNames.SOURCE_SPEC));
+    // SOURCE_METADATA and SOURCE_DOES_NOT_NEED_SPLITTING do not have to be
     // translated, because they only make sense in cloud Source objects produced by the user.
     return res;
   }

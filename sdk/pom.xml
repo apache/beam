@@ -271,6 +271,12 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.http-client</groupId>
+      <artifactId>google-http-client</artifactId>
+      <version>1.19.0</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.oauth-client</groupId>
       <artifactId>google-oauth-client-java6</artifactId>
       <version>1.19.0</version>

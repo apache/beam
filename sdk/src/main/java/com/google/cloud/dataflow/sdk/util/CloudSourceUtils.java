@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.api.services.dataflow.model.Source;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
 
 import java.util.HashMap;
@@ -54,9 +55,10 @@ public class CloudSourceUtils {
    * Creates a {@link com.google.cloud.dataflow.sdk.util.common.worker.Reader}
    * from the given Dataflow Source API definition and reads all elements from it.
    */
-  public static <T> List<T> readElemsFromSource(Source source) {
+
+  public static <T> List<T> readElemsFromSource(PipelineOptions options, Source source) {
     try {
-      return ReaderUtils.readElemsFromReader(ReaderFactory.<T>create(null, source, null));
+      return ReaderUtils.readElemsFromReader(ReaderFactory.<T>create(options, source, null));
     } catch (Exception e) {
       throw new RuntimeException("Failed to read from source: " + source.toString(), e);
     }

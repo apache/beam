@@ -148,7 +148,7 @@ public class DatastoreWordCount {
     Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
     p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
      .apply(ParDo.of(new CreateEntityFn(options.getKind())))
-     .apply(DatastoreIO.Write.to(options.getDataset()));
+     .apply(DatastoreIO.write().to(options.getDataset()));
 
     p.run();
   }
@@ -163,8 +163,8 @@ public class DatastoreWordCount {
     Query query = q.build();
 
     Pipeline p = Pipeline.create(options);
-    p.apply(DatastoreIO.Read.named("ReadShakespeareFromDatastore")
-        .from(options.getDataset(), query))
+    p.apply(DatastoreIO.readFrom(options.getDataset(), query)
+        .named("ReadShakespeareFromDatastore"))
         .apply(ParDo.of(new GetContentFn()))
         .apply(new WordCount.CountWords())
         .apply(TextIO.Write.named("WriteLines").to(options.getOutput()));

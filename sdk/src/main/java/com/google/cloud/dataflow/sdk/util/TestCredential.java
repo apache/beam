@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.api.client.auth.oauth2.BearerToken;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.auth.oauth2.TokenResponse;
+import com.google.api.client.testing.http.MockHttpTransport;
 
 import java.io.IOException;
 
@@ -35,7 +36,8 @@ public class TestCredential extends Credential {
 
   public TestCredential(String token) {
     super(new Builder(
-        BearerToken.authorizationHeaderAccessMethod()));
+        BearerToken.authorizationHeaderAccessMethod())
+        .setTransport(new MockHttpTransport()));
     this.token = token;
   }
 

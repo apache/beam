@@ -71,7 +71,8 @@ public abstract class Reader<T> extends Observable {
      * called concurrently to any other methods.
      *
      * @return the progress, or {@code null} if no progress measure
-     * can be provided
+     * can be provided (implementors are discouraged from throwing
+     * {@code UnsupportedOperationException} in this case).
      */
     public Progress getProgress();
 
@@ -91,7 +92,8 @@ public abstract class Reader<T> extends Observable {
      * @param proposedStopPosition a proposed position to stop
      * iterating through the source
      * @return the new stop position, or {@code null} on failure if the
-     * implementation does not support position updates.
+     * implementation does not support position updates(implementors are discouraged
+     * from throwing {@code UnsupportedOperationException} in this case).
      */
     public Position updateStopPosition(Progress proposedStopPosition);
   }

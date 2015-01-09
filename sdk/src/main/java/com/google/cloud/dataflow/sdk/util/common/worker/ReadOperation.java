@@ -157,7 +157,7 @@ public class ReadOperation extends Operation {
       try {
         // Force a progress update at the beginning and at the end.
         synchronized (sourceIteratorLock) {
-          progress.set(readerIterator.getProgress());
+          setProgressFromIterator();
         }
         while (true) {
           Object value;
@@ -172,14 +172,14 @@ public class ReadOperation extends Operation {
               value = readerIterator.next();
 
               if (isProgressUpdateRequested.getAndSet(false) || progressUpdatePeriodMs == 0) {
-                progress.set(readerIterator.getProgress());
+                setProgressFromIterator();
               }
             }
           }
           receiver.process(value);
         }
         synchronized (sourceIteratorLock) {
-          progress.set(readerIterator.getProgress());
+          setProgressFromIterator();
         }
       } finally {
         synchronized (sourceIteratorLock) {
@@ -190,6 +190,17 @@ public class ReadOperation extends Operation {
           updateRequester.join();
         }
       }
+    }
+  }
+
+  private void setProgressFromIterator() {
+    try {
+      progress.set(readerIterator.getProgress());
+    } catch (UnsupportedOperationException e) {
+      // Ignore: same semantics as null.
+    } catch (Exception e) {
+      // This is not a normal situation, but should not kill the task.
+      LOG.warn("Progress estimation failed", e);
     }
   }
 

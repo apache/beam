@@ -129,7 +129,7 @@ public class BigQueryReaderTest {
   }
 
   @Test
-  public void testRead() throws IOException {
+  public void testRead() throws Exception {
     onTableGet(basicTableSchema());
 
     // BQ API data is always encoded as a string
