@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.worker.logging;
 
 import com.google.common.collect.ImmutableBiMap;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
@@ -37,7 +38,8 @@ import java.util.logging.Logger;
  * within the systems temporary directory.
  */
 public class DataflowWorkerLoggingInitializer {
-  private static final String DEFAULT_LOGGING_LOCATION = "/tmp/dataflow-worker.log";
+  private static final String DEFAULT_LOGGING_LOCATION =
+      new File(System.getProperty("java.io.tmpdir"), "dataflow-worker.log").getPath();
   private static final String ROOT_LOGGER_NAME = "";
   public static final String DATAFLOW_WORKER_LOGGING_LEVEL = "dataflow.worker.logging.level";
   public static final String DATAFLOW_WORKER_LOGGING_LOCATION = "dataflow.worker.logging.location";

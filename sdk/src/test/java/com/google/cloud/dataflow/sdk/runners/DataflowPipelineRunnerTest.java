@@ -53,6 +53,7 @@ import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
@@ -76,8 +77,10 @@ import java.util.List;
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class DataflowPipelineRunnerTest {
-
-  @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   // Asserts that the given Job has all expected fields set.
   private static void assertValidJob(Job job) {
@@ -235,14 +238,14 @@ public class DataflowPipelineRunnerTest {
 
   @Test
   public void detectClassPathResourceWithFileResources() throws Exception {
-    String path = "/tmp/file";
-    String path2 = "/tmp/file2";
+    File file = tmpFolder.newFile("file");
+    File file2 = tmpFolder.newFile("file2");
     URLClassLoader classLoader = new URLClassLoader(new URL[]{
-        new URL("file://" + path),
-        new URL("file://" + path2)
+        file.toURI().toURL(),
+        file2.toURI().toURL()
     });
 
-    assertEquals(ImmutableList.of(path, path2),
+    assertEquals(ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
         DataflowPipelineRunner.detectClassPathResourcesToStage(classLoader));
   }
 
