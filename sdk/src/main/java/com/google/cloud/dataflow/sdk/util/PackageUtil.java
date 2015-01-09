@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
@@ -36,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -253,46 +257,84 @@ public class PackageUtil {
   private static void copyContent(String classpathElement, WritableByteChannel outputChannel)
       throws IOException {
     final File classpathElementFile = new File(classpathElement);
-    if (!classpathElementFile.isDirectory()) {
+    if (classpathElementFile.isDirectory()) {
+      zipDirectory(classpathElementFile, Channels.newOutputStream(outputChannel));
+    } else {
       Files.asByteSource(classpathElementFile).copyTo(Channels.newOutputStream(outputChannel));
-      return;
     }
+  }
 
-    ZipOutputStream zos = new ZipOutputStream(Channels.newOutputStream(outputChannel));
-    zipDirectoryRecursive(classpathElementFile, classpathElementFile, zos);
+  /**
+   * Zips an entire directory specified by the path.
+   *
+   * @param sourceDirectory the directory to read from. This directory and all
+   *     subdirectories will be added to the zip-file. The path within the zip
+   *     file is relative to the directory given as parameter, not absolute.
+   * @param outputStream the stream to write the zip-file to. This method does not close
+   *     outputStream.
+   * @throws IOException the zipping failed, e.g. because the input was not
+   *     readable.
+   */
+  private static void zipDirectory(
+      File sourceDirectory,
+      OutputStream outputStream) throws IOException {
+    checkNotNull(sourceDirectory);
+    checkNotNull(outputStream);
+    checkArgument(
+        sourceDirectory.isDirectory(),
+        "%s is not a valid directory",
+        sourceDirectory.getAbsolutePath());
+    ZipOutputStream zos = new ZipOutputStream(outputStream);
+    for (File file : sourceDirectory.listFiles()) {
+      zipDirectoryInternal(file, "", zos);
+    }
     zos.finish();
   }
 
   /**
-   * Private helper function for zipping files. This one goes recursively through the input
-   * directory and all of its subdirectories and adds the single zip entries.
+   * Private helper function for zipping files. This one goes recursively
+   * through the input directory and all of its subdirectories and adds the
+   * single zip entries.
    *
-   * @param file the file or directory to be added to the zip file.
-   * @param root each file uses the root directory to generate its relative path within the zip.
-   * @param zos the zipstream to write to.
-   * @throws IOException the zipping failed, e.g. because the output was not writable.
+   * @param inputFile the file or directory to be added to the zip file
+   * @param directoryName the string-representation of the parent directory
+   *     name. Might be an empty name, or a name containing multiple directory
+   *     names separated by "/". The directory name must be a valid name
+   *     according to the file system limitations.
+   * @param zos the zipstream to write to
+   * @throws IOException the zipping failed, e.g. because the output was not
+   *     writeable.
    */
-  private static void zipDirectoryRecursive(File file, File root, ZipOutputStream zos)
-      throws IOException {
-    final String entryName = relativize(file, root);
-    if (file.isDirectory()) {
-      // We are hitting a directory. Start the recursion.
-      // Add the empty entry if it is a subdirectory and the subdirectory has no children.
-      // Don't add it otherwise, as this is incompatible with certain implementations of unzip.
-      if (file.list().length == 0 && !file.equals(root)) {
+  private static void zipDirectoryInternal(
+      File inputFile,
+      String directoryName,
+      ZipOutputStream zos) throws IOException {
+    final String entryName;
+    if ("".equals(directoryName)) {
+      // no parent directories yet.
+      entryName = inputFile.getName();
+    } else {
+      entryName = directoryName + "/" + inputFile.getName();
+    }
+    if (inputFile.isDirectory()) {
+      // We are hitting a sub-directory. Start the recursion.
+      // Add the empty entry for a subdirectory if we have no children files.
+      // Don't add it if we have them, as this is incompatible with certain
+      // implementations of unzip.
+      if (inputFile.list().length == 0) {
         ZipEntry entry = new ZipEntry(entryName + "/");
         zos.putNextEntry(entry);
       } else {
         // loop through the directory content, and zip the files
-        for (File currentFile : file.listFiles()) {
-          zipDirectoryRecursive(currentFile, root, zos);
+        for (File file : inputFile.listFiles()) {
+          zipDirectoryInternal(file, entryName, zos);
         }
       }
     } else {
       // Put the next zip-entry into the zipoutputstream.
       ZipEntry entry = new ZipEntry(entryName);
       zos.putNextEntry(entry);
-      Files.asByteSource(file).copyTo(zos);
+      Files.asByteSource(inputFile).copyTo(zos);
     }
   }
 

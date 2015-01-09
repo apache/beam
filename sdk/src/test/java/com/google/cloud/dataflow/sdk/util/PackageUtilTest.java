@@ -16,10 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.times;
@@ -35,7 +36,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 import com.google.common.io.LineReader;
 
-import org.hamcrest.CoreMatchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -210,8 +210,9 @@ public class PackageUtilTest {
         entry = inputStream.getNextEntry()) {
       zipEntryNames.add(entry.getName());
     }
-    assertTrue(CoreMatchers.hasItems("directory/file.txt", "empty_directory/", "file.txt").matches(
-        zipEntryNames));
+
+    assertThat(zipEntryNames,
+        containsInAnyOrder("directory/file.txt", "empty_directory/", "file.txt"));
   }
 
   @Test
