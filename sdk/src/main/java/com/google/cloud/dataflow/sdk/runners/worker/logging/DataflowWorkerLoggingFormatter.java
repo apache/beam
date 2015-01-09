@@ -54,7 +54,7 @@ public class DataflowWorkerLoggingFormatter extends Formatter {
         + " " + MoreObjects.firstNonNull(MDC.get(MDC_DATAFLOW_WORK_ID), "unknown")
         + " " + record.getThreadID()
         + " " + record.getLoggerName()
-        + " " + record.getMessage() + "\n"
+        + " " + record.getMessage() + System.lineSeparator()
         + (exception != null ? exception : "");
   }
 
