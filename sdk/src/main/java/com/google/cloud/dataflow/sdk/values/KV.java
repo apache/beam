@@ -35,8 +35,8 @@ public class KV<K, V> implements Serializable {
   private static final long serialVersionUID = 0;
 
   /** Returns a KV with the given key and value. */
-  public static <K, SK extends K, V, SV extends V> KV<K, V> of(SK key, SV value) {
-    return new KV<K, V>(key, value);
+  public static <K, V> KV<K, V> of(K key, V value) {
+    return new KV<>(key, value);
   }
 
   /** Returns the key of this KV. */
