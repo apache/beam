@@ -19,6 +19,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -64,6 +65,7 @@ public class DataflowWorkerHarnessTest {
   @Mock private MockHttpTransport transport;
   @Mock private MockLowLevelHttpRequest request;
   @Mock private DataflowWorker mockDataflowWorker;
+  private DataflowWorkerHarnessOptions pipelineOptions;
 
   private Dataflow service;
 
@@ -74,21 +76,24 @@ public class DataflowWorkerHarnessTest {
     doCallRealMethod().when(request).getContentAsString();
 
     service = new Dataflow(transport, Transport.getJsonFactory(), null);
+    pipelineOptions = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
   }
 
   @Test
-  public void testThatWeOnlyProcessWorkOnce() throws Exception {
+  public void testThatWeOnlyProcessWorkOncePerAvailableProcessor() throws Exception {
+    int numWorkers = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
     when(mockDataflowWorker.getAndPerformWork()).thenReturn(true);
-    DataflowWorkerHarness.processWork(mockDataflowWorker);
-    verify(mockDataflowWorker).getAndPerformWork();
+    DataflowWorkerHarness.processWork(pipelineOptions, mockDataflowWorker);
+    verify(mockDataflowWorker, times(numWorkers)).getAndPerformWork();
     verifyNoMoreInteractions(mockDataflowWorker);
   }
 
   @Test
-  public void testThatWeOnlyProcessWorkOnceEvenWhenFailing() throws Exception {
+  public void testThatWeOnlyProcessWorkOncePerAvailableProcessorEvenWhenFailing() throws Exception {
+    int numWorkers = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
     when(mockDataflowWorker.getAndPerformWork()).thenReturn(false);
-    DataflowWorkerHarness.processWork(mockDataflowWorker);
-    verify(mockDataflowWorker).getAndPerformWork();
+    DataflowWorkerHarness.processWork(pipelineOptions, mockDataflowWorker);
+    verify(mockDataflowWorker, times(numWorkers)).getAndPerformWork();
     verifyNoMoreInteractions(mockDataflowWorker);
   }
 

@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudTime;
 
+import com.google.api.client.util.Lists;
 import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
@@ -40,7 +41,9 @@ import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
+import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -49,6 +52,9 @@ import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutorCompletionService;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -92,17 +98,49 @@ public class DataflowWorkerHarness {
     Thread.currentThread().setUncaughtExceptionHandler(WorkerUncaughtExceptionHandler.INSTANCE);
     new DataflowWorkerLoggingInitializer().initialize();
 
-    DataflowWorker worker = createFromSystemProperties();
-    processWork(worker);
+    DataflowWorkerHarnessOptions pipelineOptions =
+        PipelineOptionsFactory.createFromSystemProperties();
+    final DataflowWorker worker = create(pipelineOptions);
+    processWork(pipelineOptions, worker);
   }
 
   // Visible for testing.
-  static void processWork(DataflowWorker worker) throws IOException {
-    worker.getAndPerformWork();
-  }
+  static void processWork(DataflowWorkerHarnessOptions pipelineOptions,
+      final DataflowWorker worker) {
 
-  static DataflowWorker createFromSystemProperties() {
-    return create(PipelineOptionsFactory.createFromSystemProperties());
+    long startTime = DateTimeUtils.currentTimeMillis();
+    int numThreads = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
+    CompletionService<Boolean> completionService =
+        new ExecutorCompletionService<>(pipelineOptions.getExecutorService());
+    for (int i = 0; i < numThreads; ++i) {
+      completionService.submit(new Callable<Boolean>() {
+        @Override
+        public Boolean call() throws Exception {
+          return worker.getAndPerformWork();
+        }
+      });
+    }
+
+    List<Long> completionTimes = Lists.newArrayList();
+    for (int i = 0; i < numThreads; ++i) {
+      try {
+        // CompletionService returns the tasks in the order in which the completed at.
+        completionService.take().get();
+      } catch (Exception e) {
+        LOG.error("Failed waiting on thread to process work.", e);
+      }
+      completionTimes.add(DateTimeUtils.currentTimeMillis());
+    }
+
+    long endTime = DateTimeUtils.currentTimeMillis();
+    LOG.info("processWork() start time: {}, end time: {}",
+        ISODateTimeFormat.dateTime().print(startTime),
+        ISODateTimeFormat.dateTime().print(endTime));
+    for (long completionTime : completionTimes) {
+      LOG.info("Duration: {}ms Wasted Time: {}ms",
+          completionTime - startTime,
+          endTime - completionTime);
+    }
   }
 
   static DataflowWorker create(DataflowWorkerHarnessOptions options) {
