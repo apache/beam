@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -44,6 +45,7 @@ import java.util.List;
 public class PipelineOptionsFactoryTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(PipelineOptionsFactory.class);
 
   @Test
   public void testAutomaticRegistrationOfPipelineOptions() {
@@ -495,6 +497,15 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
+  public void testSetASingularAttributeUsingAListIsIgnoredWithoutStrictParsing() {
+    String[] args = new String[] {
+        "--diskSizeGb=100",
+        "--diskSizeGb=200"};
+    expectedLogs.expectWarn("Strict parsing is disabled, ignoring option");
+    PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
+  }
+
+  @Test
   public void testSettingRunner() {
     String[] args = new String[] {"--runner=BlockingDataflowPipelineRunner"};
 
@@ -504,12 +515,71 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testSettingUnknownRunner() {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Unknown 'runner' specified UnknownRunner, supported pipeline "
-        + "runners [BlockingDataflowPipelineRunner, DataflowPipelineRunner, DirectPipelineRunner]");
     String[] args = new String[] {"--runner=UnknownRunner"};
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Unknown 'runner' specified 'UnknownRunner', supported "
+        + "pipeline runners [BlockingDataflowPipelineRunner, DataflowPipelineRunner, "
+        + "DirectPipelineRunner]");
+    PipelineOptionsFactory.fromArgs(args).create();
+  }
 
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-    options.getRunner();
+  @Test
+  public void testUsingArgumentWithUnknownPropertyIsNotAllowed() {
+    String[] args = new String[] {"--unknownProperty=value"};
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("missing a property named 'unknownProperty'");
+    PipelineOptionsFactory.fromArgs(args).create();
+  }
+
+  @Test
+  public void testUsingArgumentWithUnknownPropertyIsIgnoredWithoutStrictParsing() {
+    String[] args = new String[] {"--unknownProperty=value"};
+    expectedLogs.expectWarn("missing a property named 'unknownProperty'");
+    PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
+  }
+
+  @Test
+  public void testUsingArgumentWithoutValueIsNotAllowed() {
+    String[] args = new String[] {"--diskSizeGb="};
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Argument '--diskSizeGb=' ends with '='");
+    PipelineOptionsFactory.fromArgs(args).create();
+  }
+
+  @Test
+  public void testUsingArgumentWithoutValueIsIgnoredWithoutStrictParsing() {
+    String[] args = new String[] {"--diskSizeGb="};
+    expectedLogs.expectWarn("Strict parsing is disabled, ignoring option");
+    PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
+  }
+
+  @Test
+  public void testUsingArgumentStartingWithIllegalCharacterIsNotAllowed() {
+    String[] args = new String[] {" --diskSizeGb=100"};
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Argument ' --diskSizeGb=100' does not begin with '--'");
+    PipelineOptionsFactory.fromArgs(args).create();
+  }
+
+  @Test
+  public void testUsingArgumentStartingWithIllegalCharacterIsIgnoredWithoutStrictParsing() {
+    String[] args = new String[] {" --diskSizeGb=100"};
+    expectedLogs.expectWarn("Strict parsing is disabled, ignoring option");
+    PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
+  }
+
+  @Test
+  public void testUsingArgumentWithInvalidNameIsNotAllowed() {
+    String[] args = new String[] {"--=100"};
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Argument '--=100' starts with '--='");
+    PipelineOptionsFactory.fromArgs(args).create();
+  }
+
+  @Test
+  public void testUsingArgumentWithInvalidNameIsIgnoredWithoutStrictParsing() {
+    String[] args = new String[] {"--=100"};
+    expectedLogs.expectWarn("Strict parsing is disabled, ignoring option");
+    PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
   }
 }

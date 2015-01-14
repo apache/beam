@@ -128,6 +128,10 @@ public class PipelineOptionsFactory {
    * List style properties are able to be bound to {@code boolean[]}, {@code char[]},
    * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
    * {@code String[]} and {@code List<String>}.
+   * <p>
+   * By default, strict parsing is enabled and arguments must conform to be either
+   * {@code --booleanArgName} or {@code --argName=argValue}. Strict parsing can be disabled with
+   * {@link Builder#withoutStrictParsing()}.
    */
   public static Builder fromArgs(String[] args) {
     return new Builder(getAppName(3)).fromArgs(args);
@@ -148,16 +152,19 @@ public class PipelineOptionsFactory {
     private final String defaultAppName;
     private final String[] args;
     private final boolean validation;
+    private final boolean strictParsing;
 
     // Do not allow direct instantiation
     private Builder(String defaultAppName) {
-      this(defaultAppName, null, false);
+      this(defaultAppName, null, false, true);
     }
 
-    private Builder(String defaultAppName, String[] args, boolean validation) {
+    private Builder(String defaultAppName, String[] args, boolean validation,
+        boolean strictParsing) {
       this.defaultAppName = defaultAppName;
       this.args = args;
       this.validation = validation;
+      this.strictParsing = strictParsing;
     }
 
     /**
@@ -178,10 +185,14 @@ public class PipelineOptionsFactory {
      * List style properties are able to be bound to {@code boolean[]}, {@code char[]},
      * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
      * {@code String[]} and {@code List<String>}.
+     * <p>
+     * By default, strict parsing is enabled and arguments must conform to be either
+     * {@code --booleanArgName} or {@code --argName=argValue}. Strict parsing can be disabled with
+     * {@link Builder#withoutStrictParsing()}.
      */
     public Builder fromArgs(String[] args) {
       Preconditions.checkNotNull(args, "Arguments should not be null.");
-      return new Builder(defaultAppName, args, validation);
+      return new Builder(defaultAppName, args, validation, strictParsing);
     }
 
     /**
@@ -191,7 +202,15 @@ public class PipelineOptionsFactory {
      * validation.
      */
     public Builder withValidation() {
-      return new Builder(defaultAppName, args, true);
+      return new Builder(defaultAppName, args, true, strictParsing);
+    }
+
+    /**
+     * During parsing of the arguments, we will skip over improperly formatted and unknown
+     * arguments.
+     */
+    public Builder withoutStrictParsing() {
+      return new Builder(defaultAppName, args, validation, false);
     }
 
     /**
@@ -218,9 +237,9 @@ public class PipelineOptionsFactory {
 
       // Attempt to parse the arguments into the set of initial options to use
       if (args != null) {
-        ListMultimap<String, String> options = parseCommandLine(args);
+        ListMultimap<String, String> options = parseCommandLine(args, strictParsing);
         LOG.debug("Provided Arguments: {}", options);
-        initialOptions = parseObjects(klass, options);
+        initialOptions = parseObjects(klass, options, strictParsing);
       }
 
       // Create our proxy
@@ -814,20 +833,35 @@ public class PipelineOptionsFactory {
    * <p> List style properties are able to be bound to {@code boolean[]}, {@code char[]},
    * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
    * {@code String[]}, and {@code List<String>}.
+   *
+   * <p> If strict parsing is enabled, options must start with '--', and not have an empty argument
+   * name or value based upon the positioning of the '='.
    */
-  private static ListMultimap<String, String> parseCommandLine(String[] args) {
+  private static ListMultimap<String, String> parseCommandLine(
+      String[] args, boolean strictParsing) {
     ImmutableListMultimap.Builder<String, String> builder = ImmutableListMultimap.builder();
     for (String arg : args) {
-      Preconditions.checkArgument(arg.startsWith("--"),
-          "Unknown argument %s in command line %s", arg, Arrays.toString(args));
-      int index = arg.indexOf("=");
-      // Make sure that '=' isn't the first character after '--' or the last character
-      Preconditions.checkArgument(index != 2 && index != arg.length() - 1,
-          "Unknown argument %s in command line %s", arg, Arrays.toString(args));
-      if (index > 0) {
-        builder.put(arg.substring(2, index), arg.substring(index + 1, arg.length()));
-      } else {
-        builder.put(arg.substring(2), "true");
+      try {
+        Preconditions.checkArgument(arg.startsWith("--"),
+            "Argument '%s' does not begin with '--'", arg);
+        int index = arg.indexOf("=");
+        // Make sure that '=' isn't the first character after '--' or the last character
+        Preconditions.checkArgument(index != 2,
+            "Argument '%s' starts with '--=', empty argument name not allowed", arg);
+        Preconditions.checkArgument(index != arg.length() - 1,
+            "Argument '%s' ends with '=', empty argument value not allowed", arg);
+        if (index > 0) {
+          builder.put(arg.substring(2, index), arg.substring(index + 1, arg.length()));
+        } else {
+          builder.put(arg.substring(2), "true");
+        }
+      } catch (IllegalArgumentException e) {
+        if (strictParsing) {
+          throw e;
+        } else {
+          LOG.warn("Strict parsing is disabled, ignoring option '{}' because {}",
+              arg, e.getMessage());
+        }
       }
     }
     return builder.build();
@@ -842,9 +876,12 @@ public class PipelineOptionsFactory {
    * <p>
    * We special case the "runner" option. It is mapped to the class of the {@link PipelineRunner}
    * based off of the {@link PipelineRunner}s simple class name.
+   * <p>
+   * If strict parsing is enabled, unknown options or options which can not be converted to
+   * the expected java type using an {@link ObjectMapper} will be ignored.
    */
   private static <T extends PipelineOptions> Map<String, Object> parseObjects(
-      Class<T> klass, ListMultimap<String, String> options) {
+      Class<T> klass, ListMultimap<String, String> options, boolean strictParsing) {
     Map<String, Method> propertyNamesToGetters = Maps.newHashMap();
     PipelineOptionsFactory.validateWellFormed(klass, getRegisteredOptions());
     @SuppressWarnings("unchecked")
@@ -856,33 +893,40 @@ public class PipelineOptionsFactory {
     }
     Map<String, Object> convertedOptions = Maps.newHashMap();
     for (Map.Entry<String, Collection<String>> entry : options.asMap().entrySet()) {
-      if (!propertyNamesToGetters.containsKey(entry.getKey())) {
-        LOG.warn("Ignoring argument {}={}", entry.getKey(), entry.getValue());
-        continue;
-      }
+      try {
+        Preconditions.checkArgument(propertyNamesToGetters.containsKey(entry.getKey()),
+            "Class %s missing a property named '%s'", klass, entry.getKey());
 
-      Method method = propertyNamesToGetters.get(entry.getKey());
-      JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
-      if ("runner".equals(entry.getKey())) {
-        String runner = Iterables.getOnlyElement(entry.getValue());
-        Preconditions.checkArgument(SUPPORTED_PIPELINE_RUNNERS.containsKey(runner),
-            "Unknown 'runner' specified %s, supported pipeline runners %s",
-            runner, Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
-        convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
-      } else if (method.getReturnType().isArray()
-          || Collection.class.isAssignableFrom(method.getReturnType())) {
-        // Split any strings with ","
-        List<String> values = FluentIterable.from(entry.getValue())
-            .transformAndConcat(new Function<String, Iterable<String>>() {
-              @Override
-              public Iterable<String> apply(String input) {
-                return Arrays.asList(input.split(","));
-              }
-        }).toList();
-        convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
-      } else {
-        String value = Iterables.getOnlyElement(entry.getValue());
-        convertedOptions.put(entry.getKey(), MAPPER.convertValue(value, type));
+        Method method = propertyNamesToGetters.get(entry.getKey());
+        JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
+        if ("runner".equals(entry.getKey())) {
+          String runner = Iterables.getOnlyElement(entry.getValue());
+          Preconditions.checkArgument(SUPPORTED_PIPELINE_RUNNERS.containsKey(runner),
+              "Unknown 'runner' specified '%s', supported pipeline runners %s",
+              runner, Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
+          convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
+        } else if (method.getReturnType().isArray()
+            || Collection.class.isAssignableFrom(method.getReturnType())) {
+          // Split any strings with ","
+          List<String> values = FluentIterable.from(entry.getValue())
+              .transformAndConcat(new Function<String, Iterable<String>>() {
+                @Override
+                public Iterable<String> apply(String input) {
+                  return Arrays.asList(input.split(","));
+                }
+          }).toList();
+          convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
+        } else {
+          String value = Iterables.getOnlyElement(entry.getValue());
+          convertedOptions.put(entry.getKey(), MAPPER.convertValue(value, type));
+        }
+      } catch (IllegalArgumentException e) {
+        if (strictParsing) {
+          throw e;
+        } else {
+          LOG.warn("Strict parsing is disabled, ignoring option '{}' with value '{}' because {}",
+              entry.getKey(), entry.getValue(), e.getMessage());
+        }
       }
     }
     return convertedOptions;
