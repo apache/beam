@@ -237,9 +237,7 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
    * Returns the input of this transform.
    *
    * @throws IllegalStateException if this PTransform hasn't been applied yet
-   * @deprecated Use pipeline.getInput(transform)
    */
-  @Deprecated
   public Input getInput() {
     @SuppressWarnings("unchecked")
     Input input = (Input) getPipeline().getInput(this);
@@ -250,9 +248,7 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
    * Returns the output of this transform.
    *
    * @throws IllegalStateException if this PTransform hasn't been applied yet
-   * #deprecated use pipeline.getOutput(transform)
    */
-  @Deprecated
   public Output getOutput() {
     @SuppressWarnings("unchecked")
     Output output = (Output) getPipeline().getOutput(this);
