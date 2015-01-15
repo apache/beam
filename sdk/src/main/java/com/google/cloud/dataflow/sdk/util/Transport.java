@@ -17,6 +17,9 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.googleapis.services.AbstractGoogleClient.Builder;
+import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
+import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -31,6 +34,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
+import com.google.common.base.MoreObjects;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -78,10 +82,12 @@ public class Transport {
       newBigQueryClient(BigQueryOptions options) {
     return new Bigquery.Builder(getTransport(), getJsonFactory(),
         new RetryHttpRequestInitializer(options.getGcpCredential()))
-        .setApplicationName(options.getAppName());
+        .setApplicationName(options.getAppName())
+        .setGoogleClientRequestInitializer(
+            new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
   }
 
-/**
+  /**
    * Returns a Pubsub client builder.
    * <p>
    * Note: this client's endpoint is <b>not</b> modified by the
@@ -91,7 +97,9 @@ public class Transport {
       newPubsubClient(StreamingOptions options) {
     return new Pubsub.Builder(getTransport(), getJsonFactory(),
         new RetryHttpRequestInitializer(options.getGcpCredential()))
-        .setApplicationName(options.getAppName());
+        .setApplicationName(options.getAppName())
+        .setGoogleClientRequestInitializer(
+            new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
   }
 
   /**
@@ -116,7 +124,9 @@ public class Transport {
         new RetryHttpRequestInitializer(options.getGcpCredential()))
         .setApplicationName(options.getAppName())
         .setRootUrl(rootUrl)
-        .setServicePath(servicePath);
+        .setServicePath(servicePath)
+        .setGoogleClientRequestInitializer(
+            new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
   }
 
   /**
@@ -126,7 +136,9 @@ public class Transport {
   public static Dataflow.Builder
       newRawDataflowClient(DataflowPipelineOptions options) {
     return newDataflowClient(options)
-        .setHttpRequestInitializer(options.getGcpCredential());
+        .setHttpRequestInitializer(options.getGcpCredential())
+        .setGoogleClientRequestInitializer(
+            new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
   }
 
   /**
@@ -142,6 +154,30 @@ public class Transport {
             // Do not log the code 404. Code up the stack will deal with 404's if needed, and
             // logging it by default clutters the output during file staging.
             options.getGcpCredential(), NanoClock.SYSTEM, Sleeper.DEFAULT, Arrays.asList(404)))
-        .setApplicationName(options.getAppName());
+        .setApplicationName(options.getAppName())
+        .setGoogleClientRequestInitializer(
+            new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
+  }
+
+  /**
+   * Allows multiple {@link GoogleClientRequestInitializer}s to be chained together for use with
+   * {@link Builder}.
+   */
+  private static final class ChainedGoogleClientRequestInitializer
+      implements GoogleClientRequestInitializer {
+    private static final GoogleClientRequestInitializer[] EMPTY_ARRAY =
+        new GoogleClientRequestInitializer[]{};
+    private final GoogleClientRequestInitializer[] chain;
+
+    private ChainedGoogleClientRequestInitializer(GoogleClientRequestInitializer... initializer) {
+      this.chain = MoreObjects.firstNonNull(initializer, EMPTY_ARRAY);
+    }
+
+    @Override
+    public void initialize(AbstractGoogleClientRequest<?> request) throws IOException {
+      for (GoogleClientRequestInitializer initializer : chain) {
+        initializer.initialize(request);
+      }
+    }
   }
 }

@@ -56,7 +56,7 @@ import java.security.GeneralSecurityException;
  * application default credentials</a> falling back to gcloud. The other options can be
  * used by setting the corresponding properties.
  */
-public interface GcpOptions extends PipelineOptions {
+public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /**
    * Project id to use when launching jobs.
    */
