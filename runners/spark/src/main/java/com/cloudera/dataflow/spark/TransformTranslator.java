@@ -33,12 +33,14 @@ import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
 
@@ -117,6 +119,73 @@ public final class TransformTranslator {
         JavaRDDLike<KV<K, Iterable<VI>>, ?> inRDD =
             (JavaRDDLike<KV<K, Iterable<VI>>, ?>) context.getInputRDD(transform);
         context.setOutputRDD(transform, inRDD.map(new KVFunction<>(keyed)));
+      }
+    };
+  }
+
+  private static final FieldGetter COMBINE_PERKEY_FG = new FieldGetter(Combine.PerKey.class);
+
+  private static <K, VI, VA, VO> TransformEvaluator<Combine.PerKey<K, VI, VO>> combinePerKey() {
+    return new TransformEvaluator<Combine.PerKey<K, VI, VO>>() {
+      @Override
+      public void evaluate(Combine.PerKey<K, VI, VO> transform, EvaluationContext context) {
+        final Combine.KeyedCombineFn<K, VI, VA, VO> keyed =
+            COMBINE_PERKEY_FG.get("fn", transform);
+        @SuppressWarnings("unchecked")
+        JavaRDDLike<KV<K, VI>, ?> inRdd =
+            (JavaRDDLike<KV<K, VI>, ?>) context.getInputRDD(transform);
+
+        // We need to duplicate K as both the key of the JavaPairRDD as well as inside the value,
+        // since the functions passed to combineByKey don't receive the associated key of each
+        // value, and we need to map back into methods in Combine.KeyedCombineFn, which each
+        // require the key in addition to the VI's and VA's being merged/accumulated. Once Spark
+        // provides a way to include keys in the arguments of combine/merge functions, we won't
+        // need to duplicate the keys anymore.
+        JavaPairRDD<K, KV<K, VI>> inRddDuplicatedKeyPair = inRdd.mapToPair(
+            new PairFunction<KV<K, VI>, K, KV<K, VI>>() {
+              @Override
+              public Tuple2<K, KV<K, VI>> call(KV<K, VI> kv) {
+                return new Tuple2<>(kv.getKey(), kv);
+              }
+            });
+
+        // The output of combineByKey will be "VA" (accumulator) types rather than "VO" (final
+        // output types) since Combine.CombineFn only provides ways to merge VAs, and no way
+        // to merge VOs.
+        JavaPairRDD<K, KV<K, VA>> accumulated = inRddDuplicatedKeyPair.combineByKey(
+            new Function<KV<K, VI>, KV<K, VA>>() {
+              @Override
+              public KV<K, VA> call(KV<K, VI> input) {
+                VA acc = keyed.createAccumulator(input.getKey());
+                keyed.addInput(input.getKey(), acc, input.getValue());
+                return KV.of(input.getKey(), acc);
+              }
+            },
+            new Function2<KV<K, VA>, KV<K, VI>, KV<K, VA>>() {
+              @Override
+              public KV<K, VA> call(KV<K, VA> acc, KV<K, VI> input) {
+                keyed.addInput(acc.getKey(), acc.getValue(), input.getValue());
+                return acc;
+              }
+            },
+            new Function2<KV<K, VA>, KV<K, VA>, KV<K, VA>>() {
+              @Override
+              public KV<K, VA> call(KV<K, VA> acc1, KV<K, VA> acc2) {
+                return KV.of(
+                    acc1.getKey(),
+                    keyed.mergeAccumulators(
+                        acc1.getKey(), ImmutableList.of(acc1.getValue(), acc2.getValue())));
+              }
+            });
+
+        JavaPairRDD<K, VO> extracted = accumulated.mapValues(
+            new Function<KV<K, VA>, VO>() {
+              @Override
+              public VO call(KV<K, VA> acc) {
+                return keyed.extractOutput(acc.getKey(), acc.getValue());
+              }
+            });
+        context.setOutputRDD(transform, fromPair(extracted));
       }
     };
   }
@@ -348,11 +417,16 @@ public final class TransformTranslator {
     mEvaluators.put(ParDo.BoundMulti.class, multiDo());
     mEvaluators.put(GroupByKey.GroupByKeyOnly.class, gbk());
     mEvaluators.put(Combine.GroupedValues.class, grouped());
+    mEvaluators.put(Combine.PerKey.class, combinePerKey());
     mEvaluators.put(Flatten.FlattenPCollectionList.class, flattenPColl());
     mEvaluators.put(Create.class, create());
     mEvaluators.put(View.AsSingleton.class, viewAsSingleton());
     mEvaluators.put(View.AsIterable.class, viewAsIter());
     mEvaluators.put(View.CreatePCollectionView.class, createPCollView());
+  }
+
+  public static <PT extends PTransform> boolean hasTransformEvaluator(Class<PT> clazz) {
+    return mEvaluators.containsKey(clazz);
   }
 
   public static <PT extends PTransform> TransformEvaluator<PT> getTransformEvaluator(Class<PT>

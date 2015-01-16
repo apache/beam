@@ -51,4 +51,11 @@ public interface EvaluationResult extends PipelineResult {
    * @return Result of aggregation associated with specified name.
    */
   <T> T getAggregatorValue(String aggName, Class<T> resultType);
+
+  /**
+   * Releases any runtime resources, including distributed-execution contexts currently held by
+   * this EvaluationResult; once close() has been called, {@link get(PCollection)} might
+   * not work for subsequent calls.
+   */
+  void close();
 }

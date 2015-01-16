@@ -99,20 +99,59 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
     private final EvaluationContext ctxt;
 
+    // Set upon entering a composite node which can be directly mapped to a single
+    // TransformEvaluator.
+    private TransformTreeNode currentTranslatedCompositeNode = null;
+
     private Evaluator(EvaluationContext ctxt) {
       this.ctxt = ctxt;
     }
 
+    /**
+     * If true, we're currently inside a subtree of a composite node which directly maps to a
+     * single TransformEvaluator; children nodes are ignored, and upon post-visiting the translated
+     * composite node, the associated TransformEvaluator will be visited.
+     */
+    private boolean inTranslatedCompositeNode() {
+      return currentTranslatedCompositeNode != null;
+    }
+
     @Override
     public void enterCompositeTransform(TransformTreeNode node) {
+      if (inTranslatedCompositeNode()) {
+        return;
+      }
+
+      if (node.getTransform() != null
+          && TransformTranslator.hasTransformEvaluator(node.getTransform().getClass())) {
+        LOG.info(String.format(
+            "Entering directly-translatable composite transform: '%s'", node.getFullName()));
+        LOG.fine(String.format(
+            "Composite transform class: '%s'", node.getTransform().getClass()));
+        currentTranslatedCompositeNode = node;
+      }
     }
 
     @Override
     public void leaveCompositeTransform(TransformTreeNode node) {
+      // NB: We depend on enterCompositeTransform and leaveCompositeTransform providing 'node'
+      // objects for which Object.equals() returns true iff they are the same logical node
+      // within the tree.
+      if (inTranslatedCompositeNode() && node.equals(currentTranslatedCompositeNode)) {
+        LOG.info(String.format(
+            "Post-visiting directly-translatable composite transform: '%s'", node.getFullName()));
+        doVisitTransform(node.getTransform());
+        currentTranslatedCompositeNode = null;
+      }
     }
 
     @Override
     public void visitTransform(TransformTreeNode node) {
+      if (inTranslatedCompositeNode()) {
+        LOG.info(String.format(
+            "Skipping '%s'; already in composite transform.", node.getFullName()));
+        return;
+      }
       doVisitTransform(node.getTransform());
     }
 
