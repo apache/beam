@@ -44,4 +44,11 @@ public abstract class Sink<T> {
     @Override
     public void close() throws IOException;
   }
+
+  /**
+   * Returns whether this Sink can be restarted.
+   */
+  public boolean supportsRestart() {
+    return false;
+  }
 }

@@ -153,4 +153,11 @@ public abstract class Reader<T> extends Observable {
     setChanged();
     notifyObservers(byteSize);
   }
+
+  /**
+   * Returns whether this Reader can be restarted.
+   */
+  public boolean supportsRestart() {
+    return false;
+  }
 }

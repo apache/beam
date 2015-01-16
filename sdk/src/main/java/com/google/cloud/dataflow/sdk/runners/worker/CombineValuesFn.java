@@ -78,11 +78,11 @@ public class CombineValuesFn extends NormalParDoFn {
             "serialized user fn");
     Preconditions.checkArgument(
         deserializedFn instanceof Combine.KeyedCombineFn);
-    Combine.KeyedCombineFn combineFn = (Combine.KeyedCombineFn) deserializedFn;
+    final Combine.KeyedCombineFn combineFn = (Combine.KeyedCombineFn) deserializedFn;
 
     // Get the combine phase, default to ALL. (The implementation
     // doesn't have to split the combiner).
-    String phase = getString(cloudUserFn, PropertyNames.PHASE, CombinePhase.ALL);
+    final String phase = getString(cloudUserFn, PropertyNames.PHASE, CombinePhase.ALL);
 
     Preconditions.checkArgument(
         sideInputInfos == null || sideInputInfos.size() == 0,
@@ -90,36 +90,42 @@ public class CombineValuesFn extends NormalParDoFn {
     Preconditions.checkArgument(
         numOutputs == 1, "expected exactly one output for CombineValuesFn");
 
-    DoFn doFn = null;
-    switch (phase) {
-      case CombinePhase.ALL:
-        doFn = new CombineValuesDoFn(combineFn);
-        break;
-      case CombinePhase.ADD:
-        doFn = new AddInputsDoFn(combineFn);
-        break;
-      case CombinePhase.MERGE:
-        doFn = new MergeAccumulatorsDoFn(combineFn);
-        break;
-      case CombinePhase.EXTRACT:
-        doFn = new ExtractOutputDoFn(combineFn);
-        break;
-      default:
-        throw new IllegalArgumentException(
-            "phase must be one of 'all', 'add', 'merge', 'extract'");
-    }
-    return new CombineValuesFn(options, doFn, stepName, executionContext, addCounterMutator);
+    DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
+        @Override
+        public DoFnInfo createDoFnInfo() {
+          DoFn doFn = null;
+          switch (phase) {
+            case CombinePhase.ALL:
+              doFn = new CombineValuesDoFn(combineFn);
+              break;
+            case CombinePhase.ADD:
+              doFn = new AddInputsDoFn(combineFn);
+              break;
+            case CombinePhase.MERGE:
+              doFn = new MergeAccumulatorsDoFn(combineFn);
+              break;
+            case CombinePhase.EXTRACT:
+              doFn = new ExtractOutputDoFn(combineFn);
+              break;
+            default:
+              throw new IllegalArgumentException(
+                  "phase must be one of 'all', 'add', 'merge', 'extract'");
+          }
+          return new DoFnInfo(doFn, null);
+        }
+      };
+    return new CombineValuesFn(options, fnFactory, stepName, executionContext, addCounterMutator);
   }
 
   private CombineValuesFn(
       PipelineOptions options,
-      DoFn doFn,
+      DoFnInfoFactory fnFactory,
       String stepName,
       ExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
         options,
-        new DoFnInfo(doFn, null),
+        fnFactory,
         PTuple.empty(),
         Arrays.asList("output"),
         stepName,

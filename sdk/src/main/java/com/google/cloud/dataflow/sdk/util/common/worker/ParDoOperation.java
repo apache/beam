@@ -62,4 +62,9 @@ public class ParDoOperation extends ReceivingOperation {
       super.finish();
     }
   }
+
+  @Override
+  public boolean supportsRestart() {
+    return true;
+  }
 }

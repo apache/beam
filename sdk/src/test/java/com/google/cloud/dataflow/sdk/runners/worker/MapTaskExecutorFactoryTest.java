@@ -342,8 +342,8 @@ public class MapTaskExecutorFactoryTest {
     assertThat(parDoOperation.fn, new IsInstanceOf(NormalParDoFn.class));
     NormalParDoFn normalParDoFn = (NormalParDoFn) parDoOperation.fn;
 
-    assertThat(normalParDoFn.fnInfo.getDoFn(),
-               new IsInstanceOf(TestDoFn.class));
+    assertThat(normalParDoFn.fnFactory.createDoFnInfo().getDoFn(),
+        new IsInstanceOf(TestDoFn.class));
 
     assertSame(
         parDoOperation,

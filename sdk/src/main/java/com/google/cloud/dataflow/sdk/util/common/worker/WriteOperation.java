@@ -102,6 +102,11 @@ public class WriteOperation extends ReceivingOperation {
     }
   }
 
+  @Override
+  public boolean supportsRestart() {
+    return sink.supportsRestart();
+  }
+
   public Counter<Long> getByteCount() {
     return byteCount;
   }

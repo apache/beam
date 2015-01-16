@@ -136,6 +136,18 @@ public class NormalParDoFnTest {
     }
   }
 
+  static class TestDoFnInfoFactory implements NormalParDoFn.DoFnInfoFactory {
+    DoFnInfo fnInfo;
+
+    TestDoFnInfoFactory(DoFnInfo fnInfo) {
+      this.fnInfo = fnInfo;
+    }
+
+    public DoFnInfo createDoFnInfo() {
+      return fnInfo;
+    }
+  }
+
   @Test
   public void testNormalParDoFn() throws Exception {
     List<String> sideOutputTags = Arrays.asList("tag1", "tag2", "tag3");
@@ -154,7 +166,7 @@ public class NormalParDoFnTest {
     outputTags.addAll(sideOutputTags);
     NormalParDoFn normalParDoFn =
         new NormalParDoFn(PipelineOptionsFactory.create(),
-                          fnInfo, sideInputValues, outputTags, "doFn",
+                          new TestDoFnInfoFactory(fnInfo), sideInputValues, outputTags, "doFn",
                           new BatchModeExecutionContext(),
                           (new CounterSet()).getAddCounterMutator());
 
@@ -213,7 +225,7 @@ public class NormalParDoFnTest {
     List<String> outputTags = Arrays.asList("output");
     NormalParDoFn normalParDoFn =
         new NormalParDoFn(PipelineOptionsFactory.create(),
-                          fnInfo, sideInputValues, outputTags, "doFn",
+                          new TestDoFnInfoFactory(fnInfo), sideInputValues, outputTags, "doFn",
                           new BatchModeExecutionContext(),
                           (new CounterSet()).getAddCounterMutator());
 
@@ -252,7 +264,7 @@ public class NormalParDoFnTest {
     List<String> outputTags = Arrays.asList("output");
     NormalParDoFn normalParDoFn =
         new NormalParDoFn(PipelineOptionsFactory.create(),
-                          fnInfo, sideInputValues, outputTags, "doFn",
+                          new TestDoFnInfoFactory(fnInfo), sideInputValues, outputTags, "doFn",
                           new BatchModeExecutionContext(),
                           (new CounterSet()).getAddCounterMutator());
 
@@ -316,10 +328,11 @@ public class NormalParDoFnTest {
     DoFnInfo fnInfo = new DoFnInfo(fn, new GlobalWindow());
     CounterSet counters = new CounterSet();
     NormalParDoFn normalParDoFn =
-        new NormalParDoFn(PipelineOptionsFactory.create(), fnInfo, PTuple.empty(),
-                          Arrays.asList("output", "declared"), "doFn",
-                          new BatchModeExecutionContext(),
-                          counters.getAddCounterMutator());
+        new NormalParDoFn(
+            PipelineOptionsFactory.create(), new TestDoFnInfoFactory(fnInfo), PTuple.empty(),
+            Arrays.asList("output", "declared"), "doFn",
+            new BatchModeExecutionContext(),
+            counters.getAddCounterMutator());
 
     normalParDoFn.startBundle(new TestReceiver(), new TestReceiver());
     normalParDoFn.processElement(WindowedValue.valueInGlobalWindow(5));

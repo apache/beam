@@ -50,9 +50,17 @@ import javax.annotation.Nullable;
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class NormalParDoFn extends ParDoFn {
+
+  /**
+   * Factory for creating DoFn instances.
+   */
+  protected static interface DoFnInfoFactory {
+    public DoFnInfo createDoFnInfo() throws Exception;
+  }
+
   public static NormalParDoFn create(
       PipelineOptions options,
-      CloudObject cloudUserFn,
+      final CloudObject cloudUserFn,
       String stepName,
       @Nullable List<SideInputInfo> sideInputInfos,
       @Nullable List<MultiOutputInfo> multiOutputInfos,
@@ -61,14 +69,20 @@ public class NormalParDoFn extends ParDoFn {
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler /* ignored */)
       throws Exception {
-    Object deserializedFn =
-        SerializableUtils.deserializeFromByteArray(
-            getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
-            "serialized user fn");
-    if (!(deserializedFn instanceof DoFnInfo)) {
-      throw new Exception("unexpected kind of DoFnInfo: " + deserializedFn.getClass().getName());
-    }
-    DoFnInfo fnInfo = (DoFnInfo) deserializedFn;
+    DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
+        @Override
+        public DoFnInfo createDoFnInfo() throws Exception {
+          Object deserializedFn =
+              SerializableUtils.deserializeFromByteArray(
+                  getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
+                  "serialized user fn");
+          if (!(deserializedFn instanceof DoFnInfo)) {
+            throw new Exception(
+                "unexpected kind of DoFnInfo: " + deserializedFn.getClass().getName());
+          }
+          return (DoFnInfo) deserializedFn;
+        }
+      };
 
     PTuple sideInputValues = PTuple.empty();
     if (sideInputInfos != null) {
@@ -96,12 +110,12 @@ public class NormalParDoFn extends ParDoFn {
           "unexpected number of outputTags for DoFn");
     }
 
-    return new NormalParDoFn(options, fnInfo, sideInputValues, outputTags,
+    return new NormalParDoFn(options, fnFactory, sideInputValues, outputTags,
                              stepName, executionContext, addCounterMutator);
   }
 
   public final PipelineOptions options;
-  public final DoFnInfo<Object, Object> fnInfo;
+  public final DoFnInfoFactory fnFactory;
   public final PTuple sideInputValues;
   public final TupleTag<Object> mainOutputTag;
   public final List<TupleTag<?>> sideOutputTags;
@@ -113,14 +127,14 @@ public class NormalParDoFn extends ParDoFn {
   DoFnRunner<Object, Object, Receiver> fnRunner;
 
   public NormalParDoFn(PipelineOptions options,
-                       DoFnInfo fnInfo,
+                       DoFnInfoFactory fnFactory,
                        PTuple sideInputValues,
                        List<String> outputTags,
                        String stepName,
                        ExecutionContext executionContext,
                        CounterSet.AddCounterMutator addCounterMutator) {
     this.options = options;
-    this.fnInfo = fnInfo;
+    this.fnFactory = fnFactory;
     this.sideInputValues = sideInputValues;
     if (outputTags.size() < 1) {
       throw new AssertionError("expected at least one output");
@@ -151,7 +165,7 @@ public class NormalParDoFn extends ParDoFn {
 
     fnRunner = DoFnRunner.create(
         options,
-        fnInfo.getDoFn(),
+        fnFactory.createDoFnInfo().getDoFn(),
         sideInputValues,
         new OutputManager<Receiver>() {
           final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs =
@@ -198,7 +212,7 @@ public class NormalParDoFn extends ParDoFn {
         sideOutputTags,
         stepContext,
         addCounterMutator,
-        fnInfo.getWindowingFn());
+        fnFactory.createDoFnInfo().getWindowingFn());
 
     fnRunner.startBundle();
   }

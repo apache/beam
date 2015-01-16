@@ -84,7 +84,9 @@ public abstract class Operation {
    * exception otherwise.
    */
   void checkUnstarted() {
-    if (initializationState != InitializationState.UNSTARTED) {
+    if (!(initializationState == InitializationState.UNSTARTED
+          || (initializationState == InitializationState.FINISHED
+              && supportsRestart()))) {
       throw new AssertionError(
           "expecting this instruction to not yet be started");
     }
@@ -128,5 +130,12 @@ public abstract class Operation {
   public void finish() throws Exception {
     checkStarted();
     initializationState = InitializationState.FINISHED;
+  }
+
+  /**
+   * Returns true if this Operation can be started again after it is finished.
+   */
+  public boolean supportsRestart() {
+    return false;
   }
 }

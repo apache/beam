@@ -86,6 +86,7 @@ public class ReadOperation extends Operation {
     this.byteCount = addCounterMutator.addCounter(
         Counter.longs(bytesCounterName(counterPrefix, operationName), SUM));
     readState = stateSampler.stateForName(operationName + "-read");
+    reader.addObserver(new ReaderObserver());
   }
 
   /** Invoked by tests. */
@@ -120,14 +121,17 @@ public class ReadOperation extends Operation {
     }
   }
 
+  @Override
+  public boolean supportsRestart() {
+    return reader.supportsRestart();
+  }
+
   protected void runReadLoop() throws Exception {
     Receiver receiver = receivers[0];
     if (receiver == null) {
       // No consumer of this data; don't do anything.
       return;
     }
-
-    reader.addObserver(new ReaderObserver());
 
     try (StateSampler.ScopedState process = stateSampler.scopedState(processState)) {
       assert process != null;

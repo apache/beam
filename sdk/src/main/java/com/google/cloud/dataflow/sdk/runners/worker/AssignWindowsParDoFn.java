@@ -21,7 +21,6 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -55,7 +54,7 @@ class AssignWindowsParDoFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler sampler /* unused */)
       throws Exception {
-    Object windowingFn =
+    final Object windowingFn =
         SerializableUtils.deserializeFromByteArray(
             getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
             "serialized window fn");
@@ -64,21 +63,28 @@ class AssignWindowsParDoFn extends NormalParDoFn {
           "unexpected kind of WindowingFn: " + windowingFn.getClass().getName());
     }
 
-    DoFn assignWindowsDoFn = new AssignWindowsDoFn((WindowingFn) windowingFn);
+    final AssignWindowsDoFn assignFn = new AssignWindowsDoFn((WindowingFn) windowingFn);
+
+    DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
+        @Override
+        public DoFnInfo createDoFnInfo() {
+          return new DoFnInfo(assignFn, null);
+        }
+      };
 
     return new AssignWindowsParDoFn(
-        options, assignWindowsDoFn, stepName, executionContext, addCounterMutator);
+        options, fnFactory, stepName, executionContext, addCounterMutator);
   }
 
   private AssignWindowsParDoFn(
       PipelineOptions options,
-      DoFn fn,
+      DoFnInfoFactory fnFactory,
       String stepName,
       ExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
         options,
-        new DoFnInfo(fn, null),
+        fnFactory,
         PTuple.empty(),
         Arrays.asList("output"),
         stepName,

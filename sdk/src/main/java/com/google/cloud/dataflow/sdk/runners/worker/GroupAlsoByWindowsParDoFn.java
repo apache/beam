@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
@@ -61,7 +60,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler sampler /* unused */)
       throws Exception {
-    Object windowingFn =
+    final Object windowingFn =
         SerializableUtils.deserializeFromByteArray(
             getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
             "serialized window fn");
@@ -88,29 +87,34 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
           "Expected WindowedValueCoder for inputCoder, got: "
           + inputCoder.getClass().getName());
     }
-    Coder elemCoder = ((WindowedValueCoder) inputCoder).getValueCoder();
+    final Coder elemCoder = ((WindowedValueCoder) inputCoder).getValueCoder();
     if (!(elemCoder instanceof KvCoder)) {
       throw new Exception(
           "Expected KvCoder for inputCoder, got: " + elemCoder.getClass().getName());
     }
 
-    DoFn windowingDoFn = StreamingGroupAlsoByWindowsDoFn.create(
-        (WindowingFn) windowingFn,
-        ((KvCoder) elemCoder).getValueCoder());
-
+    DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
+        @Override
+        public DoFnInfo createDoFnInfo() {
+          return new DoFnInfo(StreamingGroupAlsoByWindowsDoFn.create(
+              (WindowingFn) windowingFn,
+              ((KvCoder) elemCoder).getValueCoder()),
+              null);
+        }
+      };
     return new GroupAlsoByWindowsParDoFn(
-        options, windowingDoFn, stepName, executionContext, addCounterMutator);
+        options, fnFactory, stepName, executionContext, addCounterMutator);
   }
 
   private GroupAlsoByWindowsParDoFn(
       PipelineOptions options,
-      DoFn fn,
+      DoFnInfoFactory fnFactory,
       String stepName,
       ExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
         options,
-        new DoFnInfo(fn, null),
+        fnFactory,
         PTuple.empty(),
         Arrays.asList("output"),
         stepName,

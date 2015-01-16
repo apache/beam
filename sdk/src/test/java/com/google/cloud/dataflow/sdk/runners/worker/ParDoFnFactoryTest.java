@@ -94,9 +94,11 @@ public class ParDoFnFactoryTest {
     Assert.assertThat(parDoFn, new IsInstanceOf(NormalParDoFn.class));
     NormalParDoFn normalParDoFn = (NormalParDoFn) parDoFn;
 
-    DoFn actualDoFn = normalParDoFn.fnInfo.getDoFn();
+    DoFn actualDoFn = normalParDoFn.fnFactory.createDoFnInfo().getDoFn();
     Assert.assertThat(actualDoFn, new IsInstanceOf(TestDoFn.class));
-    Assert.assertThat(normalParDoFn.fnInfo.getWindowingFn(), new IsInstanceOf(GlobalWindow.class));
+    Assert.assertThat(
+        normalParDoFn.fnFactory.createDoFnInfo().getWindowingFn(),
+        new IsInstanceOf(GlobalWindow.class));
     TestDoFn actualTestDoFn = (TestDoFn) actualDoFn;
 
     Assert.assertEquals(stringState, actualTestDoFn.stringState);
