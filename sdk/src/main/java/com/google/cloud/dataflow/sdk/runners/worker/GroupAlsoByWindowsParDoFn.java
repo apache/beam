@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -109,7 +110,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
         options,
-        fn,
+        new DoFnInfo(fn, null),
         PTuple.empty(),
         Arrays.asList("output"),
         stepName,

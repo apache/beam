@@ -81,13 +81,13 @@ public abstract class DoFn<I, O> implements Serializable {
      * element will have the same timestamp and be in the same windows
      * as the input element passed to {@link DoFn#processElement}).
      *
-     * <p> Is is illegal to invoke this from {@link #startBundle} or
-     * {@link #finishBundle} unless the input {@code PCollection} is
-     * windowed by the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
-     * If this is the case, the output element will have a timestamp
-     * of negative infinity and be in the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
+     * <p> If invoked from {@link #startBundle} or {@link #finishValue},
+     * this will attempt to use the
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+     * of the input {@code PCollection} to determine what windows the element
+     * should be in, throwing an exception if the {@code WindowingFn} attempts
+     * to access any information about the input element. The output element
+     * will have a timestamp of negative infinity.
      */
     public abstract void output(O output);
 
@@ -100,13 +100,13 @@ public abstract class DoFn<I, O> implements Serializable {
      * {@link DoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
-     * <p> Is is illegal to invoke this from {@link #startBundle} or
-     * {@link #finishBundle} unless the input {@code PCollection} is
-     * windowed by the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
-     * If this is the case, the output element's timestamp will be
-     * the given timestamp and its window will be the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
+     * <p> If invoked from {@link #startBundle} or {@link #finishValue},
+     * this will attempt to use the
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+     * of the input {@code PCollection} to determine what windows the element
+     * should be in, throwing an exception if the {@code WindowingFn} attempts
+     * to access any information about the input element except for the
+     * timestamp.
      */
     public abstract void outputWithTimestamp(O output, Instant timestamp);
 
@@ -121,6 +121,14 @@ public abstract class DoFn<I, O> implements Serializable {
      *
      * <p> The output element will have the same timestamp and be in the same
      * windows as the input element passed to {@link DoFn#processElement}).
+     *
+     * <p> If invoked from {@link #startBundle} or {@link #finishValue},
+     * this will attempt to use the
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+     * of the input {@code PCollection} to determine what windows the element
+     * should be in, throwing an exception if the {@code WindowingFn} attempts
+     * to access any information about the input element. The output element
+     * will have a timestamp of negative infinity.
      *
      * @throws IllegalArgumentException if the number of outputs exceeds
      * the limit of 1,000 outputs per DoFn
@@ -137,13 +145,13 @@ public abstract class DoFn<I, O> implements Serializable {
      * {@link DoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
-     * <p> Is is illegal to invoke this from {@link #startBundle} or
-     * {@link #finishBundle} unless the input {@code PCollection} is
-     * windowed by the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
-     * If this is the case, the output element's timestamp will be
-     * the given timestamp and its window will be the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}.
+     * <p> If invoked from {@link #startBundle} or {@link #finishValue},
+     * this will attempt to use the
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+     * of the input {@code PCollection} to determine what windows the element
+     * should be in, throwing an exception if the {@code WindowingFn} attempts
+     * to access any information about the input element except for the
+     * timestamp.
      *
      * @throws IllegalArgumentException if the number of outputs exceeds
      * the limit of 1,000 outputs per DoFn

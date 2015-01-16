@@ -40,12 +40,15 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
 
@@ -1134,6 +1137,74 @@ public class ParDoTest implements Serializable {
       fail("should have failed");
     } catch (RuntimeException exn) {
       // expected
+    }
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testWindowingInStartAndFinishBundle() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> output = p
+        .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
+        .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
+        .apply(ParDo.of(new DoFn<String, String>() {
+                  @Override
+                  public void startBundle(Context c) {
+                    c.outputWithTimestamp("start", new Instant(2));
+                    System.out.println("Start: 2");
+                  }
+
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    c.output(c.element());
+                    System.out.println("Process: " + c.element() + ":" + c.timestamp().getMillis());
+                  }
+
+                  @Override
+                  public void finishBundle(Context c) {
+                    c.outputWithTimestamp("finish", new Instant(3));
+                    System.out.println("Finish: 3");
+                  }
+                }))
+        .apply(ParDo.of(new DoFn<String, String>() {
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    c.output(c.element() + ":" + c.timestamp().getMillis()
+                        + ":" + c.windows().iterator().next().maxTimestamp().getMillis());
+                  }
+                }));
+
+    DataflowAssert.that(output).containsInAnyOrder("elem:1:1", "start:2:2", "finish:3:3");
+
+    p.run();
+  }
+
+  @Test
+  public void testWindowingInStartBundleException() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> output = p
+        .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
+        .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
+        .apply(ParDo.of(new DoFn<String, String>() {
+                  @Override
+                  public void startBundle(Context c) {
+                    c.output("start");
+                  }
+
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    c.output(c.element());
+                  }
+                }));
+
+    try {
+      p.run();
+      fail("should have failed");
+    } catch (Exception e) {
+      assertThat(e.toString(), containsString(
+          "WindowingFn attemped to access input timestamp when none was available"));
     }
   }
 }

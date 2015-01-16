@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -77,7 +78,7 @@ class AssignWindowsParDoFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
         options,
-        fn,
+        new DoFnInfo(fn, null),
         PTuple.empty(),
         Arrays.asList("output"),
         stepName,

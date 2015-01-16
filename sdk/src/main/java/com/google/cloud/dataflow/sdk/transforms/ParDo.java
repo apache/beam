@@ -1039,7 +1039,8 @@ public class ParDo {
             mainOutputTag,
             sideOutputTags,
             executionContext.getStepContext(name),
-            context.getAddCounterMutator());
+            context.getAddCounterMutator(),
+            input.getWindowingFn());
 
     fnRunner.startBundle();
 

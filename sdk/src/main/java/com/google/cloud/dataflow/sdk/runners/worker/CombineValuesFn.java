@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -118,7 +119,7 @@ public class CombineValuesFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
         options,
-        doFn,
+        new DoFnInfo(doFn, null),
         PTuple.empty(),
         Arrays.asList("output"),
         stepName,

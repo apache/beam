@@ -273,7 +273,8 @@ public class Window {
             outputTag,
             new ArrayList<TupleTag<?>>(),
             executionContext.getStepContext(context.getStepName(transform)),
-            context.getAddCounterMutator());
+            context.getAddCounterMutator(),
+            transform.fn);
 
     addWindowsRunner.startBundle();
 

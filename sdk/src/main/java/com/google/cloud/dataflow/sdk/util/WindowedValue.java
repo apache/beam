@@ -87,6 +87,9 @@ public class WindowedValue<V> {
   private WindowedValue(V value,
                         Instant timestamp,
                         Collection<? extends BoundedWindow> windows) {
+    checkNotNull(timestamp);
+    checkNotNull(windows);
+
     this.value = value;
     this.timestamp = timestamp;
     this.windows = windows;

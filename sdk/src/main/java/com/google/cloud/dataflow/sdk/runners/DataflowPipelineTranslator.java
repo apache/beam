@@ -66,7 +66,9 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.OutputReference;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
@@ -88,7 +90,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -886,7 +887,7 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(transform.getInput(), transform.getSideInputs(), context);
-            translateFn(transform.getFn(), context);
+            translateFn(transform.getFn(), transform.getInput().getWindowingFn(), context);
             translateOutputs(transform.getOutput(), context);
           }
         });
@@ -906,7 +907,7 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(transform.getInput(), transform.getSideInputs(), context);
-            translateFn(transform.getFn(), context);
+            translateFn(transform.getFn(), transform.getInput().getWindowingFn(), context);
             context.addOutput("out", transform.getOutput());
           }
         });
@@ -965,12 +966,13 @@ public class DataflowPipelineTranslator {
   }
 
   private static void translateFn(
-      Serializable fn,
+      DoFn fn,
+      WindowingFn windowingFn,
       TranslationContext context) {
     context.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     context.addInput(
         PropertyNames.SERIALIZED_FN,
-        byteArrayToJsonString(serializeToByteArray(fn)));
+        byteArrayToJsonString(serializeToByteArray(new DoFnInfo(fn, windowingFn))));
     if (fn instanceof DoFn.RequiresKeyedState) {
       context.addInput(PropertyNames.USES_KEYED_STATE, "true");
     }

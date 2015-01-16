@@ -22,7 +22,8 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn.AssignContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner.OutputManager;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -31,7 +32,6 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import org.joda.time.Instant;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -56,6 +56,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
   final TupleTag<O> mainOutputTag;
   final StepContext stepContext;
   final CounterSet.AddCounterMutator addCounterMutator;
+  final WindowingFn windowingFn;
 
   public DoFnContext(PipelineOptions options,
                      DoFn<I, O> fn,
@@ -64,7 +65,8 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
                      TupleTag<O> mainOutputTag,
                      List<TupleTag<?>> sideOutputTags,
                      StepContext stepContext,
-                     CounterSet.AddCounterMutator addCounterMutator) {
+                     CounterSet.AddCounterMutator addCounterMutator,
+                     WindowingFn windowingFn) {
     fn.super();
     this.options = options;
     this.fn = fn;
@@ -78,6 +80,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
     }
     this.stepContext = stepContext;
     this.addCounterMutator = addCounterMutator;
+    this.windowingFn = windowingFn;
   }
 
   public R getReceiver(TupleTag<?> tag) {
@@ -109,11 +112,51 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
     return view.fromIterableInternal((Iterable<WindowedValue<?>>) sideInputs.get(tag));
   }
 
+  <T> WindowedValue<T> makeWindowedValue(
+      T output, Instant timestamp, Collection<? extends BoundedWindow> windows) {
+    final Instant inputTimestamp = timestamp;
+
+    if (timestamp == null) {
+      timestamp = new Instant(Long.MIN_VALUE);
+    }
+
+    if (windows == null) {
+      try {
+        windows = windowingFn.assignWindows(windowingFn.new AssignContext() {
+            @Override
+            public Object element() {
+              throw new UnsupportedOperationException(
+                  "WindowingFn attemped to access input element when none was available");
+            }
+
+            @Override
+            public Instant timestamp() {
+              if (inputTimestamp == null) {
+                throw new UnsupportedOperationException(
+                    "WindowingFn attemped to access input timestamp when none was available");
+              }
+              return inputTimestamp;
+            }
+
+            @Override
+            public Collection<? extends BoundedWindow> windows() {
+              throw new UnsupportedOperationException(
+                  "WindowingFn attemped to access input windows when none were available");
+            }
+          });
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    return WindowedValue.of(output, timestamp, windows);
+  }
+
   void outputWindowedValue(
       O output,
       Instant timestamp,
       Collection<? extends BoundedWindow> windows) {
-    WindowedValue<O> windowedElem = WindowedValue.of(output, timestamp, windows);
+    WindowedValue<O> windowedElem = makeWindowedValue(output, timestamp, windows);
     outputManager.output(outputMap.get(mainOutputTag), windowedElem);
     if (stepContext != null) {
       stepContext.noteOutput(windowedElem);
@@ -143,7 +186,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
       outputMap.put(tag, receiver);
     }
 
-    WindowedValue<T> windowedElem = WindowedValue.of(output, timestamp, windows);
+    WindowedValue<T> windowedElem = makeWindowedValue(output, timestamp, windows);
     outputManager.output(receiver, windowedElem);
     if (stepContext != null) {
       stepContext.noteSideOutput(tag, windowedElem);
@@ -153,31 +196,24 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
   // Following implementations of output, outputWithTimestamp, and sideOutput
   // are only accessible in DoFn.startBundle and DoFn.finishBundle, and will be shadowed by
   // ProcessContext's versions in DoFn.processElement.
-  // TODO: it seems wrong to use Long.MIN_VALUE, since it will violate all our rules about
-  // DoFns preserving watermarks.
   @Override
   public void output(O output) {
-    outputWindowedValue(output,
-                        new Instant(Long.MIN_VALUE),
-                        Arrays.asList(GlobalWindow.Window.INSTANCE));
+    outputWindowedValue(output, null, null);
   }
 
   @Override
   public void outputWithTimestamp(O output, Instant timestamp) {
-    outputWindowedValue(output, timestamp, Arrays.asList(GlobalWindow.Window.INSTANCE));
+    outputWindowedValue(output, timestamp, null);
   }
 
   @Override
   public <T> void sideOutput(TupleTag<T> tag, T output) {
-    sideOutputWindowedValue(tag,
-                            output,
-                            new Instant(Long.MIN_VALUE),
-                            Arrays.asList(GlobalWindow.Window.INSTANCE));
+    sideOutputWindowedValue(tag, output, null, null);
   }
 
   @Override
   public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-    sideOutputWindowedValue(tag, output, timestamp, Arrays.asList(GlobalWindow.Window.INSTANCE));
+    sideOutputWindowedValue(tag, output, timestamp, null);
   }
 
   private String generateInternalAggregatorName(String userName) {

@@ -42,9 +42,11 @@ import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactoryTest.TestReader
 import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSink;
 import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSinkFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
@@ -291,7 +293,8 @@ public class MapTaskExecutorFactoryTest {
     TestDoFn fn = new TestDoFn();
 
     String serializedFn =
-        StringUtils.byteArrayToJsonString(SerializableUtils.serializeToByteArray(fn));
+        StringUtils.byteArrayToJsonString(
+            SerializableUtils.serializeToByteArray(new DoFnInfo(fn, new GlobalWindow())));
 
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);
@@ -339,7 +342,8 @@ public class MapTaskExecutorFactoryTest {
     assertThat(parDoOperation.fn, new IsInstanceOf(NormalParDoFn.class));
     NormalParDoFn normalParDoFn = (NormalParDoFn) parDoOperation.fn;
 
-    assertThat(normalParDoFn.fn, new IsInstanceOf(TestDoFn.class));
+    assertThat(normalParDoFn.fnInfo.getDoFn(),
+               new IsInstanceOf(TestDoFn.class));
 
     assertSame(
         parDoOperation,

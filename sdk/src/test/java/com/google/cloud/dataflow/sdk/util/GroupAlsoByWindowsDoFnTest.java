@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
@@ -221,7 +222,8 @@ public class GroupAlsoByWindowsDoFnTest {
             outputTag,
             new ArrayList<TupleTag<?>>(),
             execContext.createStepContext("merge"),
-            counters.getAddCounterMutator());
+            counters.getAddCounterMutator(),
+            new GlobalWindow());
 
     return runner;
   }
