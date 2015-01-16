@@ -123,13 +123,6 @@ public interface DataflowPipelineWorkerPoolOptions {
   void setWorkerMachineType(String value);
 
   /**
-   * Machine type to create VMs as.
-   */
-  @Description("Dataflow VM machine type.")
-  String getMachineType();
-  void setMachineType(String value);
-
-  /**
    * The policy for tearing down the workers spun up by the service.
    */
   public enum TeardownPolicy {

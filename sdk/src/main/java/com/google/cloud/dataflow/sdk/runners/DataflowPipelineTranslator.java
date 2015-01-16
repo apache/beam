@@ -402,9 +402,6 @@ public class DataflowPipelineTranslator {
         workerPool.setDiskSourceImage(options.getDiskSourceImage());
       }
 
-      if (options.getMachineType() != null) {
-        workerPool.setMachineType(options.getMachineType());
-      }
       if (options.isStreaming()) {
         // Use separate data disk for streaming.
         Disk disk = new Disk();
