@@ -54,7 +54,8 @@ public interface EvaluationResult extends PipelineResult {
 
   /**
    * Releases any runtime resources, including distributed-execution contexts currently held by
-   * this EvaluationResult; once close() has been called, {@link get(PCollection)} might
+   * this EvaluationResult; once close() has been called,
+   * {@link com.cloudera.dataflow.spark.EvaluationResult#get(PCollection)} might
    * not work for subsequent calls.
    */
   void close();

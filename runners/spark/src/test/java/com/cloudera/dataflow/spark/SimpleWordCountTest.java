@@ -59,6 +59,7 @@ public class SimpleWordCountTest {
                 "count[%s].",
             actualCountSet, EXPECTED_COUNT_SET),
         EXPECTED_COUNT_SET, actualCountSet);
+    res.close();
   }
 
   /**

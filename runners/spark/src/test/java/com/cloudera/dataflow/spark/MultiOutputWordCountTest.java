@@ -54,7 +54,7 @@ public class MultiOutputWordCountTest {
     PCollection<String> w2 = p.apply(Create.of("Here are some more words", "and even more words"));
     PCollectionList<String> list = PCollectionList.of(w1).and(w2);
 
-    PCollection<String> union = list.apply(Flatten.<String>create());
+    PCollection<String> union = list.apply(Flatten.<String>pCollections());
     PCollectionView<String, ?> regexView = regex.apply(View.<String>asSingleton());
     PCollectionTuple luc = union.apply(new CountWords(regexView));
     PCollection<Long> unique = luc.get(lowerCnts).apply(
@@ -70,6 +70,7 @@ public class MultiOutputWordCountTest {
     Assert.assertEquals(18, actualTotalWords);
     int actualMaxWordLength = res.getAggregatorValue("maxWordLength", Integer.class);
     Assert.assertEquals(6, actualMaxWordLength);
+    res.close();
   }
 
   /**
