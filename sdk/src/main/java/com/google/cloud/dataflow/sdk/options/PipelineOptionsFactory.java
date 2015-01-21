@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -56,6 +57,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -93,7 +95,7 @@ public class PipelineOptionsFactory {
    * @return An object which implements {@link PipelineOptions}.
    */
   public static PipelineOptions create() {
-    return new Builder(getAppName(3)).as(PipelineOptions.class);
+    return new Builder().as(PipelineOptions.class);
   }
 
   /**
@@ -107,7 +109,7 @@ public class PipelineOptionsFactory {
    * @return An object which implements {@code <T>}.
    */
   public static <T extends PipelineOptions> T as(Class<T> klass) {
-    return new Builder(getAppName(3)).as(klass);
+    return new Builder().as(klass);
   }
 
   /**
@@ -134,7 +136,7 @@ public class PipelineOptionsFactory {
    * {@link Builder#withoutStrictParsing()}.
    */
   public static Builder fromArgs(String[] args) {
-    return new Builder(getAppName(3)).fromArgs(args);
+    return new Builder().fromArgs(args);
   }
 
   /**
@@ -144,7 +146,7 @@ public class PipelineOptionsFactory {
    * validation.
    */
   public Builder withValidation() {
-    return new Builder(getAppName(3)).withValidation();
+    return new Builder().withValidation();
   }
 
   /** A fluent PipelineOptions builder. */
@@ -155,13 +157,13 @@ public class PipelineOptionsFactory {
     private final boolean strictParsing;
 
     // Do not allow direct instantiation
-    private Builder(String defaultAppName) {
-      this(defaultAppName, null, false, true);
+    private Builder() {
+      this(null, false, true);
     }
 
-    private Builder(String defaultAppName, String[] args, boolean validation,
+    private Builder(String[] args, boolean validation,
         boolean strictParsing) {
-      this.defaultAppName = defaultAppName;
+      this.defaultAppName = findCallersClassName();
       this.args = args;
       this.validation = validation;
       this.strictParsing = strictParsing;
@@ -192,7 +194,7 @@ public class PipelineOptionsFactory {
      */
     public Builder fromArgs(String[] args) {
       Preconditions.checkNotNull(args, "Arguments should not be null.");
-      return new Builder(defaultAppName, args, validation, strictParsing);
+      return new Builder(args, validation, strictParsing);
     }
 
     /**
@@ -202,7 +204,7 @@ public class PipelineOptionsFactory {
      * validation.
      */
     public Builder withValidation() {
-      return new Builder(defaultAppName, args, true, strictParsing);
+      return new Builder(args, true, strictParsing);
     }
 
     /**
@@ -210,7 +212,7 @@ public class PipelineOptionsFactory {
      * arguments.
      */
     public Builder withoutStrictParsing() {
-      return new Builder(defaultAppName, args, validation, false);
+      return new Builder(args, validation, false);
     }
 
     /**
@@ -260,15 +262,31 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * Returns the simple name of calling class at the stack trace {@code level}.
+   * Returns the simple name of the calling class using the current threads stack.
    */
-  private static String getAppName(int level) {
-    StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-    try {
-      return Class.forName(stackTrace[level].getClassName()).getSimpleName();
-    } catch (ClassNotFoundException e) {
-      return "unknown";
+  private static String findCallersClassName() {
+    Iterator<StackTraceElement> elements =
+        Iterators.forArray(Thread.currentThread().getStackTrace());
+    // First find the PipelineOptionsFactory/Builder class in the stack trace.
+    while (elements.hasNext()) {
+      StackTraceElement next = elements.next();
+      if (PIPELINE_OPTIONS_FACTORY_CLASSES.contains(next.getClassName())) {
+        break;
+      }
     }
+    // Then find the first instance after which is not the PipelineOptionsFactory/Builder class.
+    while (elements.hasNext()) {
+      StackTraceElement next = elements.next();
+      if (!PIPELINE_OPTIONS_FACTORY_CLASSES.contains(next.getClassName())) {
+        try {
+          return Class.forName(next.getClassName()).getSimpleName();
+        } catch (ClassNotFoundException e) {
+          break;
+        }
+      }
+    }
+
+    return "unknown";
   }
 
   /**
@@ -300,6 +318,11 @@ public class PipelineOptionsFactory {
   private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class[0];
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final Map<String, Class<? extends PipelineRunner<?>>> SUPPORTED_PIPELINE_RUNNERS;
+
+  /** Classes which are used as the boundary in the stack trace to find the callers class name. */
+  private static final Set<String> PIPELINE_OPTIONS_FACTORY_CLASSES = ImmutableSet.of(
+      PipelineOptionsFactory.class.getName(),
+      Builder.class.getName());
 
   /** Methods which are ignored when validating the proxy class. */
   private static final Set<Method> IGNORED_METHODS;
@@ -334,7 +357,7 @@ public class PipelineOptionsFactory {
 
     // Store the list of all available pipeline runners.
     ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
-            new ImmutableMap.Builder<>();
+            ImmutableMap.builder();
     Set<PipelineRunnerRegistrar> pipelineRunnerRegistrars =
         Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
     pipelineRunnerRegistrars.addAll(
