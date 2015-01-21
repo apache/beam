@@ -20,7 +20,6 @@ import com.google.api.client.util.Data;
 import com.google.api.client.util.Preconditions;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Table;
-import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableDataList;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
@@ -33,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 
@@ -99,16 +99,19 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
 
     if (Objects.equals(fieldSchema.getMode(), "REPEATED")) {
       TableFieldSchema elementSchema = fieldSchema.clone().setMode("REQUIRED");
-      List<Object> rawValues = (List<Object>) v;
+      @SuppressWarnings("unchecked")
+      List<Map<String, Object>> rawValues = (List<Map<String, Object>>) v;
       List<Object> values = new ArrayList<Object>(rawValues.size());
-      for (Object element : rawValues) {
-        values.add(getTypedCellValue(elementSchema, element));
+      for (Map<String, Object> element : rawValues) {
+        values.add(getTypedCellValue(elementSchema, element.get("v")));
       }
       return values;
     }
 
     if (fieldSchema.getType().equals("RECORD")) {
-      return getTypedTableRow(fieldSchema.getFields(), (TableRow) v);
+      @SuppressWarnings("unchecked")
+      Map<String, Object> typedV = (Map<String, Object>) v;
+      return getTypedTableRow(fieldSchema.getFields(), typedV);
     }
 
     if (fieldSchema.getType().equals("FLOAT")) {
@@ -122,18 +125,19 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
     return v;
   }
 
-  private TableRow getTypedTableRow(List<TableFieldSchema> fields, TableRow rawRow) {
-    List<TableCell> cells = rawRow.getF();
+  private TableRow getTypedTableRow(List<TableFieldSchema> fields, Map<String, Object> rawRow) {
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> cells = (List<Map<String, Object>>) rawRow.get("f");
     Preconditions.checkState(cells.size() == fields.size());
 
-    Iterator<TableCell> cellIt = cells.iterator();
+    Iterator<Map<String, Object>> cellIt = cells.iterator();
     Iterator<TableFieldSchema> fieldIt = fields.iterator();
 
     TableRow row = new TableRow();
     while (cellIt.hasNext()) {
-      TableCell cell = cellIt.next();
+      Map<String, Object> cell = cellIt.next();
       TableFieldSchema fieldSchema = fieldIt.next();
-      row.set(fieldSchema.getName(), getTypedCellValue(fieldSchema, cell.getV()));
+      row.set(fieldSchema.getName(), getTypedCellValue(fieldSchema, cell.get("v")));
     }
     return row;
   }
