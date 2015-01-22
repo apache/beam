@@ -1,5 +1,12 @@
 language: java
 
+notifications:
+  email:
+    recipients:
+      - dataflow-sdk+travis@google.com
+    on_success: change
+    on_failure: always
+
 jdk:
   - oraclejdk8
   - oraclejdk7
@@ -9,5 +16,4 @@ install:
   - mvn install clean -U -DskipTests=true
 
 script:
-  - mvn -U verify
-
+  - mvn verify -U
