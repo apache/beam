@@ -60,8 +60,8 @@ import java.util.TreeMap;
  * Represents and {@link InvocationHandler} for a {@link Proxy}. The invocation handler uses bean
  * introspection of the proxy class to store and retrieve values based off of the property name.
  * <p>
- * Unset properties use the {@Default} metadata on the getter to return values. If there
- * is no {@Default} annotation on the getter, then a <a
+ * Unset properties use the {@code @Default} metadata on the getter to return values. If there
+ * is no {@code @Default} annotation on the getter, then a <a
  * href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">default</a> as
  * per the Java Language Specification for the expected return type is returned.
  * <p>
@@ -75,7 +75,7 @@ class ProxyInvocationHandler implements InvocationHandler {
    * No two instances of this class are considered equivalent hence we generate a random hash code
    * between 0 and {@link Integer#MAX_VALUE}.
    */
-  private final int hashCode = (int) Math.random() * Integer.MAX_VALUE;
+  private final int hashCode = (int) (Math.random() * Integer.MAX_VALUE);
   private final Set<Class<? extends PipelineOptions>> knownInterfaces;
   private final ClassToInstanceMap<PipelineOptions> interfaceToProxyCache;
   private final Map<String, Object> options;
@@ -214,8 +214,8 @@ class ProxyInvocationHandler implements InvocationHandler {
   }
 
   /**
-   * Returns a default value for the method based upon {@Default} metadata on the getter
-   * to return values. If there is no {@Default} annotation on the getter, then a <a
+   * Returns a default value for the method based upon {@code @Default} metadata on the getter
+   * to return values. If there is no {@code @Default} annotation on the getter, then a <a
    * href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">default</a> as
    * per the Java Language Specification for the expected return type is returned.
    *
@@ -246,12 +246,6 @@ class ProxyInvocationHandler implements InvocationHandler {
         return ((Default.Float) annotation).value();
       } else if (annotation instanceof Default.Double) {
         return ((Default.Double) annotation).value();
-      } else if (annotation instanceof Default.String) {
-        return ((Default.String) annotation).value();
-      } else if (annotation instanceof Default.String) {
-        return ((Default.String) annotation).value();
-      } else if (annotation instanceof Default.String) {
-        return ((Default.String) annotation).value();
       } else if (annotation instanceof Default.Enum) {
         return Enum.valueOf((Class<Enum>) method.getReturnType(),
             ((Default.Enum) annotation).value());

@@ -209,14 +209,17 @@ public class ProxyInvocationHandlerTest {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
     Simple proxy = handler.as(Simple.class);
     JLSDefaults sameAsProxy = proxy.as(JLSDefaults.class);
+
     ProxyInvocationHandler handler2 = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
-    Simple proxy2 = handler.as(Simple.class);
-    JLSDefaults sameAsProxy2 = proxy.as(JLSDefaults.class);
+    Simple proxy2 = handler2.as(Simple.class);
+    JLSDefaults sameAsProxy2 = proxy2.as(JLSDefaults.class);
+
+    // Hashcode comparisons below depend on random numbers, so could fail if seed changes.
     assertTrue(handler.hashCode() == proxy.hashCode());
     assertTrue(proxy.hashCode() == sameAsProxy.hashCode());
-    assertFalse(handler.hashCode() != handler2.hashCode());
-    assertFalse(proxy.hashCode() != proxy2.hashCode());
-    assertFalse(proxy.hashCode() != sameAsProxy2.hashCode());
+    assertFalse(handler.hashCode() == handler2.hashCode());
+    assertFalse(proxy.hashCode() == proxy2.hashCode());
+    assertFalse(proxy.hashCode() == sameAsProxy2.hashCode());
   }
 
   @Test
