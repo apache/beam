@@ -21,6 +21,8 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.Multiset;
 import com.google.common.reflect.TypeToken;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -125,17 +127,38 @@ public class TupleTag<V> implements Serializable {
   // Internal details below here.
 
   static final Random RANDOM = new Random(0);
+  private static final Multiset<String> staticInits = HashMultiset.create();
 
   final String id;
   final boolean generated;
 
   /** Generates and returns a fresh unique id for a TupleTag's id. */
-  static String genId() {
-    long randomLong;
-    synchronized (RANDOM) {
-      randomLong = RANDOM.nextLong();
+  static synchronized String genId() {
+    // It is a common pattern to store tags that are shared between the main
+    // program and workers in static variables, but such references are not
+    // serialized as part of the *Fns state.  Fortunately, most such tags
+    // are constructed in static class initializers, e.g.
+    //
+    //     static final TupleTag<T> MY_TAG = new TupleTag<>();
+    //
+    // and class initialization order is well defined by the JVM spec, so in
+    // this case we can assign deterministic ids.
+    StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+    for (StackTraceElement frame : stackTrace) {
+      if (frame.getMethodName().equals("<clinit>")) {
+        int counter = staticInits.add(frame.getClassName(), 1);
+        return frame.getClassName() + "#" + counter;
+      }
     }
-    return Long.toHexString(randomLong);
+    // Otherwise, assume it'll be serialized and choose a random value to reduce
+    // the chance of collision.
+    String nonce = Long.toHexString(RANDOM.nextLong());
+    // [Thread.getStackTrace, TupleTag.getId, TupleTag.<init>, caller, ...]
+    String caller = stackTrace.length >= 4
+        ? stackTrace[3].getClassName() + "." + stackTrace[3].getMethodName()
+            + ":" + stackTrace[3].getLineNumber()
+        : "unknown";
+    return caller + "#" + nonce;
   }
 
   @JsonCreator
