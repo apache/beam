@@ -4,7 +4,7 @@
 provides a simple, powerful programming model for building both batch
 and streaming parallel data processing pipelines.
 
-## Status
+## Status [![Build Status](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK.svg?branch=master)](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK)
 
 The Cloud Dataflow SDK is used to access the Google Cloud Dataflow service,
 which is currently in Alpha and restricted to whitelisted users.
