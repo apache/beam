@@ -205,7 +205,7 @@ public class NormalParDoFn extends ParDoFn {
             try {
               receiver.process(output);
             } catch (Throwable t) {
-              Throwables.propagate(t);
+              throw Throwables.propagate(t);
             }
           }
         },
