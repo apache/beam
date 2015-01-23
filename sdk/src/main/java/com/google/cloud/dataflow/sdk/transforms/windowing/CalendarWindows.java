@@ -212,7 +212,7 @@ public class CalendarWindows {
       }
       MonthsWindows that = (MonthsWindows) other;
       return number == that.number
-          && dayOfMonth == dayOfMonth
+          && dayOfMonth == that.dayOfMonth
           && startDate == that.startDate
           && timeZone == that.timeZone;
     }
@@ -291,8 +291,8 @@ public class CalendarWindows {
       }
       YearsWindows that = (YearsWindows) other;
       return number == that.number
-          && monthOfYear == monthOfYear
-          && dayOfMonth == dayOfMonth
+          && monthOfYear == that.monthOfYear
+          && dayOfMonth == that.dayOfMonth
           && startDate == that.startDate
           && timeZone == that.timeZone;
     }
