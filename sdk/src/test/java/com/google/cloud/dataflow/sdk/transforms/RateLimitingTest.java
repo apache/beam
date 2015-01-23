@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
@@ -132,7 +131,7 @@ public class RateLimitingTest {
 
     long perElementPause = (long) (1000L / rate);
     long minDuration = (n - 1) * perElementPause;
-    Assert.assertThat(duration, greaterThan(minDuration));
+    Assert.assertThat(duration, greaterThanOrEqualTo(minDuration));
   }
 
   @Test(timeout = 5000L)
@@ -185,10 +184,10 @@ public class RateLimitingTest {
     long duration = runWithRate(2 * RateLimiting.DEFAULT_MAX_PARALLELISM,
         -1.0 /* unlimited */, new DelayFn<Integer>());
 
-    // Should take > 2x the delay interval, since no more than half the elements
-    // can be scheduled at once.
+    // Should take >= 2x the delay interval, since no more than half the
+    // elements can be scheduled at once.
     Assert.assertThat(duration,
-        greaterThan(2 * DelayFn.DELAY_MS));
+        greaterThanOrEqualTo(2 * DelayFn.DELAY_MS));
   }
 
   private long runWithRate(int numElements, double rateLimit,
