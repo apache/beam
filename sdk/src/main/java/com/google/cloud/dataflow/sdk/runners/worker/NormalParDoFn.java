@@ -37,6 +37,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.Receiver;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.base.Throwables;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -203,8 +204,8 @@ public class NormalParDoFn extends ParDoFn {
           public void output(Receiver receiver, WindowedValue<?> output) {
             try {
               receiver.process(output);
-            } catch (Exception e) {
-              throw new RuntimeException(e);
+            } catch (Throwable t) {
+              Throwables.propagate(t);
             }
           }
         },
