@@ -16,8 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static com.google.cloud.dataflow.sdk.testing.WindowingFnTestUtils.runWindowingFn;
-import static com.google.cloud.dataflow.sdk.testing.WindowingFnTestUtils.set;
+import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.runWindowFn;
+import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Tests for Sessions WindowingFn.
+ * Tests for Sessions WindowFn.
  */
 @RunWith(JUnit4.class)
 public class SessionsTest {
@@ -46,7 +46,7 @@ public class SessionsTest {
     expected.put(new IntervalWindow(new Instant(101), new Instant(111)), set(101));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             Sessions.withGapDuration(new Duration(10)),
             Arrays.asList(0L, 10L, 101L)));
   }
@@ -58,7 +58,7 @@ public class SessionsTest {
     expected.put(new IntervalWindow(new Instant(100), new Instant(111)), set(100, 101));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             Sessions.withGapDuration(new Duration(10)),
             Arrays.asList(1L, 2L, 5L, 9L, 100L, 101L)));
   }
@@ -70,7 +70,7 @@ public class SessionsTest {
     expected.put(new IntervalWindow(new Instant(95), new Instant(111)), set(95, 100, 101));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             Sessions.withGapDuration(new Duration(10)),
             Arrays.asList(1L, 15L, 30L, 100L, 101L, 95L, 22L, 10L)));
   }
@@ -83,7 +83,7 @@ public class SessionsTest {
     expected.put(new IntervalWindow(new Instant(10000), new Instant(11000)), set(10000));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             Sessions.withGapDuration(Duration.standardSeconds(1)),
             Arrays.asList(1L, 2L, 1000L, 5000L, 5001L, 10000L)));
   }

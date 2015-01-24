@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.testing;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 
 import org.joda.time.Instant;
 
@@ -30,13 +30,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * A utility class for testing {@link WindowingFn}s.
+ * A utility class for testing {@link WindowFn}s.
  */
-public class WindowingFnTestUtils {
+public class WindowFnTestUtils {
 
   /**
    * Creates a Set of elements to be used as expected output in
-   * {@link #runWindowingFn}.
+   * {@link #runWindowFn}.
    */
   public static Set<String> set(long... timestamps) {
     Set<String> result = new HashSet<>();
@@ -48,20 +48,20 @@ public class WindowingFnTestUtils {
 
 
   /**
-   * Runs the {@link WindowingFn} over the provided input, returning a map
+   * Runs the {@link WindowFn} over the provided input, returning a map
    * of windows to the timestamps in those windows.
    */
-  public static <T, W extends BoundedWindow> Map<W, Set<String>> runWindowingFn(
-      WindowingFn<T, W> windowingFn,
+  public static <T, W extends BoundedWindow> Map<W, Set<String>> runWindowFn(
+      WindowFn<T, W> windowFn,
       List<Long> timestamps) throws Exception {
 
     final TestWindowSet<W, String> windowSet = new TestWindowSet<W, String>();
     for (final Long timestamp : timestamps) {
-      for (W window : windowingFn.assignWindows(
-          new TestAssignContext<T, W>(new Instant(timestamp), windowingFn))) {
+      for (W window : windowFn.assignWindows(
+          new TestAssignContext<T, W>(new Instant(timestamp), windowFn))) {
         windowSet.put(window, timestampValue(timestamp));
       }
-      windowingFn.mergeWindows(new TestMergeContext<T, W>(windowSet, windowingFn));
+      windowFn.mergeWindows(new TestMergeContext<T, W>(windowSet, windowFn));
     }
     Map<W, Set<String>> actual = new HashMap<>();
     for (W window : windowSet.windows()) {
@@ -78,11 +78,11 @@ public class WindowingFnTestUtils {
    * Test implementation of AssignContext.
    */
   private static class TestAssignContext<T, W extends BoundedWindow>
-      extends WindowingFn<T, W>.AssignContext {
+      extends WindowFn<T, W>.AssignContext {
     private Instant timestamp;
 
-    public TestAssignContext(Instant timestamp, WindowingFn<T, W> windowingFn) {
-      windowingFn.super();
+    public TestAssignContext(Instant timestamp, WindowFn<T, W> windowFn) {
+      windowFn.super();
       this.timestamp = timestamp;
     }
 
@@ -106,12 +106,12 @@ public class WindowingFnTestUtils {
    * Test implementation of MergeContext.
    */
   private static class TestMergeContext<T, W extends BoundedWindow>
-    extends WindowingFn<T, W>.MergeContext {
+    extends WindowFn<T, W>.MergeContext {
     private TestWindowSet<W, ?> windowSet;
 
     public TestMergeContext(
-        TestWindowSet<W, ?> windowSet, WindowingFn<T, W> windowingFn) {
-      windowingFn.super();
+        TestWindowSet<W, ?> windowSet, WindowFn<T, W> windowFn) {
+      windowFn.super();
       this.windowSet = windowSet;
     }
 
@@ -127,7 +127,7 @@ public class WindowingFnTestUtils {
   }
 
   /**
-   * A WindowSet useful for testing WindowingFns which simply
+   * A WindowSet useful for testing WindowFns which simply
    * collects the placed elements into multisets.
    */
   private static class TestWindowSet<W extends BoundedWindow, V> {

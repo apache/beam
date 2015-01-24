@@ -19,8 +19,8 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowingFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.common.PeekingReiterator;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.Reiterator;
@@ -52,13 +52,13 @@ public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
     extends DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> {
   // TODO: Add back RequiresKeyed state once that is supported.
 
-  protected WindowingFn<?, W> windowingFn;
+  protected WindowFn<?, W> windowFn;
   protected Coder<V> inputCoder;
 
   public GroupAlsoByWindowsDoFn(
-      WindowingFn<?, W> windowingFn,
+      WindowFn<?, W> windowFn,
       Coder<V> inputCoder) {
-    this.windowingFn = windowingFn;
+    this.windowFn = windowFn;
     this.inputCoder = inputCoder;
   }
 
@@ -67,7 +67,7 @@ public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
     DoFnProcessContext<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> context =
         (DoFnProcessContext<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>>) processContext;
 
-    if (windowingFn instanceof NonMergingWindowingFn) {
+    if (windowFn instanceof NonMergingWindowFn) {
       processElementViaIterators(context);
     } else {
       processElementViaWindowSet(context);
@@ -81,19 +81,19 @@ public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
     K key = context.element().getKey();
     BatchActiveWindowManager<W> activeWindowManager = new BatchActiveWindowManager<>();
     AbstractWindowSet<K, V, Iterable<V>, W> windowSet =
-        new BufferingWindowSet(key, windowingFn, inputCoder, context, activeWindowManager);
+        new BufferingWindowSet(key, windowFn, inputCoder, context, activeWindowManager);
 
     for (WindowedValue<V> e : context.element().getValue()) {
       for (BoundedWindow window : e.getWindows()) {
         windowSet.put((W) window, e.getValue());
       }
-      ((WindowingFn<Object, W>) windowingFn)
-        .mergeWindows(new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowingFn));
+      ((WindowFn<Object, W>) windowFn)
+        .mergeWindows(new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowFn));
 
-      maybeOutputWindows(activeWindowManager, windowSet, windowingFn, e.getTimestamp());
+      maybeOutputWindows(activeWindowManager, windowSet, windowFn, e.getTimestamp());
     }
 
-    maybeOutputWindows(activeWindowManager, windowSet, windowingFn, null);
+    maybeOutputWindows(activeWindowManager, windowSet, windowFn, null);
 
     windowSet.flush();
   }
@@ -105,15 +105,15 @@ public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
   private void maybeOutputWindows(
       BatchActiveWindowManager<W> activeWindowManager,
       AbstractWindowSet<?, ?, ?, W> windowSet,
-      WindowingFn<?, W> windowingFn,
+      WindowFn<?, W> windowFn,
       Instant nextTimestamp) throws Exception {
     if (activeWindowManager.hasMoreWindows()
         && (nextTimestamp == null
             || activeWindowManager.nextTimestamp().isBefore(nextTimestamp))) {
       // There is at least one window ready to emit.  Merge now in case that window should be merged
       // into a not yet completed one.
-      ((WindowingFn<Object, W>) windowingFn)
-        .mergeWindows(new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowingFn));
+      ((WindowFn<Object, W>) windowFn)
+        .mergeWindows(new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowFn));
     }
 
     while (activeWindowManager.hasMoreWindows()

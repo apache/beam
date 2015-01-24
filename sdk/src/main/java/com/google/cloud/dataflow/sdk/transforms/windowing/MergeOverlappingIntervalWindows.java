@@ -22,14 +22,14 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A {@link WindowingFn} that merges overlapping {@link IntervalWindow}s.
+ * A {@link WindowFn} that merges overlapping {@link IntervalWindow}s.
  */
 public class MergeOverlappingIntervalWindows {
 
   /**
    * Merge overlapping intervals.
    */
-  public static void mergeWindows(WindowingFn<?, IntervalWindow>.MergeContext c) throws Exception {
+  public static void mergeWindows(WindowFn<?, IntervalWindow>.MergeContext c) throws Exception {
     // Merge any overlapping windows into a single window.
     // Sort the list of existing windows so we only have to
     // traverse the list once rather than considering all
@@ -72,7 +72,7 @@ public class MergeOverlappingIntervalWindows {
       union = union == null ? window : union.span(window);
       parts.add(window);
     }
-    public void apply(WindowingFn<?, IntervalWindow>.MergeContext c) throws Exception {
+    public void apply(WindowFn<?, IntervalWindow>.MergeContext c) throws Exception {
       if (parts.size() > 1) {
         c.merge(parts, union);
       }

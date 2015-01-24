@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -61,11 +61,11 @@ public class DoFnRunner<I, O, R> {
                      List<TupleTag<?>> sideOutputTags,
                      StepContext stepContext,
                      CounterSet.AddCounterMutator addCounterMutator,
-                     WindowingFn windowingFn) {
+                     WindowFn windowFn) {
     this.fn = fn;
     this.context = new DoFnContext<>(options, fn, sideInputs, outputManager,
                                      mainOutputTag, sideOutputTags, stepContext,
-                                     addCounterMutator, windowingFn);
+                                     addCounterMutator, windowFn);
   }
 
   public static <I, O, R> DoFnRunner<I, O, R> create(
@@ -77,10 +77,10 @@ public class DoFnRunner<I, O, R> {
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
       CounterSet.AddCounterMutator addCounterMutator,
-      WindowingFn windowingFn) {
+      WindowFn windowFn) {
     return new DoFnRunner<>(
         options, fn, sideInputs, outputManager,
-        mainOutputTag, sideOutputTags, stepContext, addCounterMutator, windowingFn);
+        mainOutputTag, sideOutputTags, stepContext, addCounterMutator, windowFn);
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
@@ -92,7 +92,7 @@ public class DoFnRunner<I, O, R> {
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
       CounterSet.AddCounterMutator addCounterMutator,
-      WindowingFn windowingFn) {
+      WindowFn windowFn) {
     return create(
         options, fn, sideInputs,
         new OutputManager<List>() {
@@ -105,7 +105,7 @@ public class DoFnRunner<I, O, R> {
             list.add(output);
           }
         },
-        mainOutputTag, sideOutputTags, stepContext, addCounterMutator, windowingFn);
+        mainOutputTag, sideOutputTags, stepContext, addCounterMutator, windowFn);
   }
 
   /** Calls {@link DoFn#startBundle}. */

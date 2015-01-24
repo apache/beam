@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.SetCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 
@@ -49,8 +49,8 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
       CodedTupleTag.of(
           "mergeTree",
           MapCoder.of(
-              windowingFn.windowCoder(),
-              SetCoder.of(windowingFn.windowCoder())));
+              windowFn.windowCoder(),
+              SetCoder.of(windowFn.windowCoder())));
 
   /**
    * A map of live windows to windows that were merged into them.
@@ -70,11 +70,11 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
 
   protected BufferingWindowSet(
       K key,
-      WindowingFn<?, W> windowingFn,
+      WindowFn<?, W> windowFn,
       Coder<V> inputCoder,
       DoFnProcessContext<?, KV<K, Iterable<V>>> context,
       ActiveWindowManager<W> activeWindowManager) throws Exception {
-    super(key, windowingFn, inputCoder, context, activeWindowManager);
+    super(key, windowFn, inputCoder, context, activeWindowManager);
 
     mergeTree = emptyIfNull(
         context.context.stepContext.lookup(Arrays.asList(mergeTreeTag))
@@ -86,7 +86,7 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   @Override
   public void put(W window, V value) throws Exception {
     context.context.stepContext.writeToTagList(
-        bufferTag(window, windowingFn.windowCoder(), inputCoder),
+        bufferTag(window, windowFn.windowCoder(), inputCoder),
         value,
         context.timestamp());
     if (!mergeTree.containsKey(window)) {
@@ -152,12 +152,12 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
 
     for (W curWindow : curWindows) {
       Iterable<V> items = context.context.stepContext.readTagList(bufferTag(
-          curWindow, windowingFn.windowCoder(), inputCoder));
+          curWindow, windowFn.windowCoder(), inputCoder));
       for (V item : items) {
         toEmit.add(item);
       }
       context.context.stepContext.deleteTagList(bufferTag(
-          curWindow, windowingFn.windowCoder(), inputCoder));
+          curWindow, windowFn.windowCoder(), inputCoder));
     }
 
     return toEmit;

@@ -40,7 +40,7 @@ import com.google.common.reflect.TypeToken;
  * <p> Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and the output {@code PCollection}
  * has the same
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+ * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
  * associated with it as the input.
  *
  * @param <K> the type of the keys in the output {@code PCollection}

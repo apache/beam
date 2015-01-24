@@ -20,7 +20,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 
@@ -57,11 +57,11 @@ public class Flatten {
    * the {@link PCollection}s in its input.
    *
    * <p> If any of the inputs to {@code Flatten<T>} require window merging,
-   * all inputs must have equal {@link WindowingFn}s.
+   * all inputs must have equal {@link WindowFn}s.
    * The output elements of {@code Flatten<T>} are in the same windows and
    * have the same timestamps as their corresponding input elements.  The output
    * {@code PCollection} will have the same
-   * {@link WindowingFn} as all of the inputs.
+   * {@link WindowFn} as all of the inputs.
    *
    * @param <T> the type of the elements in the input and output
    * {@code PCollection}s.
@@ -113,21 +113,21 @@ public class Flatten {
 
     @Override
     public PCollection<T> apply(PCollectionList<T> inputs) {
-      WindowingFn<?, ?> windowingFn;
+      WindowFn<?, ?> windowFn;
       if (!getInput().getAll().isEmpty()) {
-        windowingFn = getInput().get(0).getWindowingFn();
+        windowFn = getInput().get(0).getWindowFn();
         for (PCollection<?> input : getInput().getAll()) {
-          if (!windowingFn.isCompatible(input.getWindowingFn())) {
+          if (!windowFn.isCompatible(input.getWindowFn())) {
             throw new IllegalStateException(
-                "Inputs to Flatten had incompatible window windowingFns: "
-                + windowingFn + ", " + input.getWindowingFn());
+                "Inputs to Flatten had incompatible window windowFns: "
+                + windowFn + ", " + input.getWindowFn());
           }
         }
       } else {
-        windowingFn = new GlobalWindow();
+        windowFn = new GlobalWindow();
       }
 
-      return PCollection.<T>createPrimitiveOutputInternal(windowingFn);
+      return PCollection.<T>createPrimitiveOutputInternal(windowFn);
     }
 
     @Override

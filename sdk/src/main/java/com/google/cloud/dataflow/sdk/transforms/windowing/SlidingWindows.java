@@ -26,7 +26,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * A WindowingFn that windows values into possibly overlapping fixed-size
+ * A WindowFn that windows values into possibly overlapping fixed-size
  * timestamp-based windows.
  *
  * <p> For example, in order to window data into 10 minute windows that
@@ -38,7 +38,7 @@ import java.util.List;
  * } </pre>
  */
 @SuppressWarnings("serial")
-public class SlidingWindows extends NonMergingWindowingFn<Object, IntervalWindow> {
+public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
 
   /**
    * Amount of time between generated windows.
@@ -119,7 +119,7 @@ public class SlidingWindows extends NonMergingWindowingFn<Object, IntervalWindow
   }
 
   @Override
-  public boolean isCompatible(WindowingFn<?, ?> other) {
+  public boolean isCompatible(WindowFn<?, ?> other) {
     if (other instanceof SlidingWindows) {
       SlidingWindows that = (SlidingWindows) other;
       return period.equals(that.period)

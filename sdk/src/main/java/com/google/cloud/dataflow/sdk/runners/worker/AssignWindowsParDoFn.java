@@ -21,7 +21,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
@@ -54,16 +54,16 @@ class AssignWindowsParDoFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler sampler /* unused */)
       throws Exception {
-    final Object windowingFn =
+    final Object windowFn =
         SerializableUtils.deserializeFromByteArray(
             getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
             "serialized window fn");
-    if (!(windowingFn instanceof WindowingFn)) {
+    if (!(windowFn instanceof WindowFn)) {
       throw new Exception(
-          "unexpected kind of WindowingFn: " + windowingFn.getClass().getName());
+          "unexpected kind of WindowFn: " + windowFn.getClass().getName());
     }
 
-    final AssignWindowsDoFn assignFn = new AssignWindowsDoFn((WindowingFn) windowingFn);
+    final AssignWindowsDoFn assignFn = new AssignWindowsDoFn((WindowFn) windowFn);
 
     DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
         @Override

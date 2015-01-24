@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -207,11 +207,11 @@ public class GroupAlsoByWindowsDoFnTest {
 
   private DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
     KV<String, Iterable<String>>, List> makeRunner(
-        WindowingFn<? super String, IntervalWindow> windowingFn) {
+        WindowFn<? super String, IntervalWindow> windowFn) {
 
     GroupAlsoByWindowsDoFn<String, String, IntervalWindow> fn =
         new GroupAlsoByWindowsDoFn<String, String, IntervalWindow>(
-            windowingFn, StringUtf8Coder.of());
+            windowFn, StringUtf8Coder.of());
 
     DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
         KV<String, Iterable<String>>, List> runner =

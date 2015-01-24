@@ -83,9 +83,9 @@ public abstract class DoFn<I, O> implements Serializable {
      *
      * <p> If invoked from {@link #startBundle} or {@link #finishValue},
      * this will attempt to use the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
-     * should be in, throwing an exception if the {@code WindowingFn} attempts
+     * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
      */
@@ -102,9 +102,9 @@ public abstract class DoFn<I, O> implements Serializable {
      *
      * <p> If invoked from {@link #startBundle} or {@link #finishValue},
      * this will attempt to use the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
-     * should be in, throwing an exception if the {@code WindowingFn} attempts
+     * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element except for the
      * timestamp.
      */
@@ -124,9 +124,9 @@ public abstract class DoFn<I, O> implements Serializable {
      *
      * <p> If invoked from {@link #startBundle} or {@link #finishValue},
      * this will attempt to use the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
-     * should be in, throwing an exception if the {@code WindowingFn} attempts
+     * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
      *
@@ -147,9 +147,9 @@ public abstract class DoFn<I, O> implements Serializable {
      *
      * <p> If invoked from {@link #startBundle} or {@link #finishValue},
      * this will attempt to use the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
-     * should be in, throwing an exception if the {@code WindowingFn} attempts
+     * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element except for the
      * timestamp.
      *

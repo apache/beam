@@ -25,7 +25,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -60,13 +60,13 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler sampler /* unused */)
       throws Exception {
-    final Object windowingFn =
+    final Object windowFn =
         SerializableUtils.deserializeFromByteArray(
             getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
             "serialized window fn");
-    if (!(windowingFn instanceof WindowingFn)) {
+    if (!(windowFn instanceof WindowFn)) {
       throw new Exception(
-          "unexpected kind of WindowingFn: " + windowingFn.getClass().getName());
+          "unexpected kind of WindowFn: " + windowFn.getClass().getName());
     }
 
     byte[] serializedCombineFn = getBytes(cloudUserFn, PropertyNames.COMBINE_FN, null);
@@ -97,7 +97,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
         @Override
         public DoFnInfo createDoFnInfo() {
           return new DoFnInfo(StreamingGroupAlsoByWindowsDoFn.create(
-              (WindowingFn) windowingFn,
+              (WindowFn) windowFn,
               ((KvCoder) elemCoder).getValueCoder()),
               null);
         }

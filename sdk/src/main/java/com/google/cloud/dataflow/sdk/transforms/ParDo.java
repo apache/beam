@@ -96,7 +96,7 @@ import java.util.Map;
  * <p> Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and the output {@code PCollection}
  * has the same
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+ * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
  * associated with it as the input.
  *
  * <h2>Naming {@code ParDo}s</h2>
@@ -708,7 +708,7 @@ public class ParDo {
       if (sideInputs == null) {
         sideInputs = Collections.emptyList();
       }
-      return PCollection.<O>createPrimitiveOutputInternal(getInput().getWindowingFn())
+      return PCollection.<O>createPrimitiveOutputInternal(getInput().getWindowFn())
           .setTypeTokenInternal(fn.getOutputTypeToken());
     }
 
@@ -900,7 +900,7 @@ public class ParDo {
     public PCollectionTuple apply(PCollection<? extends I> input) {
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
-          getInput().getWindowingFn());
+          getInput().getWindowFn());
 
       // The fn will likely be an instance of an anonymous subclass
       // such as DoFn<Integer, String> { }, thus will have a high-fidelity
@@ -1040,7 +1040,7 @@ public class ParDo {
             sideOutputTags,
             executionContext.getStepContext(name),
             context.getAddCounterMutator(),
-            input.getWindowingFn());
+            input.getWindowFn());
 
     fnRunner.startBundle();
 

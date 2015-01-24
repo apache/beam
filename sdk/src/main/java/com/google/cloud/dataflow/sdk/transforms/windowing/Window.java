@@ -41,7 +41,7 @@ import java.util.List;
 
 /**
  * {@code Window} logically divides up or groups the elements of a
- * {@link PCollection} into finite windows according to a {@link WindowingFn}.
+ * {@link PCollection} into finite windows according to a {@link WindowFn}.
  * The output of {@code Window} contains the same elements as input, but they
  * have been logically assigned to windows. The next
  * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}s, including one
@@ -80,7 +80,7 @@ import java.util.List;
  * {(KV("foo", 2), 1m), (KV("bar", 1), 1m), (KV("foo", 1), 2m)}
  *
  *
- * <p> Several predefined {@link WindowingFn}s are provided:
+ * <p> Several predefined {@link WindowFn}s are provided:
  * <ul>
  *  <li> {@link FixedWindows} partitions the timestamps into fixed-width intervals.
  *  <li> {@link SlidingWindows} places data into overlapping fixed-width intervals.
@@ -88,8 +88,8 @@ import java.util.List;
  *       is separated from the next by no more than a specified gap.
  * </ul>
  *
- * Additionally, custom {@link WindowingFn}s can be created, by creating new
- * subclasses of {@link WindowingFn}.
+ * Additionally, custom {@link WindowFn}s can be created, by creating new
+ * subclasses of {@link WindowFn}.
  */
 public class Window {
   /**
@@ -100,7 +100,7 @@ public class Window {
    *
    * <p> The resulting {@code PTransform} is incomplete, and its input/output
    * type is not yet bound.  Use {@link Window.Unbound#into} to specify the
-   * {@link WindowingFn} to use, which will also bind the input/output type of this
+   * {@link WindowFn} to use, which will also bind the input/output type of this
    * {@code PTransform}.
    */
   public static Unbound named(String name) {
@@ -109,14 +109,14 @@ public class Window {
 
   /**
    * Creates a {@code Window} {@code PTransform} that uses the given
-   * {@link WindowingFn} to window the data.
+   * {@link WindowFn} to window the data.
    *
    * <p> The resulting {@code PTransform}'s types have been bound, with both the
    * input and output being a {@code PCollection<T>}, inferred from the types of
-   * the argument {@code WindowingFn<T, B>}.  It is ready to be applied, or further
+   * the argument {@code WindowFn<T, B>}.  It is ready to be applied, or further
    * properties can be set on it first.
    */
-  public static <T> Bound<T> into(WindowingFn<? super T, ?> fn) {
+  public static <T> Bound<T> into(WindowFn<? super T, ?> fn) {
     return new Unbound().into(fn);
   }
 
@@ -124,7 +124,7 @@ public class Window {
    * An incomplete {@code Window} transform, with unbound input/output type.
    *
    * <p> Before being applied, {@link Window.Unbound#into} must be
-   * invoked to specify the {@link WindowingFn} to invoke, which will also
+   * invoked to specify the {@link WindowFn} to invoke, which will also
    * bind the input/output type of this {@code PTransform}.
    */
   public static class Unbound {
@@ -151,27 +151,27 @@ public class Window {
 
     /**
      * Returns a new {@code Window} {@code PTransform} that's like this
-     * transform but which will use the given {@link WindowingFn}, and which has
+     * transform but which will use the given {@link WindowFn}, and which has
      * its input and output types bound.  Does not modify this transform.  The
      * resulting {@code PTransform} is sufficiently specified to be applied,
      * but more properties can still be specified.
      */
-    public <T> Bound<T> into(WindowingFn<? super T, ?> fn) {
+    public <T> Bound<T> into(WindowFn<? super T, ?> fn) {
       return new Bound<>(name, fn);
     }
   }
 
   /**
    * A {@code PTransform} that windows the elements of a {@code PCollection<T>},
-   * into finite windows according to a user-specified {@code WindowingFn<T, B>}.
+   * into finite windows according to a user-specified {@code WindowFn<T, B>}.
    *
    * @param <T> The type of elements this {@code Window} is applied to
    */
   @SuppressWarnings("serial")
   public static class Bound<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    WindowingFn<? super T, ?> fn;
+    WindowFn<? super T, ?> fn;
 
-    Bound(String name, WindowingFn<? super T, ?> fn) {
+    Bound(String name, WindowFn<? super T, ?> fn) {
       this.name = name;
       this.fn = fn;
     }
@@ -226,17 +226,17 @@ public class Window {
   public static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
-      WindowingFn<?, ?> windowingFn = getInput().getWindowingFn();
-      WindowingFn<?, ?> outputWindowingFn =
-          (windowingFn instanceof InvalidWindowingFn)
-          ? ((InvalidWindowingFn<?>) windowingFn).getOriginalWindowingFn()
-          : windowingFn;
+      WindowFn<?, ?> windowFn = getInput().getWindowFn();
+      WindowFn<?, ?> outputWindowFn =
+          (windowFn instanceof InvalidWindowFn)
+          ? ((InvalidWindowFn<?>) windowFn).getOriginalWindowFn()
+          : windowFn;
 
       return input.apply(ParDo.named("Identity").of(new DoFn<T, T>() {
                 @Override public void processElement(ProcessContext c) {
                   c.output(c.element());
                 }
-              })).setWindowingFnInternal(outputWindowingFn);
+              })).setWindowFnInternal(outputWindowFn);
     }
   }
 

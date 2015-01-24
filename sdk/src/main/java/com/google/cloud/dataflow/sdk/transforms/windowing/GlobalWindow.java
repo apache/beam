@@ -27,18 +27,18 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * Default {@link WindowingFn} where all data is in the same bucket.
+ * Default {@link WindowFn} where all data is in the same bucket.
  */
 @SuppressWarnings("serial")
 public class GlobalWindow
-    extends NonMergingWindowingFn<Object, GlobalWindow.Window> {
+    extends NonMergingWindowFn<Object, GlobalWindow.Window> {
   @Override
   public Collection<Window> assignWindows(AssignContext c) {
     return Arrays.asList(Window.INSTANCE);
   }
 
   @Override
-  public boolean isCompatible(WindowingFn o) {
+  public boolean isCompatible(WindowFn o) {
     return o instanceof GlobalWindow;
   }
 

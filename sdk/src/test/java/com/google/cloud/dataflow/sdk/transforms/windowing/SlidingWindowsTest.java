@@ -16,8 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static com.google.cloud.dataflow.sdk.testing.WindowingFnTestUtils.runWindowingFn;
-import static com.google.cloud.dataflow.sdk.testing.WindowingFnTestUtils.set;
+import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.runWindowFn;
+import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -34,7 +34,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Tests for the SlidingWindows WindowingFn.
+ * Tests for the SlidingWindows WindowFn.
  */
 @RunWith(JUnit4.class)
 public class SlidingWindowsTest {
@@ -48,7 +48,7 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(10), new Instant(20)), set(10, 11));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             SlidingWindows.of(new Duration(10)).every(new Duration(5)),
             Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
   }
@@ -62,7 +62,7 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(10), new Instant(17)), set(10, 11));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             SlidingWindows.of(new Duration(7)).every(new Duration(5)),
             Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
   }
@@ -75,7 +75,7 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(100), new Instant(103)), set(100));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             // Only look at the first 3 millisecs of every 10-millisec interval.
             SlidingWindows.of(new Duration(3)).every(new Duration(10)),
             Arrays.asList(1L, 2L, 3L, 5L, 9L, 10L, 11L, 100L)));
@@ -90,7 +90,7 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(7), new Instant(17)), set(9, 10, 11));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             SlidingWindows.of(new Duration(10)).every(new Duration(5)).withOffset(new Duration(2)),
             Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
   }
@@ -105,7 +105,7 @@ public class SlidingWindowsTest {
     expected.put(new IntervalWindow(new Instant(10000), new Instant(20000)), set(10000));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             SlidingWindows.of(Duration.standardSeconds(10)).every(Duration.standardSeconds(5)),
             Arrays.asList(1L, 2L, 1000L, 5000L, 5001L, 10000L)));
   }

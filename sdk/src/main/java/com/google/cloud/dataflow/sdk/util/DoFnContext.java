@@ -22,8 +22,8 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn.AssignContext;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn.AssignContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner.OutputManager;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -56,7 +56,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
   final TupleTag<O> mainOutputTag;
   final StepContext stepContext;
   final CounterSet.AddCounterMutator addCounterMutator;
-  final WindowingFn windowingFn;
+  final WindowFn windowFn;
 
   public DoFnContext(PipelineOptions options,
                      DoFn<I, O> fn,
@@ -66,7 +66,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
                      List<TupleTag<?>> sideOutputTags,
                      StepContext stepContext,
                      CounterSet.AddCounterMutator addCounterMutator,
-                     WindowingFn windowingFn) {
+                     WindowFn windowFn) {
     fn.super();
     this.options = options;
     this.fn = fn;
@@ -80,7 +80,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
     }
     this.stepContext = stepContext;
     this.addCounterMutator = addCounterMutator;
-    this.windowingFn = windowingFn;
+    this.windowFn = windowFn;
   }
 
   public R getReceiver(TupleTag<?> tag) {
@@ -122,18 +122,18 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
 
     if (windows == null) {
       try {
-        windows = windowingFn.assignWindows(windowingFn.new AssignContext() {
+        windows = windowFn.assignWindows(windowFn.new AssignContext() {
             @Override
             public Object element() {
               throw new UnsupportedOperationException(
-                  "WindowingFn attemped to access input element when none was available");
+                  "WindowFn attemped to access input element when none was available");
             }
 
             @Override
             public Instant timestamp() {
               if (inputTimestamp == null) {
                 throw new UnsupportedOperationException(
-                    "WindowingFn attemped to access input timestamp when none was available");
+                    "WindowFn attemped to access input timestamp when none was available");
               }
               return inputTimestamp;
             }
@@ -141,7 +141,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
             @Override
             public Collection<? extends BoundedWindow> windows() {
               throw new UnsupportedOperationException(
-                  "WindowingFn attemped to access input windows when none were available");
+                  "WindowFn attemped to access input windows when none were available");
             }
           });
       } catch (Exception e) {

@@ -16,8 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static com.google.cloud.dataflow.sdk.testing.WindowingFnTestUtils.runWindowingFn;
-import static com.google.cloud.dataflow.sdk.testing.WindowingFnTestUtils.set;
+import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.runWindowFn;
+import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.set;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Tests for FixedWindows WindowingFn.
+ * Tests for FixedWindows WindowFn.
  */
 @RunWith(JUnit4.class)
 public class FixedWindowsTest {
@@ -50,7 +50,7 @@ public class FixedWindowsTest {
     expected.put(new IntervalWindow(new Instant(100), new Instant(110)), set(100));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             FixedWindows.of(new Duration(10)),
             Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
   }
@@ -63,7 +63,7 @@ public class FixedWindowsTest {
     expected.put(new IntervalWindow(new Instant(95), new Instant(105)), set(100));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             FixedWindows.of(new Duration(10)).withOffset(new Duration(5)),
             Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
   }
@@ -75,7 +75,7 @@ public class FixedWindowsTest {
     expected.put(new IntervalWindow(new Instant(5000), new Instant(15000)), set(5000, 5001, 10000));
     assertEquals(
         expected,
-        runWindowingFn(
+        runWindowFn(
             FixedWindows.of(Duration.standardSeconds(10)).withOffset(Duration.standardSeconds(5)),
             Arrays.asList(1L, 2L, 1000L, 5000L, 5001L, 10000L)));
   }

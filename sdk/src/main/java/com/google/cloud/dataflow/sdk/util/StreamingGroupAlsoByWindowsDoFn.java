@@ -19,8 +19,8 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowingFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import java.io.IOException;
@@ -37,32 +37,32 @@ import java.io.IOException;
 public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
     extends DoFn<TimerOrElement<KV<K, VI>>, KV<K, VO>> implements DoFn.RequiresKeyedState {
 
-  protected WindowingFn<?, W> windowingFn;
+  protected WindowFn<?, W> windowFn;
   protected Coder<VI> inputCoder;
 
   protected StreamingGroupAlsoByWindowsDoFn(
-      WindowingFn<?, W> windowingFn,
+      WindowFn<?, W> windowFn,
       Coder<VI> inputCoder) {
-    this.windowingFn = windowingFn;
+    this.windowFn = windowFn;
     this.inputCoder = inputCoder;
   }
 
   public static <K, VI, VO, W extends BoundedWindow>
       StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W> create(
-          WindowingFn<?, W> windowingFn,
+          WindowFn<?, W> windowFn,
           Coder<VI> inputCoder) {
-    return new StreamingGroupAlsoByWindowsDoFn<>(windowingFn, inputCoder);
+    return new StreamingGroupAlsoByWindowsDoFn<>(windowFn, inputCoder);
   }
 
   private AbstractWindowSet<K, VI, VO, W> createWindowSet(
       K key,
       DoFnProcessContext<?, KV<K, VO>> context,
       AbstractWindowSet.ActiveWindowManager<W> activeWindowManager) throws Exception {
-    if (windowingFn instanceof PartitioningWindowingFn) {
+    if (windowFn instanceof PartitioningWindowFn) {
       return new PartitionBufferingWindowSet(
-          key, windowingFn, inputCoder, context, activeWindowManager);
+          key, windowFn, inputCoder, context, activeWindowManager);
     } else {
-      return new BufferingWindowSet(key, windowingFn, inputCoder, context, activeWindowManager);
+      return new BufferingWindowSet(key, windowFn, inputCoder, context, activeWindowManager);
     }
   }
 
@@ -75,7 +75,7 @@ public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
       K key = element.getKey();
       VI value = element.getValue();
       AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(
-          key, context, new StreamingActiveWindowManager<>(context, windowingFn.windowCoder()));
+          key, context, new StreamingActiveWindowManager<>(context, windowFn.windowCoder()));
 
       for (BoundedWindow window : context.windows()) {
         windowSet.put((W) window, value);
@@ -86,14 +86,14 @@ public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
       TimerOrElement<?> timer = context.element();
       AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(
           (K) timer.key(), context, new StreamingActiveWindowManager<>(
-              context, windowingFn.windowCoder()));
+              context, windowFn.windowCoder()));
 
       // Attempt to merge windows before emitting; that may remove the current window under
       // consideration.
-      ((WindowingFn<Object, W>) windowingFn)
-        .mergeWindows(new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowingFn));
+      ((WindowFn<Object, W>) windowFn)
+        .mergeWindows(new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowFn));
 
-      W window = WindowUtils.windowFromString(timer.tag(), windowingFn.windowCoder());
+      W window = WindowUtils.windowFromString(timer.tag(), windowFn.windowCoder());
       boolean windowExists;
       try {
         windowExists = windowSet.contains(window);

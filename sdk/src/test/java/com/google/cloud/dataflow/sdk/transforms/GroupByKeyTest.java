@@ -29,7 +29,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -186,7 +186,7 @@ public class GroupByKeyTest {
   }
 
   @Test
-  public void testIdentityWindowingFnPropagation() {
+  public void testIdentityWindowFnPropagation() {
     Pipeline p = TestPipeline.create();
 
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
@@ -201,13 +201,13 @@ public class GroupByKeyTest {
 
     p.run();
 
-    Assert.assertTrue(output.getWindowingFn().isCompatible(
+    Assert.assertTrue(output.getWindowFn().isCompatible(
         FixedWindows.<KV<String, Integer>>of(Duration.standardMinutes(1))));
 
   }
 
   @Test
-  public void testWindowingFnInvalidation() {
+  public void testWindowFnInvalidation() {
     Pipeline p = TestPipeline.create();
 
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
@@ -224,15 +224,15 @@ public class GroupByKeyTest {
     p.run();
 
     Assert.assertTrue(
-        output.getWindowingFn().isCompatible(
-            new InvalidWindowingFn(
+        output.getWindowFn().isCompatible(
+            new InvalidWindowFn(
                 "Invalid",
                 Sessions.<KV<String, Integer>>withGapDuration(
                     Duration.standardMinutes(1)))));
   }
 
   @Test
-  public void testInvalidWindowingFn() {
+  public void testInvalidWindowFn() {
     Pipeline p = TestPipeline.create();
 
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
@@ -275,7 +275,7 @@ public class GroupByKeyTest {
     p.run();
 
     Assert.assertTrue(
-        middle.getWindowingFn().isCompatible(
+        middle.getWindowFn().isCompatible(
             Sessions.withGapDuration(Duration.standardMinutes(1))));
   }
 }

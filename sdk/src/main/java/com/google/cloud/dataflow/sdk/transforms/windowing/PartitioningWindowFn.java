@@ -16,16 +16,27 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import org.joda.time.Instant;
+
+import java.util.Arrays;
+import java.util.Collection;
+
 /**
- * Abstract base class for {@link WindowingFn}s that do not merge windows.
+ * A {@link WindowFn} that places each value into exactly one window
+ * based on its timestamp and never merges windows.
  *
  * @param <T> type of elements being windowed
- * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
- *            {@code WindowingFn}
+ * @param <W> window type
  */
-public abstract class NonMergingWindowingFn<T, W extends BoundedWindow>
-    extends WindowingFn<T, W> {
+public abstract class PartitioningWindowFn<T, W extends BoundedWindow>
+    extends NonMergingWindowFn<T, W> {
+  /**
+   * Returns the single window to which elements with this timestamp belong.
+   */
+  public abstract W assignWindow(Instant timestamp);
 
   @Override
-  public final void mergeWindows(MergeContext c) { }
+  public final Collection<W> assignWindows(AssignContext c) {
+    return Arrays.asList(assignWindow(c.timestamp()));
+  }
 }

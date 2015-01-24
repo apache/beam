@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 
 import org.joda.time.Instant;
 
@@ -26,15 +26,15 @@ import java.util.Collection;
 
 /**
  * {@link DoFn} that tags elements of a PCollection with windows, according
- * to the provided {@link WindowingFn}.
+ * to the provided {@link WindowFn}.
  * @param <T> Type of elements being windowed
  * @param <W> Window type
  */
 @SuppressWarnings("serial")
 public class AssignWindowsDoFn<T, W extends BoundedWindow> extends DoFn<T, T> {
-  private WindowingFn<? super T, W> fn;
+  private WindowFn<? super T, W> fn;
 
-  public AssignWindowsDoFn(WindowingFn<? super T, W> fn) {
+  public AssignWindowsDoFn(WindowFn<? super T, W> fn) {
     this.fn = fn;
   }
 
@@ -43,8 +43,8 @@ public class AssignWindowsDoFn<T, W extends BoundedWindow> extends DoFn<T, T> {
   public void processElement(ProcessContext c) throws Exception {
     final DoFnProcessContext<T, T> context = (DoFnProcessContext<T, T>) c;
     Collection<W> windows =
-        ((WindowingFn<T, W>) fn).assignWindows(
-            ((WindowingFn<T, W>) fn).new AssignContext() {
+        ((WindowFn<T, W>) fn).assignWindows(
+            ((WindowFn<T, W>) fn).new AssignContext() {
                 @Override
                 public T element() {
                   return context.element();

@@ -21,31 +21,31 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import java.util.Collection;
 
 /**
- * A {@link WindowingFn} that represents an invalid pipeline state.
+ * A {@link WindowFn} that represents an invalid pipeline state.
  *
  * @param <W> window type
  */
-public class InvalidWindowingFn<W extends BoundedWindow> extends WindowingFn<Object, W> {
+public class InvalidWindowFn<W extends BoundedWindow> extends WindowFn<Object, W> {
   private String cause;
-  private WindowingFn<?, W> originalWindowingFn;
+  private WindowFn<?, W> originalWindowFn;
 
-  public InvalidWindowingFn(String cause, WindowingFn<?, W> originalWindowingFn) {
-    this.originalWindowingFn = originalWindowingFn;
+  public InvalidWindowFn(String cause, WindowFn<?, W> originalWindowFn) {
+    this.originalWindowFn = originalWindowFn;
     this.cause = cause;
   }
 
   /**
-   * Returns the reason that this {@code WindowingFn} is invalid.
+   * Returns the reason that this {@code WindowFn} is invalid.
    */
   public String getCause() {
     return cause;
   }
 
   /**
-   * Returns the original windowingFn that this InvalidWindowingFn replaced.
+   * Returns the original windowFn that this InvalidWindowFn replaced.
    */
-  public WindowingFn<?, W> getOriginalWindowingFn() {
-    return originalWindowingFn;
+  public WindowFn<?, W> getOriginalWindowFn() {
+    return originalWindowFn;
   }
 
   @Override
@@ -60,16 +60,16 @@ public class InvalidWindowingFn<W extends BoundedWindow> extends WindowingFn<Obj
 
   @Override
   public Coder<W> windowCoder() {
-    return originalWindowingFn.windowCoder();
+    return originalWindowFn.windowCoder();
   }
 
   /**
-   * {@code InvalidWindowingFn} objects with the same {@code originalWindowingFn} are compatible.
+   * {@code InvalidWindowFn} objects with the same {@code originalWindowFn} are compatible.
    */
   @Override
-  public boolean isCompatible(WindowingFn<?, ?> other) {
+  public boolean isCompatible(WindowFn<?, ?> other) {
     return getClass() == other.getClass()
-        && getOriginalWindowingFn().isCompatible(
-            ((InvalidWindowingFn<?>) other).getOriginalWindowingFn());
+        && getOriginalWindowFn().isCompatible(
+            ((InvalidWindowFn<?>) other).getOriginalWindowFn());
   }
 }

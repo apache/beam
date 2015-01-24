@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.values;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.common.reflect.TypeToken;
 
 /**
@@ -51,7 +51,7 @@ import com.google.common.reflect.TypeToken;
  * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#outputWithTimestamp}.
  *
  * <p> Additionally, a {@code PCollection} has an associated
- * {@link WindowingFn} and each element is assigned to a set of windows.
+ * {@link WindowFn} and each element is assigned to a set of windows.
  * By default, the windowing function is
  * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}
  * and all elements are assigned into a single default window.
@@ -166,10 +166,10 @@ public class PCollection<T> extends TypedPValue<T> {
   }
 
   /**
-   * Returns the {@link WindowingFn} of this {@code PCollection}.
+   * Returns the {@link WindowFn} of this {@code PCollection}.
    */
-  public WindowingFn<?, ?> getWindowingFn() {
-    return windowingFn;
+  public WindowFn<?, ?> getWindowFn() {
+    return windowFn;
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -183,13 +183,13 @@ public class PCollection<T> extends TypedPValue<T> {
   private boolean isOrdered = false;
 
   /**
-   * {@link WindowingFn} that will be used to merge windows in
+   * {@link WindowFn} that will be used to merge windows in
    * this {@code PCollection} and subsequent {@code PCollection}s produced
    * from this one.
    *
    * <p> By default, no merging is performed.
    */
-  private WindowingFn<?, ?> windowingFn;
+  private WindowFn<?, ?> windowFn;
 
   private PCollection() {}
 
@@ -206,12 +206,12 @@ public class PCollection<T> extends TypedPValue<T> {
   }
 
   /**
-   * Sets the {@link WindowingFn} of this {@code PCollection}.
+   * Sets the {@link WindowFn} of this {@code PCollection}.
    *
    * <p> For use by primitive transformations only.
    */
-  public PCollection<T> setWindowingFnInternal(WindowingFn<?, ?> windowingFn) {
-     this.windowingFn = windowingFn;
+  public PCollection<T> setWindowFnInternal(WindowFn<?, ?> windowFn) {
+     this.windowFn = windowFn;
      return this;
   }
 
@@ -232,7 +232,7 @@ public class PCollection<T> extends TypedPValue<T> {
    * <p> For use by primitive transformations only.
    */
   public static <T> PCollection<T> createPrimitiveOutputInternal(
-      WindowingFn<?, ?> windowingFn) {
-    return new PCollection<T>().setWindowingFnInternal(windowingFn);
+      WindowFn<?, ?> windowFn) {
+    return new PCollection<T>().setWindowFnInternal(windowFn);
   }
 }

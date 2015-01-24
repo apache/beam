@@ -16,8 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static com.google.cloud.dataflow.sdk.testing.WindowingFnTestUtils.runWindowingFn;
-import static com.google.cloud.dataflow.sdk.testing.WindowingFnTestUtils.set;
+import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.runWindowFn;
+import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.set;
 import static org.junit.Assert.assertEquals;
 
 import org.joda.time.DateTime;
@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Tests for CalendarWindows WindowingFn.
+ * Tests for CalendarWindows WindowFn.
  */
 @RunWith(JUnit4.class)
 public class CalendarWindowsTest {
@@ -77,7 +77,7 @@ public class CalendarWindowsTest {
             makeTimestamp(2015, 1, 2, 0, 0)),
         set(timestamps.get(4), timestamps.get(5)));
 
-    assertEquals(expected, runWindowingFn(CalendarWindows.days(1), timestamps));
+    assertEquals(expected, runWindowFn(CalendarWindows.days(1), timestamps));
   }
 
   @Test
@@ -114,7 +114,7 @@ public class CalendarWindowsTest {
         set(timestamps.get(4), timestamps.get(5)));
 
     assertEquals(expected,
-        runWindowingFn(CalendarWindows.weeks(1, DateTimeConstants.WEDNESDAY), timestamps));
+        runWindowFn(CalendarWindows.weeks(1, DateTimeConstants.WEDNESDAY), timestamps));
   }
 
   @Test
@@ -151,7 +151,7 @@ public class CalendarWindowsTest {
         set(timestamps.get(4), timestamps.get(5)));
 
     assertEquals(expected,
-        runWindowingFn(CalendarWindows.months(1), timestamps));
+        runWindowFn(CalendarWindows.months(1), timestamps));
   }
 
   @Test
@@ -187,7 +187,7 @@ public class CalendarWindowsTest {
             makeTimestamp(2016, 7, 5, 0, 0)),
         set(timestamps.get(4), timestamps.get(5)));
 
-    assertEquals(expected, runWindowingFn(
+    assertEquals(expected, runWindowFn(
         CalendarWindows.months(7).withStartingMonth(2014, 3).beginningOnDay(5), timestamps));
   }
 
@@ -224,7 +224,7 @@ public class CalendarWindowsTest {
             makeTimestamp(2060, 5, 5, 0, 0)),
         set(timestamps.get(4), timestamps.get(5)));
 
-    assertEquals(expected, runWindowingFn(
+    assertEquals(expected, runWindowFn(
         CalendarWindows.years(10).withStartingYear(2000).beginningOnDay(5, 5), timestamps));
   }
 
@@ -253,7 +253,7 @@ public class CalendarWindowsTest {
             new DateTime(2014, 1, 3, 0, 0, timeZone).toInstant()),
         set(timestamps.get(2), timestamps.get(3)));
 
-    assertEquals(expected, runWindowingFn(
+    assertEquals(expected, runWindowFn(
         CalendarWindows.days(1).withTimeZone(timeZone),
         timestamps));
   }

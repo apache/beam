@@ -90,7 +90,7 @@ public class Combine {
    * <p> Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * as the input.
    *
    * <p> See {@link PerKey Combine.PerKey} for more information.
@@ -111,7 +111,7 @@ public class Combine {
    * <p> Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * as the input.
    *
    * <p> See {@link PerKey Combine.PerKey} for more information.
@@ -132,7 +132,7 @@ public class Combine {
    * <p> Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * as the input.
    *
    * <p> See {@link PerKey Combine.PerKey} for more information.
@@ -154,7 +154,7 @@ public class Combine {
    * <p> Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
    * <p> See {@link GroupedValues Combine.GroupedValues} for more information.
@@ -180,7 +180,7 @@ public class Combine {
    * <p> Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
    * <p> See {@link GroupedValues Combine.GroupedValues} for more information.
@@ -206,7 +206,7 @@ public class Combine {
    * <p> Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
    * <p> See {@link GroupedValues Combine.GroupedValues} for more information.
@@ -770,7 +770,7 @@ public class Combine {
           .apply(Combine.<Void, VI, VO>perKey(fn.<Void>asKeyedFn()))
           .apply(Values.<VO>create());
 
-      if (input.getWindowingFn().isCompatible(new GlobalWindow())) {
+      if (input.getWindowFn().isCompatible(new GlobalWindow())) {
         return insertDefaultValueIfEmpty(output);
       } else {
         return output;
@@ -892,7 +892,7 @@ public class Combine {
    * <p> Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * as the input.
    *
    * @param <K> the type of the keys of the input and output
@@ -970,7 +970,7 @@ public class Combine {
    * <p> Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
    * <p> See also {@link #globally}/{@link Globally Combine.Globally},

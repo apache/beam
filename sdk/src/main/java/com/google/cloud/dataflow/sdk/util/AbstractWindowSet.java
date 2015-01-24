@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import java.util.Arrays;
@@ -56,14 +56,14 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
    * Wrapper around AbstractWindowSet that provides the MergeContext interface.
    */
   static class WindowMergeContext<T, W extends BoundedWindow>
-      extends WindowingFn<T, W>.MergeContext {
+      extends WindowFn<T, W>.MergeContext {
     private final AbstractWindowSet<?, ?, ?, W> windowSet;
 
     @SuppressWarnings("unchecked")
     public WindowMergeContext(
         AbstractWindowSet<?, ?, ?, W> windowSet,
-        WindowingFn<?, W> windowingFn) {
-      ((WindowingFn<T, W>) windowingFn).super();
+        WindowFn<?, W> windowFn) {
+      ((WindowFn<T, W>) windowFn).super();
       this.windowSet = windowSet;
     }
 
@@ -77,19 +77,19 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
   }
 
   protected final K key;
-  protected final WindowingFn<?, W> windowingFn;
+  protected final WindowFn<?, W> windowFn;
   protected final Coder<VI> inputCoder;
   protected final DoFnProcessContext<?, KV<K, VO>> context;
   protected final ActiveWindowManager<W> activeWindowManager;
 
   protected AbstractWindowSet(
       K key,
-      WindowingFn<?, W> windowingFn,
+      WindowFn<?, W> windowFn,
       Coder<VI> inputCoder,
       DoFnProcessContext<?, KV<K, VO>> context,
       ActiveWindowManager<W> activeWindowManager) {
     this.key = key;
-    this.windowingFn = windowingFn;
+    this.windowFn = windowFn;
     this.inputCoder = inputCoder;
     this.context = context;
     this.activeWindowManager = activeWindowManager;

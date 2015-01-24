@@ -34,7 +34,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * <p> Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and the output {@code PCollection}
  * has the same
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+ * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
  * associated with it as the input.
  *
  * @param <A> the type of the keys in the input {@code PCollection}

@@ -26,19 +26,19 @@ import java.util.Collection;
 /**
  * The argument to the {@link Window} transform used to assign elements into
  * windows and to determine how windows are merged.  See {@link Window} for more
- * information on how {@code WindowingFn}s are used and for a library of
- * predefined {@code WindowingFn}s.
+ * information on how {@code WindowFn}s are used and for a library of
+ * predefined {@code WindowFn}s.
  *
  * <p> Users will generally want to use the predefined
- * {@code WindowingFn}s, but it is  also possible to create new
+ * {@code WindowFn}s, but it is  also possible to create new
  * subclasses.
- * TODO: Describe how to properly create {@code WindowingFn}s.
+ * TODO: Describe how to properly create {@code WindowFn}s.
  *
  * @param <T> type of elements being windowed
  * @param <W> {@link BoundedWindow} subclass used to represent the
- *            windows used by this {@code WindowingFn}
+ *            windows used by this {@code WindowFn}
  */
-public abstract class WindowingFn<T, W extends BoundedWindow>
+public abstract class WindowFn<T, W extends BoundedWindow>
     implements Serializable {
 
   /**
@@ -105,13 +105,13 @@ public abstract class WindowingFn<T, W extends BoundedWindow>
 
   /**
    * Returns whether this performs the same merging as the given
-   * {@code WindowingFn}.
+   * {@code WindowFn}.
    */
-  public abstract boolean isCompatible(WindowingFn<?, ?> other);
+  public abstract boolean isCompatible(WindowFn<?, ?> other);
 
   /**
    * Returns the {@link Coder} used for serializing the windows used
-   * by this windowingFn.
+   * by this windowFn.
    */
   public abstract Coder<W> windowCoder();
 }

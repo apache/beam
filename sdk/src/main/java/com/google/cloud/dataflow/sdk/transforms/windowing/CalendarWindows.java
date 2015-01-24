@@ -26,7 +26,7 @@ import org.joda.time.Months;
 import org.joda.time.Years;
 
 /**
- * A collection of {@link WindowingFn}s that windows values into calendar-based
+ * A collection of {@link WindowFn}s that windows values into calendar-based
  * windows such as spans of days, months, or years.
  *
  * <p> For example, to group data into quarters that change on the 15th, use
@@ -35,7 +35,7 @@ import org.joda.time.Years;
 public class CalendarWindows {
 
   /**
-   * Returns a {@link WindowingFn} that windows elements into periods measured by days.
+   * Returns a {@link WindowFn} that windows elements into periods measured by days.
    *
    * <p> For example, {@code CalendarWindows.days(1)} will window elements into
    * separate windows for each day.
@@ -45,7 +45,7 @@ public class CalendarWindows {
   }
 
   /**
-   * Returns a {@link WindowingFn} that windows elements into periods measured by weeks.
+   * Returns a {@link WindowFn} that windows elements into periods measured by weeks.
    *
    * <p> For example, {@code CalendarWindows.weeks(1, DateTimeConstants.TUESDAY)} will
    * window elements into week-long windows starting on Tuesdays.
@@ -58,7 +58,7 @@ public class CalendarWindows {
   }
 
   /**
-   * Returns a {@link WindowingFn} that windows elements into periods measured by months.
+   * Returns a {@link WindowFn} that windows elements into periods measured by months.
    *
    * <p> For example,
    * {@code CalendarWindows.months(8).withStartingMonth(2014, 1).beginningOnDay(10)}
@@ -70,7 +70,7 @@ public class CalendarWindows {
   }
 
   /**
-   * Returns a {@link WindowingFn} that windows elements into periods measured by years.
+   * Returns a {@link WindowFn} that windows elements into periods measured by years.
    *
    * <p> For example,
    * {@code CalendarWindows.years(1).withTimeZone(DateTimeZone.forId("America/Los_Angeles"))}
@@ -82,7 +82,7 @@ public class CalendarWindows {
   }
 
   /**
-   * A {@link WindowingFn} that windows elements into periods measured by days.
+   * A {@link WindowFn} that windows elements into periods measured by days.
    *
    * <p> By default, periods of multiple days are measured starting at the
    * epoch.  This can be overridden with {@link #withStartingDay}.
@@ -90,7 +90,7 @@ public class CalendarWindows {
    * <p> The time zone used to determine calendar boundaries is UTC, unless this
    * is overridden with the {@link #withTimeZone} method.
    */
-  public static class DaysWindows extends PartitioningWindowingFn<Object, IntervalWindow> {
+  public static class DaysWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
     public DaysWindows withStartingDay(int year, int month, int day) {
       return new DaysWindows(
@@ -132,7 +132,7 @@ public class CalendarWindows {
     }
 
     @Override
-    public boolean isCompatible(WindowingFn other) {
+    public boolean isCompatible(WindowFn other) {
       if (!(other instanceof DaysWindows)) {
         return false;
       }
@@ -144,7 +144,7 @@ public class CalendarWindows {
   }
 
   /**
-   * A {@link WindowingFn} that windows elements into periods measured by months.
+   * A {@link WindowFn} that windows elements into periods measured by months.
    *
    * <p> By default, periods of multiple months are measured starting at the
    * epoch.  This can be overridden with {@link #withStartingMonth}.
@@ -155,7 +155,7 @@ public class CalendarWindows {
    * <p> The time zone used to determine calendar boundaries is UTC, unless this
    * is overridden with the {@link #withTimeZone} method.
    */
-  public static class MonthsWindows extends PartitioningWindowingFn<Object, IntervalWindow> {
+  public static class MonthsWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
     public MonthsWindows beginningOnDay(int dayOfMonth) {
       return new MonthsWindows(
@@ -206,7 +206,7 @@ public class CalendarWindows {
     }
 
     @Override
-    public boolean isCompatible(WindowingFn other) {
+    public boolean isCompatible(WindowFn other) {
       if (!(other instanceof MonthsWindows)) {
         return false;
       }
@@ -219,7 +219,7 @@ public class CalendarWindows {
   }
 
   /**
-   * A {@link WindowingFn} that windows elements into periods measured by years.
+   * A {@link WindowFn} that windows elements into periods measured by years.
    *
    * <p> By default, periods of multiple years are measured starting at the
    * epoch.  This can be overridden with {@link #withStartingYear}.
@@ -230,7 +230,7 @@ public class CalendarWindows {
    * <p> The time zone used to determine calendar boundaries is UTC, unless this
    * is overridden with the {@link #withTimeZone} method.
    */
-  public static class YearsWindows extends PartitioningWindowingFn<Object, IntervalWindow> {
+  public static class YearsWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
     public YearsWindows beginningOnDay(int monthOfYear, int dayOfMonth) {
       return new YearsWindows(
@@ -285,7 +285,7 @@ public class CalendarWindows {
     }
 
     @Override
-    public boolean isCompatible(WindowingFn other) {
+    public boolean isCompatible(WindowFn other) {
       if (!(other instanceof YearsWindows)) {
         return false;
       }

@@ -55,7 +55,7 @@ import java.io.Serializable;
  * <p> Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and each output {@code PCollection}
  * has the same
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+ * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
  * associated with it as the input.
  *
  * @param <T> the type of the elements of the input and output

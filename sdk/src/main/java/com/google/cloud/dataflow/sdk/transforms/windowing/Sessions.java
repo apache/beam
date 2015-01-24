@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * A WindowingFn windowing values into sessions separated by {@link #gapDuration}-long
+ * A WindowFn windowing values into sessions separated by {@link #gapDuration}-long
  * periods with no elements.
  *
  * <p> For example, in order to window data into session with at least 10 minute
@@ -35,7 +35,7 @@ import java.util.Collection;
  *   Window.<Integer>by(Sessions.withGapDuration(Duration.standardMinutes(10))));
  * } </pre>
  */
-public class Sessions extends WindowingFn<Object, IntervalWindow> {
+public class Sessions extends WindowFn<Object, IntervalWindow> {
 
   /**
    * Duration of the gaps between sessions.
@@ -43,14 +43,14 @@ public class Sessions extends WindowingFn<Object, IntervalWindow> {
   private final Duration gapDuration;
 
   /**
-   * Creates a {@code Sessions} {@link WindowingFn} with the specified gap duration.
+   * Creates a {@code Sessions} {@link WindowFn} with the specified gap duration.
    */
   public static Sessions withGapDuration(Duration gapDuration) {
     return new Sessions(gapDuration);
   }
 
   /**
-   * Creates a {@code Sessions} {@link WindowingFn} with the specified gap duration.
+   * Creates a {@code Sessions} {@link WindowFn} with the specified gap duration.
    */
   private Sessions(Duration gapDuration) {
     this.gapDuration = gapDuration;
@@ -75,7 +75,7 @@ public class Sessions extends WindowingFn<Object, IntervalWindow> {
   }
 
   @Override
-  public boolean isCompatible(WindowingFn<?, ?> other) {
+  public boolean isCompatible(WindowFn<?, ?> other) {
     return other instanceof Sessions;
   }
 }

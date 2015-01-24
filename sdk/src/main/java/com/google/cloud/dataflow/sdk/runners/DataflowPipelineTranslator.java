@@ -66,7 +66,7 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.OutputReference;
@@ -600,7 +600,7 @@ public class DataflowPipelineTranslator {
           // Wrap the PCollection element Coder inside a WindowedValueCoder.
           coder = WindowedValue.getFullCoder(
               coder,
-              ((PCollection<?>) value).getWindowingFn().windowCoder());
+              ((PCollection<?>) value).getWindowFn().windowCoder());
         }
       } else {
         // No output coder to encode.
@@ -884,7 +884,7 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(transform.getInput(), transform.getSideInputs(), context);
-            translateFn(transform.getFn(), transform.getInput().getWindowingFn(), context);
+            translateFn(transform.getFn(), transform.getInput().getWindowFn(), context);
             translateOutputs(transform.getOutput(), context);
           }
         });
@@ -904,7 +904,7 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(transform.getInput(), transform.getSideInputs(), context);
-            translateFn(transform.getFn(), transform.getInput().getWindowingFn(), context);
+            translateFn(transform.getFn(), transform.getInput().getWindowFn(), context);
             context.addOutput("out", transform.getOutput());
           }
         });
@@ -964,12 +964,12 @@ public class DataflowPipelineTranslator {
 
   private static void translateFn(
       DoFn fn,
-      WindowingFn windowingFn,
+      WindowFn windowFn,
       TranslationContext context) {
     context.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     context.addInput(
         PropertyNames.SERIALIZED_FN,
-        byteArrayToJsonString(serializeToByteArray(new DoFnInfo(fn, windowingFn))));
+        byteArrayToJsonString(serializeToByteArray(new DoFnInfo(fn, windowFn))));
     if (fn instanceof DoFn.RequiresKeyedState) {
       context.addInput(PropertyNames.USES_KEYED_STATE, "true");
     }

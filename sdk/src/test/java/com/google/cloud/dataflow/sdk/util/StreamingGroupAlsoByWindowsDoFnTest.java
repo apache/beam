@@ -29,7 +29,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -259,7 +259,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
   private DoFnRunner<TimerOrElement<KV<String, String>>,
     KV<String, Iterable<String>>, List> makeRunner(
-        WindowingFn<? super String, IntervalWindow> windowingStrategy) {
+        WindowFn<? super String, IntervalWindow> windowingStrategy) {
 
     StreamingGroupAlsoByWindowsDoFn<String, String, Iterable<String>, IntervalWindow> fn =
         StreamingGroupAlsoByWindowsDoFn.create(windowingStrategy, StringUtf8Coder.of());

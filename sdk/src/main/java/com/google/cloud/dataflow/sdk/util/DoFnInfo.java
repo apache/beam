@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 
 import java.io.Serializable;
 
@@ -30,18 +30,18 @@ import java.io.Serializable;
 public class DoFnInfo<I, O> implements Serializable {
   private static final long serialVersionUID = 0;
   private DoFn<I, O> doFn;
-  private WindowingFn<?, ?> windowingFn;
+  private WindowFn<?, ?> windowFn;
 
-  public DoFnInfo(DoFn<I, O> doFn, WindowingFn<?, ?> windowingFn) {
+  public DoFnInfo(DoFn<I, O> doFn, WindowFn<?, ?> windowFn) {
     this.doFn = doFn;
-    this.windowingFn = windowingFn;
+    this.windowFn = windowFn;
   }
 
   public DoFn<I, O> getDoFn() {
     return doFn;
   }
 
-  public WindowingFn<?, ?> getWindowingFn() {
-    return windowingFn;
+  public WindowFn<?, ?> getWindowFn() {
+    return windowFn;
   }
 }

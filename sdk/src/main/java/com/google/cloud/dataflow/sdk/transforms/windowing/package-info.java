@@ -20,7 +20,7 @@
  *
  * <p> {@code Window} logically divides up or groups the elements of a
  * {@link com.google.cloud.dataflow.sdk.values.PCollection} into finite windows according to a
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}.
+ * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}.
  * The output of {@code Window} contains the same elements as input, but they
  * have been logically assigned to windows. The next
  * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}s, including one

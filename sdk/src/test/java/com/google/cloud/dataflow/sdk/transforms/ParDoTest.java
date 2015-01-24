@@ -1204,7 +1204,7 @@ public class ParDoTest implements Serializable {
       fail("should have failed");
     } catch (Exception e) {
       assertThat(e.toString(), containsString(
-          "WindowingFn attemped to access input timestamp when none was available"));
+          "WindowFn attemped to access input timestamp when none was available"));
     }
   }
 }

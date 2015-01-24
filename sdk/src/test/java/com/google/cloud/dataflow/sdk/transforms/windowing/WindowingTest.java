@@ -56,14 +56,14 @@ public class WindowingTest implements Serializable {
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private static class WindowedCount extends PTransform<PCollection<String>, PCollection<String>> {
-    private WindowingFn<Object, ?> windowingFn;
-    public WindowedCount(WindowingFn<? super String, ?> windowingFn) {
-      this.windowingFn = (WindowingFn) windowingFn;
+    private WindowFn<Object, ?> windowFn;
+    public WindowedCount(WindowFn<? super String, ?> windowFn) {
+      this.windowFn = (WindowFn) windowFn;
     }
     @Override
     public PCollection<String> apply(PCollection<String> in) {
       return in
-          .apply(Window.named("Window").<String>into(windowingFn))
+          .apply(Window.named("Window").<String>into(windowFn))
           .apply(Count.<String>perElement())
           .apply(ParDo
               .named("FormatCounts")

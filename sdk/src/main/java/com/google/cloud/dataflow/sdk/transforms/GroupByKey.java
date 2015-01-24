@@ -26,9 +26,9 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindowingFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowingFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindowFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
@@ -98,17 +98,17 @@ import java.util.Map;
  * <p> See {@link Combine.PerKey} for a common pattern of
  * {@code GroupByKey} followed by {@link Combine.GroupedValues}.
  *
- * <p> When grouping, windows that can be merged according to the {@link WindowingFn}
+ * <p> When grouping, windows that can be merged according to the {@link WindowFn}
  * of the input {@code PCollection} will be merged together, and a group
  * corresponding to the new, merged window will be emitted.
  * The timestamp for each group is the upper bound of its window, e.g., the most
  * recent timestamp that can be assigned into the window, and the group will be
  * in the window that it corresponds to.  The output {@code PCollection} will
- * have the same {@link WindowingFn} as the input.
+ * have the same {@link WindowFn} as the input.
  *
- * <p> If the {@link WindowingFn} of the input requires merging, it is not
+ * <p> If the {@link WindowFn} of the input requires merging, it is not
  * valid to apply another {@code GroupByKey} without first applying a new
- * {@link WindowingFn}.
+ * {@link WindowFn}.
  *
  * @param <K> the type of the keys of the input and output
  * {@code PCollection}s
@@ -159,7 +159,7 @@ public class GroupByKey<K, V>
       Coder<K> keyCoder = inputKvCoder.getKeyCoder();
       Coder<V> inputValueCoder = inputKvCoder.getValueCoder();
       Coder<WindowedValue<V>> outputValueCoder = FullWindowedValueCoder.of(
-          inputValueCoder, getInput().getWindowingFn().windowCoder());
+          inputValueCoder, getInput().getWindowFn().windowCoder());
       Coder<KV<K, WindowedValue<V>>> outputKvCoder =
           KvCoder.of(keyCoder, outputValueCoder);
       return input.apply(ParDo.of(
@@ -228,10 +228,10 @@ public class GroupByKey<K, V>
   public static class GroupAlsoByWindow<K, V>
       extends PTransform<PCollection<KV<K, Iterable<WindowedValue<V>>>>,
                          PCollection<KV<K, Iterable<V>>>> {
-    private final WindowingFn<?, ?> windowingFn;
+    private final WindowFn<?, ?> windowFn;
 
-    public GroupAlsoByWindow(WindowingFn<?, ?> windowingFn) {
-      this.windowingFn = windowingFn;
+    public GroupAlsoByWindow(WindowFn<?, ?> windowFn) {
+      this.windowFn = windowFn;
     }
 
     @Override
@@ -259,7 +259,7 @@ public class GroupByKey<K, V>
 
       return input.apply(ParDo.of(
           new GroupAlsoByWindowsDoFn<K, V, BoundedWindow>(
-              (WindowingFn) windowingFn, inputIterableElementValueCoder)))
+              (WindowFn) windowFn, inputIterableElementValueCoder)))
           .setCoder(outputKvCoder);
     }
   }
@@ -282,16 +282,16 @@ public class GroupByKey<K, V>
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     public PCollection<KV<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
-      WindowingFn windowingFn = getInput().getWindowingFn();
-      if (!(windowingFn instanceof NonMergingWindowingFn)) {
+      WindowFn windowFn = getInput().getWindowFn();
+      if (!(windowFn instanceof NonMergingWindowFn)) {
         // Prevent merging windows again, without explicit user
         // involvement, e.g., by Window.into() or Window.remerge().
-        windowingFn = new InvalidWindowingFn(
-            "WindowingFn has already been consumed by previous GroupByKey",
-            windowingFn);
+        windowFn = new InvalidWindowFn(
+            "WindowFn has already been consumed by previous GroupByKey",
+            windowFn);
       }
       return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
-          windowingFn);
+          windowFn);
     }
 
     @Override
@@ -451,17 +451,17 @@ public class GroupByKey<K, V>
     // This operation groups by the combination of key and window,
     // merging windows as needed, using the windows assigned to the
     // key/value input elements and the window merge operation of the
-    // windowing function associated with the input PCollection.
-    WindowingFn<?, ?> windowingFn = getInput().getWindowingFn();
-    if (windowingFn instanceof InvalidWindowingFn) {
-      String cause = ((InvalidWindowingFn<?>) windowingFn).getCause();
+    // window function associated with the input PCollection.
+    WindowFn<?, ?> windowFn = getInput().getWindowFn();
+    if (windowFn instanceof InvalidWindowFn) {
+      String cause = ((InvalidWindowFn<?>) windowFn).getCause();
       throw new IllegalStateException(
           "GroupByKey must have a valid Window merge function.  "
           + "Invalid because: " + cause);
     }
-    if (windowingFn.isCompatible(new GlobalWindow())) {
+    if (windowFn.isCompatible(new GlobalWindow())) {
       // The input PCollection is using the degenerate default
-      // windowing function, which uses a single global window for all
+      // window function, which uses a single global window for all
       // elements.  We can implement this using a more-primitive
       // non-window-aware GBK transform.
       return input.apply(new GroupByKeyOnly<K, V>());
@@ -491,7 +491,7 @@ public class GroupByKey<K, V>
 
       return gbkOutput
           // Group each key's values by window, merging windows as needed.
-          .apply(new GroupAlsoByWindow<K, V>(windowingFn));
+          .apply(new GroupAlsoByWindow<K, V>(windowFn));
     }
   }
 

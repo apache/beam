@@ -213,7 +213,7 @@ public class NormalParDoFn extends ParDoFn {
         sideOutputTags,
         stepContext,
         addCounterMutator,
-        fnFactory.createDoFnInfo().getWindowingFn());
+        fnFactory.createDoFnInfo().getWindowFn());
 
     fnRunner.startBundle();
   }

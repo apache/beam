@@ -96,7 +96,7 @@ public class FlattenTest {
   }
 
   @Test
-  public void testWindowingFnPropagationFailure() {
+  public void testWindowFnPropagationFailure() {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input1 =
@@ -113,12 +113,12 @@ public class FlattenTest {
       Assert.fail("Exception should have been thrown");
     } catch (IllegalStateException e) {
       Assert.assertTrue(e.getMessage().startsWith(
-          "Inputs to Flatten had incompatible window windowingFns"));
+          "Inputs to Flatten had incompatible window windowFns"));
     }
   }
 
   @Test
-  public void testWindowingFnPropagation() {
+  public void testWindowFnPropagation() {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input1 =
@@ -134,12 +134,12 @@ public class FlattenTest {
 
     p.run();
 
-    Assert.assertTrue(output.getWindowingFn().isCompatible(
+    Assert.assertTrue(output.getWindowFn().isCompatible(
         FixedWindows.<String>of(Duration.standardMinutes(1))));
   }
 
   @Test
-  public void testEqualWindowingFnPropagation() {
+  public void testEqualWindowFnPropagation() {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input1 =
@@ -155,7 +155,7 @@ public class FlattenTest {
 
     p.run();
 
-    Assert.assertTrue(output.getWindowingFn().isCompatible(
+    Assert.assertTrue(output.getWindowFn().isCompatible(
         Sessions.<String>withGapDuration(Duration.standardMinutes(2))));
   }
 

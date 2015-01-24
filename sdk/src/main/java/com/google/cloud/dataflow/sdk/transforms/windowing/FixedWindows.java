@@ -22,7 +22,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * A {@link WindowingFn} that windows values into fixed-size timestamp-based windows.
+ * A {@link WindowFn} that windows values into fixed-size timestamp-based windows.
  *
  * <p> For example, in order to partition the data into 10 minute windows:
  * <pre> {@code
@@ -32,7 +32,7 @@ import org.joda.time.Instant;
  * } </pre>
  */
 @SuppressWarnings("serial")
-public class FixedWindows extends PartitioningWindowingFn<Object, IntervalWindow> {
+public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
   /**
    * Size of this window.
@@ -86,7 +86,7 @@ public class FixedWindows extends PartitioningWindowingFn<Object, IntervalWindow
   }
 
   @Override
-  public boolean isCompatible(WindowingFn<?, ?> other) {
+  public boolean isCompatible(WindowFn<?, ?> other) {
     return (other instanceof FixedWindows)
         && (size.equals(((FixedWindows) other).size))
         && (offset.equals(((FixedWindows) other).offset));

@@ -37,7 +37,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * <p> Each output element is in the same window as its corresponding input
  * element, and has the timestamp of the end of that window.  The output
  * {@code PCollection} has the same
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+ * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
  * as the input.
  *
  * <p> Does not preserve any order the input PCollection might have had.

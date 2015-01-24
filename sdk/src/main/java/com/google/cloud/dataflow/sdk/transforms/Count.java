@@ -39,7 +39,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * <p> Each output element is in the window by which its corresponding input
  * was grouped, and has the timestamp of the end of that window.  The output
  * {@code PCollection} has the same
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn}
+ * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
  * as the input.
  *
  * <p> Example of use:
