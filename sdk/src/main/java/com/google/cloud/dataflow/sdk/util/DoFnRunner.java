@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.WindowingFn;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.base.Throwables;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -114,6 +115,7 @@ public class DoFnRunner<I, O, R> {
       fn.startBundle(context);
     } catch (Throwable t) {
       // Exception in user code.
+      Throwables.propagateIfInstanceOf(t, UserCodeException.class);
       throw new UserCodeException(t);
     }
   }
@@ -130,6 +132,7 @@ public class DoFnRunner<I, O, R> {
       fn.processElement(processContext);
     } catch (Throwable t) {
       // Exception in user code.
+      Throwables.propagateIfInstanceOf(t, UserCodeException.class);
       throw new UserCodeException(t);
     }
   }
@@ -141,6 +144,7 @@ public class DoFnRunner<I, O, R> {
       fn.finishBundle(context);
     } catch (Throwable t) {
       // Exception in user code.
+      Throwables.propagateIfInstanceOf(t, UserCodeException.class);
       throw new UserCodeException(t);
     }
   }
