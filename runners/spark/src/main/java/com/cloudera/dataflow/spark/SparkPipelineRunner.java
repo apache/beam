@@ -30,15 +30,21 @@ import java.util.logging.Logger;
  * executable by Spark, and then submitting the job to Spark to be executed. If we wanted to run
  * a dataflow pipeline with the default options of a single threaded spark instance in local mode,
  * we would do the following:
+ *
+ * {@code
  * Pipeline p = [logic for pipeline creation]
  * EvaluationResult result = SparkPipelineRunner.create().run(p);
- * <p/>
+ * }
+ *
  * To create a pipeline runner to run against a different spark cluster, with a custom master url
  * we would do the following:
+ *
+ * {@code
  * Pipeline p = [logic for pipeline creation]
  * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
  * options.setSparkMaster("spark://host:port");
  * EvaluationResult result = SparkPipelineRunner.create(options).run(p);
+ * }
  */
 public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
