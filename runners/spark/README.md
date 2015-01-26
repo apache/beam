@@ -17,10 +17,10 @@ The Maven coordinates of the current version of this project are:
     
 and are hosted in Cloudera's repository at:
 
-<repository>
-  <id>cloudera.repo</id>
-  <url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
-</repository>
+    <repository>
+      <id>cloudera.repo</id>
+      <url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
+    </repository>
 
 If we wanted to run a dataflow pipeline with the default options of a single threaded spark
 instance in local mode, we would do the following:
