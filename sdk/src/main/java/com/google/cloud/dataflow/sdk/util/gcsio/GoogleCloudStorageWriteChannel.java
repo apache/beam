@@ -20,7 +20,6 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.client.util.Preconditions;
 import com.google.api.services.storage.Storage;
-import com.google.api.services.storage.model.StorageObject;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -313,10 +312,6 @@ public class GoogleCloudStorageWriteChannel
       ExecutorService threadPool, Storage gcs, String bucketName,
       String objectName, String contentType)
       throws IOException {
-
-    // Create object with the given name.
-    StorageObject object = (new StorageObject()).setName(objectName);
-
     // Create a pipe such that its one end is connected to the input stream used by
     // the uploader and the other end is the write channel used by the caller.
     pipeSource = new PipedInputStream(pipeBufferSize);
@@ -330,7 +325,8 @@ public class GoogleCloudStorageWriteChannel
     objectContentStream.setLength(-1);
     objectContentStream.setCloseInputStream(false);
     Storage.Objects.Insert insertObject =
-        gcs.objects().insert(bucketName, object, objectContentStream);
+        gcs.objects().insert(bucketName, null, objectContentStream);
+    insertObject.setName(objectName);
     insertObject.setDisableGZipContent(true);
     insertObject.getMediaHttpUploader().setProgressListener(
         new LoggingMediaHttpUploaderProgressListener(objectName, MIN_LOGGING_INTERVAL_MS));
@@ -373,7 +369,17 @@ public class GoogleCloudStorageWriteChannel
       if (uploadOperation.exception() instanceof Error) {
         throw (Error) uploadOperation.exception();
       }
-      throw new IOException(uploadOperation.exception());
+      throw new IOException(String.format("Failed to write to GCS path %s.", getPrintableGCSPath()),
+          uploadOperation.exception());
     }
+  }
+
+  /**
+   * Gets the printable GCS path of the current channel.
+   */
+  private String getPrintableGCSPath() {
+    // The bucket and object name are fields stored in the uploadOperation.
+    return String.format("gs://%s/%s", uploadOperation.insertObject.getBucket(),
+        uploadOperation.insertObject.getName());
   }
 }
