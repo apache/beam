@@ -16,7 +16,7 @@ License.
     <modelVersion>4.0.0</modelVersion>
     <name>Dataflow on Spark</name>
     <groupId>com.cloudera.dataflow.spark</groupId>
-    <artifactId>dataflow-spark</artifactId>
+    <artifactId>spark-dataflow</artifactId>
     <version>0.0.1</version>
     <packaging>jar</packaging>
 
@@ -44,7 +44,7 @@ License.
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>2.18</version>
+                    <version>2.18.1</version>
                     <configuration>
                         <systemPropertyVariables>
                             <!-- TODO see if this can be avoided, for best compatibility with
@@ -105,6 +105,9 @@ License.
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-install-plugin</artifactId>
                     <version>2.5.2</version>
+                    <configuration>
+                        <createChecksum>true</createChecksum>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -120,6 +123,55 @@ License.
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-site-plugin</artifactId>
                     <version>3.4</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-release-plugin</artifactId>
+                    <version>2.5.1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.apache.maven.scm</groupId>
+                            <artifactId>maven-scm-provider-gitexe</artifactId>
+                            <version>1.9.2</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>1.6</version>
+                    <executions>
+                        <execution>
+                            <id>sign-artifacts</id>
+                            <phase>verify</phase>
+                            <goals>
+                              <goal>sign</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <keyname>Sean Owen (Cloudera) &lt;sowen@cloudera.com&gt;</keyname>
+                        <executable>gpg2</executable>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.rat</groupId>
+                    <artifactId>apache-rat-plugin</artifactId>
+                    <version>0.11</version>
+                    <configuration>
+                        <excludes>
+                            <exclude>.travis.yml</exclude>
+                            <exclude>**/*.conf</exclude>
+                            <exclude>**/*.iml</exclude>
+                            <exclude>**/*.md</exclude>
+                            <exclude>**/*.txt</exclude>
+                            <exclude>**/gen/**</exclude>
+                            <exclude>**/resources/**</exclude>
+                            <exclude>**/target/**</exclude>
+                            <exclude>**/dependency-reduced-pom.xml</exclude>
+                            <excludeSubProjects>false</excludeSubProjects>
+                        </excludes>
+                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -217,5 +269,50 @@ License.
     <prerequisites>
         <maven>3.2.1</maven>
     </prerequisites>
+
+    <repositories>
+        <repository>
+            <id>cloudera.repo</id>
+            <url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
+            <name>Cloudera Repositories</name>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <distributionManagement>
+        <repository>
+            <id>cloudera.repo</id>
+            <url>https://repository.cloudera.com/artifactory/libs-release-local</url>
+        </repository>
+        <snapshotRepository>
+            <id>cloudera.snapshots.repo</id>
+            <url>https://repository.cloudera.com/artifactory/libs-snapshot-local</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+    <profiles>
+        <profile>
+            <id>release-sign-artifacts</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

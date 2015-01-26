@@ -12,7 +12,7 @@ program by calling `SparkPipelineRunner.run`.
 The Maven coordinates of the current version of this project are:
 
     <groupId>com.cloudera.dataflow.spark</groupId>
-    <artifactId>dataflow-spark</artifactId>
+    <artifactId>spark-dataflow</artifactId>
     <version>0.0.1</version>
 
 If we wanted to run a dataflow pipeline with the default options of a single threaded spark

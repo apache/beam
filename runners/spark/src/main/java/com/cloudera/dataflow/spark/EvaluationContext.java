@@ -73,7 +73,10 @@ public class EvaluationContext implements EvaluationResult {
     Coder<T> defaultCoder = registry.getDefaultCoder(example);
     if (defaultCoder == null) {
       if (example instanceof Iterable) {
-        return (Coder<T>) IterableCoder.of(getDefaultCoder(((Iterable) example).iterator().next()));
+        Object first = ((Iterable<?>) example).iterator().next();
+        @SuppressWarnings("unchecked")
+        Coder<T> coder = (Coder<T>) IterableCoder.of(getDefaultCoder(first));
+        return coder;
       } else {
         throw new IllegalStateException(String.format("Couldn't determine the default coder for " +
             "an example  of class [%s]", example.getClass()));
