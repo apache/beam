@@ -69,7 +69,7 @@ public interface DataflowPipelineOptions extends
    * not be able to be created.
    */
   @Description("Dataflow job name, to uniquely identify active jobs. "
-      + "Defaults to using the ApplicationName-UserDame-Date.")
+      + "Defaults to using the ApplicationName-UserName-Date.")
   @Default.InstanceFactory(JobNameFactory.class)
   String getJobName();
   void setJobName(String value);
