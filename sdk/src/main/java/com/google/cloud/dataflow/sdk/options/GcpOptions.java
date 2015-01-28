@@ -135,13 +135,13 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
 
   /**
    * Attempts to load the user credentials. See
-   * {@link Credentials#getUserCredential(GcpOptions)} for more details.
+   * {@link Credentials#getCredential(GcpOptions)} for more details.
    */
   public static class GcpUserCredentialsFactory implements DefaultValueFactory<Credential> {
     @Override
     public Credential create(PipelineOptions options) {
       try {
-        return Credentials.getUserCredential(options.as(GcpOptions.class));
+        return Credentials.getCredential(options.as(GcpOptions.class));
       } catch (IOException | GeneralSecurityException e) {
         throw new RuntimeException("Unable to obtain credential", e);
       }

@@ -45,7 +45,6 @@ import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.util.Credentials;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.RetryHttpRequestInitializer;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -57,7 +56,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -284,7 +282,7 @@ public class DatastoreIO {
       List<Query> splitQueries;
       if (mockSplitter == null) {
         splitQueries = DatastoreHelper.getQuerySplitter().getSplits(
-            query, (int) numSplits, getUserDatastore(host, datasetId, options));
+            query, (int) numSplits, getDatastore(options));
       } else {
         splitQueries = mockSplitter.getSplits(query, (int) numSplits, null);
       }
@@ -299,11 +297,7 @@ public class DatastoreIO {
     public Reader<Entity> createBasicReader(
         PipelineOptions pipelineOptions, Coder<Entity> coder, ExecutionContext executionContext)
         throws IOException {
-      try {
-        return new DatastoreReader(query, getDatastore(pipelineOptions));
-      } catch (GeneralSecurityException e) {
-        throw new IOException(e);
-      }
+      return new DatastoreReader(query, getDatastore(pipelineOptions));
     }
 
     @Override
@@ -313,13 +307,16 @@ public class DatastoreIO {
       Preconditions.checkNotNull(datasetId, "datasetId");
     }
 
-    private Datastore getDatastore(PipelineOptions pipelineOptions)
-        throws IOException, GeneralSecurityException {
-      Datastore datastore = getUserDatastore(host, datasetId, pipelineOptions);
-      if (datastore == null) {
-        datastore = getWorkerDatastore(host, datasetId, pipelineOptions);
+    private Datastore getDatastore(PipelineOptions pipelineOptions) {
+      DatastoreOptions.Builder builder =
+          new DatastoreOptions.Builder().host(host).dataset(datasetId).initializer(
+              new RetryHttpRequestInitializer(null));
+
+      Credential credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+      if (credential != null) {
+        builder.credential(credential);
       }
-      return datastore;
+      return DatastoreFactory.get().create(builder.build());
     }
 
     /** For testing only. */
@@ -337,36 +334,6 @@ public class DatastoreIO {
       res.mockEstimateSizeBytes = estimateSizeBytes;
       return res;
     }
-  }
-
-  public static Datastore getWorkerDatastore(
-      String host, String datasetId, PipelineOptions options) {
-    DatastoreOptions.Builder builder =
-        new DatastoreOptions.Builder().host(host).dataset(datasetId).initializer(
-            new RetryHttpRequestInitializer(null));
-
-    try {
-      Credential credential =
-          Credentials.getWorkerCredential(options.as(DataflowPipelineOptions.class));
-      builder.credential(credential);
-    } catch (IOException e) {
-      LOG.warn("IOException: can't get credential for worker.", e);
-      throw new RuntimeException("Failed on getting credential for worker.");
-    }
-    return DatastoreFactory.get().create(builder.build());
-  }
-
-  public static Datastore getUserDatastore(String host, String datasetId, PipelineOptions options)
-      throws IOException, GeneralSecurityException {
-    DatastoreOptions.Builder builder =
-        new DatastoreOptions.Builder().host(host).dataset(datasetId).initializer(
-            new RetryHttpRequestInitializer(null));
-
-    Credential credential = Credentials.getUserCredential(options.as(GcpOptions.class));
-    if (credential != null) {
-      builder.credential(credential);
-    }
-    return DatastoreFactory.get().create(builder.build());
   }
 
   ///////////////////// Write Class /////////////////////////////////

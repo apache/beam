@@ -59,13 +59,7 @@ public class Credentials {
    *  services we access directly (GCS) as opposed to through the backend
    *  (BigQuery, GCE), we need to explicitly request that scope.
    */
-  private static final List<String> WORKER_SCOPES = Arrays.asList(
-      "https://www.googleapis.com/auth/cloud-platform",
-      "https://www.googleapis.com/auth/devstorage.full_control",
-      "https://www.googleapis.com/auth/userinfo.email",
-      "https://www.googleapis.com/auth/datastore");
-
-  private static final List<String> USER_SCOPES = Arrays.asList(
+  private static final List<String> SCOPES = Arrays.asList(
       "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.full_control",
       "https://www.googleapis.com/auth/userinfo.email",
@@ -79,29 +73,7 @@ public class Credentials {
   }
 
   /**
-   * Initializes OAuth2 credential for a worker, using the
-   * <a href="https://developers.google.com/accounts/docs/application-default-credentials">
-   * application default credentials</a>, or from a local key file when running outside of GCE.
-   */
-  public static Credential getWorkerCredential(GcpOptions options)
-      throws IOException {
-    String keyFile = options.getServiceAccountKeyfile();
-    String accountName = options.getServiceAccountName();
-
-    if (keyFile != null && accountName != null) {
-      try {
-        return getCredentialFromFile(keyFile, accountName, WORKER_SCOPES);
-      } catch (GeneralSecurityException e) {
-        LOG.warn("Unable to obtain credentials from file {}", keyFile);
-        // Fall through..
-      }
-    }
-
-    return GoogleCredential.getApplicationDefault().createScoped(WORKER_SCOPES);
-  }
-
-  /**
-   * Initializes OAuth2 credential for an interactive user program.
+   * Initializes OAuth2 credentials.
    *
    * This can use 4 different mechanisms for obtaining a credential:
    * <ol>
@@ -132,25 +104,25 @@ public class Credentials {
    * application default credentials</a> falling back to gcloud. The other options can be
    * used by providing the corresponding properties.
    */
-  public static Credential getUserCredential(GcpOptions options)
+  public static Credential getCredential(GcpOptions options)
       throws IOException, GeneralSecurityException {
     String keyFile = options.getServiceAccountKeyfile();
     String accountName = options.getServiceAccountName();
 
     if (keyFile != null && accountName != null) {
       try {
-        return getCredentialFromFile(keyFile, accountName, USER_SCOPES);
+        return getCredentialFromFile(keyFile, accountName, SCOPES);
       } catch (GeneralSecurityException e) {
         throw new IOException("Unable to obtain credentials from file", e);
       }
     }
 
     if (options.getSecretsFile() != null) {
-      return getCredentialFromClientSecrets(options, USER_SCOPES);
+      return getCredentialFromClientSecrets(options, SCOPES);
     }
 
     try {
-      return GoogleCredential.getApplicationDefault().createScoped(USER_SCOPES);
+      return GoogleCredential.getApplicationDefault().createScoped(SCOPES);
     } catch (IOException e) {
       LOG.debug("Failed to get application default credentials, falling back to gcloud.");
     }

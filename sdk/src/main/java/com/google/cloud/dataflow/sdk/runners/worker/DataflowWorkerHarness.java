@@ -33,7 +33,6 @@ import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingInitializer;
-import com.google.cloud.dataflow.sdk.util.Credentials;
 import com.google.cloud.dataflow.sdk.util.GcsIOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -148,18 +147,8 @@ public class DataflowWorkerHarness {
     MDC.put(DataflowWorkerLoggingFormatter.MDC_DATAFLOW_WORKER_ID, options.getWorkerId());
     options.setAppName(APPLICATION_NAME);
 
-    if (options.getGcpCredential() == null) {
-      try {
-        // Load the worker credential, otherwise the default is to load user
-        // credentials.
-        options.setGcpCredential(Credentials.getWorkerCredential(options));
-        Preconditions.checkState(options.getGcpCredential() != null,
-            "Failed to obtain worker credential");
-      } catch (Throwable e) {
-        LOG.warn("Unable to obtain any valid credentials. Worker inoperable.", e);
-        return null;
-      }
-    }
+    Preconditions.checkState(options.getGcpCredential() != null,
+        "Failed to obtain GCP credential in worker.");
 
     // Configure standard IO factories.
     IOChannelUtils.setIOFactory("gs", new GcsIOChannelFactory(options));
