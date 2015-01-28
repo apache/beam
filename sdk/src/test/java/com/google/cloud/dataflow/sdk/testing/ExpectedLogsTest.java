@@ -25,6 +25,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.Executors;
 
 /** Tests for {@link FastNanoClockAndSleeper}. */
 @RunWith(JUnit4.class)
@@ -86,6 +90,35 @@ public class ExpectedLogsTest {
     expectedLogs.before();
     expectedLogs.expectTrace(expected);
     LOG.trace(expected);
+    expectedLogs.after();
+  }
+
+  @Test
+  public void testThreadSafetyOfLogSaver() throws Throwable {
+    expectedLogs.before();
+
+    CompletionService<Void> completionService =
+        new ExecutorCompletionService<>(Executors.newCachedThreadPool());
+    final long scheduledLogTime = System.currentTimeMillis() + 500L;
+    for (int i = 0; i < 100; i++) {
+      final String expected = generateRandomString();
+      expectedLogs.expectTrace(expected);
+      completionService.submit(new Callable<Void>() {
+        @Override
+        public Void call() throws Exception {
+          // Have all threads started and waiting to log at about the same moment.
+          Thread.sleep(Math.max(1, scheduledLogTime - System.currentTimeMillis()));
+          LOG.trace(expected);
+          return null;
+        }
+      });
+    }
+
+    // Wait for all the threads to complete.
+    for (int i = 0; i < 100; i++) {
+      completionService.take();
+    }
+
     expectedLogs.after();
   }
 

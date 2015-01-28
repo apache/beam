@@ -27,10 +27,13 @@ import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
 import java.util.Collection;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * This {@link TestRule} enables the ability to capture JUL logging events during test execution and
@@ -219,8 +222,9 @@ public class ExpectedLogs extends ExternalResource {
   /**
    * A JUL logging {@link Handler} that records all logging events which are passed to it.
    */
+  @ThreadSafe
   private static class LogSaver extends Handler {
-    Collection<LogRecord> logRecords = Lists.newArrayList();
+    Collection<LogRecord> logRecords = new ConcurrentLinkedDeque<>();
 
     public Collection<LogRecord> getLogs() {
       return logRecords;
