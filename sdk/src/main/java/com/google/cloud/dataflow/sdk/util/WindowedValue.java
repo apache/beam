@@ -26,7 +26,7 @@ import com.google.cloud.dataflow.sdk.coders.CollectionCoder;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -72,7 +72,7 @@ public class WindowedValue<V> {
   public static <V> WindowedValue<V> valueInGlobalWindow(V value) {
     return new WindowedValue<>(value,
                                new Instant(Long.MIN_VALUE),
-                               Arrays.asList(GlobalWindow.Window.INSTANCE));
+                               Arrays.asList(GlobalWindows.GlobalWindow.INSTANCE));
   }
 
   /**

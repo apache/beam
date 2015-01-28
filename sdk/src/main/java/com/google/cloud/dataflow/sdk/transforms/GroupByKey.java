@@ -25,7 +25,7 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
@@ -459,7 +459,7 @@ public class GroupByKey<K, V>
           "GroupByKey must have a valid Window merge function.  "
           + "Invalid because: " + cause);
     }
-    if (windowFn.isCompatible(new GlobalWindow())) {
+    if (windowFn.isCompatible(new GlobalWindows())) {
       // The input PCollection is using the degenerate default
       // window function, which uses a single global window for all
       // elements.  We can implement this using a more-primitive

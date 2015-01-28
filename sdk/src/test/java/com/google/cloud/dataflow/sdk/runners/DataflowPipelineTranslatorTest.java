@@ -46,7 +46,7 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.View;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.OutputReference;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
@@ -303,7 +303,7 @@ public class DataflowPipelineTranslatorTest {
 
     @Override
     public PCollection<String> apply(PCollection<String> input) {
-      return PCollection.createPrimitiveOutputInternal(new GlobalWindow());
+      return PCollection.createPrimitiveOutputInternal(new GlobalWindows());
     }
 
     @Override
@@ -385,7 +385,7 @@ public class DataflowPipelineTranslatorTest {
       // Fails here when attempting to construct a tuple with an unbound object.
       return PCollectionTuple.of(sumTag, sum)
           .and(doneTag, PCollection.<Void>createPrimitiveOutputInternal(
-              new GlobalWindow()));
+              new GlobalWindows()));
     }
   }
 

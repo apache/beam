@@ -42,7 +42,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactoryTest.TestReader
 import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSink;
 import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSinkFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -294,7 +294,7 @@ public class MapTaskExecutorFactoryTest {
 
     String serializedFn =
         StringUtils.byteArrayToJsonString(
-            SerializableUtils.serializeToByteArray(new DoFnInfo(fn, new GlobalWindow())));
+            SerializableUtils.serializeToByteArray(new DoFnInfo(fn, new GlobalWindows())));
 
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);

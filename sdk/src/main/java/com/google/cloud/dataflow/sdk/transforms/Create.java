@@ -20,7 +20,7 @@ import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -184,7 +184,7 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
 
   @Override
   public PCollection<T> apply(PInput input) {
-    return PCollection.<T>createPrimitiveOutputInternal(new GlobalWindow());
+    return PCollection.<T>createPrimitiveOutputInternal(new GlobalWindows());
   }
 
 

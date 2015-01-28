@@ -53,7 +53,7 @@ import com.google.common.reflect.TypeToken;
  * <p> Additionally, a {@code PCollection} has an associated
  * {@link WindowFn} and each element is assigned to a set of windows.
  * By default, the windowing function is
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow}
+ * {@link com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows}
  * and all elements are assigned into a single default window.
  * This default can be overridden with the
  * {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window}

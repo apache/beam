@@ -23,7 +23,7 @@ import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -85,7 +85,7 @@ public class ShuffleSinkTest {
   private void runTestWriteUngroupingShuffleSink(List<Integer> expected)
       throws Exception {
     Coder<WindowedValue<Integer>> windowedValueCoder =
-        WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), new GlobalWindow().windowCoder());
+        WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), new GlobalWindows().windowCoder());
     ShuffleSink<Integer> shuffleSink = new ShuffleSink<>(
         PipelineOptionsFactory.create(),
         null, ShuffleSink.ShuffleKind.UNGROUPED,
@@ -107,7 +107,8 @@ public class ShuffleSinkTest {
       // Ignore the key.
       byte[] valueBytes = record.getValue();
       WindowedValue<Integer> value = CoderUtils.decodeFromByteArray(windowedValueCoder, valueBytes);
-      Assert.assertEquals(Lists.newArrayList(GlobalWindow.Window.INSTANCE), value.getWindows());
+      Assert.assertEquals(Lists.newArrayList(GlobalWindows.GlobalWindow.INSTANCE),
+                          value.getWindows());
       actual.add(value.getValue());
     }
 
@@ -170,7 +171,7 @@ public class ShuffleSinkTest {
                 KvCoder.of(BigEndianIntegerCoder.of(),
                            KvCoder.of(StringUtf8Coder.of(),
                                       BigEndianIntegerCoder.of())),
-                new GlobalWindow().windowCoder()));
+                new GlobalWindows().windowCoder()));
 
     TestShuffleWriter shuffleWriter = new TestShuffleWriter();
     List<Long> actualSizes = new ArrayList<>();

@@ -30,48 +30,48 @@ import java.util.Collection;
  * Default {@link WindowFn} where all data is in the same bucket.
  */
 @SuppressWarnings("serial")
-public class GlobalWindow
-    extends NonMergingWindowFn<Object, GlobalWindow.Window> {
+public class GlobalWindows
+    extends NonMergingWindowFn<Object, GlobalWindows.GlobalWindow> {
   @Override
-  public Collection<Window> assignWindows(AssignContext c) {
-    return Arrays.asList(Window.INSTANCE);
+  public Collection<GlobalWindow> assignWindows(AssignContext c) {
+    return Arrays.asList(GlobalWindow.INSTANCE);
   }
 
   @Override
   public boolean isCompatible(WindowFn o) {
-    return o instanceof GlobalWindow;
+    return o instanceof GlobalWindows;
   }
 
   @Override
-  public Coder<Window> windowCoder() {
-    return Window.Coder.INSTANCE;
+  public Coder<GlobalWindow> windowCoder() {
+    return GlobalWindow.Coder.INSTANCE;
   }
 
   /**
    * The default window into which all data is placed.
    */
-  public static class Window extends BoundedWindow {
-    public static final Window INSTANCE = new Window();
+  public static class GlobalWindow extends BoundedWindow {
+    public static final GlobalWindow INSTANCE = new GlobalWindow();
 
     @Override
     public Instant maxTimestamp() {
       return new Instant(Long.MAX_VALUE);
     }
 
-    private Window() {}
+    private GlobalWindow() {}
 
     /**
      * {@link Coder} for encoding and decoding {@code Window}s.
      */
-    public static class Coder extends AtomicCoder<Window> {
+    public static class Coder extends AtomicCoder<GlobalWindow> {
       public static final Coder INSTANCE = new Coder();
 
       @Override
-      public void encode(Window window, OutputStream outStream, Context context) {}
+      public void encode(GlobalWindow window, OutputStream outStream, Context context) {}
 
       @Override
-      public Window decode(InputStream inStream, Context context) {
-        return Window.INSTANCE;
+      public GlobalWindow decode(InputStream inStream, Context context) {
+        return GlobalWindow.INSTANCE;
       }
 
       @Override

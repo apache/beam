@@ -31,7 +31,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.BigQueryReader;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
 import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.Transport;
@@ -285,7 +285,7 @@ public class BigQueryIO {
           throw new IllegalStateException(
               "must set the table reference of a BigQueryIO.Read transform");
         }
-        return PCollection.<TableRow>createPrimitiveOutputInternal(new GlobalWindow())
+        return PCollection.<TableRow>createPrimitiveOutputInternal(new GlobalWindows())
             // Force the output's Coder to be what the read is using, and
             // unchangeable later, to ensure that we read the input in the
             // format specified by the Read transform.

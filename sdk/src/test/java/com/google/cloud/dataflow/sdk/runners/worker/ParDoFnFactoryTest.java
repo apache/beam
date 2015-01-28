@@ -21,7 +21,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
@@ -71,7 +71,7 @@ public class ParDoFnFactoryTest {
 
     String serializedFn =
         StringUtils.byteArrayToJsonString(
-            SerializableUtils.serializeToByteArray(new DoFnInfo(fn, new GlobalWindow())));
+            SerializableUtils.serializeToByteArray(new DoFnInfo(fn, new GlobalWindows())));
 
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, "serialized_fn", serializedFn);
@@ -98,7 +98,7 @@ public class ParDoFnFactoryTest {
     Assert.assertThat(actualDoFn, new IsInstanceOf(TestDoFn.class));
     Assert.assertThat(
         normalParDoFn.fnFactory.createDoFnInfo().getWindowFn(),
-        new IsInstanceOf(GlobalWindow.class));
+        new IsInstanceOf(GlobalWindows.class));
     TestDoFn actualTestDoFn = (TestDoFn) actualDoFn;
 
     Assert.assertEquals(stringState, actualTestDoFn.stringState);

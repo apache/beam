@@ -21,7 +21,7 @@ import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -50,7 +50,7 @@ public class Combine {
    *
    * <p>If the input {@code PCollection} is empty, the ouput will contain a the
    * default value of the combining function if the input is windowed into
-   * the {@link GlobalWindow}; otherwise, the output will be empty.  Note: this
+   * the {@link GlobalWindows}; otherwise, the output will be empty.  Note: this
    * behavior is subject to change.
    *
    * <p> See {@link Globally Combine.Globally} for more information.
@@ -69,7 +69,7 @@ public class Combine {
    *
    * If the input {@code PCollection} is empty, the ouput will contain a the
    * default value of the combining function if the input is windowed into
-   * the {@link GlobalWindow}; otherwise, the output will be empty.  Note: this
+   * the {@link GlobalWindows}; otherwise, the output will be empty.  Note: this
    * behavior is subject to change.
    *
    * <p> See {@link Globally Combine.Globally} for more information.
@@ -770,7 +770,7 @@ public class Combine {
           .apply(Combine.<Void, VI, VO>perKey(fn.<Void>asKeyedFn()))
           .apply(Values.<VO>create());
 
-      if (input.getWindowFn().isCompatible(new GlobalWindow())) {
+      if (input.getWindowFn().isCompatible(new GlobalWindows())) {
         return insertDefaultValueIfEmpty(output);
       } else {
         return output;

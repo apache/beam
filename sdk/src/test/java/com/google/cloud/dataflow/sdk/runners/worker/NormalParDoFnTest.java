@@ -29,7 +29,7 @@ import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.PTuple;
@@ -153,7 +153,7 @@ public class NormalParDoFnTest {
     List<String> sideOutputTags = Arrays.asList("tag1", "tag2", "tag3");
 
     TestDoFn fn = new TestDoFn(sideOutputTags);
-    DoFnInfo fnInfo = new DoFnInfo(fn, new GlobalWindow());
+    DoFnInfo fnInfo = new DoFnInfo(fn, new GlobalWindows());
     TestReceiver receiver = new TestReceiver();
     TestReceiver receiver1 = new TestReceiver();
     TestReceiver receiver2 = new TestReceiver();
@@ -218,7 +218,7 @@ public class NormalParDoFnTest {
   @Test
   public void testUnexpectedNumberOfReceivers() throws Exception {
     TestDoFn fn = new TestDoFn(Collections.<String>emptyList());
-    DoFnInfo fnInfo = new DoFnInfo(fn, new GlobalWindow());
+    DoFnInfo fnInfo = new DoFnInfo(fn, new GlobalWindows());
     TestReceiver receiver = new TestReceiver();
 
     PTuple sideInputValues = PTuple.empty();
@@ -257,7 +257,7 @@ public class NormalParDoFnTest {
   @Test
   public void testErrorPropagation() throws Exception {
     TestErrorDoFn fn = new TestErrorDoFn();
-    DoFnInfo fnInfo = new DoFnInfo(fn, new GlobalWindow());
+    DoFnInfo fnInfo = new DoFnInfo(fn, new GlobalWindows());
     TestReceiver receiver = new TestReceiver();
 
     PTuple sideInputValues = PTuple.empty();
@@ -325,7 +325,7 @@ public class NormalParDoFnTest {
   @Test
   public void testUndeclaredSideOutputs() throws Exception {
     TestDoFn fn = new TestDoFn(Arrays.asList("declared", "undecl1", "undecl2", "undecl3"));
-    DoFnInfo fnInfo = new DoFnInfo(fn, new GlobalWindow());
+    DoFnInfo fnInfo = new DoFnInfo(fn, new GlobalWindows());
     CounterSet counters = new CounterSet();
     NormalParDoFn normalParDoFn =
         new NormalParDoFn(
