@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -55,6 +56,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testIdentityFilterBy() {
     TestPipeline p = TestPipeline.create();
 
@@ -79,6 +81,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testFilterBy() {
     TestPipeline p = TestPipeline.create();
 
@@ -91,6 +94,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testFilterLessThan() {
     TestPipeline p = TestPipeline.create();
 
