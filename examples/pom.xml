@@ -150,7 +150,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-storage</artifactId>
-      <version>v1-rev11-1.19.0</version>
+      <version>v1-rev25-1.19.1</version>
       <exclusions>
         <!-- Exclude an old version of guava which is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
@@ -164,7 +164,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
-      <version>v2-rev167-1.19.0</version>
+      <version>v2-rev187-1.19.1</version>
       <exclusions>
         <!-- Exclude an old version of guava which is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
