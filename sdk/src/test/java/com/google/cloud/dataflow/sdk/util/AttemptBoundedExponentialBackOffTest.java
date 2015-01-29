@@ -21,6 +21,9 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 
 import com.google.api.client.util.BackOff;
 
@@ -66,6 +69,17 @@ public class AttemptBoundedExponentialBackOffTest {
     backOff.reset();
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
+    assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
+  }
+
+  @Test
+  public void testAtMaxAttempts() throws Exception {
+    AttemptBoundedExponentialBackOff backOff = new AttemptBoundedExponentialBackOff(3, 500);
+    assertFalse(backOff.atMaxAttempts());
+    backOff.nextBackOffMillis();
+    assertFalse(backOff.atMaxAttempts());
+    backOff.nextBackOffMillis();
+    assertTrue(backOff.atMaxAttempts());
     assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
   }
 }

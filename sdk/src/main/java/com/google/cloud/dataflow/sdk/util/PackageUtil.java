@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
@@ -149,7 +148,7 @@ public class PackageUtil {
         }
 
         // Upload file, retrying on failure.
-        BackOff backoff = new AttemptBoundedExponentialBackOff(
+        AttemptBoundedExponentialBackOff backoff = new AttemptBoundedExponentialBackOff(
             MAX_ATTEMPTS,
             INITIAL_BACKOFF_INTERVAL_MS);
         while (true) {
@@ -161,9 +160,10 @@ public class PackageUtil {
             numUploaded++;
             break;
           } catch (IOException e) {
-            if (BackOffUtils.next(retrySleeper, backoff)) {
-              LOG.warn("Upload attempt failed, will retry staging of classpath: {}",
+            if (!backoff.atMaxAttempts()) {
+              LOG.warn("Upload attempt failed, sleeping before retrying staging of classpath: {}",
                   classpathElement, e);
+              BackOffUtils.next(retrySleeper, backoff);
             } else {
               // Rethrow last error, to be included as a cause in the catch below.
               LOG.error("Upload failed, will NOT retry staging of classpath: {}",

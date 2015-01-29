@@ -79,4 +79,8 @@ public class AttemptBoundedExponentialBackOff implements BackOff {
     currentAttempt += 1;
     return Math.round(currentIntervalMillis + randomOffset);
   }
+
+  public boolean atMaxAttempts() {
+    return currentAttempt >= maximumNumberOfAttempts;
+  }
 }
