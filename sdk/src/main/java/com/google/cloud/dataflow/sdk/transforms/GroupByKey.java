@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import static com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -24,12 +23,14 @@ import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
+import com.google.cloud.dataflow.sdk.util.ReifyTimestampAndWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
@@ -162,17 +163,7 @@ public class GroupByKey<K, V>
           inputValueCoder, getInput().getWindowFn().windowCoder());
       Coder<KV<K, WindowedValue<V>>> outputKvCoder =
           KvCoder.of(keyCoder, outputValueCoder);
-      return input.apply(ParDo.of(
-          new DoFn<KV<K, V>, KV<K, WindowedValue<V>>>() {
-            @Override
-            public void processElement(ProcessContext c) {
-              KV<K, V> kv = c.element();
-              K key = kv.getKey();
-              V value = kv.getValue();
-              c.output(KV.of(
-                  key,
-                  WindowedValue.of(value, c.timestamp(), c.windows())));
-            }}))
+      return input.apply(ParDo.of(new ReifyTimestampAndWindowsDoFn<K, V>()))
           .setCoder(outputKvCoder);
     }
   }
@@ -484,7 +475,7 @@ public class GroupByKey<K, V>
           .apply(new GroupByKeyOnly<K, WindowedValue<V>>());
 
       if (!runnerSortsByTimestamp) {
-        // Sort each key's values by timestamp.  GroupAlsoByWindow requires
+        // Sort each key's values by timestamp. GroupAlsoByWindow requires
         // its input to be sorted by timestamp.
         gbkOutput = gbkOutput.apply(new SortValuesByTimestamp<K, V>());
       }

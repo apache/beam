@@ -68,6 +68,8 @@ public class ParDoFnFactory {
                                    GroupAlsoByWindowsParDoFn.class.getName());
     predefinedParDoFnFactories.put("AssignWindowsDoFn",
                                    AssignWindowsParDoFn.class.getName());
+    predefinedParDoFnFactories.put("ReifyTimestampAndWindowsDoFn",
+                                   ReifyTimestampAndWindowsParDoFn.class.getName());
   }
 
   /**

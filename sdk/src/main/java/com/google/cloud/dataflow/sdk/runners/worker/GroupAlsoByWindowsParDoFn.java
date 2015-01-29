@@ -24,11 +24,13 @@ import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
@@ -49,6 +51,7 @@ import javax.annotation.Nullable;
  * NormalParDoFn, except that it gets deserialized differently.
  */
 class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
+
   public static GroupAlsoByWindowsParDoFn create(
       PipelineOptions options,
       CloudObject cloudUserFn,
@@ -93,7 +96,14 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
           "Expected KvCoder for inputCoder, got: " + elemCoder.getClass().getName());
     }
 
-    DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
+    boolean isStreamingPipeline = false;
+    if (options instanceof StreamingOptions) {
+      isStreamingPipeline = ((StreamingOptions) options).isStreaming();
+    }
+
+    DoFnInfoFactory fnFactory;
+    if (isStreamingPipeline) {
+      fnFactory = new DoFnInfoFactory() {
         @Override
         public DoFnInfo createDoFnInfo() {
           return new DoFnInfo(StreamingGroupAlsoByWindowsDoFn.create(
@@ -102,6 +112,16 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
               null);
         }
       };
+    } else {
+      fnFactory = new DoFnInfoFactory() {
+        @Override
+        public DoFnInfo createDoFnInfo() {
+          return new DoFnInfo(
+              new GroupAlsoByWindowsDoFn((WindowFn) windowFn, elemCoder),
+              null);
+        }
+      };
+    }
     return new GroupAlsoByWindowsParDoFn(
         options, fnFactory, stepName, executionContext, addCounterMutator);
   }
