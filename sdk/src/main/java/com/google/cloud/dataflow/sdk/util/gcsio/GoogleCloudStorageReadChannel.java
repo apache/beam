@@ -38,6 +38,7 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.regex.Pattern;
+import javax.net.ssl.SSLException;
 
 /**
  * Provides seekable read access to GCS.
@@ -317,6 +318,27 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
           long newPosition = currentPosition;
           currentPosition = -1;
           position(newPosition);
+
+          // Before performing lazy seek, explicitly close the underlying channel if necessary,
+          // catching and ignoring SSLException since the retry indicates an error occurred, so
+          // there's a high probability that SSL connections would be broken in a way that
+          // causes close() itself to throw an exception, even though underlying sockets have
+          // already been cleaned up; close() on an SSLSocketImpl requires a shutdown handshake
+          // in order to shutdown cleanly, and if the connection has been broken already, then
+          // this is not possible, and the SSLSocketImpl was already responsible for performing
+          // local cleanup at the time the exception was raised.
+          if (lazySeekPending && readChannel != null) {
+            try {
+              readChannel.close();
+              readChannel = null;
+            } catch (SSLException ssle) {
+              LOG.warn("Got SSLException on readChannel.close() before retry; ignoring it.", ssle);
+              readChannel = null;
+            }
+            // For "other" exceptions, we'll let it propagate out without setting readChannel to
+            // null, in case the caller is able to handle it and then properly try to close()
+            // again.
+          }
           performLazySeek();
         }
       }
