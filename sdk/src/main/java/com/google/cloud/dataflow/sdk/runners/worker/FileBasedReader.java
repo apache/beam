@@ -23,6 +23,7 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PushbackInputStream;
 import java.nio.channels.Channels;
 import java.util.Collection;
@@ -122,15 +124,20 @@ public abstract class FileBasedReader<T> extends Reader<T> {
     protected ByteArrayOutputStream nextElement;
     protected boolean nextElementComputed = false;
     protected long offset;
+    protected FileBasedReader.DecompressingStreamFactory compressionStreamFactory;
 
     FileBasedIterator(CopyableSeekableByteChannel seeker, long startOffset, long offset,
-        @Nullable Long endOffset, ProgressTracker<Integer> tracker) throws IOException {
+        @Nullable Long endOffset, ProgressTracker<Integer> tracker,
+        FileBasedReader.DecompressingStreamFactory compressionStreamFactory) throws IOException {
       this.seeker = checkNotNull(seeker);
       this.seeker.position(startOffset);
+      this.compressionStreamFactory = compressionStreamFactory;
+      InputStream inputStream =
+          compressionStreamFactory.createInputStream(Channels.newInputStream(seeker));
       BufferedInputStream bufferedStream =
           useDefaultBufferSize
-              ? new BufferedInputStream(Channels.newInputStream(seeker))
-              : new BufferedInputStream(Channels.newInputStream(seeker), BUF_SIZE);
+              ? new BufferedInputStream(inputStream)
+              : new BufferedInputStream(inputStream, BUF_SIZE);
       this.stream = new PushbackInputStream(bufferedStream, BUF_SIZE);
       this.startOffset = startOffset;
       this.offset = offset;
@@ -244,6 +251,55 @@ public abstract class FileBasedReader<T> extends Reader<T> {
         nextElement = null;
       }
       nextElementComputed = true;
+    }
+  }
+
+  /**
+   * Factory interface for creating a decompressing {@link InputStream}.
+   */
+  public interface DecompressingStreamFactory {
+
+    /**
+     * Create a decompressing {@link InputStream} from an existing {@link InputStream}.
+     *
+     * @param inputStream the existing stream
+     * @return a stream that decompresses the contents of the existing stream
+     * @throws IOException
+     */
+    public InputStream createInputStream(InputStream inputStream) throws IOException;
+  }
+
+  /**
+   * Factory for creating decompressing input streams based on a filename and
+   * a {@link TextIO.CompressionType}.  If the compression mode is AUTO, the filename
+   * is checked against known extensions to determine a compression type to use.
+   */
+  protected static class FilenameBasedStreamFactory
+      implements FileBasedReader.DecompressingStreamFactory {
+    private String filename;
+    private TextIO.CompressionType compressionType;
+
+    public FilenameBasedStreamFactory(String filename, TextIO.CompressionType compressionType) {
+      this.filename = filename;
+      this.compressionType = compressionType;
+    }
+
+    protected TextIO.CompressionType getCompressionTypeForAuto() {
+      for (TextIO.CompressionType type : TextIO.CompressionType.values()) {
+        if (type.matches(filename) && type != TextIO.CompressionType.AUTO
+            && type != TextIO.CompressionType.UNCOMPRESSED) {
+          return type;
+        }
+      }
+      return TextIO.CompressionType.UNCOMPRESSED;
+    }
+
+    @Override
+    public InputStream createInputStream(InputStream inputStream) throws IOException {
+      if (compressionType == TextIO.CompressionType.AUTO) {
+        return getCompressionTypeForAuto().createInputStream(inputStream);
+      }
+      return compressionType.createInputStream(inputStream);
     }
   }
 }

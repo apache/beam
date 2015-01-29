@@ -61,6 +61,7 @@ public class TextIOTranslator {
       context.addInput(PropertyNames.FILEPATTERN, gcsPath);
       context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
       context.addInput(PropertyNames.VALIDATE_SOURCE, transform.needsValidation());
+      context.addInput(PropertyNames.COMPRESSION_TYPE, transform.getCompressionType().toString());
 
       // TODO: Orderedness?
     }

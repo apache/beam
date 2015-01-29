@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
@@ -77,7 +78,8 @@ public class IOFactoryTest {
 
 
     TextReader<String> reader = new TextReader<>(
-        tmpFolder.getRoot() + "/file*", true/* strip newlines */, null, null, StringUtf8Coder.of());
+        tmpFolder.getRoot() + "/file*", true/* strip newlines */, null, null, StringUtf8Coder.of(),
+        TextIO.CompressionType.UNCOMPRESSED);
 
     Set<String> records = new TreeSet<>();
     try (Reader.ReaderIterator<String> iterator = reader.iterator()) {

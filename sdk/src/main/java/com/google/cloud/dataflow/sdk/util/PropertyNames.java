@@ -30,6 +30,7 @@ public class PropertyNames {
   public static final String CO_GBK_RESULT_SCHEMA = "co_gbk_result_schema";
   public static final String COMBINE_FN = "combine_fn";
   public static final String COMPONENT_ENCODINGS = "component_encodings";
+  public static final String COMPRESSION_TYPE = "compression_type";
   public static final String CUSTOM_SOURCE_FORMAT = "custom_source";
   public static final String SOURCE_STEP_INPUT = "custom_source_step_input";
   public static final String SOURCE_SPEC = "spec";

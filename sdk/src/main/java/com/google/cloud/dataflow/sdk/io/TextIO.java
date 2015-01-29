@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.worker.FileBasedReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextSink;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -32,9 +33,13 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPInputStream;
 
 import javax.annotation.Nullable;
 
@@ -148,7 +153,20 @@ public class TextIO {
       return new Bound<>(DEFAULT_TEXT_CODER).withoutValidation();
     }
 
-    // TODO: strippingNewlines, gzipped, etc.
+    /**
+     * Returns a TextIO.Read PTransform that reads from a file with the
+     * specified compression type.
+     *
+     * <p> If no compression type is specified, the default is AUTO. In this
+     * mode, the compression type of the file is determined by its extension
+     * (e.g., *.gz is gzipped, *.bz2 is bzipped, all other extensions are
+     * uncompressed).
+     */
+    public static Bound<String> withCompressionType(TextIO.CompressionType compressionType) {
+      return new Bound<>(DEFAULT_TEXT_CODER).withCompressionType(compressionType);
+    }
+
+    // TODO: strippingNewlines, etc.
 
     /**
      * A root PTransform that reads from a text file (or multiple text files
@@ -173,15 +191,20 @@ public class TextIO {
       /** An option to indicate if input validation is desired. Default is true. */
       final boolean validate;
 
+      /** Option to indicate the input source's compression type. Default is AUTO. */
+      final TextIO.CompressionType compressionType;
+
       Bound(Coder<T> coder) {
-        this(null, null, coder, true);
+        this(null, null, coder, true, TextIO.CompressionType.AUTO);
       }
 
-      Bound(String name, String filepattern, Coder<T> coder, boolean validate) {
+      Bound(String name, String filepattern, Coder<T> coder, boolean validate,
+          TextIO.CompressionType compressionType) {
         super(name);
         this.coder = coder;
         this.filepattern = filepattern;
         this.validate = validate;
+        this.compressionType = compressionType;
       }
 
       /**
@@ -189,7 +212,7 @@ public class TextIO {
        * with the given step name.  Does not modify this object.
        */
       public Bound<T> named(String name) {
-        return new Bound<>(name, filepattern, coder, validate);
+        return new Bound<>(name, filepattern, coder, validate, compressionType);
       }
 
       /**
@@ -199,7 +222,7 @@ public class TextIO {
        * filepatterns.)  Does not modify this object.
        */
       public Bound<T> from(String filepattern) {
-        return new Bound<>(name, filepattern, coder, validate);
+        return new Bound<>(name, filepattern, coder, validate, compressionType);
       }
 
       /**
@@ -212,7 +235,7 @@ public class TextIO {
        * elements of the resulting PCollection
        */
       public <T1> Bound<T1> withCoder(Coder<T1> coder) {
-        return new Bound<>(name, filepattern, coder, validate);
+        return new Bound<>(name, filepattern, coder, validate, compressionType);
       }
 
       /**
@@ -225,7 +248,24 @@ public class TextIO {
        * available at execution time.
        */
       public Bound<T> withoutValidation() {
-        return new Bound<>(name, filepattern, coder, false);
+        return new Bound<>(name, filepattern, coder, false, compressionType);
+      }
+
+      /**
+       * Returns a new TextIO.Read PTransform that's like this one but
+       * reads from input sources using the specified compression type.
+       * Does not modify this object.
+       *
+       * <p> If AUTO compression type is specified, a compression type is
+       * selected on a per-file basis, based on the file's extension (e.g.,
+       * .gz will be processed as a gzipped file, .bz will be processed
+       * as a bzipped file, other extensions with be treated as uncompressed
+       * input).
+       *
+       * <p> If no compression type is specified, the default is AUTO.
+       */
+      public Bound<T> withCompressionType(TextIO.CompressionType compressionType) {
+        return new Bound<>(name, filepattern, coder, validate, compressionType);
       }
 
       @Override
@@ -255,6 +295,10 @@ public class TextIO {
 
       public boolean needsValidation() {
         return validate;
+      }
+
+      public TextIO.CompressionType getCompressionType() {
+        return compressionType;
       }
 
       static {
@@ -367,7 +411,7 @@ public class TextIO {
       return new Bound<>(DEFAULT_TEXT_CODER).withoutValidation();
     }
 
-    // TODO: appendingNewlines, gzipped, header, footer, etc.
+    // TODO: appendingNewlines, header, footer, etc.
 
     /**
      * A PTransform that writes a bounded PCollection to a text file (or
@@ -585,6 +629,58 @@ public class TextIO {
     }
   }
 
+  /**
+   * Possible text file compression types.
+   */
+  public static enum CompressionType implements FileBasedReader.DecompressingStreamFactory {
+    /**
+     * Automatically determine the compression type based on filename extension.
+     */
+    AUTO(""),
+    /**
+     * Uncompressed (i.e., may be split).
+     */
+    UNCOMPRESSED(""),
+    /**
+     * GZipped.
+     */
+    GZIP(".gz") {
+      @Override
+      public InputStream createInputStream(InputStream inputStream) throws IOException {
+        return new GZIPInputStream(inputStream);
+      }
+    },
+    /**
+     * BZipped.
+     */
+    BZIP2(".bz2") {
+      @Override
+      public InputStream createInputStream(InputStream inputStream) throws IOException {
+        return new BZip2CompressorInputStream(inputStream);
+      }
+    };
+
+    private String filenameSuffix;
+
+    private CompressionType(String suffix) {
+      this.filenameSuffix = suffix;
+    }
+
+    /**
+     * Determine if a given filename matches a compression type based on its extension.
+     * @param filename the filename to match
+     * @return true iff the filename ends with the compression type's known extension.
+     */
+    public boolean matches(String filename) {
+      return filename.toLowerCase().endsWith(filenameSuffix.toLowerCase());
+    }
+
+    @Override
+    public InputStream createInputStream(InputStream inputStream) throws IOException {
+      return inputStream;
+    }
+  }
+
   // Pattern which matches old-style shard output patterns, which are now
   // disallowed.
   private static final Pattern SHARD_OUTPUT_PATTERN = Pattern.compile("@([0-9]+|\\*)");
@@ -601,7 +697,8 @@ public class TextIO {
   private static <T> void evaluateReadHelper(
       Read.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
     TextReader<T> reader =
-        new TextReader<>(transform.filepattern, true, null, null, transform.coder);
+        new TextReader<>(transform.filepattern, true, null, null, transform.coder,
+            transform.getCompressionType());
     List<T> elems = ReaderUtils.readElemsFromReader(reader);
     context.setPCollection(transform.getOutput(), elems);
   }

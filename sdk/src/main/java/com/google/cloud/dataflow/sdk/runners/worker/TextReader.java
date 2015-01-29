@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.common.worker.ProgressTracker;
 import com.google.cloud.dataflow.sdk.util.common.worker.ProgressTrackerGroup;
@@ -38,16 +39,20 @@ import javax.annotation.Nullable;
  */
 public class TextReader<T> extends FileBasedReader<T> {
   final boolean stripTrailingNewlines;
+  final TextIO.CompressionType compressionType;
 
   public TextReader(String filename, boolean stripTrailingNewlines, @Nullable Long startPosition,
-      @Nullable Long endPosition, Coder<T> coder) {
-    this(filename, stripTrailingNewlines, startPosition, endPosition, coder, true);
+      @Nullable Long endPosition, Coder<T> coder, TextIO.CompressionType compressionType) {
+    this(filename, stripTrailingNewlines, startPosition, endPosition, coder, true,
+        compressionType);
   }
 
   protected TextReader(String filename, boolean stripTrailingNewlines, @Nullable Long startPosition,
-      @Nullable Long endPosition, Coder<T> coder, boolean useDefaultBufferSize) {
+      @Nullable Long endPosition, Coder<T> coder, boolean useDefaultBufferSize,
+      TextIO.CompressionType compressionType) {
     super(filename, startPosition, endPosition, coder, useDefaultBufferSize);
     this.stripTrailingNewlines = stripTrailingNewlines;
+    this.compressionType = compressionType;
   }
 
   @Override
@@ -99,7 +104,8 @@ public class TextReader<T> extends FileBasedReader<T> {
     SeekableByteChannel seeker = (SeekableByteChannel) reader;
 
     return new TextFileIterator(
-        new CopyableSeekableByteChannel(seeker), stripTrailingNewlines, startOffset, endOffset);
+        new CopyableSeekableByteChannel(seeker), stripTrailingNewlines, startOffset, endOffset,
+        new FileBasedReader.FilenameBasedStreamFactory(input, compressionType));
   }
 
   class TextFileMultiIterator extends LazyMultiReaderIterator<T> {
@@ -124,7 +130,8 @@ public class TextReader<T> extends FileBasedReader<T> {
     private ScanState state;
 
     TextFileIterator(CopyableSeekableByteChannel seeker, boolean stripTrailingNewlines,
-        long startOffset, @Nullable Long endOffset) throws IOException {
+        long startOffset, @Nullable Long endOffset,
+        FileBasedReader.DecompressingStreamFactory compressionStreamFactory) throws IOException {
       this(seeker, stripTrailingNewlines, startOffset, startOffset, endOffset,
           new ProgressTrackerGroup<Integer>() {
             @Override
@@ -132,13 +139,15 @@ public class TextReader<T> extends FileBasedReader<T> {
               notifyElementRead(lineLength.longValue());
             }
           }.start(),
-          new ScanState(BUF_SIZE, !stripTrailingNewlines));
+          new ScanState(BUF_SIZE, !stripTrailingNewlines),
+          compressionStreamFactory);
     }
 
     private TextFileIterator(CopyableSeekableByteChannel seeker, boolean stripTrailingNewlines,
         long startOffset, long offset, @Nullable Long endOffset, ProgressTracker<Integer> tracker,
-        ScanState state) throws IOException {
-      super(seeker, startOffset, offset, endOffset, tracker);
+        ScanState state, FileBasedReader.DecompressingStreamFactory compressionStreamFactory)
+            throws IOException {
+      super(seeker, startOffset, offset, endOffset, tracker, compressionStreamFactory);
 
       this.stripTrailingNewlines = stripTrailingNewlines;
       this.state = state;
@@ -149,7 +158,7 @@ public class TextReader<T> extends FileBasedReader<T> {
       // that it may hold bytes that have been read and now reside
       // in the read buffer (that is copied during cloning).
       this(it.seeker.copy(), it.stripTrailingNewlines, it.startOffset + it.state.totalBytesRead,
-          it.offset, it.endOffset, it.tracker.copy(), it.state.copy());
+          it.offset, it.endOffset, it.tracker.copy(), it.state.copy(), it.compressionStreamFactory);
     }
 
     @Override
@@ -262,7 +271,7 @@ public class TextReader<T> extends FileBasedReader<T> {
      * Consumes characters until a separator character is found or the
      * end of buffer is reached.
      *
-     * Updates the state to indicate the position of the separator
+     * <p>Updates the state to indicate the position of the separator
      * character. If pos==len, no separator was found.
      *
      * @return the number of characters consumed.
@@ -303,7 +312,7 @@ public class TextReader<T> extends FileBasedReader<T> {
     /**
      * Copies data from the input buffer to the output buffer.
      *
-     * If keepNewlines==true, line-termination characters are included in the copy.
+     * <p>If keepNewlines==true, line-termination characters are included in the copy.
      */
     private void copyToOutputBuffer(ByteArrayOutputStream out) {
       int charsCopied = pos - start;
@@ -317,7 +326,7 @@ public class TextReader<T> extends FileBasedReader<T> {
      * Scans the input buffer to determine if a matched carriage return
      * has an accompanying linefeed and process the input buffer accordingly.
      *
-     * If keepNewlines==true and a linefeed character is detected,
+     * <p>If keepNewlines==true and a linefeed character is detected,
      * it is included in the copy.
      *
      * @return the number of characters consumed

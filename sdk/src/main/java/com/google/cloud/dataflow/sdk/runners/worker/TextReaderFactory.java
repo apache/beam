@@ -22,6 +22,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -58,6 +59,9 @@ public class TextReaderFactory {
     return new TextReader<>(filenameOrPattern,
         getBoolean(spec, PropertyNames.STRIP_TRAILING_NEWLINES, true),
         getLong(spec, PropertyNames.START_OFFSET, null),
-        getLong(spec, PropertyNames.END_OFFSET, null), coder, useDefaultBufferSize);
+        getLong(spec, PropertyNames.END_OFFSET, null), coder,
+        useDefaultBufferSize,
+        Enum.valueOf(TextIO.CompressionType.class,
+            getString(spec, PropertyNames.COMPRESSION_TYPE, "AUTO")));
   }
 }

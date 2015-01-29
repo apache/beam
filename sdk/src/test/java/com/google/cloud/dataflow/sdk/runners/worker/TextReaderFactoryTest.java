@@ -25,6 +25,7 @@ import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.TextualIntegerCoder;
+import com.google.cloud.dataflow.sdk.io.TextIO.CompressionType;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -44,7 +45,8 @@ import javax.annotation.Nullable;
 @RunWith(JUnit4.class)
 public class TextReaderFactoryTest {
   void runTestCreateTextReader(String filename, @Nullable Boolean stripTrailingNewlines,
-      @Nullable Long start, @Nullable Long end, CloudObject encoding, Coder<?> coder)
+      @Nullable Long start, @Nullable Long end, CloudObject encoding, Coder<?> coder,
+      CompressionType compressionType)
       throws Exception {
     CloudObject spec = CloudObject.forClassName("TextSource");
     addString(spec, "filename", filename);
@@ -57,6 +59,7 @@ public class TextReaderFactoryTest {
     if (end != null) {
       addLong(spec, "end_offset", end);
     }
+    addString(spec, "compression_type", compressionType.toString());
 
     Source cloudSource = new Source();
     cloudSource.setSpec(spec);
@@ -73,17 +76,19 @@ public class TextReaderFactoryTest {
     Assert.assertEquals(start, textReader.startPosition);
     Assert.assertEquals(end, textReader.endPosition);
     Assert.assertEquals(coder, textReader.coder);
+    Assert.assertEquals(compressionType, textReader.compressionType);
   }
 
   @Test
   public void testCreatePlainTextReader() throws Exception {
     runTestCreateTextReader("/path/to/file.txt", null, null, null,
-        makeCloudEncoding("StringUtf8Coder"), StringUtf8Coder.of());
+        makeCloudEncoding("StringUtf8Coder"), StringUtf8Coder.of(), CompressionType.UNCOMPRESSED);
   }
 
   @Test
   public void testCreateRichTextReader() throws Exception {
     runTestCreateTextReader("gs://bucket/path/to/file2.txt", false, 200L, 500L,
-        makeCloudEncoding("TextualIntegerCoder"), TextualIntegerCoder.of());
+        makeCloudEncoding("TextualIntegerCoder"), TextualIntegerCoder.of(),
+        CompressionType.UNCOMPRESSED);
   }
 }

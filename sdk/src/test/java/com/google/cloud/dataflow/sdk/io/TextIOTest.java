@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.TextualIntegerCoder;
+import com.google.cloud.dataflow.sdk.io.TextIO.CompressionType;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.EvaluationResults;
@@ -64,6 +65,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * Tests for TextIO Read and Write transforms.
@@ -396,5 +398,40 @@ public class TextIOTest {
     TextIO.Write.Bound<String> write = TextIO.Write.to("gs://bucket/foo/baz");
     assertTrue(write.needsValidation());
     assertFalse(write.withoutValidation().needsValidation());
+  }
+
+  @Test
+  public void testCompressionTypeIsSet() throws Exception {
+    TextIO.Read.Bound<String> read = TextIO.Read.from("gs://bucket/test");
+    assertEquals(CompressionType.AUTO, read.getCompressionType());
+    read = TextIO.Read.from("gs://bucket/test").withCompressionType(CompressionType.GZIP);
+    assertEquals(CompressionType.GZIP, read.getCompressionType());
+  }
+
+  @Test
+  public void testCompressedRead() throws Exception {
+    String[] lines = {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
+    File tmpFile = tmpFolder.newFile("test");
+    String filename = tmpFile.getPath();
+
+    List<String> expected = new ArrayList<>();
+    try (PrintStream writer =
+        new PrintStream(new GZIPOutputStream(new FileOutputStream(tmpFile)))) {
+      for (String line : lines) {
+        writer.println(line);
+        expected.add(line);
+      }
+    }
+
+    DirectPipeline p = DirectPipeline.createForTest();
+
+    TextIO.Read.Bound<String> read =
+        TextIO.Read.from(filename).withCompressionType(CompressionType.GZIP);
+    PCollection<String> output = p.apply(read);
+
+    EvaluationResults results = p.run();
+
+    assertThat(results.getPCollection(output), containsInAnyOrder(expected.toArray()));
+    tmpFile.delete();
   }
 }
