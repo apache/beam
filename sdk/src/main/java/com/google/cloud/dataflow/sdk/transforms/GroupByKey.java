@@ -26,7 +26,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindowFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
@@ -286,7 +286,7 @@ public class GroupByKey<K, V>
       if (!(windowFn instanceof NonMergingWindowFn)) {
         // Prevent merging windows again, without explicit user
         // involvement, e.g., by Window.into() or Window.remerge().
-        windowFn = new InvalidWindowFn(
+        windowFn = new InvalidWindows(
             "WindowFn has already been consumed by previous GroupByKey",
             windowFn);
       }
@@ -453,8 +453,8 @@ public class GroupByKey<K, V>
     // key/value input elements and the window merge operation of the
     // window function associated with the input PCollection.
     WindowFn<?, ?> windowFn = getInput().getWindowFn();
-    if (windowFn instanceof InvalidWindowFn) {
-      String cause = ((InvalidWindowFn<?>) windowFn).getCause();
+    if (windowFn instanceof InvalidWindows) {
+      String cause = ((InvalidWindows<?>) windowFn).getCause();
       throw new IllegalStateException(
           "GroupByKey must have a valid Window merge function.  "
           + "Invalid because: " + cause);

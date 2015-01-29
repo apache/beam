@@ -25,11 +25,11 @@ import java.util.Collection;
  *
  * @param <W> window type
  */
-public class InvalidWindowFn<W extends BoundedWindow> extends WindowFn<Object, W> {
+public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W> {
   private String cause;
   private WindowFn<?, W> originalWindowFn;
 
-  public InvalidWindowFn(String cause, WindowFn<?, W> originalWindowFn) {
+  public InvalidWindows(String cause, WindowFn<?, W> originalWindowFn) {
     this.originalWindowFn = originalWindowFn;
     this.cause = cause;
   }
@@ -42,7 +42,7 @@ public class InvalidWindowFn<W extends BoundedWindow> extends WindowFn<Object, W
   }
 
   /**
-   * Returns the original windowFn that this InvalidWindowFn replaced.
+   * Returns the original windowFn that this InvalidWindows replaced.
    */
   public WindowFn<?, W> getOriginalWindowFn() {
     return originalWindowFn;
@@ -64,12 +64,12 @@ public class InvalidWindowFn<W extends BoundedWindow> extends WindowFn<Object, W
   }
 
   /**
-   * {@code InvalidWindowFn} objects with the same {@code originalWindowFn} are compatible.
+   * {@code InvalidWindows} objects with the same {@code originalWindowFn} are compatible.
    */
   @Override
   public boolean isCompatible(WindowFn<?, ?> other) {
     return getClass() == other.getClass()
         && getOriginalWindowFn().isCompatible(
-            ((InvalidWindowFn<?>) other).getOriginalWindowFn());
+            ((InvalidWindows<?>) other).getOriginalWindowFn());
   }
 }

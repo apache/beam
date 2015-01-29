@@ -228,8 +228,8 @@ public class Window {
     public PCollection<T> apply(PCollection<T> input) {
       WindowFn<?, ?> windowFn = getInput().getWindowFn();
       WindowFn<?, ?> outputWindowFn =
-          (windowFn instanceof InvalidWindowFn)
-          ? ((InvalidWindowFn<?>) windowFn).getOriginalWindowFn()
+          (windowFn instanceof InvalidWindows)
+          ? ((InvalidWindows<?>) windowFn).getOriginalWindowFn()
           : windowFn;
 
       return input.apply(ParDo.named("Identity").of(new DoFn<T, T>() {

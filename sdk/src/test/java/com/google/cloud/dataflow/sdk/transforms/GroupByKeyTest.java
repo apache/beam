@@ -29,7 +29,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindowFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -225,14 +225,14 @@ public class GroupByKeyTest {
 
     Assert.assertTrue(
         output.getWindowFn().isCompatible(
-            new InvalidWindowFn(
+            new InvalidWindows(
                 "Invalid",
                 Sessions.<KV<String, Integer>>withGapDuration(
                     Duration.standardMinutes(1)))));
   }
 
   @Test
-  public void testInvalidWindowFn() {
+  public void testInvalidWindows() {
     Pipeline p = TestPipeline.create();
 
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
