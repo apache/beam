@@ -1,5 +1,9 @@
 language: java
 
+os:
+  - linux
+  - osx
+
 notifications:
   email:
     recipients:
@@ -7,13 +11,9 @@ notifications:
     on_success: change
     on_failure: always
 
-jdk:
-  - oraclejdk8
-  - oraclejdk7
-  - openjdk7
-
 install:
   - mvn install clean -U -DskipTests=true
 
 script:
   - mvn verify -U
+  - ./test_wordcount.sh
