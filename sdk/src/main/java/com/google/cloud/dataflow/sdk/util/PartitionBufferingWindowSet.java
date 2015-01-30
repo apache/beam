@@ -56,8 +56,8 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
 
   @Override
   public void remove(W window) throws Exception {
-    CodedTupleTag<V> tag = bufferTag(window, windowFn.windowCoder(), inputCoder);
-    context.context.stepContext.deleteTagList(tag);
+    context.context.stepContext.deleteTagList(
+        bufferTag(window, windowFn.windowCoder(), inputCoder));
   }
 
   @Override

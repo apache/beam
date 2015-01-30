@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 
@@ -94,13 +95,9 @@ public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
         .mergeWindows(new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowFn));
 
       W window = WindowUtils.windowFromString(timer.tag(), windowFn.windowCoder());
-      boolean windowExists;
-      try {
-        windowExists = windowSet.contains(window);
-      } catch (UnsupportedOperationException e) {
-        windowExists = true;
-      }
-      if (windowExists) {
+
+      if ((windowFn instanceof PartitioningWindowFn) || windowSet.contains(window)) {
+        Preconditions.checkState(!timer.timestamp().isBefore(window.maxTimestamp()));
         windowSet.markCompleted(window);
         windowSet.flush();
       }

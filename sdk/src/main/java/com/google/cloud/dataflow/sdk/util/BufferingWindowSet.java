@@ -97,6 +97,13 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
 
   @Override
   public void remove(W window) throws Exception {
+    Set<W> subWindows = mergeTree.get(window);
+    for (W w : subWindows) {
+      context.context.stepContext.deleteTagList(
+          bufferTag(w, windowFn.windowCoder(), inputCoder));
+    }
+    context.context.stepContext.deleteTagList(
+        bufferTag(window, windowFn.windowCoder(), inputCoder));
     mergeTree.remove(window);
     activeWindowManager.removeWindow(window);
   }
@@ -113,7 +120,8 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
       }
       subWindows.addAll(mergeTree.get(other));
       subWindows.add(other);
-      remove(other);
+      mergeTree.remove(other);
+      activeWindowManager.removeWindow(other);
     }
     mergeTree.put(newWindow, subWindows);
     activeWindowManager.addWindow(newWindow);
@@ -156,8 +164,6 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
       for (V item : items) {
         toEmit.add(item);
       }
-      context.context.stepContext.deleteTagList(bufferTag(
-          curWindow, windowFn.windowCoder(), inputCoder));
     }
 
     return toEmit;
