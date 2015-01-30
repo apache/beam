@@ -29,13 +29,11 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
-import com.google.cloud.dataflow.sdk.util.GcsUtil;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
-import com.google.cloud.dataflow.sdk.util.PackageUtil;
+import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.Transport;
-import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
@@ -71,12 +69,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   /** Provided configuration options. */
   private final DataflowPipelineOptions options;
 
-  /** The directory on GCS where files should be uploaded. */
-  private final GcsPath gcsStaging;
-
-  /** The directory on GCS where temporary files are stored. */
-  private final GcsPath gcsTemp;
-
   /** Client for the Dataflow service. This is used to actually submit jobs. */
   private final Dataflow dataflowClient;
 
@@ -111,15 +103,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           "Missing required values: " + Joiner.on(',').join(missing));
     }
 
-    Preconditions.checkArgument(!(Strings.isNullOrEmpty(dataflowOptions.getTempLocation())
-        && Strings.isNullOrEmpty(dataflowOptions.getStagingLocation())),
-        "Missing required value: at least one of tempLocation or stagingLocation must be set.");
-    if (Strings.isNullOrEmpty(dataflowOptions.getTempLocation())) {
-      dataflowOptions.setTempLocation(dataflowOptions.getStagingLocation());
-    } else if (Strings.isNullOrEmpty(dataflowOptions.getStagingLocation())) {
-      dataflowOptions.setStagingLocation(
-          GcsPath.fromUri(dataflowOptions.getTempLocation()).resolve("staging").toString());
-    }
+    PathValidator validator = dataflowOptions.getPathValidator();
+    validator.validateAndUpdateOptions();
 
     if (dataflowOptions.getFilesToStage() == null) {
       dataflowOptions.setFilesToStage(detectClassPathResourcesToStage(
@@ -144,8 +129,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   private DataflowPipelineRunner(DataflowPipelineOptions options) {
     this.options = options;
     this.dataflowClient = options.getDataflowClient();
-    this.gcsTemp = GcsPath.fromUri(options.getTempLocation());
-    this.gcsStaging = GcsPath.fromUri(options.getStagingLocation());
     this.translator = DataflowPipelineTranslator.fromOptions(options);
 
     // (Re-)register standard IO factories. Clobbers any prior credentials.
@@ -176,10 +159,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     LOG.info("Executing pipeline on the Dataflow Service, which will have billing implications "
         + "related to Google Compute Engine usage and other Google Cloud Services.");
 
-    GcsUtil gcsUtil = options.getGcsUtil();
-    List<DataflowPackage> packages =
-        PackageUtil.stageClasspathElementsToGcs(gcsUtil, options.getFilesToStage(), gcsStaging);
-
+    List<DataflowPackage> packages = options.getStager().stageFiles();
     Job newJob = translator.translate(pipeline, packages);
 
     String version = DataflowReleaseInfo.getReleaseInfo().getVersion();
@@ -188,7 +168,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     newJob.getEnvironment().setUserAgent(DataflowReleaseInfo.getReleaseInfo());
     // The Dataflow Service may write to the temporary directory directly, so
     // must be verified.
-    newJob.getEnvironment().setTempStoragePrefix(verifyGcsPath(gcsTemp).toResourceName());
+    if (!Strings.isNullOrEmpty(options.getTempLocation())) {
+      DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+      newJob.getEnvironment().setTempStoragePrefix(
+          dataflowOptions.getPathValidator().verifyGcsPath(options.getTempLocation()));
+    }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
     newJob.getEnvironment().setClusterManagerApiService(
         options.getClusterManagerApi().getApiServiceName());
@@ -268,18 +252,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   @Override
   public String toString() { return "DataflowPipelineRunner#" + hashCode(); }
-
-  /**
-   * Verifies that a path can be used by the Dataflow Service API.
-   * @return the supplied path
-   */
-  public static GcsPath verifyGcsPath(GcsPath path) {
-    Preconditions.checkArgument(path.isAbsolute(),
-        "Must provide absolute paths for Dataflow");
-    Preconditions.checkArgument(!path.getObject().contains("//"),
-        "Dataflow Service does not allow objects with consecutive slashes");
-    return path;
-  }
 
   /**
    * Attempts to detect all the resources the class loader has access to. This does not recurse

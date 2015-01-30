@@ -133,8 +133,7 @@ public class DataflowPipelineRunnerTest {
       ArgumentCaptor<Job> jobCaptor) throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setProject("someProject");
-    options.setTempLocation(DataflowPipelineRunner.verifyGcsPath(
-        GcsPath.fromComponents("somebucket", "some/path")).toString());
+    options.setTempLocation(GcsPath.fromComponents("somebucket", "some/path").toString());
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
     options.setFilesToStage(new LinkedList<String>());
     options.setDataflowClient(buildMockDataflow(jobCaptor));
@@ -483,7 +482,7 @@ public class DataflowPipelineRunnerTest {
     DataflowPipelineTranslator translator = DataflowPipelineRunner
         .fromOptions(options).getTranslator();
 
-    translator.registerTransformTranslator(
+    DataflowPipelineTranslator.registerTransformTranslator(
         TestTransform.class,
         new DataflowPipelineTranslator.TransformTranslator<TestTransform>() {
           @SuppressWarnings("unchecked")

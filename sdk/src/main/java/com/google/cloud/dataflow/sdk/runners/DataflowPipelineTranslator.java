@@ -73,7 +73,6 @@ import com.google.cloud.dataflow.sdk.util.OutputReference;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -242,15 +241,6 @@ public class DataflowPipelineTranslator {
      * step, coming from the specified input PValue.
      */
     public void addInput(String name, PInput value);
-
-    /**
-     * Adds an input with the given name and value to the current
-     * Dataflow step.
-     *
-     * <p> This applies any verification of paths required by the Dataflow
-     * service.
-     */
-    public void addInput(String name, GcsPath path);
 
     /**
      * Adds an input which is a dictionary of strings to objects.
@@ -584,11 +574,6 @@ public class DataflowPipelineTranslator {
       } else {
         throw new IllegalStateException("Input must be a PValue");
       }
-    }
-
-    @Override
-    public void addInput(String name, GcsPath path) {
-      addInput(name, DataflowPipelineRunner.verifyGcsPath(path).toResourceName());
     }
 
     @Override

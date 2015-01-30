@@ -21,9 +21,9 @@ import com.google.cloud.dataflow.sdk.io.ShardNameTemplate;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TransformTranslator;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TranslationContext;
+import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 
 /**
  * TextIO transform support code for the Dataflow backend.
@@ -49,16 +49,14 @@ public class TextIOTranslator {
         throw new IllegalArgumentException("TextIO not supported in streaming mode.");
       }
 
-      // Validate the provided GCS path.
-      GcsPath gcsPath = GcsPath.fromUri(transform.getFilepattern());
-      Preconditions.checkArgument(
-          context.getPipelineOptions().getGcsUtil().isGcsPatternSupported(gcsPath.getObject()));
+      PathValidator validator = context.getPipelineOptions().getPathValidator();
+      String filepattern = validator.validateInputFilePatternSupported(transform.getFilepattern());
 
       context.addStep(transform, "ParallelRead");
       // TODO: How do we want to specify format and
       // format-specific properties?
       context.addInput(PropertyNames.FORMAT, "text");
-      context.addInput(PropertyNames.FILEPATTERN, gcsPath);
+      context.addInput(PropertyNames.FILEPATTERN, filepattern);
       context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
       context.addInput(PropertyNames.VALIDATE_SOURCE, transform.needsValidation());
       context.addInput(PropertyNames.COMPRESSION_TYPE, transform.getCompressionType().toString());
@@ -86,8 +84,10 @@ public class TextIOTranslator {
         throw new IllegalArgumentException("TextIO not supported in streaming mode.");
       }
 
-      // Only GCS paths are permitted for filepatterns in the DataflowPipelineRunner.
-      GcsPath gcsPath = GcsPath.fromUri(transform.getFilenamePrefix());
+      PathValidator validator = context.getPipelineOptions().getPathValidator();
+      String filenamePrefix = validator.validateOutputFilePrefixSupported(
+          transform.getFilenamePrefix());
+
       context.addStep(transform, "ParallelWrite");
       context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
 
@@ -109,7 +109,7 @@ public class TextIOTranslator {
       // TODO: How do we want to specify format and
       // format-specific properties?
       context.addInput(PropertyNames.FORMAT, "text");
-      context.addInput(PropertyNames.FILENAME_PREFIX, gcsPath);
+      context.addInput(PropertyNames.FILENAME_PREFIX, filenamePrefix);
       context.addInput(PropertyNames.SHARD_NAME_TEMPLATE,
           transform.getShardNameTemplate());
       context.addInput(PropertyNames.FILENAME_SUFFIX, transform.getFilenameSuffix());

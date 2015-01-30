@@ -20,7 +20,6 @@ import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudTime;
 
 import com.google.api.client.util.Lists;
-import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
 import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
@@ -146,9 +145,6 @@ public class DataflowWorkerHarness {
     MDC.put(DataflowWorkerLoggingFormatter.MDC_DATAFLOW_JOB_ID, options.getJobId());
     MDC.put(DataflowWorkerLoggingFormatter.MDC_DATAFLOW_WORKER_ID, options.getWorkerId());
     options.setAppName(APPLICATION_NAME);
-
-    Preconditions.checkState(options.getGcpCredential() != null,
-        "Failed to obtain GCP credential in worker.");
 
     // Configure standard IO factories.
     IOChannelUtils.setIOFactory("gs", new GcsIOChannelFactory(options));

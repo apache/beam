@@ -22,9 +22,9 @@ import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.ShardNameTemplate;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TransformTranslator;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TranslationContext;
+import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 
 /**
  * Avro transform support code for the Dataflow backend.
@@ -51,11 +51,11 @@ public class AvroIOTranslator {
         throw new IllegalArgumentException("AvroIO not supported in streaming mode.");
       }
 
-      // Only GCS paths are permitted for filepatterns in the DataflowPipelineRunner.
-      GcsPath gcsPath = GcsPath.fromUri(transform.getFilepattern());
+      PathValidator validator = context.getPipelineOptions().getPathValidator();
+      String filepattern = validator.validateInputFilePatternSupported(transform.getFilepattern());
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, "avro");
-      context.addInput(PropertyNames.FILEPATTERN, gcsPath);
+      context.addInput(PropertyNames.FILEPATTERN, filepattern);
       context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
       // TODO: Orderedness?
     }
@@ -77,8 +77,9 @@ public class AvroIOTranslator {
     private <T> void translateWriteHelper(
         AvroIO.Write.Bound<T> transform,
         TranslationContext context) {
-      // Only GCS paths are permitted for filepatterns in the DataflowPipelineRunner.
-      GcsPath gcsPath = GcsPath.fromUri(transform.getFilenamePrefix());
+      PathValidator validator = context.getPipelineOptions().getPathValidator();
+      String filenamePrefix = validator.validateOutputFilePrefixSupported(
+          transform.getFilenamePrefix());
       context.addStep(transform, "ParallelWrite");
       context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
 
@@ -98,7 +99,7 @@ public class AvroIOTranslator {
       }
 
       context.addInput(PropertyNames.FORMAT, "avro");
-      context.addInput(PropertyNames.FILENAME_PREFIX, gcsPath);
+      context.addInput(PropertyNames.FILENAME_PREFIX, filenamePrefix);
       context.addInput(PropertyNames.SHARD_NAME_TEMPLATE, transform.getShardTemplate());
       context.addInput(PropertyNames.FILENAME_SUFFIX, transform.getFilenameSuffix());
 

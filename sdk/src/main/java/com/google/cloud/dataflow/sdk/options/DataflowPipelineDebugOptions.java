@@ -16,6 +16,12 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import com.google.cloud.dataflow.sdk.util.DataflowPathValidator;
+import com.google.cloud.dataflow.sdk.util.GcsStager;
+import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
+import com.google.cloud.dataflow.sdk.util.PathValidator;
+import com.google.cloud.dataflow.sdk.util.Stager;
+
 import java.util.List;
 
 /**
@@ -64,4 +70,68 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   @Description("File for writing dataflow job descriptions")
   String getDataflowJobFile();
   void setDataflowJobFile(String value);
+
+  /**
+   * The name of the validator class used to validate path names.
+   */
+  @Description("The validator class used to validate path names.")
+  @Default.Class(DataflowPathValidator.class)
+  Class<? extends PathValidator> getPathValidatorClass();
+  void setPathValidatorClass(Class<? extends PathValidator> validatorClass);
+
+  /**
+   * The validator class used to validate path names.
+   */
+  @Description("The validator class used to validate path names.")
+  @Default.InstanceFactory(PathValidatorFactory.class)
+  PathValidator getPathValidator();
+  void setPathValidator(PathValidator validator);
+
+  /**
+   * The class used to stage files.
+   */
+  @Description("The class used to stage files.")
+  @Default.Class(GcsStager.class)
+  Class<? extends Stager> getStagerClass();
+  void setStagerClass(Class<? extends Stager> stagerClass);
+
+  /**
+   * The stager instance used to stage files.
+   */
+  @Description("The class use to stage packages.")
+  @Default.InstanceFactory(StagerFactory.class)
+  Stager getStager();
+  void setStager(Stager stager);
+
+  /**
+   * Creates a {@link PathValidator} object using the class specified in
+   * {@link #getPathValidatorClass()}.
+   */
+  public static class PathValidatorFactory implements DefaultValueFactory<PathValidator> {
+      @Override
+      public PathValidator create(PipelineOptions options) {
+      DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
+      return InstanceBuilder.ofType(PathValidator.class)
+          .fromClass(debugOptions.getPathValidatorClass())
+          .fromFactoryMethod("fromOptions")
+          .withArg(PipelineOptions.class, options)
+          .build();
+    }
+  }
+
+  /**
+   * Creates a {@link Stager} object using the class specified in
+   * {@link #getStagerClass()}.
+   */
+  public static class StagerFactory implements DefaultValueFactory<Stager> {
+      @Override
+      public Stager create(PipelineOptions options) {
+      DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
+      return InstanceBuilder.ofType(Stager.class)
+          .fromClass(debugOptions.getStagerClass())
+          .fromFactoryMethod("fromOptions")
+          .withArg(PipelineOptions.class, options)
+          .build();
+    }
+  }
 }

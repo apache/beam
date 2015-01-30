@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * Options which are used to configure the Dataflow pipeline worker pool.
  */
-public interface DataflowPipelineWorkerPoolOptions {
+public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   /**
    * Disk source image to use by VMs for jobs.
    * @see <a href="https://developers.google.com/compute/docs/images">Compute Engine Images</a>

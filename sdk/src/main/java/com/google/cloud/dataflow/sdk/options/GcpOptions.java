@@ -17,7 +17,9 @@
 package com.google.cloud.dataflow.sdk.options;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.cloud.dataflow.sdk.util.Credentials;
+import com.google.cloud.dataflow.sdk.util.CredentialFactory;
+import com.google.cloud.dataflow.sdk.util.GcpCredentialFactory;
+import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -126,6 +128,12 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   String getCredentialId();
   void setCredentialId(String value);
 
+  @Description("The factory class used to create oauth credentials")
+  @Default.Class(GcpCredentialFactory.class)
+  Class<? extends CredentialFactory> getCredentialFactoryClass();
+  void setCredentialFactoryClass(
+      Class<? extends CredentialFactory> credentialFactoryClass);
+
   /** Alternative Google Cloud Platform Credential. */
   @JsonIgnore
   @Description("Google Cloud Platform user credentials.")
@@ -134,14 +142,20 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   void setGcpCredential(Credential value);
 
   /**
-   * Attempts to load the user credentials. See
-   * {@link Credentials#getCredential(GcpOptions)} for more details.
+   * Attempts to load the GCP credentials. See
+   * {@link CredentialFactory#getCredential()} for more details.
    */
   public static class GcpUserCredentialsFactory implements DefaultValueFactory<Credential> {
     @Override
     public Credential create(PipelineOptions options) {
+      GcpOptions gcpOptions = options.as(GcpOptions.class);
       try {
-        return Credentials.getCredential(options.as(GcpOptions.class));
+        CredentialFactory factory = InstanceBuilder.ofType(CredentialFactory.class)
+            .fromClass(gcpOptions.getCredentialFactoryClass())
+            .fromFactoryMethod("fromOptions")
+            .withArg(PipelineOptions.class, options)
+            .build();
+        return factory.getCredential();
       } catch (IOException | GeneralSecurityException e) {
         throw new RuntimeException("Unable to obtain credential", e);
       }

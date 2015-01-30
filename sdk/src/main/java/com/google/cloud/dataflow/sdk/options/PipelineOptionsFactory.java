@@ -522,6 +522,22 @@ public class PipelineOptionsFactory {
     if (System.getProperties().containsKey("job_id")) {
       options.setJobId(System.getProperty("job_id"));
     }
+    if (System.getProperties().containsKey("path_validator_class")) {
+      try {
+        options.setPathValidatorClass((Class) Class.forName(
+            System.getProperty("path_validator_class")));
+      } catch (ClassNotFoundException e) {
+        throw new RuntimeException("Unable to find validator class", e);
+      }
+    }
+    if (System.getProperties().containsKey("credential_factory_class")) {
+      try {
+        options.setCredentialFactoryClass((Class) Class.forName(
+            System.getProperty("credential_factory_class")));
+      } catch (ClassNotFoundException e) {
+        throw new RuntimeException("Unable to find credential factory class", e);
+      }
+    }
     return options;
   }
 
