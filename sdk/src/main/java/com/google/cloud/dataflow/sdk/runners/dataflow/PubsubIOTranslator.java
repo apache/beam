@@ -57,13 +57,6 @@ public class PubsubIOTranslator {
       if (transform.getSubscription() != null) {
         context.addInput(PropertyNames.PUBSUB_SUBSCRIPTION, transform.getSubscription());
       }
-      if (transform.getTimestampLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL, transform.getTimestampLabel());
-      }
-      context.addInput(PropertyNames.PUBSUB_DROP_LATE_DATA, transform.getDropLateData());
-      if (transform.getIdLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_ID_LABEL, transform.getIdLabel());
-      }
       context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
       // TODO: Orderedness?
     }
@@ -90,12 +83,6 @@ public class PubsubIOTranslator {
       context.addStep(transform, "ParallelWrite");
       context.addInput(PropertyNames.FORMAT, "pubsub");
       context.addInput(PropertyNames.PUBSUB_TOPIC, transform.getTopic());
-      if (transform.getTimestampLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL, transform.getTimestampLabel());
-      }
-      if (transform.getIdLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_ID_LABEL, transform.getIdLabel());
-      }
       context.addEncodingInput(
           WindowedValue.getValueOnlyCoder(transform.getInput().getCoder()));
       context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
