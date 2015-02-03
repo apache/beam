@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
@@ -107,7 +108,7 @@ public class ShuffleSinkTest {
       // Ignore the key.
       byte[] valueBytes = record.getValue();
       WindowedValue<Integer> value = CoderUtils.decodeFromByteArray(windowedValueCoder, valueBytes);
-      Assert.assertEquals(Lists.newArrayList(GlobalWindows.GlobalWindow.INSTANCE),
+      Assert.assertEquals(Lists.newArrayList(GlobalWindow.INSTANCE),
                           value.getWindows());
       actual.add(value.getValue());
     }

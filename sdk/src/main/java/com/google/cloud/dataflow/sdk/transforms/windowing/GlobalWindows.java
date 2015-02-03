@@ -16,13 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 
-import org.joda.time.Instant;
-
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -31,7 +26,7 @@ import java.util.Collection;
  */
 @SuppressWarnings("serial")
 public class GlobalWindows
-    extends NonMergingWindowFn<Object, GlobalWindows.GlobalWindow> {
+    extends NonMergingWindowFn<Object, GlobalWindow> {
   @Override
   public Collection<GlobalWindow> assignWindows(AssignContext c) {
     return Arrays.asList(GlobalWindow.INSTANCE);
@@ -45,41 +40,5 @@ public class GlobalWindows
   @Override
   public Coder<GlobalWindow> windowCoder() {
     return GlobalWindow.Coder.INSTANCE;
-  }
-
-  /**
-   * The default window into which all data is placed.
-   */
-  public static class GlobalWindow extends BoundedWindow {
-    public static final GlobalWindow INSTANCE = new GlobalWindow();
-
-    @Override
-    public Instant maxTimestamp() {
-      return new Instant(Long.MAX_VALUE);
-    }
-
-    private GlobalWindow() {}
-
-    /**
-     * {@link Coder} for encoding and decoding {@code Window}s.
-     */
-    public static class Coder extends AtomicCoder<GlobalWindow> {
-      public static final Coder INSTANCE = new Coder();
-
-      @Override
-      public void encode(GlobalWindow window, OutputStream outStream, Context context) {}
-
-      @Override
-      public GlobalWindow decode(InputStream inStream, Context context) {
-        return GlobalWindow.INSTANCE;
-      }
-
-      @Override
-      public boolean isDeterministic() {
-        return true;
-      }
-
-      private Coder() {}
-    }
   }
 }
