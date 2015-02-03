@@ -1,0 +1,214 @@
+/*
+ * Copyright (C) 2014 Google Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
+/*
+ * Protocol Buffers describing the interface between streaming Dataflow workers
+ * and the Windmill servers.
+ */
+
+syntax = "proto2";
+
+package windmill;
+
+option java_package = "com.google.cloud.dataflow.sdk.runners.worker.windmill";
+option java_outer_classname = "Windmill";
+
+////////////////////////////////////////////////////////////////////////////////
+// API Data types
+
+message Message {
+  required int64 timestamp = 1 [default=-0x8000000000000000];
+  required bytes data = 2;
+  optional bytes metadata = 3;
+}
+
+message Timer {
+  required bytes tag = 1;
+  optional int64 timestamp = 2 [default=-0x8000000000000000];
+}
+
+message InputMessageBundle {
+  required string source_computation_id = 1;
+  repeated Message messages = 2;
+}
+
+message KeyedMessageBundle {
+  required bytes key = 1;
+  repeated Message messages = 2;
+}
+
+message OutputMessageBundle {
+  optional string destination_computation_id = 1;
+  optional string destination_stream_id = 3;
+  repeated KeyedMessageBundle bundles = 2;
+}
+
+message PubSubMessageBundle {
+  required string topic = 1;
+  repeated Message messages = 2;
+}
+
+message TimerBundle {
+  repeated Timer timers = 1;
+}
+
+message Value {
+  required int64 timestamp = 1 [default=-0x8000000000000000];
+  required bytes data = 2;
+}
+
+message TagValue {
+  required bytes tag = 1;
+  optional Value value = 2;
+}
+
+message TagList {
+  required bytes tag = 1;
+  optional int64 end_timestamp = 2 [default=-0x8000000000000000];
+  repeated Value values = 3;
+}
+
+message WorkItem {
+  required bytes key = 1;
+  required fixed64 work_token = 2;
+
+  repeated InputMessageBundle message_bundles = 3;
+  optional TimerBundle timers = 4;
+}
+
+message ComputationWorkItems {
+  required string computation_id = 1;
+  repeated WorkItem work = 2;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// API calls
+
+// GetWork
+
+message GetWorkRequest {
+  required fixed64 client_id = 1;
+  optional int64 max_items = 2 [default = 0xffffffff];
+}
+
+message GetWorkResponse {
+  repeated ComputationWorkItems work = 1;
+}
+
+// GetData
+
+message KeyedGetDataRequest {
+  required bytes key = 1;
+  required fixed64 work_token = 2;
+  repeated TagValue values_to_fetch = 3;
+  repeated TagList lists_to_fetch = 4;
+}
+
+message ComputationGetDataRequest {
+  required string computation_id = 1;
+  repeated KeyedGetDataRequest requests = 2;
+}
+
+message GetDataRequest {
+  repeated ComputationGetDataRequest requests = 1;
+}
+
+message KeyedGetDataResponse {
+  required bytes key = 1;
+  // The response for this key is not populated due to the fetch failing.
+  optional bool failed = 2;
+  repeated TagValue values = 3;
+  repeated TagList lists = 4;
+}
+
+message ComputationGetDataResponse {
+  required string computation_id = 1;
+  repeated KeyedGetDataResponse data = 2;
+}
+
+message GetDataResponse {
+  repeated ComputationGetDataResponse data = 1;
+}
+
+// CommitWork
+
+message Counter {
+  optional string name = 1;
+  enum Kind {
+    SUM = 0;
+    MAX = 1;
+    MIN = 2;
+    MEAN = 3;
+  };
+  optional Kind kind = 2;
+
+  // For SUM, MAX, MIN, AND, OR, MEAN at most one of the following should be
+  // set.  For MEAN it is the sum
+  optional double double_scalar = 3;
+  optional int64 int_scalar = 4;
+
+  // Only set for MEAN. Count of elements contributing to the sum.
+  optional int64 mean_count = 6;
+}
+
+// next id: 9
+message WorkItemCommitRequest {
+  required bytes key = 1;
+  required fixed64 work_token = 2;
+  repeated OutputMessageBundle output_messages = 3;
+  repeated PubSubMessageBundle pubsub_messages = 7;
+  repeated Timer output_timers = 4;
+  repeated TagValue value_updates = 5;
+  repeated TagList list_updates = 6;
+  repeated Counter counter_updates = 8;
+}
+
+message ComputationCommitWorkRequest {
+  required string computation_id = 1;
+  repeated WorkItemCommitRequest requests = 2;
+}
+
+message CommitWorkRequest {
+  repeated ComputationCommitWorkRequest requests = 1;
+}
+
+message CommitWorkResponse {}
+
+// Configuration
+
+message GetConfigRequest {
+  repeated string computations = 1;
+}
+
+message GetConfigResponse {
+  repeated string cloud_works = 1;
+}
+
+// Reporting
+
+message Exception {
+  repeated string stack_frames = 1;
+  optional Exception cause = 2;
+}
+
+message ReportStatsRequest {
+  required string computation_id = 1;
+  required bytes key = 2;
+  required fixed64 work_token = 3;
+  repeated Exception exceptions = 4;
+}
+
+message ReportStatsResponse {}
