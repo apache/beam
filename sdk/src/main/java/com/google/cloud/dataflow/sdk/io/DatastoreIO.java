@@ -136,7 +136,13 @@ import java.util.NoSuchElementException;
 
 public class DatastoreIO {
   private static final Logger LOG = LoggerFactory.getLogger(DatastoreIO.class);
-  private static final String DEFAULT_HOST = "https://www.googleapis.com";
+  public static final String DEFAULT_HOST = "https://www.googleapis.com";
+
+  /**
+   * Datastore has a limit of 500 mutations per batch operation, so we flush
+   * changes to Datastore every 500 entities.
+   */
+  public static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
 
   /**
    * Returns an empty {@code DatastoreIO.Read} builder with the default host.
@@ -484,9 +490,7 @@ public class DatastoreIO {
       List<Entity> toInsert = new ArrayList<>();
       for (Entity e : entitiesWithSameAncestor) {
         toInsert.add(e);
-        // Note that Datastore has limit as 500 for a batch operation,
-        // so just flush to Datastore with every 500 entties.
-        if (toInsert.size() >= 500) {
+        if (toInsert.size() >= DATASTORE_BATCH_UPDATE_LIMIT) {
           writeBatch(toInsert, datastore);
           toInsert.clear();
         }

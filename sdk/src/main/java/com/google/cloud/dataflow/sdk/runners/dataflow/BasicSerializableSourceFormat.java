@@ -47,6 +47,9 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +57,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
- * An helper class for supporting sources defined as {@code Source}.
+ * A helper class for supporting sources defined as {@code Source}.
  *
  * Provides a bridge between the high-level {@code Source} API and the raw
  * API-level {@code SourceFormat} API, by encoding the serialized
@@ -64,6 +67,8 @@ import java.util.NoSuchElementException;
 public class BasicSerializableSourceFormat implements SourceFormat {
   private static final String SERIALIZED_SOURCE = "serialized_source";
   private static final long DEFAULT_DESIRED_SHARD_SIZE_BYTES = 64 * (1 << 20);
+
+  private static final Logger LOG = LoggerFactory.getLogger(BasicSerializableSourceFormat.class);
 
   private final PipelineOptions options;
 
@@ -163,7 +168,14 @@ public class BasicSerializableSourceFormat implements SourceFormat {
 
     SourceMetadata metadata = new SourceMetadata();
     metadata.setProducesSortedKeys(source.producesSortedKeys(options));
-    metadata.setEstimatedSizeBytes(source.getEstimatedSizeBytes(options));
+
+    // Size estimation is best effort so we continue even if it fails here.
+    try {
+      metadata.setEstimatedSizeBytes(source.getEstimatedSizeBytes(options));
+    } catch (Exception e) {
+      LOG.warn("Size estimation of the source failed.", e);
+    }
+
     cloudSource.setMetadata(metadata);
     return cloudSource;
   }

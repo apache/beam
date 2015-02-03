@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.examples;
 
+import com.google.api.services.datastore.DatastoreV1;
 import com.google.api.services.datastore.DatastoreV1.Entity;
 import com.google.api.services.datastore.DatastoreV1.Key;
 import com.google.api.services.datastore.DatastoreV1.Property;
@@ -30,6 +31,8 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation;
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
@@ -75,7 +78,10 @@ public class DatastoreWordCount {
     @Override
     public void processElement(ProcessContext c) {
       Map<String, Value> props = DatastoreHelper.getPropertyMap(c.element());
-      c.output(DatastoreHelper.getString(props.get("content")));
+      DatastoreV1.Value value = props.get("content");
+      if (value != null) {
+        c.output(DatastoreHelper.getString(value));
+      }
     }
   }
 
@@ -94,9 +100,9 @@ public class DatastoreWordCount {
       // Create entities with same ancestor Key.
       Key ancestorKey = DatastoreHelper.makeKey(kind, "root").build();
       Key key = DatastoreHelper.makeKey(ancestorKey, kind).build();
+
       entityBuilder.setKey(key);
-      entityBuilder.addProperty(Property.newBuilder()
-          .setName("content")
+      entityBuilder.addProperty(Property.newBuilder().setName("content")
           .setValue(Value.newBuilder().setStringValue(content)));
       return entityBuilder.build();
     }
@@ -112,7 +118,7 @@ public class DatastoreWordCount {
    * <p>
    * Inherits standard configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  public static interface Options extends PipelineOptions {
     @Description("Path of the file to read from and store to Datastore")
     @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
     String getInput();
@@ -136,6 +142,11 @@ public class DatastoreWordCount {
     @Description("Read an existing dataset, do not write first")
     boolean isReadOnly();
     void setReadOnly(boolean value);
+
+    @Description("Number of output shards")
+    @Default.Integer(0) // If the system should choose automatically.
+    int getNumShards();
+    void setNumShards(int value);
   }
 
   /**
@@ -143,14 +154,23 @@ public class DatastoreWordCount {
    * text input.  Forces use of DirectPipelineRunner for local execution mode.
    */
   public static void writeDataToDatastore(Options options) {
-    // Runs locally via DirectPiplineRunner, as writing is not yet implemented
-    // for the other runners which is why we just create a PipelineOptions with defaults.
-    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
-    p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
-     .apply(ParDo.of(new CreateEntityFn(options.getKind())))
-     .apply(DatastoreIO.write().to(options.getDataset()));
+    // Storing the user-specified runner.
+    Class<? extends PipelineRunner<?>> tempRunner = options.getRunner();
 
-    p.run();
+    try {
+      // Runs locally via DirectPiplineRunner, as writing is not yet implemented
+      // for the other runners.
+      options.setRunner(DirectPipelineRunner.class);
+      Pipeline p = Pipeline.create(options);
+      p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
+       .apply(ParDo.of(new CreateEntityFn(options.getKind())))
+       .apply(DatastoreIO.write().to(options.getDataset()));
+
+      p.run();
+    } finally {
+      // Resetting the runner to the user specified class.
+      options.setRunner(tempRunner);
+    }
   }
 
   /**
@@ -163,12 +183,12 @@ public class DatastoreWordCount {
     Query query = q.build();
 
     Pipeline p = Pipeline.create(options);
-    p.apply(DatastoreIO.readFrom(options.getDataset(), query)
-        .named("ReadShakespeareFromDatastore"))
-        .apply(ParDo.of(new GetContentFn()))
-        .apply(new WordCount.CountWords())
-        .apply(TextIO.Write.named("WriteLines").to(options.getOutput()));
-
+    p.apply(DatastoreIO.readFrom(options.getDataset(), query).named("ReadShakespeareFromDatastore"))
+     .apply(ParDo.of(new GetContentFn()))
+     .apply(new WordCount.CountWords())
+     .apply(TextIO.Write.named("WriteLines")
+                        .to(options.getOutput())
+                        .withNumShards(options.getNumShards()));
     p.run();
   }
 
@@ -185,7 +205,7 @@ public class DatastoreWordCount {
 
     if (!options.isReadOnly()) {
       // First example: write data to Datastore for reading later.
-      // Note: this will insert new entries with the given kind.  Existing entries
+      // Note: this will insert new entries with the given kind. Existing entries
       // should be cleared first, or the final counts will contain duplicates.
       // The Datastore Admin tool in the AppEngine console can be used to erase
       // all entries with a particular kind.
