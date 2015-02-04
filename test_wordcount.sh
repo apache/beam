@@ -17,7 +17,8 @@
 set -e
 set -o pipefail
 
-cd $(dirname $0)
+MYDIR=$(dirname $0) || exit 2
+cd $MYDIR
 
 TOPDIR="."
 if [[ $# -gt 0 ]]
@@ -33,7 +34,8 @@ function check_result_hash {
   local outfile_prefix=$2
   local expected=$3
 
-  local actual=$(md5sum $outfile_prefix-* | awk '{print $1}')
+  local actual=$(md5sum $outfile_prefix-* | awk '{print $1}' || \
+    md5 -q $outfile_prefix-*) || exit 2  # OSX
   if [[ "$actual" != "$expected" ]]
   then
     echo "FAIL $name: Output hash mismatch.  Got $actual, expected $expected."
@@ -46,7 +48,8 @@ function check_result_hash {
 
 function get_outfile_prefix {
   local name=$1
-  mktemp --tmpdir=/tmp -u "$name.out.XXXXXXXXXX"
+  # NOTE: mktemp on OSX doesn't support --tmpdir
+  mktemp -u "/tmp/$name.out.XXXXXXXXXX"
 }
 
 function run_via_mvn {
@@ -54,7 +57,7 @@ function run_via_mvn {
   local input=$2
   local expected_hash=$3
 
-  local outfile_prefix="$(get_outfile_prefix "$name")"
+  local outfile_prefix="$(get_outfile_prefix "$name")" || exit 2
   local cmd='mvn exec:java -f '"$TOPDIR"'/pom.xml -pl examples \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
     -Dexec.args="--runner=DirectPipelineRunner --input='"$input"' --output='"$outfile_prefix"'"'
@@ -68,7 +71,7 @@ function run_bundled {
   local input=$2
   local expected_hash=$3
 
-  local outfile_prefix="$(get_outfile_prefix "$name")"
+  local outfile_prefix="$(get_outfile_prefix "$name")" || exit 2
   local cmd='java -cp '"$JAR_FILE"' \
     com.google.cloud.dataflow.examples.WordCount \
     --runner=DirectPipelineRunner \
