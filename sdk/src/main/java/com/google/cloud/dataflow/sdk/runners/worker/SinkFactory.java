@@ -55,6 +55,10 @@ public final class SinkFactory {
                                 AvroSinkFactory.class.getName());
     predefinedSinkFactories.put("ShuffleSink",
                                 ShuffleSinkFactory.class.getName());
+    predefinedSinkFactories.put("PubsubSink",
+                                PubsubSink.class.getName());
+    predefinedSinkFactories.put("WindmillSink",
+                                WindmillSink.class.getName());
   }
 
   /**

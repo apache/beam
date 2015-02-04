@@ -201,6 +201,12 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.cloud.dataflow</groupId>
+      <artifactId>google-cloud-dataflow-java-proto-library-all</artifactId>
+      <version>0.3.150203</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
       <version>v2-rev187-1.19.1</version>
@@ -357,6 +363,18 @@
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
       <version>2.4</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-server</artifactId>
+      <version>9.2.6.v20141205</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-jmx</artifactId>
+      <version>9.2.6.v20141205</version>
     </dependency>
 
     <!-- build dependencies -->

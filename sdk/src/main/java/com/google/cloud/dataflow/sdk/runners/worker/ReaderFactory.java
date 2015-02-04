@@ -63,6 +63,21 @@ public final class ReaderFactory {
         "GroupingShuffleSource", GroupingShuffleReaderFactory.class.getName());
     predefinedReaderFactories.put("InMemorySource", InMemoryReaderFactory.class.getName());
     predefinedReaderFactories.put("BigQuerySource", BigQueryReaderFactory.class.getName());
+    predefinedReaderFactories.put(
+        "com.google.cloud.dataflow.sdk.runners.worker.BucketingWindmillSource",
+        WindowingWindmillReader.class.getName());
+    predefinedReaderFactories.put(
+        "WindowingWindmillReader", WindowingWindmillReader.class.getName());
+    predefinedReaderFactories.put(
+        "com.google.cloud.dataflow.sdk.runners.worker.UngroupedWindmillSource",
+        UngroupedWindmillReader.class.getName());
+    predefinedReaderFactories.put(
+        "UngroupedWindmillReader", UngroupedWindmillReader.class.getName());
+    predefinedReaderFactories.put(
+        "com.google.cloud.dataflow.sdk.runners.worker.PubsubSource",
+        PubsubReader.class.getName());
+    predefinedReaderFactories.put(
+        "PubsubReader", PubsubReader.class.getName());
   }
 
   /**
