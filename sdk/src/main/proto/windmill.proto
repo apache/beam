@@ -211,4 +211,6 @@ message ReportStatsRequest {
   repeated Exception exceptions = 4;
 }
 
-message ReportStatsResponse {}
+message ReportStatsResponse {
+  optional bool failed = 1;
+}
