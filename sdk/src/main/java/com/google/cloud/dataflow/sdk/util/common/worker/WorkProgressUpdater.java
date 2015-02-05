@@ -126,7 +126,8 @@ public abstract class WorkProgressUpdater {
 
     // We send a final progress report in case there was an unreported stop position update.
     if (stopPositionToService != null) {
-      LOG.info("Sending final progress update with unreported stop position.");
+      LOG.info("Sending final progress update with unreported stop position: {} "
+          + "for work item: {}", stopPositionToService, workString());
       reportProgressHelper(); // This call can fail with an exception
     }
 
