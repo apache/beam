@@ -118,9 +118,18 @@ public class DataflowPipelineJob implements PipelineResult {
     int errorGettingMessages = 0;
     int errorGettingJobStatus = 0;
     while (true) {
-      if (System.currentTimeMillis() >= endTime) {
-        // Timed out.
-        return null;
+      // Get the state of the job before listing messages. This ensures we always fetch job
+      // messages after the job finishes to ensure we have all them.
+      Job job = null;
+      try {
+        job = dataflowClient.v1b3().projects().jobs().get(project, jobId).execute();
+      } catch (GoogleJsonResponseException | SocketTimeoutException e) {
+        if (++errorGettingJobStatus > 5) {
+          // We want to continue to wait for the job to finish so
+          // we ignore this error, but warn occasionally if it keeps happening.
+          LOG.warn("There were problems getting job status: ", e);
+          errorGettingJobStatus = 0;
+        }
       }
 
       if (messageHandler != null) {
@@ -145,19 +154,14 @@ public class DataflowPipelineJob implements PipelineResult {
       }
 
       // Check if the job is done.
-      try {
-        Job job = dataflowClient.v1b3().projects().jobs().get(project, jobId).execute();
-        JobState state = JobState.toState(job.getCurrentState());
-        if (state.isTerminal()) {
-          return state;
-        }
-      } catch (GoogleJsonResponseException | SocketTimeoutException e) {
-        if (++errorGettingJobStatus > 5) {
-          // We want to continue to wait for the job to finish so
-          // we ignore this error, but warn occasionally if it keeps happening.
-          LOG.warn("There were problems getting job status: ", e);
-          errorGettingJobStatus = 0;
-        }
+      JobState state = JobState.toState(job.getCurrentState());
+      if (state.isTerminal()) {
+        return state;
+      }
+
+      if (System.currentTimeMillis() >= endTime) {
+        // Timed out.
+        return null;
       }
 
       // Job not yet done.  Wait a little, then check again.
