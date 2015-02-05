@@ -154,9 +154,11 @@ public class DataflowPipelineJob implements PipelineResult {
       }
 
       // Check if the job is done.
-      JobState state = JobState.toState(job.getCurrentState());
-      if (state.isTerminal()) {
-        return state;
+      if (job != null) {
+        JobState state = JobState.toState(job.getCurrentState());
+        if (state.isTerminal()) {
+          return state;
+        }
       }
 
       if (System.currentTimeMillis() >= endTime) {
