@@ -351,10 +351,10 @@ public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
     }
 
     /**
-     * Returns and removes the next window.
+     * Returns the next window.
      */
     public W getWindow() {
-      return windows.poll();
+      return windows.peek();
     }
   }
 }

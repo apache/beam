@@ -32,7 +32,7 @@ import java.util.Collection;
  * WindowSet itself is never exposed to user code, allowing
  * a much simpler (and cheaper) implementation.
  *
- * This WindowSet only works with {@link StreamingGroupAlsoByWindowsDoFn}.
+ * <p>This WindowSet only works with {@link StreamingGroupAlsoByWindowsDoFn}.
  */
 class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
     extends AbstractWindowSet<K, V, Iterable<V>, W> {
@@ -58,6 +58,7 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
   public void remove(W window) throws Exception {
     context.context.stepContext.deleteTagList(
         bufferTag(window, windowFn.windowCoder(), inputCoder));
+    activeWindowManager.removeWindow(window);
   }
 
   @Override

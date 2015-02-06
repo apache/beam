@@ -76,7 +76,7 @@ public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
       K key = element.getKey();
       VI value = element.getValue();
       AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(
-          key, context, new StreamingActiveWindowManager<>(context, windowFn.windowCoder()));
+          key, context, new StreamingActiveWindowManager<>(windowFn, context));
 
       for (BoundedWindow window : context.windows()) {
         windowSet.put((W) window, value);
@@ -86,8 +86,7 @@ public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
     } else {
       TimerOrElement<?> timer = context.element();
       AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(
-          (K) timer.key(), context, new StreamingActiveWindowManager<>(
-              context, windowFn.windowCoder()));
+          (K) timer.key(), context, new StreamingActiveWindowManager<>(windowFn, context));
 
       // Attempt to merge windows before emitting; that may remove the current window under
       // consideration.
@@ -106,26 +105,31 @@ public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
 
   private static class StreamingActiveWindowManager<W extends BoundedWindow>
       implements AbstractWindowSet.ActiveWindowManager<W> {
+    WindowFn<?, W> windowFn;
     DoFnProcessContext<?, ?> context;
-    Coder<W> coder;
 
     StreamingActiveWindowManager(
-        DoFnProcessContext<?, ?> context,
-        Coder<W> coder) {
+        WindowFn<?, W> windowFn,
+        DoFnProcessContext<?, ?> context) {
+      this.windowFn = windowFn;
       this.context = context;
-      this.coder = coder;
     }
 
     @Override
     public void addWindow(W window) throws IOException {
       context.context.stepContext.getExecutionContext().setTimer(
-          WindowUtils.windowToString(window, coder), window.maxTimestamp());
+          WindowUtils.windowToString(window, windowFn.windowCoder()), window.maxTimestamp());
     }
 
     @Override
     public void removeWindow(W window) throws IOException {
+      if (windowFn instanceof PartitioningWindowFn) {
+        // For PartitioningWindowFn, each window triggers exactly one timer.
+        // And, timers are automatically deleted once they are fired.
+        return;
+      }
       context.context.stepContext.getExecutionContext().deleteTimer(
-          WindowUtils.windowToString(window, coder));
+          WindowUtils.windowToString(window, windowFn.windowCoder()));
     }
   }
 }
