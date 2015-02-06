@@ -203,7 +203,7 @@
     <dependency>
       <groupId>com.google.cloud.dataflow</groupId>
       <artifactId>google-cloud-dataflow-java-proto-library-all</artifactId>
-      <version>0.3.150203</version>
+      <version>0.3.150206</version>
     </dependency>
 
     <dependency>
