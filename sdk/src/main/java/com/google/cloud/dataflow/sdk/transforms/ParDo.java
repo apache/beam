@@ -425,7 +425,7 @@ import java.util.Map;
  * <p> The Google Cloud Dataflow service applies fusion as much as
  * possible, greatly reducing the cost of executing pipelines.  As a
  * result, it is essentially "free" to write ParDo operations in a
- * vary modular, composable style, each ParDo operation doing one
+ * very modular, composable style, each ParDo operation doing one
  * clear task, and stringing together sequences of ParDo operations to
  * get the desired overall effect.  Such programs can be easier to
  * understand, easier to unit-test, easier to extend and evolve, and
