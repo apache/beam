@@ -34,12 +34,14 @@ function check_result_hash {
   local outfile_prefix=$2
   local expected=$3
 
-  local actual=$(md5sum $outfile_prefix-* | awk '{print $1}' || \
-    md5 -q $outfile_prefix-*) || exit 2  # OSX
+  local actual=$(sort $outfile_prefix-* | md5sum | awk '{print $1}' || \
+    sort $outfile_prefix-* | md5 -q) || exit 2  # OSX
   if [[ "$actual" != "$expected" ]]
   then
     echo "FAIL $name: Output hash mismatch.  Got $actual, expected $expected."
     PASS=""
+    echo "head hexdump of actual:"
+    head $outfile_prefix-* | hexdump -c
   else
     echo "pass $name"
     # Output files are left behind in /tmp
@@ -107,12 +109,12 @@ echo "Generating bundled JAR file" >&2
 mvn bundle:bundle -f $TOPDIR/pom.xml -pl examples
 check_for_jar_file
 
-run_all_ways wordcount1 "LICENSE" f4af56cd6f6f127536d586a6adcefba1
-run_all_ways wordcount2 "./LICENSE" f4af56cd6f6f127536d586a6adcefba1
-run_all_ways wordcount3 "$PWD/LICENSE" f4af56cd6f6f127536d586a6adcefba1
-run_all_ways wordcount4 "L*N?E*" f4af56cd6f6f127536d586a6adcefba1
-run_all_ways wordcount5 "./LICE*N?E" f4af56cd6f6f127536d586a6adcefba1
-run_all_ways wordcount6 "$PWD/*LIC?NSE" f4af56cd6f6f127536d586a6adcefba1
+run_all_ways wordcount1 "LICENSE" 9e164209cfe94043e3d64e6cc1c11a0c
+run_all_ways wordcount2 "./LICENSE" 9e164209cfe94043e3d64e6cc1c11a0c
+run_all_ways wordcount3 "$PWD/LICENSE" 9e164209cfe94043e3d64e6cc1c11a0c
+run_all_ways wordcount4 "L*N?E*" 9e164209cfe94043e3d64e6cc1c11a0c
+run_all_ways wordcount5 "./LICE*N?E" 9e164209cfe94043e3d64e6cc1c11a0c
+run_all_ways wordcount6 "$PWD/*LIC?NSE" 9e164209cfe94043e3d64e6cc1c11a0c
 
 if [[ ! "$PASS" ]]
 then
