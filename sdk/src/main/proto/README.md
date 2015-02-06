@@ -16,8 +16,8 @@ the binary version of the generated code from these Protocol Buffers:
 Please follow this process for testing changes:
 
 * Make changes to the Protocol Buffer messages in this directory.
-* Use `protoc` to create a new Java library of the compiled generated code.
-* Install that Java binary into your local Maven repository.
+* Use `protoc` to generate the new code, and compile it into a new Java library.
+* Install that Java library into your local Maven repository.
 * Update SDK's `pom.xml` to pick up the newly installed library, instead of
 downloading it from Maven Central.
 
