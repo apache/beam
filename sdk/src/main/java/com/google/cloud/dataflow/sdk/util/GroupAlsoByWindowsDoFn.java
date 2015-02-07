@@ -80,17 +80,21 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
   /**
    * Create a {@link GroupAlsoByWindowsDoFn} using the specified combineFn.
    */
-  private static <K, VA, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, VA, VA, W>
-  createCombine(final WindowFn<?, W> windowFn,
-      final KeyedCombineFn<K, ?, VA, ?> combineFn,
-      final Coder<VA> inputCoder) {
-    return new GABWViaWindowSetDoFn<K, VA, VA, W>(windowFn) {
-    @Override
-    AbstractWindowSet<K, VA, VA, W> createWindowSet(K key,
-        DoFnProcessContext<KV<K, Iterable<WindowedValue<VA>>>, KV<K, VA>> context,
-        BatchActiveWindowManager<W> activeWindowManager) throws Exception {
-        return new CombiningWindowSet<K, VA, W>(
-            key, windowFn, combineFn, inputCoder, context, activeWindowManager);
+  private static <K, VI, VA, VO, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, VI, VO, W>
+  createCombine(
+      final WindowFn<?, W> windowFn,
+      final KeyedCombineFn<K, VI, VA, VO> combineFn,
+      final Coder<K> keyCoder,
+      final Coder<VI> inputCoder) {
+    return new GABWViaWindowSetDoFn<K, VI, VO, W>(windowFn) {
+      @Override
+      AbstractWindowSet<K, VI, VO, W> createWindowSet(
+          K key,
+          DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context,
+          BatchActiveWindowManager<W> activeWindowManager) throws Exception {
+        return CombiningWindowSet.create(
+            key, windowFn, combineFn, keyCoder, inputCoder,
+            (DoFnProcessContext<?, KV<K, VO>>) (DoFnProcessContext) context, activeWindowManager);
       }
     };
   }
@@ -99,8 +103,8 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
    * Construct a {@link GroupAlsoByWindowsDoFn} using the {@code combineFn} if available.
    */
   public static <K, VI, VO, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, VI, VO, W>
-  create(WindowFn<?, W> windowFn, KeyedCombineFn<K, ?, VI, ?> combineFn,
-      Coder<VI> inputCoder) {
+  create(WindowFn<?, W> windowFn, KeyedCombineFn<K, VI, ?, VO> combineFn,
+      Coder<K> keyCoder, Coder<VI> inputCoder) {
     if (combineFn == null) {
       // Without combineFn, it should be the case that VO = Iterable<VI>, so this is safe
       @SuppressWarnings("unchecked")
@@ -108,10 +112,8 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
           (GroupAlsoByWindowsDoFn<K, VI, VO, W>) create(windowFn, inputCoder);
       return fn;
     } else {
-      // With a combineFn, then VI = VO, and we'll use those as the type of the accumulator
-      @SuppressWarnings("unchecked")
       GroupAlsoByWindowsDoFn<K, VI, VO, W> fn =
-          (GroupAlsoByWindowsDoFn<K, VI, VO, W>) createCombine(windowFn, combineFn, inputCoder);
+          createCombine(windowFn, combineFn, keyCoder, inputCoder);
       return fn;
     }
   }

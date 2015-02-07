@@ -20,6 +20,7 @@ import static com.google.cloud.dataflow.sdk.util.WindowUtils.windowToString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
+import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -29,7 +30,6 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
@@ -52,7 +52,7 @@ import java.util.List;
 
 /** Unit tests for {@link StreamingGroupAlsoByWindowsDoFn}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings("rawtypes")
 public class StreamingGroupAlsoByWindowsDoFnTest {
   ExecutionContext execContext;
   CounterSet counters;
@@ -65,15 +65,14 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   }
 
   @Test public void testEmpty() throws Exception {
-    DoFnRunner<TimerOrElement<KV<String, String>>,
-        KV<String, Iterable<String>>, List> runner =
-        makeRunner(FixedWindows.<String>of(Duration.millis(10)), null);
+    DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>, List> runner =
+        makeRunner(FixedWindows.of(Duration.millis(10)));
 
     runner.startBundle();
 
     runner.finishBundle();
 
-    List<KV<String, Iterable<String>>> result = runner.getReceiver(outputTag);
+    List<?> result = runner.getReceiver(outputTag);
 
     assertEquals(0, result.size());
   }
@@ -81,9 +80,9 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testFixedWindows() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>,
         KV<String, Iterable<String>>, List> runner =
-        makeRunner(FixedWindows.<String>of(Duration.millis(10)), null);
+        makeRunner(FixedWindows.of(Duration.millis(10)));
 
-    Coder<IntervalWindow> windowCoder = FixedWindows.<String>of(Duration.millis(10)).windowCoder();
+    Coder<IntervalWindow> windowCoder = FixedWindows.of(Duration.millis(10)).windowCoder();
 
     runner.startBundle();
 
@@ -119,6 +118,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.finishBundle();
 
+    @SuppressWarnings("unchecked")
     List<WindowedValue<KV<String, Iterable<String>>>> result = runner.getReceiver(outputTag);
 
     assertEquals(2, result.size());
@@ -139,10 +139,10 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testSlidingWindows() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>,
         KV<String, Iterable<String>>, List> runner =
-        makeRunner(SlidingWindows.<String>of(Duration.millis(20)).every(Duration.millis(10)), null);
+        makeRunner(SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)));
 
     Coder<IntervalWindow> windowCoder =
-        SlidingWindows.<String>of(Duration.millis(10)).every(Duration.millis(10)).windowCoder();
+        SlidingWindows.of(Duration.millis(10)).every(Duration.millis(10)).windowCoder();
 
     runner.startBundle();
 
@@ -178,6 +178,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.finishBundle();
 
+    @SuppressWarnings("unchecked")
     List<WindowedValue<KV<String, Iterable<String>>>> result = runner.getReceiver(outputTag);
 
     assertEquals(3, result.size());
@@ -204,10 +205,10 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testSessions() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>,
         KV<String, Iterable<String>>, List> runner =
-        makeRunner(Sessions.<String>withGapDuration(Duration.millis(10)), null);
+        makeRunner(Sessions.withGapDuration(Duration.millis(10)));
 
     Coder<IntervalWindow> windowCoder =
-        Sessions.<String>withGapDuration(Duration.millis(10)).windowCoder();
+        Sessions.withGapDuration(Duration.millis(10)).windowCoder();
 
     runner.startBundle();
 
@@ -243,6 +244,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.finishBundle();
 
+    @SuppressWarnings("unchecked")
     List<WindowedValue<KV<String, Iterable<String>>>> result = runner.getReceiver(outputTag);
 
     assertEquals(2, result.size());
@@ -261,84 +263,96 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   }
 
   @Test public void testSessionsCombine() throws Exception {
-    CombineFn combineFn = Combine.SimpleCombineFn.of(new Sum.SumLongFn());
-    DoFnRunner<TimerOrElement<KV<String, Iterable<Long>>>,
-        KV<String, Iterable<Long>>, List> runner =
-        makeRunner(Sessions.<String>withGapDuration(Duration.millis(10)),
-                   combineFn.asKeyedFn());
+    CombineFn<Long, ?, Long> combineFn = Combine.SimpleCombineFn.of(new Sum.SumLongFn());
+    DoFnRunner<TimerOrElement<KV<String, Long>>,
+        KV<String, Long>, List> runner =
+        makeRunner(Sessions.withGapDuration(Duration.millis(10)),
+                   combineFn.<String>asKeyedFn());
 
     Coder<IntervalWindow> windowCoder =
-        Sessions.<String>withGapDuration(Duration.millis(10)).windowCoder();
+        Sessions.withGapDuration(Duration.millis(10)).windowCoder();
 
     runner.startBundle();
 
     runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", (Iterable<Long>) Arrays.asList(1L))),
+        TimerOrElement.element(KV.of("k", 1L)),
         new Instant(0),
         Arrays.asList(window(0, 10))));
 
     runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", (Iterable<Long>) Arrays.asList(2L))),
+        TimerOrElement.element(KV.of("k", 2L)),
         new Instant(5),
         Arrays.asList(window(5, 15))));
 
     runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", (Iterable<Long>) Arrays.asList(3L))),
+        TimerOrElement.element(KV.of("k", 3L)),
         new Instant(15),
         Arrays.asList(window(15, 25))));
 
     runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", (Iterable<Long>) Arrays.asList(4L))),
+        TimerOrElement.element(KV.of("k", 4L)),
         new Instant(3),
         Arrays.asList(window(3, 13))));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, Iterable<Long>>>timer(
+        TimerOrElement.<KV<String, Long>>timer(
             windowToString((IntervalWindow) window(0, 15), windowCoder),
             new Instant(14), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, Iterable<Long>>>timer(
+        TimerOrElement.<KV<String, Long>>timer(
             windowToString((IntervalWindow) window(15, 25), windowCoder),
             new Instant(24), "k")));
 
     runner.finishBundle();
 
-    List<WindowedValue<KV<String, Iterable<Long>>>> result = runner.getReceiver(outputTag);
+    @SuppressWarnings("unchecked")
+    List<WindowedValue<KV<String, Long>>> result = runner.getReceiver(outputTag);
 
     assertEquals(2, result.size());
 
-    WindowedValue<KV<String, Iterable<Long>>> item0 = result.get(0);
+    WindowedValue<KV<String, Long>> item0 = result.get(0);
     assertEquals("k", item0.getValue().getKey());
-    assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder(7L));
+    assertEquals((Long) 7L, item0.getValue().getValue());
     assertEquals(new Instant(14), item0.getTimestamp());
     assertThat(item0.getWindows(), Matchers.contains(window(0, 15)));
 
-    WindowedValue<KV<String, Iterable<Long>>> item1 = result.get(1);
+    WindowedValue<KV<String, Long>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
-    assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder(3L));
+    assertEquals((Long) 3L, item1.getValue().getValue());
     assertEquals(new Instant(24), item1.getTimestamp());
     assertThat(item1.getWindows(), Matchers.contains(window(15, 25)));
   }
 
-  private DoFnRunner makeRunner(
-        WindowFn<? super String, IntervalWindow> windowingStrategy,
-        KeyedCombineFn combineFn) {
-    StreamingGroupAlsoByWindowsDoFn fn =
-        StreamingGroupAlsoByWindowsDoFn.create(windowingStrategy, combineFn, StringUtf8Coder.of());
+  private DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>, List>
+      makeRunner(WindowFn<? super String, IntervalWindow> windowFn) {
+    return makeRunner(windowFn, null, StringUtf8Coder.of());
+  }
 
-    DoFnRunner runner =
+  private DoFnRunner<TimerOrElement<KV<String, Long>>, KV<String, Long>, List> makeRunner(
+        WindowFn<? super String, IntervalWindow> windowFn,
+        KeyedCombineFn<String, Long, ?, Long> combineFn) {
+    return makeRunner(windowFn, combineFn, BigEndianLongCoder.of());
+  }
+
+  private <VI, VO> DoFnRunner<TimerOrElement<KV<String, VI>>, KV<String, VO>, List> makeRunner(
+        WindowFn<? super String, IntervalWindow> windowFn,
+        KeyedCombineFn<String, VI, ?, VO> combineFn,
+        Coder<VI> inputValueCoder) {
+    StreamingGroupAlsoByWindowsDoFn<String, VI, VO, IntervalWindow> fn =
+        StreamingGroupAlsoByWindowsDoFn.create(
+            windowFn, combineFn, StringUtf8Coder.of(), inputValueCoder);
+
+    return
         DoFnRunner.createWithListOutputs(
             PipelineOptionsFactory.create(),
             fn,
             PTuple.empty(),
-            outputTag,
+            (TupleTag<KV<String, VO>>) (TupleTag) outputTag,
             new ArrayList<TupleTag<?>>(),
             execContext.createStepContext("merge"),
             counters.getAddCounterMutator(),
-            new GlobalWindows());
-
-    return runner;
+            windowFn);
   }
 
   private BoundedWindow window(long start, long end) {

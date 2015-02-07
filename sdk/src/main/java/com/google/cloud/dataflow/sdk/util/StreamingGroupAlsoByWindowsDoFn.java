@@ -39,25 +39,29 @@ import java.io.IOException;
 public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
     extends DoFn<TimerOrElement<KV<K, VI>>, KV<K, VO>> implements DoFn.RequiresKeyedState {
 
-  protected WindowFn<?, W> windowFn;
-  protected KeyedCombineFn combineFn;
-  protected Coder<VI> inputCoder;
+  protected final WindowFn<?, W> windowFn;
+  protected final KeyedCombineFn<K, VI, ?, VO> combineFn;
+  protected final Coder<K> keyCoder;
+  protected final Coder<VI> inputValueCoder;
 
   protected StreamingGroupAlsoByWindowsDoFn(
       WindowFn<?, W> windowFn,
-      KeyedCombineFn combineFn,
-      Coder<VI> inputCoder) {
+      KeyedCombineFn<K, VI, ?, VO> combineFn,
+      Coder<K> keyCoder,
+      Coder<VI> inputValueCoder) {
     this.windowFn = windowFn;
     this.combineFn = combineFn;
-    this.inputCoder = inputCoder;
+    this.keyCoder = keyCoder;
+    this.inputValueCoder = inputValueCoder;
   }
 
   public static <K, VI, VO, W extends BoundedWindow>
       StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W> create(
           WindowFn<?, W> windowFn,
-          KeyedCombineFn combineFn,
-          Coder<VI> inputCoder) {
-    return new StreamingGroupAlsoByWindowsDoFn<>(windowFn, combineFn, inputCoder);
+          KeyedCombineFn<K, VI, ?, VO> combineFn,
+          Coder<K> keyCoder,
+          Coder<VI> inputValueCoder) {
+    return new StreamingGroupAlsoByWindowsDoFn<>(windowFn, combineFn, keyCoder, inputValueCoder);
   }
 
   private AbstractWindowSet<K, VI, VO, W> createWindowSet(
@@ -65,27 +69,44 @@ public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
       DoFnProcessContext<?, KV<K, VO>> context,
       AbstractWindowSet.ActiveWindowManager<W> activeWindowManager) throws Exception {
     if (combineFn != null) {
-      return new CombiningWindowSet(
-          key, windowFn, combineFn, inputCoder, context, activeWindowManager);
-    } else if (windowFn instanceof PartitioningWindowFn) {
-      return new PartitionBufferingWindowSet(
-          key, windowFn, inputCoder, context, activeWindowManager);
+      return CombiningWindowSet.create(
+          key, windowFn, combineFn, keyCoder, inputValueCoder, context, activeWindowManager);
     } else {
-      return new BufferingWindowSet(
-          key, windowFn, inputCoder, context, activeWindowManager);
+      // VO == Iterable<VI>
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      DoFnProcessContext<?, KV<K, Iterable<VI>>> iterableContext = (DoFnProcessContext) context;
+      AbstractWindowSet<K, VI, Iterable<VI>, W> iterableWindowSet =
+          createNonCombiningWindowSet(key, iterableContext, activeWindowManager);
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      AbstractWindowSet<K, VI, VO, W> windowSet = (AbstractWindowSet) iterableWindowSet;
+      return windowSet;
+    }
+  }
+
+  private AbstractWindowSet<K, VI, Iterable<VI>, W> createNonCombiningWindowSet(
+      K key,
+      DoFnProcessContext<?, KV<K, Iterable<VI>>> context,
+      AbstractWindowSet.ActiveWindowManager<W> activeWindowManager) throws Exception {
+    if (windowFn instanceof PartitioningWindowFn) {
+      return new PartitionBufferingWindowSet<K, VI, W>(
+        key, windowFn, inputValueCoder, context, activeWindowManager);
+    } else {
+      return new BufferingWindowSet<K, VI, W>(
+          key, windowFn, inputValueCoder, context, activeWindowManager);
     }
   }
 
   @Override
-  public void processElement(ProcessContext processContext) throws Exception {
-    DoFnProcessContext<TimerOrElement<KV<K, VI>>, KV<K, VO>> context =
-        (DoFnProcessContext<TimerOrElement<KV<K, VI>>, KV<K, VO>>) processContext;
+  public void processElement(ProcessContext context) throws Exception {
+    @SuppressWarnings("unchecked")
+    DoFnProcessContext<TimerOrElement<KV<K, VI>>, KV<K, VO>> doFnContext =
+        (DoFnProcessContext<TimerOrElement<KV<K, VI>>, KV<K, VO>>) context;
     if (!context.element().isTimer()) {
       KV<K, VI> element = context.element().element();
       K key = element.getKey();
       VI value = element.getValue();
       AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(
-          key, context, new StreamingActiveWindowManager<>(windowFn, context));
+          key, doFnContext, new StreamingActiveWindowManager<>(windowFn, doFnContext));
 
       for (BoundedWindow window : context.windows()) {
         windowSet.put((W) window, value);
@@ -93,9 +114,9 @@ public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
 
       windowSet.flush();
     } else {
-      TimerOrElement<?> timer = context.element();
+      TimerOrElement<KV<K, VI>> timer = context.element();
       AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(
-          (K) timer.key(), context, new StreamingActiveWindowManager<>(windowFn, context));
+          (K) timer.key(), doFnContext, new StreamingActiveWindowManager<>(windowFn, doFnContext));
 
       // Attempt to merge windows before emitting; that may remove the current window under
       // consideration.

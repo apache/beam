@@ -64,23 +64,26 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler sampler /* unused */)
       throws Exception {
-    final Object windowFn =
+    final Object windowFnObj =
         SerializableUtils.deserializeFromByteArray(
             getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
             "serialized window fn");
-    if (!(windowFn instanceof WindowFn)) {
+    if (!(windowFnObj instanceof WindowFn)) {
       throw new Exception(
-          "unexpected kind of WindowFn: " + windowFn.getClass().getName());
+          "unexpected kind of WindowFn: " + windowFnObj.getClass().getName());
     }
+    final WindowFn windowFn = (WindowFn) windowFnObj;
 
     byte[] serializedCombineFn = getBytes(cloudUserFn, PropertyNames.COMBINE_FN, null);
-    final Object combineFn;
+    final KeyedCombineFn combineFn;
     if (serializedCombineFn != null) {
-      combineFn =
+      Object combineFnObj =
           SerializableUtils.deserializeFromByteArray(serializedCombineFn, "serialized combine fn");
-      if (!(combineFn instanceof KeyedCombineFn)) {
-        throw new Exception("unexpected kind of KeyedCombineFn: " + combineFn.getClass().getName());
+      if (!(combineFnObj instanceof KeyedCombineFn)) {
+        throw new Exception(
+            "unexpected kind of KeyedCombineFn: " + combineFnObj.getClass().getName());
       }
+      combineFn = (KeyedCombineFn) combineFnObj;
     } else {
       combineFn = null;
     }
@@ -98,6 +101,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       throw new Exception(
           "Expected KvCoder for inputCoder, got: " + elemCoder.getClass().getName());
     }
+    final KvCoder kvCoder = (KvCoder) elemCoder;
 
     boolean isStreamingPipeline = false;
     if (options instanceof StreamingOptions) {
@@ -111,9 +115,10 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
         public DoFnInfo createDoFnInfo() {
           return new DoFnInfo(
               StreamingGroupAlsoByWindowsDoFn.create(
-                  (WindowFn) windowFn,
-                  (KeyedCombineFn) combineFn,
-                  ((KvCoder) elemCoder).getValueCoder()),
+                  windowFn,
+                  combineFn,
+                  kvCoder.getKeyCoder(),
+                  kvCoder.getValueCoder()),
               null);
         }
       };
@@ -127,9 +132,10 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
         public DoFnInfo createDoFnInfo() {
           return new DoFnInfo(
               GroupAlsoByWindowsDoFn.create(
-                  (WindowFn) windowFn,
-                  (KeyedCombineFn) combineFn,
-                  elemCoder),
+                  windowFn,
+                  combineFn,
+                  kvCoder.getKeyCoder(),
+                  kvCoder.getValueCoder()),
               null);
         }
       };
