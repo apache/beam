@@ -381,19 +381,14 @@ public class StreamingDataflowWorker {
         t.printStackTrace();
         lastException.set(t);
         LOG.fine("Failed work: " + work);
-        if (reportFailure(computation, work, t)) {
-          // Try again, after some delay and at the end of the queue to avoid a tight loop.
-          sleep(60000);
-          executor.forceExecute(new Runnable() {
-              public void run() {
-                process(computation, work);
-              }
-            });
-        } else {
-          // If we failed to report the error, the item is invalid and should
-          // not be retried internally.  It will be retried at the higher level.
-          LOG.fine("Aborting processing for work token: " + work.getWorkToken());
-        }
+        reportFailure(computation, work, t);
+        // Try again, but go to the end of the queue to avoid a tight loop.
+        sleep(60000);
+        executor.forceExecute(new Runnable() {
+            public void run() {
+              process(computation, work);
+            }
+          });
       }
       return;
     }
@@ -534,15 +529,13 @@ public class StreamingDataflowWorker {
     return builder.build();
   }
 
-  private boolean reportFailure(String computation, Windmill.WorkItem work, Throwable t) {
-    Windmill.ReportStatsResponse response =
-        windmillServer.reportStats(Windmill.ReportStatsRequest.newBuilder()
-            .setComputationId(computation)
-            .setKey(work.getKey())
-            .setWorkToken(work.getWorkToken())
-            .addExceptions(buildExceptionReport(t))
-            .build());
-    return response.getFailed();
+  private void reportFailure(String computation, Windmill.WorkItem work, Throwable t) {
+    windmillServer.reportStats(Windmill.ReportStatsRequest.newBuilder()
+        .setComputationId(computation)
+        .setKey(work.getKey())
+        .setWorkToken(work.getWorkToken())
+        .addExceptions(buildExceptionReport(t))
+        .build());
   }
 
   private static class WorkerAndContext {
