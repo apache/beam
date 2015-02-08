@@ -22,6 +22,10 @@ package com.google.cloud.dataflow.sdk.runners;
  * this exception contains information about the pre-existing updated job.
  */
 public class DataflowJobAlreadyUpdatedException extends DataflowJobException {
+  /**
+   * Create a new {@code DataflowJobAlreadyUpdatedException} with the specified {@link
+   * DataflowPipelineJob} and message.
+   */
   public DataflowJobAlreadyUpdatedException(
       DataflowPipelineJob job, String message) {
     super(job, message, null);

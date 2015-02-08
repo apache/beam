@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.runners;
 
+import com.google.auto.service.AutoService;
 import java.util.ServiceLoader;
 
 /**
@@ -29,9 +30,11 @@ import java.util.ServiceLoader;
  * {@link Class#getSimpleName() simple name} must be unique.
  *
  * <p>It is optional but recommended to use one of the many build time tools such as
- * {@link com.google.auto.service.AutoService} to generate the necessary
- * META-INF files automatically.
+ * {@link AutoService} to generate the necessary META-INF files automatically.
  */
 public interface PipelineRunnerRegistrar {
+  /**
+   * Get the set of {@link PipelineRunner PipelineRunners} to register.
+   */
   public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners();
 }

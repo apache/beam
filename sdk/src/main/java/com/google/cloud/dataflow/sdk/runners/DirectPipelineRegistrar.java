@@ -30,7 +30,7 @@ public class DirectPipelineRegistrar {
   private DirectPipelineRegistrar() { }
 
   /**
-   * Register the {@link DirectPipelineOptions}.
+   * Register the {@link DirectPipelineRunner}.
    */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
@@ -41,7 +41,7 @@ public class DirectPipelineRegistrar {
   }
 
   /**
-   * Register the {@link DirectPipelineRunner}.
+   * Register the {@link DirectPipelineOptions}.
    */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {

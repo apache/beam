@@ -31,9 +31,8 @@ import java.util.Collections;
 import java.util.Map;
 
 /**
- * An {@code AggregatorPipelineExtractor} retrieves {@link Aggregator Aggregators} at each
- * {@link ParDo} and returns a {@link Map} of {@link Aggregator} to the
- * {@link PTransform PTransforms} in which it is present.
+ * Retrieves {@link Aggregator Aggregators} at each {@link ParDo} and returns a {@link Map} of
+ * {@link Aggregator} to the {@link PTransform PTransforms} in which it is present.
  */
 public class AggregatorPipelineExtractor {
   private final Pipeline pipeline;
@@ -46,7 +45,7 @@ public class AggregatorPipelineExtractor {
   }
 
   /**
-   * Returns a {@link Map} mapping each {@link Aggregator} in the {@link Pipeline} to the {@link
+   * Returns a {@link Map} between each {@link Aggregator} in the {@link Pipeline} to the {@link
    * PTransform PTransforms} in which it is used.
    */
   public Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> getAggregatorSteps() {

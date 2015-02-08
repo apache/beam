@@ -22,11 +22,19 @@ package com.google.cloud.dataflow.sdk.runners;
 public class DataflowJobUpdatedException extends DataflowJobException {
   private DataflowPipelineJob replacedByJob;
 
+  /**
+   * Create a new {@code DataflowJobUpdatedException} with the specified original {@link
+   * DataflowPipelineJob}, message, and replacement {@link DataflowPipelineJob}.
+   */
   public DataflowJobUpdatedException(
       DataflowPipelineJob job, String message, DataflowPipelineJob replacedByJob) {
     this(job, message, replacedByJob, null);
   }
 
+  /**
+   * Create a new {@code DataflowJobUpdatedException} with the specified original {@link
+   * DataflowPipelineJob}, message, replacement {@link DataflowPipelineJob}, and cause.
+   */
   public DataflowJobUpdatedException(
       DataflowPipelineJob job, String message, DataflowPipelineJob replacedByJob, Throwable cause) {
     super(job, message, cause);

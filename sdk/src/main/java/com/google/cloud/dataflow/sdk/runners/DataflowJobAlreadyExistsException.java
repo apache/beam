@@ -23,6 +23,10 @@ package com.google.cloud.dataflow.sdk.runners;
  * about the pre-existing job.
  */
 public class DataflowJobAlreadyExistsException extends DataflowJobException {
+  /**
+   * Create a new {@code DataflowJobAlreadyExistsException} with the specified {@link
+   * DataflowPipelineJob} and message.
+   */
   public DataflowJobAlreadyExistsException(
       DataflowPipelineJob job, String message) {
     super(job, message, null);

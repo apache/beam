@@ -46,7 +46,7 @@ import javax.annotation.Nullable;
  *
  * <p><h3>Permissions</h3>
  * When reading from a Dataflow source or writing to a Dataflow sink using
- * {@code BlockingDataflowPipelineRunner}, the Google cloudservices account and the Google compute
+ * {@code BlockingDataflowPipelineRunner}, the Google cloud services account and the Google compute
  * engine service account of the GCP project running the Dataflow Job will need access to the
  * corresponding source/sink.
  *
@@ -167,7 +167,7 @@ public class BlockingDataflowPipelineRunner extends
   }
 
   /**
-   * Sets callbacks to invoke during execution see {@code DataflowPipelineRunnerHooks}.
+   * Sets callbacks to invoke during execution. See {@link DataflowPipelineRunnerHooks}.
    */
   @Experimental
   public void setHooks(DataflowPipelineRunnerHooks hooks) {

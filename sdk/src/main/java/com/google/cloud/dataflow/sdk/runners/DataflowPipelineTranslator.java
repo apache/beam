@@ -175,6 +175,9 @@ public class DataflowPipelineTranslator {
     }
   }
 
+  /**
+   * Renders a {@link Job} as a string.
+   */
   public static String jobToString(Job job) {
     try {
       return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(job);

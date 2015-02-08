@@ -20,10 +20,18 @@ package com.google.cloud.dataflow.sdk.runners;
  * Signals that a job run by a {@link BlockingDataflowPipelineRunner} was updated during execution.
  */
 public class DataflowJobCancelledException extends DataflowJobException {
+  /**
+   * Create a new {@code DataflowJobAlreadyUpdatedException} with the specified {@link
+   * DataflowPipelineJob} and message.
+   */
   public DataflowJobCancelledException(DataflowPipelineJob job, String message) {
     super(job, message, null);
   }
 
+  /**
+   * Create a new {@code DataflowJobAlreadyUpdatedException} with the specified {@link
+   * DataflowPipelineJob}, message, and cause.
+   */
   public DataflowJobCancelledException(DataflowPipelineJob job, String message, Throwable cause) {
     super(job, message, cause);
   }

@@ -990,6 +990,9 @@ public class DirectPipelineRunner
     testUnorderedness = options.isTestUnorderedness();
   }
 
+  /**
+   * Get the options used in this {@link Pipeline}.
+   */
   public DirectPipelineOptions getPipelineOptions() {
     return options;
   }

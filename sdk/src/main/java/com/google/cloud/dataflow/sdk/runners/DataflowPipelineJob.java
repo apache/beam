@@ -118,10 +118,16 @@ public class DataflowPipelineJob implements PipelineResult {
     this.aggregatorTransforms = aggregatorTransforms;
   }
 
+  /**
+   * Get the id of this job.
+   */
   public String getJobId() {
     return jobId;
   }
 
+  /**
+   * Get the project this job exists in.
+   */
   public String getProjectId() {
     return projectId;
   }
@@ -142,6 +148,9 @@ public class DataflowPipelineJob implements PipelineResult {
     return replacedByJob;
   }
 
+  /**
+   * Get the Cloud Dataflow API Client used by this job.
+   */
   public Dataflow getDataflowClient() {
     return dataflowClient;
   }

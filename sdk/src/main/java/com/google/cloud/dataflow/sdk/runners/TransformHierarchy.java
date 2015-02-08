@@ -36,6 +36,9 @@ public class TransformHierarchy {
   private final Deque<TransformTreeNode> transformStack = new LinkedList<>();
   private final Map<PInput, TransformTreeNode> producingTransformNode = new HashMap<>();
 
+  /**
+   * Create a {@code TransformHierarchy} containing a root node.
+   */
   public TransformHierarchy() {
     // First element in the stack is the root node, holding all child nodes.
     transformStack.add(new TransformTreeNode(null, null, "", null));
