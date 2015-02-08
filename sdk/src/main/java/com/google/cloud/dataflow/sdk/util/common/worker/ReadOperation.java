@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A read operation.
- *
+ * <p>
  * Its start() method iterates through all elements of the source
  * and emits them on its output.
  */
@@ -227,12 +227,18 @@ public class ReadOperation extends Operation {
    * {@code null} if the source iterator has not been initialized
    */
   public Reader.Position proposeStopPosition(Reader.Progress proposedStopPosition) {
-    synchronized (sourceIteratorLock) {
-      if (readerIterator == null) {
-        LOG.warn("Iterator has not been initialized, returning null stop position.");
+    synchronized (initializationStateLock) {
+      if (isFinished()) {
+        LOG.warn("Iterator is in the Finished state, returning null stop position.");
         return null;
       }
-      return readerIterator.updateStopPosition(proposedStopPosition);
+      synchronized (sourceIteratorLock) {
+        if (readerIterator == null) {
+          LOG.warn("Iterator has not been initialized, returning null stop position.");
+          return null;
+        }
+        return readerIterator.updateStopPosition(proposedStopPosition);
+      }
     }
   }
 

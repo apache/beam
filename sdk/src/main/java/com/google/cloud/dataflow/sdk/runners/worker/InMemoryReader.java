@@ -140,16 +140,20 @@ public class InMemoryReader<T> extends Reader<T> {
 
       Long recordIndex = stopPosition.getRecordIndex();
       if (recordIndex == null) {
-        LOG.warn("A stop position other than record index is not supported in InMemoryReader.");
+        LOG.warn("A proposed stop position must be a record index for InMemoryReader.");
         return null;
       }
       if (recordIndex <= index || recordIndex >= endPosition) {
         // Proposed stop position is not after the current position or proposed
         // stop position is after the current stop (end) position: No stop
         // position update.
+        LOG.warn("The proposed stop position " + recordIndex
+            + " is not between the current stop position " + index
+            + " and the current stop position " + endPosition);
         return null;
       }
 
+      LOG.info("Updated the stop position to record " + recordIndex);
       this.endPosition = recordIndex.intValue();
       return cloudPositionToReaderPosition(stopPosition);
     }

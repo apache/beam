@@ -197,7 +197,6 @@ public class ReadOperationTest {
         cloudProgressToReaderProgress(makeApproximateProgress(proposedStopPosition))));
 
     readOperation.start();
-    readOperation.finish();
 
     TestTextReader.TestTextReaderIterator testIterator =
         (TestTextReader.TestTextReaderIterator) readOperation.readerIterator;
@@ -218,6 +217,11 @@ public class ReadOperationTest {
         receiver.progresses,
         contains(
             makeApproximateProgress(1L), makeApproximateProgress(2L), makeApproximateProgress(3L)));
+
+    readOperation.finish();
+
+    Assert.assertNull(readOperation.proposeStopPosition(
+        cloudProgressToReaderProgress(makeApproximateProgress(proposedStopPosition))));
   }
 
   @Test

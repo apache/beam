@@ -21,14 +21,14 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 /**
  * The abstract base class for Operations, which correspond to
  * Instructions in the original MapTask InstructionGraph.
- *
+ * <p>
  * Call start() to start the operation.
- *
+ * <p>
  * A read operation's start() method actually reads the data, and in
  * effect runs the pipeline.
- *
+ * <p>
  * Call finish() to finish the operation.
- *
+ * <p>
  * Since both start() and finish() may call process() on
  * this operation's consumers, start an operation after
  * starting its consumers, and finish an operation before
@@ -61,6 +61,11 @@ public abstract class Operation {
   public InitializationState initializationState =
       InitializationState.UNSTARTED;
 
+  /** The lock protecting the initialization state. InitializationState is only
+   * written from one thread, but can be read by concurrent threads.
+   */
+  protected final Object initializationStateLock = new Object();
+
   protected final StateSampler stateSampler;
 
   protected final int startState;
@@ -80,7 +85,7 @@ public abstract class Operation {
   }
 
   /**
-   * Checks that this oepration is not yet started, throwing an
+   * Checks that this operation is not yet started, throwing an
    * exception otherwise.
    */
   void checkUnstarted() {
@@ -93,7 +98,7 @@ public abstract class Operation {
   }
 
   /**
-   * Checks that this oepration has been started but not yet finished,
+   * Checks that this operation has been started but not yet finished,
    * throwing an exception otherwise.
    */
   void checkStarted() {
@@ -104,7 +109,7 @@ public abstract class Operation {
   }
 
   /**
-   * Checks that this oepration has been finished, throwing an
+   * Checks that this operation has been finished, throwing an
    * exception otherwise.
    */
   void checkFinished() {
@@ -115,12 +120,21 @@ public abstract class Operation {
   }
 
   /**
+   * Returns true if this Operation has been finished.
+   */
+  boolean isFinished() {
+    return (initializationState == InitializationState.FINISHED);
+  }
+
+  /**
    * Starts this Operation's execution.  Called after all successsor
    * consuming operations have been started.
    */
   public void start() throws Exception {
-    checkUnstarted();
-    initializationState = InitializationState.STARTED;
+    synchronized (initializationStateLock) {
+      checkUnstarted();
+      initializationState = InitializationState.STARTED;
+    }
   }
 
   /**
@@ -128,8 +142,10 @@ public abstract class Operation {
    * predecessor producing operations have been finished.
    */
   public void finish() throws Exception {
-    checkStarted();
-    initializationState = InitializationState.FINISHED;
+    synchronized (initializationStateLock) {
+      checkStarted();
+      initializationState = InitializationState.FINISHED;
+    }
   }
 
   /**

@@ -207,22 +207,26 @@ public abstract class FileBasedReader<T> extends Reader<T> {
 
       Long byteOffset = stopPosition.getPosition().getByteOffset();
       if (byteOffset == null) {
-        LOG.warn("A stop position other than byte offset is not supported in a "
-            + "file-based Source.");
+        LOG.warn("A proposed stop position must be a byte offset for a file-based Source.");
         return null;
       }
       if (byteOffset <= offset) {
         // Proposed stop position is not after the current position:
         // No stop position update.
+        LOG.warn("The proposed stop position " + byteOffset
+            + " is past the current position " + offset);
         return null;
       }
 
       if (endOffset != null && byteOffset >= endOffset) {
         // Proposed stop position is after the current stop (end) position: No
         // stop position update.
+        LOG.warn("The proposed stop position " + byteOffset
+            + " is after the current stop position " + endOffset);
         return null;
       }
 
+      LOG.info("Updated the stop position to offset " + byteOffset);
       this.endOffset = byteOffset;
       return cloudPositionToReaderPosition(stopPosition.getPosition());
     }
