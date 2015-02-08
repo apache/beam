@@ -17,9 +17,9 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceOperationResponseToSourceOperationResponse;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceOperationResponseToCloudSourceOperationResponse;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourcePositionToCloudPosition;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.api.services.dataflow.model.Status;
@@ -219,8 +219,8 @@ public class DataflowWorker {
 
   private void reportStatus(DataflowWorkerHarnessOptions options, String status, WorkItem workItem,
       @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
-      @Nullable SourceFormat.OperationResponse operationResponse,
-      @Nullable List<Status> errors) throws IOException {
+      @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors)
+      throws IOException {
     LOG.info("{} processing work item {}", status, uniqueId(workItem));
     WorkItemStatus workItemStatus = buildStatus(workItem, true/*completed*/, counters, metrics,
         options, null, null, operationResponse, errors);
@@ -230,9 +230,8 @@ public class DataflowWorker {
   static WorkItemStatus buildStatus(WorkItem workItem, boolean completed,
       @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
       DataflowWorkerHarnessOptions options, @Nullable Reader.Progress progress,
-      @Nullable Reader.Position stopPosition,
-      @Nullable SourceFormat.OperationResponse operationResponse,
-      @Nullable List<Status> errors) {
+      @Nullable Reader.ForkResult forkResult,
+      @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors) {
     WorkItemStatus status = new WorkItemStatus();
     status.setWorkItemId(Long.toString(workItem.getId()));
     status.setCompleted(completed);
@@ -272,10 +271,13 @@ public class DataflowWorker {
     }
 
     if (progress != null) {
-      status.setProgress(sourceProgressToCloudProgress(progress));
+      status.setProgress(readerProgressToCloudProgress(progress));
     }
-    if (stopPosition != null) {
-      status.setStopPosition(sourcePositionToCloudPosition(stopPosition));
+    if (forkResult instanceof Reader.ForkResultWithPosition) {
+      Reader.ForkResultWithPosition asPosition = (Reader.ForkResultWithPosition) forkResult;
+      status.setStopPosition(toCloudPosition(asPosition.getAcceptedPosition()));
+    } else if (forkResult != null) {
+      throw new IllegalArgumentException("Unexpected type of fork result: " + forkResult);
     }
 
     if (workItem.getSourceOperationTask() != null) {

@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.forkRequestToApproximateProgress;
 
 import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.ApproximateProgress;
@@ -225,39 +225,41 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
      * {@code KV<K, Reiterable<V>>} to be returned by the {@link GroupingShuffleReaderIterator}.
      */
     @Override
-    public Position updateStopPosition(Progress proposedStopPosition) {
-      checkNotNull(proposedStopPosition);
-      com.google.api.services.dataflow.model.Position stopCloudPosition =
-          sourceProgressToCloudProgress(proposedStopPosition).getPosition();
-      if (stopCloudPosition == null) {
-        LOG.warn("A stop position other than a Position is not supported now.");
+    public ForkResult requestFork(ForkRequest forkRequest) {
+      checkNotNull(forkRequest);
+      ApproximateProgress forkProgress = forkRequestToApproximateProgress(forkRequest);
+      com.google.api.services.dataflow.model.Position forkPosition = forkProgress.getPosition();
+      if (forkPosition == null) {
+        LOG.warn("GroupingShuffleReader only supports fork at a Position. Requested: {}",
+            forkRequest);
         return null;
       }
-
-      if (stopCloudPosition.getShufflePosition() == null) {
-        LOG.warn("A stop position other than shuffle position is not supported in "
-            + "a grouping shuffle source: " + stopCloudPosition.toString());
+      String forkShufflePosition = forkPosition.getShufflePosition();
+      if (forkShufflePosition == null) {
+        LOG.warn("GroupingShuffleReader only supports fork at a shuffle position. Requested: {}",
+            forkPosition);
         return null;
       }
       ByteArrayShufflePosition newStopPosition =
-          ByteArrayShufflePosition.fromBase64(stopCloudPosition.getShufflePosition());
-
+          ByteArrayShufflePosition.fromBase64(forkShufflePosition);
       if (newStopPosition.compareTo(promisedPosition) <= 0) {
-        LOG.warn("Proposed stop position: " + stopCloudPosition.getShufflePosition()
-            + " <= promised position: " + promisedPosition.encodeBase64());
+        LOG.info("Already progressed to promised shuffle position {} "
+            + "which is after the requested fork shuffle position {}",
+            promisedPosition.encodeBase64(), forkShufflePosition);
         return null;
       }
 
       if (this.stopPosition != null && newStopPosition.compareTo(this.stopPosition) >= 0) {
-        LOG.warn("Proposed stop position: " + stopCloudPosition.getShufflePosition()
+        throw new IllegalArgumentException(
+            "Fork requested at a shuffle position beyond the end of the current range: "
+            + forkShufflePosition
             + " >= current stop position: " + this.stopPosition.encodeBase64());
-        return null;
       }
 
       this.stopPosition = newStopPosition;
-      LOG.info("Updated the stop position to " + stopCloudPosition.getShufflePosition());
+      LOG.info("Forked GroupingShuffleReader at {}", forkShufflePosition);
 
-      return cloudPositionToReaderPosition(stopCloudPosition);
+      return new ForkResultWithPosition(cloudPositionToReaderPosition(forkPosition));
     }
 
     /**

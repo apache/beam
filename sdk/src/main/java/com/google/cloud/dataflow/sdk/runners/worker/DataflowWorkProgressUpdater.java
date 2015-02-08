@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.DataflowWorker.buildStatus;
 import static com.google.cloud.dataflow.sdk.runners.worker.DataflowWorker.uniqueId;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toForkRequest;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudDuration;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudTime;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
@@ -75,30 +75,23 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   @Override
   protected void reportProgressHelper() throws Exception {
     WorkItemStatus status = buildStatus(workItem, false/*completed*/, worker.getOutputCounters(),
-        worker.getOutputMetrics(), options, worker.getWorkerProgress(), stopPositionToService,
+        worker.getOutputMetrics(), options, worker.getWorkerProgress(), forkResultToReport,
         null/*sourceOperationResponse*/, null/*errors*/);
     status.setRequestedLeaseDuration(toCloudDuration(Duration.millis(requestedLeaseDurationMs)));
 
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
     if (result != null) {
       // Resets state after a successful progress report.
-      stopPositionToService = null;
+      forkResultToReport = null;
 
       progressReportIntervalMs = nextProgressReportInterval(
           fromCloudDuration(workItem.getReportStatusInterval()).getMillis(),
           leaseRemainingTime(getLeaseExpirationTimestamp(result)));
 
       ApproximateProgress suggestedStopPoint = result.getSuggestedStopPoint();
-      if (suggestedStopPoint == null && result.getSuggestedStopPosition() != null) {
-        suggestedStopPoint =
-            new ApproximateProgress().setPosition(result.getSuggestedStopPosition());
-      }
-
       if (suggestedStopPoint != null) {
-        LOG.info("Proposing stop progress on work unit {} at proposed stopping point {}",
-            workString(), suggestedStopPoint);
-        stopPositionToService =
-            worker.proposeStopPosition(cloudProgressToReaderProgress(suggestedStopPoint));
+        LOG.info("Proposing fork of work unit {} at {}", workString(), suggestedStopPoint);
+        forkResultToReport = worker.requestFork(toForkRequest(suggestedStopPoint));
       }
     }
   }

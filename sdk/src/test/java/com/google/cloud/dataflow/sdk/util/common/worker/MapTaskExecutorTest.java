@@ -16,10 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.approximateProgressAtIndex;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.forkRequestAtIndex;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionAtIndex;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromForkResult;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourcePositionToCloudPosition;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.forkRequestToApproximateProgress;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
@@ -96,10 +100,10 @@ public class MapTaskExecutorTest {
     }
 
     @Override
-    public Reader.Position proposeStopPosition(Reader.Progress proposedStopPosition) {
+    public Reader.ForkResult requestFork(Reader.ForkRequest forkRequest) {
       // Fakes the return with the same position as proposed.
-      return cloudPositionToReaderPosition(
-          sourceProgressToCloudProgress(proposedStopPosition).getPosition());
+      return new Reader.ForkResultWithPosition(cloudPositionToReaderPosition(
+          forkRequestToApproximateProgress(forkRequest).getPosition()));
     }
 
     public void setProgress(ApproximateProgress progress) {
@@ -194,7 +198,7 @@ public class MapTaskExecutorTest {
         new MapTaskExecutor(new ArrayList<Operation>(), counterSet, stateSampler);
 
     try {
-      ReadOperation readOperation = executor.getReadOperation();
+      executor.getReadOperation();
       Assert.fail("Expected IllegalStateException.");
     } catch (IllegalStateException e) {
       // Exception expected
@@ -208,7 +212,7 @@ public class MapTaskExecutorTest {
     executor = new MapTaskExecutor(operations, counterSet, stateSampler);
 
     try {
-      ReadOperation readOperation = executor.getReadOperation();
+      executor.getReadOperation();
       Assert.fail("Expected IllegalStateException.");
     } catch (IllegalStateException e) {
       // Exception expected
@@ -235,22 +239,11 @@ public class MapTaskExecutorTest {
     MapTaskExecutor executor =
         new MapTaskExecutor(Arrays.asList(new Operation[] {operation}), counterSet, stateSampler);
 
-    operation.setProgress(new ApproximateProgress().setPosition(makePosition(1L)));
+    operation.setProgress(approximateProgressAtIndex(1L));
+    Assert.assertEquals(positionAtIndex(1L), positionFromProgress(executor.getWorkerProgress()));
     Assert.assertEquals(
-        makePosition(1L),
-        sourceProgressToCloudProgress(executor.getWorkerProgress()).getPosition());
-    Assert.assertEquals(
-        makePosition(1L),
-        sourcePositionToCloudPosition(executor.proposeStopPosition(cloudProgressToReaderProgress(
-            new ApproximateProgress().setPosition(makePosition(1L))))));
+        positionAtIndex(1L), positionFromForkResult(executor.requestFork(forkRequestAtIndex(1L))));
 
     executor.close();
-  }
-
-  private com.google.api.services.dataflow.model.Position makePosition(long index) {
-    com.google.api.services.dataflow.model.Position position =
-        new com.google.api.services.dataflow.model.Position();
-    position.setRecordIndex(index);
-    return position;
   }
 }

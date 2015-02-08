@@ -16,13 +16,22 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourcePositionToCloudPosition;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.forkRequestAtByteOffset;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.forkRequestAtPosition;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromForkResult;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.TextualIntegerCoder;
@@ -33,7 +42,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
-import org.junit.Assert;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -61,6 +70,7 @@ public class TextReaderTest {
 
   static {
     long sumLen = 0L;
+
     for (String s : fileContent) {
       sumLen += s.length();
     }
@@ -83,11 +93,10 @@ public class TextReaderTest {
 
   @Test
   public void testReadEmptyFile() throws Exception {
-    TextReader<String> textReader =
-        new TextReader<>(tmpFolder.newFile().getPath(), true, null, null, StringUtf8Coder.of(),
-            TextIO.CompressionType.UNCOMPRESSED);
+    TextReader<String> textReader = new TextReader<>(tmpFolder.newFile().getPath(), true, null,
+        null, StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
     try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
-      Assert.assertFalse(iterator.hasNext());
+      assertFalse(iterator.hasNext());
     }
   }
 
@@ -136,66 +145,62 @@ public class TextReaderTest {
     File tmpFile = initTestFile();
 
     {
-      TextReader<String> textReader =
-          new TextReader<>(tmpFile.getPath(), false, 11L, null, StringUtf8Coder.of(),
-              TextIO.CompressionType.UNCOMPRESSED);
+      TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, 11L, null,
+          StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
       try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
-        Assert.assertEquals("Second line\r\n", iterator.next());
-        Assert.assertEquals("Third line", iterator.next());
-        Assert.assertFalse(iterator.hasNext());
+        assertEquals("Second line\r\n", iterator.next());
+        assertEquals("Third line", iterator.next());
+        assertFalse(iterator.hasNext());
         // The first '1' in the array represents the reading of '\n' between first and
         // second line, to confirm that we are reading from the beginning of a record.
-        Assert.assertEquals(Arrays.asList(1, 13, 10), observer.getActualSizes());
+        assertEquals(Arrays.asList(1, 13, 10), observer.getActualSizes());
       }
     }
 
     {
-      TextReader<String> textReader =
-          new TextReader<>(tmpFile.getPath(), false, 20L, null, StringUtf8Coder.of(),
-              TextIO.CompressionType.UNCOMPRESSED);
+      TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, 20L, null,
+          StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
       try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
-        Assert.assertEquals("Third line", iterator.next());
-        Assert.assertFalse(iterator.hasNext());
+        assertEquals("Third line", iterator.next());
+        assertFalse(iterator.hasNext());
         // The first '5' in the array represents the reading of a portion of the second
         // line, which had to be read to find the beginning of the third line.
-        Assert.assertEquals(Arrays.asList(5, 10), observer.getActualSizes());
+        assertEquals(Arrays.asList(5, 10), observer.getActualSizes());
       }
     }
 
     {
-      TextReader<String> textReader =
-          new TextReader<>(tmpFile.getPath(), true, 0L, 20L, StringUtf8Coder.of(),
-              TextIO.CompressionType.UNCOMPRESSED);
+      TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), true, 0L, 20L,
+          StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
       try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
-        Assert.assertEquals("First line", iterator.next());
-        Assert.assertEquals("Second line", iterator.next());
-        Assert.assertFalse(iterator.hasNext());
-        Assert.assertEquals(Arrays.asList(11, 13), observer.getActualSizes());
+        assertEquals("First line", iterator.next());
+        assertEquals("Second line", iterator.next());
+        assertFalse(iterator.hasNext());
+        assertEquals(Arrays.asList(11, 13), observer.getActualSizes());
       }
     }
 
     {
-      TextReader<String> textReader =
-          new TextReader<>(tmpFile.getPath(), true, 1L, 20L, StringUtf8Coder.of(),
-              TextIO.CompressionType.UNCOMPRESSED);
+      TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), true, 1L, 20L,
+          StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
       try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
-        Assert.assertEquals("Second line", iterator.next());
-        Assert.assertFalse(iterator.hasNext());
+        assertEquals("Second line", iterator.next());
+        assertFalse(iterator.hasNext());
         // The first '11' in the array represents the reading of the entire first
         // line, which had to be read to find the beginning of the second line.
-        Assert.assertEquals(Arrays.asList(11, 13), observer.getActualSizes());
+        assertEquals(Arrays.asList(11, 13), observer.getActualSizes());
       }
     }
   }
@@ -214,34 +219,32 @@ public class TextReaderTest {
       // 3L is after the first line if counting codepoints, but within
       // the first line if counting chars.  So correct behavior is to return
       // just one line, since offsets are in chars, not codepoints.
-      TextReader<String> textReader =
-          new TextReader<>(tmpFile.getPath(), true, 0L, 3L, StringUtf8Coder.of(),
-              TextIO.CompressionType.UNCOMPRESSED);
+      TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), true, 0L, 3L,
+          StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
       try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
-        Assert.assertArrayEquals("€".getBytes("UTF-8"), iterator.next().getBytes("UTF-8"));
-        Assert.assertFalse(iterator.hasNext());
-        Assert.assertEquals(Arrays.asList(4), observer.getActualSizes());
+        assertArrayEquals("€".getBytes("UTF-8"), iterator.next().getBytes("UTF-8"));
+        assertFalse(iterator.hasNext());
+        assertEquals(Arrays.asList(4), observer.getActualSizes());
       }
     }
 
     {
       // Starting location is mid-way into a codepoint.
       // Ensures we don't fail when skipping over an incomplete codepoint.
-      TextReader<String> textReader =
-          new TextReader<>(tmpFile.getPath(), true, 2L, null, StringUtf8Coder.of(),
-              TextIO.CompressionType.UNCOMPRESSED);
+      TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), true, 2L, null,
+          StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
       try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
-        Assert.assertArrayEquals("¢".getBytes("UTF-8"), iterator.next().getBytes("UTF-8"));
-        Assert.assertFalse(iterator.hasNext());
+        assertArrayEquals("¢".getBytes("UTF-8"), iterator.next().getBytes("UTF-8"));
+        assertFalse(iterator.hasNext());
         // The first '3' in the array represents the reading of a portion of the first
         // line, which had to be read to find the beginning of the second line.
-        Assert.assertEquals(Arrays.asList(3, 3), observer.getActualSizes());
+        assertEquals(Arrays.asList(3, 3), observer.getActualSizes());
       }
     }
   }
@@ -258,9 +261,8 @@ public class TextReaderTest {
     }
     writer.close();
 
-    TextReader<String> textReader =
-        new TextReader<>(tmpFile.getPath(), stripNewlines, null, null, StringUtf8Coder.of(),
-            TextIO.CompressionType.UNCOMPRESSED);
+    TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), stripNewlines, null, null,
+        StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
     ExecutorTestUtils.TestReaderObserver observer =
         new ExecutorTestUtils.TestReaderObserver(textReader);
 
@@ -272,16 +274,16 @@ public class TextReaderTest {
     }
 
     if (stripNewlines) {
-      Assert.assertEquals(expected, actual);
+      assertEquals(expected, actual);
     } else {
       List<String> unstripped = new LinkedList<>();
       for (String s : expected) {
         unstripped.add(s + separator);
       }
-      Assert.assertEquals(unstripped, actual);
+      assertEquals(unstripped, actual);
     }
 
-    Assert.assertEquals(expectedSizes, observer.getActualSizes());
+    assertEquals(expectedSizes, observer.getActualSizes());
   }
 
   private void testStringPayload(String[] lines, String separator, boolean stripNewlines)
@@ -296,19 +298,15 @@ public class TextReaderTest {
     }
     writer.close();
 
-    TextReader<String> textReader =
-        new TextReader<>(tmpFile.getPath(), stripNewlines, null, null, StringUtf8Coder.of(),
-            TextIO.CompressionType.UNCOMPRESSED);
-    ExecutorTestUtils.TestReaderObserver observer =
-        new ExecutorTestUtils.TestReaderObserver(textReader);
-
+    TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), stripNewlines, null, null,
+        StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
     List<String> actual = new ArrayList<>();
     try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
       while (iterator.hasNext()) {
         actual.add(iterator.next());
       }
     }
-    Assert.assertEquals(expected, actual);
+    assertEquals(expected, actual);
   }
 
   @Test
@@ -327,9 +325,8 @@ public class TextReaderTest {
     writer.close();
     Long fileSize = tmpFile.length();
 
-    TextReader<String> textReader =
-        new TextReader<>(tmpFile.getPath(), stripNewlines, null, fileSize, StringUtf8Coder.of(),
-            TextIO.CompressionType.UNCOMPRESSED);
+    TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), stripNewlines, null,
+        fileSize, StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
 
     List<String> actual = new ArrayList<>();
     Reader.ReaderIterator<String> iterator = textReader.iterator();
@@ -337,7 +334,7 @@ public class TextReaderTest {
       actual.add(iterator.next());
       iterator = iterator.copy();
     }
-    Assert.assertEquals(expected, actual);
+    assertEquals(expected, actual);
   }
 
   @Test
@@ -354,9 +351,8 @@ public class TextReaderTest {
     }
     writer.close();
 
-    TextReader<Integer> textReader =
-        new TextReader<>(tmpFile.getPath(), true, null, null, TextualIntegerCoder.of(),
-            TextIO.CompressionType.UNCOMPRESSED);
+    TextReader<Integer> textReader = new TextReader<>(tmpFile.getPath(), true, null, null,
+        TextualIntegerCoder.of(), TextIO.CompressionType.UNCOMPRESSED);
     ExecutorTestUtils.TestReaderObserver observer =
         new ExecutorTestUtils.TestReaderObserver(textReader);
 
@@ -367,30 +363,29 @@ public class TextReaderTest {
       }
     }
 
-    Assert.assertEquals(expected, actual);
-    Assert.assertEquals(expectedSizes, observer.getActualSizes());
+    assertEquals(expected, actual);
+    assertEquals(expectedSizes, observer.getActualSizes());
   }
 
   @Test
   public void testGetApproximatePosition() throws Exception {
     File tmpFile = initTestFile();
-    TextReader<String> textReader =
-        new TextReader<>(tmpFile.getPath(), false, 0L, null, StringUtf8Coder.of(),
-            TextIO.CompressionType.UNCOMPRESSED);
+    TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, 0L, null,
+        StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
 
     try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
-      ApproximateProgress progress = sourceProgressToCloudProgress(iterator.getProgress());
-      Assert.assertEquals(0L, progress.getPosition().getByteOffset().longValue());
+      ApproximateProgress progress = readerProgressToCloudProgress(iterator.getProgress());
+      assertEquals(0L, progress.getPosition().getByteOffset().longValue());
       iterator.next();
-      progress = sourceProgressToCloudProgress(iterator.getProgress());
-      Assert.assertEquals(11L, progress.getPosition().getByteOffset().longValue());
+      progress = readerProgressToCloudProgress(iterator.getProgress());
+      assertEquals(11L, progress.getPosition().getByteOffset().longValue());
       iterator.next();
-      progress = sourceProgressToCloudProgress(iterator.getProgress());
-      Assert.assertEquals(24L, progress.getPosition().getByteOffset().longValue());
+      progress = readerProgressToCloudProgress(iterator.getProgress());
+      assertEquals(24L, progress.getPosition().getByteOffset().longValue());
       iterator.next();
-      progress = sourceProgressToCloudProgress(iterator.getProgress());
-      Assert.assertEquals(34L, progress.getPosition().getByteOffset().longValue());
-      Assert.assertFalse(iterator.hasNext());
+      progress = readerProgressToCloudProgress(iterator.getProgress());
+      assertEquals(34L, progress.getPosition().getByteOffset().longValue());
+      assertFalse(iterator.hasNext());
     }
   }
 
@@ -400,49 +395,36 @@ public class TextReaderTest {
     final long stop = 14L; // in the middle of the second line
     File tmpFile = initTestFile();
 
-    com.google.api.services.dataflow.model.Position proposedStopPosition =
-        new com.google.api.services.dataflow.model.Position();
-
     // Illegal proposed stop position, no update.
     {
-      TextReader<String> textReader =
-          new TextReader<>(tmpFile.getPath(), false, null, null, StringUtf8Coder.of(),
-              TextIO.CompressionType.UNCOMPRESSED);
-      ExecutorTestUtils.TestReaderObserver observer =
-          new ExecutorTestUtils.TestReaderObserver(textReader);
+      TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, null, null,
+          StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
 
       try (TextReader<String>.TextFileIterator iterator =
           (TextReader<String>.TextFileIterator) textReader.iterator()) {
-        Assert.assertNull(iterator.updateStopPosition(
-            cloudProgressToReaderProgress(createApproximateProgress(proposedStopPosition))));
+        assertNull(iterator.requestFork(forkRequestAtPosition(new Position())));
       }
     }
 
-    proposedStopPosition.setByteOffset(stop);
-
     // Successful update.
     {
-      TextReader<String> textReader =
-          new TextReader<>(tmpFile.getPath(), false, null, null, StringUtf8Coder.of(),
-              TextIO.CompressionType.UNCOMPRESSED);
+      TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, null, null,
+          StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
       try (TextReader<String>.TextFileIterator iterator =
           (TextReader<String>.TextFileIterator) textReader.iterator()) {
-        Assert.assertNull(iterator.getEndOffset());
-        Assert.assertEquals(
-            stop,
-            sourcePositionToCloudPosition(
-                iterator.updateStopPosition(
-                    cloudProgressToReaderProgress(createApproximateProgress(proposedStopPosition))))
-                .getByteOffset()
-                .longValue());
-        Assert.assertEquals(stop, iterator.getEndOffset().longValue());
-        Assert.assertEquals(fileContent[0], iterator.next());
-        Assert.assertEquals(fileContent[1], iterator.next());
-        Assert.assertFalse(iterator.hasNext());
-        Assert.assertEquals(
+        assertNull(iterator.getEndOffset());
+        assertEquals(
+            Long.valueOf(stop),
+            positionFromForkResult(iterator.requestFork(forkRequestAtByteOffset(stop)))
+                .getByteOffset());
+        assertEquals(stop, iterator.getEndOffset().longValue());
+        assertEquals(fileContent[0], iterator.next());
+        assertEquals(fileContent[1], iterator.next());
+        assertFalse(iterator.hasNext());
+        assertEquals(
             Arrays.asList(fileContent[0].length(), fileContent[1].length()),
             observer.getActualSizes());
       }
@@ -450,25 +432,23 @@ public class TextReaderTest {
 
     // Proposed stop position is before the current position, no update.
     {
-      TextReader<String> textReader =
-          new TextReader<>(tmpFile.getPath(), false, null, null, StringUtf8Coder.of(),
-              TextIO.CompressionType.UNCOMPRESSED);
+      TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, null, null,
+          StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
       try (TextReader<String>.TextFileIterator iterator =
           (TextReader<String>.TextFileIterator) textReader.iterator()) {
-        Assert.assertEquals(fileContent[0], iterator.next());
-        Assert.assertEquals(fileContent[1], iterator.next());
-        Assert.assertThat(
-            sourceProgressToCloudProgress(iterator.getProgress()).getPosition().getByteOffset(),
+        assertEquals(fileContent[0], iterator.next());
+        assertEquals(fileContent[1], iterator.next());
+        assertThat(
+            readerProgressToCloudProgress(iterator.getProgress()).getPosition().getByteOffset(),
             greaterThan(stop));
-        Assert.assertNull(iterator.updateStopPosition(
-            cloudProgressToReaderProgress(createApproximateProgress(proposedStopPosition))));
-        Assert.assertNull(iterator.getEndOffset());
-        Assert.assertTrue(iterator.hasNext());
-        Assert.assertEquals(fileContent[2], iterator.next());
-        Assert.assertEquals(
+        assertNull(iterator.requestFork(forkRequestAtByteOffset(stop)));
+        assertNull(iterator.getEndOffset());
+        assertTrue(iterator.hasNext());
+        assertEquals(fileContent[2], iterator.next());
+        assertEquals(
             Arrays.asList(
                 fileContent[0].length(), fileContent[1].length(), fileContent[2].length()),
             observer.getActualSizes());
@@ -477,20 +457,25 @@ public class TextReaderTest {
 
     // Proposed stop position is after the current stop (end) position, no update.
     {
-      TextReader<String> textReader =
-          new TextReader<>(tmpFile.getPath(), false, null, end, StringUtf8Coder.of(),
-              TextIO.CompressionType.UNCOMPRESSED);
+      TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, null, end,
+          StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
       try (TextReader<String>.TextFileIterator iterator =
           (TextReader<String>.TextFileIterator) textReader.iterator()) {
-        Assert.assertEquals(fileContent[0], iterator.next());
-        Assert.assertNull(iterator.updateStopPosition(
-            cloudProgressToReaderProgress(createApproximateProgress(proposedStopPosition))));
-        Assert.assertEquals(end, iterator.getEndOffset().longValue());
-        Assert.assertFalse(iterator.hasNext());
-        Assert.assertEquals(Arrays.asList(fileContent[0].length()), observer.getActualSizes());
+        assertEquals(fileContent[0], iterator.next());
+        try {
+          iterator.requestFork(forkRequestAtByteOffset(stop));
+          fail("IllegalArgumentException expected");
+        } catch (IllegalArgumentException e) {
+          assertThat(e.getMessage(), Matchers.containsString(
+              "Fork requested at an offset beyond the end of the current range"));
+        }
+
+        assertEquals(end, iterator.getEndOffset().longValue());
+        assertFalse(iterator.hasNext());
+        assertEquals(Arrays.asList(fileContent[0].length()), observer.getActualSizes());
       }
     }
   }
@@ -523,56 +508,48 @@ public class TextReaderTest {
     StringBuilder accumulatedRead = new StringBuilder();
 
     // Read from source without split attempts.
-    TextReader<String> textReader =
-        new TextReader<>(tmpFile.getPath(), false, startOffset, endOffset, StringUtf8Coder.of(),
-            TextIO.CompressionType.UNCOMPRESSED);
+    TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, startOffset,
+        endOffset, StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
 
     try (TextReader<String>.TextFileIterator iterator =
         (TextReader<String>.TextFileIterator) textReader.iterator()) {
       while (iterator.hasNext()) {
-        accumulatedRead.append((String) iterator.next());
+        accumulatedRead.append(iterator.next());
       }
       readWithoutSplit = accumulatedRead.toString();
     }
 
     // Read the first half of the split.
-    textReader =
-        new TextReader<>(tmpFile.getPath(), false, startOffset, stopOffset, StringUtf8Coder.of(),
-            TextIO.CompressionType.UNCOMPRESSED);
+    textReader = new TextReader<>(tmpFile.getPath(), false, startOffset, stopOffset,
+        StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
     accumulatedRead = new StringBuilder();
 
     try (TextReader<String>.TextFileIterator iterator =
         (TextReader<String>.TextFileIterator) textReader.iterator()) {
       while (iterator.hasNext()) {
-        accumulatedRead.append((String) iterator.next());
+        accumulatedRead.append(iterator.next());
       }
       readWithSplit1 = accumulatedRead.toString();
     }
 
     // Read the second half of the split.
-    textReader =
-        new TextReader<>(tmpFile.getPath(), false, stopOffset, endOffset, StringUtf8Coder.of(),
-            TextIO.CompressionType.UNCOMPRESSED);
+    textReader = new TextReader<>(tmpFile.getPath(), false, stopOffset, endOffset,
+        StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
     accumulatedRead = new StringBuilder();
 
     try (TextReader<String>.TextFileIterator iterator =
         (TextReader<String>.TextFileIterator) textReader.iterator()) {
       while (iterator.hasNext()) {
-        accumulatedRead.append((String) iterator.next());
+        accumulatedRead.append(iterator.next());
       }
       readWithSplit2 = accumulatedRead.toString();
     }
 
-    Assert.assertEquals(readWithoutSplit, readWithSplit1 + readWithSplit2);
+    assertEquals(readWithoutSplit, readWithSplit1 + readWithSplit2);
   }
 
-  private ApproximateProgress createApproximateProgress(
-      com.google.api.services.dataflow.model.Position position) {
-    return new ApproximateProgress().setPosition(position);
-  }
-
-  private OutputStream getOutputStreamForCompressionType(OutputStream stream,
-      CompressionType compressionType) throws IOException {
+  private OutputStream getOutputStreamForCompressionType(
+      OutputStream stream, CompressionType compressionType) throws IOException {
     switch (compressionType) {
       case GZIP:
         return new GZIPOutputStream(stream);
@@ -582,13 +559,13 @@ public class TextReaderTest {
       case AUTO:
         return stream;
       default:
-        Assert.fail("Unrecognized stream type");
+        fail("Unrecognized stream type");
     }
     return stream;
   }
 
-  private File createFileWithCompressionType(String[] lines, String filename,
-      CompressionType compressionType) throws IOException {
+  private File createFileWithCompressionType(
+      String[] lines, String filename, CompressionType compressionType) throws IOException {
     File tmpFile = tmpFolder.newFile(filename);
     PrintStream writer = new PrintStream(
         getOutputStreamForCompressionType(new FileOutputStream(tmpFile), compressionType));
@@ -601,7 +578,7 @@ public class TextReaderTest {
 
   private void testCompressionTypeHelper(String[] lines, String filename,
       CompressionType outputCompressionType, CompressionType inputCompressionType)
-          throws IOException {
+      throws IOException {
     File tmpFile = createFileWithCompressionType(lines, filename, outputCompressionType);
 
     List<String> expected = new ArrayList<>();
@@ -609,9 +586,8 @@ public class TextReaderTest {
       expected.add(line);
     }
 
-    TextReader<String> textReader =
-        new TextReader<>(tmpFile.getPath(), true, null, null, StringUtf8Coder.of(),
-            inputCompressionType);
+    TextReader<String> textReader = new TextReader<>(
+        tmpFile.getPath(), true, null, null, StringUtf8Coder.of(), inputCompressionType);
 
     List<String> actual = new ArrayList<>();
     try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
@@ -619,7 +595,7 @@ public class TextReaderTest {
         actual.add(iterator.next());
       }
     }
-    Assert.assertEquals(expected, actual);
+    assertEquals(expected, actual);
     tmpFile.delete();
   }
 
@@ -629,22 +605,20 @@ public class TextReaderTest {
     // test AUTO compression type with different extensions
     testCompressionTypeHelper(contents, "test.gz", CompressionType.GZIP, CompressionType.AUTO);
     testCompressionTypeHelper(contents, "test.bz2", CompressionType.BZIP2, CompressionType.AUTO);
-    testCompressionTypeHelper(contents, "test.txt", CompressionType.UNCOMPRESSED,
-        CompressionType.AUTO);
-    testCompressionTypeHelper(contents, "test", CompressionType.UNCOMPRESSED,
-        CompressionType.AUTO);
+    testCompressionTypeHelper(
+        contents, "test.txt", CompressionType.UNCOMPRESSED, CompressionType.AUTO);
+    testCompressionTypeHelper(contents, "test", CompressionType.UNCOMPRESSED, CompressionType.AUTO);
     // test GZIP, BZIP2, and UNCOMPRESSED
     testCompressionTypeHelper(contents, "test.txt", CompressionType.GZIP, CompressionType.GZIP);
     testCompressionTypeHelper(contents, "test.txt", CompressionType.BZIP2, CompressionType.BZIP2);
-    testCompressionTypeHelper(contents, "test.gz", CompressionType.UNCOMPRESSED,
-        CompressionType.UNCOMPRESSED);
+    testCompressionTypeHelper(
+        contents, "test.gz", CompressionType.UNCOMPRESSED, CompressionType.UNCOMPRESSED);
   }
 
   @Test
   public void testCompressionTypeFileGlob() throws IOException {
     String[][] contents = {
-        {"Miserable pigeon", "Vulnerable sparrow", "Brazen crow"},
-        {"Timid osprey", "Lazy vulture"},
+        {"Miserable pigeon", "Vulnerable sparrow", "Brazen crow"}, {"Timid osprey", "Lazy vulture"},
         {"Erratic finch", "Impressible parakeet"},
     };
     File[] files = {
@@ -671,7 +645,7 @@ public class TextReaderTest {
         actual.add(iterator.next());
       }
     }
-    Assert.assertThat(actual, containsInAnyOrder(expected.toArray()));
+    assertThat(actual, containsInAnyOrder(expected.toArray()));
     for (File file : files) {
       file.delete();
     }

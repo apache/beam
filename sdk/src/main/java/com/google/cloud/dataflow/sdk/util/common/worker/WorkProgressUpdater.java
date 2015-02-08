@@ -78,16 +78,11 @@ public abstract class WorkProgressUpdater {
   protected long progressReportIntervalMs;
 
   /**
-   * The stop position to report to the service in the next progress update,
-   * or {@code null} if there is nothing to report.
-   * In cases that there is no split request from service, or worker failed to
-   * split in response to the last received split request, the task stop
-   * position implicitly stays the same as it was before that last request
-   * (as a result of a prior split request), and on the next reportProgress
-   * we'll send the {@code null} as a stop position update, which is a no-op
-   * for the service.
+   * The {@link Reader.ForkResult} to report to the service in the next progress update,
+   * or {@code null} if there is nothing to report (if no fork happened since the last progress
+   * update).
    */
-  protected Reader.Position stopPositionToService;
+  protected Reader.ForkResult forkResultToReport;
 
   public WorkProgressUpdater(WorkExecutor worker) {
     this.worker = worker;
@@ -124,10 +119,10 @@ public abstract class WorkProgressUpdater {
       executor.shutdownNow();
     }
 
-    // We send a final progress report in case there was an unreported stop position update.
-    if (stopPositionToService != null) {
-      LOG.info("Sending final progress update with unreported stop position: {} "
-          + "for work item: {}", stopPositionToService, workString());
+    // We send a final progress report in case there was an unreported fork.
+    if (forkResultToReport != null) {
+      LOG.info("Sending final progress update with unreported fork: {} "
+          + "for work item: {}", forkResultToReport, workString());
       reportProgressHelper(); // This call can fail with an exception
     }
 
@@ -215,8 +210,8 @@ public abstract class WorkProgressUpdater {
   }
 
   // Visible for testing.
-  public Reader.Position getStopPosition() {
-    return stopPositionToService;
+  public Reader.ForkResult getForkResultToReport() {
+    return forkResultToReport;
   }
 
   /**

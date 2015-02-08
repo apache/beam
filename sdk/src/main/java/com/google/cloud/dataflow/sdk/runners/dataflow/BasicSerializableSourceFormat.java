@@ -45,6 +45,7 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 
 import org.slf4j.Logger;
@@ -100,9 +101,8 @@ public class BasicSerializableSourceFormat implements SourceFormat {
    */
   @SuppressWarnings("unchecked")
   public static <T> com.google.cloud.dataflow.sdk.util.common.worker.Reader create(
-      final PipelineOptions options, CloudObject spec,
-      final Coder<WindowedValue<T>> coder, final ExecutionContext executionContext)
-      throws Exception {
+      final PipelineOptions options, CloudObject spec, final Coder<WindowedValue<T>> coder,
+      final ExecutionContext executionContext) throws Exception {
     final Source<T> source = (Source<T>) deserializeFromCloudSource(spec);
     return new com.google.cloud.dataflow.sdk.util.common.worker.Reader() {
       @Override
@@ -151,13 +151,12 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     return response;
   }
 
-  private static Source<?> deserializeFromCloudSource(Map<String, Object> spec)
-      throws Exception {
+  private static Source<?> deserializeFromCloudSource(Map<String, Object> spec) throws Exception {
     return (Source<?>) deserializeFromByteArray(
         Base64.decodeBase64(getString(spec, SERIALIZED_SOURCE)), "Source");
   }
 
-  private static com.google.api.services.dataflow.model.Source serializeToCloudSource(
+  static com.google.api.services.dataflow.model.Source serializeToCloudSource(
       Source source, PipelineOptions options) throws Exception {
     com.google.api.services.dataflow.model.Source cloudSource =
         new com.google.api.services.dataflow.model.Source();
@@ -276,13 +275,12 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     }
 
     @Override
-    public com.google.cloud.dataflow.sdk.util.common.worker.Reader.Progress getProgress() {
+    public Reader.Progress getProgress() {
       return null;
     }
 
     @Override
-    public com.google.cloud.dataflow.sdk.util.common.worker.Reader.Position updateStopPosition(
-        com.google.cloud.dataflow.sdk.util.common.worker.Reader.Progress proposedStopPosition) {
+    public Reader.ForkResult requestFork(Reader.ForkRequest request) {
       return null;
     }
   }

@@ -16,20 +16,28 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourcePositionToCloudPosition;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.approximateProgressAtIndex;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.forkRequestAtIndex;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionAtIndex;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromForkResult;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toForkRequest;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.byteArrayToJsonString;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
-import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
-import org.junit.Assert;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -62,14 +70,13 @@ public class InMemoryReaderTest {
     List<T> actualElements = new ArrayList<>();
     try (Reader.ReaderIterator<T> iterator = inMemoryReader.iterator()) {
       for (long i = inMemoryReader.startIndex; iterator.hasNext(); i++) {
-        Assert.assertEquals(
-            new ApproximateProgress().setPosition(makeIndexPosition(i)),
-            sourceProgressToCloudProgress(iterator.getProgress()));
+        assertEquals(
+            approximateProgressAtIndex(i), readerProgressToCloudProgress(iterator.getProgress()));
         actualElements.add(iterator.next());
       }
     }
-    Assert.assertEquals(expectedElements, actualElements);
-    Assert.assertEquals(expectedSizes, observer.getActualSizes());
+    assertEquals(expectedElements, actualElements);
+    assertEquals(expectedSizes, observer.getActualSizes());
   }
 
   @Test
@@ -129,7 +136,7 @@ public class InMemoryReaderTest {
   }
 
   @Test
-  public void testUpdatePosition() throws Exception {
+  public void testFork() throws Exception {
     List<Integer> elements = Arrays.asList(33, 44, 55, 66, 77, 88);
     final long start = 1L;
     final long stop = 3L;
@@ -139,52 +146,44 @@ public class InMemoryReaderTest {
     InMemoryReader<Integer> inMemoryReader =
         new InMemoryReader<>(encodedElements(elements, coder), start, end, coder);
 
-    // Illegal proposed stop position.
+    // Illegal proposed fork position.
     try (Reader.ReaderIterator<Integer> iterator = inMemoryReader.iterator()) {
-      Assert.assertNull(
-          iterator.updateStopPosition(cloudProgressToReaderProgress(new ApproximateProgress())));
-      Assert.assertNull(iterator.updateStopPosition(cloudProgressToReaderProgress(
-          new ApproximateProgress().setPosition(makeIndexPosition(null)))));
+      assertNull(iterator.requestFork(toForkRequest(new ApproximateProgress())));
+      assertNull(iterator.requestFork(forkRequestAtIndex(null)));
     }
 
     // Successful update.
     try (InMemoryReader<Integer>.InMemoryReaderIterator iterator =
         (InMemoryReader<Integer>.InMemoryReaderIterator) inMemoryReader.iterator()) {
-      Assert.assertEquals(
-          makeIndexPosition(stop),
-          sourcePositionToCloudPosition(iterator.updateStopPosition(cloudProgressToReaderProgress(
-              new ApproximateProgress().setPosition(makeIndexPosition(stop))))));
-      Assert.assertEquals(stop, iterator.endPosition);
-      Assert.assertEquals(44, iterator.next().intValue());
-      Assert.assertEquals(55, iterator.next().intValue());
-      Assert.assertFalse(iterator.hasNext());
+      Reader.ForkResult forkResult = iterator.requestFork(forkRequestAtIndex(stop));
+      assertEquals(positionAtIndex(stop), positionFromForkResult(forkResult));
+      assertEquals(stop, iterator.endPosition);
+      assertEquals(44, iterator.next().intValue());
+      assertEquals(55, iterator.next().intValue());
+      assertFalse(iterator.hasNext());
     }
 
-    // Proposed stop position is before the current position, no update.
+    // Proposed fork position is before the current position, no update.
     try (InMemoryReader<Integer>.InMemoryReaderIterator iterator =
         (InMemoryReader<Integer>.InMemoryReaderIterator) inMemoryReader.iterator()) {
-      Assert.assertEquals(44, iterator.next().intValue());
-      Assert.assertEquals(55, iterator.next().intValue());
-      Assert.assertNull(iterator.updateStopPosition(cloudProgressToReaderProgress(
-          new ApproximateProgress().setPosition(makeIndexPosition(stop)))));
-      Assert.assertEquals((int) end, iterator.endPosition);
-      Assert.assertTrue(iterator.hasNext());
+      assertEquals(44, iterator.next().intValue());
+      assertEquals(55, iterator.next().intValue());
+      assertNull(iterator.requestFork(forkRequestAtIndex(stop)));
+      assertEquals((int) end, iterator.endPosition);
+      assertTrue(iterator.hasNext());
     }
 
-    // Proposed stop position is after the current stop (end) position, no update.
+    // Proposed fork position is after the current stop (end) position, no update.
     try (InMemoryReader.InMemoryReaderIterator iterator =
         (InMemoryReader.InMemoryReaderIterator) inMemoryReader.iterator()) {
-      Assert.assertNull(iterator.updateStopPosition(cloudProgressToReaderProgress(
-          new ApproximateProgress().setPosition(makeIndexPosition(end + 1)))));
-      Assert.assertEquals((int) end, iterator.endPosition);
+      try {
+        iterator.requestFork(forkRequestAtIndex(end + 1));
+        fail("IllegalArgumentException expected");
+      } catch (IllegalArgumentException e) {
+        assertThat(e.getMessage(), Matchers.containsString(
+            "Fork requested at an index beyond the end of the current range"));
+      }
+      assertEquals((int) end, iterator.endPosition);
     }
-  }
-
-  private Position makeIndexPosition(Long index) {
-    Position position = new Position();
-    if (index != null) {
-      position.setRecordIndex(index);
-    }
-    return position;
   }
 }

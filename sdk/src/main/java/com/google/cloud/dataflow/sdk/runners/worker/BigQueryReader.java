@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.api.client.util.Preconditions.checkNotNull;
-
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -97,11 +95,10 @@ public class BigQueryReader extends Reader<TableRow> {
     }
 
     @Override
-    public Position updateStopPosition(Progress proposedStopPosition) {
-      // For now updating the stop position is not supported because this source
+    public ForkResult requestFork(ForkRequest forkRequest) {
+      // For now fork is not supported because this source
       // is used only when an entire table needs to be read by each worker (used
       // as a side input for instance).
-      checkNotNull(proposedStopPosition);
       throw new UnsupportedOperationException();
     }
   }

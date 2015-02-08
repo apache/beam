@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.forkRequestToApproximateProgress;
 import static java.lang.Math.min;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
@@ -124,38 +124,37 @@ public class InMemoryReader<T> extends Reader<T> {
     }
 
     @Override
-    public Position updateStopPosition(Progress proposedStopPosition) {
-      checkNotNull(proposedStopPosition);
+    public ForkResult requestFork(ForkRequest forkRequest) {
+      checkNotNull(forkRequest);
 
-      // Currently we only support stop position in record index of
-      // an API Position in InMemoryReader. If stop position in other types is
-      // proposed, the end position in iterator will not be updated,
-      // and return null.
-      com.google.api.services.dataflow.model.Position stopPosition =
-          sourceProgressToCloudProgress(proposedStopPosition).getPosition();
-      if (stopPosition == null) {
-        LOG.warn("A stop position other than a Dataflow API Position is not currently supported.");
+      com.google.api.services.dataflow.model.Position forkPosition =
+          forkRequestToApproximateProgress(forkRequest).getPosition();
+      if (forkPosition == null) {
+        LOG.warn("InMemoryReader only supports fork at a Position. Requested: {}", forkRequest);
         return null;
       }
 
-      Long recordIndex = stopPosition.getRecordIndex();
-      if (recordIndex == null) {
-        LOG.warn("A proposed stop position must be a record index for InMemoryReader.");
+      Long forkIndex = forkPosition.getRecordIndex();
+      if (forkIndex == null) {
+        LOG.warn("InMemoryReader only supports fork at a record index. Requested: {}",
+            forkPosition);
         return null;
       }
-      if (recordIndex <= index || recordIndex >= endPosition) {
-        // Proposed stop position is not after the current position or proposed
-        // stop position is after the current stop (end) position: No stop
-        // position update.
-        LOG.warn("The proposed stop position " + recordIndex
-            + " is not between the current stop position " + index
-            + " and the current stop position " + endPosition);
+      if (forkIndex <= index) {
+        LOG.info("Already progressed to index {} which is after the requested fork index {}",
+            index, forkIndex);
         return null;
+      }
+      if (forkIndex >= endPosition) {
+        throw new IllegalArgumentException(
+            "Fork requested at an index beyond the end of the current range: " + forkIndex
+            + " >= " + endPosition);
       }
 
-      LOG.info("Updated the stop position to record " + recordIndex);
-      this.endPosition = recordIndex.intValue();
-      return cloudPositionToReaderPosition(stopPosition);
+      this.endPosition = forkIndex.intValue();
+      LOG.info("Forked InMemoryReader at index {}", forkIndex);
+
+      return new ForkResultWithPosition(cloudPositionToReaderPosition(forkPosition));
     }
   }
 }

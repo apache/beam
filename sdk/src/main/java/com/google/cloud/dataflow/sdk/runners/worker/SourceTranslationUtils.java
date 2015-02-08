@@ -50,9 +50,8 @@ public class SourceTranslationUtils {
     return cloudPosition == null ? null : new DataflowReaderPosition(cloudPosition);
   }
 
-  public static SourceFormat.OperationRequest
-      cloudSourceOperationRequestToSourceOperationRequest(
-          @Nullable SourceOperationRequest request) {
+  public static SourceFormat.OperationRequest cloudSourceOperationRequestToSourceOperationRequest(
+      @Nullable SourceOperationRequest request) {
     return request == null ? null : new DataflowSourceOperationRequest(request);
   }
 
@@ -62,18 +61,13 @@ public class SourceTranslationUtils {
     return response == null ? null : new DataflowSourceOperationResponse(response);
   }
 
-  public static SourceFormat.SourceSpec cloudSourceToSourceSpec(
-      @Nullable Source cloudSource) {
-    return cloudSource == null ? null : new DataflowSourceSpec(cloudSource);
+  public static ApproximateProgress readerProgressToCloudProgress(
+      @Nullable Reader.Progress readerProgress) {
+    return readerProgress == null ? null : ((DataflowReaderProgress) readerProgress).cloudProgress;
   }
 
-  public static ApproximateProgress sourceProgressToCloudProgress(
-      @Nullable Reader.Progress sourceProgress) {
-    return sourceProgress == null ? null : ((DataflowReaderProgress) sourceProgress).cloudProgress;
-  }
-
-  public static Position sourcePositionToCloudPosition(@Nullable Reader.Position sourcePosition) {
-    return sourcePosition == null ? null : ((DataflowReaderPosition) sourcePosition).cloudPosition;
+  public static Position toCloudPosition(@Nullable Reader.Position readerPosition) {
+    return readerPosition == null ? null : ((DataflowReaderPosition) readerPosition).cloudPosition;
   }
 
 
@@ -91,8 +85,19 @@ public class SourceTranslationUtils {
     return (spec == null) ? null : ((DataflowSourceSpec) spec).cloudSource;
   }
 
+  public static ApproximateProgress forkRequestToApproximateProgress(
+      @Nullable Reader.ForkRequest stopRequest) {
+    return (stopRequest == null) ? null : ((DataflowForkRequest) stopRequest).approximateProgress;
+  }
+
+  public static Reader.ForkRequest toForkRequest(
+      @Nullable ApproximateProgress approximateProgress) {
+    return (approximateProgress == null) ? null : new DataflowForkRequest(approximateProgress);
+  }
+
   static class DataflowReaderProgress implements Reader.Progress {
     public final ApproximateProgress cloudProgress;
+
     public DataflowReaderProgress(ApproximateProgress cloudProgress) {
       this.cloudProgress = cloudProgress;
     }
@@ -100,6 +105,7 @@ public class SourceTranslationUtils {
 
   static class DataflowReaderPosition implements Reader.Position {
     public final Position cloudPosition;
+
     public DataflowReaderPosition(Position cloudPosition) {
       this.cloudPosition = cloudPosition;
     }
@@ -107,6 +113,7 @@ public class SourceTranslationUtils {
 
   static class DataflowSourceOperationRequest implements SourceFormat.OperationRequest {
     public final SourceOperationRequest cloudRequest;
+
     public DataflowSourceOperationRequest(SourceOperationRequest cloudRequest) {
       this.cloudRequest = cloudRequest;
     }
@@ -114,6 +121,7 @@ public class SourceTranslationUtils {
 
   static class DataflowSourceOperationResponse implements SourceFormat.OperationResponse {
     public final SourceOperationResponse cloudResponse;
+
     public DataflowSourceOperationResponse(SourceOperationResponse cloudResponse) {
       this.cloudResponse = cloudResponse;
     }
@@ -121,6 +129,7 @@ public class SourceTranslationUtils {
 
   static class DataflowSourceSpec implements SourceFormat.SourceSpec {
     public final Source cloudSource;
+
     public DataflowSourceSpec(Source cloudSource) {
       this.cloudSource = cloudSource;
     }
@@ -138,8 +147,8 @@ public class SourceTranslationUtils {
           cloudSourceMetadataToDictionary(source.getMetadata()));
     }
     if (source.getDoesNotNeedSplitting() != null) {
-      addBoolean(res, PropertyNames.SOURCE_DOES_NOT_NEED_SPLITTING,
-          source.getDoesNotNeedSplitting());
+      addBoolean(
+          res, PropertyNames.SOURCE_DOES_NOT_NEED_SPLITTING, source.getDoesNotNeedSplitting());
     }
     return res;
   }
@@ -147,12 +156,10 @@ public class SourceTranslationUtils {
   private static Map<String, Object> cloudSourceMetadataToDictionary(SourceMetadata metadata) {
     Map<String, Object> res = new HashMap<>();
     if (metadata.getProducesSortedKeys() != null) {
-      addBoolean(
-          res, PropertyNames.SOURCE_PRODUCES_SORTED_KEYS, metadata.getProducesSortedKeys());
+      addBoolean(res, PropertyNames.SOURCE_PRODUCES_SORTED_KEYS, metadata.getProducesSortedKeys());
     }
     if (metadata.getEstimatedSizeBytes() != null) {
-      addLong(
-          res, PropertyNames.SOURCE_ESTIMATED_SIZE_BYTES, metadata.getEstimatedSizeBytes());
+      addLong(res, PropertyNames.SOURCE_ESTIMATED_SIZE_BYTES, metadata.getEstimatedSizeBytes());
     }
     if (metadata.getInfinite() != null) {
       addBoolean(res, PropertyNames.SOURCE_IS_INFINITE, metadata.getInfinite());
@@ -166,5 +173,13 @@ public class SourceTranslationUtils {
     // SOURCE_METADATA and SOURCE_DOES_NOT_NEED_SPLITTING do not have to be
     // translated, because they only make sense in cloud Source objects produced by the user.
     return res;
+  }
+
+  private static class DataflowForkRequest implements Reader.ForkRequest {
+    public final ApproximateProgress approximateProgress;
+
+    private DataflowForkRequest(ApproximateProgress approximateProgress) {
+      this.approximateProgress = approximateProgress;
+    }
   }
 }

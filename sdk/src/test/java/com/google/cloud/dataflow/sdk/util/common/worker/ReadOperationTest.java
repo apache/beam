@@ -16,14 +16,15 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.forkRequestAtIndex;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionAtIndex;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourcePositionToCloudPosition;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.forkRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.everyItem;
-import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.Position;
@@ -39,103 +40,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Exchanger;
 
 /**
  * Tests for ReadOperation.
  */
 @RunWith(JUnit4.class)
 public class ReadOperationTest {
-  private static final long ITERATIONS = 3L;
-
-  /**
-   * The test Reader for testing updating stop position and progress report.
-   * The number of read iterations is controlled by ITERATIONS.
-   */
-  static class TestTextReader extends Reader<String> {
-    @Override
-    public ReaderIterator<String> iterator() {
-      return new TestTextReaderIterator();
-    }
-
-    class TestTextReaderIterator extends AbstractReaderIterator<String> {
-      long offset = 0L;
-      List<com.google.api.services.dataflow.model.Position> proposedPositions = new ArrayList<>();
-
-      @Override
-      public boolean hasNext() {
-        return offset < ITERATIONS;
-      }
-
-      @Override
-      public String next() {
-        if (hasNext()) {
-          offset++;
-          return "hi";
-        } else {
-          throw new AssertionError("No next Element.");
-        }
-      }
-
-      @Override
-      public Progress getProgress() {
-        com.google.api.services.dataflow.model.Position currentPosition =
-            new com.google.api.services.dataflow.model.Position();
-        currentPosition.setByteOffset(offset);
-
-        ApproximateProgress progress = new ApproximateProgress();
-        progress.setPosition(currentPosition);
-
-        return cloudProgressToReaderProgress(progress);
-      }
-
-      @Override
-      public Position updateStopPosition(Progress proposedStopPosition) {
-        proposedPositions.add(sourceProgressToCloudProgress(proposedStopPosition).getPosition());
-        // Actually no update happens, returns null.
-        return null;
-      }
-    }
-  }
-
-  /**
-   * The OutputReceiver for testing updating stop position and progress report.
-   * The offset of the Reader (iterator) will be advanced each time this
-   * Receiver processes a record.
-   */
-  static class TestTextReceiver extends OutputReceiver {
-    ReadOperation readOperation = null;
-    com.google.api.services.dataflow.model.Position proposedStopPosition = null;
-    List<ApproximateProgress> progresses = new ArrayList<>();
-
-    public TestTextReceiver(CounterSet counterSet, String counterPrefix) {
-      super("test_receiver_out", counterPrefix, counterSet.getAddCounterMutator());
-    }
-
-    public void setReadOperation(ReadOperation readOp) {
-      this.readOperation = readOp;
-    }
-
-    public void setProposedStopPosition(com.google.api.services.dataflow.model.Position position) {
-      this.proposedStopPosition = position;
-    }
-
-    @Override
-    public void process(Object outputElem) throws Exception {
-      // Calls getProgress() and proposeStopPosition() in each iteration.
-      progresses.add(sourceProgressToCloudProgress(readOperation.getProgress()));
-      // We expect that call to proposeStopPosition is a no-op that does not
-      // update the stop position for every iteration. We will verify it is
-      // delegated to ReaderIterator after ReadOperation finishes.
-      Assert.assertNull(readOperation.proposeStopPosition(
-          cloudProgressToReaderProgress(makeApproximateProgress(proposedStopPosition))));
-    }
-  }
-
   @Test
   @SuppressWarnings("unchecked")
   public void testRunReadOperation() throws Exception {
@@ -178,98 +90,82 @@ public class ReadOperationTest {
   }
 
   @Test
-  public void testGetProgressAndProposeStopPosition() throws Exception {
-    TestTextReader testTextReader = new TestTextReader();
+  public void testGetProgress() throws Exception {
+    MockReaderIterator iterator = new MockReaderIterator(0, 5);
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
-    StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    TestTextReceiver receiver = new TestTextReceiver(counterSet, counterPrefix);
-    ReadOperation readOperation = new ReadOperation(
-        testTextReader, receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
-    readOperation.setProgressUpdatePeriodMs(0);
-    receiver.setReadOperation(readOperation);
+    final ReadOperation readOperation = new ReadOperation(new MockReader(iterator),
+        new OutputReceiver("out", "test-", counterSet.getAddCounterMutator()), counterPrefix,
+        counterSet.getAddCounterMutator(),
+        new StateSampler(counterPrefix, counterSet.getAddCounterMutator()));
+    // Update progress not continuously, but so that it's never more than 1 record stale.
+    readOperation.setProgressUpdatePeriodMs(150);
 
-    Position proposedStopPosition = makePosition(3L);
-    receiver.setProposedStopPosition(proposedStopPosition);
-
-    Assert.assertNull(readOperation.getProgress());
-    Assert.assertNull(readOperation.proposeStopPosition(
-        cloudProgressToReaderProgress(makeApproximateProgress(proposedStopPosition))));
-
-    readOperation.start();
-
-    TestTextReader.TestTextReaderIterator testIterator =
-        (TestTextReader.TestTextReaderIterator) readOperation.readerIterator;
-
-    Assert.assertEquals(
-        sourceProgressToCloudProgress(testIterator.getProgress()),
-        sourceProgressToCloudProgress(readOperation.getProgress()));
-    Assert.assertEquals(
-        sourcePositionToCloudPosition(testIterator.updateStopPosition(
-            cloudProgressToReaderProgress(makeApproximateProgress(proposedStopPosition)))),
-        sourcePositionToCloudPosition(readOperation.proposeStopPosition(
-            cloudProgressToReaderProgress(makeApproximateProgress(proposedStopPosition)))));
-
-    // Verifies progress report and stop position updates.
-    Assert.assertEquals(testIterator.proposedPositions.size(), ITERATIONS + 2);
-    Assert.assertThat(testIterator.proposedPositions, everyItem(equalTo(makePosition(3L))));
-    Assert.assertThat(
-        receiver.progresses,
-        contains(
-            makeApproximateProgress(1L), makeApproximateProgress(2L), makeApproximateProgress(3L)));
-
-    readOperation.finish();
-
-    Assert.assertNull(readOperation.proposeStopPosition(
-        cloudProgressToReaderProgress(makeApproximateProgress(proposedStopPosition))));
+    Thread thread = runReadLoopInThread(readOperation);
+    for (int i = 0; i < 5; ++i) {
+      Thread.sleep(300); // Wait for the operation to start and block.
+      // Ensure that getProgress() doesn't block while the next() method is blocked.
+      ApproximateProgress progress = readerProgressToCloudProgress(readOperation.getProgress());
+      long observedIndex = progress.getPosition().getRecordIndex().longValue();
+      Assert.assertTrue("Actual: " + observedIndex, i == observedIndex || i == observedIndex + 1);
+      iterator.offerNext(i);
+    }
+    thread.join();
   }
 
   @Test
-  public void testGetProgressDoesNotBlock() throws Exception {
-    final BlockingQueue<Integer> queue = new LinkedBlockingQueue<>();
-    final Reader.ReaderIterator<Integer> iterator = new Reader.AbstractReaderIterator<Integer>() {
-      private int itemsReturned = 0;
-
-      @Override
-      public boolean hasNext() throws IOException {
-        return itemsReturned < 5;
-      }
-
-      @Override
-      public Integer next() throws IOException {
-        ++itemsReturned;
-        try {
-          return queue.take();
-        } catch (InterruptedException e) {
-          throw new NoSuchElementException("interrupted");
-        }
-      }
-
-      @Override
-      public Reader.Progress getProgress() {
-        return cloudProgressToReaderProgress(new ApproximateProgress().setPosition(
-            new Position().setRecordIndex((long) itemsReturned)));
-      }
-    };
-
-    Reader<Integer> reader = new Reader<Integer>() {
-      @Override
-      public ReaderIterator<Integer> iterator() throws IOException {
-        return iterator;
-      }
-    };
-
+  public void testFork() throws Exception {
+    MockReaderIterator iterator = new MockReaderIterator(0, 10);
     CounterSet counterSet = new CounterSet();
-    String counterPrefix = "test-";
-    StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    TestTextReceiver receiver = new TestTextReceiver(counterSet, counterPrefix);
-    final ReadOperation readOperation = new ReadOperation(
-        reader, receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
-    // Update progress not continuously, but so that it's never more than 1 record stale.
-    readOperation.setProgressUpdatePeriodMs(150);
-    receiver.setReadOperation(readOperation);
+    MockOutputReceiver receiver = new MockOutputReceiver(counterSet.getAddCounterMutator());
+    ReadOperation readOperation = new ReadOperation(new MockReader(iterator), receiver, "test-",
+        counterSet.getAddCounterMutator(),
+        new StateSampler("test-", counterSet.getAddCounterMutator()));
+    // Update progress on every iteration of the read loop.
+    readOperation.setProgressUpdatePeriodMs(0);
 
-    new Thread() {
+    // An unstarted ReadOperation refuses fork requests.
+    Assert.assertNull(
+        readOperation.requestFork(forkRequestAtIndex(7L)));
+
+    Thread thread = runReadLoopInThread(readOperation);
+    iterator.offerNext(0); // Await first next() and return 0 from it.
+    // Read loop is now blocked in process() (not next()).
+    Reader.ForkResultWithPosition fork = (Reader.ForkResultWithPosition) readOperation.requestFork(
+        forkRequestAtIndex(7L));
+    Assert.assertNotNull(fork);
+    Assert.assertEquals(positionAtIndex(7L), toCloudPosition(fork.getAcceptedPosition()));
+    receiver.unblockProcess();
+    iterator.offerNext(1);
+    receiver.unblockProcess();
+    iterator.offerNext(2);
+
+    // Should accept a fork at an earlier position than previously requested.
+    // Should reject a fork at a later position than previously requested.
+    // Note that here we're testing our own MockReaderIterator class, so it's kind of pointless,
+    // but we're also testing that ReadOperation correctly relays the request to the iterator.
+    fork = (Reader.ForkResultWithPosition) readOperation.requestFork(forkRequestAtIndex(5L));
+    Assert.assertNotNull(fork);
+    Assert.assertEquals(positionAtIndex(5L), toCloudPosition(fork.getAcceptedPosition()));
+    fork = (Reader.ForkResultWithPosition) readOperation.requestFork(forkRequestAtIndex(5L));
+    Assert.assertNull(fork);
+    receiver.unblockProcess();
+
+    iterator.offerNext(3);
+    receiver.unblockProcess();
+    iterator.offerNext(4);
+    receiver.unblockProcess();
+
+    // Should return false from hasNext() and exit read loop now.
+
+    thread.join();
+
+    // Operation is now finished. Check that it refuses a fork request.
+    Assert.assertNull(readOperation.requestFork(forkRequestAtIndex(5L)));
+  }
+
+  private Thread runReadLoopInThread(final ReadOperation readOperation) {
+    Thread thread = new Thread() {
       @Override
       public void run() {
         try {
@@ -279,28 +175,95 @@ public class ReadOperationTest {
           e.printStackTrace();
         }
       }
-    }.start();
+    };
+    thread.start();
+    return thread;
+  }
 
-    for (int i = 0; i < 5; ++i) {
-      Thread.sleep(100); // Wait for the operation to start and block.
-      // Ensure that getProgress() doesn't block.
-      ApproximateProgress progress = sourceProgressToCloudProgress(readOperation.getProgress());
-      long observedIndex = progress.getPosition().getRecordIndex().longValue();
-      Assert.assertTrue("Actual: " + observedIndex, i == observedIndex || i == observedIndex + 1);
-      queue.offer(i);
+  private static class MockReaderIterator extends Reader.AbstractReaderIterator<Integer> {
+    private int to;
+    private Exchanger<Integer> exchanger = new Exchanger<>();
+    private int current;
+
+    public MockReaderIterator(int from, int to) {
+      this.current = from;
+      this.to = to;
+    }
+
+    @Override
+    public boolean hasNext() throws IOException {
+      return current < to;
+    }
+
+    @Override
+    public Integer next() throws IOException {
+      ++current;
+      try {
+        return exchanger.exchange(current);
+      } catch (InterruptedException e) {
+        throw new NoSuchElementException("interrupted");
+      }
+    }
+
+    @Override
+    public Reader.Progress getProgress() {
+      return cloudProgressToReaderProgress(
+          new ApproximateProgress().setPosition(new Position().setRecordIndex((long) current)));
+    }
+
+    @Override
+    public Reader.ForkResult requestFork(Reader.ForkRequest forkRequest) {
+      ApproximateProgress progress = forkRequestToApproximateProgress(forkRequest);
+      int index = progress.getPosition().getRecordIndex().intValue();
+      if (index >= to) {
+        return null;
+      } else {
+        this.to = index;
+        return new Reader.ForkResultWithPosition(
+            cloudPositionToReaderPosition(progress.getPosition()));
+      }
+    }
+
+    public int offerNext(int next) {
+      try {
+        return exchanger.exchange(next);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
-  private static Position makePosition(long offset) {
-    return new Position().setByteOffset(offset);
+  private static class MockReader extends Reader<Integer> {
+    private ReaderIterator<Integer> iterator;
+
+    private MockReader(ReaderIterator<Integer> iterator) {
+      this.iterator = iterator;
+    }
+
+    @Override
+    public ReaderIterator<Integer> iterator() throws IOException {
+      return iterator;
+    }
   }
 
-  private static ApproximateProgress makeApproximateProgress(long offset) {
-    return makeApproximateProgress(makePosition(offset));
-  }
+  private static class MockOutputReceiver extends OutputReceiver {
+    private Exchanger<Object> exchanger = new Exchanger<>();
 
-  private static ApproximateProgress makeApproximateProgress(
-      com.google.api.services.dataflow.model.Position position) {
-    return new ApproximateProgress().setPosition(position);
+    MockOutputReceiver(CounterSet.AddCounterMutator mutator) {
+      super("out", "test-", mutator);
+    }
+
+    @Override
+    public void process(Object elem) throws Exception {
+      exchanger.exchange(null);
+    }
+
+    public void unblockProcess() {
+      try {
+        exchanger.exchange(null);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 }

@@ -83,12 +83,10 @@ public abstract class WorkExecutor implements AutoCloseable {
   }
 
   /**
-   * Proposes that the worker changes the stop position for the current work.
-   * Returns the new position if accepted, otherwise {@code null}.
+   * See {@link Reader.ReaderIterator#requestFork}. Makes sense only for tasks which read input.
    */
-  public Reader.Position proposeStopPosition(Reader.Progress proposedStopPosition)
-      throws Exception {
-    // By default, returns null indicating that no task splitting happens.
+  public Reader.ForkResult requestFork(Reader.ForkRequest forkRequest) throws Exception {
+    // By default, fork is unsupported.
     return null;
   }
 

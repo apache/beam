@@ -102,10 +102,9 @@ public class BasicSerializableSourceFormatTest {
       }
 
       @Override
-      public Reader<Integer> createBasicReader(
-          PipelineOptions options, Coder<Integer> coder,
+      public Reader<Integer> createBasicReader(PipelineOptions options, Coder<Integer> coder,
           @Nullable ExecutionContext executionContext) throws IOException {
-        return new RangeReader(from, to);
+        return new RangeReader(this);
       }
 
       @Override
@@ -117,12 +116,10 @@ public class BasicSerializableSourceFormatTest {
       }
 
       private class RangeReader implements Reader<Integer> {
-        private int to;
         private int current;
 
-        public RangeReader(int from, int to) {
-          this.to = to;
-          this.current = from - 1;
+        public RangeReader(Read source) {
+          this.current = source.from - 1;
         }
 
         @Override
@@ -149,8 +146,8 @@ public class BasicSerializableSourceFormatTest {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     options.setNumWorkers(5);
-    com.google.api.services.dataflow.model.Source source = translateIOToCloudSource(
-        TestIO.fromRange(10, 20), options);
+    com.google.api.services.dataflow.model.Source source =
+        translateIOToCloudSource(TestIO.fromRange(10, 20), options);
     List<WindowedValue<Integer>> elems = CloudSourceUtils.readElemsFromSource(options, source);
     assertEquals(10, elems.size());
     for (int i = 0; i < 10; ++i) {

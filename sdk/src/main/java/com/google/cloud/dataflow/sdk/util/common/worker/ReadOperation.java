@@ -220,13 +220,9 @@ public class ReadOperation extends Operation {
   }
 
   /**
-   * Relays the request to update the stop position to {@code ReaderIterator}.
-   *
-   * @param proposedStopPosition the proposed stop position
-   * @return the new stop position updated in {@code ReaderIterator}, or
-   * {@code null} if the source iterator has not been initialized
+   * Relays the fork request to {@code ReaderIterator}.
    */
-  public Reader.Position proposeStopPosition(Reader.Progress proposedStopPosition) {
+  public Reader.ForkResult requestFork(Reader.ForkRequest forkRequest) {
     synchronized (initializationStateLock) {
       if (isFinished()) {
         LOG.warn("Iterator is in the Finished state, returning null stop position.");
@@ -234,10 +230,10 @@ public class ReadOperation extends Operation {
       }
       synchronized (sourceIteratorLock) {
         if (readerIterator == null) {
-          LOG.warn("Iterator has not been initialized, returning null stop position.");
+          LOG.warn("Iterator has not been initialized, refusing to fork at {}", forkRequest);
           return null;
         }
-        return readerIterator.updateStopPosition(proposedStopPosition);
+        return readerIterator.requestFork(forkRequest);
       }
     }
   }

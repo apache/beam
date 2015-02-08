@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceProgressToCloudProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.forkRequestToApproximateProgress;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -52,8 +52,10 @@ import javax.annotation.Nullable;
 public abstract class FileBasedReader<T> extends Reader<T> {
   protected static final int BUF_SIZE = 200;
   protected final String filename;
+
   @Nullable
   protected final Long startPosition;
+
   @Nullable
   protected final Long endPosition;
   protected final Coder<T> coder;
@@ -191,44 +193,37 @@ public abstract class FileBasedReader<T> extends Reader<T> {
     }
 
     @Override
-    public Position updateStopPosition(Progress proposedStopPosition) {
-      checkNotNull(proposedStopPosition);
+    public ForkResult requestFork(ForkRequest forkRequest) {
+      checkNotNull(forkRequest);
 
-      // Currently we only support stop position in byte offset of
-      // CloudPosition in a file-based Reader. If stop position in
-      // other types is proposed, the end position in iterator will
-      // not be updated, and return null.
-      com.google.api.services.dataflow.model.ApproximateProgress stopPosition =
-          sourceProgressToCloudProgress(proposedStopPosition);
-      if (stopPosition == null) {
-        LOG.warn("A stop position other than CloudPosition is not supported now.");
+      // Currently, file-based Reader only supports fork at a byte offset.
+      ApproximateProgress forkProgress = forkRequestToApproximateProgress(forkRequest);
+      com.google.api.services.dataflow.model.Position forkPosition = forkProgress.getPosition();
+      if (forkPosition == null) {
+        LOG.warn("FileBasedReader only supports fork at a Position. Requested: {}", forkRequest);
+        return null;
+      }
+      Long forkOffset = forkPosition.getByteOffset();
+      if (forkOffset == null) {
+        LOG.warn("FileBasedReader only supports fork at byte offset. Requested: {}", forkPosition);
+        return null;
+      }
+      if (forkOffset <= offset) {
+        LOG.info("Already progressed to offset {} which is after the requested fork offset {}",
+            offset, forkOffset);
         return null;
       }
 
-      Long byteOffset = stopPosition.getPosition().getByteOffset();
-      if (byteOffset == null) {
-        LOG.warn("A proposed stop position must be a byte offset for a file-based Source.");
-        return null;
-      }
-      if (byteOffset <= offset) {
-        // Proposed stop position is not after the current position:
-        // No stop position update.
-        LOG.warn("The proposed stop position " + byteOffset
-            + " is past the current position " + offset);
-        return null;
+      if (endOffset != null && forkOffset >= endOffset) {
+        throw new IllegalArgumentException(
+            "Fork requested at an offset beyond the end of the current range: " + forkOffset
+            + " >= " + endOffset);
       }
 
-      if (endOffset != null && byteOffset >= endOffset) {
-        // Proposed stop position is after the current stop (end) position: No
-        // stop position update.
-        LOG.warn("The proposed stop position " + byteOffset
-            + " is after the current stop position " + endOffset);
-        return null;
-      }
+      this.endOffset = forkOffset;
+      LOG.info("Forked FileBasedReader at offset {}", forkOffset);
 
-      LOG.info("Updated the stop position to offset " + byteOffset);
-      this.endOffset = byteOffset;
-      return cloudPositionToReaderPosition(stopPosition.getPosition());
+      return new ForkResultWithPosition(cloudPositionToReaderPosition(forkPosition));
     }
 
     /**
@@ -262,7 +257,6 @@ public abstract class FileBasedReader<T> extends Reader<T> {
    * Factory interface for creating a decompressing {@link InputStream}.
    */
   public interface DecompressingStreamFactory {
-
     /**
      * Create a decompressing {@link InputStream} from an existing {@link InputStream}.
      *

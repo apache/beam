@@ -85,9 +85,8 @@ public class MapTaskExecutor extends WorkExecutor {
   }
 
   @Override
-  public Reader.Position proposeStopPosition(Reader.Progress proposedStopPosition)
-      throws Exception {
-    return getReadOperation().proposeStopPosition(proposedStopPosition);
+  public Reader.ForkResult requestFork(Reader.ForkRequest forkRequest) throws Exception {
+    return getReadOperation().requestFork(forkRequest);
   }
 
   ReadOperation getReadOperation() throws Exception {

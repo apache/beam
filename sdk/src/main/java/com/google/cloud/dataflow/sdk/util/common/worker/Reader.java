@@ -77,25 +77,38 @@ public abstract class Reader<T> extends Observable {
     public Progress getProgress();
 
     /**
-     * Attempts to update the stop position of the task with the proposed stop
-     * position and returns the actual new stop position.
-     *
-     * <p> If the source finds the proposed one is not a convenient position to
-     * stop, it can pick a different stop position. The {@code ReaderIterator}
-     * should start returning {@code false} from {@code hasNext()} once it has
-     * passed its stop position. Subsequent stop position updates must be in
-     * non-increasing order within a task.
-     *
-     * <p> This method is not required to be thread-safe, and it will not be
+     * Attempts to split the input in two parts: the "primary" part and the "residual" part.
+     * The current {@link ReaderIterator} keeps processing the primary part, while the residual part
+     * will be processed elsewhere (e.g. perhaps on a different worker).
+     * <p>
+     * The primary and residual parts, if concatenated, must represent the same input as the
+     * current input of this {@link ReaderIterator} before this call.
+     * <p>
+     * The boundary between the primary part and the residual part is specified in
+     * a framework-specific way using {@link ForkRequest}: e.g., if the framework supports the
+     * notion of positions, it might be a position at which the input is asked to split itself
+     * (which is not necessarily the same position at which it <i>will</i> split itself); it might
+     * be an approximate fraction of input, or something else.
+     * <p>
+     * {@link ForkResult} encodes, in a framework-specific way, the information sufficient to
+     * construct a description of the resulting primary and residual inputs. For example, it might,
+     * again, be a position demarcating these parts, or it might be a pair of fully-specified input
+     * descriptions, or something else.
+     * <p>
+     * After a successful call to {@link #requestFork}, subsequent calls should be interpreted
+     * relative to the new primary.
+     * <p>
+     * This method is not required to be thread-safe, and it will not be
      * called concurrently to any other methods.
+     * <p>
+     * This call should not affect the range of input represented by the {@link Reader} which
+     * produced this {@link ReaderIterator}.
      *
-     * @param proposedStopPosition a proposed position to stop
-     * iterating through the source
-     * @return the new stop position, or {@code null} on failure if the
-     * implementation does not support position updates(implementors are discouraged
-     * from throwing {@code UnsupportedOperationException} in this case).
+     * @return {@code null} if the {@link ForkRequest} cannot be honored (in that case the input
+     *   represented by this {@link ReaderIterator} stays the same), or a {@link ForkResult}
+     *   describing how the input was split into a primary and residual part.
      */
-    public Position updateStopPosition(Progress proposedStopPosition);
+    public ForkResult requestFork(ForkRequest request);
   }
 
   /** An abstract base class for ReaderIterator implementations. */
@@ -116,7 +129,7 @@ public abstract class Reader<T> extends Observable {
     }
 
     @Override
-    public Position updateStopPosition(Progress proposedStopPosition) {
+    public ForkResult requestFork(ForkRequest forkRequest) {
       return null;
     }
   }
@@ -140,6 +153,34 @@ public abstract class Reader<T> extends Observable {
    * interface are used by the rest of the framework.
    */
   public interface Position {}
+
+  /**
+   * A framework-specific way to specify how {@link ReaderIterator#requestFork} should split
+   * the input into a primary and residual part.
+   */
+  public interface ForkRequest {}
+
+  /**
+   * A framework-specific way to specify how {@link ReaderIterator#requestFork} has split
+   * the input into a primary and residual part.
+   */
+  public interface ForkResult {}
+
+  /**
+   * A {@link ForkResult} which specifies the boundary between the primary and residual parts
+   * of the input using a {@link Position}.
+   */
+  public static final class ForkResultWithPosition implements ForkResult {
+    private final Position acceptedPosition;
+
+    public ForkResultWithPosition(Position acceptedPosition) {
+      this.acceptedPosition = acceptedPosition;
+    }
+
+    public Position getAcceptedPosition() {
+      return acceptedPosition;
+    }
+  }
 
   /**
    * Utility method to notify observers about a new element, which has
