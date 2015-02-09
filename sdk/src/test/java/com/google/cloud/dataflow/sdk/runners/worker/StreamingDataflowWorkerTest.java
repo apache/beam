@@ -33,7 +33,7 @@ import com.google.cloud.dataflow.sdk.coders.CollectionCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
@@ -317,8 +317,9 @@ public class StreamingDataflowWorkerTest {
                                      Arrays.asList(DEFAULT_WINDOW)));
   }
 
-  private DataflowPipelineOptions createTestingPipelineOptions() {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+  private DataflowWorkerHarnessOptions createTestingPipelineOptions() {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     options.setAppName("StreamingWorkerHarnessTest");
     options.setStreaming(true);
     return options;

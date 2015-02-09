@@ -44,7 +44,6 @@ import org.joda.time.Duration;
 import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
@@ -142,8 +141,8 @@ public class DataflowWorkerHarness {
   }
 
   static DataflowWorker create(DataflowWorkerHarnessOptions options) {
-    MDC.put(DataflowWorkerLoggingFormatter.MDC_DATAFLOW_JOB_ID, options.getJobId());
-    MDC.put(DataflowWorkerLoggingFormatter.MDC_DATAFLOW_WORKER_ID, options.getWorkerId());
+    DataflowWorkerLoggingFormatter.setJobId(options.getJobId());
+    DataflowWorkerLoggingFormatter.setWorkerId(options.getWorkerId());
     options.setAppName(APPLICATION_NAME);
 
     // Configure standard IO factories.
@@ -223,7 +222,7 @@ public class DataflowWorkerHarness {
         return null;
       }
 
-      MDC.put(DataflowWorkerLoggingFormatter.MDC_DATAFLOW_WORK_ID, Long.toString(work.getId()));
+      DataflowWorkerLoggingFormatter.setWorkId(Long.toString(work.getId()));
       // Looks like the work's a'ight.
       return work;
     }

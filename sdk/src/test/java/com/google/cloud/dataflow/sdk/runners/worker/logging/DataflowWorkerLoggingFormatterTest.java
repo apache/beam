@@ -18,15 +18,13 @@ package com.google.cloud.dataflow.sdk.runners.worker.logging;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.dataflow.sdk.testing.RestoreMappedDiagnosticContext;
-import com.google.common.collect.ImmutableMap;
+import com.google.cloud.dataflow.sdk.testing.RestoreDataflowLoggingFormatter;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.MDC;
 
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -34,7 +32,7 @@ import java.util.logging.LogRecord;
 /** Unit tests for {@link DataflowWorkerLoggingFormatter}. */
 @RunWith(JUnit4.class)
 public class DataflowWorkerLoggingFormatterTest {
-  @Rule public TestRule restoreMDC = new RestoreMappedDiagnosticContext();
+  @Rule public TestRule restoreMDC = new RestoreDataflowLoggingFormatter();
 
   @Test
   public void testWithUnsetValuesInMDC() {
@@ -47,10 +45,10 @@ public class DataflowWorkerLoggingFormatterTest {
 
   @Test
   public void testWithMessage() {
-    MDC.setContextMap(ImmutableMap.<String, String>of(
-        "dataflow.jobId", "testJobId",
-        "dataflow.workerId", "testWorkerId",
-        "dataflow.workId", "testWorkId"));
+    DataflowWorkerLoggingFormatter.setJobId("testJobId");
+    DataflowWorkerLoggingFormatter.setWorkerId("testWorkerId");
+    DataflowWorkerLoggingFormatter.setWorkId("testWorkId");
+
     assertEquals(
         "1970-01-01T00:00:00.001Z INFO testJobId testWorkerId testWorkId 2 LoggerName "
         + "test.message" + System.lineSeparator(),
@@ -60,10 +58,10 @@ public class DataflowWorkerLoggingFormatterTest {
 
   @Test
   public void testWithMessageAndException() {
-    MDC.setContextMap(ImmutableMap.<String, String>of(
-        "dataflow.jobId", "testJobId",
-        "dataflow.workerId", "testWorkerId",
-        "dataflow.workId", "testWorkId"));
+    DataflowWorkerLoggingFormatter.setJobId("testJobId");
+    DataflowWorkerLoggingFormatter.setWorkerId("testWorkerId");
+    DataflowWorkerLoggingFormatter.setWorkId("testWorkId");
+
     assertEquals(
         "1970-01-01T00:00:00.001Z INFO testJobId testWorkerId testWorkId 2 LoggerName "
         + "test.message" + System.lineSeparator()
@@ -77,10 +75,10 @@ public class DataflowWorkerLoggingFormatterTest {
 
   @Test
   public void testWithException() {
-    MDC.setContextMap(ImmutableMap.<String, String>of(
-        "dataflow.jobId", "testJobId",
-        "dataflow.workerId", "testWorkerId",
-        "dataflow.workId", "testWorkId"));
+    DataflowWorkerLoggingFormatter.setJobId("testJobId");
+    DataflowWorkerLoggingFormatter.setWorkerId("testWorkerId");
+    DataflowWorkerLoggingFormatter.setWorkId("testWorkId");
+
     assertEquals(
         "1970-01-01T00:00:00.001Z INFO testJobId testWorkerId testWorkId 2 LoggerName null"
         + System.lineSeparator()
@@ -94,10 +92,10 @@ public class DataflowWorkerLoggingFormatterTest {
 
   @Test
   public void testWithoutExceptionOrMessage() {
-    MDC.setContextMap(ImmutableMap.<String, String>of(
-        "dataflow.jobId", "testJobId",
-        "dataflow.workerId", "testWorkerId",
-        "dataflow.workId", "testWorkId"));
+    DataflowWorkerLoggingFormatter.setJobId("testJobId");
+    DataflowWorkerLoggingFormatter.setWorkerId("testWorkerId");
+    DataflowWorkerLoggingFormatter.setWorkId("testWorkId");
+
     assertEquals(
         "1970-01-01T00:00:00.001Z INFO testJobId testWorkerId testWorkId 2 LoggerName null"
         + System.lineSeparator(),

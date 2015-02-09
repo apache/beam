@@ -18,8 +18,10 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.MetricUpdate;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingInitializer;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.util.BoundedQueueExecutor;
@@ -37,6 +39,9 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -51,8 +56,6 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -61,7 +64,7 @@ import javax.servlet.http.HttpServletResponse;
  * Implements a Streaming Dataflow worker.
  */
 public class StreamingDataflowWorker {
-  private static final Logger LOG = Logger.getLogger(StreamingDataflowWorker.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
   static final int MAX_THREAD_POOL_SIZE = 100;
   static final long THREAD_EXPIRATION_TIME_SEC = 60;
   static final int MAX_THREAD_POOL_QUEUE_SIZE = 100;
@@ -87,7 +90,8 @@ public class StreamingDataflowWorker {
   }
 
   public static void main(String[] args) throws Exception {
-    LOG.setLevel(Level.INFO);
+    new DataflowWorkerLoggingInitializer().initialize();
+
     String hostport = System.getProperty("windmill.hostport");
     if (hostport == null) {
       throw new Exception("-Dwindmill.hostport must be set to the location of the windmill server");
@@ -124,7 +128,7 @@ public class StreamingDataflowWorker {
   private Thread commitThread;
   private AtomicBoolean running;
   private StateFetcher stateFetcher;
-  private DataflowPipelineOptions options;
+  private DataflowWorkerHarnessOptions options;
   private long clientId;
   private Server statusServer;
   private AtomicReference<Throwable> lastException;
@@ -132,10 +136,11 @@ public class StreamingDataflowWorker {
   /** Regular constructor. */
   public StreamingDataflowWorker(
       List<MapTask> mapTasks, WindmillServerStub server) {
-    initialize(mapTasks, server);
-    options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     options.setAppName("StreamingWorkerHarness");
     options.setStreaming(true);
+
+    initialize(mapTasks, server);
 
     if (System.getProperties().containsKey("path_validator_class")) {
       try {
@@ -157,9 +162,9 @@ public class StreamingDataflowWorker {
 
   /** The constructor that takes PipelineOptions.  Should be used only by unit tests. */
   StreamingDataflowWorker(
-      List<MapTask> mapTasks, WindmillServerStub server, DataflowPipelineOptions options) {
-    initialize(mapTasks, server);
+      List<MapTask> mapTasks, WindmillServerStub server, DataflowWorkerHarnessOptions options) {
     this.options = options;
+    initialize(mapTasks, server);
   }
 
   public void start() {
@@ -202,8 +207,7 @@ public class StreamingDataflowWorker {
       }
       commitThread.join();
     } catch (Exception e) {
-      LOG.warning("Exception while shutting down: " + e);
-      e.printStackTrace();
+      LOG.warn("Exception while shutting down: ", e);
     }
   }
 
@@ -219,8 +223,7 @@ public class StreamingDataflowWorker {
         private final Thread.UncaughtExceptionHandler handler =
             new Thread.UncaughtExceptionHandler() {
               public void uncaughtException(Thread thread, Throwable e) {
-                LOG.severe("Uncaught exception: " + e);
-                e.printStackTrace();
+                LOG.error("Uncaught exception: ", e);
                 System.exit(1);
               }
             };
@@ -239,6 +242,9 @@ public class StreamingDataflowWorker {
     this.stateFetcher = new StateFetcher(server);
     this.clientId = new Random().nextLong();
     this.lastException = new AtomicReference<>();
+
+    DataflowWorkerLoggingFormatter.setJobId(options.getJobId());
+    DataflowWorkerLoggingFormatter.setWorkerId(options.getWorkerId());
   }
 
   public void runStatusServer(int statusPort) {
@@ -246,17 +252,17 @@ public class StreamingDataflowWorker {
     statusServer.setHandler(new StatusHandler());
     try {
       statusServer.start();
-      LOG.info("Status server started on port " + statusPort);
+      LOG.info("Status server started on port {}", statusPort);
       statusServer.join();
     } catch (Exception e) {
-      LOG.warning("Status server failed to start: " + e);
+      LOG.warn("Status server failed to start: ", e);
     }
   }
 
   private void addComputation(MapTask mapTask) {
     String computation = mapTask.getSystemName();
     if (!instructionMap.containsKey(computation)) {
-      LOG.info("Adding config for " + computation + ": " + mapTask);
+      LOG.info("Adding config for {}: {}", computation, mapTask);
       outputMap.put(computation, new ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>());
       instructionMap.put(computation, mapTask);
       mapTaskExecutors.put(
@@ -284,8 +290,8 @@ public class StreamingDataflowWorker {
       // Also force a GC to try to get under the memory threshold if possible.
       while (rt.freeMemory() < rt.totalMemory() * PUSHBACK_THRESHOLD) {
         if (lastPushbackLog < (lastPushbackLog = System.currentTimeMillis()) - 60 * 1000) {
-          LOG.warning("In pushback, not accepting new work. Free Memory: "
-              + rt.freeMemory() + "MB / " + rt.totalMemory() + "MB");
+          LOG.warn("In pushback, not accepting new work. Free Memory: {}MB / {}MB",
+              rt.freeMemory(), rt.totalMemory());
           System.gc();
         }
         sleep(10);
@@ -320,12 +326,12 @@ public class StreamingDataflowWorker {
 
   private void process(
       final String computation, final Windmill.WorkItem work) {
-    LOG.log(Level.FINE, "Starting processing for " + computation + ":\n{0}", work);
+    LOG.debug("Starting processing for {}:\n{}", computation, work);
 
     MapTask mapTask = instructionMap.get(computation);
     if (mapTask == null) {
-      LOG.info("Received work for unknown computation: " + computation
-          + ". Known computations are " + instructionMap.keySet());
+      LOG.info("Received work for unknown computation: {}. Known computations are {}",
+          computation, instructionMap.keySet());
       return;
     }
 
@@ -338,6 +344,8 @@ public class StreamingDataflowWorker {
     MapTaskExecutor worker = null;
 
     try {
+      DataflowWorkerLoggingFormatter.setWorkId(
+          work.getKey().toStringUtf8() + "-" + Long.toString(work.getWorkToken()));
       WorkerAndContext workerAndContext = mapTaskExecutors.get(computation).poll();
       if (workerAndContext == null) {
         context = new StreamingModeExecutionContext(computation, stateFetcher);
@@ -359,28 +367,31 @@ public class StreamingDataflowWorker {
       mapTaskExecutors.get(computation).offer(new WorkerAndContext(worker, context));
       worker = null;
       context = null;
+
+      Windmill.WorkItemCommitRequest output = outputBuilder.build();
+      outputMap.get(computation).add(output);
+      LOG.debug("Processing done for work token: {}", work.getWorkToken());
     } catch (Throwable t) {
       if (worker != null) {
         try {
           worker.close();
         } catch (Exception e) {
-          LOG.warning("Failed to close worker: " + e.getMessage());
-          e.printStackTrace();
+          LOG.warn("Failed to close worker: ", e);
         }
       }
 
       t = t instanceof UserCodeException ? t.getCause() : t;
 
       if (t instanceof KeyTokenInvalidException) {
-        LOG.fine("Execution of work for " + computation + " for key " + work.getKey().toStringUtf8()
+        LOG.debug("Execution of work for " + computation
+            + " for key " + work.getKey().toStringUtf8()
             + " failed due to token expiration, will not retry locally.");
       } else {
-        LOG.warning("Execution of work for " + computation + " for key "
-            + work.getKey().toStringUtf8() + " failed, retrying."
-            + "\nError: " + t.getMessage());
-        t.printStackTrace();
+        LOG.error("Execution of work for {} for key {} failed, retrying.",
+            computation, work.getKey().toStringUtf8());
+        LOG.error("\nError: ", t);
         lastException.set(t);
-        LOG.fine("Failed work: " + work);
+        LOG.debug("Failed work: {}", work);
         reportFailure(computation, work, t);
         // Try again, but go to the end of the queue to avoid a tight loop.
         sleep(60000);
@@ -390,12 +401,9 @@ public class StreamingDataflowWorker {
             }
           });
       }
-      return;
+    } finally {
+      DataflowWorkerLoggingFormatter.setWorkId(null);
     }
-
-    Windmill.WorkItemCommitRequest output = outputBuilder.build();
-    outputMap.get(computation).add(output);
-    LOG.fine("Processing done for work token: " + work.getWorkToken());
   }
 
   private void commitLoop() {
@@ -423,7 +431,7 @@ public class StreamingDataflowWorker {
       }
       if (commitRequestBuilder.getRequestsCount() > 0) {
         Windmill.CommitWorkRequest commitRequest = commitRequestBuilder.build();
-        LOG.log(Level.FINE, "Commit: {0}", commitRequest);
+        LOG.debug("Commit: {}", commitRequest);
         commitWork(commitRequest);
       }
       if (remainingCommitBytes > 0) {
@@ -451,8 +459,8 @@ public class StreamingDataflowWorker {
       try {
         addComputation(parseMapTask(serializedMapTask));
       } catch (IOException e) {
-        LOG.warning("Parsing MapTask failed: " + serializedMapTask);
-        e.printStackTrace();
+        LOG.warn("Parsing MapTask failed: {}", serializedMapTask);
+        LOG.warn("Error: ", e);
       }
     }
   }
@@ -472,7 +480,7 @@ public class StreamingDataflowWorker {
       } else if (cloudKind.equals(Counter.AggregationKind.MIN.name())) {
         kind = Windmill.Counter.Kind.MIN;
       } else {
-        LOG.log(Level.FINE, "Unhandled counter type: " + metricUpdate.getKind());
+        LOG.debug("Unhandled counter type: {}", metricUpdate.getKind());
         return;
       }
       Windmill.Counter.Builder counterBuilder = builder.addCounterUpdatesBuilder();

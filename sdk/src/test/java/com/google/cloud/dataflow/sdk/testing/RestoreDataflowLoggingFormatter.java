@@ -16,32 +16,32 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableMap;
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
 
 import org.junit.rules.ExternalResource;
-import org.slf4j.MDC;
-
-import java.util.Map;
 
 /**
- * Saves and restores the current MDC for tests.
+ * Saves and restores the current thread-local logging parameters for tests.
  */
-public class RestoreMappedDiagnosticContext extends ExternalResource {
-  private Map<String, String> previousValue;
+public class RestoreDataflowLoggingFormatter extends ExternalResource {
+  private String previousJobId;
+  private String previousWorkerId;
+  private String previousWorkId;
 
-  public RestoreMappedDiagnosticContext() {
+  public RestoreDataflowLoggingFormatter() {
   }
 
   @Override
   protected void before() throws Throwable {
-    previousValue = MoreObjects.firstNonNull(
-        MDC.getCopyOfContextMap(),
-        ImmutableMap.<String, String>of());
+    previousJobId = DataflowWorkerLoggingFormatter.getJobId();
+    previousWorkerId = DataflowWorkerLoggingFormatter.getWorkerId();
+    previousWorkId = DataflowWorkerLoggingFormatter.getWorkId();
   }
 
   @Override
   protected void after() {
-    MDC.setContextMap(previousValue);
+    DataflowWorkerLoggingFormatter.setJobId(previousJobId);
+    DataflowWorkerLoggingFormatter.setWorkerId(previousWorkerId);
+    DataflowWorkerLoggingFormatter.setWorkId(previousWorkId);
   }
 }

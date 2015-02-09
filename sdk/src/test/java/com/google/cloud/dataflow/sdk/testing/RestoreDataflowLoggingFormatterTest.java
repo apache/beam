@@ -19,33 +19,34 @@ package com.google.cloud.dataflow.sdk.testing;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.MDC;
 
-/** Tests for {@link RestoreMappedDiagnosticContext}. */
+/** Tests for {@link RestoreDataflowLoggingFormatter}. */
 @RunWith(JUnit4.class)
-public class RestoreMappedDiagnosticContextTest {
-  @Rule public TestRule restoreMappedDiagnosticContext = new RestoreMappedDiagnosticContext();
+public class RestoreDataflowLoggingFormatterTest {
+  @Rule public TestRule restoreDataflowLoggingFormatter = new RestoreDataflowLoggingFormatter();
 
   /*
    * Since these tests can run out of order, both test A and B verify that they
    * could insert their property and that the other does not exist.
    */
   @Test
-  public void testThatMDCIsClearedA() {
-    MDC.put("TestA", "TestA");
-    assertNotNull(MDC.get("TestA"));
-    assertNull(MDC.get("TestB"));
+  public void testLoggingParamsClearedA() {
+    DataflowWorkerLoggingFormatter.setJobId("job");
+    assertNotNull(DataflowWorkerLoggingFormatter.getJobId());
+    assertNull(DataflowWorkerLoggingFormatter.getWorkerId());
   }
 
   @Test
-  public void testThatMDCIsClearedB() {
-    MDC.put("TestB", "TestB");
-    assertNotNull(MDC.get("TestB"));
-    assertNull(MDC.get("TestA"));
+  public void testLoggingParamsClearedB() {
+    DataflowWorkerLoggingFormatter.setWorkerId("worker");
+    assertNotNull(DataflowWorkerLoggingFormatter.getWorkerId());
+    assertNull(DataflowWorkerLoggingFormatter.getJobId());
   }
 }

@@ -22,7 +22,6 @@ import com.google.common.base.MoreObjects;
 
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
-import org.slf4j.MDC;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -39,9 +38,53 @@ import java.util.logging.LogRecord;
 public class DataflowWorkerLoggingFormatter extends Formatter {
   private static final DateTimeFormatter DATE_FORMATTER =
       ISODateTimeFormat.dateTime().withZoneUTC();
-  public static final String MDC_DATAFLOW_JOB_ID = "dataflow.jobId";
-  public static final String MDC_DATAFLOW_WORKER_ID = "dataflow.workerId";
-  public static final String MDC_DATAFLOW_WORK_ID = "dataflow.workId";
+
+  private static final InheritableThreadLocal<String> jobId = new InheritableThreadLocal<>();
+  private static final InheritableThreadLocal<String> workerId = new InheritableThreadLocal<>();
+  private static final InheritableThreadLocal<String> workId = new InheritableThreadLocal<>();
+
+  /**
+   * Sets the Job ID of the current thread, which will be inherited by child threads.
+   */
+  public static void setJobId(String newJobId) {
+    jobId.set(newJobId);
+  }
+
+  /**
+   * Sets the Worker ID of the current thread, which will be inherited by child threads.
+   */
+  public static void setWorkerId(String newWorkerId) {
+    workerId.set(newWorkerId);
+  }
+
+  /**
+   * Sets the Work ID of the current thread, which will be inherited by child threads.
+   */
+  public static void setWorkId(String newWorkId) {
+    workId.set(newWorkId);
+  }
+
+  /**
+   * Gets the Job ID of the current thread.
+   */
+  public static String getJobId() {
+    return jobId.get();
+  }
+
+  /**
+   * Gets the Worker ID of the current thread.
+   */
+  public static String getWorkerId() {
+    return workerId.get();
+  }
+
+  /**
+   * Gets the Work ID of the current thread.
+   */
+  public static String getWorkId() {
+    return workId.get();
+  }
+
 
   @Override
   public String format(LogRecord record) {
@@ -49,9 +92,9 @@ public class DataflowWorkerLoggingFormatter extends Formatter {
     return DATE_FORMATTER.print(record.getMillis())
         + " " + MoreObjects.firstNonNull(LEVELS.get(record.getLevel()),
                                          record.getLevel().getName())
-        + " " + MoreObjects.firstNonNull(MDC.get(MDC_DATAFLOW_JOB_ID), "unknown")
-        + " " + MoreObjects.firstNonNull(MDC.get(MDC_DATAFLOW_WORKER_ID), "unknown")
-        + " " + MoreObjects.firstNonNull(MDC.get(MDC_DATAFLOW_WORK_ID), "unknown")
+        + " " + MoreObjects.firstNonNull(jobId.get(), "unknown")
+        + " " + MoreObjects.firstNonNull(workerId.get(), "unknown")
+        + " " + MoreObjects.firstNonNull(workId.get(), "unknown")
         + " " + record.getThreadID()
         + " " + record.getLoggerName()
         + " " + record.getMessage() + System.lineSeparator()

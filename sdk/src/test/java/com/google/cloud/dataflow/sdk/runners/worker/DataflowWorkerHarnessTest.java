@@ -35,7 +35,8 @@ import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.testing.RestoreMappedDiagnosticContext;
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
+import com.google.cloud.dataflow.sdk.testing.RestoreDataflowLoggingFormatter;
 import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.Transport;
@@ -52,7 +53,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.MDC;
 
 import java.io.IOException;
 
@@ -60,7 +60,7 @@ import java.io.IOException;
 @RunWith(JUnit4.class)
 public class DataflowWorkerHarnessTest {
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
-  @Rule public TestRule restoreMDC = new RestoreMappedDiagnosticContext();
+  @Rule public TestRule restoreLogging = new RestoreDataflowLoggingFormatter();
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Mock private MockHttpTransport transport;
   @Mock private MockLowLevelHttpRequest request;
@@ -108,8 +108,8 @@ public class DataflowWorkerHarnessTest {
     DataflowWorkerHarnessOptions options = PipelineOptionsFactory.createFromSystemProperties();
     options.setGcpCredential(new TestCredential());
     assertNotNull(DataflowWorkerHarness.create(options));
-    assertEquals("jobId", MDC.get("dataflow.jobId"));
-    assertEquals("workerId", MDC.get("dataflow.workerId"));
+    assertEquals("jobId", DataflowWorkerLoggingFormatter.getJobId());
+    assertEquals("workerId", DataflowWorkerLoggingFormatter.getWorkerId());
   }
 
   @Test
@@ -138,7 +138,7 @@ public class DataflowWorkerHarnessTest {
         actualRequest.getWorkerCapabilities());
     assertEquals(ImmutableList.<String>of("map_task", "seq_map_task", "remote_source_task"),
         actualRequest.getWorkItemTypes());
-    assertEquals("1234", MDC.get("dataflow.workId"));
+    assertEquals("1234", DataflowWorkerLoggingFormatter.getWorkId());
   }
 
   @Test
