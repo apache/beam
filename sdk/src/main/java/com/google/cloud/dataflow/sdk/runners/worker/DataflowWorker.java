@@ -38,7 +38,6 @@ import com.google.cloud.dataflow.sdk.util.common.Metric;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
-import com.google.cloud.dataflow.sdk.util.common.worker.WorkProgressUpdater;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,7 +120,7 @@ public class DataflowWorker {
         throw new RuntimeException("unknown kind of work item: " + workItem.toString());
       }
 
-      WorkProgressUpdater progressUpdater =
+      DataflowWorkProgressUpdater progressUpdater =
           new DataflowWorkProgressUpdater(workItem, worker, workUnitClient, options);
       progressUpdater.startReportingProgress();
 
@@ -156,7 +155,8 @@ public class DataflowWorker {
                   ((SourceOperationExecutor) worker).getResponse())
               : null;
       reportStatus(
-          options, "Success", workItem, counters, metrics, operationResponse, null/*errors*/);
+          options, "Success", workItem, counters, metrics, operationResponse, null/*errors*/,
+          progressUpdater.getNextReportIndex());
 
       return true;
 
@@ -190,7 +190,7 @@ public class DataflowWorker {
 
     reportStatus(options, "Failure", workItem, worker == null ? null : worker.getOutputCounters(),
         worker == null ? null : worker.getOutputMetrics(), null/*sourceOperationResponse*/,
-        error == null ? null : Collections.singletonList(error));
+        error == null ? null : Collections.singletonList(error), 0);
   }
 
   /**
@@ -219,11 +219,12 @@ public class DataflowWorker {
 
   private void reportStatus(DataflowWorkerHarnessOptions options, String status, WorkItem workItem,
       @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
-      @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors)
+      @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors,
+      long finalReportIndex)
       throws IOException {
     LOG.info("{} processing work item {}", status, uniqueId(workItem));
     WorkItemStatus workItemStatus = buildStatus(workItem, true/*completed*/, counters, metrics,
-        options, null, null, operationResponse, errors);
+        options, null, null, operationResponse, errors, finalReportIndex);
     workUnitClient.reportWorkItemStatus(workItemStatus);
   }
 
@@ -231,10 +232,12 @@ public class DataflowWorker {
       @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
       DataflowWorkerHarnessOptions options, @Nullable Reader.Progress progress,
       @Nullable Reader.ForkResult forkResult,
-      @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors) {
+      @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors,
+      long finalReportIndex) {
     WorkItemStatus status = new WorkItemStatus();
     status.setWorkItemId(Long.toString(workItem.getId()));
     status.setCompleted(completed);
+    status.setReportIndex(finalReportIndex);
 
     List<MetricUpdate> counterUpdates = null;
     List<MetricUpdate> metricUpdates = null;

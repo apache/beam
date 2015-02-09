@@ -209,7 +209,7 @@ public class DataflowWorkProgressUpdaterTest {
     verify(workUnitClient, timeout(600))
         .reportWorkItemStatus(argThat(
             new ExpectedDataflowWorkItemStatus().withCounters(3).withMetrics(2).withProgress(
-                approximateProgressAtIndex(1L))));
+                approximateProgressAtIndex(1L)).withReportIndex(1L)));
 
     setUpCounters(5);
     setUpMetrics(6);
@@ -221,7 +221,8 @@ public class DataflowWorkProgressUpdaterTest {
                 .withCounters(5)
                 .withMetrics(6)
                 .withProgress(approximateProgressAtIndex(2L))
-                .withForkAtPosition(positionAtIndex(3L))));
+                .withForkAtPosition(positionAtIndex(3L))
+                .withReportIndex(2L)));
 
     // After the request is sent, reset cached fork result to null.
     assertNull(progressUpdater.getForkResultToReport());
@@ -231,9 +232,12 @@ public class DataflowWorkProgressUpdaterTest {
     // The third update should be sent after one and half seconds (3000 / 2).
     verify(workUnitClient, timeout(1600))
         .reportWorkItemStatus(argThat(
-            new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(3L))));
+            new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(3L))
+                .withReportIndex(3L)));
 
     progressUpdater.stopReportingProgress();
+
+    assertEquals(4L, progressUpdater.getNextReportIndex());
   }
 
   // Verifies that a last update is sent when there is an unacknowledged split request.
@@ -344,6 +348,9 @@ public class DataflowWorkProgressUpdaterTest {
     @Nullable
     Position expectedForkPosition;
 
+    @Nullable
+    Long expectedReportIndex;
+
     public ExpectedDataflowWorkItemStatus withCounters(Integer counterCount) {
       this.counterCount = counterCount;
       return this;
@@ -361,6 +368,11 @@ public class DataflowWorkProgressUpdaterTest {
 
     public ExpectedDataflowWorkItemStatus withForkAtPosition(Position expectedForkPosition) {
       this.expectedForkPosition = expectedForkPosition;
+      return this;
+    }
+
+    public ExpectedDataflowWorkItemStatus withReportIndex(Long reportIndex) {
+      this.expectedReportIndex = reportIndex;
       return this;
     }
 
@@ -385,13 +397,17 @@ public class DataflowWorkProgressUpdaterTest {
       } else {
         values.add("no fork position present");
       }
+      if (this.expectedReportIndex != null) {
+        values.add("reportIndex " + this.expectedReportIndex);
+      }
       description.appendValueList("Dataflow WorkItemStatus with ", ", ", ".", values);
     }
 
     @Override
     public boolean matches(Object status) {
       WorkItemStatus st = (WorkItemStatus) status;
-      return matchCountersAndMetrics(st) && matchProgress(st) && matchStopPosition(st);
+      return matchCountersAndMetrics(st) && matchProgress(st) && matchStopPosition(st)
+          && matchReportIndex(st);
     }
 
     private boolean matchCountersAndMetrics(WorkItemStatus status) {
@@ -434,6 +450,13 @@ public class DataflowWorkProgressUpdaterTest {
         return actualStopPosition == null;
       }
       return expectedForkPosition.equals(actualStopPosition);
+    }
+
+    private boolean matchReportIndex(WorkItemStatus status) {
+      if (expectedReportIndex == null) {
+        return true;
+      }
+      return expectedReportIndex.equals(status.getReportIndex());
     }
   }
 }

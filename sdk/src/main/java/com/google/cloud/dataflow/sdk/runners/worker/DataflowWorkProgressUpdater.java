@@ -54,12 +54,16 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   /** Options specifying information about the pipeline run by the worker.*/
   private final DataflowWorkerHarnessOptions options;
 
+  /** The index to use for the next report sent for the updater's work item. */
+  private long nextReportIndex;
+
   public DataflowWorkProgressUpdater(WorkItem workItem, WorkExecutor worker,
       DataflowWorker.WorkUnitClient workUnitClient, DataflowWorkerHarnessOptions options) {
     super(worker);
     this.workItem = workItem;
     this.workUnitClient = workUnitClient;
     this.options = options;
+    this.nextReportIndex = 1;
   }
 
   @Override
@@ -76,13 +80,15 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   protected void reportProgressHelper() throws Exception {
     WorkItemStatus status = buildStatus(workItem, false/*completed*/, worker.getOutputCounters(),
         worker.getOutputMetrics(), options, worker.getWorkerProgress(), forkResultToReport,
-        null/*sourceOperationResponse*/, null/*errors*/);
+        null/*sourceOperationResponse*/, null/*errors*/,
+        getNextReportIndex());
     status.setRequestedLeaseDuration(toCloudDuration(Duration.millis(requestedLeaseDurationMs)));
 
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
     if (result != null) {
       // Resets state after a successful progress report.
       forkResultToReport = null;
+      nextReportIndex++;
 
       progressReportIntervalMs = nextProgressReportInterval(
           fromCloudDuration(workItem.getReportStatusInterval()).getMillis(),
@@ -104,5 +110,13 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   /** Returns the given work unit service state lease expiration timestamp. */
   private long getLeaseExpirationTimestamp(WorkItemServiceState workItemServiceState) {
     return fromCloudTime(workItemServiceState.getLeaseExpireTime()).getMillis();
+  }
+
+  /**
+   * Returns the index to use for the next work item report for the work
+   * progress updater's work item.
+   */
+  long getNextReportIndex() {
+    return nextReportIndex;
   }
 }
