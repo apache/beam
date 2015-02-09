@@ -3,7 +3,7 @@ language: java
 notifications:
   email:
     recipients:
-      - dataflow-sdk+travis@google.com
+      - dataflow-sdk-build-notifications+travis@google.com
     on_success: change
     on_failure: always
 
