@@ -225,6 +225,7 @@ public class CoGbkResult {
       return new CoGbkResult(schema, map);
     }
 
+    @Override
     public boolean equals(Object other) {
       if (!super.equals(other)) {
         return false;
@@ -317,7 +318,7 @@ public class CoGbkResult {
           + " is not in the schema");
     }
     List<RawUnionValue> unions = valueMap.get(index);
-    if (unions.isEmpty()) {
+    if (unions == null || unions.isEmpty()) {
       if (useDefault) {
         return defaultValue;
       } else {

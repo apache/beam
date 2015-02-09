@@ -17,8 +17,10 @@
 package com.google.cloud.dataflow.sdk.transforms.join;
 
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
@@ -73,6 +75,98 @@ public class CoGroupByKeyTest implements Serializable {
                 c.output(c.element());
               }
             }));
+  }
+
+  /**
+   * Returns a PCollection<KV<Integer, CoGbkResult>> containing the result
+   * of a CoGbk over 2 PCollection<KV<Integer, String>>, where each PCollection
+   * has no duplicate keys and the key sets of each PCollection are
+   * intersecting but neither is a subset of the other.
+   */
+  private PCollection<KV<Integer, CoGbkResult>> buildGetOnlyGbk(
+      Pipeline p,
+      TupleTag<String> tag1,
+      TupleTag<String> tag2) {
+    List<KV<Integer, String>> list1 =
+        Arrays.asList(
+            KV.of(1, "collection1-1"),
+            KV.of(2, "collection1-2"));
+    List<KV<Integer, String>> list2 =
+        Arrays.asList(
+            KV.of(2, "collection2-2"),
+            KV.of(3, "collection2-3"));
+    PCollection<KV<Integer, String>> collection1 = createInput(p, list1);
+    PCollection<KV<Integer, String>> collection2 = createInput(p, list2);
+    PCollection<KV<Integer, CoGbkResult>> coGbkResults =
+        KeyedPCollectionTuple.of(tag1, collection1)
+            .and(tag2, collection2)
+            .apply(CoGroupByKey.<Integer>create());
+    return coGbkResults;
+  }
+
+  @Test
+  public void testCoGroupByKeyGetOnly() {
+    TupleTag<String> tag1 = new TupleTag<>();
+    TupleTag<String> tag2 = new TupleTag<>();
+
+    DirectPipeline p = DirectPipeline.createForTest();
+
+    PCollection<KV<Integer, CoGbkResult>> coGbkResults =
+        buildGetOnlyGbk(p, tag1, tag2);
+
+    EvaluationResults results = p.run();
+
+    List<KV<Integer, CoGbkResult>> finalResult =
+        results.getPCollection(coGbkResults);
+
+    HashMap<Integer, Matcher<String>> collection1Matchers =
+        new HashMap<Integer, Matcher<String>>() {
+      {
+        put(1, equalTo("collection1-1"));
+        put(2, equalTo("collection1-2"));
+      }
+    };
+
+    HashMap<Integer, Matcher<String>> collection2Matchers =
+        new HashMap<Integer, Matcher<String>>() {
+      {
+        put(2, equalTo("collection2-2"));
+        put(3, equalTo("collection2-3"));
+      }
+    };
+
+    for (KV<Integer, CoGbkResult> result : finalResult) {
+      int key = result.getKey();
+      CoGbkResult row = result.getValue();
+      checkGetOnlyForKey(key, collection1Matchers, row, tag1, "default");
+      checkGetOnlyForKey(key, collection2Matchers, row, tag2, "default");
+    }
+  }
+
+  /**
+   * Check that a singleton value for a key in a CoGbkResult matches the
+   * expected value in a map.  If no value exists for the key, check that
+   * a default value is given (if supplied) and that an
+   * {@link IllegalArgumentException} is thrown if no default is supplied.
+   */
+  private <K, V> void checkGetOnlyForKey(
+      K key,
+      HashMap<K, Matcher<V>> matchers,
+      CoGbkResult row,
+      TupleTag<V> tag,
+      V defaultValue) {
+    if (matchers.containsKey(key)) {
+      assertThat(row.getOnly(tag), matchers.get(key));
+    } else {
+      assertThat(row.getOnly(tag, defaultValue), equalTo(defaultValue));
+      try {
+        row.getOnly(tag);
+        fail();
+      } catch (IllegalArgumentException e) {
+        // if no value exists, an IllegalArgumentException should be thrown
+      }
+
+    }
   }
 
   /**
