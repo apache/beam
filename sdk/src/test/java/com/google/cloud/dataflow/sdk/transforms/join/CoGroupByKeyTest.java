@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -34,12 +35,18 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.collect.Iterables;
 
 import org.hamcrest.Matcher;
+import org.joda.time.Duration;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -62,8 +69,21 @@ public class CoGroupByKeyTest implements Serializable {
    */
   private PCollection<KV<Integer, String>> createInput(
       Pipeline p, List<KV<Integer, String>> list) {
-    return p
-            .apply(Create.of(list))
+    return createInput(p, list,  new ArrayList<Long>());
+  }
+
+  /**
+   * Converts the given list with timestamps into a PCollection.
+   */
+  private PCollection<KV<Integer, String>> createInput(
+      Pipeline p, List<KV<Integer, String>> list, List<Long> timestamps) {
+    PCollection<KV<Integer, String>> input;
+    if (timestamps.isEmpty()) {
+      input = p.apply(Create.of(list));
+    } else {
+      input = p.apply(Create.timestamped(list, timestamps));
+    }
+    return input
             // Create doesn't infer coders for parameterized types.
             .setCoder(
                 KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
@@ -227,6 +247,59 @@ public class CoGroupByKeyTest implements Serializable {
     return coGbkResults;
   }
 
+  /**
+   * Returns a PCollection<KV<Integer, CoGbkResult>> containing the
+   * results of the CoGbk over 2 PCollection<KV<Integer, String>>, each of
+   * which correlates a customer id to clicks, purchases, respectively.
+   */
+  private PCollection<KV<Integer, CoGbkResult>> buildPurchasesCoGbkWithWindowing(
+      Pipeline p,
+      TupleTag<String> clicksTag,
+      TupleTag<String> purchasesTag) {
+    List<KV<Integer, String>> idToClick =
+        Arrays.asList(
+            KV.of(1, "Click t0"),
+            KV.of(2, "Click t2"),
+            KV.of(1, "Click t4"),
+            KV.of(1, "Click t6"),
+            KV.of(2, "Click t8"));
+
+    List<KV<Integer, String>> idToPurchases =
+        Arrays.asList(
+            KV.of(1, "Boat t1"),
+            KV.of(1, "Shoesi t2"),
+            KV.of(1, "Pens t3"),
+            KV.of(2, "House t4"),
+            KV.of(2, "Suit t5"),
+            KV.of(1, "Car t6"),
+            KV.of(1, "Book t7"),
+            KV.of(2, "House t8"),
+            KV.of(2, "Shoes t9"),
+            KV.of(2, "House t10"));
+
+    PCollection<KV<Integer, String>> clicksTable =
+        createInput(
+            p,
+            idToClick,
+            Arrays.asList(0L, 2L, 4L, 6L, 8L))
+        .apply(Window.<KV<Integer, String>>into(
+            FixedWindows.<KV<Integer, String>>of(new Duration(4))));
+
+    PCollection<KV<Integer, String>> purchasesTable =
+        createInput(
+            p,
+            idToPurchases,
+            Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L))
+        .apply(Window.<KV<Integer, String>>into(
+            FixedWindows.<KV<Integer, String>>of(new Duration(4))));
+
+    PCollection<KV<Integer, CoGbkResult>> coGbkResults =
+        KeyedPCollectionTuple.of(clicksTag, clicksTable)
+            .and(purchasesTag, purchasesTable)
+            .apply(CoGroupByKey.<Integer>create());
+    return coGbkResults;
+  }
+
   @Test
   public void testCoGroupByKey() {
     TupleTag<String> namesTag = new TupleTag<>();
@@ -308,6 +381,41 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   /**
+   * A DoFn used in testCoGroupByKeyWithWindowing(), to test processing the
+   * results of a CoGroupByKey.
+   */
+  private static class ClickOfPurchaseFn extends
+      DoFn<KV<Integer, CoGbkResult>, KV<String, String>> {
+    private final TupleTag<String> clicksTag;
+
+    private final TupleTag<String> purchasesTag;
+
+    private ClickOfPurchaseFn(
+        TupleTag<String> clicksTag,
+        TupleTag<String> purchasesTag) {
+      this.clicksTag = clicksTag;
+      this.purchasesTag = purchasesTag;
+    }
+
+    @Override
+    public void processElement(ProcessContext c) {
+      Preconditions.checkState(c.windows().size() == 1);
+      BoundedWindow w = c.windows().iterator().next();
+      KV<Integer, CoGbkResult> e = c.element();
+      CoGbkResult row = e.getValue();
+      Iterable<String> clicks = row.getAll(clicksTag);
+      Iterable<String> purchases = row.getAll(purchasesTag);
+      for (String click : clicks) {
+        for (String purchase : purchases) {
+          c.output(KV.of(click + ":" + purchase,
+                         c.timestamp().getMillis() + ":" + w.maxTimestamp().getMillis()));
+        }
+      }
+    }
+  }
+
+
+  /**
    * A DoFn used in testCoGroupByKeyHandleResults(), to test processing the
    * results of a CoGroupByKey.
    */
@@ -353,10 +461,7 @@ public class CoGroupByKeyTest implements Serializable {
 
       Iterable<String> purchases = row.getAll(purchasesTag);
 
-      int purchaseCount = 0;
-      for (String purchase : purchases) {
-        purchaseCount++;
-      }
+      int purchaseCount = Iterables.size(purchases);
 
       for (String address : addressList) {
         c.output(KV.of(address, purchaseCount));
@@ -416,6 +521,7 @@ public class CoGroupByKeyTest implements Serializable {
    */
   @SuppressWarnings("unchecked")
   @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testCoGroupByKeyHandleResults() {
     TupleTag<String> namesTag = new TupleTag<>();
     TupleTag<String> addressesTag = new TupleTag<>();
@@ -438,6 +544,39 @@ public class CoGroupByKeyTest implements Serializable {
         .containsInAnyOrder(
             KV.of("29 School Rd", 2),
             KV.of("383 Jackson Street", 1));
+    p.run();
+  }
+
+  /**
+   * Tests the pipeline end-to-end with FixedWindows.
+   */
+  @SuppressWarnings("unchecked")
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testCoGroupByKeyWithWindowing() {
+    TupleTag<String> clicksTag = new TupleTag<>();
+    TupleTag<String> purchasesTag = new TupleTag<>();
+
+    Pipeline p = TestPipeline.create();
+
+    PCollection<KV<Integer, CoGbkResult>> coGbkResults =
+        buildPurchasesCoGbkWithWindowing(p, clicksTag, purchasesTag);
+
+    PCollection<KV<String, String>>
+        clickOfPurchase = coGbkResults.apply(ParDo.of(
+            new ClickOfPurchaseFn(clicksTag, purchasesTag)));
+    DataflowAssert.that(clickOfPurchase)
+        .containsInAnyOrder(
+            KV.of("Click t0:Boat t1", "3:3"),
+            KV.of("Click t0:Shoesi t2", "3:3"),
+            KV.of("Click t0:Pens t3", "3:3"),
+            KV.of("Click t4:Car t6", "7:7"),
+            KV.of("Click t4:Book t7", "7:7"),
+            KV.of("Click t6:Car t6", "7:7"),
+            KV.of("Click t6:Book t7", "7:7"),
+            KV.of("Click t8:House t8", "11:11"),
+            KV.of("Click t8:Shoes t9", "11:11"),
+            KV.of("Click t8:House t10", "11:11"));
     p.run();
   }
 }
