@@ -40,6 +40,7 @@ import org.apache.avro.reflect.ReflectDatumWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -82,6 +83,7 @@ import java.util.List;
  */
 @SuppressWarnings("serial")
 public class AvroCoder<T> extends StandardCoder<T> {
+
   /**
    * Returns an {@code AvroCoder} instance for the provided element type.
    * @param <T> the element type
@@ -132,6 +134,12 @@ public class AvroCoder<T> extends StandardCoder<T> {
     this.schema = schema;
     this.reader = createDatumReader();
     this.writer = createDatumWriter();
+  }
+
+  private Object writeReplace() {
+    // When serialized by Java, instances of AvroCoder should be replaced by
+    // a SerializedAvroCoderProxy.
+    return new SerializedAvroCoderProxy<>(type, schema.toString());
   }
 
   @Override
@@ -198,5 +206,26 @@ public class AvroCoder<T> extends StandardCoder<T> {
    */
   public Schema getSchema() {
     return schema;
+  }
+
+  /**
+   * Proxy to use in place of serializing the AvroCoder. This allows the fields
+   * to remain final.
+   */
+  private static class SerializedAvroCoderProxy<T> implements Serializable {
+    private final Class<T> type;
+    private final String schemaStr;
+
+    public SerializedAvroCoderProxy(Class<T> type, String schemaStr) {
+      this.type = type;
+      this.schemaStr = schemaStr;
+    }
+
+    private Object readResolve() {
+      // When deserialized, instances of this object should be replaced by
+      // constructing an AvroCoder.
+      Schema.Parser parser = new Schema.Parser();
+      return new AvroCoder<T>(type, parser.parse(schemaStr));
+    }
   }
 }

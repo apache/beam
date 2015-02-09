@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import org.apache.avro.Schema;
@@ -37,6 +38,7 @@ import org.junit.runners.JUnit4;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Serializable;
 
 /**
  * Tests for AvroCoder.
@@ -179,5 +181,22 @@ public class AvroCoderTest {
     DataflowAssert.that(output)
         .containsInAnyOrder("hello", "world");
     p.run();
+  }
+
+  @Test
+  public void testAvroCoderJavaSerializable() throws Exception {
+    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+
+    // Cast the coder to serializable to test that it is serializable using
+    // Java serialization.
+    SerializableUtils.ensureSerializable((Serializable) coder);
+  }
+
+  @Test
+  public void testAvroCoderJsonSerializable() throws Exception {
+    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+
+    // Check that the coder is serializable using the regular JSON approach.
+    SerializableUtils.ensureSerializable(coder);
   }
 }
