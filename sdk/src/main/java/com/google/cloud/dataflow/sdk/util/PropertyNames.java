@@ -68,7 +68,10 @@ public class PropertyNames {
   public static final String OUTPUT_NAME = "output_name";
   public static final String PARALLEL_INPUT = "parallel_input";
   public static final String PHASE = "phase";
+  public static final String PUBSUB_DROP_LATE_DATA = "pubsub_drop_late_data";
+  public static final String PUBSUB_ID_LABEL = "pubsub_id_label";
   public static final String PUBSUB_SUBSCRIPTION = "pubsub_subscription";
+  public static final String PUBSUB_TIMESTAMP_LABEL = "pubsub_timestamp_label";
   public static final String PUBSUB_TOPIC = "pubsub_topic";
   public static final String SCALAR_FIELD_NAME = "value";
   public static final String SERIALIZED_FN = "serialized_fn";
