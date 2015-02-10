@@ -96,11 +96,6 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   String getServiceAccountName();
   void setServiceAccountName(String value);
 
-  @Description("The path to the gcloud binary. "
-      + " Default is to search the system path.")
-  String getGCloudPath();
-  void setGCloudPath(String value);
-
   /**
    * Directory for storing dataflow credentials.
    */
