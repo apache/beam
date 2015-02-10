@@ -75,6 +75,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(JUnit4.class)
@@ -88,12 +89,14 @@ public class StreamingDataflowWorkerTest {
     private Map<Long, Windmill.WorkItemCommitRequest> commitsReceived;
     private LinkedBlockingQueue<Windmill.Exception> exceptions;
     private int commitsRequested = 0;
+    private AtomicInteger expectedExceptionCount;
 
     public FakeWindmillServer() {
       workToOffer = new ConcurrentLinkedQueue<Windmill.GetWorkResponse>();
       dataToOffer = new ConcurrentLinkedQueue<Windmill.GetDataResponse>();
       commitsReceived = new ConcurrentHashMap<Long, Windmill.WorkItemCommitRequest>();
       exceptions = new LinkedBlockingQueue<>();
+      expectedExceptionCount = new AtomicInteger();
     }
 
     public void addWorkToOffer(Windmill.GetWorkResponse work) {
@@ -142,21 +145,31 @@ public class StreamingDataflowWorkerTest {
       for (Windmill.Exception exception : request.getExceptionsList()) {
         try {
           exceptions.put(exception);
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException expected) {}
       }
-      return Windmill.ReportStatsResponse.newBuilder().build();
+
+      if (expectedExceptionCount.getAndDecrement() > 0) {
+        return Windmill.ReportStatsResponse.newBuilder().build();
+      } else {
+        return Windmill.ReportStatsResponse.newBuilder()
+            .setFailed(true).build();
+      }
     }
 
     public Map<Long, Windmill.WorkItemCommitRequest> waitForAndGetCommits(int numCommits) {
       while (commitsReceived.size() < commitsRequested + numCommits) {
         try {
           Thread.sleep(1000);
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException expected) {}
       }
 
       commitsRequested += numCommits;
 
       return commitsReceived;
+    }
+
+    public void setExpectedExceptionCount(int i) {
+      expectedExceptionCount.getAndAdd(i);
     }
 
     public Windmill.Exception getException() throws InterruptedException {
@@ -614,6 +627,7 @@ public class StreamingDataflowWorkerTest {
         makeSinkInstruction(StringUtf8Coder.of(), 1));
 
     FakeWindmillServer server = new FakeWindmillServer();
+    server.setExpectedExceptionCount(1);
     server.addWorkToOffer(buildInput(
         "work {" +
         "  computation_id: \"computation\"" +
@@ -649,6 +663,10 @@ public class StreamingDataflowWorkerTest {
     Assert.assertThat(exception.getCause().getStackFrames(1),
         JUnitMatchers.containsString("processElement"));
     Assert.assertFalse(exception.getCause().hasCause());
+
+    // The server should retry the work since reporting the exception succeeded.
+    // Make next retry should fail because we only expected 1 exception.
+    exception = server.getException();
   }
 
   private static class TestTimerFn

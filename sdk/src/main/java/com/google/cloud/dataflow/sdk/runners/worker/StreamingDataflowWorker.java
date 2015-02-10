@@ -392,14 +392,19 @@ public class StreamingDataflowWorker {
         LOG.error("\nError: ", t);
         lastException.set(t);
         LOG.debug("Failed work: {}", work);
-        reportFailure(computation, work, t);
-        // Try again, but go to the end of the queue to avoid a tight loop.
-        sleep(60000);
-        executor.forceExecute(new Runnable() {
-            public void run() {
-              process(computation, work);
-            }
-          });
+        if (reportFailure(computation, work, t)) {
+          // Try again, after some delay and at the end of the queue to avoid a tight loop.
+          sleep(10000);
+          executor.forceExecute(new Runnable() {
+              public void run() {
+                process(computation, work);
+              }
+            });
+        } else {
+          // If we failed to report the error, the item is invalid and should
+          // not be retried internally.  It will be retried at the higher level.
+          LOG.debug("Aborting processing due to exception reporting failure");
+        }
       }
     } finally {
       DataflowWorkerLoggingFormatter.setWorkId(null);
@@ -537,13 +542,16 @@ public class StreamingDataflowWorker {
     return builder.build();
   }
 
-  private void reportFailure(String computation, Windmill.WorkItem work, Throwable t) {
-    windmillServer.reportStats(Windmill.ReportStatsRequest.newBuilder()
-        .setComputationId(computation)
-        .setKey(work.getKey())
-        .setWorkToken(work.getWorkToken())
-        .addExceptions(buildExceptionReport(t))
-        .build());
+  // Returns true if reporting the exception is successful and the work should be retried.
+  private boolean reportFailure(String computation, Windmill.WorkItem work, Throwable t) {
+    Windmill.ReportStatsResponse response =
+        windmillServer.reportStats(Windmill.ReportStatsRequest.newBuilder()
+            .setComputationId(computation)
+            .setKey(work.getKey())
+            .setWorkToken(work.getWorkToken())
+            .addExceptions(buildExceptionReport(t))
+            .build());
+    return !response.getFailed();
   }
 
   private static class WorkerAndContext {
