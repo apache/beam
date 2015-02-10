@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.runners.worker.logging;
 
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -35,7 +34,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.List;
-import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -68,12 +66,11 @@ public class DataflowWorkerLoggingInitializerTest {
     verify(mockRootLogger).getHandlers();
     verify(mockRootLogger).removeHandler(mockHandler);
     verify(mockRootLogger).setLevel(Level.INFO);
-    verify(mockRootLogger, times(2)).addHandler(argument.capture());
+    verify(mockRootLogger).addHandler(argument.capture());
     verifyNoMoreInteractions(mockLogManager, mockRootLogger);
 
     List<Handler> handlers = argument.getAllValues();
-    assertTrue(isConsoleHandler(handlers.get(0), Level.INFO));
-    assertTrue(isFileHandler(handlers.get(1), Level.INFO));
+    assertTrue(isFileHandler(handlers.get(0), Level.INFO));
   }
 
   @Test
@@ -87,18 +84,11 @@ public class DataflowWorkerLoggingInitializerTest {
     verify(mockRootLogger).getHandlers();
     verify(mockRootLogger).removeHandler(mockHandler);
     verify(mockRootLogger).setLevel(Level.WARNING);
-    verify(mockRootLogger, times(2)).addHandler(argument.capture());
+    verify(mockRootLogger).addHandler(argument.capture());
     verifyNoMoreInteractions(mockLogManager, mockRootLogger);
 
     List<Handler> handlers = argument.getAllValues();
-    assertTrue(isConsoleHandler(handlers.get(0), Level.WARNING));
-    assertTrue(isFileHandler(handlers.get(1), Level.WARNING));
-  }
-
-  private boolean isConsoleHandler(Handler handler, Level level) {
-    return handler instanceof ConsoleHandler
-        && level.equals(handler.getLevel())
-        && handler.getFormatter() instanceof DataflowWorkerLoggingFormatter;
+    assertTrue(isFileHandler(handlers.get(0), Level.WARNING));
   }
 
   private boolean isFileHandler(Handler handler, Level level) {

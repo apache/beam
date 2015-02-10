@@ -20,7 +20,6 @@ import com.google.common.collect.ImmutableBiMap;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
@@ -69,10 +68,6 @@ public class DataflowWorkerLoggingInitializer {
       fileHandler.setFormatter(formatter);
       fileHandler.setLevel(logLevel);
 
-      ConsoleHandler consoleHandler = new ConsoleHandler();
-      consoleHandler.setFormatter(formatter);
-      consoleHandler.setLevel(logLevel);
-
       // Reset the global log manager, get the root logger and remove the default log handlers.
       logManager.reset();
       Logger rootLogger = logManager.getLogger(ROOT_LOGGER_NAME);
@@ -81,7 +76,6 @@ public class DataflowWorkerLoggingInitializer {
       }
 
       rootLogger.setLevel(logLevel);
-      rootLogger.addHandler(consoleHandler);
       rootLogger.addHandler(fileHandler);
     } catch (SecurityException | IOException e) {
       throw new ExceptionInInitializerError(e);
