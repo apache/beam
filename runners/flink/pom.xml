@@ -69,7 +69,7 @@ Copyright 2015 Stephan Ewen, dataArtisans
 		<dependency>
 			<groupId>com.google.cloud.dataflow</groupId>
 			<artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-			<version>manual_build</version>
+			<version>LATEST</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.slf4j</groupId>
@@ -80,7 +80,7 @@ Copyright 2015 Stephan Ewen, dataArtisans
 		<dependency>
 			<groupId>com.google.cloud.dataflow</groupId>
 			<artifactId>google-cloud-dataflow-java-examples-all</artifactId>
-			<version>manual_build</version>
+			<version>LATEST</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.slf4j</groupId>
