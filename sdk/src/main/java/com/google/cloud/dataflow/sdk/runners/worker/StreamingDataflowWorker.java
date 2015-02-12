@@ -291,7 +291,7 @@ public class StreamingDataflowWorker {
       while (rt.freeMemory() < rt.totalMemory() * PUSHBACK_THRESHOLD) {
         if (lastPushbackLog < (lastPushbackLog = System.currentTimeMillis()) - 60 * 1000) {
           LOG.warn("In pushback, not accepting new work. Free Memory: {}MB / {}MB",
-              rt.freeMemory(), rt.totalMemory());
+              rt.freeMemory() / 1e6, rt.totalMemory() / 1e6);
           System.gc();
         }
         sleep(10);
