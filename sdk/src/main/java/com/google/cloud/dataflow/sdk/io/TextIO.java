@@ -32,11 +32,13 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.common.primitives.Ints;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PushbackInputStream;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
@@ -647,7 +649,17 @@ public class TextIO {
     GZIP(".gz") {
       @Override
       public InputStream createInputStream(InputStream inputStream) throws IOException {
-        return new GZIPInputStream(inputStream);
+        // Determine if the input stream is gzipped.  The input stream returned from the
+        // GCS connector may already be decompressed, and no action is required.
+        PushbackInputStream stream = new PushbackInputStream(inputStream, 2);
+        byte[] headerBytes = new byte[2];
+        int bytesRead = stream.read(headerBytes);
+        stream.unread(headerBytes, 0, bytesRead);
+        int header = Ints.fromBytes((byte) 0, (byte) 0, headerBytes[1], headerBytes[0]);
+        if (header == GZIPInputStream.GZIP_MAGIC) {
+          return new GZIPInputStream(stream);
+        }
+        return stream;
       }
     },
     /**

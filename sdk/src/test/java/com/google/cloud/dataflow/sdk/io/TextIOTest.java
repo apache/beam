@@ -423,8 +423,34 @@ public class TextIOTest {
       }
     }
 
+
     DirectPipeline p = DirectPipeline.createForTest();
 
+    TextIO.Read.Bound<String> read =
+        TextIO.Read.from(filename).withCompressionType(CompressionType.GZIP);
+    PCollection<String> output = p.apply(read);
+
+    EvaluationResults results = p.run();
+
+    assertThat(results.getPCollection(output), containsInAnyOrder(expected.toArray()));
+    tmpFile.delete();
+  }
+
+  @Test
+  public void testGZIPReadWhenUncompressed() throws Exception {
+    String[] lines = {"Meritorious condor", "Obnoxious duck"};
+    File tmpFile = tmpFolder.newFile("test");
+    String filename = tmpFile.getPath();
+
+    List<String> expected = new ArrayList<>();
+    try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
+      for (String line : lines) {
+        writer.println(line);
+        expected.add(line);
+      }
+    }
+
+    DirectPipeline p = DirectPipeline.createForTest();
     TextIO.Read.Bound<String> read =
         TextIO.Read.from(filename).withCompressionType(CompressionType.GZIP);
     PCollection<String> output = p.apply(read);
