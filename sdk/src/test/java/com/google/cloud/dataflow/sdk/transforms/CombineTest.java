@@ -37,6 +37,7 @@ import com.google.cloud.dataflow.sdk.runners.RecordingPipelineVisitor;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
@@ -190,7 +191,7 @@ public class CombineTest {
 
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
-  public void testWindowedCombine() {
+  public void testFixedWindowsCombine() {
     Pipeline p = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input =
@@ -210,6 +211,32 @@ public class CombineTest {
     DataflowAssert.that(sumPerKey).containsInAnyOrder(
         KV.of("a", 2),
         KV.of("a", 4),
+        KV.of("b", 1),
+        KV.of("b", 13));
+    p.run();
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testSessionsCombine() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<KV<String, Integer>> input =
+        p.apply(Create.timestamped(Arrays.asList(TABLE),
+                                   Arrays.asList(0L, 4L, 7L, 10L, 16L)))
+         .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()))
+         .apply(Window.<KV<String, Integer>>into(Sessions.withGapDuration(Duration.millis(5))));
+
+    PCollection<Integer> sum = input
+        .apply(Values.<Integer>create())
+        .apply(Combine.globally(new SumInts()));
+
+    PCollection<KV<String, Integer>> sumPerKey = input
+        .apply(Combine.<String, Integer>perKey(new SumInts()));
+
+    DataflowAssert.that(sum).containsInAnyOrder(7, 13);
+    DataflowAssert.that(sumPerKey).containsInAnyOrder(
+        KV.of("a", 6),
         KV.of("b", 1),
         KV.of("b", 13));
     p.run();
