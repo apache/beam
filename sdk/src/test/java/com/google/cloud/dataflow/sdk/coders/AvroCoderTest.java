@@ -38,11 +38,8 @@ import org.junit.runners.JUnit4;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.Serializable;
 
-/**
- * Tests for AvroCoder.
- */
+/** Tests for {@link AvroCoder}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class AvroCoderTest {
@@ -53,6 +50,7 @@ public class AvroCoderTest {
     public int count;
 
     // Empty constructor required for Avro decoding.
+    @SuppressWarnings("unused")
     public Pojo() {
     }
 
@@ -184,16 +182,7 @@ public class AvroCoderTest {
   }
 
   @Test
-  public void testAvroCoderJavaSerializable() throws Exception {
-    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
-
-    // Cast the coder to serializable to test that it is serializable using
-    // Java serialization.
-    SerializableUtils.ensureSerializable((Serializable) coder);
-  }
-
-  @Test
-  public void testAvroCoderJsonSerializable() throws Exception {
+  public void testAvroCoderIsSerializable() throws Exception {
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
     // Check that the coder is serializable using the regular JSON approach.

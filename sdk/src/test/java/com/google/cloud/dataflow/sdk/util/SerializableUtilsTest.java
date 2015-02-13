@@ -16,26 +16,39 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.core.IsInstanceOf;
-import org.junit.Assert;
+import static org.junit.Assert.assertEquals;
+
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.StandardCoder;
+import com.google.common.collect.ImmutableList;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.List;
 
-/**
- * Tests for SerializableUtils.
- */
+/** Tests for {@link SerializableUtils}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class SerializableUtilsTest {
-  static class TestClass implements Serializable {
+  @Rule public ExpectedException expectedException = ExpectedException.none();
+
+  /** A class which is serializable by Java. */
+  private static class SerializableByJava implements Serializable {
     final String stringValue;
     final int intValue;
 
-    public TestClass(String stringValue, int intValue) {
+    public SerializableByJava(String stringValue, int intValue) {
       this.stringValue = stringValue;
       this.intValue = intValue;
     }
@@ -46,31 +59,117 @@ public class SerializableUtilsTest {
     String stringValue = "hi bob";
     int intValue = 42;
 
-    TestClass testObject = new TestClass(stringValue, intValue);
+    SerializableByJava testObject = new SerializableByJava(stringValue, intValue);
+    SerializableByJava testCopy = SerializableUtils.ensureSerializable(testObject);
 
-    Object copy =
-        SerializableUtils.deserializeFromByteArray(
-            SerializableUtils.serializeToByteArray(testObject),
-            "a TestObject");
-
-    Assert.assertThat(copy, new IsInstanceOf(TestClass.class));
-    TestClass testCopy = (TestClass) copy;
-
-    Assert.assertEquals(stringValue, testCopy.stringValue);
-    Assert.assertEquals(intValue, testCopy.intValue);
+    assertEquals(stringValue, testCopy.stringValue);
+    assertEquals(intValue, testCopy.intValue);
   }
 
   @Test
   public void testDeserializationError() {
-    try {
-      SerializableUtils.deserializeFromByteArray(
-          "this isn't legal".getBytes(),
-          "a bogus string");
-      Assert.fail("should have thrown an exception");
-    } catch (Exception exn) {
-      Assert.assertThat(exn.toString(),
-                        CoreMatchers.containsString(
-                            "unable to deserialize a bogus string"));
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("unable to deserialize a bogus string");
+    SerializableUtils.deserializeFromByteArray(
+        "this isn't legal".getBytes(),
+        "a bogus string");
+  }
+
+  /** A class which is not serializable by Java. */
+  private static class UnserializableByJava implements Serializable {
+    @SuppressWarnings("unused")
+    private Object unserializableField = new Object();
+  }
+
+  @Test
+  public void testSerializationError() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("unable to serialize");
+    SerializableUtils.serializeToByteArray(new UnserializableByJava());
+  }
+
+  /** A {@link Coder} which is not serializable by Java. */
+  private static class UnserializableCoderByJava extends StandardCoder<Object> {
+    private final Object unserializableField = new Object();
+
+    @Override
+    public void encode(Object value, OutputStream outStream, Context context)
+        throws CoderException, IOException {
+    }
+
+    @Override
+    public Object decode(InputStream inStream, Context context)
+        throws CoderException, IOException {
+      return unserializableField;
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return ImmutableList.of();
+    }
+
+    @Override
+    public boolean isDeterministic() {
+      return true;
     }
   }
+
+  @Test
+  public void testEnsureSerializableWithUnserializableCoderByJava() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("unable to serialize");
+    SerializableUtils.ensureSerializable(new UnserializableCoderByJava());
+  }
+
+  /** A {@link Coder} which is not serializable by Jackson. */
+  private static class UnserializableCoderByJackson extends StandardCoder<Object> {
+    private final SerializableByJava unserializableField;
+
+    public UnserializableCoderByJackson(SerializableByJava unserializableField) {
+      this.unserializableField = unserializableField;
+    }
+
+    @JsonCreator
+    public static UnserializableCoderByJackson of(
+        @JsonProperty("unserializableField") SerializableByJava unserializableField) {
+      return new UnserializableCoderByJackson(unserializableField);
+    }
+
+    @Override
+    public CloudObject asCloudObject() {
+      CloudObject result = super.asCloudObject();
+      result.put("unserializableField", unserializableField);
+      return result;
+    }
+
+    @Override
+    public void encode(Object value, OutputStream outStream, Context context)
+        throws CoderException, IOException {
+    }
+
+    @Override
+    public Object decode(InputStream inStream, Context context)
+        throws CoderException, IOException {
+      return unserializableField;
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return ImmutableList.of();
+    }
+
+    @Override
+    public boolean isDeterministic() {
+      return true;
+    }
+  }
+
+  @Test
+  public void testEnsureSerializableWithUnserializableCoderByJackson() throws Exception {
+    expectedException.expect(RuntimeException.class);
+    expectedException.expectMessage("Unable to deserialize Coder:");
+    SerializableUtils.ensureSerializable(
+        new UnserializableCoderByJackson(new SerializableByJava("TestData", 5)));
+  }
+
 }

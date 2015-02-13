@@ -92,7 +92,11 @@ public class SerializableUtils {
    * @return the serialized Coder, as a {@link CloudObject}
    */
   public static CloudObject ensureSerializable(Coder<?> coder) {
-    CloudObject cloudObject = coder.asCloudObject();
+    // Make sure that Coders are java serializable as well since
+    // they are regularly captured within DoFn's.
+    Coder<?> copy = (Coder<?>) ensureSerializable((Serializable) coder);
+
+    CloudObject cloudObject = copy.asCloudObject();
 
     Coder<?> decoded;
     try {
@@ -114,7 +118,7 @@ public class SerializableUtils {
   }
 
   /**
-   * Serializes an arbitrary T with the given Coder<T> and verifies
+   * Serializes an arbitrary T with the given {@code Coder<T>} and verifies
    * that it can be correctly deserialized.
    */
   public static <T> T ensureSerializableByCoder(

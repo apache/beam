@@ -21,10 +21,12 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assume.assumeThat;
 
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
+import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.common.collect.Iterables;
+
+import org.hamcrest.CoreMatchers;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -36,6 +38,10 @@ import java.util.List;
 /**
  * Properties for use in {@link Coder} tests. These are implemented with junit assertions
  * rather than as predicates for the sake of error messages.
+ * <p>
+ * We serialize and deserialize the coder to make sure that any state information required by the
+ * coder is preserved. This causes tests written such that coders which lose information during
+ * serialization or change state during encoding/decoding will fail.
  */
 public class CoderProperties {
 
@@ -46,7 +52,7 @@ public class CoderProperties {
        Coder.Context.OUTER, Coder.Context.NESTED);
 
   /**
-   * Verifies that for the given {@link Coder<T>}, and values of
+   * Verifies that for the given {@link Coder Coder<T>}, and values of
    * type {@code T}, if the values are equal then the encoded bytes are equal,
    * in any {@link Coder.Context}.
    */
@@ -59,20 +65,22 @@ public class CoderProperties {
   }
 
   /**
-   * Verifies that for the given {@link Coder<T>}, {@link Coder.Context}, and values of
+   * Verifies that for the given {@link Coder Coder<T>}, {@link Coder.Context}, and values of
    * type {@code T}, if the values are equal then the encoded bytes are equal.
    */
   public static <T> void coderDeterministicInContext(
       Coder<T> coder, Coder.Context context, T value1, T value2)
       throws Exception {
-    assumeThat(value1, equalTo(value2));
+    assertThat("Expected that the coder is deterministic",
+        coder.isDeterministic(), CoreMatchers.is(true));
+    assertThat("Expected that the passed in values are equal()", value1, equalTo(value2));
     assertThat(
         encode(coder, context, value1),
         equalTo(encode(coder, context, value2)));
   }
 
   /**
-   * Verifies that for the given {@link Coder<T>},
+   * Verifies that for the given {@link Coder Coder<T>},
    * and value of type {@code T}, encoding followed by decoding yields an
    * equal value of type {@code T}, in any {@link Coder.Context}.
    */
@@ -85,7 +93,7 @@ public class CoderProperties {
   }
 
   /**
-   * Verifies that for the given {@link Coder<T>}, {@link Coder.Context},
+   * Verifies that for the given {@link Coder Coder<T>}, {@link Coder.Context},
    * and value of type {@code T}, encoding followed by decoding yields an
    * equal value of type {@code T}.
    */
@@ -96,7 +104,7 @@ public class CoderProperties {
   }
 
   /**
-   * Verifies that for the given {@link Coder<Collection<T>>},
+   * Verifies that for the given {@link Coder Coder<Collection<T>>},
    * and value of type {@code Collection<T>}, encoding followed by decoding yields an
    * equal value of type {@code Collection<T>}, in any {@link Coder.Context}.
    */
@@ -109,7 +117,7 @@ public class CoderProperties {
   }
 
   /**
-   * Verifies that for the given {@link Coder<Collection<T>>},
+   * Verifies that for the given {@link Coder Coder<Collection<T>>},
    * and value of type {@code Collection<T>}, encoding followed by decoding yields an
    * equal value of type {@code Collection<T>}, in the given {@link Coder.Context}.
    */
@@ -128,7 +136,7 @@ public class CoderProperties {
   }
 
   /**
-   * Verifies that for the given {@link Coder<Collection<T>>},
+   * Verifies that for the given {@link Coder Coder<Collection<T>>},
    * and value of type {@code Collection<T>}, encoding followed by decoding yields an
    * equal value of type {@code Collection<T>}, in any {@link Coder.Context}.
    */
@@ -142,7 +150,7 @@ public class CoderProperties {
   }
 
   /**
-   * Verifies that for the given {@link Coder<Iterable<T>>},
+   * Verifies that for the given {@link Coder Coder<Iterable<T>>},
    * and value of type {@code Iterable<T>}, encoding followed by decoding yields an
    * equal value of type {@code Collection<T>}, in the given {@link Coder.Context}.
    */
@@ -168,15 +176,21 @@ public class CoderProperties {
 
   private static <T> byte[] encode(
       Coder<T> coder, Coder.Context context, T value) throws CoderException, IOException {
+    @SuppressWarnings("unchecked")
+    Coder<T> deserializedCoder = Serializer.deserialize(coder.asCloudObject(), Coder.class);
+
     ByteArrayOutputStream os = new ByteArrayOutputStream();
-    coder.encode(value, os, context);
+    deserializedCoder.encode(value, os, context);
     return os.toByteArray();
   }
 
   private static <T> T decode(
       Coder<T> coder, Coder.Context context, byte[] bytes) throws CoderException, IOException {
+    @SuppressWarnings("unchecked")
+    Coder<T> deserializedCoder = Serializer.deserialize(coder.asCloudObject(), Coder.class);
+
     ByteArrayInputStream is = new ByteArrayInputStream(bytes);
-    return coder.decode(is, context);
+    return deserializedCoder.decode(is, context);
   }
 
   private static <T> T decodeEncode(Coder<T> coder, Coder.Context context, T value)
