@@ -53,13 +53,13 @@ public class MapTaskExecutor extends WorkExecutor {
 
   @Override
   public void execute() throws Exception {
-    LOG.debug("executing map task");
+    LOG.debug("Executing map task");
 
     // Start operations, in reverse-execution-order, so that a
     // consumer is started before a producer might output to it.
     // Starting a root operation such as a ReadOperation does the work
     // of processing the input dataset.
-    LOG.debug("starting operations");
+    LOG.debug("Starting operations");
     ListIterator<Operation> iterator = operations.listIterator(operations.size());
     while (iterator.hasPrevious()) {
       Operation op = iterator.previous();
@@ -69,12 +69,12 @@ public class MapTaskExecutor extends WorkExecutor {
     // Finish operations, in forward-execution-order, so that a
     // producer finishes outputting to its consumers before those
     // consumers are themselves finished.
-    LOG.debug("finishing operations");
+    LOG.debug("Finishing operations");
     for (Operation op : operations) {
       op.finish();
     }
 
-    LOG.debug("map task execution complete");
+    LOG.debug("Map task execution complete");
 
     // TODO: support for success / failure ports?
   }

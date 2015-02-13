@@ -161,20 +161,20 @@ public class CoderRegistry {
           coderClazz.getDeclaredMethod("of", factoryMethodArgTypes);
     } catch (NoSuchMethodException | SecurityException exn) {
       throw new IllegalArgumentException(
-          "cannot register Coder " + coderClazz + ": "
+          "Cannot register Coder " + coderClazz + ": "
           + "does not have an accessible method named 'of' with "
           + numTypeParameters + " arguments of Coder type",
           exn);
     }
     if (!Modifier.isStatic(factoryMethod.getModifiers())) {
       throw new IllegalArgumentException(
-          "cannot register Coder " + coderClazz + ": "
+          "Cannot register Coder " + coderClazz + ": "
           + "method named 'of' with " + numTypeParameters
           + " arguments of Coder type is not static");
     }
     if (!coderClazz.isAssignableFrom(factoryMethod.getReturnType())) {
       throw new IllegalArgumentException(
-          "cannot register Coder " + coderClazz + ": "
+          "Cannot register Coder " + coderClazz + ": "
           + "method named 'of' with " + numTypeParameters
           + " arguments of Coder type does not return a " + coderClazz);
     }
@@ -184,7 +184,7 @@ public class CoderRegistry {
       }
     } catch (SecurityException exn) {
       throw new IllegalArgumentException(
-          "cannot register Coder " + coderClazz + ": "
+          "Cannot register Coder " + coderClazz + ": "
           + "method named 'of' with " + numTypeParameters
           + " arguments of Coder type is not accessible",
           exn);
@@ -200,7 +200,7 @@ public class CoderRegistry {
             "getInstanceComponents",
             clazz);
       } catch (NoSuchMethodException | SecurityException exn) {
-        LOG.warn("cannot find getInstanceComponents for class {}. This may limit the ability to"
+        LOG.warn("Cannot find getInstanceComponents for class {}. This may limit the ability to"
             + " infer a Coder for values of this type.", coderClazz, exn);
       }
     }
@@ -212,7 +212,7 @@ public class CoderRegistry {
                             CoderFactory coderFactory) {
     if (coderFactoryMap.put(rawClazz, coderFactory) != null) {
       throw new IllegalArgumentException(
-          "cannot register multiple default Coder factories for " + rawClazz);
+          "Cannot register multiple default Coder factories for " + rawClazz);
     }
   }
 
@@ -497,7 +497,7 @@ public class CoderRegistry {
                  NullPointerException |
                  ExceptionInInitializerError exn) {
           throw new IllegalStateException(
-              "error when invoking Coder factory method " + coderFactoryMethod,
+              "Error when invoking Coder factory method " + coderFactoryMethod,
               exn);
         }
       }
@@ -506,7 +506,7 @@ public class CoderRegistry {
       public List<Object> getInstanceComponents(Object value) {
         if (getComponentsMethod == null) {
           throw new IllegalStateException(
-              "no suitable static getInstanceComponents method available for "
+              "No suitable static getInstanceComponents method available for "
               + "Coder " + coderClazz);
         }
 
@@ -521,7 +521,7 @@ public class CoderRegistry {
             | NullPointerException
             | ExceptionInInitializerError exn) {
           throw new IllegalStateException(
-              "error when invoking Coder getComponents method " + getComponentsMethod,
+              "Error when invoking Coder getComponents method " + getComponentsMethod,
               exn);
         }
       }
@@ -540,7 +540,7 @@ public class CoderRegistry {
   CoderFactory getDefaultCoderFactory(Class<?> clazz) {
     CoderFactory coderFactory = coderFactoryMap.get(clazz);
     if (coderFactory == null) {
-      LOG.debug("No Coder registered for {}", clazz);
+      LOG.info("No Coder registered for {}", clazz);
     }
     return coderFactory;
   }
@@ -582,7 +582,7 @@ public class CoderRegistry {
       return null;
     } else {
       throw new RuntimeException(
-          "internal error: unexpected kind of Type: " + type);
+          "Internal error: unexpected kind of Type: " + type);
     }
   }
 

@@ -101,7 +101,7 @@ public abstract class WorkProgressUpdater {
         nextProgressReportInterval(leaseRemainingTime / 2, leaseRemainingTime);
     requestedLeaseDurationMs = DEFAULT_LEASE_DURATION_MILLIS;
 
-    LOG.info("Started reporting progress for work item: {}", workString());
+    LOG.debug("Started reporting progress for work item: {}", workString());
     scheduleNextUpdate();
   }
 
@@ -121,12 +121,12 @@ public abstract class WorkProgressUpdater {
 
     // We send a final progress report in case there was an unreported fork.
     if (forkResultToReport != null) {
-      LOG.info("Sending final progress update with unreported fork: {} "
+      LOG.debug("Sending final progress update with unreported fork: {} "
           + "for work item: {}", forkResultToReport, workString());
       reportProgressHelper(); // This call can fail with an exception
     }
 
-    LOG.info("Stopped reporting progress for work item: {}", workString());
+    LOG.debug("Stopped reporting progress for work item: {}", workString());
   }
 
   /**
@@ -183,11 +183,11 @@ public abstract class WorkProgressUpdater {
    * Reports the current work progress to the worker service.
    */
   private void reportProgress() {
-    LOG.info("Updating progress on work item {}", workString());
+    LOG.debug("Updating progress on work item {}", workString());
     try {
       reportProgressHelper();
     } catch (Throwable e) {
-      LOG.warn("Error reporting work progress update: ", e);
+      LOG.warn("Error reporting workitem progress update to Dataflow service: ", e);
     } finally {
       scheduleNextUpdate();
     }

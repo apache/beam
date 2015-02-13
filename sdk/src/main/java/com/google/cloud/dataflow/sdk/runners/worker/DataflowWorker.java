@@ -101,7 +101,7 @@ public class DataflowWorker {
    * @throws IOException Only if the WorkUnitClient fails.
    */
   private boolean doWork(WorkItem workItem) throws IOException {
-    LOG.info("Executing: {}", workItem);
+    LOG.debug("Executing: {}", workItem);
 
     WorkExecutor worker = null;
     try {
@@ -132,13 +132,13 @@ public class DataflowWorker {
       // Log all counter values for debugging purposes.
       CounterSet counters = worker.getOutputCounters();
       for (Counter counter : counters) {
-        LOG.info("COUNTER {}.", counter);
+        LOG.trace("COUNTER {}.", counter);
       }
 
       // Log all metrics for debugging purposes.
       Collection<Metric<?>> metrics = worker.getOutputMetrics();
       for (Metric<?> metric : metrics) {
-        LOG.info("METRIC {}: {}", metric.getName(), metric.getValue());
+        LOG.trace("METRIC {}: {}", metric.getName(), metric.getValue());
       }
 
       // stopReportingProgress can throw an exception if the final progress
@@ -222,7 +222,12 @@ public class DataflowWorker {
       @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors,
       long finalReportIndex)
       throws IOException {
-    LOG.info("{} processing work item {}", status, uniqueId(workItem));
+    String message = "{} processing work item {}";
+    if (null != errors && errors.size() > 0) {
+      LOG.warn(message, status, uniqueId(workItem));
+    } else {
+      LOG.debug(message, status, uniqueId(workItem));
+    }
     WorkItemStatus workItemStatus = buildStatus(workItem, true/*completed*/, counters, metrics,
         options, null, null, operationResponse, errors, finalReportIndex);
     workUnitClient.reportWorkItemStatus(workItemStatus);

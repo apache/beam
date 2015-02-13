@@ -130,11 +130,11 @@ public class DataflowWorkerHarness {
     }
 
     long endTime = DateTimeUtils.currentTimeMillis();
-    LOG.info("processWork() start time: {}, end time: {}",
+    LOG.debug("Parallel worker thread processing start time: {}, end time: {}",
         ISODateTimeFormat.dateTime().print(startTime),
         ISODateTimeFormat.dateTime().print(endTime));
     for (long completionTime : completionTimes) {
-      LOG.info("Duration: {}ms Wasted Time: {}ms",
+      LOG.debug("Worker thread execution time {}ms, idle time waiting for other work threads: {}ms",
           completionTime - startTime,
           endTime - completionTime);
     }
