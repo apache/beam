@@ -36,7 +36,7 @@ public final class PeekingReiterator<T> implements Reiterator<T> {
   }
 
   PeekingReiterator(PeekingReiterator<T> it) {
-    this.iterator = checkNotNull(it).iterator.copy();
+    this.iterator = checkNotNull(checkNotNull(it).iterator.copy());
     this.nextElement = it.nextElement;
     this.nextElementComputed = it.nextElementComputed;
   }
