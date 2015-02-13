@@ -136,7 +136,7 @@ public class StreamingDataflowWorker {
   /** Regular constructor. */
   public StreamingDataflowWorker(
       List<MapTask> mapTasks, WindmillServerStub server) {
-    options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    options = PipelineOptionsFactory.createFromSystemProperties();
     options.setAppName("StreamingWorkerHarness");
     options.setStreaming(true);
 
@@ -627,12 +627,10 @@ public class StreamingDataflowWorker {
 
   private void printResources(PrintWriter response) {
     Runtime rt = Runtime.getRuntime();
-    int mb = 1024 * 1024;
-
     response.append("<h2>Resources</h2>\n");
-    response.append("Total Memory: " + rt.totalMemory() / mb + "MB<br>\n");
-    response.append("Used Memory: " + (rt.totalMemory() - rt.freeMemory()) / mb + "MB<br>\n");
-    response.append("Max Memory: " + rt.maxMemory() / mb + "MB<br>\n");
+    response.append("Total Memory: " + rt.totalMemory() / 1e6 + "MB<br>\n");
+    response.append("Used Memory: " + (rt.totalMemory() - rt.freeMemory()) / 1e6 + "MB<br>\n");
+    response.append("Max Memory: " + rt.maxMemory() / 1e6 + "MB<br>\n");
   }
 
   private void printSpecs(PrintWriter response) {
