@@ -70,8 +70,9 @@ public class StreamingDataflowWorker {
   static final int MAX_THREAD_POOL_QUEUE_SIZE = 100;
   static final long MAX_COMMIT_BYTES = 32 << 20;
   static final int DEFAULT_STATUS_PORT = 8081;
-  // Memory threshold under which no new work will be processed.  Set to 0 to disable pushback.
-  static final double PUSHBACK_THRESHOLD = 0.1;
+  // Memory threshold over which no new work will be processed.
+  // Set to a value >= 1 to disable pushback.
+  static final double PUSHBACK_THRESHOLD_RATIO = 0.9;
   static final String WINDMILL_SERVER_CLASS_NAME =
       "com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServer";
 
@@ -288,10 +289,15 @@ public class StreamingDataflowWorker {
       // If free memory is less than a percentage of total memory, block
       // until current work drains and memory is released.
       // Also force a GC to try to get under the memory threshold if possible.
-      while (rt.freeMemory() < rt.totalMemory() * PUSHBACK_THRESHOLD) {
+      long currentMemorySize = rt.totalMemory();
+      long memoryUsed = currentMemorySize - rt.freeMemory();
+      long maxMemory = rt.maxMemory();
+
+      while (memoryUsed > maxMemory * PUSHBACK_THRESHOLD_RATIO) {
         if (lastPushbackLog < (lastPushbackLog = System.currentTimeMillis()) - 60 * 1000) {
-          LOG.warn("In pushback, not accepting new work. Free Memory: {}MB / {}MB",
-              rt.freeMemory() / 1e6, rt.totalMemory() / 1e6);
+          LOG.warn(
+              "In pushback, not accepting new work. Using {}MB / {}MB ({}MB currently used by JVM)",
+              memoryUsed >> 20, maxMemory >> 20, currentMemorySize >> 20);
           System.gc();
         }
         sleep(10);
@@ -628,9 +634,9 @@ public class StreamingDataflowWorker {
   private void printResources(PrintWriter response) {
     Runtime rt = Runtime.getRuntime();
     response.append("<h2>Resources</h2>\n");
-    response.append("Total Memory: " + rt.totalMemory() / 1e6 + "MB<br>\n");
-    response.append("Used Memory: " + (rt.totalMemory() - rt.freeMemory()) / 1e6 + "MB<br>\n");
-    response.append("Max Memory: " + rt.maxMemory() / 1e6 + "MB<br>\n");
+    response.append("Total Memory: " + (rt.totalMemory() >> 20) + "MB<br>\n");
+    response.append("Used Memory: " + ((rt.totalMemory() - rt.freeMemory()) >> 20) + "MB<br>\n");
+    response.append("Max Memory: " + (rt.maxMemory() >> 20) + "MB<br>\n");
   }
 
   private void printSpecs(PrintWriter response) {
