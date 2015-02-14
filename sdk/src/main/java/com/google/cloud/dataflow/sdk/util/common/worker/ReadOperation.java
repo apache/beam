@@ -246,8 +246,8 @@ public class ReadOperation extends Operation {
   private class ReaderObserver implements Observer {
     @Override
     public void update(Observable obs, Object obj) {
-      Preconditions.checkArgument(obs == reader, "unexpected observable" + obs);
-      Preconditions.checkArgument(obj instanceof Long, "unexpected parameter object: " + obj);
+      Preconditions.checkArgument(obs == reader, "unexpected observable");
+      Preconditions.checkArgument(obj instanceof Long, "unexpected parameter object");
       byteCount.addValue((long) obj);
     }
   }
