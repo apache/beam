@@ -15,6 +15,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,6 +25,7 @@ import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
 
+import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -79,8 +81,14 @@ public class DataflowWorkerTest {
 
       @Override
       protected boolean matchesSafely(WorkItemStatus status) {
-        return status.getCompleted() && !status.getErrors().isEmpty();
+        boolean returnValue = status.getCompleted() && !status.getErrors().isEmpty();
+        if (returnValue) {
+          assertThat(status.getErrors().get(0).getMessage(),
+              CoreMatchers.containsString("java.lang.RuntimeException: Unknown kind of work"));
+        }
+        return returnValue;
       }
     };
   }
 }
+

@@ -85,7 +85,6 @@ public class DataflowWorkerLoggingFormatter extends Formatter {
     return workId.get();
   }
 
-
   @Override
   public String format(LogRecord record) {
     String exception = formatException(record.getThrown());
@@ -107,7 +106,7 @@ public class DataflowWorkerLoggingFormatter extends Formatter {
    * @param thrown The throwable to format.
    * @return A string containing the contents of {@link Throwable#printStackTrace()}.
    */
-  private String formatException(Throwable thrown) {
+  public static String formatException(Throwable thrown) {
     if (thrown == null) {
       return null;
     }

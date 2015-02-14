@@ -27,6 +27,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
 import com.google.cloud.dataflow.sdk.util.CloudMetricUtils;
@@ -43,8 +44,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -117,7 +116,7 @@ public class DataflowWorker {
         worker = SourceOperationExecutorFactory.create(options, workItem.getSourceOperationTask());
 
       } else {
-        throw new RuntimeException("unknown kind of work item: " + workItem.toString());
+        throw new RuntimeException("Unknown kind of work item: " + workItem.toString());
       }
 
       DataflowWorkProgressUpdater progressUpdater =
@@ -186,35 +185,11 @@ public class DataflowWorker {
     Status error = new Status();
     error.setCode(2); // Code.UNKNOWN.  TODO: Replace with a generated definition.
     // TODO: Attach the stack trace as exception details, not to the message.
-    error.setMessage(buildCloudStackTrace(t));
+    error.setMessage(DataflowWorkerLoggingFormatter.formatException(t));
 
     reportStatus(options, "Failure", workItem, worker == null ? null : worker.getOutputCounters(),
         worker == null ? null : worker.getOutputMetrics(), null/*sourceOperationResponse*/,
         error == null ? null : Collections.singletonList(error), 0);
-  }
-
-  /**
-   * Recursively goes through an exception, pulling out the stack trace. If the
-   * exception is a chained exception, it recursively goes through any causes
-   * and appends them to the stack trace.
-   */
-  private static String buildCloudStackTrace(Throwable t) {
-    StringWriter result = new StringWriter();
-    PrintWriter printResult = new PrintWriter(result);
-
-    printResult.print("Exception: ");
-    for (;;) {
-      printResult.println(t.toString());
-      for (StackTraceElement frame : t.getStackTrace()) {
-        printResult.println(frame.toString());
-      }
-      t = t.getCause();
-      if (t == null) {
-        break;
-      }
-      printResult.print("Caused by: ");
-    }
-    return result.toString();
   }
 
   private void reportStatus(DataflowWorkerHarnessOptions options, String status, WorkItem workItem,
