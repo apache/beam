@@ -13,6 +13,8 @@ public class FlinkTranslator implements PipelineVisitor {
 	
 	private final TranslationContext context;
 	
+	private int depth = 0;
+	
 	
 	public FlinkTranslator(ExecutionEnvironment env) {
 		this.context = new TranslationContext(env);
@@ -28,7 +30,7 @@ public class FlinkTranslator implements PipelineVisitor {
 	//  Pipeline Visitor Methods
 	// --------------------------------------------------------------------------------------------
 	
-	private String genSpaces(int n) {
+	private static String genSpaces(int n) {
 		String s = "";
 		for(int i = 0; i < n; i++) {
 			s += "|   ";
@@ -36,24 +38,26 @@ public class FlinkTranslator implements PipelineVisitor {
 		return s;
 	}
 	
+	private static String formatNodeName(TransformTreeNode node) {
+		return node.toString().split("@")[1] + node.getFullName();
+	}
+	
 	@Override
 	public void enterCompositeTransform(TransformTreeNode node) {
-		System.out.println(genSpaces(this.depth) + "enterCompositeTransform- " + node.toString().split("@")[1]);
-		this.currentCompositeTransformNode = node;
+		System.out.println(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
 		this.depth++;
 	}
 
 	@Override
 	public void leaveCompositeTransform(TransformTreeNode node) {
 		this.depth--;
-		System.out.println(genSpaces(this.depth) + "leaveCompositeTransform- " + node.toString().split("@")[1]);
-		this.currentCompositeTransformNode = null;
+		System.out.println(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
 	}
 
 	@Override
 	public void visitTransform(TransformTreeNode node) {
-		System.out.println(genSpaces(this.depth) + "visitTransform- " + node.toString().split("@")[1]);
-		
+		System.out.println(genSpaces(this.depth) + "visitTransform- " + formatNodeName(node));
+
 		// the transformation applied in this node
 		PTransform<?, ?> transform = node.getTransform();
 		
@@ -71,7 +75,7 @@ public class FlinkTranslator implements PipelineVisitor {
 	@Override
 	public void visitValue(PValue value, TransformTreeNode producer) {
 		// do nothing here
-		System.out.println(genSpaces(this.depth) + "  ^-visitValue- value=" + value + " producer=" + producer);
+		//System.out.println(genSpaces(this.depth) + "  ^-visitValue- value=" + value);
 	}
 	
 	/**
