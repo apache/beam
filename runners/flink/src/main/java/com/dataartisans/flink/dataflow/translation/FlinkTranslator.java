@@ -28,18 +28,32 @@ public class FlinkTranslator implements PipelineVisitor {
 	//  Pipeline Visitor Methods
 	// --------------------------------------------------------------------------------------------
 	
+	private String genSpaces(int n) {
+		String s = "";
+		for(int i = 0; i < n; i++) {
+			s += "|   ";
+		}
+		return s;
+	}
+	
 	@Override
 	public void enterCompositeTransform(TransformTreeNode node) {
-		System.out.println("-enterCompositeTransform- " + node);
+		System.out.println(genSpaces(this.depth) + "enterCompositeTransform- " + node.toString().split("@")[1]);
+		this.currentCompositeTransformNode = node;
+		this.depth++;
 	}
 
 	@Override
 	public void leaveCompositeTransform(TransformTreeNode node) {
-		System.out.println("-leaveCompositeTransform- " + node);
+		this.depth--;
+		System.out.println(genSpaces(this.depth) + "leaveCompositeTransform- " + node.toString().split("@")[1]);
+		this.currentCompositeTransformNode = null;
 	}
 
 	@Override
 	public void visitTransform(TransformTreeNode node) {
+		System.out.println(genSpaces(this.depth) + "visitTransform- " + node.toString().split("@")[1]);
+		
 		// the transformation applied in this node
 		PTransform<?, ?> transform = node.getTransform();
 		
@@ -51,11 +65,13 @@ public class FlinkTranslator implements PipelineVisitor {
 		}
 		
 		applyTransform(transform, node, translator);
+
 	}
 
 	@Override
 	public void visitValue(PValue value, TransformTreeNode producer) {
-		System.out.println("-visitValue- value=" + value + " producer=" + producer);
+		// do nothing here
+		System.out.println(genSpaces(this.depth) + "  ^-visitValue- value=" + value + " producer=" + producer);
 	}
 	
 	/**
