@@ -1,16 +1,18 @@
 package com.dataartisans.flink.dataflow.translation;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.apache.flink.api.java.operators.DataSource;
-
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.io.TextIO.Read.Bound;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.DataSource;
+
+import java.util.HashMap;
+import java.util.Map;
 
 
 public class FlinkTransformTranslators {
@@ -26,7 +28,7 @@ public class FlinkTransformTranslators {
 	// register the known translators
 	static {
 		TRANSLATORS.put(TextIO.Read.Bound.class, new ReadUTFTextTranslator());
-		TRANSLATORS.put(ParDo.Bound.class, null);
+		TRANSLATORS.put(ParDo.Bound.class, new ParallelDoTranslator());
 	}
 	
 	
@@ -42,7 +44,7 @@ public class FlinkTransformTranslators {
 	private static class ReadUTFTextTranslator implements TransformToFlinkOpTranslator<TextIO.Read.Bound<String>> {
 		
 		@Override
-		public void translateNode(TransformTreeNode node, Bound<String> transform, TranslationContext translation) {
+		public void translateNode(TransformTreeNode node, Bound<String> transform, TranslationContext context) {
 			String path = transform.getFilepattern();
 			String name = transform.getName(); 
 			Coder<?> coder = transform.getDefaultOutputCoder(transform.getOutput());
@@ -51,12 +53,12 @@ public class FlinkTransformTranslators {
 				throw new UnsupportedOperationException("Currently only supports UTF-8 inputs.");
 			}
 			
-			DataSource<String> source = translation.getExecutionEnvironment().readTextFile(path);
+			DataSource<String> source = context.getExecutionEnvironment().readTextFile(path);
 			if (name != null) {
 				source = source.name(name);
 			}
-			
-			translation.registerDataSet(source, node);
+
+			context.registerDataSet(source, node);
 		}
 	}
 	
@@ -64,8 +66,16 @@ public class FlinkTransformTranslators {
 		
 		@Override
 		public void translateNode(TransformTreeNode node, ParDo.Bound<IN, OUT> transform, TranslationContext context) {
+
+			ExecutionEnvironment env = context.getExecutionEnvironment();
+			System.out.println("test: " + node.getInput());
+			DataSet<IN> in = context.getDataSet(node);
+			System.out.println(in);
+			final DoFn<IN, OUT> doFn = transform.getFn();
+
+			in.mapPartition(new FlinkDoFnFunction<>(doFn));
 			
-			
+			context.registerDataSet(in, node);
 		}
 	}
 	

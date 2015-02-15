@@ -11,14 +11,12 @@ public class GoogleWordCountExampleRunner {
 	
 	public static void main(String[] args) {
 		
-		String[] arguments = {
-				String.format("--output=%s/output.txt", System.getProperty("java.io.tmpdir"))
-		};
+		Options options = PipelineOptionsFactory.create().as(Options.class);
+		options.setOutput("/tmp/output2.txt");
 		
-		Options options = PipelineOptionsFactory.fromArgs(arguments)
-				.withValidation().as(Options.class);
+		//options.setRunner(DirectPipelineRunner.class);
 		options.setRunner(FlinkLocalPipelineRunner.class);
-		
+
 		Pipeline p = Pipeline.create(options);
 
 		p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
