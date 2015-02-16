@@ -1,9 +1,13 @@
 package com.dataartisans.flink.dataflow.translation;
 
-import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValue;
+import com.google.cloud.dataflow.sdk.values.TypedPValue;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,6 +15,7 @@ import java.util.Map;
 public class TranslationContext {
 	
 	private final Map<PValue, DataSet<?>> dataSets;
+	private final Map<PCollectionView<?, ?>, DataSet<?>> broadcastDataSets;
 	
 	private final ExecutionEnvironment env;
 	
@@ -19,6 +24,7 @@ public class TranslationContext {
 	public TranslationContext(ExecutionEnvironment env) {
 		this.env = env;
 		this.dataSets = new HashMap<>();
+		this.broadcastDataSets = new HashMap<>();
 	}
 	
 	// ------------------------------------------------------------------------
@@ -27,30 +33,34 @@ public class TranslationContext {
 		return env;
 	}
 	
-//	private <T> DataSet<T> getDataSet(TransformTreeNode node) {
-//		@SuppressWarnings("unchecked")
-//		DataSet<T> typedSet = (DataSet<T>) dataSets.get(node);
-//		return typedSet;
-//	}
-	
-	public DataSet<?> getInputDataSet(TransformTreeNode node) {
-		PValue value = (PValue) node.getInput();
-		return dataSets.get(value);
+	@SuppressWarnings("unchecked")
+	public <T> DataSet<T> getInputDataSet(PValue value) {
+		return (DataSet<T>) dataSets.get(value);
 	}
 	
-	public void setOutputDataSet(TransformTreeNode node, DataSet<?> value) {
-		PValue output = (PValue) node.getOutput();
-		dataSets.put(output, value);
+	public void setOutputDataSet(PValue value, DataSet<?> set) {
+		if (!dataSets.containsKey(value)) {
+			dataSets.put(value, set);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T> DataSet<T> getSideInputDataSet(PCollectionView<?,?> value) {
+		return (DataSet<T>) broadcastDataSets.get(value);
+	}
+
+	public void setSideInputDataSet(PCollectionView<?,?> value, DataSet<?> set) {
+		if (!broadcastDataSets.containsKey(value)) {
+			broadcastDataSets.put(value, set);
+		}
 	}
 	
-//	public void registerDataSet(DataSet<?> dataSet, TransformTreeNode node) {
-//		DataSet<?> previous = dataSets.put(node, dataSet);
-//
-//		if (previous != null) {
-//			// undo the action
-//			dataSets.put(node, previous);
-//			throw new IllegalArgumentException(
-//					"Context contains already a DataSet as the result of the given TreeTransformNode.");
-//		}
-//	}
+	@SuppressWarnings("unchecked")
+	public <T> TypeInformation<T> getTypeInfo(PValue output) {
+		if (output instanceof TypedPValue) {
+			Coder<?> outputCoder = ((TypedPValue) output).getCoder();
+			return new CoderTypeInformation(outputCoder);
+		}
+		return new GenericTypeInfo<T>((Class<T>)Object.class);
+	}
 }

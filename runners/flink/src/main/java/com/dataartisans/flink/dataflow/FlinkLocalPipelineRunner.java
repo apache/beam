@@ -1,16 +1,15 @@
 package com.dataartisans.flink.dataflow;
 
-import java.util.Map;
-
+import com.dataartisans.flink.dataflow.translation.FlinkTranslator;
+import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dataartisans.flink.dataflow.translation.FlinkTranslator;
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import java.util.Map;
 
 
 public class FlinkLocalPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
@@ -49,6 +48,8 @@ public class FlinkLocalPipelineRunner extends PipelineRunner<FlinkRunnerResult> 
 		
 		JobExecutionResult result;
 		try {
+			env.setDegreeOfParallelism(1);
+			System.out.println(env.getExecutionPlan());
 			result = env.execute();
 		}
 		catch (Exception e) {

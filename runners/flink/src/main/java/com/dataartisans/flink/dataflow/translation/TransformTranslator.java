@@ -4,7 +4,7 @@ import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 
 
-public interface TransformToFlinkOpTranslator<Type extends PTransform<?, ?>> {
+public interface TransformTranslator<Type extends PTransform<?, ?>> {
 
 	void translateNode(TransformTreeNode node, Type transform, TranslationContext context);
 }
