@@ -57,14 +57,14 @@ public class FlinkTranslator implements PipelineVisitor {
 	@Override
 	public void visitTransform(TransformTreeNode node) {
 		System.out.println(genSpaces(this.depth) + "visitTransform- " + formatNodeName(node));
-
 		// the transformation applied in this node
 		PTransform<?, ?> transform = node.getTransform();
 		
 		// the translator to the Flink operation(s)
-		TransformToFlinkOpTranslator<?> translator = FlinkTransformTranslators.getTranslator(transform);
+		TransformTranslator<?> translator = FlinkTransformTranslators.getTranslator(transform);
 		
 		if (translator == null) {
+			System.out.println(node.getTransform().getClass());
 			throw new UnsupportedOperationException("The transform " + transform + " is currently not supported.");
 		}
 		
@@ -85,13 +85,13 @@ public class FlinkTranslator implements PipelineVisitor {
 	 * @param node
 	 * @param translator
 	 */
-	private <T extends PTransform<?, ?>> void applyTransform(PTransform<?, ?> transform, TransformTreeNode node, TransformToFlinkOpTranslator<?> translator) {
+	private <T extends PTransform<?, ?>> void applyTransform(PTransform<?, ?> transform, TransformTreeNode node, TransformTranslator<?> translator) {
 		
 		@SuppressWarnings("unchecked")
 		T typedTransform = (T) transform;
 		
 		@SuppressWarnings("unchecked")
-		TransformToFlinkOpTranslator<T> typedTranslator = (TransformToFlinkOpTranslator<T>) translator;
+		TransformTranslator<T> typedTranslator = (TransformTranslator<T>) translator;
 		
 		typedTranslator.translateNode(node, typedTransform, context);
 	}
