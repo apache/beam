@@ -26,7 +26,6 @@ Copyright 2015 Stephan Ewen, dataArtisans
 	<name>Flink Dataflow Runner</name>
 	<packaging>jar</packaging>
 	
-	<url>https://github.com/StephanEwen/flink-dataflow</url>
 	<inceptionYear>2015</inceptionYear>
 
 	<licenses>
@@ -37,16 +36,10 @@ Copyright 2015 Stephan Ewen, dataArtisans
 		</license>
 	</licenses>
 
-	<scm>
-		<url>https://github.com/StephanEwen/flink-dataflow</url>
-		<connection>git@github.com:StephanEwen/flink-dataflow.git</connection>
-		<developerConnection>git@github.com:StephanEwen/flink-dataflow.git</developerConnection>
-	</scm>
-
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <flink.version>0.9-SNAPSHOT</flink.version>
+        <flink.version>0.8.0</flink.version>
 	</properties>
 
 	<dependencies>
