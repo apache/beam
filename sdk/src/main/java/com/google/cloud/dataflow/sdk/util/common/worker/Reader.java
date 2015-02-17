@@ -48,9 +48,10 @@ public abstract class Reader<T> extends Observable {
     /**
      * Returns the next element.
      *
+     * @throws IOException if attempting to access an element involves IO that fails
      * @throws NoSuchElementException if there are no more elements
      */
-    public T next() throws IOException;
+    public T next() throws IOException, NoSuchElementException;
 
     /**
      * Copies the current ReaderIterator.
