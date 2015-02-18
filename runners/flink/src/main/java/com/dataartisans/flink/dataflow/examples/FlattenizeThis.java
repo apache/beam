@@ -86,8 +86,6 @@ public class FlattenizeThis {
 
 		p.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 
-		List<URI> documentURLs = new ArrayList<URI>();
-
 
 		p.apply(new TfIdf.ReadDocuments(listInputDocuments(options)))
 				.apply(ParDo.of(new DoFn<KV<URI, String>, String>() {

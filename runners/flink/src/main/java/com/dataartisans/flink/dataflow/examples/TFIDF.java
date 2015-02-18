@@ -1,11 +1,11 @@
 package com.dataartisans.flink.dataflow.examples;
 
+import com.dataartisans.flink.dataflow.FlinkPipelineRunner;
 import com.google.cloud.dataflow.examples.TfIdf;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringDelegateCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.*;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -132,8 +132,8 @@ public class TFIDF {
 		Options options = PipelineOptionsFactory.create().as(Options.class);
 		options.setOutput("/tmp/output2.txt");
 		options.setInput("/tmp/documents");
-		options.setRunner(DirectPipelineRunner.class);
-		//options.setRunner(FlinkLocalPipelineRunner.class);
+		//options.setRunner(DirectPipelineRunner.class);
+		options.setRunner(FlinkPipelineRunner.class);
 
 		Pipeline p = Pipeline.create(options);
 
