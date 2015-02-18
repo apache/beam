@@ -4,7 +4,13 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.io.TextIO.Read.Bound;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
-import com.google.cloud.dataflow.sdk.transforms.*;
+import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.Flatten;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -12,8 +18,15 @@ import com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.*;
+import org.apache.flink.api.java.io.TextInputFormat;
+import org.apache.flink.api.java.operators.DataSource;
+import org.apache.flink.api.java.operators.FlatMapOperator;
+import org.apache.flink.api.java.operators.GroupReduceOperator;
+import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.Keys;
+import org.apache.flink.api.java.operators.MapPartitionOperator;
+import org.apache.flink.api.java.operators.UnsortedGrouping;
+import org.apache.flink.core.fs.Path;
 
 import java.util.HashMap;
 import java.util.List;
@@ -60,14 +73,11 @@ public class FlinkTransformTranslators {
 			String name = transform.getName(); 
 			Coder<?> coder = transform.getOutput().getCoder();
 
-			if (coder != null && coder != TextIO.DEFAULT_TEXT_CODER) {
-				throw new UnsupportedOperationException("Currently only supports UTF-8 inputs.");
-			}
-			
-			DataSource<String> source = context.getExecutionEnvironment().readTextFile(path);
-			if (name != null) {
-				source.name(name);
-			}
+
+			TypeInformation<String> typeInformation = context.getTypeInfo(transform.getOutput());
+
+			DataSource<String> source = new DataSource<String>(context.getExecutionEnvironment(), new TextInputFormat(new Path(path)), typeInformation, name);
+
 			context.setOutputDataSet(transform.getOutput(), source);
 		}
 	}
@@ -77,7 +87,9 @@ public class FlinkTransformTranslators {
 		@Override
 		public void translateNode(TransformTreeNode node, TextIO.Write.Bound<T> transform, TranslationContext context) {
 			DataSet<T> dataSet = context.getInputDataSet(transform.getInput());
-			dataSet.print();
+			String path = transform.getFilenamePrefix() + transform.getFilenameSuffix();
+
+			dataSet.writeAsText(path);
 		}
 	}
 	
