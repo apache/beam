@@ -3,7 +3,10 @@ package com.dataartisans.flink.dataflow;
 import com.dataartisans.flink.dataflow.translation.FlinkTranslator;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import com.google.cloud.dataflow.sdk.util.TestCredential;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.slf4j.Logger;
@@ -16,8 +19,6 @@ public class FlinkLocalPipelineRunner extends PipelineRunner<FlinkRunnerResult> 
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkLocalPipelineRunner.class);
 	
-	
-	public FlinkLocalPipelineRunner(PipelineOptions options) {}
 	
 	// --------------------------------------------------------------------------------------------
 	// Run methods
@@ -35,9 +36,10 @@ public class FlinkLocalPipelineRunner extends PipelineRunner<FlinkRunnerResult> 
 		
 		LOG.info("Executing pipeline using the FlinkLocalPipelineRunner.");
 		
-		ExecutionEnvironment env = parallelism == -1 ?
-				ExecutionEnvironment.createLocalEnvironment() :
-				ExecutionEnvironment.createLocalEnvironment(parallelism);
+//		ExecutionEnvironment env = parallelism == -1 ?
+//				ExecutionEnvironment.createLocalEnvironment() :
+//				ExecutionEnvironment.createLocalEnvironment(parallelism);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		LOG.info("Translating pipeline to Flink program.");
 		
@@ -49,7 +51,7 @@ public class FlinkLocalPipelineRunner extends PipelineRunner<FlinkRunnerResult> 
 		JobExecutionResult result;
 		try {
 			env.setDegreeOfParallelism(1);
-			System.out.println(env.getExecutionPlan());
+//			System.out.println(env.getExecutionPlan());
 			result = env.execute();
 		}
 		catch (Exception e) {
@@ -71,11 +73,38 @@ public class FlinkLocalPipelineRunner extends PipelineRunner<FlinkRunnerResult> 
 		return new ExecutionRunnerResult(accumulators, result.getNetRuntime());
 	}
 	
-	// --------------------------------------------------------------------------------------------
-	// Factory
-	// --------------------------------------------------------------------------------------------
-	
+	/**
+	 * Constructs a DirectPipelineRunner from the given options.
+	 */
 	public static FlinkLocalPipelineRunner fromOptions(PipelineOptions options) {
+		FlinkPipelineOptions directOptions =
+				PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
+		LOG.debug("Creating FlinkPipelineRunner");
+		return new FlinkLocalPipelineRunner(directOptions);
+	}
+
+	private final FlinkPipelineOptions options;
+
+	/** Returns a new DirectPipelineRunner. */
+	private FlinkLocalPipelineRunner(FlinkPipelineOptions options) {
+		this.options = options;
+	}
+
+	public FlinkPipelineOptions getPipelineOptions() {
+		return options;
+	}
+
+	@Override
+	public String toString() { return "FlinkLocalPipelineRunner#" + hashCode(); }
+
+	/**
+	 * Constructs a runner with default properties for testing.
+	 *
+	 * @return The newly created runner.
+	 */
+	public static FlinkLocalPipelineRunner createForTest() {
+		FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+		options.setGcpCredential(new TestCredential());
 		return new FlinkLocalPipelineRunner(options);
 	}
 }
