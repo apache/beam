@@ -9,8 +9,7 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PValue;
 
 /**
- * FlinkPipelineTranslator knows how to translate Pipeline objects
- * into Flink Jobs.
+ * FlinkPipelineTranslator knows how to translate Pipeline objects into Flink Jobs.
  *
  * This is based on {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator}
  */

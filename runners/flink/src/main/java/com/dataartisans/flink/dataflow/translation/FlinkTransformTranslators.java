@@ -1,5 +1,8 @@
 package com.dataartisans.flink.dataflow.translation;
 
+import com.dataartisans.flink.dataflow.translation.functions.FlinkCreateFunction;
+import com.dataartisans.flink.dataflow.translation.functions.FlinkDoFnFunction;
+import com.dataartisans.flink.dataflow.translation.functions.KeyedListAggregator;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.io.TextIO.Read.Bound;
@@ -172,7 +175,7 @@ public class FlinkTransformTranslators {
 				System.out.println("type: " + typeInformation);
 			}
 			DataSet<Integer> initDataSet = context.getExecutionEnvironment().fromElements(1);
-			FlinkCreateFlatMap<Integer, OUT> flatMapFunction = new FlinkCreateFlatMap<>(Lists.newArrayList(elements));
+			FlinkCreateFunction<Integer, OUT> flatMapFunction = new FlinkCreateFunction<>(Lists.newArrayList(elements));
 			FlatMapOperator<Integer, OUT> dataSetNew = new FlatMapOperator<>(initDataSet, typeInformation, flatMapFunction, transform.getName());
 			
 			context.setOutputDataSet(transform.getOutput(), dataSetNew);
