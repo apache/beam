@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.util.common.Counter;
@@ -26,14 +25,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.AbstractMap.SimpleEntry;
-import java.util.Map;
-
 /**
  * Unit tests for the {@link Counter} API.
  */
 @RunWith(JUnit4.class)
 public class StateSamplerTest {
+  public static long getCounterLongValue(CounterSet counters, String name) {
+    Counter<Long> counter = (Counter<Long>) counters.getExistingCounter(name);
+    return counter.getAggregate(false);
+  }
 
   @Test
   public void basicTest() throws InterruptedException {
@@ -44,9 +44,6 @@ public class StateSamplerTest {
 
     int state1 = stateSampler.stateForName("1");
     int state2 = stateSampler.stateForName("2");
-
-    assertEquals(new SimpleEntry<>("", 0L),
-        stateSampler.getCurrentStateAndDuration());
 
     try (StateSampler.ScopedState s1 =
       stateSampler.scopedState(state1)) {
@@ -60,8 +57,8 @@ public class StateSamplerTest {
       Thread.sleep(3 * periodMs);
     }
 
-    long s1 = stateSampler.getStateDuration(state1);
-    long s2 = stateSampler.getStateDuration(state2);
+    long s1 = getCounterLongValue(counters, "test-1-msecs");
+    long s2 = getCounterLongValue(counters, "test-2-msecs");
 
     System.out.println("basic s1: " + s1);
     System.out.println("basic s2: " + s2);
@@ -81,9 +78,6 @@ public class StateSamplerTest {
     int state1 = stateSampler.stateForName("1");
     int state2 = stateSampler.stateForName("2");
     int state3 = stateSampler.stateForName("3");
-
-    assertEquals(new SimpleEntry<>("", 0L),
-        stateSampler.getCurrentStateAndDuration());
 
     try (StateSampler.ScopedState s1 =
         stateSampler.scopedState(state1)) {
@@ -105,9 +99,9 @@ public class StateSamplerTest {
       Thread.sleep(periodMs);
     }
 
-    long s1 = stateSampler.getStateDuration(state1);
-    long s2 = stateSampler.getStateDuration(state2);
-    long s3 = stateSampler.getStateDuration(state3);
+    long s1 = getCounterLongValue(counters, "test-1-msecs");
+    long s2 = getCounterLongValue(counters, "test-2-msecs");
+    long s3 = getCounterLongValue(counters, "test-3-msecs");
 
     System.out.println("s1: " + s1);
     System.out.println("s2: " + s2);
@@ -128,17 +122,11 @@ public class StateSamplerTest {
     int state1 = stateSampler.stateForName("1");
     int previousState = stateSampler.setState(state1);
     Thread.sleep(2 * periodMs);
-    Map.Entry<String, Long> currentStateAndDuration =
-        stateSampler.getCurrentStateAndDuration();
     stateSampler.setState(previousState);
-    assertEquals("test-1-msecs", currentStateAndDuration.getKey());
     long tolerance = periodMs;
-    long s = currentStateAndDuration.getValue();
+    long s = getCounterLongValue(counters, "test-1-msecs");
     System.out.println("s: " + s);
     assertTrue(s >= periodMs - tolerance);
     assertTrue(s <= 4 * periodMs + tolerance);
-
-    assertTrue(stateSampler.getCurrentStateAndDuration()
-        .getKey().isEmpty());
   }
 }
