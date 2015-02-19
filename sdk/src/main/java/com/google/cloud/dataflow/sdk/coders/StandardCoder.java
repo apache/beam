@@ -53,7 +53,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
 
   @Override
   public boolean equals(Object o) {
-    if (this.getClass() != o.getClass()) {
+    if (o == null || this.getClass() != o.getClass()) {
       return false;
     }
     StandardCoder<?> that = (StandardCoder<?>) o;

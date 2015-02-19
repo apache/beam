@@ -413,7 +413,7 @@ public class CoderRegistry {
               "Cannot encode elements of type " + typeArgs[i]
                   + " with " + knownCoders[i]);
         }
-        context.put(typeArgs[i], knownCoders[i]);
+        fillTypeBindings(typeArgs[i], knownCoders[i], context);
       }
     }
     Coder<?>[] result = new Coder<?>[typeArgs.length];
@@ -574,7 +574,7 @@ public class CoderRegistry {
       return getDefaultCoder((Class) type);
     } else if (type instanceof ParameterizedType) {
       return this.getDefaultCoder((ParameterizedType) type,
-                                     typeCoderBindings);
+                                  typeCoderBindings);
     } else if (type instanceof TypeVariable
         || type instanceof WildcardType) {
       // No default coder for an unknown generic type.
@@ -666,7 +666,7 @@ public class CoderRegistry {
   void fillTypeBindings(Type type,
                         Coder<?> coder,
                         Map<Type, Coder<?>> typeCoderBindings) {
-    if (type instanceof TypeVariable) {
+    if (type instanceof TypeVariable || type instanceof Class) {
       LOG.debug("Binding type {} to Coder {}", type, coder);
       typeCoderBindings.put(type, coder);
     } else if (type instanceof ParameterizedType) {

@@ -92,28 +92,35 @@ public class CoderRegistryTest {
     CoderRegistry registry = getStandardRegistry();
     MyTemplateClass<MyValue, List<MyValue>> instance =
         new MyTemplateClass<MyValue, List<MyValue>>() {};
-    Coder<List<MyValue>> expected = ListCoder.of(MyValueCoder.of());
+    Coder<List<MyValue>> listCoder = ListCoder.of(MyValueCoder.of());
 
     // The map method operates on parameter names.
     Map<String, Coder<?>> coderMap = registry.getDefaultCoders(
         instance.getClass(),
         MyTemplateClass.class,
         Collections.singletonMap("A", MyValueCoder.of()));
-    assertEquals(expected, coderMap.get("B"));
+    assertEquals(listCoder, coderMap.get("B"));
+
+    // Check we can infer the other direction as well.
+    Map<String, Coder<?>> coderMap2 = registry.getDefaultCoders(
+        instance.getClass(),
+        MyTemplateClass.class,
+        Collections.singletonMap("B", listCoder));
+    assertEquals(MyValueCoder.of(), coderMap2.get("A"));
 
     // The array interface operates on position.
     Coder<?>[] coders = registry.getDefaultCoders(
         instance.getClass(),
         MyTemplateClass.class,
         new Coder<?>[] { MyValueCoder.of(), null });
-    assertEquals(expected, coders[1]);
+    assertEquals(listCoder, coders[1]);
 
     // The "last argument" coder handles a common case.
     Coder<List<MyValueCoder>> actual = registry.getDefaultCoder(
         instance.getClass(),
         MyTemplateClass.class,
         MyValueCoder.of());
-    assertEquals(expected, actual);
+    assertEquals(listCoder, actual);
 
     try {
       registry.getDefaultCoder(
