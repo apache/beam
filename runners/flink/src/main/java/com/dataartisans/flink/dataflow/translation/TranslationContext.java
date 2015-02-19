@@ -1,5 +1,6 @@
 package com.dataartisans.flink.dataflow.translation;
 
+import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValue;
