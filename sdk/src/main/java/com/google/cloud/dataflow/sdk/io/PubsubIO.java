@@ -29,14 +29,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * [Whitelisting Required] Read and Write transforms for Pub/Sub streams. These transforms create
+ * Read and Write transforms for Pub/Sub streams. These transforms create
  * and consume unbounded {@link com.google.cloud.dataflow.sdk.values.PCollection}s.
  *
- * <p> <b>Important:</b> PubsubIO is experimental. It is not supported by the
- * {@link com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner} and is only supported in the
- * {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner} for users whitelisted in a
- * streaming early access program and who enable
- * {@link com.google.cloud.dataflow.sdk.options.StreamingOptions#setStreaming(boolean)}.
+ * <p> {@code PubsubIO} is experimental.  It is only usable
+ * with the {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner}
+ * and requires
+ * {@link com.google.cloud.dataflow.sdk.options.StreamingOptions#setStreaming(boolean)}
+ * to be enabled.
  *
  * <p> You should expect this class to change significantly in future versions of the SDK
  * or be removed entirely.

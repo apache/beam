@@ -17,22 +17,11 @@
 package com.google.cloud.dataflow.sdk.options;
 
 /**
- * [Whitelisting Required] Options used to configure the streaming backend.
- *
- * <p> <b>Important:</b> Streaming support is experimental. It is only supported in the
- * {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner} for users whitelisted in a
- * streaming early access program.
- *
- * <p> You should expect this class to change significantly in future
- * versions of the SDK or be removed entirely.
+ * Options used to configure the streaming backend.
  */
 public interface StreamingOptions extends
     ApplicationNameOptions, GcpOptions, PipelineOptions {
-  /**
-   * Note that this feature is currently experimental and only available to users whitelisted in
-   * a streaming early access program.
-   */
-  @Description("True if running in streaming mode (experimental)")
+  @Description("True if running in streaming mode")
   boolean isStreaming();
   void setStreaming(boolean value);
 }
