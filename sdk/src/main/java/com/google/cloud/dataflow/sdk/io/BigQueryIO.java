@@ -44,12 +44,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
@@ -638,62 +638,6 @@ public class BigQueryIO {
    */
   private static class StreamingWriteFn
       extends DoFn<KV<Integer, KV<String, TableRow>>, Void> implements DoFn.RequiresKeyedState {
-    /**
-     * Class to accumulate BigQuery row data as a list of String.
-     * DoFn implementation must be Serializable, but BigQuery classes,
-     * such as TableRow are not.  Therefore, convert into JSON String
-     * for accumulation.
-     */
-    private static class JsonTableRows implements Iterable<TableRow>, Serializable {
-      /** The list where BigQuery row data is accumulated. */
-      private final List<String> jsonRows = new ArrayList<>();
-
-      /** Iterator of JsonTableRows converts the row in String to TableRow. */
-      static class JsonTableRowIterator implements Iterator<TableRow> {
-        private final Iterator<String> iteratorInternal;
-
-        /** Constructor. */
-        JsonTableRowIterator(List<String> jsonRowList) {
-          iteratorInternal = jsonRowList.iterator();
-        }
-
-        @Override
-        public boolean hasNext() {
-          return iteratorInternal.hasNext();
-        }
-
-        @Override
-        public TableRow next() {
-          try {
-            // Converts the String back into TableRow.
-            return JSON_FACTORY.fromString(iteratorInternal.next(), TableRow.class);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        }
-
-        @Override
-        public void remove() {
-          iteratorInternal.remove();
-        }
-      }
-
-      /** Returns the iterator. */
-      @Override
-      public Iterator<TableRow> iterator() {
-        return new JsonTableRowIterator(jsonRows);
-      }
-
-      /** Adds a BigQuery TableRow. */
-      void add(TableRow row) {
-        try {
-          // Converts into JSON format.
-          jsonRows.add(JSON_FACTORY.toString(row));
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-      }
-    }
 
     /** TableReference in JSON.  Use String to make the class Serializable. */
     private final String jsonTableReference;
@@ -701,20 +645,18 @@ public class BigQueryIO {
     /** TableSchema in JSON.  Use String to make the class Serializable. */
     private final String jsonTableSchema;
 
+    private transient TableReference tableReference;
+
     /** JsonTableRows to accumulate BigQuery rows. */
-    private JsonTableRows jsonTableRows;
+    private transient List<TableRow> tableRows;
 
     /** The list of unique ids for each BigQuery table row. */
-    private List<String> uniqueIdsForTableRows;
+    private transient List<String> uniqueIdsForTableRows;
 
     /** The list of tables created so far, so we don't try the creation
         each time. */
-    private static ThreadLocal<HashSet<String>> createdTables = new ThreadLocal<HashSet<String>>() {
-      @Override
-      protected HashSet<String> initialValue() {
-        return new HashSet<>();
-      }
-    };
+    private static Set<String> createdTables =
+        Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
     /** Constructor. */
     StreamingWriteFn(TableReference table, TableSchema schema) {
@@ -729,27 +671,25 @@ public class BigQueryIO {
     /** Prepares a target BigQuery table. */
     @Override
     public void startBundle(Context context) {
-      jsonTableRows = new JsonTableRows();
+      tableRows = new ArrayList<>();
       uniqueIdsForTableRows = new ArrayList<>();
       BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
-      Bigquery client = Transport.newBigQueryClient(options).build();
 
       // TODO: Support table sharding and the better place to initialize
-      //     BigQuery table.
-      HashSet<String> tables = createdTables.get();
-      if (!tables.contains(jsonTableSchema)) {
-        try {
+      // BigQuery table.
+      try {
+        tableReference =
+            JSON_FACTORY.fromString(jsonTableReference, TableReference.class);
+
+        if (!createdTables.contains(jsonTableSchema)) {
           TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
-          TableReference tableReference =
-              JSON_FACTORY.fromString(jsonTableReference, TableReference.class);
-
-
+          Bigquery client = Transport.newBigQueryClient(options).build();
           BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
           inserter.tryCreateTable(tableSchema);
-          tables.add(jsonTableSchema);
-        } catch (IOException e) {
-          throw new RuntimeException(e);
+          createdTables.add(jsonTableSchema);
         }
+      } catch (IOException e) {
+        throw new RuntimeException(e);
       }
     }
 
@@ -757,25 +697,33 @@ public class BigQueryIO {
     @Override
     public void processElement(ProcessContext context) {
       KV<Integer, KV<String, TableRow>> kv = context.element();
-      TableRow tableRow = kv.getValue().getValue();
-      uniqueIdsForTableRows.add(kv.getValue().getKey());
-      jsonTableRows.add(tableRow);
+      addRow(kv.getValue().getValue(), kv.getValue().getKey());
     }
 
     /** Writes the accumulated rows into BigQuery with streaming API. */
     @Override
     public void finishBundle(Context context) {
-      BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
-      Bigquery client = Transport.newBigQueryClient(options).build();
+      flushRows(context.getPipelineOptions().as(BigQueryOptions.class));
+    }
 
-      try {
-        TableReference tableReference =
-            JSON_FACTORY.fromString(jsonTableReference, TableReference.class);
+    /** Accumulate a row to be written to BigQuery. */
+    private void addRow(TableRow tableRow, String uniqueId) {
+      uniqueIdsForTableRows.add(uniqueId);
+      tableRows.add(tableRow);
+    }
 
-        BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
-        inserter.insertAll(jsonTableRows.iterator(), uniqueIdsForTableRows.iterator());
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+    /** Writes the accumulated rows into BigQuery with streaming API. */
+    private void flushRows(BigQueryOptions options) {
+      if (!tableRows.isEmpty()) {
+        Bigquery client = Transport.newBigQueryClient(options).build();
+        try {
+          BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
+          inserter.insertAll(tableRows.iterator(), uniqueIdsForTableRows.iterator());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        tableRows.clear();
+        uniqueIdsForTableRows.clear();
       }
     }
   }
