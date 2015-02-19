@@ -32,7 +32,6 @@ import java.util.List;
 
 public class WordCountITCase extends JavaProgramTestBase {
 
-	protected String textPath;
 	protected String resultPath;
 
 	public WordCountITCase(){
@@ -49,7 +48,6 @@ public class WordCountITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", Joiner.on('\n').join(WORDS));
 		resultPath = getTempDirPath("result");
 	}
 
