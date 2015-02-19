@@ -1,4 +1,4 @@
-package com.dataartisans.flink.dataflow.translation;
+package com.dataartisans.flink.dataflow.translation.types;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -6,8 +6,13 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-
-public class CoderVoidTypeSerializer extends TypeSerializer<CoderVoidTypeSerializer.VoidValue> {
+/**
+ * Special Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for
+ * {@link com.google.cloud.dataflow.sdk.coders.VoidCoder}. We need this because Flink does not
+ * allow returning {@code null} from an input reader. We return a {@link VoidValue} instead
+ * that behaves like a {@code null}, hopefully.
+ */
+public class VoidCoderTypeSerializer extends TypeSerializer<VoidCoderTypeSerializer.VoidValue> {
 
 	@Override
 	public boolean isImmutableType() {

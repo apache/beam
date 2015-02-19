@@ -1,4 +1,4 @@
-package com.dataartisans.flink.dataflow.translation;
+package com.dataartisans.flink.dataflow.translation.types;
 
 import com.dataartisans.flink.dataflow.translation.utils.DataInputStreamWrapper;
 import com.dataartisans.flink.dataflow.translation.utils.DataOutputStreamWrapper;
@@ -12,7 +12,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
-
+/**
+ * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for
+ * Dataflow {@link com.google.cloud.dataflow.sdk.coders.Coder}s
+ */
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 	
 	private Coder<T> coder;
