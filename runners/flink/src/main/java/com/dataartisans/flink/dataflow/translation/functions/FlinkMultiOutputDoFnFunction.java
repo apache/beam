@@ -20,23 +20,30 @@ import org.joda.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Encapsulates a {@link com.google.cloud.dataflow.sdk.transforms.DoFn}
+ * Encapsulates a {@link com.google.cloud.dataflow.sdk.transforms.DoFn} that uses side outputs
  * inside a Flink {@link org.apache.flink.api.common.functions.RichMapPartitionFunction}.
+ *
+ * We get a mapping from {@link com.google.cloud.dataflow.sdk.values.TupleTag} to output index
+ * and must tag all outputs with the output number. Afterwards a filter will filter out
+ * those elements that are not to be in a specific output.
  */
-public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT> {
+public class FlinkMultiOutputDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, RawUnionValue> {
 
 	private final DoFn<IN, OUT> doFn;
 	private final PipelineOptions options;
+	private final Map<TupleTag<?>, Integer> outputMap;
 
-	public FlinkDoFnFunction(DoFn<IN, OUT> doFn, PipelineOptions options) {
+	public FlinkMultiOutputDoFnFunction(DoFn<IN, OUT> doFn, PipelineOptions options, Map<TupleTag<?>, Integer> outputMap) {
 		this.doFn = doFn;
 		this.options = options;
+		this.outputMap = outputMap;
 	}
 
 	@Override
-	public void mapPartition(Iterable<IN> values, Collector<OUT> out) throws Exception {
+	public void mapPartition(Iterable<IN> values, Collector<RawUnionValue> out) throws Exception {
 		ProcessContext context = new ProcessContext(doFn, out);
 		this.doFn.startBundle(context);
 		for (IN value : values) {
@@ -45,13 +52,13 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 		}
 		this.doFn.finishBundle(context);
 	}
-	
+
 	private class ProcessContext extends DoFn<IN, OUT>.ProcessContext {
 
 		IN inValue;
-		Collector<OUT> outCollector;
+		Collector<RawUnionValue> outCollector;
 
-		public ProcessContext(DoFn<IN, OUT> fn, Collector<OUT> outCollector) {
+		public ProcessContext(DoFn<IN, OUT> fn, Collector<RawUnionValue> outCollector) {
 			fn.super();
 			this.outCollector = outCollector;
 		}
@@ -83,7 +90,8 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 
 		@Override
 		public <T> T sideInput(PCollectionView<T, ?> view) {
-			List<T> sideInput = getRuntimeContext().getBroadcastVariable(view.getTagInternal().getId());
+			List<T> sideInput = getRuntimeContext().getBroadcastVariable(view.getTagInternal()
+					.getId());
 			List<WindowedValue<?>> windowedValueList = new ArrayList<>(sideInput.size());
 			for (T input : sideInput) {
 				windowedValueList.add(WindowedValue.of(input, Instant.now(), ImmutableList.of(GlobalWindow.INSTANCE)));
@@ -92,8 +100,9 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 		}
 
 		@Override
-		public void output(OUT output) {
-			outCollector.collect(output);
+		public void output(OUT value) {
+			// assume that index 0 is the default output
+			outCollector.collect(new RawUnionValue(0, value));
 		}
 
 		@Override
@@ -103,9 +112,12 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 		}
 
 		@Override
-		public <T> void sideOutput(TupleTag<T> tag, T output) {
-			// ignore the side output, this can happen when a user does not register
-			// side outputs but then outputs using a freshly created TupleTag.
+		@SuppressWarnings("unchecked")
+		public <T> void sideOutput(TupleTag<T> tag, T value) {
+			Integer index = outputMap.get(tag);
+			if (index != null) {
+				outCollector.collect(new RawUnionValue(index, value));
+			}
 		}
 
 		@Override
@@ -115,14 +127,14 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 
 		@Override
 		public <AI, AA, AO> Aggregator<AI> createAggregator(String name, Combine.CombineFn<? super AI, AA, AO> combiner) {
-			CombineFnAggregatorWrapper<AI, AA, AO> wrapper = new CombineFnAggregatorWrapper<AI, AA, AO>(combiner);
+			CombineFnAggregatorWrapper<AI, AA, AO> wrapper = new CombineFnAggregatorWrapper<>(combiner);
 			getRuntimeContext().addAccumulator(name, wrapper);
 			return wrapper;
 		}
 
 		@Override
 		public <AI, AO> Aggregator<AI> createAggregator(String name, SerializableFunction<Iterable<AI>, AO> serializableFunction) {
-			SerializableFnAggregatorWrapper<AI, AO> wrapper = new SerializableFnAggregatorWrapper<AI, AO>(serializableFunction);
+			SerializableFnAggregatorWrapper<AI, AO> wrapper = new SerializableFnAggregatorWrapper<>(serializableFunction);
 			getRuntimeContext().addAccumulator(name, wrapper);
 			return wrapper;
 		}

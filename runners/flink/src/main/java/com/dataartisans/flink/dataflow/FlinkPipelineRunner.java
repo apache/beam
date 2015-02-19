@@ -8,6 +8,9 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
@@ -195,6 +198,12 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 		// ExecutionEnvironment
 		options.setFlinkMaster("[auto]");
 		return new FlinkPipelineRunner(options);
+	}
+
+	@Override
+	public <Output extends POutput, Input extends PInput> Output apply(
+			PTransform<Input, Output> transform, Input input) {
+		return super.apply(transform, input);
 	}
 
 	/////////////////////////////////////////////////////////////////////////////

@@ -92,6 +92,14 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 		@SuppressWarnings("unchecked")
 		TransformTranslator<T> typedTranslator = (TransformTranslator<T>) translator;
 		
-		typedTranslator.translateNode(node, typedTransform, context);
+		typedTranslator.translateNode(typedTransform, context);
+	}
+
+	/**
+	 * A translator of a {@link PTransform}.
+	 */
+	public static interface TransformTranslator<Type extends PTransform> {
+
+		void translateNode(Type transform, TranslationContext context);
 	}
 }
