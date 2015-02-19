@@ -1,6 +1,6 @@
 package com.dataartisans.flink.dataflow.example;
 
-import com.dataartisans.flink.dataflow.FlinkLocalPipelineRunner;
+import com.dataartisans.flink.dataflow.FlinkPipelineRunner;
 import com.google.cloud.dataflow.examples.WordCount.CountWords;
 import com.google.cloud.dataflow.examples.WordCount.Options;
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -15,7 +15,7 @@ public class GoogleWordCountExampleRunner {
 		options.setOutput("/tmp/output2.txt");
 		options.setInput("/tmp/documents/hello_world.txt");
 		//options.setRunner(DirectPipelineRunner.class);
-		options.setRunner(FlinkLocalPipelineRunner.class);
+		options.setRunner(FlinkPipelineRunner.class);
 		
 		Pipeline p = Pipeline.create(options);
 
