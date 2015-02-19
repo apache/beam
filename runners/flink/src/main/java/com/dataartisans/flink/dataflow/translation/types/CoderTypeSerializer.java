@@ -1,7 +1,7 @@
 package com.dataartisans.flink.dataflow.translation.types;
 
-import com.dataartisans.flink.dataflow.translation.utils.DataInputStreamWrapper;
-import com.dataartisans.flink.dataflow.translation.utils.DataOutputStreamWrapper;
+import com.dataartisans.flink.dataflow.translation.wrappers.DataInputViewWrapper;
+import com.dataartisans.flink.dataflow.translation.wrappers.DataOutputViewWrapper;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -19,19 +19,19 @@ import java.io.ObjectInputStream;
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 	
 	private Coder<T> coder;
-	private transient DataInputStreamWrapper inputWrapper;
-	private transient DataOutputStreamWrapper outputWrapper;
+	private transient DataInputViewWrapper inputWrapper;
+	private transient DataOutputViewWrapper outputWrapper;
 
 	public CoderTypeSerializer(Coder<T> coder) {
 		this.coder = coder;
-		this.inputWrapper = new DataInputStreamWrapper(null);
-		this.outputWrapper = new DataOutputStreamWrapper(null);
+		this.inputWrapper = new DataInputViewWrapper(null);
+		this.outputWrapper = new DataOutputViewWrapper(null);
 	}
 	
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
-		this.inputWrapper = new DataInputStreamWrapper(null);
-		this.outputWrapper = new DataOutputStreamWrapper(null);
+		this.inputWrapper = new DataInputViewWrapper(null);
+		this.outputWrapper = new DataOutputViewWrapper(null);
 	}
 	
 	@Override

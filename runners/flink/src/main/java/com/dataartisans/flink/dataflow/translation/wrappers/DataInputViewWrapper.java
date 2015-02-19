@@ -1,15 +1,21 @@
-package com.dataartisans.flink.dataflow.translation.utils;
+package com.dataartisans.flink.dataflow.translation.wrappers;
 
 import org.apache.flink.core.memory.DataInputView;
 
 import java.io.IOException;
 import java.io.InputStream;
 
-public class DataInputStreamWrapper extends InputStream {
+/**
+ * Wrapper for {@link DataInputView}. We need this because Flink reads data using a
+ * {@link org.apache.flink.core.memory.DataInputView} while
+ * Dataflow {@link com.google.cloud.dataflow.sdk.coders.Coder}s expect an
+ * {@link java.io.InputStream}.
+ */
+public class DataInputViewWrapper extends InputStream {
 
 	private DataInputView inputView;
 
-	public DataInputStreamWrapper(DataInputView inputView) {
+	public DataInputViewWrapper(DataInputView inputView) {
 		this.inputView = inputView;
 	}
 

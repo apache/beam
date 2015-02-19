@@ -1,4 +1,4 @@
-package com.dataartisans.flink.dataflow.translation.utils;
+package com.dataartisans.flink.dataflow.translation.wrappers;
 
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
@@ -11,7 +11,12 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 import java.io.Serializable;
 
-
+/**
+ * Wrapper that wraps a {@link com.google.cloud.dataflow.sdk.transforms.SerializableFunction}
+ * in a Flink {@link org.apache.flink.api.common.accumulators.Accumulator} for using
+ * the function as an aggregator in a {@link com.google.cloud.dataflow.sdk.transforms.ParDo}
+ * operation.
+ */
 public class SerializableFnAggregatorWrapper<AI, AO> implements Aggregator<AI>, Accumulator<AI, AO> {
 
 	private AO result;

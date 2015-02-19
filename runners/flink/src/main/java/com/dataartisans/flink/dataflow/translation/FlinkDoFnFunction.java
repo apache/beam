@@ -1,7 +1,7 @@
 package com.dataartisans.flink.dataflow.translation;
 
-import com.dataartisans.flink.dataflow.translation.utils.CombineFnAggregatorWrapper;
-import com.dataartisans.flink.dataflow.translation.utils.SerializableFnAggregatorWrapper;
+import com.dataartisans.flink.dataflow.translation.wrappers.CombineFnAggregatorWrapper;
+import com.dataartisans.flink.dataflow.translation.wrappers.SerializableFnAggregatorWrapper;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
