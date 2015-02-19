@@ -45,7 +45,10 @@ public class BigQueryTableInserter {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableInserter.class);
 
   // Approximate amount of table data to upload per InsertAll request.
-  private static final long UPLOAD_BATCH_SIZE = 64 * 1024;
+  private static final long UPLOAD_BATCH_SIZE_BYTES = 64 * 1024;
+
+  // The maximum number of rows to upload per InsertAll request.
+  private static final long MAX_ROWS_PER_BATCH = 500;
 
   private final Bigquery client;
   private final TableReference ref;
@@ -92,7 +95,8 @@ public class BigQueryTableInserter {
       rows.add(out);
 
       dataSize += row.toString().length();
-      if (dataSize >= UPLOAD_BATCH_SIZE || !rowIterator.hasNext()) {
+      if (dataSize >= UPLOAD_BATCH_SIZE_BYTES || rows.size() >= MAX_ROWS_PER_BATCH ||
+          !rowIterator.hasNext()) {
         TableDataInsertAllRequest content = new TableDataInsertAllRequest();
         content.setRows(rows);
 
