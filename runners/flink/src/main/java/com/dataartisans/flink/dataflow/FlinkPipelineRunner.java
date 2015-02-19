@@ -156,9 +156,9 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 		
 		LOG.info("Starting execution of Flink program.");
 		
-		JobExecutionResult result;
+		JobExecutionResult result = null;
 		try {
-//			System.out.println(env.getExecutionPlan());
+//			System.out.println(flinkEnv.getExecutionPlan());
 			result = flinkEnv.execute();
 		}
 		catch (Exception e) {

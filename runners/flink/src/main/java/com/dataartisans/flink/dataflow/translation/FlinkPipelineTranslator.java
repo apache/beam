@@ -19,6 +19,8 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 	
 	private int depth = 0;
 
+	private boolean inComposite = false;
+
 	public FlinkPipelineTranslator(ExecutionEnvironment env) {
 		this.context = new TranslationContext(env);
 	}
@@ -48,11 +50,31 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 	@Override
 	public void enterCompositeTransform(TransformTreeNode node) {
 		System.out.println(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
+
+		if (node.getTransform() != null) {
+			TransformTranslator<?> translator = FlinkTransformTranslators.getTranslator(node.getTransform());
+
+			if (translator != null) {
+				inComposite = true;
+			}
+		}
+
 		this.depth++;
 	}
 
 	@Override
 	public void leaveCompositeTransform(TransformTreeNode node) {
+
+		if (node.getTransform() != null) {
+			TransformTranslator<?> translator = FlinkTransformTranslators.getTranslator(node.getTransform());
+
+			if (translator != null) {
+				System.out.println(genSpaces(this.depth) + "doingCompositeTransform- " + formatNodeName(node));
+				applyTransform(node.getTransform(), node, translator);
+				inComposite = false;
+			}
+		}
+
 		this.depth--;
 		System.out.println(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
 	}
@@ -60,6 +82,11 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 	@Override
 	public void visitTransform(TransformTreeNode node) {
 		System.out.println(genSpaces(this.depth) + "visitTransform- " + formatNodeName(node));
+		if (inComposite) {
+			// ignore it
+			return;
+		}
+
 		// the transformation applied in this node
 		PTransform<?, ?> transform = node.getTransform();
 		
