@@ -1,8 +1,10 @@
 package com.dataartisans.flink.dataflow.translation.functions;
 
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 
+import java.io.ByteArrayInputStream;
 import java.util.List;
 
 /**
@@ -14,16 +16,19 @@ import java.util.List;
  */
 public class FlinkCreateFunction<IN, OUT> implements FlatMapFunction<IN, OUT> {
 
-	private List<OUT> elements;
+	private final List<byte[]> elements;
+	private final Coder<OUT> coder;
 
-	public FlinkCreateFunction(List<OUT> elements) {
+	public FlinkCreateFunction(List<byte[]> elements, Coder<OUT> coder) {
 		this.elements = elements;
+		this.coder = coder;
 	}
 
 	@Override
 	public void flatMap(IN value, Collector<OUT> out) throws Exception {
-		for (OUT actualValue : elements) {
-			out.collect(actualValue);
+		for (byte[] element : elements) {
+			ByteArrayInputStream bai = new ByteArrayInputStream(element);
+			out.collect(coder.decode(bai, Coder.Context.OUTER));
 		}
 	}
 }

@@ -42,6 +42,8 @@ import org.apache.flink.core.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
@@ -327,8 +329,25 @@ public class FlinkTransformTranslators {
 		public void translateNode(Create<OUT> transform, TranslationContext context) {
 			TypeInformation<OUT> typeInformation = context.getTypeInfo(transform.getOutput());
 			Iterable<OUT> elements = transform.getElements();
+
+			// we need to serializer the elements to byte arrays, since they might contain
+			// elements that are not serializable by Java serialization. We deserialize them
+			// in the FlatMap function using the Coder.
+
+			List<byte[]> serializedElements = Lists.newArrayList();
+			Coder<OUT> coder = transform.getOutput().getCoder();
+			for (OUT element: elements) {
+				ByteArrayOutputStream bao = new ByteArrayOutputStream();
+				try {
+					coder.encode(element, bao, Coder.Context.OUTER);
+					serializedElements.add(bao.toByteArray());
+				} catch (IOException e) {
+					throw new RuntimeException("Could not serialize Create elements using Coder: " + e);
+				}
+			}
+
 			DataSet<Integer> initDataSet = context.getExecutionEnvironment().fromElements(1);
-			FlinkCreateFunction<Integer, OUT> flatMapFunction = new FlinkCreateFunction<>(Lists.newArrayList(elements));
+			FlinkCreateFunction<Integer, OUT> flatMapFunction = new FlinkCreateFunction<>(serializedElements, coder);
 			FlatMapOperator<Integer, OUT> outputDataSet = new FlatMapOperator<>(initDataSet, typeInformation, flatMapFunction, transform.getName());
 			
 			context.setOutputDataSet(transform.getOutput(), outputDataSet);
