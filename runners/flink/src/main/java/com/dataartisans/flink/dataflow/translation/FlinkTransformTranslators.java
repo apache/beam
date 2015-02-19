@@ -1,17 +1,19 @@
 package com.dataartisans.flink.dataflow.translation;
 
 import com.dataartisans.flink.dataflow.io.ConsoleIO;
+import com.dataartisans.flink.dataflow.translation.functions.FlinkCombineFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkCreateFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkDoFnFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkMultiOutputDoFnFunction;
-import com.dataartisans.flink.dataflow.translation.functions.KeyedListAggregator;
-import com.dataartisans.flink.dataflow.translation.functions.MultiOutputPruningFunction;
+import com.dataartisans.flink.dataflow.translation.functions.FlinkKeyedListAggregationFunction;
+import com.dataartisans.flink.dataflow.translation.functions.FlinkMultiOutputPruningFunction;
 import com.dataartisans.flink.dataflow.translation.functions.RawUnionValue;
 import com.dataartisans.flink.dataflow.translation.functions.UnionCoder;
 import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
@@ -40,6 +42,7 @@ import org.apache.flink.core.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,11 +60,13 @@ public class FlinkTransformTranslators {
 	
 	@SuppressWarnings("rawtypes")
 	private static final Map<Class<? extends PTransform>, FlinkPipelineTranslator.TransformTranslator> TRANSLATORS = new HashMap<>();
-	
+
 	// register the known translators
 	static {
 		TRANSLATORS.put(View.CreatePCollectionView.class, new CreatePCollectionViewTranslator());
-		//TRANSLATORS.put(Combine.GroupedValues.class, null);
+		TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslator());
+		// we don't need this because we translate the Combine.PerKey directly
+		// TRANSLATORS.put(Combine.GroupedValues.class, new CombineGroupedValuesTranslator());
 		TRANSLATORS.put(Create.class, new CreateTranslator());
 		TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslator());
 		TRANSLATORS.put(GroupByKey.GroupByKeyOnly.class, new GroupByKeyOnlyTranslator());
@@ -86,7 +91,6 @@ public class FlinkTransformTranslators {
 
 		// Flink-specific
 		TRANSLATORS.put(ConsoleIO.Write.Bound.class, new ConsoleIOWriteTranslator());
-
 	}
 	
 	
@@ -148,8 +152,6 @@ public class FlinkTransformTranslators {
 	}
 
 	private static class ConsoleIOWriteTranslator implements FlinkPipelineTranslator.TransformTranslator<ConsoleIO.Write.Bound> {
-		private static final Logger LOG = LoggerFactory.getLogger(ConsoleIOWriteTranslator.class);
-
 		@Override
 		public void translateNode(ConsoleIO.Write.Bound transform, TranslationContext context) {
 			DataSet<?> inputDataSet = context.getInputDataSet(transform.getInput());
@@ -157,12 +159,12 @@ public class FlinkTransformTranslators {
 		}
 	}
 	
-	private static class GroupByKeyOnlyTranslator <K,V> implements FlinkPipelineTranslator.TransformTranslator<GroupByKey.GroupByKeyOnly<K,V>> {
+	private static class GroupByKeyOnlyTranslator <K, V> implements FlinkPipelineTranslator.TransformTranslator<GroupByKey.GroupByKeyOnly<K, V>> {
 
 		@Override
 		public void translateNode(GroupByKey.GroupByKeyOnly<K, V> transform, TranslationContext context) {
-			DataSet<KV<K,V>> inputDataSet = context.getInputDataSet(transform.getInput());
-			GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new KeyedListAggregator<>();
+			DataSet<KV<K, V>> inputDataSet = context.getInputDataSet(transform.getInput());
+			GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new FlinkKeyedListAggregationFunction<>();
 			
 			TypeInformation<KV<K, Iterable<V>>> typeInformation = context.getTypeInfo(transform.getOutput());
 
@@ -173,6 +175,55 @@ public class FlinkTransformTranslators {
 			context.setOutputDataSet(transform.getOutput(), outputDataSet);
 		}
 	}
+
+	private static class CombinePerKeyTranslator <K, VI, VO> implements FlinkPipelineTranslator.TransformTranslator<Combine.PerKey<K, VI, VO>> {
+
+		@Override
+		public void translateNode(Combine.PerKey<K, VI, VO> transform, TranslationContext context) {
+			DataSet<KV<K, VI>> inputDataSet = context.getInputDataSet(transform.getInput());
+
+			Combine.KeyedCombineFn<? super K, ? super VI, ?, VO> keyedCombineFn = null;
+			// This is super hacky, but unfortunately we cannot get the fn otherwise
+			try {
+				Field fnField = transform.getClass().getDeclaredField("fn");
+				fnField.setAccessible(true);
+				keyedCombineFn = (Combine.KeyedCombineFn<? super K, ? super VI, ?, VO>) fnField.get(transform);
+			} catch (NoSuchFieldException | IllegalAccessException e) {
+				// we know that the field is there and it is accessible
+				System.out.println("Could not access KeyedCombineFn: " + e);
+			}
+
+			GroupReduceFunction<KV<K, VI>, KV<K, VO>> groupReduceFunction = new FlinkCombineFunction<>(keyedCombineFn);
+
+			TypeInformation<KV<K, VO>> typeInformation = context.getTypeInfo(transform.getOutput());
+
+			Grouping<KV<K, VI>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{""}, inputDataSet.getType()));
+
+			GroupReduceOperator<KV<K, VI>, KV<K, VO>> outputDataSet =
+					new GroupReduceOperator<>(grouping, typeInformation, groupReduceFunction, transform.getName());
+			context.setOutputDataSet(transform.getOutput(), outputDataSet);
+		}
+	}
+
+//	private static class CombineGroupedValuesTranslator <K, VI, VO> implements FlinkPipelineTranslator.TransformTranslator<Combine.GroupedValues<K, VI, VO>> {
+//
+//		@Override
+//		public void translateNode(Combine.GroupedValues<K, VI, VO> transform, TranslationContext context) {
+//			DataSet<KV<K, VI>> inputDataSet = context.getInputDataSet(transform.getInput());
+//
+//			Combine.KeyedCombineFn<? super K, ? super VI, ?, VO> keyedCombineFn = transform.getFn();
+//
+//			GroupReduceFunction<KV<K, VI>, KV<K, VO>> groupReduceFunction = new FlinkCombineFunction<>(keyedCombineFn);
+//
+//			TypeInformation<KV<K, VO>> typeInformation = context.getTypeInfo(transform.getOutput());
+//
+//			Grouping<KV<K, VI>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{""}, inputDataSet.getType()));
+//
+//			GroupReduceOperator<KV<K, VI>, KV<K, VO>> outputDataSet =
+//					new GroupReduceOperator<>(grouping, typeInformation, groupReduceFunction, transform.getName());
+//			context.setOutputDataSet(transform.getOutput(), outputDataSet);
+//		}
+//	}
 	
 	private static class ParDoBoundTranslator<IN, OUT> implements FlinkPipelineTranslator.TransformTranslator<ParDo.Bound<IN, OUT>> {
 		
@@ -233,10 +284,9 @@ public class FlinkTransformTranslators {
 			for (Map.Entry<TupleTag<?>, PCollection<?>> output: outputs.entrySet()) {
 				TypeInformation<Object> outputType = context.getTypeInfo(output.getValue());
 				int outputTag = outputMap.get(output.getKey());
-				MultiOutputPruningFunction<Object> pruningFunction = new
-						MultiOutputPruningFunction<Object>(outputTag);
+				FlinkMultiOutputPruningFunction<Object> pruningFunction = new FlinkMultiOutputPruningFunction<>(outputTag);
 				FlatMapOperator<RawUnionValue, Object> pruningOperator = new
-						FlatMapOperator<RawUnionValue, Object>(outputDataSet, outputType,
+						FlatMapOperator<>(outputDataSet, outputType,
 						pruningFunction, output.getValue().getName());
 				context.setOutputDataSet(output.getValue(), pruningOperator);
 

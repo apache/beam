@@ -24,11 +24,11 @@ import org.apache.flink.util.Collector;
  * A FlatMap function that filters out those elements that don't belong in this output. We need
  * this to implement MultiOutput ParDo functions.
  */
-public class MultiOutputPruningFunction<T> implements FlatMapFunction<RawUnionValue, T> {
+public class FlinkMultiOutputPruningFunction<T> implements FlatMapFunction<RawUnionValue, T> {
 
 	private final int outputTag;
 
-	public MultiOutputPruningFunction(int outputTag) {
+	public FlinkMultiOutputPruningFunction(int outputTag) {
 		this.outputTag = outputTag;
 	}
 

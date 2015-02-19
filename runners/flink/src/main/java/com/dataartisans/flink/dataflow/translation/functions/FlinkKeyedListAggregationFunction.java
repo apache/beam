@@ -13,17 +13,17 @@ import java.util.List;
  * {@link com.google.cloud.dataflow.sdk.values.KV} elements, extracts the key and collects
  * the values in a {@code List}.
  */
-public class KeyedListAggregator <K,V> implements GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> {
+public class FlinkKeyedListAggregationFunction<K,V> implements GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> {
 
-		@Override
-		public void reduce(Iterable<KV<K, V>> values, Collector<KV<K, Iterable<V>>> out) throws Exception {
-			K k = null;
-			List<V> result = new ArrayList<V>();
-			for (KV<K, V> kv : values) {
-				k = kv.getKey();
-				result.add(kv.getValue());
-			}
-			out.collect(KV.of(k, (Iterable<V>) result));
+	@Override
+	public void reduce(Iterable<KV<K, V>> values, Collector<KV<K, Iterable<V>>> out) throws Exception {
+		K k = null;
+		List<V> result = new ArrayList<V>();
+		for (KV<K, V> kv : values) {
+			k = kv.getKey();
+			result.add(kv.getValue());
 		}
+		out.collect(KV.of(k, (Iterable<V>) result));
+	}
 
 }
