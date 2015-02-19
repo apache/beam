@@ -174,7 +174,7 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 			}
 		}
 
-		return new ExecutionRunnerResult(accumulators, result.getNetRuntime());
+		return new FlinkRunnerResult(accumulators, result.getNetRuntime());
 	}
 
 	/**

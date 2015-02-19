@@ -1,4 +1,4 @@
-package com.dataartisans.flink.dataflow.translation;
+package com.dataartisans.flink.dataflow.translation.functions;
 
 import com.dataartisans.flink.dataflow.translation.wrappers.CombineFnAggregatorWrapper;
 import com.dataartisans.flink.dataflow.translation.wrappers.SerializableFnAggregatorWrapper;
@@ -23,7 +23,8 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Encapsulates a DoFn inside a Flink MapPartitionFunction
+ * Encapsulates a {@link com.google.cloud.dataflow.sdk.transforms.DoFn}
+ * inside a Flink {@link org.apache.flink.api.common.functions.RichMapPartitionFunction}.
  */
 public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT> {
 

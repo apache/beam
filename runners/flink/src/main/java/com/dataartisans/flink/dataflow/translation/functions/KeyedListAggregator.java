@@ -1,4 +1,4 @@
-package com.dataartisans.flink.dataflow.translation;
+package com.dataartisans.flink.dataflow.translation.functions;
 
 import com.google.cloud.dataflow.sdk.values.KV;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -7,6 +7,12 @@ import org.apache.flink.util.Collector;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Flink {@link org.apache.flink.api.common.functions.GroupReduceFunction} for executing a
+ * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} operation. This reads the input
+ * {@link com.google.cloud.dataflow.sdk.values.KV} elements, extracts the key and collects
+ * the values in a {@code List}.
+ */
 public class KeyedListAggregator <K,V> implements GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> {
 
 		@Override
