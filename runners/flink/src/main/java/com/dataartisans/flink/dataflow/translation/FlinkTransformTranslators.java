@@ -20,6 +20,7 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.io.TextInputFormat;
+import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
@@ -126,7 +127,11 @@ public class FlinkTransformTranslators {
 			LOG.warn("Translation of TextIO.Write.filenameSuffix not yet supported. Is: {}.", filenameSuffix);
 			LOG.warn("Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.", shardNameTemplate);
 
-			inputDataSet.writeAsText(filenamePrefix).setParallelism(numShards);
+			DataSink<T> dataSink = inputDataSet.writeAsText(filenamePrefix);
+
+			if (numShards > 0) {
+				dataSink.setParallelism(numShards);
+			}
 		}
 	}
 	
