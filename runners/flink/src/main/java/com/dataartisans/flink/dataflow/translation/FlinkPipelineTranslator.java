@@ -83,10 +83,6 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 	
 	/**
 	 * Utility method to define a generic variable to cast the translator and the transform to.
-	 * 
-	 * @param transform
-	 * @param node
-	 * @param translator
 	 */
 	private <T extends PTransform<?, ?>> void applyTransform(PTransform<?, ?> transform, TransformTreeNode node, TransformTranslator<?> translator) {
 		

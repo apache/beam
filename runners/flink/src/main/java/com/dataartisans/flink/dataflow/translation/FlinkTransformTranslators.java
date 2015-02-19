@@ -3,9 +3,7 @@ package com.dataartisans.flink.dataflow.translation;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkCreateFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkDoFnFunction;
 import com.dataartisans.flink.dataflow.translation.functions.KeyedListAggregator;
-import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.io.TextIO.Read.Bound;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -36,6 +34,11 @@ import java.util.List;
 import java.util.Map;
 
 
+/**
+ * Translators for transforming
+ * Dataflow {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s to
+ * Flink {@link org.apache.flink.api.java.DataSet}s
+ */
 public class FlinkTransformTranslators {
 
 	// --------------------------------------------------------------------------------------------
@@ -47,13 +50,29 @@ public class FlinkTransformTranslators {
 	
 	// register the known translators
 	static {
-		TRANSLATORS.put(TextIO.Read.Bound.class, new ReadUTFTextTranslator());
-		TRANSLATORS.put(TextIO.Write.Bound.class, new WriteUTFTextTranslator());
-		TRANSLATORS.put(ParDo.Bound.class, new ParallelDoTranslator());
-		TRANSLATORS.put(GroupByKey.GroupByKeyOnly.class, new GroupByKeyOnlyTranslator());
-		TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslator());
-		TRANSLATORS.put(View.CreatePCollectionView.class, new PCollectionViewTranslator());
+		TRANSLATORS.put(View.CreatePCollectionView.class, new CreatePCollectionViewTranslator());
+		//TRANSLATORS.put(Combine.GroupedValues.class, null);
 		TRANSLATORS.put(Create.class, new CreateTranslator());
+		TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslator());
+		TRANSLATORS.put(GroupByKey.GroupByKeyOnly.class, new GroupByKeyOnlyTranslator());
+		//TRANSLATORS.put(ParDo.BoundMulti.class, null);
+		TRANSLATORS.put(ParDo.Bound.class, new ParallelDoTranslator());
+
+		//TRANSLATORS.put(AvroIO.Read.Bound.class, null);
+		//TRANSLATORS.put(AvroIO.Write.Bound.class, null);
+
+		//TRANSLATORS.put(BigQueryIO.Read.Bound.class, null);
+		//TRANSLATORS.put(BigQueryIO.Write.Bound.class, null);
+
+		//TRANSLATORS.put(DatastoreIO.Sink.class, null);
+
+		//TRANSLATORS.put(PubsubIO.Read.Bound.class, null);
+		//TRANSLATORS.put(PubsubIO.Write.Bound.class, null);
+
+		//TRANSLATORS.put(ReadSource.Bound.class, null);
+
+		TRANSLATORS.put(TextIO.Read.Bound.class, new TextIOReadTranslator());
+		TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteTranslator());
 	}
 	
 	
@@ -66,16 +85,12 @@ public class FlinkTransformTranslators {
 	//  Individual Transform Translators
 	// --------------------------------------------------------------------------------------------
 	
-	private static class ReadUTFTextTranslator implements TransformTranslator<Bound<String>> {
+	private static class TextIOReadTranslator implements TransformTranslator<TextIO.Read.Bound<String>> {
 		
 		@Override
-		public void translateNode(TransformTreeNode node, Bound<String> transform, TranslationContext context) {
-			System.out.println("Translating " + node.getFullName());
-			
+		public void translateNode(TransformTreeNode node, TextIO.Read.Bound<String> transform, TranslationContext context) {
 			String path = transform.getFilepattern();
 			String name = transform.getName(); 
-			Coder<?> coder = transform.getOutput().getCoder();
-
 
 			TypeInformation<String> typeInformation = context.getTypeInfo(transform.getOutput());
 
@@ -85,12 +100,12 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class WriteUTFTextTranslator <T> implements TransformTranslator<TextIO.Write.Bound<T>> {
+	private static class TextIOWriteTranslator<T> implements TransformTranslator<TextIO.Write.Bound<T>> {
 		
 		@Override
 		public void translateNode(TransformTreeNode node, TextIO.Write.Bound<T> transform, TranslationContext context) {
 			DataSet<T> dataSet = context.getInputDataSet(transform.getInput());
-			String path = transform.getFilenamePrefix() + transform.getFilenameSuffix();
+			String path = transform.getFilenamePrefix();
 
 			dataSet.writeAsText(path);
 		}
@@ -155,7 +170,7 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class PCollectionViewTranslator<R, T, WT> implements TransformTranslator<View.CreatePCollectionView<R,T,WT>> {
+	private static class CreatePCollectionViewTranslator<R, T, WT> implements TransformTranslator<View.CreatePCollectionView<R,T,WT>> {
 		@Override
 		public void translateNode(TransformTreeNode node, View.CreatePCollectionView<R,T,WT> transform, TranslationContext context) {
 			DataSet<T> dataSet = context.getInputDataSet(transform.getInput());
@@ -170,10 +185,6 @@ public class FlinkTransformTranslators {
 		public void translateNode(TransformTreeNode node, Create<OUT> transform, TranslationContext context) {
 			TypeInformation<OUT> typeInformation = context.getTypeInfo(transform.getOutput());
 			Iterable<OUT> elements = transform.getElements();
-			for(OUT elem : elements) {
-				System.out.println("element:"+elem);
-				System.out.println("type: " + typeInformation);
-			}
 			DataSet<Integer> initDataSet = context.getExecutionEnvironment().fromElements(1);
 			FlinkCreateFunction<Integer, OUT> flatMapFunction = new FlinkCreateFunction<>(Lists.newArrayList(elements));
 			FlatMapOperator<Integer, OUT> dataSetNew = new FlatMapOperator<>(initDataSet, typeInformation, flatMapFunction, transform.getName());
