@@ -8,15 +8,19 @@ import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PValue;
 
-
-public class FlinkTranslator implements PipelineVisitor {
+/**
+ * FlinkPipelineTranslator knows how to translate Pipeline objects
+ * into Flink Jobs.
+ *
+ * This is based on {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator}
+ */
+public class FlinkPipelineTranslator implements PipelineVisitor {
 	
 	private final TranslationContext context;
 	
 	private int depth = 0;
-	
-	
-	public FlinkTranslator(ExecutionEnvironment env) {
+
+	public FlinkPipelineTranslator(ExecutionEnvironment env) {
 		this.context = new TranslationContext(env);
 	}
 

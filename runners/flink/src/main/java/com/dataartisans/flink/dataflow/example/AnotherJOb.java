@@ -1,6 +1,6 @@
 package com.dataartisans.flink.dataflow.example;
 
-import com.dataartisans.flink.dataflow.FlinkLocalPipelineRunner;
+import com.dataartisans.flink.dataflow.FlinkPipelineRunner;
 import com.google.cloud.dataflow.examples.WordCount;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -18,7 +18,7 @@ public class AnotherJOb {
 		options.setOutput("/tmp/output2.txt");
 		options.setInput("/Users/max/hello_world.txt");
 		//options.setRunner(DirectPipelineRunner.class);
-		options.setRunner(FlinkLocalPipelineRunner.class);
+		options.setRunner(FlinkPipelineRunner.class);
 
 		Pipeline p = Pipeline.create(options);
 

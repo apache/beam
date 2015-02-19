@@ -19,16 +19,57 @@ package com.dataartisans.flink.dataflow;
 
 
 import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
-import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
-import com.google.cloud.dataflow.sdk.options.GcpOptions;
-import com.google.cloud.dataflow.sdk.options.GcsOptions;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.Default;
+import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.StreamingOptions;
+
+import java.util.List;
 
 /**
  * Options which can be used to configure a Flink PipelineRunner.
  */
-public interface FlinkPipelineOptions extends ApplicationNameOptions, BigQueryOptions, GcsOptions, GcpOptions, PipelineOptions, StreamingOptions {
+public interface FlinkPipelineOptions extends PipelineOptions, ApplicationNameOptions {
 
+	/**
+	 * List of local files to make available to workers.
+	 * <p>
+	 * Jars are placed on the worker's classpath.
+	 * <p>
+	 * The default value is the list of jars from the main program's classpath.
+	 */
+	@Description("Jar-Files to send to all workers and put on the classpath. " +
+			"The default value is all files from the classpath.")
+	List<String> getFilesToStage();
+	void setFilesToStage(List<String> value);
 
+	/**
+	 * The job name is used to identify jobs running on a Flink cluster.
+	 */
+	@Description("Dataflow job name, to uniquely identify active jobs. "
+			+ "Defaults to using the ApplicationName-UserName-Date.")
+	@Default.InstanceFactory(DataflowPipelineOptions.JobNameFactory.class)
+	String getJobName();
+	void setJobName(String value);
+
+	/**
+	 * The url of the Flink JobManager on which to execute pipelines. This can either be
+	 * the the address of a cluster JobManager, in the form "host:port" or one of the special
+	 * Strings "[local]", "[collection]" or "[auto]". "[local]" will start a local Flink
+	 * Cluster in the JVM, "[collection]" will execute the pipeline on Java Collections while
+	 * "[auto]" will let the system decide where to execute the pipeline based on the environment.
+	 */
+	@Description("Address of the Flink Master where the Pipeline should be executed. Can" +
+			" either be of the form \"host:port\" or one of the special values [local], " +
+			"[collection] or [auto].")
+	String getFlinkMaster();
+	void setFlinkMaster(String value);
+
+	/**
+	 * The degree of parallelism to be used when parallelizing operations onto workers.
+	 */
+	@Description("The degree of parallelism to be used when parallelizing operations onto workers.")
+	@Default.Integer(-1)
+	Integer getParallelism();
+	void setParallelism(Integer value);
 }
