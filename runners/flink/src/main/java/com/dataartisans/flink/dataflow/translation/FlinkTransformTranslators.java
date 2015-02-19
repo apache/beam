@@ -28,11 +28,12 @@ import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.core.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 
 /**
  * Translators for transforming
@@ -86,28 +87,46 @@ public class FlinkTransformTranslators {
 	// --------------------------------------------------------------------------------------------
 	
 	private static class TextIOReadTranslator implements TransformTranslator<TextIO.Read.Bound<String>> {
-		
+		private static final Logger LOG = LoggerFactory.getLogger(TextIOReadTranslator.class);
+
 		@Override
 		public void translateNode(TransformTreeNode node, TextIO.Read.Bound<String> transform, TranslationContext context) {
 			String path = transform.getFilepattern();
-			String name = transform.getName(); 
+			String name = transform.getName();
+
+			TextIO.CompressionType compressionType = transform.getCompressionType();
+			boolean needsValidation = transform.needsValidation();
+
+			// TODO: Implement these. We need Flink support for this.
+			LOG.warn("Translation of TextIO.CompressionType not yet supported. Is: {}.", compressionType);
+			LOG.warn("Translation of TextIO.Read.needsValidation not yet supported. Is: {}.", needsValidation);
 
 			TypeInformation<String> typeInformation = context.getTypeInfo(transform.getOutput());
 
-			DataSource<String> source = new DataSource<String>(context.getExecutionEnvironment(), new TextInputFormat(new Path(path)), typeInformation, name);
+			DataSource<String> source = new DataSource<>(context.getExecutionEnvironment(), new TextInputFormat(new Path(path)), typeInformation, name);
 
 			context.setOutputDataSet(transform.getOutput(), source);
 		}
 	}
 
 	private static class TextIOWriteTranslator<T> implements TransformTranslator<TextIO.Write.Bound<T>> {
-		
+		private static final Logger LOG = LoggerFactory.getLogger(TextIOWriteTranslator.class);
+
 		@Override
 		public void translateNode(TransformTreeNode node, TextIO.Write.Bound<T> transform, TranslationContext context) {
 			DataSet<T> dataSet = context.getInputDataSet(transform.getInput());
-			String path = transform.getFilenamePrefix();
+			String filenamePrefix = transform.getFilenamePrefix();
+			String filenameSuffix = transform.getFilenameSuffix();
+			boolean needsValidation = transform.needsValidation();
+			int numShards = transform.getNumShards();
+			String shardNameTemplate = transform.getShardNameTemplate();
 
-			dataSet.writeAsText(path);
+			// TODO: Implement these. We need Flink support for this.
+			LOG.warn("Translation of TextIO.Write.needsValidation not yet supported. Is: {}.", needsValidation);
+			LOG.warn("Translation of TextIO.Write.filenameSuffix not yet supported. Is: {}.", filenameSuffix);
+			LOG.warn("Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.", shardNameTemplate);
+
+			dataSet.writeAsText(filenamePrefix).setParallelism(numShards);
 		}
 	}
 	
@@ -122,13 +141,13 @@ public class FlinkTransformTranslators {
 
 			Grouping<KV<K, V>> grouping = new UnsortedGrouping<>(dataSet, new Keys.ExpressionKeys<>(new String[]{""}, dataSet.getType()));
 
-			GroupReduceOperator<KV<K, V>, KV<K, Iterable<V>>> dataSetNew = 
+			GroupReduceOperator<KV<K, V>, KV<K, Iterable<V>>> dataSetNew =
 					new GroupReduceOperator<>(grouping, typeInformation, groupReduceFunction, transform.getName());
 			context.setOutputDataSet(transform.getOutput(), dataSetNew);
 		}
 	}
 	
-	private static class ParallelDoTranslator<IN, OUT, T, WT> implements TransformTranslator<ParDo.Bound<IN, OUT>> {
+	private static class ParallelDoTranslator<IN, OUT> implements TransformTranslator<ParDo.Bound<IN, OUT>> {
 		
 		@Override
 		public void translateNode(TransformTreeNode node, ParDo.Bound<IN, OUT> transform, TranslationContext context) {
@@ -144,7 +163,7 @@ public class FlinkTransformTranslators {
 			List<PCollectionView<?, ?>> sideInputs = transform.getSideInputs();
 			// get corresponding Flink broadcast data sets
 			for(PCollectionView<?, ?> input : sideInputs) {
-				DataSet<T> broadcastSet = context.getSideInputDataSet(input);
+				DataSet<?> broadcastSet = context.getSideInputDataSet(input);
 				dataSetNew.withBroadcastSet(broadcastSet, input.getTagInternal().getId());
 			}
 
