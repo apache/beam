@@ -44,7 +44,7 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 	}
 	
 	private static String formatNodeName(TransformTreeNode node) {
-		return node.toString().split("@")[1] + node.getFullName();
+		return node.toString().split("@")[1] + node.getTransform();
 	}
 	
 	@Override
