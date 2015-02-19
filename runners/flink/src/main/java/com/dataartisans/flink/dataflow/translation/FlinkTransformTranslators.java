@@ -114,7 +114,7 @@ public class FlinkTransformTranslators {
 
 		@Override
 		public void translateNode(TransformTreeNode node, TextIO.Write.Bound<T> transform, TranslationContext context) {
-			DataSet<T> dataSet = context.getInputDataSet(transform.getInput());
+			DataSet<T> inputDataSet = context.getInputDataSet(transform.getInput());
 			String filenamePrefix = transform.getFilenamePrefix();
 			String filenameSuffix = transform.getFilenameSuffix();
 			boolean needsValidation = transform.needsValidation();
@@ -126,7 +126,7 @@ public class FlinkTransformTranslators {
 			LOG.warn("Translation of TextIO.Write.filenameSuffix not yet supported. Is: {}.", filenameSuffix);
 			LOG.warn("Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.", shardNameTemplate);
 
-			dataSet.writeAsText(filenamePrefix).setParallelism(numShards);
+			inputDataSet.writeAsText(filenamePrefix).setParallelism(numShards);
 		}
 	}
 	
@@ -134,16 +134,16 @@ public class FlinkTransformTranslators {
 
 		@Override
 		public void translateNode(TransformTreeNode node, GroupByKey.GroupByKeyOnly<K,V> transform, TranslationContext context) {
-			DataSet<KV<K,V>> dataSet = context.getInputDataSet(transform.getInput());
+			DataSet<KV<K,V>> inputDataSet = context.getInputDataSet(transform.getInput());
 			GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new KeyedListAggregator<>();
 			
 			TypeInformation<KV<K, Iterable<V>>> typeInformation = context.getTypeInfo(transform.getOutput());
 
-			Grouping<KV<K, V>> grouping = new UnsortedGrouping<>(dataSet, new Keys.ExpressionKeys<>(new String[]{""}, dataSet.getType()));
+			Grouping<KV<K, V>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{""}, inputDataSet.getType()));
 
-			GroupReduceOperator<KV<K, V>, KV<K, Iterable<V>>> dataSetNew =
+			GroupReduceOperator<KV<K, V>, KV<K, Iterable<V>>> outputDataSet =
 					new GroupReduceOperator<>(grouping, typeInformation, groupReduceFunction, transform.getName());
-			context.setOutputDataSet(transform.getOutput(), dataSetNew);
+			context.setOutputDataSet(transform.getOutput(), outputDataSet);
 		}
 	}
 	
@@ -151,23 +151,23 @@ public class FlinkTransformTranslators {
 		
 		@Override
 		public void translateNode(TransformTreeNode node, ParDo.Bound<IN, OUT> transform, TranslationContext context) {
-			DataSet<IN> dataSet = context.getInputDataSet(transform.getInput());
+			DataSet<IN> inputDataSet = context.getInputDataSet(transform.getInput());
 
 			final DoFn<IN, OUT> doFn = transform.getFn();
 			
 			TypeInformation<OUT> typeInformation = context.getTypeInfo(transform.getOutput());
 
 			FlinkDoFnFunction<IN, OUT> mapPartitionFunction = new FlinkDoFnFunction<>(doFn);
-			MapPartitionOperator<IN, OUT> dataSetNew = new MapPartitionOperator<>(dataSet, typeInformation, mapPartitionFunction, transform.getName());
+			MapPartitionOperator<IN, OUT> outputDataSet = new MapPartitionOperator<>(inputDataSet, typeInformation, mapPartitionFunction, transform.getName());
 
 			List<PCollectionView<?, ?>> sideInputs = transform.getSideInputs();
-			// get corresponding Flink broadcast data sets
+			// get corresponding Flink broadcast DataSets
 			for(PCollectionView<?, ?> input : sideInputs) {
 				DataSet<?> broadcastSet = context.getSideInputDataSet(input);
-				dataSetNew.withBroadcastSet(broadcastSet, input.getTagInternal().getId());
+				outputDataSet.withBroadcastSet(broadcastSet, input.getTagInternal().getId());
 			}
 
-			context.setOutputDataSet(transform.getOutput(), dataSetNew);
+			context.setOutputDataSet(transform.getOutput(), outputDataSet);
 		}
 	}
 
@@ -192,9 +192,9 @@ public class FlinkTransformTranslators {
 	private static class CreatePCollectionViewTranslator<R, T, WT> implements TransformTranslator<View.CreatePCollectionView<R,T,WT>> {
 		@Override
 		public void translateNode(TransformTreeNode node, View.CreatePCollectionView<R,T,WT> transform, TranslationContext context) {
-			DataSet<T> dataSet = context.getInputDataSet(transform.getInput());
+			DataSet<T> inputDataSet = context.getInputDataSet(transform.getInput());
 			PCollectionView<T, WT> input = transform.apply(null);
-			context.setSideInputDataSet(input, dataSet);
+			context.setSideInputDataSet(input, inputDataSet);
 		}
 	}
 
@@ -206,15 +206,11 @@ public class FlinkTransformTranslators {
 			Iterable<OUT> elements = transform.getElements();
 			DataSet<Integer> initDataSet = context.getExecutionEnvironment().fromElements(1);
 			FlinkCreateFunction<Integer, OUT> flatMapFunction = new FlinkCreateFunction<>(Lists.newArrayList(elements));
-			FlatMapOperator<Integer, OUT> dataSetNew = new FlatMapOperator<>(initDataSet, typeInformation, flatMapFunction, transform.getName());
+			FlatMapOperator<Integer, OUT> outputDataSet = new FlatMapOperator<>(initDataSet, typeInformation, flatMapFunction, transform.getName());
 			
-			context.setOutputDataSet(transform.getOutput(), dataSetNew);
+			context.setOutputDataSet(transform.getOutput(), outputDataSet);
 		}
 	}
 
-		// --------------------------------------------------------------------------------------------
-	//  Miscellaneous
-	// --------------------------------------------------------------------------------------------
-	
 	private FlinkTransformTranslators() {}
 }
