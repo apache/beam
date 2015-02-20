@@ -910,6 +910,13 @@ public class Combine {
       this.fn = fn;
     }
 
+    /**
+     * Returns the KeyedCombineFn used by this Combine operation.
+     */
+    public KeyedCombineFn<? super K, ? super VI, ?, VO> getFn() {
+      return fn;
+    }
+
     @Override
     public PCollection<KV<K, VO>> apply(PCollection<KV<K, VI>> input) {
       return input
