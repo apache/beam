@@ -4,14 +4,17 @@ import com.dataartisans.flink.dataflow.io.ConsoleIO;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkCombineFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkCreateFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkDoFnFunction;
-import com.dataartisans.flink.dataflow.translation.functions.FlinkMultiOutputDoFnFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkKeyedListAggregationFunction;
+import com.dataartisans.flink.dataflow.translation.functions.FlinkMultiOutputDoFnFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkMultiOutputPruningFunction;
 import com.dataartisans.flink.dataflow.translation.functions.RawUnionValue;
 import com.dataartisans.flink.dataflow.translation.functions.UnionCoder;
 import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
+import com.dataartisans.flink.dataflow.translation.wrappers.SourceInputFormat;
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.io.ReadSource;
+import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -86,7 +89,7 @@ public class FlinkTransformTranslators {
 		//TRANSLATORS.put(PubsubIO.Read.Bound.class, null);
 		//TRANSLATORS.put(PubsubIO.Write.Bound.class, null);
 
-		//TRANSLATORS.put(ReadSource.Bound.class, null);
+		TRANSLATORS.put(ReadSource.Bound.class, new ReadSourceTranslator());
 
 		TRANSLATORS.put(TextIO.Read.Bound.class, new TextIOReadTranslator());
 		TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteTranslator());
@@ -99,12 +102,23 @@ public class FlinkTransformTranslators {
 	public static FlinkPipelineTranslator.TransformTranslator<?> getTranslator(PTransform<?, ?> transform) {
 		return TRANSLATORS.get(transform.getClass());
 	}
-	
-	
-	// --------------------------------------------------------------------------------------------
-	//  Individual Transform Translators
-	// --------------------------------------------------------------------------------------------
-	
+
+	private static class ReadSourceTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<ReadSource.Bound<T>> {
+
+		@Override
+		public void translateNode(ReadSource.Bound<T> transform, TranslationContext context) {
+			String name = transform.getName();
+			Source<T> source = transform.getSource();
+			Coder<T> coder = transform.getOutput().getCoder();
+
+			TypeInformation<T> typeInformation = context.getTypeInfo(transform.getOutput());
+
+			DataSource<T> dataSource = new DataSource<>(context.getExecutionEnvironment(), new SourceInputFormat<>(source, context.getPipelineOptions(), coder), typeInformation, name);
+
+			context.setOutputDataSet(transform.getOutput(), dataSource);
+		}
+	}
+
 	private static class TextIOReadTranslator implements FlinkPipelineTranslator.TransformTranslator<TextIO.Read.Bound<String>> {
 		private static final Logger LOG = LoggerFactory.getLogger(TextIOReadTranslator.class);
 
@@ -161,7 +175,7 @@ public class FlinkTransformTranslators {
 		}
 	}
 	
-	private static class GroupByKeyOnlyTranslator <K, V> implements FlinkPipelineTranslator.TransformTranslator<GroupByKey.GroupByKeyOnly<K, V>> {
+	private static class GroupByKeyOnlyTranslator<K, V> implements FlinkPipelineTranslator.TransformTranslator<GroupByKey.GroupByKeyOnly<K, V>> {
 
 		@Override
 		public void translateNode(GroupByKey.GroupByKeyOnly<K, V> transform, TranslationContext context) {
@@ -178,7 +192,7 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class CombinePerKeyTranslator <K, VI, VO> implements FlinkPipelineTranslator.TransformTranslator<Combine.PerKey<K, VI, VO>> {
+	private static class CombinePerKeyTranslator<K, VI, VO> implements FlinkPipelineTranslator.TransformTranslator<Combine.PerKey<K, VI, VO>> {
 
 		@Override
 		public void translateNode(Combine.PerKey<K, VI, VO> transform, TranslationContext context) {
@@ -207,7 +221,7 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-//	private static class CombineGroupedValuesTranslator <K, VI, VO> implements FlinkPipelineTranslator.TransformTranslator<Combine.GroupedValues<K, VI, VO>> {
+//	private static class CombineGroupedValuesTranslator<K, VI, VO> implements FlinkPipelineTranslator.TransformTranslator<Combine.GroupedValues<K, VI, VO>> {
 //
 //		@Override
 //		public void translateNode(Combine.GroupedValues<K, VI, VO> transform, TranslationContext context) {
@@ -237,7 +251,7 @@ public class FlinkTransformTranslators {
 			
 			TypeInformation<OUT> typeInformation = context.getTypeInfo(transform.getOutput());
 
-			FlinkDoFnFunction<IN, OUT> doFnWrapper = new FlinkDoFnFunction<>(doFn, null);
+			FlinkDoFnFunction<IN, OUT> doFnWrapper = new FlinkDoFnFunction<>(doFn, context.getPipelineOptions());
 			MapPartitionOperator<IN, OUT> outputDataSet = new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, transform.getName());
 
 			transformSideInputs(transform.getSideInputs(), outputDataSet, context);
@@ -278,7 +292,7 @@ public class FlinkTransformTranslators {
 			TypeInformation<RawUnionValue> typeInformation = new CoderTypeInformation<>(unionCoder);
 
 			@SuppressWarnings("unchecked")
-			FlinkMultiOutputDoFnFunction<IN, OUT> doFnWrapper = new FlinkMultiOutputDoFnFunction(doFn, null, outputMap);
+			FlinkMultiOutputDoFnFunction<IN, OUT> doFnWrapper = new FlinkMultiOutputDoFnFunction(doFn, context.getPipelineOptions(), outputMap);
 			MapPartitionOperator<IN, RawUnionValue> outputDataSet = new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, transform.getName());
 
 			transformSideInputs(transform.getSideInputs(), outputDataSet, context);
