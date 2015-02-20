@@ -107,6 +107,11 @@ import java.util.Map;
  * in the window that it corresponds to.  The output {@code PCollection} will
  * have the same {@link WindowFn} as the input.
  *
+ * <p> If the input {@code PCollection} contains late data (see
+ * {@link com.google.cloud.dataflow.sdk.PubsubIO.Read.Bound#timestampLabel}
+ * for an example of how this can occur), then there may be multiple elements
+ * output by a {@code GroupByKey} that correspond to the same key and window.
+ *
  * <p> If the {@link WindowFn} of the input requires merging, it is not
  * valid to apply another {@code GroupByKey} without first applying a new
  * {@link WindowFn}.

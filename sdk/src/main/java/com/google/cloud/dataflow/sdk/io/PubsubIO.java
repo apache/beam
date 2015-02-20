@@ -195,7 +195,10 @@ public class PubsubIO {
      * the first time it sees each record. All windowing will be done relative to these timestamps.
      * Windows are closed based on an estimate of when this source has finished producing data for
      * a timestamp range, which means that late data can arrive after a window has been closed. The
-     * {#dropLateData} field allows you to control what to do with late data.
+     * {#dropLateData} field allows you to control what to do with late data.  The relaxes the
+     * semantics of {@code GroupByKey}; see
+     * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} for additional information on
+     * late data and windowing.
      */
     public static Bound timestampLabel(String timestampLabel) {
       return new Bound().timestampLabel(timestampLabel);
@@ -203,6 +206,11 @@ public class PubsubIO {
 
     /**
      * If true, then late-arriving data from this source will be dropped.
+     *
+     * <p> If late data is not dropped, data for a window can arrive after that window has already
+     * been closed.  The relaxes the semantics of {@code GroupByKey}; see
+     * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
+     * for additional information on late data and windowing.
      */
     public static Bound dropLateData(boolean dropLateData) {
       return new Bound().dropLateData(dropLateData);
