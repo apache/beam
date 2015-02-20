@@ -68,9 +68,13 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   }
 
   @Override
+  @Deprecated
   public boolean isDeterministic() {
     return true;
   }
+
+  @Override
+  public void verifyDeterministic() { }
 
   /**
    * Returns true since registerByteSizeObserver() runs in constant time.

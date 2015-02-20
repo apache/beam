@@ -35,7 +35,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -168,7 +167,7 @@ public class GroupByKeyTest {
   @Test
   public void testGroupByKeyNonDeterministic() throws Exception {
     expectedEx.expect(IllegalStateException.class);
-    expectedEx.expectMessage(Matchers.containsString("must be deterministic"));
+    expectedEx.expectMessage("must be deterministic");
 
     List<KV<Map<String, String>, Integer>> ungroupedPairs = Arrays.asList();
 

@@ -21,12 +21,12 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
+import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.common.collect.Iterables;
-
-import org.hamcrest.CoreMatchers;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -71,8 +71,12 @@ public class CoderProperties {
   public static <T> void coderDeterministicInContext(
       Coder<T> coder, Coder.Context context, T value1, T value2)
       throws Exception {
-    assertThat("Expected that the coder is deterministic",
-        coder.isDeterministic(), CoreMatchers.is(true));
+
+    try {
+      coder.verifyDeterministic();
+    } catch (NonDeterministicException e) {
+      fail("Expected that the coder is deterministic");
+    }
     assertThat("Expected that the passed in values are equal()", value1, equalTo(value2));
     assertThat(
         encode(coder, context, value1),

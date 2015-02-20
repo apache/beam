@@ -60,8 +60,15 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
    * two {@code HashSet} instances may be equal but produce different encodings.
    */
   @Override
+  @Deprecated
   public boolean isDeterministic() {
     return false;
+  }
+
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {
+    throw new NonDeterministicException(this,
+        "Ordering of elements in a set may be non-deterministic.");
   }
 
   /**

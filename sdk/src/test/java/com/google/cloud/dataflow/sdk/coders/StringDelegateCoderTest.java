@@ -19,6 +19,8 @@ package com.google.cloud.dataflow.sdk.coders;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -44,12 +46,10 @@ public class StringDelegateCoderTest {
 
   // Tests
 
-  private static final List<Coder.Context> TEST_CONTEXTS = Arrays.asList(
-      Coder.Context.NESTED,
-      Coder.Context.OUTER);
-
+  @SuppressWarnings("deprecation")
   @Test
-  public void testDeterministic() throws Exception {
+  public void testDeterministic() throws Exception, NonDeterministicException {
+    uriCoder.verifyDeterministic();
     assertThat(uriCoder.isDeterministic(), equalTo(true));
     for (String uriString : TEST_URI_STRINGS) {
       CoderProperties.coderDeterministic(uriCoder, new URI(uriString), new URI(uriString));

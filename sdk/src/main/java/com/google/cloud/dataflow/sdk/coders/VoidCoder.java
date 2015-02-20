@@ -50,9 +50,13 @@ public class VoidCoder extends AtomicCoder<Void> {
   }
 
   @Override
+  @Deprecated
   public boolean isDeterministic() {
     return true;
   }
+
+  @Override
+  public void verifyDeterministic() { }
 
   /**
    * Returns true since registerByteSizeObserver() runs in constant time.

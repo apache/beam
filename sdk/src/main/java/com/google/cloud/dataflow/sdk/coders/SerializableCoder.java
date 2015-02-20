@@ -109,8 +109,15 @@ public class SerializableCoder<T extends Serializable>
   }
 
   @Override
+  @Deprecated
   public boolean isDeterministic() {
     return false;
+  }
+
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {
+    throw new NonDeterministicException(this,
+        "Java Serialization may be non-deterministic.");
   }
 
   @Override

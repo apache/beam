@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.coders;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 import org.joda.time.Instant;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -55,7 +56,11 @@ public class InstantCoder extends AtomicCoder<Instant> {
   }
 
   @Override
+  @Deprecated
   public boolean isDeterministic() {
     return true;
   }
+
+  @Override
+  public void verifyDeterministic() { }
 }

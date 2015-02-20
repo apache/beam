@@ -18,12 +18,17 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.List;
+
+import javax.annotation.Nullable;
 
 /**
  * A {@code Coder<T>} defines how to encode and decode values of type {@code T} into byte streams.
@@ -125,8 +130,30 @@ public interface Coder<T> extends Serializable {
    *       same for an instance of an object even if produced on different
    *       computers at different times.
    * </ul>
+   *
+   * @deprecated {@link #verifyDeterministic()} should be used instead to
+   * produce explanations of why a given Coder is non-deterministic.
    */
+  @Deprecated
   public boolean isDeterministic();
+
+  /**
+   * Throw {@link NonDeterministicException} if the coding is not deterministic.
+   *
+   * <p> In order for a {@code Coder} to be considered deterministic,
+   * the following must be true:
+   * <ul>
+   *   <li>two values which compare as equal (via {@code Object.equals()}
+   *       or {@code Comparable.compareTo()}, if supported), have the same
+   *       encoding.
+   *   <li>the {@code Coder} always produces a canonical encoding, which is the
+   *       same for an instance of an object even if produced on different
+   *       computers at different times.
+   * </ul>
+   *
+   * @throws Coder.NonDeterministicException if this coder is not deterministic.
+   */
+  public void verifyDeterministic() throws Coder.NonDeterministicException;
 
   /**
    * Returns whether {@link #registerByteSizeObserver} cheap enough to
@@ -151,4 +178,47 @@ public interface Coder<T> extends Serializable {
   public void registerByteSizeObserver(
       T value, ElementByteSizeObserver observer, Context context)
       throws Exception;
+
+  /**
+   * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is
+   * not deterministic.
+   */
+  public static class NonDeterministicException extends Throwable {
+    private Coder<?> coder;
+    private List<String> reasons;
+
+    public NonDeterministicException(
+        Coder<?> coder, String reason, @Nullable NonDeterministicException e) {
+      this(coder, Arrays.asList(reason), e);
+    }
+
+    public NonDeterministicException(Coder<?> coder, String reason) {
+      this(coder, Arrays.asList(reason), null);
+    }
+
+    public NonDeterministicException(Coder<?> coder, List<String> reasons) {
+      this(coder, reasons, null);
+    }
+
+    public NonDeterministicException(
+        Coder<?> coder,
+        List<String> reasons,
+        @Nullable NonDeterministicException cause) {
+      super(cause);
+      Preconditions.checkArgument(reasons.size() > 0,
+          "Reasons must not be empty.");
+      this.reasons = reasons;
+      this.coder = coder;
+    }
+
+    public Iterable<String> getReasons() {
+      return reasons;
+    }
+
+    @Override
+    public String getMessage() {
+      return String.format("%s is not deterministic because:\n  %s",
+          coder, Joiner.on("\n  ").join(reasons));
+    }
+  }
 }

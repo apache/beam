@@ -73,6 +73,7 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
   }
 
   @Override
+  @Deprecated
   public boolean isDeterministic() {
     return false;
   }

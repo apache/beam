@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -65,7 +66,7 @@ import java.util.Map;
  * keys of the input {@code PCollection}, and then comparing the
  * encoded bytes.  This admits efficient parallel evaluation.  Note that
  * this requires that the {@code Coder} of the keys be deterministic (see
- * {@link Coder#isDeterministic()}).  If the key {@code Coder} is not
+ * {@link Coder#verifyDeterministic()}).  If the key {@code Coder} is not
  * deterministic, an exception is thrown at runtime.
  *
  * <p> By default, the {@code Coder} of the keys of the output
@@ -295,9 +296,11 @@ public class GroupByKey<K, V>
       // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
       // the key coder is deterministic.
       Coder<K> keyCoder = getKeyCoder();
-      if (!keyCoder.isDeterministic()) {
+      try {
+        keyCoder.verifyDeterministic();
+      } catch (NonDeterministicException e) {
         throw new IllegalStateException(
-            "the key Coder must be deterministic for grouping");
+            "the keyCoder of a GroupByKey must be deterministic", e);
       }
       if (getOutput().isOrdered()) {
         throw new IllegalStateException(

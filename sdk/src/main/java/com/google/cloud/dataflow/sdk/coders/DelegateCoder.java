@@ -66,8 +66,14 @@ public class DelegateCoder<T, DT> extends CustomCoder<T> {
   }
 
   @Override
+  @Deprecated
   public boolean isDeterministic() {
     return coder.isDeterministic();
+  }
+
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {
+    coder.verifyDeterministic();
   }
 
   @Override

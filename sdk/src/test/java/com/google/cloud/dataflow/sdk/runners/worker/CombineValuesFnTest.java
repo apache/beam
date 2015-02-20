@@ -150,6 +150,9 @@ public class CombineValuesFnTest {
     @Override
     public boolean isDeterministic() { return true; }
 
+    @Override
+    public void verifyDeterministic() { }
+
     public CloudObject asCloudObject() {
       return makeCloudEncoding(this.getClass().getName());
     }

@@ -70,8 +70,15 @@ public class DoubleCoder extends AtomicCoder<Double> {
    * recommended for use in operations which require deterministic inputs.
    */
   @Override
+  @Deprecated
   public boolean isDeterministic() {
     return false;
+  }
+
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {
+    throw new NonDeterministicException(this,
+        "Floating point encodings are not guaranteed to be deterministic.");
   }
 
   /**

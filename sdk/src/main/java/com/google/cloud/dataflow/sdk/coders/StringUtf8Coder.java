@@ -105,9 +105,13 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   }
 
   @Override
+  @Deprecated
   public boolean isDeterministic() {
     return true;
   }
+
+  @Override
+  public void verifyDeterministic() { }
 
   protected long getEncodedElementByteSize(String value, Context context)
       throws Exception {

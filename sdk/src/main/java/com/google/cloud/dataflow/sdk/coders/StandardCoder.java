@@ -24,8 +24,11 @@ import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
+import javax.annotation.Nullable;
 
 /**
  * A StandardCoder is one that defines equality, hashing, and printing
@@ -139,5 +142,39 @@ public abstract class StandardCoder<T> implements Coder<T> {
       T value, ElementByteSizeObserver observer, Context context)
       throws Exception {
     observer.update(getEncodedElementByteSize(value, context));
+  }
+
+  @SuppressWarnings("deprecation")
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {
+    if (!isDeterministic()) {
+      throw new NonDeterministicException(this,
+          getClass().getSimpleName() + " reported it was not determinsitic.");
+    }
+  }
+
+  protected void verifyDeterministic(String message, Iterable<Coder<?>> coders)
+      throws NonDeterministicException {
+    for (Coder<?> coder : coders) {
+      try {
+        coder.verifyDeterministic();
+      } catch (NonDeterministicException e) {
+        throw new NonDeterministicException(this, message, e);
+      }
+    }
+  }
+
+  protected void verifyDeterministic(String message, Coder<?>... coders)
+      throws NonDeterministicException {
+    verifyDeterministic(message, Arrays.asList(coders));
+  }
+
+  protected void addReasons(String prefix, List<String> accumulator,
+      @Nullable List<String> newReasons) {
+    if (newReasons != null) {
+      for (String reason : newReasons) {
+        accumulator.add(prefix + reason);
+      }
+    }
   }
 }

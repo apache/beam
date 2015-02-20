@@ -218,8 +218,12 @@ public class CoderRegistryTest {
       return null;
     }
 
+    @Deprecated
     @Override
     public boolean isDeterministic() { return true; }
+
+    @Override
+    public void verifyDeterministic() { }
 
     @Override
     public boolean isRegisterByteSizeObserverCheap(MyValue value, Context context) {

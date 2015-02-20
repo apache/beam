@@ -108,8 +108,16 @@ public class TimestampedValue<V> {
     }
 
     @Override
+    @Deprecated
     public boolean isDeterministic() {
       return valueCoder.isDeterministic();
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      verifyDeterministic(
+          "TimestampedValueCoder requires a deterministic valueCoder",
+          valueCoder);
     }
 
     @Override

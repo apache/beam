@@ -275,8 +275,19 @@ public class WindowedValue<V> {
     }
 
     @Override
+    @Deprecated
     public boolean isDeterministic() {
       return valueCoder.isDeterministic() && windowCoder.isDeterministic();
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      verifyDeterministic(
+          "FullWindowedValueCoder requires a deterministic valueCoder",
+          valueCoder);
+      verifyDeterministic(
+          "FullWindowedValueCoder requires a deterministic windowCoder",
+          windowCoder);
     }
 
     @Override
@@ -351,8 +362,17 @@ public class WindowedValue<V> {
     }
 
     @Override
+    @Deprecated
     public boolean isDeterministic() {
       return valueCoder.isDeterministic();
+    }
+
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      verifyDeterministic(
+          "ValueOnlyWindowedValueCoder requires a deterministic valueCoder",
+          valueCoder);
     }
 
     @Override
