@@ -2,6 +2,7 @@ package com.dataartisans.flink.dataflow.translation;
 
 import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TypedPValue;
@@ -19,11 +20,13 @@ public class TranslationContext {
 	private final Map<PCollectionView<?, ?>, DataSet<?>> broadcastDataSets;
 	
 	private final ExecutionEnvironment env;
+	private final PipelineOptions options;
 	
 	// ------------------------------------------------------------------------
 	
-	public TranslationContext(ExecutionEnvironment env) {
+	public TranslationContext(ExecutionEnvironment env, PipelineOptions options) {
 		this.env = env;
+		this.options = options;
 		this.dataSets = new HashMap<>();
 		this.broadcastDataSets = new HashMap<>();
 	}
@@ -32,6 +35,10 @@ public class TranslationContext {
 	
 	public ExecutionEnvironment getExecutionEnvironment() {
 		return env;
+	}
+
+	public PipelineOptions getPipelineOptions() {
+		return options;
 	}
 	
 	@SuppressWarnings("unchecked")
