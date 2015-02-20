@@ -23,7 +23,7 @@ package com.google.cloud.dataflow.sdk.transforms.join;
  * This corresponds to an integer union tag and value.  The mapping of
  * union tag to type must come from elsewhere.
  */
-class RawUnionValue {
+public class RawUnionValue {
   private final int unionTag;
   private final Object value;
 

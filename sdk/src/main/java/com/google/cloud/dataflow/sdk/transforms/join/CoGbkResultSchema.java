@@ -38,7 +38,7 @@ import java.util.List;
  * CoGroupByKey).
  */
 @SuppressWarnings("serial")
-class CoGbkResultSchema implements Serializable {
+public class CoGbkResultSchema implements Serializable {
 
   private final TupleTagList tupleTagList;
 
