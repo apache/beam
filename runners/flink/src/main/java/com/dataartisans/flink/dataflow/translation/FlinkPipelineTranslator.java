@@ -5,6 +5,8 @@ import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.join.KeyedPCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
@@ -16,6 +18,8 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 public class FlinkPipelineTranslator implements PipelineVisitor {
 	
 	private final TranslationContext context;
+	
+	private boolean inOptimizableCoGroupByKey = false;
 	
 	private int depth = 0;
 
@@ -60,6 +64,19 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 		}
 
 		this.depth++;
+		
+		PTransform<?, ?> transform = node.getTransform();
+		if (transform instanceof CoGroupByKey) {
+			// Check input size
+			KeyedPCollectionTuple<?> input = ((CoGroupByKey<?>) transform).getInput();
+			if(input.getKeyedCollections().size() == 2) {
+
+				inOptimizableCoGroupByKey = true;
+				// optimize
+				TransformTranslator<?> translator = FlinkTransformTranslators.getTranslator(transform);
+				applyTransform(transform, node, translator);
+			}
+		}
 	}
 
 	@Override
@@ -77,6 +94,11 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 
 		this.depth--;
 		System.out.println(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
+
+		PTransform<?, ?> transform = node.getTransform();
+		if (transform instanceof CoGroupByKey) {
+			inOptimizableCoGroupByKey = false;
+		}
 	}
 
 	@Override
@@ -97,15 +119,17 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 			System.out.println(node.getTransform().getClass());
 			throw new UnsupportedOperationException("The transform " + transform + " is currently not supported.");
 		}
-		
-		applyTransform(transform, node, translator);
 
+		if (!inOptimizableCoGroupByKey) {
+			applyTransform(transform, node, translator);
+		}
+
+		applyTransform(transform, node, translator);
 	}
 
 	@Override
 	public void visitValue(PValue value, TransformTreeNode producer) {
 		// do nothing here
-		//System.out.println(genSpaces(this.depth) + "  ^-visitValue- value=" + value);
 	}
 	
 	/**

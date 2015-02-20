@@ -1,7 +1,6 @@
 package com.dataartisans.flink.dataflow;
 
 import com.dataartisans.flink.dataflow.translation.FlinkPipelineTranslator;
-import com.google.api.client.util.Joiner;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -11,6 +10,7 @@ import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
@@ -158,7 +158,6 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 		
 		JobExecutionResult result = null;
 		try {
-//			System.out.println(flinkEnv.getExecutionPlan());
 			result = flinkEnv.execute();
 		}
 		catch (Exception e) {
