@@ -2,6 +2,7 @@ package com.dataartisans.flink.dataflow.translation.functions;
 
 import com.dataartisans.flink.dataflow.translation.wrappers.CombineFnAggregatorWrapper;
 import com.dataartisans.flink.dataflow.translation.wrappers.SerializableFnAggregatorWrapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -17,6 +18,9 @@ import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -28,11 +32,25 @@ import java.util.List;
 public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT> {
 
 	private final DoFn<IN, OUT> doFn;
-	private final PipelineOptions options;
+	private transient PipelineOptions options;
 
 	public FlinkDoFnFunction(DoFn<IN, OUT> doFn, PipelineOptions options) {
 		this.doFn = doFn;
 		this.options = options;
+	}
+
+	private void writeObject(ObjectOutputStream out)
+			throws IOException, ClassNotFoundException {
+		out.defaultWriteObject();
+		ObjectMapper mapper = new ObjectMapper();
+		mapper.writeValue(out, options);
+	}
+
+	private void readObject(ObjectInputStream in)
+			throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+		ObjectMapper mapper = new ObjectMapper();
+		options = mapper.readValue(in, PipelineOptions.class);
 	}
 
 	@Override

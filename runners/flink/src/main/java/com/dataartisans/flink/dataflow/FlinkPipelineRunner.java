@@ -101,7 +101,7 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 		this.options = options;
 		this.flinkEnv = createExecutionEnvironment(options);
 
-		this.translator = new FlinkPipelineTranslator(flinkEnv);
+		this.translator = new FlinkPipelineTranslator(flinkEnv, options);
 	}
 
 	/**
