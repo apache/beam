@@ -2,6 +2,7 @@ package com.dataartisans.flink.dataflow.translation;
 
 import com.dataartisans.flink.dataflow.io.ConsoleIO;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkCombineFunction;
+import com.dataartisans.flink.dataflow.translation.functions.CoGroupKeyedListAggregator;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkCreateFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkDoFnFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkKeyedListAggregationFunction;
@@ -25,6 +26,10 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
+import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResult;
+import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResultSchema;
+import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.join.KeyedPCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -37,14 +42,8 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.io.AvroInputFormat;
 import org.apache.flink.api.java.io.AvroOutputFormat;
 import org.apache.flink.api.java.io.TextInputFormat;
-import org.apache.flink.api.java.operators.DataSink;
-import org.apache.flink.api.java.operators.DataSource;
-import org.apache.flink.api.java.operators.FlatMapOperator;
-import org.apache.flink.api.java.operators.GroupReduceOperator;
-import org.apache.flink.api.java.operators.Grouping;
-import org.apache.flink.api.java.operators.Keys;
-import org.apache.flink.api.java.operators.MapPartitionOperator;
-import org.apache.flink.api.java.operators.UnsortedGrouping;
+import org.apache.flink.api.java.operators.*;
+import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.core.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,9 +96,9 @@ public class FlinkTransformTranslators {
 
 		TRANSLATORS.put(TextIO.Read.Bound.class, new TextIOReadTranslator());
 		TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteTranslator());
-
 		// Flink-specific
 		TRANSLATORS.put(ConsoleIO.Write.Bound.class, new ConsoleIOWriteTranslator());
+		TRANSLATORS.put(CoGroupByKey.class, new CoGroupByKeyTranslator());
 	}
 	
 	
@@ -446,5 +445,48 @@ public class FlinkTransformTranslators {
 		}
 	}
 
+	/**
+	 * Special composite transform translator. Only called if the CoGroup is two dimensional.
+	 * @param <K>
+	 */
+	private static class CoGroupByKeyTranslator<K, V1, V2> implements FlinkPipelineTranslator.TransformTranslator<CoGroupByKey<K>> {
+
+		@Override
+		public void translateNode(CoGroupByKey<K> transform, TranslationContext context) {
+			KeyedPCollectionTuple<K> input = transform.getInput();
+			
+			CoGbkResultSchema schema = input.getCoGbkResultSchema();
+			List<KeyedPCollectionTuple.TaggedKeyedPCollection<K, ?>> keyedCollections = input.getKeyedCollections();
+			
+			KeyedPCollectionTuple.TaggedKeyedPCollection<K, ?> taggedCollection1 = keyedCollections.get(0);
+			KeyedPCollectionTuple.TaggedKeyedPCollection<K, ?> taggedCollection2 = keyedCollections.get(1);
+
+			TupleTag<?> tupleTag1 = taggedCollection1.getTupleTag();
+			TupleTag<?> tupleTag2 = taggedCollection2.getTupleTag();
+			
+			PCollection<? extends KV<K, ?>> collection1 = taggedCollection1.getCollection();
+			PCollection<? extends KV<K, ?>> collection2 = taggedCollection2.getCollection();
+			
+			DataSet<KV<K,V1>> inputDataSet1 = context.getInputDataSet(collection1);
+			DataSet<KV<K,V2>> inputDataSet2 = context.getInputDataSet(collection2);
+
+			TypeInformation<KV<K,CoGbkResult>> typeInfo = context.getTypeInfo(transform.getOutput());
+
+			CoGroupKeyedListAggregator<K,V1,V2> aggregator = new CoGroupKeyedListAggregator<>(schema, tupleTag1, tupleTag2);
+
+			ExpressionKeys<KV<K,V1>> keySelector1 = new ExpressionKeys<>(new String[]{""}, inputDataSet1.getType());
+			ExpressionKeys<KV<K,V2>> keySelector2 = new ExpressionKeys<>(new String[]{""}, inputDataSet2.getType());
+
+			DataSet<KV<K, CoGbkResult>> out = new CoGroupOperator<>(inputDataSet1, inputDataSet2,
+																	keySelector1, keySelector2, 
+					                                                aggregator, typeInfo, null, transform.getName());
+			context.setOutputDataSet(transform.getOutput(), out);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Miscellaneous
+	// --------------------------------------------------------------------------------------------
+	
 	private FlinkTransformTranslators() {}
 }

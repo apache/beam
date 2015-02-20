@@ -1,6 +1,5 @@
 package com.dataartisans.flink.dataflow.translation.types;
 
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
@@ -25,7 +24,7 @@ public class CoderTypeInformation<T> extends CompositeType {
 		// We don't have the Class, so we have to pass null here. What a shame...
 		super(null);
 		this.coder = coder;
-		Preconditions.checkNotNull(coder);
+		com.google.api.client.util.Preconditions.checkNotNull(coder);
 	}
 
 	@SuppressWarnings("unchecked")
