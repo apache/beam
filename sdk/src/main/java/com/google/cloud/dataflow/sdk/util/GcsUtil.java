@@ -33,7 +33,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -71,7 +70,7 @@ public class GcsUtil {
   private static final long MAX_LIST_ITEMS_PER_CALL = 1024;
 
   /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
-  private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^*?]*)[*?].*");
+  private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
 
   private static final String RECURSIVE_WILDCARD = "[*]{2}";
 
@@ -84,7 +83,7 @@ public class GcsUtil {
   /////////////////////////////////////////////////////////////////////////////
 
   /** Client for the GCS API. */
-  private final Storage storage;
+  private Storage storage;
 
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
   private final ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
@@ -110,22 +109,32 @@ public class GcsUtil {
     this.executorService = executorService;
   }
 
+  // Use this only for testing purposes.
+  protected void setStorageClient(Storage storage) {
+    this.storage = storage;
+  }
+
   /**
-   * Expands a pattern into matched paths. The pattern path may contain
-   * globs, which are expanded in the result.
+   * Expands a pattern into matched paths. The pattern path may contain globs, which are expanded in
+   * the result. This function validates the existence of each matched file in GCS.
    */
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
     Preconditions.checkArgument(isGcsPatternSupported(gcsPattern.getObject()));
     Matcher m = GLOB_PREFIX.matcher(gcsPattern.getObject());
+    Pattern p = null;
+    String prefix = null;
     if (!m.matches()) {
-      return Arrays.asList(gcsPattern);
+      // Not a glob. But we should verify that the file exists in GCS.
+      prefix = gcsPattern.getObject();
+      p = Pattern.compile(gcsPattern.getObject());
+    } else {
+      // Part before the first wildcard character.
+      prefix = m.group("PREFIX");
+      p = Pattern.compile(globToRegexp(gcsPattern.getObject()));
     }
 
-    // Part before the first wildcard character.
-    String prefix = m.group("PREFIX");
-    Pattern p = Pattern.compile(globToRegexp(gcsPattern.getObject()));
-    LOG.info("matching files in bucket {}, prefix {} against pattern {}",
-        gcsPattern.getBucket(), prefix, p.toString());
+    LOG.info("matching files in bucket {}, prefix {} against pattern {}", gcsPattern.getBucket(),
+        prefix, p.toString());
 
     // List all objects that start with the prefix (including objects in sub-directories).
     Storage.Objects.List listObject = storage.objects().list(gcsPattern.getBucket());
