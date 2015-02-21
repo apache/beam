@@ -36,8 +36,8 @@ before_install:
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then jdk_switcher use "$CUSTOM_JDK"; fi
 
 install:
-  - mvn install clean -U -DskipTests=true
+  - travis_retry mvn install clean -U -DskipTests=true
 
 script:
-  - mvn verify -U
-  - ./test_wordcount.sh
+  - travis_retry mvn verify -U
+  - travis_retry ./test_wordcount.sh
