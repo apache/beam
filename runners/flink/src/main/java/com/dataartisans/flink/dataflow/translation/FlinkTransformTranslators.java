@@ -75,6 +75,7 @@ public class FlinkTransformTranslators {
 		TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslator());
 		// we don't need this because we translate the Combine.PerKey directly
 		// TRANSLATORS.put(Combine.GroupedValues.class, new CombineGroupedValuesTranslator());
+
 		TRANSLATORS.put(Create.class, new CreateTranslator());
 		TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslator());
 		TRANSLATORS.put(GroupByKey.GroupByKeyOnly.class, new GroupByKeyOnlyTranslator());
@@ -100,8 +101,8 @@ public class FlinkTransformTranslators {
 		TRANSLATORS.put(ConsoleIO.Write.Bound.class, new ConsoleIOWriteTranslator());
 		TRANSLATORS.put(CoGroupByKey.class, new CoGroupByKeyTranslator());
 	}
-	
-	
+
+
 	public static FlinkPipelineTranslator.TransformTranslator<?> getTranslator(PTransform<?, ?> transform) {
 		return TRANSLATORS.get(transform.getClass());
 	}
@@ -226,6 +227,7 @@ public class FlinkTransformTranslators {
 			LOG.warn("Translation of TextIO.Write.filenameSuffix not yet supported. Is: {}.", filenameSuffix);
 			LOG.warn("Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.", shardNameTemplate);
 
+			//inputDataSet.print();
 			DataSink<T> dataSink = inputDataSet.writeAsText(filenamePrefix);
 
 			if (numShards > 0) {
@@ -241,14 +243,14 @@ public class FlinkTransformTranslators {
 			inputDataSet.print().name(transform.getName());
 		}
 	}
-	
+
 	private static class GroupByKeyOnlyTranslator<K, V> implements FlinkPipelineTranslator.TransformTranslator<GroupByKey.GroupByKeyOnly<K, V>> {
 
 		@Override
 		public void translateNode(GroupByKey.GroupByKeyOnly<K, V> transform, TranslationContext context) {
 			DataSet<KV<K, V>> inputDataSet = context.getInputDataSet(transform.getInput());
 			GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new FlinkKeyedListAggregationFunction<>();
-			
+
 			TypeInformation<KV<K, Iterable<V>>> typeInformation = context.getTypeInfo(transform.getOutput());
 
 			Grouping<KV<K, V>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{""}, inputDataSet.getType()));
@@ -430,7 +432,7 @@ public class FlinkTransformTranslators {
 			DataSet<Integer> initDataSet = context.getExecutionEnvironment().fromElements(1);
 			FlinkCreateFunction<Integer, OUT> flatMapFunction = new FlinkCreateFunction<>(serializedElements, coder);
 			FlatMapOperator<Integer, OUT> outputDataSet = new FlatMapOperator<>(initDataSet, typeInformation, flatMapFunction, transform.getName());
-			
+
 			context.setOutputDataSet(transform.getOutput(), outputDataSet);
 		}
 	}
@@ -454,19 +456,19 @@ public class FlinkTransformTranslators {
 		@Override
 		public void translateNode(CoGroupByKey<K> transform, TranslationContext context) {
 			KeyedPCollectionTuple<K> input = transform.getInput();
-			
+
 			CoGbkResultSchema schema = input.getCoGbkResultSchema();
 			List<KeyedPCollectionTuple.TaggedKeyedPCollection<K, ?>> keyedCollections = input.getKeyedCollections();
-			
+
 			KeyedPCollectionTuple.TaggedKeyedPCollection<K, ?> taggedCollection1 = keyedCollections.get(0);
 			KeyedPCollectionTuple.TaggedKeyedPCollection<K, ?> taggedCollection2 = keyedCollections.get(1);
 
 			TupleTag<?> tupleTag1 = taggedCollection1.getTupleTag();
 			TupleTag<?> tupleTag2 = taggedCollection2.getTupleTag();
-			
+
 			PCollection<? extends KV<K, ?>> collection1 = taggedCollection1.getCollection();
 			PCollection<? extends KV<K, ?>> collection2 = taggedCollection2.getCollection();
-			
+
 			DataSet<KV<K,V1>> inputDataSet1 = context.getInputDataSet(collection1);
 			DataSet<KV<K,V2>> inputDataSet2 = context.getInputDataSet(collection2);
 
