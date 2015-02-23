@@ -11,9 +11,7 @@ import java.io.IOException;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for
- * {@link com.google.cloud.dataflow.sdk.coders.KvCoder}. We only need a comparator for KV
- * because the Dataflow API only allows comparisons on the key of a
- * {@link com.google.cloud.dataflow.sdk.values.KV}.
+ * {@link com.google.cloud.dataflow.sdk.coders.Coder}.
  */
 public class CoderComperator<T> extends TypeComparator<T> {
 
