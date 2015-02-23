@@ -6,8 +6,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for
@@ -18,8 +18,22 @@ public class CoderComperator<T> extends TypeComparator<T> {
 	private T reference = null;
 	private Coder<T> coder;
 
+	// We use these for internal encoding/decoding for creating copies and comparing
+	// serialized forms using a Coder
+	private transient InspectableByteArrayOutputStream byteBuffer1;
+	private transient InspectableByteArrayOutputStream byteBuffer2;
+
 	public CoderComperator(Coder<T> coder) {
 		this.coder = coder;
+		byteBuffer1 = new InspectableByteArrayOutputStream();
+		byteBuffer2 = new InspectableByteArrayOutputStream();
+	}
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+
+		byteBuffer1 = new InspectableByteArrayOutputStream();
+		byteBuffer2 = new InspectableByteArrayOutputStream();
 	}
 
 	@Override
@@ -44,14 +58,14 @@ public class CoderComperator<T> extends TypeComparator<T> {
 
 	@Override
 	public int compare(T first, T second) {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ByteArrayOutputStream baosOther = new ByteArrayOutputStream();
 		try {
-			coder.encode(first, baos, Coder.Context.OUTER);
-			coder.encode(second, baosOther, Coder.Context.OUTER);
-			byte[] arr = baos.toByteArray();
-			byte[] arrOther = baosOther.toByteArray();
-			int len = arr.length < arrOther.length ? arr.length : arrOther.length;
+			byteBuffer1.reset();
+			byteBuffer2.reset();
+			coder.encode(first, byteBuffer1, Coder.Context.OUTER);
+			coder.encode(second, byteBuffer2, Coder.Context.OUTER);
+			byte[] arr = byteBuffer1.getBuffer();
+			byte[] arrOther = byteBuffer2.getBuffer();
+			int len = Math.min(byteBuffer1.size(), byteBuffer2.size());
 			for(int i = 0; i < len; i++ ) {
 				if (arr[i] != arrOther[i]) {
 					return arr[i] - arrOther[i];

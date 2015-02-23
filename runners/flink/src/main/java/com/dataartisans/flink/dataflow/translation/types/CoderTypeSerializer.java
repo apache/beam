@@ -8,7 +8,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
@@ -22,16 +21,23 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 	private transient DataInputViewWrapper inputWrapper;
 	private transient DataOutputViewWrapper outputWrapper;
 
+	// We use this for internal encoding/decoding for creating copies using the Coder.
+	private transient InspectableByteArrayOutputStream byteBuffer;
+
 	public CoderTypeSerializer(Coder<T> coder) {
 		this.coder = coder;
 		this.inputWrapper = new DataInputViewWrapper(null);
 		this.outputWrapper = new DataOutputViewWrapper(null);
+
+		byteBuffer = new InspectableByteArrayOutputStream();
 	}
 	
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
 		this.inputWrapper = new DataInputViewWrapper(null);
 		this.outputWrapper = new DataOutputViewWrapper(null);
+
+		byteBuffer = new InspectableByteArrayOutputStream();
 	}
 	
 	@Override
@@ -51,14 +57,16 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T copy(T t) {
-		ByteArrayOutputStream bao = new ByteArrayOutputStream();
+		byteBuffer.reset();
 		try {
-			coder.encode(t, bao, Coder.Context.OUTER);
+			coder.encode(t, byteBuffer, Coder.Context.OUTER);
 		} catch (IOException e) {
 			throw new RuntimeException("Could not copy.", e);
 		}
 		try {
-			return coder.decode(new ByteArrayInputStream(bao.toByteArray()), Coder.Context.OUTER);
+			return coder.decode(
+					new ByteArrayInputStream(byteBuffer.getBuffer(), 0, byteBuffer.size()),
+					Coder.Context.OUTER);
 		} catch (IOException e) {
 			throw new RuntimeException("Could not copy.", e);
 		}
