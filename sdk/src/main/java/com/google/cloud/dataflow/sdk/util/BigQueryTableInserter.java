@@ -32,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -50,8 +50,15 @@ public class BigQueryTableInserter {
   // The maximum number of rows to upload per InsertAll request.
   private static final long MAX_ROWS_PER_BATCH = 500;
 
+  // The maximum number of times to retry inserting rows into BigQuery.
+  private static final int MAX_INSERT_ATTEMPTS = 5;
+
+  // The initial backoff after a failure inserting rows into BigQuery.
+  private static final long INITIAL_INSERT_BACKOFF_INTERVAL_MS = 200L;
+
   private final Bigquery client;
   private final TableReference ref;
+  private final long maxRowsPerBatch;
 
   /**
    * Constructs a new row inserter.
@@ -62,63 +69,116 @@ public class BigQueryTableInserter {
   public BigQueryTableInserter(Bigquery client, TableReference ref) {
     this.client = client;
     this.ref = ref;
+    this.maxRowsPerBatch = MAX_ROWS_PER_BATCH;
   }
 
   /**
-   * Insert all rows from the given iterator.
+   * Constructs a new row inserter.
+   *
+   * @param client a BigQuery client
+   * @param ref identifies the table to insert into
    */
-  public void insertAll(Iterator<TableRow> rowIterator) throws IOException {
-    insertAll(rowIterator, null);
+  public BigQueryTableInserter(Bigquery client, TableReference ref, int maxRowsPerBatch) {
+    this.client = client;
+    this.ref = ref;
+    this.maxRowsPerBatch = maxRowsPerBatch;
   }
 
   /**
-   * Insert all rows from the given iterator using specified insertIds if not null.
+   * Insert all rows from the given list.
    */
-  public void insertAll(Iterator<TableRow> rowIterator,
-      @Nullable Iterator<String> insertIdIterator) throws IOException {
-    // Upload in batches.
-    List<TableDataInsertAllRequest.Rows> rows = new LinkedList<>();
-    int numInserted = 0;
-    int dataSize = 0;
-    while (rowIterator.hasNext()) {
-      TableRow row = rowIterator.next();
-      TableDataInsertAllRequest.Rows out = new TableDataInsertAllRequest.Rows();
-      if (insertIdIterator != null) {
-        if (insertIdIterator.hasNext()) {
-          out.setInsertId(insertIdIterator.next());
-        } else {
-          throw new AssertionError("If insertIdIterator is not null it needs to have at least "
-              + "as many elements as rowIterator");
-        }
-      }
-      out.setJson(row.getUnknownKeys());
-      rows.add(out);
+  public void insertAll(List<TableRow> rowList) throws IOException {
+    insertAll(rowList, null);
+  }
 
-      dataSize += row.toString().length();
-      if (dataSize >= UPLOAD_BATCH_SIZE_BYTES || rows.size() >= MAX_ROWS_PER_BATCH ||
-          !rowIterator.hasNext()) {
-        TableDataInsertAllRequest content = new TableDataInsertAllRequest();
-        content.setRows(rows);
-
-        LOG.info("Number of rows in BigQuery insert: {}", rows.size());
-        numInserted += rows.size();
-
-        Bigquery.Tabledata.InsertAll insert = client.tabledata()
-            .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(),
-                content);
-        TableDataInsertAllResponse response = insert.execute();
-        List<TableDataInsertAllResponse.InsertErrors> errors = response
-            .getInsertErrors();
-        if (errors != null && !errors.isEmpty()) {
-          throw new IOException("Insert failed: " + errors);
-        }
-
-        dataSize = 0;
-        rows.clear();
-      }
+  /**
+   * Insert all rows from the given list using specified insertIds if not null.
+   */
+  public void insertAll(List<TableRow> rowList,
+      @Nullable List<String> insertIdList) throws IOException {
+    if (insertIdList != null && rowList.size() != insertIdList.size()) {
+      throw new AssertionError("If insertIdList is not null it needs to have at least "
+          + "as many elements as rowList");
     }
 
-    LOG.info("Number of rows written to BigQuery: {}", numInserted);
+
+    AttemptBoundedExponentialBackOff backoff = new AttemptBoundedExponentialBackOff(
+        MAX_INSERT_ATTEMPTS,
+        INITIAL_INSERT_BACKOFF_INTERVAL_MS);
+
+    List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
+    // These lists contain the rows to publish. Initially the contain the entire list. If there are
+    // failures, they will contain only the failed rows to be retried.
+    List<TableRow> rowsToPublish = rowList;
+    List<String> idsToPublish = insertIdList;
+    while (true) {
+      List<TableRow> retryRows = new ArrayList<>();
+      List<String> retryIds = null;
+      if (idsToPublish != null) {
+        retryIds = new ArrayList<>();
+      }
+      int strideIndex = 0;
+      // Upload in batches.
+      List<TableDataInsertAllRequest.Rows> rows = new LinkedList<>();
+      int dataSize = 0;
+      for (int i = 0; i < rowsToPublish.size(); ++i) {
+        TableRow row = rowsToPublish.get(i);
+        TableDataInsertAllRequest.Rows out = new TableDataInsertAllRequest.Rows();
+        if (idsToPublish != null) {
+          out.setInsertId(idsToPublish.get(i));
+        }
+        out.setJson(row.getUnknownKeys());
+        rows.add(out);
+
+        dataSize += row.toString().length();
+        if (dataSize >= UPLOAD_BATCH_SIZE_BYTES || rows.size() >= maxRowsPerBatch ||
+            i == rowsToPublish.size() - 1) {
+          TableDataInsertAllRequest content = new TableDataInsertAllRequest();
+          content.setRows(rows);
+
+          Bigquery.Tabledata.InsertAll insert = client.tabledata()
+              .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(),
+                  content);
+          TableDataInsertAllResponse response = insert.execute();
+          List<TableDataInsertAllResponse.InsertErrors> errors = response.getInsertErrors();
+          if (errors != null) {
+            allErrors.addAll(errors);
+            for (TableDataInsertAllResponse.InsertErrors error : errors) {
+              if (error.getIndex() == null) {
+                throw new IOException("Insert failed: " + allErrors);
+              }
+
+              int errorIndex = error.getIndex().intValue() + strideIndex;
+              retryRows.add(rowsToPublish.get(errorIndex));
+              if (retryIds != null) {
+                retryIds.add(idsToPublish.get(errorIndex));
+              }
+            }
+          }
+
+          dataSize = 0;
+          strideIndex = i + 1;
+          rows.clear();
+        }
+      }
+
+      if (!allErrors.isEmpty() && !backoff.atMaxAttempts()) {
+        try {
+          Thread.sleep(backoff.nextBackOffMillis());
+        } catch (InterruptedException e) {
+          // ignore.
+        }
+        LOG.info("Retrying failed inserts to BigQuery");
+        rowsToPublish = retryRows;
+        idsToPublish = retryIds;
+        allErrors.clear();
+      } else {
+        break;
+      }
+    }
+    if (!allErrors.isEmpty()) {
+      throw new IOException("Insert failed: " + allErrors);
+    }
   }
 
   /**

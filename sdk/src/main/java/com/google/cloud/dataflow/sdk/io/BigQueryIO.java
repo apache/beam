@@ -718,7 +718,7 @@ public class BigQueryIO {
         Bigquery client = Transport.newBigQueryClient(options).build();
         try {
           BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
-          inserter.insertAll(tableRows.iterator(), uniqueIdsForTableRows.iterator());
+          inserter.insertAll(tableRows, uniqueIdsForTableRows);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -854,7 +854,7 @@ public class BigQueryIO {
           transform.writeDisposition, transform.createDisposition, transform.schema);
 
       List<TableRow> tableRows = context.getPCollection(transform.getInput());
-      inserter.insertAll(tableRows.iterator());
+      inserter.insertAll(tableRows);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

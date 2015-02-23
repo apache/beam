@@ -16,10 +16,12 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -27,6 +29,8 @@ import static org.mockito.Mockito.when;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
+import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
+import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableDataList;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
@@ -49,6 +53,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -66,6 +71,7 @@ public class BigQueryUtilTest {
   @Mock private Bigquery.Tables mockTables;
   @Mock private Bigquery.Tables.Get mockTablesGet;
   @Mock private Bigquery.Tabledata mockTabledata;
+  @Mock private Bigquery.Tabledata.InsertAll mockInsertAll;
   @Mock private Bigquery.Tabledata.List mockTabledataList;
 
   @Before
@@ -80,6 +86,39 @@ public class BigQueryUtilTest {
     verifyNoMoreInteractions(mockTablesGet);
     verifyNoMoreInteractions(mockTabledata);
     verifyNoMoreInteractions(mockTabledataList);
+  }
+
+  private void onInsertAll(List<List<Long>> errorIndicesSequence) throws Exception {
+    when(mockClient.tabledata())
+        .thenReturn(mockTabledata);
+
+    List<TableDataInsertAllResponse> responses = new ArrayList<>();
+    for (List<Long> errorIndices : errorIndicesSequence) {
+      List<TableDataInsertAllResponse.InsertErrors> errors = new ArrayList<>();
+      for (long i : errorIndices) {
+        TableDataInsertAllResponse.InsertErrors error =
+            new TableDataInsertAllResponse.InsertErrors();
+        error.setIndex(i);
+      }
+      TableDataInsertAllResponse response = new TableDataInsertAllResponse();
+      response.setInsertErrors(errors);
+      responses.add(response);
+    }
+
+
+    when(mockTabledata.insertAll(
+        anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class)))
+        .thenReturn(mockInsertAll);
+    when(mockInsertAll.execute())
+        .thenReturn(responses.get(0),
+            responses.subList(1, responses.size()).toArray(
+                new TableDataInsertAllResponse[responses.size() - 1]));
+  }
+
+  private void verifyInsertAll(int expectedRetries) throws IOException {
+    verify(mockClient, times(expectedRetries)).tabledata();
+    verify(mockTabledata, times(expectedRetries))
+        .insertAll(anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class));
   }
 
   private void onTableGet(Table table) throws IOException {
@@ -301,6 +340,35 @@ public class BigQueryUtilTest {
     } finally {
       verifyTableGet();
       verifyTabledataList();
+    }
+  }
+
+  @Test
+  public void testInsertAll() throws Exception, IOException {
+    // Build up a list of indices to fail on each invocation. This should result in
+    // 5 calls to insertAll.
+    List<List<Long>> errorsIndices = new ArrayList<>();
+    errorsIndices.add(Arrays.asList(0L, 5L, 10L, 15L, 20L));
+    errorsIndices.add(Arrays.asList(0L, 2L, 4L));
+    errorsIndices.add(Arrays.asList(0L, 2L));
+    errorsIndices.add(new ArrayList<Long>());
+    onInsertAll(errorsIndices);
+
+    TableReference ref = BigQueryIO
+        .parseTableSpec("project:dataset.table");
+    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, ref, 5);
+
+    List<TableRow> rows = new ArrayList<>();
+    List<String> ids = new ArrayList<>();
+    for (int i = 0; i < 25; ++i) {
+      rows.add(new TableRow());
+      ids.add(new String());
+    }
+
+    try {
+      inserter.insertAll(rows, ids);
+    } finally {
+      verifyInsertAll(5);
     }
   }
 }
