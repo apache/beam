@@ -8,6 +8,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.shaded.com.google.common.base.Preconditions;
 
 import java.util.List;
 
@@ -24,7 +25,7 @@ public class CoderTypeInformation<T> extends CompositeType {
 		// We don't have the Class, so we have to pass null here. What a shame...
 		super(null);
 		this.coder = coder;
-		com.google.api.client.util.Preconditions.checkNotNull(coder);
+		Preconditions.checkNotNull(coder);
 	}
 
 	@SuppressWarnings("unchecked")
