@@ -1,5 +1,6 @@
 package com.dataartisans.flink.dataflow.translation.types;
 
+import com.dataartisans.flink.dataflow.translation.wrappers.DataInputViewWrapper;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -8,21 +9,44 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for
  * {@link com.google.cloud.dataflow.sdk.coders.KvCoder}. We have a special comparator
  * for {@link KV} that always compares on the key only.
  */
-public class KvCoderComperator <K,V> extends TypeComparator<KV<K,V>> {
+public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 	
-	private KV<K,V> reference = null;
-	private KvCoder<K,V> coder;
+	private KV<K, V> reference = null;
+	private KvCoder<K, V> coder;
 
-	public KvCoderComperator(KvCoder<K,V> coder) {
+	// We use these for internal encoding/decoding for creating copies and comparing
+	// serialized forms using a Coder
+	private transient InspectableByteArrayOutputStream byteBuffer1;
+	private transient InspectableByteArrayOutputStream byteBuffer2;
+
+	// For deserializing the key
+	private transient DataInputViewWrapper inputWrapper;
+
+
+	public KvCoderComperator(KvCoder<K, V> coder) {
 		this.coder = coder;
+
+		byteBuffer1 = new InspectableByteArrayOutputStream();
+		byteBuffer2 = new InspectableByteArrayOutputStream();
+
+		inputWrapper = new DataInputViewWrapper(null);
+	}
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+
+		byteBuffer1 = new InspectableByteArrayOutputStream();
+		byteBuffer2 = new InspectableByteArrayOutputStream();
+
+		inputWrapper = new DataInputViewWrapper(null);
 	}
 
 	public KV<K, V> getReference() {
@@ -59,19 +83,19 @@ public class KvCoderComperator <K,V> extends TypeComparator<KV<K,V>> {
 
 	@Override
 	public int compareToReference(TypeComparator<KV<K, V>> other) {
-		return compare(this.reference, ((KvCoderComperator<K,V>) other).reference);
+		return compare(this.reference, ((KvCoderComperator<K, V>) other).reference);
 	}
 
 	@Override
 	public int compare(KV<K, V> first, KV<K, V> second) {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ByteArrayOutputStream baosOther = new ByteArrayOutputStream();
 		try {
-			coder.getKeyCoder().encode(first.getKey(), baos, Coder.Context.OUTER);
-			coder.getKeyCoder().encode(second.getKey(), baosOther, Coder.Context.OUTER);
-			byte[] arr = baos.toByteArray();
-			byte[] arrOther = baosOther.toByteArray();
-			int len = arr.length < arrOther.length ? arr.length : arrOther.length;
+			byteBuffer1.reset();
+			byteBuffer2.reset();
+			coder.getKeyCoder().encode(first.getKey(), byteBuffer1, Coder.Context.OUTER);
+			coder.getKeyCoder().encode(second.getKey(), byteBuffer2, Coder.Context.OUTER);
+			byte[] arr = byteBuffer1.getBuffer();
+			byte[] arrOther = byteBuffer2.getBuffer();
+			int len = Math.min(byteBuffer1.size(), byteBuffer2.size());
 			for(int i = 0; i < len; i++ ) {
 				if (arr[i] != arrOther[i]) {
 					return arr[i] - arrOther[i];
@@ -86,11 +110,28 @@ public class KvCoderComperator <K,V> extends TypeComparator<KV<K,V>> {
 	@Override
 	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		CoderTypeSerializer<KV<K, V>> serializer = new CoderTypeSerializer<KV<K, V>>(coder);
-		KV<K, V> first = serializer.deserialize(firstSource);
-		KV<K, V> second = serializer.deserialize(secondSource);
-		//K keyFirst = first.getKey();
-		//K keySecond = first.getKey();
-		return compare(first, second);
+		inputWrapper.setInputView(firstSource);
+		K firstKey = coder.getKeyCoder().decode(inputWrapper, Coder.Context.NESTED);
+		inputWrapper.setInputView(secondSource);
+		K secondKey = coder.getKeyCoder().decode(inputWrapper, Coder.Context.NESTED);
+
+		try {
+			byteBuffer1.reset();
+			byteBuffer2.reset();
+			coder.getKeyCoder().encode(firstKey, byteBuffer1, Coder.Context.OUTER);
+			coder.getKeyCoder().encode(secondKey, byteBuffer2, Coder.Context.OUTER);
+			byte[] arr = byteBuffer1.getBuffer();
+			byte[] arrOther = byteBuffer2.getBuffer();
+			int len = Math.min(byteBuffer1.size(), byteBuffer2.size());
+			for(int i = 0; i < len; i++ ) {
+				if (arr[i] != arrOther[i]) {
+					return arr[i] - arrOther[i];
+				}
+			}
+			return arr.length - arrOther.length;
+		} catch (IOException e) {
+			throw new RuntimeException("Could not compare reference.", e);
+		}
 	}
 
 	@Override
@@ -140,7 +181,7 @@ public class KvCoderComperator <K,V> extends TypeComparator<KV<K,V>> {
 
 	@Override
 	public int extractKeys(Object record, Object[] target, int index) {
-		KV<K,V> kv = (KV<K,V>) record;
+		KV<K, V> kv = (KV<K, V>) record;
 		K k = kv.getKey();
 		target[index] = k;
 		return 1;
