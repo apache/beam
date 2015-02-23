@@ -1,8 +1,6 @@
 package com.dataartisans.flink.dataflow.translation.types;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.values.KV;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -17,59 +15,42 @@ import java.io.IOException;
  * because the Dataflow API only allows comparisons on the key of a
  * {@link com.google.cloud.dataflow.sdk.values.KV}.
  */
-public class KvCoderComperator <K,V> extends TypeComparator<KV<K,V>> {
-	
-	private KV<K,V> reference = null;
-	private KvCoder<K,V> coder;
+public class CoderComperator<T> extends TypeComparator<T> {
 
-	public KvCoderComperator(KvCoder<K,V> coder) {
+	private T reference = null;
+	private Coder<T> coder;
+
+	public CoderComperator(Coder<T> coder) {
 		this.coder = coder;
 	}
 
-	public KV<K, V> getReference() {
-		return reference;
+	@Override
+	public int hash(T record) {
+		return record.hashCode();
 	}
 
 	@Override
-	public int hash(KV<K, V> record) {
-		K key = record.getKey();
-		if (key != null) {
-			return key.hashCode();
-		} else {
-			return 0;
-		}
-	}
-
-	@Override
-	public void setReference(KV<K, V> toCompare) {
+	public void setReference(T toCompare) {
 		this.reference = toCompare;
 	}
 
 	@Override
-	public boolean equalToReference(KV<K, V> candidate) {
-		K key = reference.getKey();
-		K otherKey = candidate.getKey();
-		if (key == null && otherKey == null) {
-			return true;
-		} else if(key == null || otherKey == null) {
-			return false;
-		} else {
-			return key.equals(otherKey);
-		}
+	public boolean equalToReference(T candidate) {
+		return reference.equals(candidate);
 	}
 
 	@Override
-	public int compareToReference(TypeComparator<KV<K, V>> other) {
-		return compare(this.reference, ((KvCoderComperator<K,V>) other).reference);
+	public int compareToReference(TypeComparator<T> other) {
+		return compare(this.reference, ((CoderComperator<T>) other).reference);
 	}
 
 	@Override
-	public int compare(KV<K, V> first, KV<K, V> second) {
+	public int compare(T first, T second) {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		ByteArrayOutputStream baosOther = new ByteArrayOutputStream();
 		try {
-			coder.getKeyCoder().encode(first.getKey(), baos, Coder.Context.OUTER);
-			coder.getKeyCoder().encode(second.getKey(), baosOther, Coder.Context.OUTER);
+			coder.encode(first, baos, Coder.Context.OUTER);
+			coder.encode(second, baosOther, Coder.Context.OUTER);
 			byte[] arr = baos.toByteArray();
 			byte[] arrOther = baosOther.toByteArray();
 			int len = arr.length < arrOther.length ? arr.length : arrOther.length;
@@ -86,11 +67,9 @@ public class KvCoderComperator <K,V> extends TypeComparator<KV<K,V>> {
 
 	@Override
 	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		CoderTypeSerializer<KV<K, V>> serializer = new CoderTypeSerializer<KV<K, V>>(coder);
-		KV<K, V> first = serializer.deserialize(firstSource);
-		KV<K, V> second = serializer.deserialize(secondSource);
-		//K keyFirst = first.getKey();
-		//K keySecond = first.getKey();
+		CoderTypeSerializer<T> serializer = new CoderTypeSerializer<T>(coder);
+		T first = serializer.deserialize(firstSource);
+		T second = serializer.deserialize(secondSource);
 		return compare(first, second);
 	}
 
@@ -115,17 +94,17 @@ public class KvCoderComperator <K,V> extends TypeComparator<KV<K,V>> {
 	}
 
 	@Override
-	public void putNormalizedKey(KV<K, V> record, MemorySegment target, int offset, int numBytes) {
+	public void putNormalizedKey(T record, MemorySegment target, int offset, int numBytes) {
 
 	}
 
 	@Override
-	public void writeWithKeyNormalization(KV<K, V> record, DataOutputView target) throws IOException {
+	public void writeWithKeyNormalization(T record, DataOutputView target) throws IOException {
 
 	}
 
 	@Override
-	public KV<K, V> readWithKeyDenormalization(KV<K, V> reuse, DataInputView source) throws IOException {
+	public T readWithKeyDenormalization(T reuse, DataInputView source) throws IOException {
 		return null;
 	}
 
@@ -135,20 +114,17 @@ public class KvCoderComperator <K,V> extends TypeComparator<KV<K,V>> {
 	}
 
 	@Override
-	public TypeComparator<KV<K, V>> duplicate() {
-		return new KvCoderComperator<>(coder);
+	public TypeComparator<T> duplicate() {
+		return new CoderComperator<>(coder);
 	}
 
 	@Override
 	public int extractKeys(Object record, Object[] target, int index) {
-		KV<K,V> kv = (KV<K,V>) record;
-		K k = kv.getKey();
-		target[index] = k;
-		return 1;
+		return 0;
 	}
 
 	@Override
 	public TypeComparator[] getFlatComparators() {
-		return new TypeComparator[] { new CoderComperator<>(coder.getKeyCoder())};
+		return new TypeComparator[0];
 	}
 }
