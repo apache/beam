@@ -235,6 +235,34 @@ public class ProxyInvocationHandlerTest {
         proxy.toString());
   }
 
+  @Test
+  public void testToStringAfterDeserializationContainsJsonEntries() throws Exception {
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    Simple proxy = handler.as(Simple.class);
+    proxy.setString("stringValue");
+    DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
+    proxy2.setLong(57L);
+    assertEquals("Current Settings:\n"
+        + "  long: 57\n"
+        + "  string: \"stringValue\"\n",
+        serializeDeserialize(PipelineOptions.class, proxy2).toString());
+  }
+
+  @Test
+  public void testToStringAfterDeserializationContainsOverriddenEntries() throws Exception {
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    Simple proxy = handler.as(Simple.class);
+    proxy.setString("stringValue");
+    DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
+    proxy2.setLong(57L);
+    Simple deserializedOptions = serializeDeserialize(Simple.class, proxy2);
+    deserializedOptions.setString("overriddenValue");
+    assertEquals("Current Settings:\n"
+        + "  long: 57\n"
+        + "  string: overriddenValue\n",
+        deserializedOptions.toString());
+  }
+
   /** A test interface containing an unknown method. */
   public static interface UnknownMethod {
     void unknownMethod();

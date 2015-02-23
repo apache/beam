@@ -54,6 +54,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.TreeMap;
 
 /**
@@ -182,15 +183,23 @@ class ProxyInvocationHandler implements InvocationHandler {
   }
 
   /**
-   * This will output all the currently set values.
+   * This will output all the currently set values. This is a relatively costly function
+   * as it will call {@code toString()} on each object that has been set and format
+   * the results in a readable format.
    *
-   * @return A string representation of this.
+   * @return A pretty printed string representation of this.
    */
   @Override
   public synchronized String toString() {
+    SortedMap<String, Object> sortedOptions = new TreeMap<>();
+    // Add the options that we received from deserialization
+    sortedOptions.putAll(jsonOptions);
+    // Override with any programmatically set options.
+    sortedOptions.putAll(options);
+
     StringBuilder b = new StringBuilder();
     b.append("Current Settings:\n");
-    for (Map.Entry<String, Object> entry : new TreeMap<>(options).entrySet()) {
+    for (Map.Entry<String, Object> entry : sortedOptions.entrySet()) {
       b.append("  " + entry.getKey() + ": " + entry.getValue() + "\n");
     }
     return b.toString();
