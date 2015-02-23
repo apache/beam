@@ -21,7 +21,7 @@ Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 
 	<groupId>com.dataartisans</groupId>
 	<artifactId>flink-dataflow</artifactId>
-	<version>1.0-SNAPSHOT</version>
+	<version>1-SNAPSHOT</version>
 
 	<name>Flink Dataflow Runner</name>
 	<packaging>jar</packaging>
