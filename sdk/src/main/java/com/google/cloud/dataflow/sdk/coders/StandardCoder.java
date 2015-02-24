@@ -28,8 +28,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import javax.annotation.Nullable;
-
 /**
  * A StandardCoder is one that defines equality, hashing, and printing
  * via the class name and recursively using {@link #getComponents}.
@@ -148,8 +146,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     if (!isDeterministic()) {
-      throw new NonDeterministicException(this,
-          getClass().getSimpleName() + " reported it was not determinsitic.");
+      throw new NonDeterministicException(this, "Coder reported it was not determinsitic.");
     }
   }
 
@@ -167,14 +164,5 @@ public abstract class StandardCoder<T> implements Coder<T> {
   protected void verifyDeterministic(String message, Coder<?>... coders)
       throws NonDeterministicException {
     verifyDeterministic(message, Arrays.asList(coders));
-  }
-
-  protected void addReasons(String prefix, List<String> accumulator,
-      @Nullable List<String> newReasons) {
-    if (newReasons != null) {
-      for (String reason : newReasons) {
-        accumulator.add(prefix + reason);
-      }
-    }
   }
 }
