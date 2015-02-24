@@ -172,6 +172,18 @@ public class AvroIO {
     }
 
     /**
+     * Returns a AvroIO.Read PTransform that has GCS path validation on
+     * pipeline creation disabled.
+     *
+     * <p> This can be useful in the case where the GCS input location does
+     * not exist at the pipeline creation time, but is expected to be available
+     * at execution time.
+     */
+    public static Bound<GenericRecord> withoutValidation() {
+      return new Bound<>(GenericRecord.class).withoutValidation();
+    }
+
+    /**
      * A PTransform that reads from an Avro file (or multiple Avro
      * files matching a pattern) and returns a bounded PCollection containing
      * the decoding of each record.
@@ -190,16 +202,19 @@ public class AvroIO {
       /** The schema of the input file. */
       @Nullable
       final Schema schema;
+      /** An option to indicate if input validation is desired. Default is true. */
+      final boolean validate;
 
       Bound(Class<T> type) {
-        this(null, null, type, null);
+        this(null, null, type, null, true);
       }
 
-      Bound(String name, String filepattern, Class<T> type, Schema schema) {
+      Bound(String name, String filepattern, Class<T> type, Schema schema, boolean validate) {
         super(name);
         this.filepattern = filepattern;
         this.type = type;
         this.schema = schema;
+        this.validate = validate;
       }
 
       /**
@@ -207,7 +222,7 @@ public class AvroIO {
        * with the given step name.  Does not modify this object.
        */
       public Bound<T> named(String name) {
-        return new Bound<>(name, filepattern, type, schema);
+        return new Bound<>(name, filepattern, type, schema, validate);
       }
 
       /**
@@ -217,7 +232,7 @@ public class AvroIO {
        * filepatterns.)  Does not modify this object.
        */
       public Bound<T> from(String filepattern) {
-        return new Bound<>(name, filepattern, type, schema);
+        return new Bound<>(name, filepattern, type, schema, validate);
       }
 
       /**
@@ -229,7 +244,7 @@ public class AvroIO {
        * the resulting PCollection
        */
       public <T1> Bound<T1> withSchema(Class<T1> type) {
-        return new Bound<>(name, filepattern, type, ReflectData.get().getSchema(type));
+        return new Bound<>(name, filepattern, type, ReflectData.get().getSchema(type), validate);
       }
 
       /**
@@ -238,7 +253,7 @@ public class AvroIO {
        * Does not modify this object.
        */
       public Bound<GenericRecord> withSchema(Schema schema) {
-        return new Bound<>(name, filepattern, GenericRecord.class, schema);
+        return new Bound<>(name, filepattern, GenericRecord.class, schema, validate);
       }
 
       /**
@@ -248,6 +263,19 @@ public class AvroIO {
        */
       public Bound<GenericRecord> withSchema(String schema) {
         return withSchema((new Schema.Parser()).parse(schema));
+      }
+
+      /**
+       * Returns a new TextIO.Read PTransform that's like this one but
+       * that has GCS input path validation on pipeline creation disabled.
+       * Does not modify this object.
+       *
+       * <p> This can be useful in the case where the GCS input location does
+       * not exist at the pipeline creation time, but is expected to be
+       * available at execution time.
+       */
+      public Bound<T> withoutValidation() {
+        return new Bound<>(name, filepattern, type, schema, false);
       }
 
       @Override
@@ -283,6 +311,10 @@ public class AvroIO {
 
       public Schema getSchema() {
         return schema;
+      }
+
+      public boolean needsValidation() {
+        return validate;
       }
 
       static {
@@ -399,6 +431,18 @@ public class AvroIO {
     }
 
     /**
+     * Returns a AvroIO.Write PTransform that has GCS path validation on
+     * pipeline creation disabled.
+     *
+     * <p> This can be useful in the case where the GCS output location does
+     * not exist at the pipeline creation time, but is expected to be available
+     * at execution time.
+     */
+    public static Bound<GenericRecord> withoutValidation() {
+      return new Bound<>(GenericRecord.class).withoutValidation();
+    }
+
+    /**
      * A PTransform that writes a bounded PCollection to an Avro file (or
      * multiple Avro files matching a sharding pattern).
      *
@@ -421,13 +465,15 @@ public class AvroIO {
       /** The schema of the output file. */
       @Nullable
       final Schema schema;
+      /** An option to indicate if output validation is desired. Default is true. */
+      final boolean validate;
 
       Bound(Class<T> type) {
-        this(null, null, "", 0, ShardNameTemplate.INDEX_OF_MAX, type, null);
+        this(null, null, "", 0, ShardNameTemplate.INDEX_OF_MAX, type, null, true);
       }
 
       Bound(String name, String filenamePrefix, String filenameSuffix, int numShards,
-          String shardTemplate, Class<T> type, Schema schema) {
+          String shardTemplate, Class<T> type, Schema schema, boolean validate) {
         super(name);
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
@@ -435,6 +481,7 @@ public class AvroIO {
         this.shardTemplate = shardTemplate;
         this.type = type;
         this.schema = schema;
+        this.validate = validate;
       }
 
       /**
@@ -443,7 +490,7 @@ public class AvroIO {
        */
       public Bound<T> named(String name) {
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema);
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
       }
 
       /**
@@ -457,7 +504,7 @@ public class AvroIO {
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema);
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
       }
 
       /**
@@ -471,7 +518,7 @@ public class AvroIO {
       public Bound<T> withSuffix(String filenameSuffix) {
         validateOutputComponent(filenameSuffix);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema);
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
       }
 
       /**
@@ -491,7 +538,7 @@ public class AvroIO {
       public Bound<T> withNumShards(int numShards) {
         Preconditions.checkArgument(numShards >= 0);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema);
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
       }
 
       /**
@@ -504,7 +551,7 @@ public class AvroIO {
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema);
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
       }
 
       /**
@@ -517,7 +564,7 @@ public class AvroIO {
        * <p> Does not modify this object.
        */
       public Bound<T> withoutSharding() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, 1, "", type, schema);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, 1, "", type, schema, validate);
       }
 
       /**
@@ -529,7 +576,7 @@ public class AvroIO {
        */
       public <T1> Bound<T1> withSchema(Class<T1> type) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type,
-            ReflectData.get().getSchema(type));
+            ReflectData.get().getSchema(type), validate);
       }
 
       /**
@@ -539,7 +586,7 @@ public class AvroIO {
        */
       public Bound<GenericRecord> withSchema(Schema schema) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
-            GenericRecord.class, schema);
+            GenericRecord.class, schema, validate);
       }
 
       /**
@@ -549,6 +596,20 @@ public class AvroIO {
        */
       public Bound<GenericRecord> withSchema(String schema) {
         return withSchema((new Schema.Parser()).parse(schema));
+      }
+
+      /**
+       * Returns a new TextIO.Write PTransform that's like this one but
+       * that has GCS output path validation on pipeline creation disabled.
+       * Does not modify this object.
+       *
+       * <p> This can be useful in the case where the GCS output location does
+       * not exist at the pipeline creation time, but is expected to be
+       * available at execution time.
+       */
+      public Bound<T> withoutValidation() {
+        return new Bound<>(
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, false);
       }
 
       @Override
@@ -603,6 +664,10 @@ public class AvroIO {
 
       public Schema getSchema() {
         return schema;
+      }
+
+      public boolean needsValidation() {
+        return validate;
       }
 
       static {

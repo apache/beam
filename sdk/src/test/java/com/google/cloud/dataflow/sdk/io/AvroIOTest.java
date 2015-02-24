@@ -18,7 +18,9 @@ package com.google.cloud.dataflow.sdk.io;
 
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -359,6 +361,20 @@ public class AvroIOTest {
                              .to(avroFile.getPath())
                              .named("HerWrite"),
                  "HerWrite");
+  }
+
+  @Test
+  public void testReadWithoutValidationFlag() throws Exception {
+    AvroIO.Read.Bound<GenericRecord> read = AvroIO.Read.from("gs://bucket/foo*/baz");
+    assertTrue(read.needsValidation());
+    assertFalse(read.withoutValidation().needsValidation());
+  }
+
+  @Test
+  public void testWriteWithoutValidationFlag() throws Exception {
+    AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write.to("gs://bucket/foo/baz");
+    assertTrue(write.needsValidation());
+    assertFalse(write.withoutValidation().needsValidation());
   }
 
   // TODO: for Write only, test withSuffix, withNumShards,
