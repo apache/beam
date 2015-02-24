@@ -36,6 +36,7 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.RecordingPipelineVisitor;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
@@ -310,6 +311,36 @@ public class CombineTest {
         counter.new Counter(131, 5, 0, 0),
         counter.new Counter(8, 2, 0, 0),
         counter.new Counter(1, 1, 0, 0)));
+  }
+
+  private static final SerializableFunction<String, Integer> hotKeySpread =
+      new SerializableFunction<String, Integer>() {
+        @Override
+        public Integer apply(String input) {
+          return input.equals("a") ? 3 : 0;
+        }
+      };
+
+  @Test
+  public void testHotKeyCombining() {
+    Pipeline p = TestPipeline.create();
+    PCollection<KV<String, Integer>> input = copy(createInput(p, TABLE), 10);
+
+    KeyedCombineFn<String, Integer, ?, Double> mean =
+        new MeanInts().<String>asKeyedFn();
+    PCollection<KV<String, Double>> coldMean = input.apply(
+        Combine.perKey(mean).withHotKeys(0));
+    PCollection<KV<String, Double>> warmMean = input.apply(
+        Combine.perKey(mean).withHotKeys(hotKeySpread));
+    PCollection<KV<String, Double>> hotMean = input.apply(
+        Combine.perKey(mean).withHotKeys(5));
+
+    List<KV<String, Double>> expected = Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0));
+    DataflowAssert.that(coldMean).containsInAnyOrder(expected);
+    DataflowAssert.that(warmMean).containsInAnyOrder(expected);
+    DataflowAssert.that(hotMean).containsInAnyOrder(expected);
+
+    p.run();
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -587,5 +618,16 @@ public class CombineTest {
       // for tests.
       return SerializableCoder.of(Counter.class);
     }
+  }
+
+  private static <T> PCollection<T> copy(PCollection<T> pc, final int n) {
+    return pc.apply(ParDo.of(new DoFn<T, T>() {
+      @Override
+      public void processElement(ProcessContext c) throws Exception {
+        for (int i = 0; i < n; i++) {
+          c.output(c.element());
+        }
+      }
+    }));
   }
 }

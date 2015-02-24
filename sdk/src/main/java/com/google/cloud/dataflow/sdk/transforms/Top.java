@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.CustomCoder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Combine.PerKey;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -303,7 +304,7 @@ public class Top {
    * which take a {@code PCollection} and return the top elements.
    */
   public static <K, V extends Comparable<V>>
-      PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
+      PerKey<K, V, List<V>>
       largestPerKey(int count) {
     return Combine.perKey(
         new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())

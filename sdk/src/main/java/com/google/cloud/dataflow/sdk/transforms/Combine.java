@@ -20,11 +20,17 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
@@ -911,6 +917,39 @@ public class Combine {
     }
 
     /**
+     * If a single key has disproportionately many values, it may become a
+     * bottleneck, especially in streaming mode.  This returns a new per-key
+     * combining transform that inserts an intermediate node to combine "hot"
+     * keys partially before performing the full combine.
+     *
+     * @param hotKeySpread a function from keys to an integer N, where the key
+     * will be spread among N intermediate nodes for partial combining.
+     * If N is less than or equal to 1, this key will not be sent through an
+     * intermediate node.
+     */
+    public PerKeyWithHotKeys<K, VI, VO> withHotKeys(
+        SerializableFunction<? super K, Integer> hotKeySpread) {
+      return new PerKeyWithHotKeys<K, VI, VO>(fn, hotKeySpread).withName(name);
+    }
+
+    /**
+     * Like {@link #withHotKeys(SerializableFunction)}, but returning the given
+     * constant value for every key.
+     */
+    public PerKeyWithHotKeys<K, VI, VO> withHotKeys(final int hotKeySpread) {
+      return withHotKeys(
+          new SerializableFunction<K, Integer>(){
+            @Override public Integer apply(K unused) { return hotKeySpread; }
+          });
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public PerKey<K, VI, VO> withName(String name) {
+      return (PerKey<K, VI, VO>) super.withName(name);
+    }
+
+    /**
      * Returns the KeyedCombineFn used by this Combine operation.
      */
     public KeyedCombineFn<? super K, ? super VI, ?, VO> getFn() {
@@ -922,6 +961,154 @@ public class Combine {
       return input
         .apply(GroupByKey.<K, VI>create())
         .apply(Combine.<K, VI, VO>groupedValues(fn));
+    }
+
+    @Override
+    protected String getKindString() {
+      return "Combine.PerKey";
+    }
+  }
+
+  /**
+   * Like {@link PerKey}, but sharding the combining of hot keys.
+   */
+  public static class PerKeyWithHotKeys<K, VI, VO>
+      extends PTransform<PCollection<KV<K, VI>>, PCollection<KV<K, VO>>> {
+
+    private final transient KeyedCombineFn<? super K, ? super VI, ?, VO> fn;
+    private final SerializableFunction<? super K, Integer> hotKeySpread;
+
+    private PerKeyWithHotKeys(
+        KeyedCombineFn<? super K, ? super VI, ?, VO> fn,
+        SerializableFunction<? super K, Integer> hotKeySpread) {
+      this.fn = fn;
+      this.hotKeySpread = hotKeySpread;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public PerKeyWithHotKeys<K, VI, VO> withName(String name) {
+      return (PerKeyWithHotKeys<K, VI, VO>) super.withName(name);
+    }
+
+    @Override
+    public PCollection<KV<K, VO>> apply(PCollection<KV<K, VI>> input) {
+      return applyHelper(input);
+    }
+
+    private <VA> PCollection<KV<K, VO>> applyHelper(PCollection<KV<K, VI>> input) {
+      // Name the accumulator type.
+      @SuppressWarnings("unchecked")
+      final KeyedCombineFn<K, VI, VA, VO> fn = (KeyedCombineFn<K, VI, VA, VO>) this.fn;
+
+      // A CombineFn's mergeAccumulator can be applied in a tree-like fashon.
+      // Here we shard the key using an integer nonce, combine on that partial
+      // set of values, then drop the nonce and do a final combine of the
+      // aggregates.  We do this by splitting the original CombineFn into two,
+      // on that does addInput + merge and another that does merge + extract.
+      KeyedCombineFn<KV<K, Integer>, VI, VA, VA> hotPreCombine =
+          new KeyedCombineFn<KV<K, Integer>, VI, VA, VA>() {
+            @Override
+            public VA createAccumulator(KV<K, Integer> key) {
+              return fn.createAccumulator(key.getKey());
+            }
+            @Override
+            public void addInput(KV<K, Integer> key, VA accumulator, VI value) {
+              fn.addInput(key.getKey(), accumulator, value);
+            }
+            @Override
+            public VA mergeAccumulators(KV<K, Integer> key, Iterable<VA> accumulators) {
+              return fn.mergeAccumulators(key.getKey(), accumulators);
+            }
+            @Override
+            public VA extractOutput(KV<K, Integer> key, VA accumulator) {
+              return accumulator;
+            }
+            @Override
+            @SuppressWarnings("unchecked")
+            public Coder<VA> getAccumulatorCoder(
+                CoderRegistry registry, Coder<KV<K, Integer>> keyCoder, Coder<VI> inputCoder) {
+              return fn.getAccumulatorCoder(
+                  registry, ((KvCoder<K, Integer>) keyCoder).getKeyCoder(), inputCoder);
+            }
+      };
+
+      @SuppressWarnings("unchecked")
+      final KvCoder<K, VI> inputCoder = ((KvCoder<K, VI>) input.getCoder());
+      // List required because the accumulator must be mutable.
+      KeyedCombineFn<K, VA, List<VA>, VO> hotPostCombine =
+          new KeyedCombineFn<K, VA, List<VA>, VO>() {
+            @Override
+            public List<VA> createAccumulator(K key) {
+              return new ArrayList<>();
+            }
+            @Override
+            public void addInput(K key, List<VA> accumulator, VA value) {
+              VA merged = fn.mergeAccumulators(
+                  key, Iterables.concat(accumulator, ImmutableList.of(value)));
+              accumulator.clear();
+              accumulator.add(merged);
+            }
+            @Override
+            public List<VA> mergeAccumulators(K key, Iterable<List<VA>> accumulators) {
+              List<VA> singleton = new ArrayList<>();
+              singleton.add(fn.mergeAccumulators(key, Iterables.concat(accumulators)));
+              return singleton;
+            }
+            @Override
+            public VO extractOutput(K key, List<VA> accumulator) {
+              return fn.extractOutput(key, fn.mergeAccumulators(key, accumulator));
+            }
+            @Override
+            public Coder<VO> getDefaultOutputCoder(
+                CoderRegistry registry, Coder<K> keyCoder, Coder<VA> accumulatorCoder) {
+              return fn.getDefaultOutputCoder(registry, keyCoder, inputCoder.getValueCoder());
+            }
+      };
+
+      // Use the provided hotKeySpread fn to split into "hot" and "cold" keys,
+      // augmenting the hot keys with a nonce.
+      final TupleTag<KV<KV<K, Integer>, VI>> hot = new TupleTag<>();
+      final TupleTag<KV<K, VI>> cold = new TupleTag<>();
+      PCollectionTuple split = input.apply(
+          ParDo.of(new DoFn<KV<K, VI>, KV<K, VI>>(){
+                     int counter = 0;
+                     @Override
+                     public void processElement(ProcessContext c) {
+                       KV<K, VI> kv = c.element();
+                       int spread = hotKeySpread.apply(kv.getKey());
+                       if (spread <= 1) {
+                         c.output(kv);
+                       } else {
+                         int nonce = counter++ % spread;
+                         c.sideOutput(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
+                       }
+                     }
+                   })
+               .withOutputTags(cold, TupleTagList.of(hot)));
+
+      // Combine the hot and cold keys separately.
+      PCollection<KV<K, VO>> combinedHot = split
+          .get(hot)
+          .setCoder(KvCoder.of(KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
+                               inputCoder.getValueCoder()))
+          .apply(Combine.perKey(hotPreCombine))
+          .apply(ParDo.of(
+              new DoFn<KV<KV<K, Integer>, VA>, KV<K, VA>>() {
+                @Override
+                public void processElement(ProcessContext c) {
+                  c.output(KV.of(c.element().getKey().getKey(), c.element().getValue()));
+                }
+              }))
+          .apply(Combine.perKey(hotPostCombine));
+      PCollection<KV<K, VO>> combinedCold = split
+          .get(cold)
+          .setCoder(inputCoder)
+          .apply(Combine.perKey(fn));
+
+      // Return the union of the hot and cold key results.
+      return PCollectionList.of(combinedHot).and(combinedCold)
+          .apply(Flatten.<KV<K, VO>>pCollections());
     }
 
     @Override
