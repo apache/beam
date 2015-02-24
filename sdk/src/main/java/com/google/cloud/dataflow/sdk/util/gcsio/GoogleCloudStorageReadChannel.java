@@ -78,6 +78,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
 
   // Size of the object being read.
   private long size = -1;
+  private boolean isCompressedStream;
 
   // Maximum number of automatic retries when reading from the underlying channel without making
   // progress; each time at least one byte is successfully read, the counter of attempted retries
@@ -256,6 +257,12 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         int numBytesRead = readChannel.read(buffer);
         Preconditions.checkState(numBytesRead != 0, "Read 0 bytes without blocking!");
         if (numBytesRead < 0) {
+          // Check that we didn't get a premature End of Stream signal by checking the number of
+          // bytes read against the stream size. Unfortunately we don't have information about the
+          // actual size of the data stream when stream compression is used, so we can only ignore
+          // this case here.
+          Preconditions.checkState(isCompressedStream || currentPosition == size,
+              "Received end of stream result before all the file data has been received");
           break;
         }
         totalBytesRead += numBytesRead;
@@ -347,7 +354,17 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     // If this method was called when the stream was already at EOF
     // (indicated by totalBytesRead == 0) then return EOF else,
     // return the number of bytes read.
-    return (totalBytesRead == 0) ? -1 : totalBytesRead;
+    boolean isEndOfStream = (totalBytesRead == 0);
+    if (isEndOfStream) {
+      // Check that we didn't get a premature End of Stream signal by checking the number of bytes
+      // read against the stream size. Unfortunately we don't have information about the actual size
+      // of the data stream when stream compression is used, so we can only ignore this case here.
+      Preconditions.checkState(isCompressedStream || currentPosition == size,
+          "Failed to read any data before all the file data has been received");
+      return -1;
+    } else {
+      return totalBytesRead;
+    }
   }
 
   @Override
@@ -530,6 +547,12 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         throw new IOException(msg, e);
       }
     }
+
+    // If the content is compressed, content length reported in the header is counting the number of
+    // compressed bytes. That means that we cannot rely on the reported content length to check that
+    // we have received all the data from the data stream.
+    String contentEncoding = response.getContentEncoding();
+    isCompressedStream = (contentEncoding != null && contentEncoding.contains("gzip"));
 
     String contentRange = response.getHeaders().getContentRange();
     if (response.getHeaders().getContentLength() != null) {
