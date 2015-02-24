@@ -91,6 +91,7 @@ public class FlinkTransformTranslators {
 
 		TRANSLATORS.put(TextIO.Read.Bound.class, new TextIOReadTranslator());
 		TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteTranslator());
+
 		// Flink-specific
 		TRANSLATORS.put(ConsoleIO.Write.Bound.class, new ConsoleIOWriteTranslator());
 		
@@ -307,12 +308,17 @@ public class FlinkTransformTranslators {
 //	}
 	
 	private static class ParDoBoundTranslator<IN, OUT> implements FlinkPipelineTranslator.TransformTranslator<ParDo.Bound<IN, OUT>> {
-		
+		private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundTranslator.class);
+
 		@Override
 		public void translateNode(ParDo.Bound<IN, OUT> transform, TranslationContext context) {
 			DataSet<IN> inputDataSet = context.getInputDataSet(transform.getInput());
 
 			final DoFn<IN, OUT> doFn = transform.getFn();
+
+			if (doFn instanceof DoFn.RequiresKeyedState) {
+				LOG.error("Flink Batch Execution does not support Keyed State.");
+			}
 			
 			TypeInformation<OUT> typeInformation = context.getTypeInfo(transform.getOutput());
 
@@ -326,12 +332,17 @@ public class FlinkTransformTranslators {
 	}
 
 	private static class ParDoBoundMultiTranslator<IN, OUT> implements FlinkPipelineTranslator.TransformTranslator<ParDo.BoundMulti<IN, OUT>> {
+		private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundMultiTranslator.class);
 
 		@Override
 		public void translateNode(ParDo.BoundMulti<IN, OUT> transform, TranslationContext context) {
 			DataSet<IN> inputDataSet = context.getInputDataSet(transform.getInput());
 
 			final DoFn<IN, OUT> doFn = transform.getFn();
+
+			if (doFn instanceof DoFn.RequiresKeyedState) {
+				LOG.error("Flink Batch Execution does not support Keyed State.");
+			}
 
 			Map<TupleTag<?>, PCollection<?>> outputs = transform.getOutput().getAll();
 
