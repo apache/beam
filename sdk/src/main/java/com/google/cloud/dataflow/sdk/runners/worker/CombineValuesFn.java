@@ -203,7 +203,7 @@ public class CombineValuesFn extends NormalParDoFn {
   }
 
   /*
-   * EXTRACT phase: KV<K, Iterable<VA>> -> KV<K, VA>.
+   * EXTRACT phase: KV<K, VA> -> KV<K, VO>.
    */
   private static class ExtractOutputDoFn<K, VA, VO>
       extends DoFn<KV<K, VA>, KV<K, VO>>{
