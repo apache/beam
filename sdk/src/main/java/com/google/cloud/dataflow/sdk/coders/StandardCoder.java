@@ -126,7 +126,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
       return os.size();
     } catch (Exception exn) {
       throw new IllegalArgumentException(
-          "Unable to encode element " + value + " with coder " + this, exn);
+          "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
     }
   }
 
