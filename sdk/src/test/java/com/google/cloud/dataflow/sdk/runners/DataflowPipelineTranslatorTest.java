@@ -56,6 +56,8 @@ import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
 import org.junit.Assert;
@@ -133,6 +135,7 @@ public class DataflowPipelineTranslatorTest {
   private static DataflowPipelineOptions buildPipelineOptions() throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setGcpCredential(new TestCredential());
+    options.setJobName("some-job-name");
     options.setProject("some-project");
     options.setTempLocation(GcsPath.fromComponents("somebucket", "some/path").toString());
     options.setFilesToStage(new LinkedList<String>());
@@ -141,11 +144,36 @@ public class DataflowPipelineTranslatorTest {
   }
 
   @Test
+  public void testSettingOfSdkPipelineOptions() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRunner(DataflowPipelineRunner.class);
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    Job job = DataflowPipelineTranslator.fromOptions(options).translate(
+        p, Collections.<DataflowPackage>emptyList());
+
+    assertEquals(ImmutableMap.of("options",
+        ImmutableMap.builder()
+          .put("appName", "DataflowPipelineTranslatorTest")
+          .put("project", "some-project")
+          .put("pathValidatorClass", "com.google.cloud.dataflow.sdk.util.DataflowPathValidator")
+          .put("runner", "com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner")
+          .put("jobName", "some-job-name")
+          .put("tempLocation", "gs://somebucket/some/path")
+          .put("filesToStage", ImmutableList.of())
+          .put("stagingLocation", "gs://somebucket/some/path/staging")
+          .build()),
+        job.getEnvironment().getSdkPipelineOptions());
+  }
+
+  @Test
   public void testZoneConfig() throws IOException {
     final String testZone = "test-zone-1";
 
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setZone(testZone);
+    options.setRunner(DataflowPipelineRunner.class);
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());

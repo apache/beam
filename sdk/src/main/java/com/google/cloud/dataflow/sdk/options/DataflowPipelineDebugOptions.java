@@ -22,6 +22,8 @@ import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.Stager;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.List;
 
 /**
@@ -82,6 +84,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   /**
    * The validator class used to validate path names.
    */
+  @JsonIgnore
   @Description("The validator class used to validate path names.")
   @Default.InstanceFactory(PathValidatorFactory.class)
   PathValidator getPathValidator();
@@ -98,6 +101,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   /**
    * The stager instance used to stage files.
    */
+  @JsonIgnore
   @Description("The class use to stage packages.")
   @Default.InstanceFactory(StagerFactory.class)
   Stager getStager();

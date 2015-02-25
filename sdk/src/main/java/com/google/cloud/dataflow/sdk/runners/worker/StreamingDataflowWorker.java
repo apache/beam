@@ -112,8 +112,15 @@ public class StreamingDataflowWorker {
         (WindmillServerStub) Class.forName(WINDMILL_SERVER_CLASS_NAME)
         .getDeclaredConstructor(String.class).newInstance(hostport);
 
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.createFromSystemProperties();
+    // TODO: Remove setting these options once we have migrated to passing
+    // through the pipeline options.
+    options.setAppName("StreamingWorkerHarness");
+    options.setStreaming(true);
+
     StreamingDataflowWorker worker =
-        new StreamingDataflowWorker(mapTasks, windmillServer);
+        new StreamingDataflowWorker(mapTasks, windmillServer, options);
     worker.start();
 
     worker.runStatusServer(statusPort);
@@ -134,43 +141,50 @@ public class StreamingDataflowWorker {
   private Server statusServer;
   private AtomicReference<Throwable> lastException;
 
-  /** Regular constructor. */
   public StreamingDataflowWorker(
-      List<MapTask> mapTasks, WindmillServerStub server) {
-    options = PipelineOptionsFactory.createFromSystemProperties();
-    options.setAppName("StreamingWorkerHarness");
-    options.setStreaming(true);
-
-    initialize(mapTasks, server);
-
-    if (System.getProperties().containsKey("path_validator_class")) {
-      try {
-        options.setPathValidatorClass((Class) Class.forName(
-            System.getProperty("path_validator_class")));
-      } catch (ClassNotFoundException e) {
-        throw new RuntimeException("Unable to find validator class", e);
-      }
-    }
-    if (System.getProperties().containsKey("credential_factory_class")) {
-      try {
-        options.setCredentialFactoryClass((Class) Class.forName(
-            System.getProperty("credential_factory_class")));
-      } catch (ClassNotFoundException e) {
-        throw new RuntimeException("Unable to find credential factory class", e);
-      }
-    }
-  }
-
-  /** The constructor that takes PipelineOptions.  Should be used only by unit tests. */
-  StreamingDataflowWorker(
       List<MapTask> mapTasks, WindmillServerStub server, DataflowWorkerHarnessOptions options) {
     this.options = options;
-    initialize(mapTasks, server);
+    this.instructionMap = new ConcurrentHashMap<>();
+    this.outputMap = new ConcurrentHashMap<>();
+    this.mapTaskExecutors = new ConcurrentHashMap<>();
+    for (MapTask mapTask : mapTasks) {
+      addComputation(mapTask);
+    }
+    this.threadFactory = new ThreadFactory() {
+        private final Thread.UncaughtExceptionHandler handler =
+            new Thread.UncaughtExceptionHandler() {
+              @Override
+              public void uncaughtException(Thread thread, Throwable e) {
+                LOG.error("Uncaught exception: ", e);
+                System.exit(1);
+              }
+            };
+
+        @Override
+        public Thread newThread(Runnable r) {
+          Thread t = new Thread(r);
+          t.setUncaughtExceptionHandler(handler);
+          t.setDaemon(true);
+          return t;
+        }
+      };
+    this.executor = new BoundedQueueExecutor(
+        MAX_THREAD_POOL_SIZE, THREAD_EXPIRATION_TIME_SEC, TimeUnit.SECONDS,
+        MAX_THREAD_POOL_QUEUE_SIZE, threadFactory);
+    this.windmillServer = server;
+    this.running = new AtomicBoolean();
+    this.stateFetcher = new StateFetcher(server);
+    this.clientId = new Random().nextLong();
+    this.lastException = new AtomicReference<>();
+
+    DataflowWorkerLoggingFormatter.setJobId(options.getJobId());
+    DataflowWorkerLoggingFormatter.setWorkerId(options.getWorkerId());
   }
 
   public void start() {
     running.set(true);
     dispatchThread = threadFactory.newThread(new Runnable() {
+        @Override
         public void run() {
           dispatchLoop();
         }
@@ -180,6 +194,7 @@ public class StreamingDataflowWorker {
     dispatchThread.start();
 
     commitThread = threadFactory.newThread(new Runnable() {
+        @Override
         public void run() {
           commitLoop();
         }
@@ -210,42 +225,6 @@ public class StreamingDataflowWorker {
     } catch (Exception e) {
       LOG.warn("Exception while shutting down: ", e);
     }
-  }
-
-  /** Initializes the execution harness. */
-  private void initialize(List<MapTask> mapTasks, WindmillServerStub server) {
-    this.instructionMap = new ConcurrentHashMap<>();
-    this.outputMap = new ConcurrentHashMap<>();
-    this.mapTaskExecutors = new ConcurrentHashMap<>();
-    for (MapTask mapTask : mapTasks) {
-      addComputation(mapTask);
-    }
-    this.threadFactory = new ThreadFactory() {
-        private final Thread.UncaughtExceptionHandler handler =
-            new Thread.UncaughtExceptionHandler() {
-              public void uncaughtException(Thread thread, Throwable e) {
-                LOG.error("Uncaught exception: ", e);
-                System.exit(1);
-              }
-            };
-        public Thread newThread(Runnable r) {
-          Thread t = new Thread(r);
-          t.setUncaughtExceptionHandler(handler);
-          t.setDaemon(true);
-          return t;
-        }
-      };
-    this.executor = new BoundedQueueExecutor(
-        MAX_THREAD_POOL_SIZE, THREAD_EXPIRATION_TIME_SEC, TimeUnit.SECONDS,
-        MAX_THREAD_POOL_QUEUE_SIZE, threadFactory);
-    this.windmillServer = server;
-    this.running = new AtomicBoolean();
-    this.stateFetcher = new StateFetcher(server);
-    this.clientId = new Random().nextLong();
-    this.lastException = new AtomicReference<>();
-
-    DataflowWorkerLoggingFormatter.setJobId(options.getJobId());
-    DataflowWorkerLoggingFormatter.setWorkerId(options.getWorkerId());
   }
 
   public void runStatusServer(int statusPort) {
@@ -320,6 +299,7 @@ public class StreamingDataflowWorker {
             getConfig(computation);
           }
           executor.execute(new Runnable() {
+              @Override
               public void run() {
                 process(computation, work);
               }
@@ -402,6 +382,7 @@ public class StreamingDataflowWorker {
           // Try again, after some delay and at the end of the queue to avoid a tight loop.
           sleep(10000);
           executor.forceExecute(new Runnable() {
+              @Override
               public void run() {
                 process(computation, work);
               }

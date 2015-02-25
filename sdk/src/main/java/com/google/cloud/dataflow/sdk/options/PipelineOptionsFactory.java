@@ -50,6 +50,7 @@ import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
@@ -495,9 +496,28 @@ public class PipelineOptionsFactory {
    *         {@link DataflowWorkerHarness}.
    */
   @Deprecated
-  public static DataflowWorkerHarnessOptions createFromSystemProperties() {
-    DataflowWorkerHarnessOptions options = as(DataflowWorkerHarnessOptions.class);
-    options.setRunner(null);
+  public static DataflowWorkerHarnessOptions createFromSystemProperties() throws IOException {
+    ObjectMapper objectMapper = new ObjectMapper();
+    DataflowWorkerHarnessOptions options;
+    if (System.getProperties().containsKey("sdk_pipeline_options")) {
+      String serializedOptions = System.getProperty("sdk_pipeline_options");
+      LOG.info("Worker harness starting with: " + serializedOptions);
+      options = objectMapper.readValue(serializedOptions, PipelineOptions.class)
+          .as(DataflowWorkerHarnessOptions.class);
+    } else {
+      options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    }
+
+    // These values will not be known at job submission time and must be provided.
+    if (System.getProperties().containsKey("worker_id")) {
+      options.setWorkerId(System.getProperty("worker_id"));
+    }
+    if (System.getProperties().containsKey("job_id")) {
+      options.setJobId(System.getProperty("job_id"));
+    }
+
+    // TODO: Remove setting these options once we have migrated to passing
+    // through the pipeline options.
     if (System.getProperties().containsKey("root_url")) {
       options.setApiRootUrl(System.getProperty("root_url"));
     }
@@ -513,14 +533,8 @@ public class PipelineOptionsFactory {
     if (System.getProperties().containsKey("service_account_keyfile")) {
       options.setServiceAccountKeyfile(System.getProperty("service_account_keyfile"));
     }
-    if (System.getProperties().containsKey("worker_id")) {
-      options.setWorkerId(System.getProperty("worker_id"));
-    }
     if (System.getProperties().containsKey("project_id")) {
       options.setProject(System.getProperty("project_id"));
-    }
-    if (System.getProperties().containsKey("job_id")) {
-      options.setJobId(System.getProperty("job_id"));
     }
     if (System.getProperties().containsKey("path_validator_class")) {
       try {

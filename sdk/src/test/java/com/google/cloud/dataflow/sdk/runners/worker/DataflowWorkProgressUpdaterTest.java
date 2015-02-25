@@ -144,7 +144,7 @@ public class DataflowWorkProgressUpdaterTest {
   public void initMocksAndWorkflowServiceAndWorkerAndWork() throws IOException {
     MockitoAnnotations.initMocks(this);
 
-    options = PipelineOptionsFactory.createFromSystemProperties();
+    options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     options.setProject(PROJECT_ID);
     options.setJobId(JOB_ID);
     options.setWorkerId(WORKER_ID);

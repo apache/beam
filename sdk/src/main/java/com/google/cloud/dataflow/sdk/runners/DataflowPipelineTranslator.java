@@ -89,6 +89,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -108,6 +109,7 @@ public class DataflowPipelineTranslator {
   // Must be kept in sync with their internal counterparts.
   public static final String HARNESS_WORKER_POOL = "harness";
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineTranslator.class);
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   /**
    * A map from PTransform class to the corresponding
@@ -339,6 +341,14 @@ public class DataflowPipelineTranslator {
 
       Environment environment = new Environment();
       job.setEnvironment(environment);
+
+      try {
+        environment.setSdkPipelineOptions(
+            MAPPER.readValue(MAPPER.writeValueAsBytes(options), Map.class));
+      } catch (IOException e) {
+        throw new IllegalArgumentException(
+            "PipelineOptions specified failed to serialize to JSON.", e);
+      }
 
       WorkerPool workerPool = new WorkerPool();
 

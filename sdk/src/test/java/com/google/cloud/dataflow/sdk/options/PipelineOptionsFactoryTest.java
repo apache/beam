@@ -59,7 +59,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
-  public void testCreationFromSystemProperties() {
+  public void testCreationFromSystemProperties() throws Exception {
     System.getProperties().putAll(ImmutableMap
         .<String, String>builder()
         .put("root_url", "test_root_url")
@@ -71,7 +71,10 @@ public class PipelineOptionsFactoryTest {
         .put("worker_id", "test_worker_id")
         .put("project_id", "test_project_id")
         .put("job_id", "test_job_id")
+        // Set a non-default value for testing
+        .put("sdk_pipeline_options", "{\"options\":{\"numWorkers\":999}}")
         .build());
+
     DataflowWorkerHarnessOptions options = PipelineOptionsFactory.createFromSystemProperties();
     assertEquals("test_root_url", options.getApiRootUrl());
     assertEquals("test_service_path", options.getDataflowEndpoint());
@@ -82,6 +85,7 @@ public class PipelineOptionsFactoryTest {
     assertEquals("test_worker_id", options.getWorkerId());
     assertEquals("test_project_id", options.getProject());
     assertEquals("test_job_id", options.getJobId());
+    assertEquals(999, options.getNumWorkers());
   }
 
   @Test
