@@ -203,14 +203,13 @@ public class GcsPath implements Path {
     }
     Preconditions.checkArgument(!bucket.contains("/"),
         "GCS bucket may not contain a slash");
-    Preconditions
-        .checkArgument(bucket.isEmpty()
-                || bucket.matches("[a-z0-9][-_a-z0-9.]+[a-z0-9]"),
-            "GCS bucket names must contain only lowercase letters, numbers, "
-                + "dashes (-), underscores (_), and dots (.). Bucket names "
-                + "must start and end with a number or letter. "
-                + "See https://developers.google.com/storage/docs/bucketnaming "
-                + "for more details.  Bucket name: " + bucket);
+    Preconditions.checkArgument(
+        bucket.isEmpty() || bucket.matches("[a-z0-9][-_a-z0-9.]+[a-z0-9]"), ""
+            + "Invalid bucket name: '" + bucket + "'. GCS bucket names must contain only "
+            + "lowercase letters, numbers, dashes (-), underscores (_), and dots (.). "
+            + "Bucket names must start and end with a number or letter. "
+            + "See https://developers.google.com/storage/docs/bucketnaming "
+            + "for more details.");
 
     if (object == null) {
       object = "";
