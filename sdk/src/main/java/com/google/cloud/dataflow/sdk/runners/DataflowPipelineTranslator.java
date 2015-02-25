@@ -805,8 +805,8 @@ public class DataflowPipelineTranslator {
                 // TODO: Put in better element printing:
                 // truncate if too long.
                 throw new IllegalArgumentException(
-                    "unable to encode element " + elem + " of " + transform
-                    + " using " + coder,
+                    "Unable to encode element '" + elem + "' of transform '" + transform
+                    + "' using coder '" + coder + "'.",
                     exn);
               }
               String encodedJson = byteArrayToJsonString(encodedBytes);
