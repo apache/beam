@@ -65,13 +65,16 @@ public class CoderComperator<T> extends TypeComparator<T> {
 			coder.encode(second, byteBuffer2, Coder.Context.OUTER);
 			byte[] arr = byteBuffer1.getBuffer();
 			byte[] arrOther = byteBuffer2.getBuffer();
-			int len = Math.min(byteBuffer1.size(), byteBuffer2.size());
+			if (byteBuffer1.size() != byteBuffer2.size()) {
+				return arr.length - arrOther.length;
+			}
+			int len = byteBuffer1.size();
 			for(int i = 0; i < len; i++ ) {
 				if (arr[i] != arrOther[i]) {
 					return arr[i] - arrOther[i];
 				}
 			}
-			return arr.length - arrOther.length;
+			return 0;
 		} catch (IOException e) {
 			throw new RuntimeException("Could not compare reference.", e);
 		}
@@ -132,11 +135,12 @@ public class CoderComperator<T> extends TypeComparator<T> {
 
 	@Override
 	public int extractKeys(Object record, Object[] target, int index) {
-		return 0;
+		target[index] = record;
+		return 1;
 	}
 
 	@Override
 	public TypeComparator[] getFlatComparators() {
-		return new TypeComparator[0];
+		return new TypeComparator[] { this.duplicate() };
 	}
 }
