@@ -13,11 +13,11 @@ import java.util.Iterator;
  * {@link com.google.cloud.dataflow.sdk.values.KV} elements, extracts the key and collects
  * the values in a {@code List}.
  */
-public class FlinkCombineFunction<K, VI, VO> implements GroupReduceFunction<KV<K, VI>, KV<K, VO>> {
+public class FlinkReduceFunction<K, VI, VO> implements GroupReduceFunction<KV<K, VI>, KV<K, VO>> {
 
 	private final Combine.KeyedCombineFn<? super K, ? super VI, Object, VO> keyedCombineFn;
 
-	public FlinkCombineFunction(Combine.KeyedCombineFn<? super K, ? super VI, ?, VO> keyedCombineFn) {
+	public FlinkReduceFunction(Combine.KeyedCombineFn<? super K, ? super VI, ?, VO> keyedCombineFn) {
 		this.keyedCombineFn = (Combine.KeyedCombineFn<? super K, ? super VI, Object, VO>) keyedCombineFn;
 	}
 

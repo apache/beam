@@ -1,7 +1,8 @@
 package com.dataartisans.flink.dataflow.translation;
 
 import com.dataartisans.flink.dataflow.io.ConsoleIO;
-import com.dataartisans.flink.dataflow.translation.functions.FlinkCombineFunction;
+import com.dataartisans.flink.dataflow.translation.functions.FlinkPartialReduceFunction;
+import com.dataartisans.flink.dataflow.translation.functions.FlinkReduceFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkCreateFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkDoFnFunction;
 import com.dataartisans.flink.dataflow.translation.functions.FlinkKeyedListAggregationFunction;
@@ -13,6 +14,7 @@ import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
 import com.dataartisans.flink.dataflow.translation.wrappers.SourceInputFormat;
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.ReadSource;
 import com.google.cloud.dataflow.sdk.io.Source;
@@ -264,25 +266,39 @@ public class FlinkTransformTranslators {
 		public void translateNode(Combine.PerKey<K, VI, VO> transform, TranslationContext context) {
 			DataSet<KV<K, VI>> inputDataSet = context.getInputDataSet(transform.getInput());
 
-			Combine.KeyedCombineFn<? super K, ? super VI, ?, VO> keyedCombineFn = null;
+			Combine.KeyedCombineFn<K, VI, ?, VO> keyedCombineFn = null;
 			// This is super hacky, but unfortunately we cannot get the fn otherwise
 			try {
 				Field fnField = transform.getClass().getDeclaredField("fn");
 				fnField.setAccessible(true);
-				keyedCombineFn = (Combine.KeyedCombineFn<? super K, ? super VI, ?, VO>) fnField.get(transform);
+				keyedCombineFn = (Combine.KeyedCombineFn<K, VI, ?, VO>) fnField.get(transform);
 			} catch (NoSuchFieldException | IllegalAccessException e) {
 				// we know that the field is there and it is accessible
 				System.out.println("Could not access KeyedCombineFn: " + e);
 			}
 
-			GroupReduceFunction<KV<K, VI>, KV<K, VO>> groupReduceFunction = new FlinkCombineFunction<>(keyedCombineFn);
+			KvCoder<K, VI> inputCoder = (KvCoder<K, VI>) transform.getInput().getCoder();
 
-			TypeInformation<KV<K, VO>> typeInformation = context.getTypeInfo(transform.getOutput());
+			Coder<?> accumulatorCoder =
+					keyedCombineFn.getAccumulatorCoder(transform.getPipeline().getCoderRegistry(), inputCoder.getKeyCoder(), inputCoder.getValueCoder());
+
+			TypeInformation<KV<K, ?>> partialReduceTypeInfo = new CoderTypeInformation<>(accumulatorCoder);
+
+
+			FlinkPartialReduceFunction<K, VI, ?, VO> partialReduceFunction = new
+					FlinkPartialReduceFunction<>(keyedCombineFn);
+
+
+
+
+			GroupReduceFunction<KV<K, VI>, KV<K, VO>> reduceFunction = new FlinkReduceFunction<>(keyedCombineFn);
+
+			TypeInformation<KV<K, VO>> reduceTypeInfo = context.getTypeInfo(transform.getOutput());
 
 			Grouping<KV<K, VI>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, inputDataSet.getType()));
 
 			GroupReduceOperator<KV<K, VI>, KV<K, VO>> outputDataSet =
-					new GroupReduceOperator<>(grouping, typeInformation, groupReduceFunction, transform.getName());
+					new GroupReduceOperator<>(grouping, reduceTypeInfo, reduceFunction, transform.getName());
 			context.setOutputDataSet(transform.getOutput(), outputDataSet);
 		}
 	}
