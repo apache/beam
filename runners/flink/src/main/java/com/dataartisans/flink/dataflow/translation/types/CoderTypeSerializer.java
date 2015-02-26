@@ -3,11 +3,13 @@ package com.dataartisans.flink.dataflow.translation.types;
 import com.dataartisans.flink.dataflow.translation.wrappers.DataInputViewWrapper;
 import com.dataartisans.flink.dataflow.translation.wrappers.DataOutputViewWrapper;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
@@ -47,7 +49,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public boolean isStateful() {
-		return false;
+		return true;
 	}
 
 	@Override
@@ -90,8 +92,17 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T deserialize(DataInputView dataInputView) throws IOException {
-		inputWrapper.setInputView(dataInputView);
-		return coder.decode(inputWrapper, Coder.Context.NESTED);
+		try {
+			inputWrapper.setInputView(dataInputView);
+			return coder.decode(inputWrapper, Coder.Context.NESTED);
+		} catch (CoderException e) {
+			Throwable cause = e.getCause();
+			if (cause instanceof EOFException) {
+				throw (EOFException) cause;
+			} else {
+				throw e;
+			}
+		}
 	}
 
 	@Override
