@@ -194,6 +194,12 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
     }
   }
 
+  @Override
+  public boolean supportsRestart() {
+    // SizeEstimators are safe to be reused.
+    return true;
+  }
+
   /**
    * Sets the maximum amount of memory the grouping table is allowed to
    * consume before it has to be flushed.
