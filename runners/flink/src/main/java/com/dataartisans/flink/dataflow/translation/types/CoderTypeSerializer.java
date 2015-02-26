@@ -48,8 +48,8 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return true;
+	public CoderTypeSerializer<T> duplicate() {
+		return new CoderTypeSerializer<>(coder);
 	}
 
 	@Override

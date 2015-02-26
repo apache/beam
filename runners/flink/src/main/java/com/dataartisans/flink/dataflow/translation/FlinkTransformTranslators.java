@@ -11,6 +11,7 @@ import com.dataartisans.flink.dataflow.translation.functions.FlinkMultiOutputPru
 import com.dataartisans.flink.dataflow.translation.functions.RawUnionValue;
 import com.dataartisans.flink.dataflow.translation.functions.UnionCoder;
 import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
+import com.dataartisans.flink.dataflow.translation.types.KvCoderTypeInformation;
 import com.dataartisans.flink.dataflow.translation.wrappers.SourceInputFormat;
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -34,8 +35,10 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.SortPartitionOperator;
 import org.apache.flink.api.java.io.AvroInputFormat;
 import org.apache.flink.api.java.io.AvroOutputFormat;
 import org.apache.flink.api.java.io.TextInputFormat;
@@ -260,18 +263,18 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class CombinePerKeyTranslator<K, VI, VO> implements FlinkPipelineTranslator.TransformTranslator<Combine.PerKey<K, VI, VO>> {
+	private static class CombinePerKeyTranslator<K, VI, VA, VO> implements FlinkPipelineTranslator.TransformTranslator<Combine.PerKey<K, VI, VO>> {
 
 		@Override
 		public void translateNode(Combine.PerKey<K, VI, VO> transform, TranslationContext context) {
 			DataSet<KV<K, VI>> inputDataSet = context.getInputDataSet(transform.getInput());
 
-			Combine.KeyedCombineFn<K, VI, ?, VO> keyedCombineFn = null;
+			Combine.KeyedCombineFn<K, VI, VA, VO> keyedCombineFn = null;
 			// This is super hacky, but unfortunately we cannot get the fn otherwise
 			try {
 				Field fnField = transform.getClass().getDeclaredField("fn");
 				fnField.setAccessible(true);
-				keyedCombineFn = (Combine.KeyedCombineFn<K, VI, ?, VO>) fnField.get(transform);
+				keyedCombineFn = (Combine.KeyedCombineFn<K, VI, VA, VO>) fnField.get(transform);
 			} catch (NoSuchFieldException | IllegalAccessException e) {
 				// we know that the field is there and it is accessible
 				System.out.println("Could not access KeyedCombineFn: " + e);
@@ -279,25 +282,30 @@ public class FlinkTransformTranslators {
 
 			KvCoder<K, VI> inputCoder = (KvCoder<K, VI>) transform.getInput().getCoder();
 
-			Coder<?> accumulatorCoder =
+			Coder<VA> accumulatorCoder =
 					keyedCombineFn.getAccumulatorCoder(transform.getPipeline().getCoderRegistry(), inputCoder.getKeyCoder(), inputCoder.getValueCoder());
 
-			TypeInformation<KV<K, ?>> partialReduceTypeInfo = new CoderTypeInformation<>(accumulatorCoder);
+
+			TypeInformation<KV<K, VA>> partialReduceTypeInfo = new KvCoderTypeInformation<>(KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder));
+
+			FlinkPartialReduceFunction<K, VI, VA, VO> partialReduceFunction = new FlinkPartialReduceFunction<>(keyedCombineFn);
 
 
-			FlinkPartialReduceFunction<K, VI, ?, VO> partialReduceFunction = new
-					FlinkPartialReduceFunction<>(keyedCombineFn);
+			SortPartitionOperator<KV<K, VI>> sortPartitionOperator = new SortPartitionOperator<>
+					(inputDataSet, "key", Order.ASCENDING, "Sort for PartialReduce: " +
+							transform.getName());
 
+			MapPartitionOperator<KV<K, VI>, KV<K, VA>> partialReduceOperator = new
+					MapPartitionOperator<>(sortPartitionOperator, partialReduceTypeInfo,
+					partialReduceFunction, "PartialReduce: " + transform.getName());
 
-
-
-			GroupReduceFunction<KV<K, VI>, KV<K, VO>> reduceFunction = new FlinkReduceFunction<>(keyedCombineFn);
+			GroupReduceFunction<KV<K, VA>, KV<K, VO>> reduceFunction = new FlinkReduceFunction<>(keyedCombineFn);
 
 			TypeInformation<KV<K, VO>> reduceTypeInfo = context.getTypeInfo(transform.getOutput());
 
-			Grouping<KV<K, VI>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, inputDataSet.getType()));
+			Grouping<KV<K, VA>> grouping = new UnsortedGrouping<>(partialReduceOperator, new Keys.ExpressionKeys<>(new String[]{"key"}, partialReduceOperator.getType()));
 
-			GroupReduceOperator<KV<K, VI>, KV<K, VO>> outputDataSet =
+			GroupReduceOperator<KV<K, VA>, KV<K, VO>> outputDataSet =
 					new GroupReduceOperator<>(grouping, reduceTypeInfo, reduceFunction, transform.getName());
 			context.setOutputDataSet(transform.getOutput(), outputDataSet);
 		}

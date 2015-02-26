@@ -136,7 +136,7 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
 			private int index = 0;
 			private final SourceInputSplit[] splits = sourceInputSplits;
 			@Override
-			public InputSplit getNextInputSplit(String host) {
+			public InputSplit getNextInputSplit(String host, int taskId) {
 				if (index < splits.length) {
 					return splits[index++];
 				} else {

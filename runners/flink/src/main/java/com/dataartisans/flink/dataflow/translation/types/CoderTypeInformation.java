@@ -3,7 +3,8 @@ package com.dataartisans.flink.dataflow.translation.types;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -14,26 +15,16 @@ import java.util.List;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for
- * Dataflow {@link com.google.cloud.dataflow.sdk.coders.Coder}s
+ * Dataflow {@link com.google.cloud.dataflow.sdk.coders.Coder}s.
  */
-public class CoderTypeInformation<T> extends CompositeType {
+public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {
 
 	private Coder<T> coder;
 
 	@SuppressWarnings("unchecked")
 	public CoderTypeInformation(Coder<T> coder) {
-		// We don't have the Class, so we have to pass null here. What a shame...
-		super(null);
 		this.coder = coder;
 		Preconditions.checkNotNull(coder);
-	}
-
-	@SuppressWarnings("unchecked")
-	public TypeComparator<T> createComparator(int[] logicalKeyFields, boolean[] orders, int logicalFieldOffset) {
-		if (!(coder instanceof KvCoder)) {
-			throw new RuntimeException("Coder " + coder + " is not a KvCoder.");
-		}
-		return new KvCoderComperator((KvCoder) coder);
 	}
 
 	@Override
@@ -48,7 +39,7 @@ public class CoderTypeInformation<T> extends CompositeType {
 
 	@Override
 	public int getArity() {
-		return 0;
+		return 1;
 	}
 
 	@Override
@@ -65,7 +56,7 @@ public class CoderTypeInformation<T> extends CompositeType {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public TypeSerializer<T> createSerializer() {
+	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
 		if (coder instanceof VoidCoder) {
 			return (TypeSerializer<T>) new VoidCoderTypeSerializer();
 		}
@@ -76,13 +67,6 @@ public class CoderTypeInformation<T> extends CompositeType {
 	public int getTotalFields() {
 		return 2;
 	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void getKey(String fieldExpression, int offset, List result) {
-		result.add(new FlatFieldDescriptor(0, BasicTypeInfo.INT_TYPE_INFO));
-	}
-
 
 	@Override
 	public boolean equals(Object o) {
@@ -107,20 +91,9 @@ public class CoderTypeInformation<T> extends CompositeType {
 				'}';
 	}
 
-	// These methods we only have because we need to fulfill CompositeTypeInfo requirements.
 	@Override
-	public TypeInformation<?> getTypeAt(int pos) {
-		return null;
+	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig
+			executionConfig) {
+		return new CoderComperator<>(coder);
 	}
-
-	@Override
-	protected void initializeNewComparator(int localKeyCount) { }
-
-	@Override
-	protected TypeComparator getNewComparator() {
-		return null;
-	}
-
-	@Override
-	protected void addCompareField(int fieldId, TypeComparator comparator) { }
 }

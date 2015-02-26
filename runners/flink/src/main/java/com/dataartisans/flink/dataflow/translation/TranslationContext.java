@@ -1,7 +1,9 @@
 package com.dataartisans.flink.dataflow.translation;
 
 import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
+import com.dataartisans.flink.dataflow.translation.types.KvCoderTypeInformation;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValue;
@@ -67,7 +69,11 @@ public class TranslationContext {
 	public <T> TypeInformation<T> getTypeInfo(PValue output) {
 		if (output instanceof TypedPValue) {
 			Coder<?> outputCoder = ((TypedPValue) output).getCoder();
-			return new CoderTypeInformation(outputCoder);
+			if (outputCoder instanceof KvCoder) {
+				return new KvCoderTypeInformation((KvCoder) outputCoder);
+			} else {
+				return new CoderTypeInformation(outputCoder);
+			}
 		}
 		return new GenericTypeInfo<T>((Class<T>)Object.class);
 	}
