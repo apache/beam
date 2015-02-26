@@ -20,8 +20,8 @@ public class VoidCoderTypeSerializer extends TypeSerializer<VoidCoderTypeSeriali
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
+	public VoidCoderTypeSerializer duplicate() {
+		return this;
 	}
 
 	@Override
