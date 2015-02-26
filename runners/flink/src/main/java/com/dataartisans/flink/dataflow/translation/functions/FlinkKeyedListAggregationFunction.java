@@ -5,6 +5,7 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -17,13 +18,45 @@ public class FlinkKeyedListAggregationFunction<K,V> implements GroupReduceFuncti
 
 	@Override
 	public void reduce(Iterable<KV<K, V>> values, Collector<KV<K, Iterable<V>>> out) throws Exception {
-		K k = null;
-		List<V> result = new ArrayList<V>();
-		for (KV<K, V> kv : values) {
-			k = kv.getKey();
-			result.add(kv.getValue());
-		}
-		out.collect(KV.of(k, (Iterable<V>) result));
+		Iterator<KV<K, V>> it = values.iterator();
+		KV<K, V> first = it.next();
+		Iterable<V> passThrough = new PassThroughIterable<>(first, it);
+		out.collect(KV.of(first.getKey(), passThrough));
 	}
 
+	private static class PassThroughIterable<K, V> implements Iterable<V>, Iterator<V>  {
+		private KV<K, V> first;
+		private Iterator<KV<K, V>> iterator;
+
+		public PassThroughIterable(KV<K, V> first, Iterator<KV<K, V>> iterator) {
+			this.first = first;
+			this.iterator = iterator;
+		}
+
+		@Override
+		public Iterator<V> iterator() {
+			return this;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return first != null || iterator.hasNext();
+		}
+
+		@Override
+		public V next() {
+			if (first != null) {
+				V result = first.getValue();
+				first = null;
+				return result;
+			} else {
+				return iterator.next().getValue();
+			}
+		}
+
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException("Cannot remove elements from input.");
+		}
+	}
 }
