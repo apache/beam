@@ -41,7 +41,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
    * url.
    */
   @Description("Cloud Dataflow Endpoint")
-  @Default.String("dataflow/v1b3/projects/")
+  @Default.String("v1b3/projects/")
   String getDataflowEndpoint();
   void setDataflowEndpoint(String value);
 
@@ -61,7 +61,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
    * The API endpoint to use when communicating with the Dataflow service.
    */
   @Description("Google Cloud root API")
-  @Default.String("https://www.googleapis.com/")
+  @Default.String("https://dataflow.googleapis.com/")
   String getApiRootUrl();
   void setApiRootUrl(String value);
 
