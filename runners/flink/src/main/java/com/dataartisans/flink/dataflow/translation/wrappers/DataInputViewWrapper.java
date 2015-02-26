@@ -2,6 +2,7 @@ package com.dataartisans.flink.dataflow.translation.wrappers;
 
 import org.apache.flink.core.memory.DataInputView;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -25,7 +26,13 @@ public class DataInputViewWrapper extends InputStream {
 
 	@Override
 	public int read() throws IOException {
-		return inputView.readByte();
+		try {
+			return inputView.readUnsignedByte();
+		} catch (EOFException e) {
+			// translate between DataInput and InputStream,
+			// DataInput signals EOF by exception, InputStream does it by returning -1
+			return -1;
+		}
 	}
 
 	@Override
