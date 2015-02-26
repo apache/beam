@@ -61,10 +61,11 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
    * [N * period, N * period + size), where 0 is the epoch.
    *
    * <p> If {@link SlidingWindows#every} is not called, the period defaults
-   * to one millisecond.
+   * to the largest time unit smaller than the given duration.  For example,
+   * specifying a size of 5 seconds will result in a default period of 1 second.
    */
   public static SlidingWindows of(Duration size) {
-    return new SlidingWindows(new Duration(1), size, Duration.ZERO);
+    return new SlidingWindows(getDefaultPeriod(size), size, Duration.ZERO);
   }
 
   /**
@@ -128,5 +129,18 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
     } else {
       return false;
     }
+  }
+
+  static Duration getDefaultPeriod(Duration size) {
+    if (size.isLongerThan(Duration.standardHours(1))) {
+      return Duration.standardHours(1);
+    }
+    if (size.isLongerThan(Duration.standardMinutes(1))) {
+      return Duration.standardMinutes(1);
+    }
+    if (size.isLongerThan(Duration.standardSeconds(1))) {
+      return Duration.standardSeconds(1);
+    }
+    return Duration.millis(1);
   }
 }

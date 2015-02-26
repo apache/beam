@@ -111,6 +111,28 @@ public class SlidingWindowsTest {
   }
 
   @Test
+  public void testDefaultPeriods() throws Exception {
+    assertEquals(Duration.standardHours(1),
+        SlidingWindows.getDefaultPeriod(Duration.standardDays(1)));
+    assertEquals(Duration.standardHours(1),
+        SlidingWindows.getDefaultPeriod(Duration.standardHours(2)));
+    assertEquals(Duration.standardMinutes(1),
+        SlidingWindows.getDefaultPeriod(Duration.standardHours(1)));
+    assertEquals(Duration.standardMinutes(1),
+        SlidingWindows.getDefaultPeriod(Duration.standardMinutes(10)));
+    assertEquals(Duration.standardSeconds(1),
+        SlidingWindows.getDefaultPeriod(Duration.standardMinutes(1)));
+    assertEquals(Duration.standardSeconds(1),
+        SlidingWindows.getDefaultPeriod(Duration.standardSeconds(10)));
+    assertEquals(Duration.millis(1),
+        SlidingWindows.getDefaultPeriod(Duration.standardSeconds(1)));
+    assertEquals(Duration.millis(1),
+        SlidingWindows.getDefaultPeriod(Duration.millis(10)));
+    assertEquals(Duration.millis(1),
+        SlidingWindows.getDefaultPeriod(Duration.millis(1)));
+  }
+
+  @Test
   public void testEquality() {
     assertTrue(
         SlidingWindows.of(new Duration(10)).isCompatible(
