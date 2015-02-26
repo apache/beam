@@ -250,7 +250,7 @@ public class FlinkTransformTranslators {
 
 			TypeInformation<KV<K, Iterable<V>>> typeInformation = context.getTypeInfo(transform.getOutput());
 
-			Grouping<KV<K, V>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{""}, inputDataSet.getType()));
+			Grouping<KV<K, V>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, inputDataSet.getType()));
 
 			GroupReduceOperator<KV<K, V>, KV<K, Iterable<V>>> outputDataSet =
 					new GroupReduceOperator<>(grouping, typeInformation, groupReduceFunction, transform.getName());
@@ -279,7 +279,7 @@ public class FlinkTransformTranslators {
 
 			TypeInformation<KV<K, VO>> typeInformation = context.getTypeInfo(transform.getOutput());
 
-			Grouping<KV<K, VI>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{""}, inputDataSet.getType()));
+			Grouping<KV<K, VI>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, inputDataSet.getType()));
 
 			GroupReduceOperator<KV<K, VI>, KV<K, VO>> outputDataSet =
 					new GroupReduceOperator<>(grouping, typeInformation, groupReduceFunction, transform.getName());
@@ -484,8 +484,8 @@ public class FlinkTransformTranslators {
 //
 //			CoGroupKeyedListAggregator<K,V1,V2> aggregator = new CoGroupKeyedListAggregator<>(schema, tupleTag1, tupleTag2);
 //
-//			ExpressionKeys<KV<K,V1>> keySelector1 = new ExpressionKeys<>(new String[]{""}, inputDataSet1.getType());
-//			ExpressionKeys<KV<K,V2>> keySelector2 = new ExpressionKeys<>(new String[]{""}, inputDataSet2.getType());
+//			ExpressionKeys<KV<K,V1>> keySelector1 = new ExpressionKeys<>(new String[]{"key"}, inputDataSet1.getType());
+//			ExpressionKeys<KV<K,V2>> keySelector2 = new ExpressionKeys<>(new String[]{"key"}, inputDataSet2.getType());
 //
 //			DataSet<KV<K, CoGbkResult>> out = new CoGroupOperator<>(inputDataSet1, inputDataSet2,
 //																	keySelector1, keySelector2, 
