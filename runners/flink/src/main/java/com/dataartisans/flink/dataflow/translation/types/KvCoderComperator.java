@@ -30,7 +30,6 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 	// For deserializing the key
 	private transient DataInputViewWrapper inputWrapper;
 
-
 	public KvCoderComperator(KvCoder<K, V> coder) {
 		this.coder = coder;
 
@@ -95,13 +94,16 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 			coder.getKeyCoder().encode(second.getKey(), byteBuffer2, Coder.Context.OUTER);
 			byte[] arr = byteBuffer1.getBuffer();
 			byte[] arrOther = byteBuffer2.getBuffer();
-			int len = Math.min(byteBuffer1.size(), byteBuffer2.size());
+			if (byteBuffer1.size() != byteBuffer2.size()) {
+				return byteBuffer1.size() - byteBuffer2.size();
+			}
+			int len = byteBuffer1.size();
 			for(int i = 0; i < len; i++ ) {
 				if (arr[i] != arrOther[i]) {
 					return arr[i] - arrOther[i];
 				}
 			}
-			return arr.length - arrOther.length;
+			return 0;
 		} catch (IOException e) {
 			throw new RuntimeException("Could not compare reference.", e);
 		}
@@ -122,13 +124,16 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 			coder.getKeyCoder().encode(secondKey, byteBuffer2, Coder.Context.OUTER);
 			byte[] arr = byteBuffer1.getBuffer();
 			byte[] arrOther = byteBuffer2.getBuffer();
-			int len = Math.min(byteBuffer1.size(), byteBuffer2.size());
+			if (byteBuffer1.size() != byteBuffer2.size()) {
+				return byteBuffer1.size() - byteBuffer2.size();
+			}
+			int len = byteBuffer1.size();
 			for(int i = 0; i < len; i++ ) {
 				if (arr[i] != arrOther[i]) {
 					return arr[i] - arrOther[i];
 				}
 			}
-			return arr.length - arrOther.length;
+			return 0;
 		} catch (IOException e) {
 			throw new RuntimeException("Could not compare reference.", e);
 		}
@@ -189,6 +194,6 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 
 	@Override
 	public TypeComparator[] getFlatComparators() {
-		return new TypeComparator[] { new CoderComperator<>(coder.getKeyCoder())};
+		return new TypeComparator[] {new CoderComperator<>(coder.getKeyCoder())};
 	}
 }
