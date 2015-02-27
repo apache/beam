@@ -91,8 +91,15 @@ public class StreamingDataflowWorker {
   }
 
   public static void main(String[] args) throws Exception {
-    new DataflowWorkerLoggingInitializer().initialize();
+    DataflowWorkerLoggingInitializer.initialize();
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.createFromSystemProperties();
+    // TODO: Remove setting these options once we have migrated to passing
+    // through the pipeline options.
+    options.setAppName("StreamingWorkerHarness");
+    options.setStreaming(true);
 
+    DataflowWorkerLoggingInitializer.configure(options);
     String hostport = System.getProperty("windmill.hostport");
     if (hostport == null) {
       throw new Exception("-Dwindmill.hostport must be set to the location of the windmill server");
@@ -111,13 +118,6 @@ public class StreamingDataflowWorker {
     WindmillServerStub windmillServer =
         (WindmillServerStub) Class.forName(WINDMILL_SERVER_CLASS_NAME)
         .getDeclaredConstructor(String.class).newInstance(hostport);
-
-    DataflowWorkerHarnessOptions options =
-        PipelineOptionsFactory.createFromSystemProperties();
-    // TODO: Remove setting these options once we have migrated to passing
-    // through the pipeline options.
-    options.setAppName("StreamingWorkerHarness");
-    options.setStreaming(true);
 
     StreamingDataflowWorker worker =
         new StreamingDataflowWorker(mapTasks, windmillServer, options);

@@ -16,24 +16,19 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker.logging;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
+import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions;
+import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverride;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 
-import org.junit.Before;
-import org.junit.Rule;
+import org.junit.After;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
-import java.util.List;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -43,52 +38,65 @@ import java.util.logging.Logger;
 /** Unit tests for {@link DataflowWorkerLoggingInitializer}. */
 @RunWith(JUnit4.class)
 public class DataflowWorkerLoggingInitializerTest {
-  @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
-
-  @Mock LogManager mockLogManager;
-  @Mock Logger mockRootLogger;
-  @Mock Handler mockHandler;
-
-  @Before
-  public void setUp() {
-    MockitoAnnotations.initMocks(this);
-    when(mockLogManager.getLogger("")).thenReturn(mockRootLogger);
-    when(mockRootLogger.getHandlers()).thenReturn(new Handler[]{ mockHandler });
+  @After
+  public void tearDown() {
+    LogManager.getLogManager().reset();
+    DataflowWorkerLoggingInitializer.reset();
   }
 
   @Test
   public void testWithDefaults() {
-    ArgumentCaptor<Handler> argument = ArgumentCaptor.forClass(Handler.class);
+    DataflowWorkerLoggingOptions options =
+        PipelineOptionsFactory.as(DataflowWorkerLoggingOptions.class);
 
-    new DataflowWorkerLoggingInitializer().initialize(mockLogManager);
-    verify(mockLogManager).getLogger("");
-    verify(mockLogManager).reset();
-    verify(mockRootLogger).getHandlers();
-    verify(mockRootLogger).removeHandler(mockHandler);
-    verify(mockRootLogger).setLevel(Level.INFO);
-    verify(mockRootLogger).addHandler(argument.capture());
-    verifyNoMoreInteractions(mockLogManager, mockRootLogger);
+    DataflowWorkerLoggingInitializer.initialize();
+    DataflowWorkerLoggingInitializer.configure(options);
 
-    List<Handler> handlers = argument.getAllValues();
-    assertTrue(isFileHandler(handlers.get(0), Level.INFO));
+    Logger rootLogger = LogManager.getLogManager().getLogger("");
+    assertEquals(1, rootLogger.getHandlers().length);
+    assertEquals(Level.INFO, rootLogger.getLevel());
+    assertTrue(isFileHandler(rootLogger.getHandlers()[0], Level.ALL));
   }
 
   @Test
-  public void testWithOverrides() {
-    ArgumentCaptor<Handler> argument = ArgumentCaptor.forClass(Handler.class);
-    System.setProperty("dataflow.worker.logging.level", "WARNING");
+  public void testWithConfigurationOverride() {
+    DataflowWorkerLoggingOptions options =
+        PipelineOptionsFactory.as(DataflowWorkerLoggingOptions.class);
+    options.setDefaultWorkerLogLevel(DataflowWorkerLoggingOptions.Level.WARN);
 
-    new DataflowWorkerLoggingInitializer().initialize(mockLogManager);
-    verify(mockLogManager).getLogger("");
-    verify(mockLogManager).reset();
-    verify(mockRootLogger).getHandlers();
-    verify(mockRootLogger).removeHandler(mockHandler);
-    verify(mockRootLogger).setLevel(Level.WARNING);
-    verify(mockRootLogger).addHandler(argument.capture());
-    verifyNoMoreInteractions(mockLogManager, mockRootLogger);
+    DataflowWorkerLoggingInitializer.initialize();
+    DataflowWorkerLoggingInitializer.configure(options);
 
-    List<Handler> handlers = argument.getAllValues();
-    assertTrue(isFileHandler(handlers.get(0), Level.WARNING));
+    Logger rootLogger = LogManager.getLogManager().getLogger("");
+    assertEquals(1, rootLogger.getHandlers().length);
+    assertEquals(Level.WARNING, rootLogger.getLevel());
+    assertTrue(isFileHandler(rootLogger.getHandlers()[0], Level.ALL));
+  }
+
+  @Test
+  public void testWithCustomLogLevels() {
+    DataflowWorkerLoggingOptions options =
+        PipelineOptionsFactory.as(DataflowWorkerLoggingOptions.class);
+    options.setWorkerLogLevelOverrides(
+        new WorkerLogLevelOverride[] {
+            WorkerLogLevelOverride.forName("A", DataflowWorkerLoggingOptions.Level.DEBUG),
+            WorkerLogLevelOverride.forName("B", DataflowWorkerLoggingOptions.Level.ERROR),
+        });
+
+    DataflowWorkerLoggingInitializer.initialize();
+    DataflowWorkerLoggingInitializer.configure(options);
+
+    Logger aLogger = LogManager.getLogManager().getLogger("A");
+    assertEquals(1, aLogger.getHandlers().length);
+    assertEquals(Level.FINE, aLogger.getLevel());
+    assertFalse(aLogger.getUseParentHandlers());
+    assertTrue(isFileHandler(aLogger.getHandlers()[0], Level.ALL));
+
+    Logger bLogger = LogManager.getLogManager().getLogger("B");
+    assertEquals(1, bLogger.getHandlers().length);
+    assertEquals(Level.SEVERE, bLogger.getLevel());
+    assertFalse(bLogger.getUseParentHandlers());
+    assertTrue(isFileHandler(bLogger.getHandlers()[0], Level.ALL));
   }
 
   private boolean isFileHandler(Handler handler, Level level) {

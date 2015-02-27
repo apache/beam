@@ -93,10 +93,12 @@ public class DataflowWorkerHarness {
    */
   public static void main(String[] args) throws Exception {
     Thread.currentThread().setUncaughtExceptionHandler(WorkerUncaughtExceptionHandler.INSTANCE);
-    new DataflowWorkerLoggingInitializer().initialize();
+    DataflowWorkerLoggingInitializer.initialize();
 
     DataflowWorkerHarnessOptions pipelineOptions =
         PipelineOptionsFactory.createFromSystemProperties();
+    DataflowWorkerLoggingInitializer.configure(pipelineOptions);
+
     final DataflowWorker worker = create(pipelineOptions);
     processWork(pipelineOptions, worker);
   }
