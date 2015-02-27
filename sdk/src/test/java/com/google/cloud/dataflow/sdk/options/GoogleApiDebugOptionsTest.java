@@ -27,6 +27,8 @@ import com.google.cloud.dataflow.sdk.options.GoogleApiDebugOptions.GoogleApiTrac
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.Transport;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -130,5 +132,14 @@ public class GoogleApiDebugOptionsTest {
     Create createRequest =
         options.getDataflowClient().v1b3().projects().jobs().create("testProjectId", null);
     assertNull(createRequest.get("trace"));
+  }
+
+  @Test
+  public void testDeserializationAndSerializationOfGoogleApiTracer() {
+    String serializedValue = "Api#Token";
+    ObjectMapper objectMapper = new ObjectMapper();
+    assertEquals(serializedValue,
+        objectMapper.convertValue(
+            objectMapper.convertValue(serializedValue, GoogleApiTracer.class), String.class));
   }
 }

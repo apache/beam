@@ -22,6 +22,7 @@ import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
 import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.io.IOException;
 import java.util.regex.Matcher;
@@ -98,6 +99,12 @@ public interface GoogleApiDebugOptions extends PipelineOptions {
       if (request.getClass().getCanonicalName().contains(clientRequestName)) {
         request.set("trace", token);
       }
+    }
+
+    @JsonValue
+    @Override
+    public String toString() {
+      return clientRequestName + "#" + token;
     }
   }
 }
