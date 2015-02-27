@@ -682,11 +682,18 @@ public class BigQueryIO {
             JSON_FACTORY.fromString(jsonTableReference, TableReference.class);
 
         if (!createdTables.contains(jsonTableSchema)) {
-          TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
-          Bigquery client = Transport.newBigQueryClient(options).build();
-          BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
-          inserter.tryCreateTable(tableSchema);
-          createdTables.add(jsonTableSchema);
+          synchronized (createdTables) {
+            // Another thread may have succeeded in creating the table in the meanwhile, so
+            // check again. This check isn't needed for correctness, but we add it to prevent
+            // every thread from attempting a create and overwhelming our BigQuery quota.
+            if (!createdTables.contains(jsonTableSchema)) {
+              TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
+              Bigquery client = Transport.newBigQueryClient(options).build();
+              BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
+              inserter.tryCreateTable(tableSchema);
+              createdTables.add(jsonTableSchema);
+            }
+          }
         }
       } catch (IOException e) {
         throw new RuntimeException(e);
