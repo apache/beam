@@ -6,7 +6,7 @@ import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.util.Collector;
 
 
-public class CoGroupKeyedListAggregator <K,V1,V2> implements CoGroupFunction<KV<K,V1>, KV<K,V2>, KV<K, CoGbkResult>>{
+public class FlinkCoGroupKeyedListAggregator<K,V1,V2> implements CoGroupFunction<KV<K,V1>, KV<K,V2>, KV<K, CoGbkResult>>{
 
 //	private CoGbkResultSchema schema;
 //	private TupleTag<?> tupleTag1;
