@@ -43,6 +43,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.reflect.Union;
+import org.apache.avro.util.Utf8;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -299,18 +300,29 @@ public class AvroCoder<T> extends StandardCoder<T> {
     }
 
     /**
-     * Classes that are serialized by Avro using their toString() are only deterministic
-     * if their associated #toString() method is deterministic. Rather than determine all
-     * of them, we conservatively list some classes that definitely are, and treat any
-     * others an non-deterministic.
+     * Classes that are serialized by Avro as a String include
+     * <ul>
+     * <li>Subtypes of CharSequence (including String, Avro's mutable Utf8, etc.)
+     * <li>Several predefined classes (BigDecimal, BigInteger, URI, URL)
+     * <li>Classes annotated with @Stringable (uses their #toString() and a String constructor)
+     * </ul>
+     *
+     * <p>Rather than determine which of these cases are deterministic, we list some classes
+     * that definitely are, and treat any others as non-deterministic.
      */
     private static final Set<Class<?>> DETERMINISTIC_STRINGABLE_CLASSES = new HashSet<>();
     static {
+      // CharSequences:
+      DETERMINISTIC_STRINGABLE_CLASSES.add(String.class);
+      DETERMINISTIC_STRINGABLE_CLASSES.add(Utf8.class);
+
+      // Explicitly Stringable:
       DETERMINISTIC_STRINGABLE_CLASSES.add(java.math.BigDecimal.class);
       DETERMINISTIC_STRINGABLE_CLASSES.add(java.math.BigInteger.class);
       DETERMINISTIC_STRINGABLE_CLASSES.add(java.net.URI.class);
       DETERMINISTIC_STRINGABLE_CLASSES.add(java.net.URL.class);
-      DETERMINISTIC_STRINGABLE_CLASSES.add(String.class);
+
+      // Classes annotated with @Stringable:
     }
 
     /**

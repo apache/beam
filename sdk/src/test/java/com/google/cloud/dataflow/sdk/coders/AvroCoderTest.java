@@ -42,6 +42,7 @@ import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.Stringable;
 import org.apache.avro.reflect.Union;
+import org.apache.avro.util.Utf8;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -251,6 +252,8 @@ public class AvroCoderTest {
     private char charField;
     @SuppressWarnings("unused")
     private Integer[] intArray;
+    @SuppressWarnings("unused")
+    private Utf8 utf8field;
   }
 
   @Test
