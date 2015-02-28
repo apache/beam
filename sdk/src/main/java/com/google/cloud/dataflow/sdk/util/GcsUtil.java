@@ -133,7 +133,7 @@ public class GcsUtil {
       p = Pattern.compile(globToRegexp(gcsPattern.getObject()));
     }
 
-    LOG.info("matching files in bucket {}, prefix {} against pattern {}", gcsPattern.getBucket(),
+    LOG.debug("matching files in bucket {}, prefix {} against pattern {}", gcsPattern.getBucket(),
         prefix, p.toString());
 
     // List all objects that start with the prefix (including objects in sub-directories).
