@@ -18,15 +18,22 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValueBase;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Multimap;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
@@ -65,6 +72,16 @@ public class View {
     return new AsIterable<>();
   }
 
+  /**
+   * Returns an {@link AsMultimap} that takes a {@link PCollection<KV>} as input
+   * and produces a {@link PCollectionView} of the values to be consumed
+   * as a {@code Map<K, Iterable<V>>} side input.
+   *
+   * <p> Currently, the resulting map is required to fit into memory.
+   */
+  public static <K, V> AsMultimap<K, V> asMap() {
+    return new AsMultimap<K, V>();
+  }
 
   /**
    * A {@PTransform} that produces a {@link PCollectionView} of a singleton {@link PCollection}
@@ -107,6 +124,72 @@ public class View {
 
   }
 
+  /**
+   * A {@PTransform} that produces a {@link PCollectionView} of a keyed {@link PCollection}
+   * yielding a map of keys to all associated values.
+   *
+   * <p> Instantiate via {@link View#asMap}.
+   */
+  public static class AsMultimap<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>, ?>> {
+
+    private AsMultimap() { }
+
+    /**
+     * Returns a PTransform creating a view as a {@code Map<K, V>} rather than a
+     * {@code Map<K, Iterable<V>>}. Requires that the PCollection have only
+     * one value per key.
+     */
+    public AsSingletonMap<K, V, V> withSingletonValues() {
+      return new AsSingletonMap<K, V, V>(null);
+    }
+
+    /**
+     * Returns a PTransform creating a view as a {@code Map<K, VO>} rather than a
+     * {@code Map<K, Iterable<V>>} by applying the given combiner to the set of
+     * values associated with each key.
+     */
+    public <VO> AsSingletonMap<K, V, VO> withCombiner(CombineFn<V, ?, VO> combineFn) {
+      return new AsSingletonMap<K, V, VO>(combineFn);
+    }
+
+    @Override
+    public PCollectionView<Map<K, Iterable<V>>, ?> apply(PCollection<KV<K, V>> input) {
+      return input.apply(
+        new CreatePCollectionView<KV<K, V>, Map<K, Iterable<V>>, Object>(
+          new MultimapPCollectionView<K, V>(input.getPipeline())));
+    }
+  }
+
+
+  /**
+   * A {@PTransform} that produces a {@link PCollectionView} of a keyed {@link PCollection}
+   * yielding a map of keys to a single associated values.
+   *
+   * <p> Instantiate via {@link View#asMap}.
+   */
+  public static class AsSingletonMap<K, VI, VO>
+      extends PTransform<PCollection<KV<K, VI>>, PCollectionView<Map<K, VO>, ?>> {
+
+    private CombineFn<VI, ?, VO> combineFn;
+
+    private AsSingletonMap(CombineFn<VI, ?, VO> combineFn) {
+      this.combineFn = combineFn;
+    }
+
+    @Override
+    public PCollectionView<Map<K, VO>, ?> apply(PCollection<KV<K, VI>> input) {
+      // VI == VO if combineFn is null
+      @SuppressWarnings("unchecked")
+      PCollection<KV<K, VO>> combined =
+        combineFn == null
+        ? (PCollection) input
+        : input.apply(Combine.perKey(combineFn.<K>asKeyedFn()));
+      return combined.apply(
+        new CreatePCollectionView<KV<K, VO>, Map<K, VO>, Object>(
+          new MapPCollectionView<K, VO>(input.getPipeline())));
+    }
+  }
 
   ////////////////////////////////////////////////////////////////////////////
   // Internal details below
@@ -196,6 +279,47 @@ public class View {
           return (T) input.getValue();
         }
       });
+    }
+  }
+
+  private static class MultimapPCollectionView<K, V>
+      extends PCollectionViewBase<Map<K, Iterable<V>>, Object> {
+
+    public MultimapPCollectionView(Pipeline pipeline) {
+      setPipelineInternal(pipeline);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<K, Iterable<V>> fromIterableInternal(Iterable<WindowedValue<?>> contents) {
+      Multimap<K, V> multimap = HashMultimap.create();
+      for (WindowedValue<?> elem : contents) {
+        KV<K, V> kv = (KV<K, V>) elem.getValue();
+        multimap.put(kv.getKey(), kv.getValue());
+      }
+      // Don't want to promise in-memory or cheap Collection.size().
+      return (Map) multimap.asMap();
+    }
+  }
+
+  private static class MapPCollectionView<K, V>
+      extends PCollectionViewBase<Map<K, V>, Object> {
+
+    public MapPCollectionView(Pipeline pipeline) {
+      setPipelineInternal(pipeline);
+    }
+
+    @Override
+    public Map<K, V> fromIterableInternal(Iterable<WindowedValue<?>> contents) {
+      Map<K, V> map = new HashMap<>();
+      for (WindowedValue<?> elem : contents) {
+        @SuppressWarnings("unchecked")
+        KV<K, V> kv = (KV<K, V>) elem.getValue();
+        if (map.put(kv.getKey(), kv.getValue()) != null) {
+          throw new IllegalArgumentException("Duplicate values for " + kv.getKey());
+        }
+      }
+      return Collections.unmodifiableMap(map);
     }
   }
 

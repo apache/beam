@@ -51,6 +51,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
   final PipelineOptions options;
   final DoFn<I, O> fn;
   final PTuple sideInputs;
+  final Map<TupleTag<?>, Object> sideInputCache;
   final OutputManager<R> outputManager;
   final Map<TupleTag<?>, R> outputMap;
   final TupleTag<O> mainOutputTag;
@@ -71,6 +72,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
     this.options = options;
     this.fn = fn;
     this.sideInputs = sideInputs;
+    this.sideInputCache = new HashMap<>();
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
     this.outputMap = new HashMap<>();
@@ -103,13 +105,17 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
   @SuppressWarnings("unchecked")
   public <T> T sideInput(PCollectionView<T, ?> view) {
     TupleTag<?> tag = view.getTagInternal();
-    if (!sideInputs.has(tag)) {
-      throw new IllegalArgumentException(
-          "calling sideInput() with unknown view; " +
-          "did you forget to pass the view in " +
-          "ParDo.withSideInputs()?");
+    if (!sideInputCache.containsKey(tag)) {
+      if (!sideInputs.has(tag)) {
+        throw new IllegalArgumentException(
+            "calling sideInput() with unknown view; " +
+            "did you forget to pass the view in " +
+            "ParDo.withSideInputs()?");
+      }
+      sideInputCache.put(
+          tag, view.fromIterableInternal((Iterable<WindowedValue<?>>) sideInputs.get(tag)));
     }
-    return view.fromIterableInternal((Iterable<WindowedValue<?>>) sideInputs.get(tag));
+    return (T) sideInputCache.get(tag);
   }
 
   <T> WindowedValue<T> makeWindowedValue(

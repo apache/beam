@@ -110,6 +110,7 @@ public class CoderRegistry {
     registerCoder(Iterable.class, IterableCoder.class);
     registerCoder(KV.class, KvCoder.class);
     registerCoder(List.class, ListCoder.class);
+    registerCoder(Map.class, MapCoder.class);
     registerCoder(Long.class, VarLongCoder.class);
     registerCoder(String.class, StringUtf8Coder.class);
     registerCoder(TableRow.class, TableRowJsonCoder.class);

@@ -22,9 +22,9 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -34,6 +34,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
@@ -154,6 +155,86 @@ public class ViewTest implements Serializable {
     DataflowAssert.that(output).containsInAnyOrder(
         11, 13, 17, 23,
         11, 13, 17, 23);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testMapSideInput() {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<Map<String, Iterable<Integer>>, ?> view = pipeline
+        .apply(Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
+        .apply(View.<String, Integer>asMap());
+
+    PCollection<KV<String, Integer>> output = pipeline
+        .apply(Create.of("apple", "banana", "blackberry"))
+        .apply(ParDo.withSideInputs(view).of(
+            new DoFn<String, KV<String, Integer>>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
+                  c.output(KV.of(c.element(), v));
+                }
+              }
+            }));
+
+    DataflowAssert.that(output)
+        .containsInAnyOrder(KV.of("apple", 1), KV.of("apple", 2),
+                            KV.of("banana", 3), KV.of("blackberry", 3));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testSingletonMapSideInput() {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<Map<String, Integer>, ?> view = pipeline
+        .apply(Create.of(KV.of("a", 1), KV.of("b", 3)))
+        .apply(View.<String, Integer>asMap().withSingletonValues());
+
+    PCollection<KV<String, Integer>> output = pipeline
+        .apply(Create.of("apple", "banana", "blackberry"))
+        .apply(ParDo.withSideInputs(view).of(
+            new DoFn<String, KV<String, Integer>>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                c.output(KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
+              }
+            }));
+
+    DataflowAssert.that(output)
+        .containsInAnyOrder(KV.of("apple", 1),
+                            KV.of("banana", 3), KV.of("blackberry", 3));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testCombinedMapSideInput() {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<Map<String, Integer>, ?> view = pipeline
+        .apply(Create.of(KV.of("a", 1), KV.of("a", 20), KV.of("b", 3)))
+        .apply(View.<String, Integer>asMap().withCombiner(
+                   Combine.SimpleCombineFn.of(new Sum.SumIntegerFn())));
+
+    PCollection<KV<String, Integer>> output = pipeline
+        .apply(Create.of("apple", "banana", "blackberry"))
+        .apply(ParDo.withSideInputs(view).of(
+            new DoFn<String, KV<String, Integer>>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                c.output(KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
+              }
+            }));
+
+    DataflowAssert.that(output)
+        .containsInAnyOrder(KV.of("apple", 21),
+                            KV.of("banana", 3), KV.of("blackberry", 3));
 
     pipeline.run();
   }
