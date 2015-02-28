@@ -43,6 +43,8 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.reflect.Union;
+import org.apache.avro.specific.SpecificData;
+import org.apache.avro.util.ClassUtils;
 import org.apache.avro.util.Utf8;
 
 import java.io.IOException;
@@ -51,7 +53,6 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -59,6 +60,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
+
+import javax.annotation.Nullable;
 
 /**
  * An encoder using Avro binary format.
@@ -158,12 +161,8 @@ public class AvroCoder<T> extends StandardCoder<T> {
     this.type = type;
     this.schema = schema;
 
-    if (GenericRecord.class.isAssignableFrom(type)) {
-      nonDeterministicReasons = Arrays.asList(
-          "GenericRecord may have non-deterministic fields.");
-    } else {
-      nonDeterministicReasons = new AvroDeterminismChecker().check(TypeToken.of(type), schema);
-    }
+    nonDeterministicReasons = new AvroDeterminismChecker()
+        .check(TypeToken.of(type), schema);
     this.reader = createDatumReader();
     this.writer = createDatumWriter();
   }
@@ -291,6 +290,10 @@ public class AvroCoder<T> extends StandardCoder<T> {
     // are equal, rather than tracking pairs of type + schema.
     private Set<TypeToken<?>> activeTypes = new HashSet<>();
 
+    // Similarly to how we record active types, we record the schemas we visit
+    // to make sure we don't encounter recursive fields.
+    private Set<Schema> activeSchemas = new HashSet<>();
+
     /**
      * Report an error in the current context.
      */
@@ -358,7 +361,15 @@ public class AvroCoder<T> extends StandardCoder<T> {
         return;
       }
 
-      doCheck(context, type, schema);
+      // If the the record isn't a true class, but rather a GenericRecord, SpecificRecord, etc.
+      // with a specified schema, then we need to make the decision based on the generated
+      // implementations.
+      if (isSubtypeOf(type, IndexedRecord.class)) {
+        checkIndexedRecord(context, schema, null);
+      } else {
+        doCheck(context, type, schema);
+      }
+
       activeTypes.remove(type);
     }
 
@@ -401,7 +412,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
         default:
           // In any other case (eg., new types added to Avro) we cautiously return
           // false.
-          reportError(context, "Unknown Avro Schema Type: %s", schema.getType());
+          reportError(context, "Unknown schema type %s may be non-deterministic", schema.getType());
           break;
       }
     }
@@ -434,15 +445,6 @@ public class AvroCoder<T> extends StandardCoder<T> {
     }
 
     private void checkRecord(String context, TypeToken<?> type, Schema schema) {
-      // If the the record isn't a true class, but rather a GenericRecord, SpecificRecord, etc.
-      // with a specificified schema, then we need to make the decision based on the generated
-      // implementations.
-      if (isSubtypeOf(type, IndexedRecord.class)) {
-        // TODO: Update this once we support deterministic GenericRecord/SpecificRecords.
-        reportError(context, "IndexedRecords may be non-deterministic");
-        return;
-      }
-
       // For a record, we want to make sure that all the fields are deterministic.
       Class<?> clazz = type.getRawType();
       for (org.apache.avro.Schema.Field fieldSchema : schema.getFields()) {
@@ -455,14 +457,96 @@ public class AvroCoder<T> extends StandardCoder<T> {
           continue;
         }
 
-        if (field.isAnnotationPresent(AvroSchema.class)) {
-          reportError(fieldContext, "Custom schemas are not supported -- remove @AvroSchema");
+        if (!IndexedRecord.class.isAssignableFrom(field.getType())
+            && field.isAnnotationPresent(AvroSchema.class)) {
+          // TODO: We should be able to support custom schemas on POJO fields, but we shouldn't
+          // need to, so we just allow it in the case of IndexedRecords.
+          reportError(fieldContext,
+              "Custom schemas are only supported for subtypes of IndexedRecord.");
           continue;
         }
 
         TypeToken<?> fieldType = type.resolveType(field.getGenericType());
         recurse(fieldContext, fieldType, fieldSchema.schema());
       }
+    }
+
+    private void checkIndexedRecord(String context, Schema schema,
+        @Nullable String specificClassStr) {
+
+      if (!activeSchemas.add(schema)) {
+        reportError(context, "%s appears recursively", schema.getName());
+        return;
+      }
+
+      switch (schema.getType()) {
+        case ARRAY:
+          // Generic Records use GenericData.Array to implement arrays, which is
+          // essentially an ArrayList, and therefore ordering is deterministic.
+          // The array is thus deterministic if the elements are deterministic.
+          checkIndexedRecord(context, schema.getElementType(), null);
+          break;
+        case ENUM:
+          // Enums are deterministic because they encode as a single integer.
+          break;
+        case FIXED:
+          // In the case of GenericRecords, FIXED is deterministic because it
+          // encodes/decodes as a Byte[].
+          break;
+        case MAP:
+          reportError(context,
+              "GenericRecord and SpecificRecords use a HashMap to represent MAPs,"
+              + " so it is non-deterministic");
+          break;
+        case RECORD:
+          for (org.apache.avro.Schema.Field field : schema.getFields()) {
+            checkIndexedRecord(
+                schema.getName() + "." + field.name(),
+                field.schema(),
+                field.getProp(SpecificData.CLASS_PROP));
+          }
+          break;
+        case STRING:
+          // GenericDatumWriter#findStringClass will use a CharSequence or a String
+          // for each string, so it is deterministic.
+
+          // SpecificCompiler#getStringType will use java.lang.String, org.apache.avro.util.Utf8,
+          // or java.lang.CharSequence, unless SpecificData.CLASS_PROP overrides that.
+          if (specificClassStr != null) {
+            Class<?> specificClass;
+            try {
+              specificClass = ClassUtils.forName(specificClassStr);
+              if (!DETERMINISTIC_STRINGABLE_CLASSES.contains(specificClass)) {
+                reportError(context, "Specific class %s is not known to be deterministic",
+                    specificClassStr);
+              }
+            } catch (ClassNotFoundException e) {
+              reportError(context, "Specific class %s is not known to be deterministic",
+                  specificClassStr);
+            }
+          }
+          break;
+        case UNION:
+          for (org.apache.avro.Schema subschema : schema.getTypes()) {
+            checkIndexedRecord(subschema.getName(), subschema, null);
+          }
+          break;
+        case BOOLEAN:
+        case BYTES:
+        case DOUBLE:
+        case INT:
+        case FLOAT:
+        case LONG:
+        case NULL:
+          // For types that Avro encodes using one of the above primitives, we assume they are
+          // deterministic.
+          break;
+        default:
+          reportError(context, "Unknown schema type %s may be non-deterministic", schema.getType());
+          break;
+      }
+
+      activeSchemas.remove(schema);
     }
 
     private void checkMap(String context, TypeToken<?> type, Schema schema) {
