@@ -43,6 +43,7 @@ import java.io.Serializable;
  */
 @RunWith(JUnit4.class)
 public class DataflowAssertTest implements Serializable {
+  private static final long serialVersionUID = 0;
 
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
@@ -61,6 +62,8 @@ public class DataflowAssertTest implements Serializable {
   }
 
   private static class NotSerializableObjectCoder extends AtomicCoder<NotSerializableObject> {
+    private static final long serialVersionUID = 0;
+
     private NotSerializableObjectCoder() { }
     private static final NotSerializableObjectCoder INSTANCE = new NotSerializableObjectCoder();
 

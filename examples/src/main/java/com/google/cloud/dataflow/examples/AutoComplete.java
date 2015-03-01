@@ -95,6 +95,8 @@ public class AutoComplete {
    */
   public static class ComputeTopCompletions
       extends PTransform<PCollection<String>, PCollection<KV<String, List<CompletionCandidate>>>> {
+    private static final long serialVersionUID = 0;
+
     private final int candidatesPerPrefix;
     private final boolean recursive;
 
@@ -140,6 +142,7 @@ public class AutoComplete {
   private static class ComputeTopFlat
       extends PTransform<PCollection<CompletionCandidate>,
                          PCollection<KV<String, List<CompletionCandidate>>>> {
+    private static final long serialVersionUID = 0;
 
     private final int candidatesPerPrefix;
     private final int minPrefix;
@@ -162,6 +165,8 @@ public class AutoComplete {
     }
 
     private static class HotKeySpread implements SerializableFunction<String, Integer> {
+      private static final long serialVersionUID = 0;
+
       @Override
       public Integer apply(String input) {
         return (int) Math.pow(4, 5 - input.length());
@@ -179,6 +184,7 @@ public class AutoComplete {
   private static class ComputeTopRecursive
       extends PTransform<PCollection<CompletionCandidate>,
                          PCollectionList<KV<String, List<CompletionCandidate>>>> {
+    private static final long serialVersionUID = 0;
 
     private final int candidatesPerPrefix;
     private final int minPrefix;
@@ -189,6 +195,8 @@ public class AutoComplete {
     }
 
     private class KeySizePartitionFn implements PartitionFn<KV<String, List<CompletionCandidate>>> {
+      private static final long serialVersionUID = 0;
+
       public int partitionFor(KV<String, List<CompletionCandidate>> elem, int numPartitions) {
         return elem.getKey().length() > minPrefix ? 0 : 1;
       }
@@ -196,6 +204,8 @@ public class AutoComplete {
 
     private static class FlattenTops
         extends DoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
+      private static final long serialVersionUID = 0;
+
       public void processElement(ProcessContext c) {
         for (CompletionCandidate cc : c.element().getValue()) {
           c.output(cc);
@@ -244,6 +254,8 @@ public class AutoComplete {
    */
   private static class AllPrefixes
       extends DoFn<CompletionCandidate, KV<String, CompletionCandidate>> {
+    private static final long serialVersionUID = 0;
+
     private final int minPrefix;
     private final int maxPrefix;
     public AllPrefixes(int minPrefix) {
@@ -318,6 +330,8 @@ public class AutoComplete {
    * Takes as input a set of strings, and emits each #hashtag found therein.
    */
   static class ExtractHashtags extends DoFn<String, String> {
+    private static final long serialVersionUID = 0;
+
     public void processElement(ProcessContext c) {
       Matcher m = Pattern.compile("#\\S+").matcher(c.element());
       while (m.find()) {
@@ -327,6 +341,8 @@ public class AutoComplete {
   }
 
   static class FormatForBigquery extends DoFn<KV<String, List<CompletionCandidate>>, TableRow> {
+    private static final long serialVersionUID = 0;
+
     public void processElement(ProcessContext c) {
       List<TableRow> completions = new ArrayList<>();
       for (CompletionCandidate cc : c.element().getValue()) {
@@ -346,6 +362,8 @@ public class AutoComplete {
    * suitable for writing to Datastore.
    */
   static class FormatForDatastore extends DoFn<KV<String, List<CompletionCandidate>>, Entity> {
+    private static final long serialVersionUID = 0;
+
     private String kind;
 
     public FormatForDatastore(String kind) {

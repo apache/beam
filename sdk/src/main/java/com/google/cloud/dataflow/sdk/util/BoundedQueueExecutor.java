@@ -27,6 +27,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class BoundedQueueExecutor extends ThreadPoolExecutor {
   private static class ReducableSemaphore extends Semaphore {
+    private static final long serialVersionUID = 0;
+
     ReducableSemaphore(int permits) {
       super(permits);
     }

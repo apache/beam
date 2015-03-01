@@ -46,6 +46,8 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
  * {@code PCollection}s
  */
 public class First<T> extends PTransform<PCollection<T>, PCollection<T>> {
+  private static final long serialVersionUID = 0;
+
   /**
    * Returns a {@code First<T>} {@code PTransform}.
    *
@@ -73,6 +75,8 @@ public class First<T> extends PTransform<PCollection<T>, PCollection<T>> {
   }
 
   private static class CopyFirstDoFn<T> extends DoFn<Void, T> {
+    private static final long serialVersionUID = 0;
+
     long limit;
     final PCollectionView<Iterable<T>, ?> iterableView;
 

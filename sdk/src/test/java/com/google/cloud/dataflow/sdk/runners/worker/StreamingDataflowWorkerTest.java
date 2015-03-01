@@ -386,6 +386,8 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class ChangeKeysFn extends DoFn<KV<String, String>, KV<String, String>> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) {
       KV<String, String> elem = c.element();
@@ -417,6 +419,8 @@ public class StreamingDataflowWorkerTest {
 
   static class TestStateFn extends DoFn<KV<String, String>, KV<String, String>>
       implements DoFn.RequiresKeyedState {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) {
       try {
@@ -610,6 +614,8 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class TestExceptionFn extends DoFn<String, String> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) throws Exception {
       try {
@@ -671,6 +677,8 @@ public class StreamingDataflowWorkerTest {
 
   private static class TestTimerFn
       extends AssignWindowsDoFn<KV<String, String>, BoundedWindow> {
+    private static final long serialVersionUID = 0;
+
     public TestTimerFn() {
       super(null);
     }

@@ -60,6 +60,8 @@ public class WordCount {
 
   /** A DoFn that tokenizes lines of text into individual words. */
   static class ExtractWordsFn extends DoFn<String, String> {
+    private static final long serialVersionUID = 0;
+
     private Aggregator<Long> emptyLines;
 
     @Override
@@ -89,6 +91,8 @@ public class WordCount {
 
   /** A DoFn that converts a Word and Count into a printable string. */
   static class FormatCountsFn extends DoFn<KV<String, Long>, String> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element().getKey() + ": " + c.element().getValue());
@@ -103,6 +107,8 @@ public class WordCount {
    * reuse, modular testing, and an improved monitoring experience.
    */
   public static class CountWords extends PTransform<PCollection<String>, PCollection<String>> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public PCollection<String> apply(PCollection<String> lines) {
 

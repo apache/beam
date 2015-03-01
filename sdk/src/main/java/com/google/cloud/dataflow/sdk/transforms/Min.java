@@ -141,6 +141,7 @@ public class Min {
    */
   public static class MinFn<N extends Number & Comparable<N>>
       implements SerializableFunction<Iterable<N>, N> {
+    /** private static final long serialVersionUID = 0;
 
     /** The largest value of type N. */
     private final N initialValue;
@@ -173,6 +174,8 @@ public class Min {
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class MinIntegerFn extends MinFn<Integer> {
+    private static final long serialVersionUID = 0;
+
     public MinIntegerFn() { super(Integer.MAX_VALUE); }
   }
 
@@ -182,6 +185,8 @@ public class Min {
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class MinLongFn extends MinFn<Long> {
+    private static final long serialVersionUID = 0;
+
     public MinLongFn() { super(Long.MAX_VALUE); }
   }
 
@@ -191,6 +196,8 @@ public class Min {
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class MinDoubleFn extends MinFn<Double> {
+    private static final long serialVersionUID = 0;
+
     public MinDoubleFn() { super(Double.MAX_VALUE); }
   }
 }

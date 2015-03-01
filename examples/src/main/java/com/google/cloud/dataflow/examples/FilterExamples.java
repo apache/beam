@@ -85,6 +85,8 @@ public class FilterExamples {
    * is interested in-- the mean_temp and year, month, and day-- as a bigquery table row.
    */
   static class ProjectionFn extends DoFn<TableRow, TableRow> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c){
       TableRow row = c.element();
@@ -108,6 +110,7 @@ public class FilterExamples {
    * monthFilter, which is passed in as a parameter during construction of this DoFn.
    */
   static class FilterSingleMonthDataFn extends DoFn<TableRow, TableRow> {
+    private static final long serialVersionUID = 0;
 
     Integer monthFilter;
 
@@ -131,6 +134,8 @@ public class FilterExamples {
    * reading for that row ('mean_temp').
    */
   static class ExtractTempFn extends DoFn<TableRow, Double> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c){
       TableRow row = c.element();
@@ -147,6 +152,7 @@ public class FilterExamples {
    **/
   static class BelowGlobalMean
       extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
+    private static final long serialVersionUID = 0;
 
     Integer monthFilter;
 

@@ -150,6 +150,8 @@ public class RateLimiting {
    * @param <O> the type of the (main) output elements
    */
   public static class RateLimitingDoFn<I, O> extends DoFn<I, O> {
+    private static final long serialVersionUID = 0;
+
     private static final Logger LOG = LoggerFactory.getLogger(RateLimitingDoFn.class);
 
     public RateLimitingDoFn(DoFn<I, O> doFn, double rateLimit,

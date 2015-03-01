@@ -71,6 +71,8 @@ public class BasicSerializableSourceFormatTest {
     }
 
     static class Read extends Source<Integer> {
+      private static final long serialVersionUID = 0;
+
       final int from;
       final int to;
 

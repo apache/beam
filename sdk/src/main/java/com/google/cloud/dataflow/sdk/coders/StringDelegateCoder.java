@@ -36,6 +36,7 @@ import java.lang.reflect.InvocationTargetException;
  * @param <T> The type of objects coded.
  */
 public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
+  private static final long serialVersionUID = 0;
 
   public static <T> StringDelegateCoder<T> of(Class<T> clazz) {
     return new StringDelegateCoder<T>(clazz);

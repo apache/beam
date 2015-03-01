@@ -59,6 +59,8 @@ public class WindowingWordCount {
 
   /** A DoFn that tokenizes lines of text into individual words with timestamp. */
   static class ExtractWordsWithTimestampFn extends DoFn<String, String> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) {
       String[] words = c.element().split("[^a-zA-Z']+");
@@ -72,6 +74,8 @@ public class WindowingWordCount {
 
   /** A DoFn that converts a Word and Count into a printable string. */
   static class FormatCountsFn extends DoFn<KV<String, Long>, String> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) {
       String output = "Element: " + c.element().getKey()
@@ -90,6 +94,8 @@ public class WindowingWordCount {
    * reuse, modular testing, and an improved monitoring experience.
    */
   public static class CountWords extends PTransform<PCollection<String>, PCollection<String>> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public PCollection<String> apply(PCollection<String> lines) {
 

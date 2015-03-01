@@ -120,6 +120,8 @@ public class JoinExamples {
    * code of the event, and the value a string encoding event information.
    */
   static class ExtractEventDataFn extends DoFn<TableRow, KV<String, String>> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
@@ -138,6 +140,8 @@ public class JoinExamples {
    * code, and the value the country name.
    */
   static class ExtractCountryInfoFn extends DoFn<TableRow, KV<String, String>> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();

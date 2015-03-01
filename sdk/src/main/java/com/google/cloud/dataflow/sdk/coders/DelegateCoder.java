@@ -38,6 +38,7 @@ import java.io.Serializable;
  * @param <DT> The type of objects a {@code T} will be converted to for coding.
  */
 public class DelegateCoder<T, DT> extends CustomCoder<T> {
+  private static final long serialVersionUID = 0;
 
   /**
    * A {@code CodingFunction<Input, Output>} is a serializable function

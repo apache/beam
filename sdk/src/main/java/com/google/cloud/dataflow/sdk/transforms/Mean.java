@@ -98,6 +98,7 @@ public class Mean {
    */
   public static class MeanFn<N extends Number> extends
     Combine.AccumulatingCombineFn<N, MeanFn<N>.CountSum, Double> {
+    private static final long serialVersionUID = 0;
 
     /**
      * Constructs a combining function that computes the mean over

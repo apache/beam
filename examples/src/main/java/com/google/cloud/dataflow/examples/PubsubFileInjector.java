@@ -46,6 +46,8 @@ public class PubsubFileInjector {
 
   /** A DoFn that publishes lines to Google Cloud PubSub. */
   static class Publish extends DoFn<String, Void> {
+    private static final long serialVersionUID = 0;
+
     private String outputTopic;
     public transient Pubsub pubsub;
 

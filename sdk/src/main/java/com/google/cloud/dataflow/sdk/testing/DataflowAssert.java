@@ -577,6 +577,7 @@ public class DataflowAssert {
    */
   private static class AssertIsEqualToRelation<T>
       implements AssertRelation<T, T> {
+    private static final long serialVersionUID = 0;
 
     @Override
     public AssertThat<T, T> assertFor(T expected) {
@@ -590,6 +591,7 @@ public class DataflowAssert {
    */
   private static class AssertContainsInAnyOrderRelation<T>
       implements AssertRelation<Iterable<T>, Iterable<T>> {
+    private static final long serialVersionUID = 0;
 
     @Override
     public SerializableFunction<Iterable<T>, Void> assertFor(Iterable<T> expectedElements) {
@@ -603,6 +605,7 @@ public class DataflowAssert {
    */
   private static class AssertContainsInOrderRelation<T>
       implements AssertRelation<Iterable<T>, Iterable<T>> {
+    private static final long serialVersionUID = 0;
 
     @Override
     public SerializableFunction<Iterable<T>, Void> assertFor(Iterable<T> expectedElements) {

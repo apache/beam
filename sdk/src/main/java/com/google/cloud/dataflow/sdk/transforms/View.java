@@ -92,6 +92,7 @@ public class View {
   public static class AsIterable<T> extends PTransform<
       PCollection<T>,
       PCollectionView<Iterable<T>, Iterable<WindowedValue<T>>>> {
+    private static final long serialVersionUID = 0;
 
     private AsIterable() { }
 
@@ -112,6 +113,7 @@ public class View {
    */
   public static class AsSingleton<T>
       extends PTransform<PCollection<T>, PCollectionView<T, WindowedValue<T>>> {
+    private static final long serialVersionUID = 0;
 
     private AsSingleton() { }
 
@@ -206,6 +208,7 @@ public class View {
    */
   public static class CreatePCollectionView<R, T, WT>
       extends PTransform<PCollection<R>, PCollectionView<T, WT>> {
+    private static final long serialVersionUID = 0;
 
     private PCollectionView<T, WT> view;
 
@@ -242,6 +245,7 @@ public class View {
 
   private static class SingletonPCollectionView<T>
       extends PCollectionViewBase<T, WindowedValue<T>> {
+    private static final long serialVersionUID = 0;
 
     public SingletonPCollectionView(Pipeline pipeline) {
       setPipelineInternal(pipeline);
@@ -265,6 +269,7 @@ public class View {
 
   private static class IterablePCollectionView<T>
       extends PCollectionViewBase<Iterable<T>, Iterable<WindowedValue<T>>> {
+    private static final long serialVersionUID = 0;
 
     public IterablePCollectionView(Pipeline pipeline) {
       setPipelineInternal(pipeline);

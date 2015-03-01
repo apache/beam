@@ -59,6 +59,8 @@ public class ReadSource {
    */
   public static class Bound<T>
       extends PTransform<PInput, PCollection<T>> {
+    private static final long serialVersionUID = 0;
+
     @Nullable
     private Source<T> source;
 

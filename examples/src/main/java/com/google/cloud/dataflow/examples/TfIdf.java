@@ -144,6 +144,7 @@ public class TfIdf {
    */
   public static class ReadDocuments
       extends PTransform<PInput, PCollection<KV<URI, String>>> {
+    private static final long serialVersionUID = 0;
 
     private Iterable<URI> uris;
 
@@ -196,6 +197,7 @@ public class TfIdf {
    */
   public static class ComputeTfIdf
       extends PTransform<PCollection<KV<URI, String>>, PCollection<KV<String, KV<URI, Double>>>> {
+    private static final long serialVersionUID = 0;
 
     public ComputeTfIdf() { }
 
@@ -369,6 +371,7 @@ public class TfIdf {
    */
   public static class WriteTfIdf
       extends PTransform<PCollection<KV<String, KV<URI, Double>>>, PDone> {
+    private static final long serialVersionUID = 0;
 
     private String output;
 

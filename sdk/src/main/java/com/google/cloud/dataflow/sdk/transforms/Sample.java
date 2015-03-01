@@ -100,6 +100,8 @@ public class Sample {
    */
   public static class FixedSizedSampleFn<T>
       extends CombineFn<T, Top.TopCombineFn<KV<Integer, T>>.Heap, Iterable<T>> {
+    private static final long serialVersionUID = 0;
+
     private final Top.TopCombineFn<KV<Integer, T>> topCombineFn;
     private final Random rand = new Random();
 

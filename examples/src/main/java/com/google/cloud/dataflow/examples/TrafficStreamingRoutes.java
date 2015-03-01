@@ -148,6 +148,8 @@ public class TrafficStreamingRoutes {
    * (station, speed info) keyed on route.
    */
   static class ExtractStationSpeedFn extends DoFn<String, KV<String, StationSpeed>> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) {
       String[] items = c.element().split(",");
@@ -174,6 +176,7 @@ public class TrafficStreamingRoutes {
    */
   static class GatherStats extends DoFn<KV<String, Iterable<StationSpeed>>, KV<String, RouteInfo>>
     implements DoFn.RequiresKeyedState {
+    private static final long serialVersionUID = 0;
 
     static final int SLOWDOWN_THRESH = 67;
     static final int SLOWDOWN_COUNT_CAP = 3;
@@ -228,6 +231,8 @@ public class TrafficStreamingRoutes {
    * Format the results of the slowdown calculations to a TableRow, to save to BigQuery.
    */
   static class FormatStatsFn extends DoFn<KV<String, RouteInfo>, TableRow> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) {
       RouteInfo routeInfo = c.element().getValue();
@@ -257,6 +262,8 @@ public class TrafficStreamingRoutes {
    * state to retain previous slowdown information. Then, it formats the results for BigQuery.
    */
   static class TrackSpeed extends PTransform<PCollection<String>, PCollection<TableRow>> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public PCollection<TableRow> apply(PCollection<String> rows) {
       // row... => <station route, station speed> ...

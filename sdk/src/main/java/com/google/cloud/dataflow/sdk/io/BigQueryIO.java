@@ -236,6 +236,8 @@ public class BigQueryIO {
      * {@code PCollection<TableRow>}.
      */
     public static class Bound extends PTransform<PInput, PCollection<TableRow>> {
+      private static final long serialVersionUID = 0;
+
       TableReference table;
       final boolean validate;
 
@@ -480,6 +482,8 @@ public class BigQueryIO {
      * {@code PCollection<TableRow>}s to a BigQuery table.
      */
     public static class Bound extends PTransform<PCollection<TableRow>, PDone> {
+      private static final long serialVersionUID = 0;
+
       final TableReference table;
 
       // Table schema. The schema is required only if the table does not exist.
@@ -638,6 +642,7 @@ public class BigQueryIO {
    */
   private static class StreamingWriteFn
       extends DoFn<KV<Integer, KV<String, TableRow>>, Void> implements DoFn.RequiresKeyedState {
+    private static final long serialVersionUID = 0;
 
     /** TableReference in JSON.  Use String to make the class Serializable. */
     private final String jsonTableReference;
@@ -744,6 +749,8 @@ public class BigQueryIO {
    * id is created by concatenating this randomUUID with a sequential number.
    */
   private static class TagWithUniqueIds extends DoFn<TableRow, KV<Integer, KV<String, TableRow>>> {
+    private static final long serialVersionUID = 0;
+
     private transient String randomUUID;
     private transient AtomicLong sequenceNo;
 
@@ -771,6 +778,8 @@ public class BigQueryIO {
   * it leverages BigQuery best effort de-dup mechanism.
    */
   private static class StreamWithDeDup extends PTransform<PCollection<TableRow>, PDone> {
+    private static final long serialVersionUID = 0;
+
     private final TableReference tableReference;
     private final TableSchema tableSchema;
 

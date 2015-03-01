@@ -76,6 +76,8 @@ public class TopWikipediaSessions {
    * Extracts user and timestamp from a TableRow representing a Wikipedia edit.
    */
   static class ExtractUserAndTimestamp extends DoFn<TableRow, String> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
@@ -94,6 +96,8 @@ public class TopWikipediaSessions {
    */
   static class ComputeSessions
       extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public PCollection<KV<String, Long>> apply(PCollection<String> actions) {
       return actions
@@ -108,6 +112,8 @@ public class TopWikipediaSessions {
    */
   private static class TopPerMonth
       extends PTransform<PCollection<KV<String, Long>>, PCollection<List<KV<String, Long>>>> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public PCollection<List<KV<String, Long>>> apply(PCollection<KV<String, Long>> sessions) {
       return sessions
@@ -123,6 +129,8 @@ public class TopWikipediaSessions {
   }
 
   static class ComputeTopSessions extends PTransform<PCollection<TableRow>, PCollection<String>> {
+    private static final long serialVersionUID = 0;
+
     private final double samplingThreshold;
 
     public ComputeTopSessions(double samplingThreshold) {

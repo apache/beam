@@ -79,6 +79,7 @@ public class CombinePerKeyExamples {
    * outputs word, play_name.
    */
   static class ExtractLargeWordsFn extends DoFn<TableRow, KV<String, String>> {
+    private static final long serialVersionUID = 0;
 
     private Aggregator<Long> smallerWords;
 
@@ -108,6 +109,8 @@ public class CombinePerKeyExamples {
    * containing a word with a string listing the plays in which it appeared.
    */
   static class FormatShakespeareOutputFn extends DoFn<KV<String, String>, TableRow> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
@@ -129,6 +132,8 @@ public class CombinePerKeyExamples {
    */
   static class PlaysForWord
       extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public PCollection<TableRow> apply(PCollection<TableRow> rows) {
 
@@ -156,6 +161,8 @@ public class CombinePerKeyExamples {
    * word has appeared.
    */
   public static class ConcatWords implements SerializableFunction<Iterable<String>, String> {
+    private static final long serialVersionUID = 0;
+
     @Override
     public String apply(Iterable<String> input) {
       StringBuilder all = new StringBuilder();
