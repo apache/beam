@@ -141,7 +141,7 @@ public class Min {
    */
   public static class MinFn<N extends Number & Comparable<N>>
       implements SerializableFunction<Iterable<N>, N> {
-    /** private static final long serialVersionUID = 0;
+    private static final long serialVersionUID = 0;
 
     /** The largest value of type N. */
     private final N initialValue;

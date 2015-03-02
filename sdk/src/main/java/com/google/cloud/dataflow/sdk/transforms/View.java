@@ -134,6 +134,7 @@ public class View {
    */
   public static class AsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>, ?>> {
+    private static final long serialVersionUID = 0;
 
     private AsMultimap() { }
 
@@ -172,6 +173,7 @@ public class View {
    */
   public static class AsSingletonMap<K, VI, VO>
       extends PTransform<PCollection<KV<K, VI>>, PCollectionView<Map<K, VO>, ?>> {
+    private static final long serialVersionUID = 0;
 
     private CombineFn<VI, ?, VO> combineFn;
 
@@ -289,6 +291,7 @@ public class View {
 
   private static class MultimapPCollectionView<K, V>
       extends PCollectionViewBase<Map<K, Iterable<V>>, Object> {
+    private static final long serialVersionUID = 0;
 
     public MultimapPCollectionView(Pipeline pipeline) {
       setPipelineInternal(pipeline);
@@ -309,6 +312,7 @@ public class View {
 
   private static class MapPCollectionView<K, V>
       extends PCollectionViewBase<Map<K, V>, Object> {
+    private static final long serialVersionUID = 0;
 
     public MapPCollectionView(Pipeline pipeline) {
       setPipelineInternal(pipeline);
