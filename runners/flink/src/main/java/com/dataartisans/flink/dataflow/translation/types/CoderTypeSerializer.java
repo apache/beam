@@ -24,14 +24,14 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 	private transient DataOutputViewWrapper outputWrapper;
 
 	// We use this for internal encoding/decoding for creating copies using the Coder.
-	private transient InspectableByteArrayOutputStream byteBuffer;
+	private transient InspectableByteArrayOutputStream buffer;
 
 	public CoderTypeSerializer(Coder<T> coder) {
 		this.coder = coder;
 		this.inputWrapper = new DataInputViewWrapper(null);
 		this.outputWrapper = new DataOutputViewWrapper(null);
 
-		byteBuffer = new InspectableByteArrayOutputStream();
+		buffer = new InspectableByteArrayOutputStream();
 	}
 	
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
@@ -39,7 +39,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 		this.inputWrapper = new DataInputViewWrapper(null);
 		this.outputWrapper = new DataOutputViewWrapper(null);
 
-		byteBuffer = new InspectableByteArrayOutputStream();
+		buffer = new InspectableByteArrayOutputStream();
 	}
 	
 	@Override
@@ -59,16 +59,15 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T copy(T t) {
-		byteBuffer.reset();
+		buffer.reset();
 		try {
-			coder.encode(t, byteBuffer, Coder.Context.OUTER);
+			coder.encode(t, buffer, Coder.Context.OUTER);
 		} catch (IOException e) {
 			throw new RuntimeException("Could not copy.", e);
 		}
 		try {
-			return coder.decode(
-					new ByteArrayInputStream(byteBuffer.getBuffer(), 0, byteBuffer.size()),
-					Coder.Context.OUTER);
+			return coder.decode(new ByteArrayInputStream(buffer.getBuffer(), 0, buffer
+					.size()), Coder.Context.OUTER);
 		} catch (IOException e) {
 			throw new RuntimeException("Could not copy.", e);
 		}
