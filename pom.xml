@@ -81,9 +81,24 @@
           <configuration>
             <source>1.7</source>
             <target>1.7</target>
-            <compilerArgument>-Xlint:all</compilerArgument>
+            <compilerArgs>
+              <arg>-Xlint:all</arg>
+              <arg>-Werror</arg>
+              <!-- Temporary lint overrides, to be removed over time. -->
+              <arg>-Xlint:-cast</arg>
+              <arg>-Xlint:-deprecation</arg>
+              <arg>-Xlint:-processing</arg>
+              <arg>-Xlint:-rawtypes</arg>
+              <arg>-Xlint:-try</arg>
+              <arg>-Xlint:-unchecked</arg>
+              <arg>-Xlint:-varargs</arg>
+              <!-- Uncomment the following args to display more warnings.  -->
+              <!-- -Xmaxwarns -->
+              <!-- 10000 -->
+            </compilerArgs>
             <showWarnings>true</showWarnings>
-            <showDeprecation>true</showDeprecation>
+            <!-- Another temp override, to be set to true in due course. -->
+            <showDeprecation>false</showDeprecation>
           </configuration>
         </plugin>
 
