@@ -114,10 +114,10 @@ public abstract class Source<T> implements Serializable {
    * the current model tends to be easier to program and more efficient in practice
    * for iterating over sources such as files, databases etc. (rather than pure collections).
    * <p>
-   * To read a {@code SourceIterator}:
+   * To read a {@code Reader}:
    * <pre>
-   * while (iterator.advance()) {
-   *   T item = iterator.getCurrent();
+   * for (boolean available = reader.start(); available; available = reader.advance()) {
+   *   T item = reader.getCurrent();
    *   ...
    * }
    * </pre>
@@ -125,6 +125,18 @@ public abstract class Source<T> implements Serializable {
    * Note: this interface is work-in-progress and may change.
    */
   public interface Reader<T> extends AutoCloseable {
+
+    /**
+     * Initializes the reader and advances the reader to the first record.
+     *
+     * <p> This method should be called exactly once. The invocation should occur prior to calling
+     * {@link #advance} or {@link #getCurrent}. This method may perform expensive operations that
+     * are needed to initialize the reader.
+     *
+     * @return {@code true} if a record was read, {@code false} if we're at the end of input.
+     */
+    public boolean start() throws IOException;
+
     /**
      * Advances the iterator to the next valid record.
      * Invalidates the result of the previous {@link #getCurrent} call.
@@ -133,9 +145,12 @@ public abstract class Source<T> implements Serializable {
     public boolean advance() throws IOException;
 
     /**
-     * Returns the value of the data item which was read by the last {@link #advance} call.
-     * @throws java.util.NoSuchElementException if the iterator is at the beginning of the input
-     *   and {@link #advance} wasn't called, or if the last {@link #advance} returned {@code false}.
+     * Returns the value of the data item which was read by the last {@link #start} or
+     * {@link #advance} call.
+     *
+     * @throws java.util.NoSuchElementException if the iterator is at the beginning of the input and
+     *         {@link #start} or {@link #advance} wasn't called, or if the last {@link #start} or
+     *         {@link #advance} returned {@code false}.
      */
     public T getCurrent() throws NoSuchElementException;
 
@@ -154,6 +169,11 @@ public abstract class Source<T> implements Serializable {
 
     public WindowedReaderWrapper(Reader<T> reader) {
       this.reader = reader;
+    }
+
+    @Override
+    public boolean start() throws IOException {
+      return reader.start();
     }
 
     @Override

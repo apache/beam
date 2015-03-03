@@ -586,6 +586,11 @@ public class DatastoreIO {
     }
 
     @Override
+    public boolean start() throws IOException {
+      return advance();
+    }
+
+    @Override
     public boolean advance() throws IOException {
       if (entities == null || (!entities.hasNext() && moreResults)) {
         try {

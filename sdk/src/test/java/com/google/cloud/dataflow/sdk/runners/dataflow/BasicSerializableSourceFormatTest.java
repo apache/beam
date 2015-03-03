@@ -121,7 +121,12 @@ public class BasicSerializableSourceFormatTest {
         private int current;
 
         public RangeReader(Read source) {
-          this.current = source.from - 1;
+          this.current = source.from;
+        }
+
+        @Override
+        public boolean start() throws IOException {
+          return (current < to);
         }
 
         @Override

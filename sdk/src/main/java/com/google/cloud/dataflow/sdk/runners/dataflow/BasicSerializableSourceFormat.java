@@ -187,7 +187,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       try (Source.Reader<WindowedValue<T>> reader =
           source.createWindowedReader(context.getPipelineOptions(),
               WindowedValue.getValueOnlyCoder(source.getDefaultOutputCoder()), null)) {
-        while (reader.advance()) {
+        for (boolean available = reader.start(); available; available = reader.advance()) {
           elems.add(reader.getCurrent());
         }
       }
@@ -253,7 +253,11 @@ public class BasicSerializableSourceFormat implements SourceFormat {
 
     private void advanceInternal() throws IOException {
       try {
-        hasNext = reader.advance();
+        if (!advanced) {
+          hasNext = reader.start();
+        } else {
+          hasNext = reader.advance();
+        }
         if (hasNext) {
           next = reader.getCurrent();
         }
