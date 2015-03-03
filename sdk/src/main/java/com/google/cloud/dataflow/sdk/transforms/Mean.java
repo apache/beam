@@ -155,6 +155,8 @@ public class Mean {
     public Coder<CountSum> getAccumulatorCoder(
         CoderRegistry registry, Coder<N> inputCoder) {
       return new CustomCoder<CountSum> () {
+        private static final long serialVersionUID = 0;
+
         @Override
         public void encode(CountSum value, OutputStream outStream, Coder.Context context)
             throws CoderException, IOException {

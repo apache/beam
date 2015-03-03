@@ -186,6 +186,8 @@ public class FilterExamples {
           .apply(ParDo
               .withSideInputs(globalMeanTemp)
               .of(new DoFn<TableRow, TableRow>() {
+                private static final long serialVersionUID = 0;
+
                 @Override
                 public void processElement(ProcessContext c) {
                   Double meanTemp = Double.parseDouble(c.element().get("mean_temp").toString());

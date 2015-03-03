@@ -87,6 +87,8 @@ public class JoinExamples {
     // country code 'key' -> string of <event info>, <country name>
     PCollection<KV<String, String>> finalResultCollection =
       kvpCollection.apply(ParDo.of(new DoFn<KV<String, CoGbkResult>, KV<String, String>>() {
+        private static final long serialVersionUID = 0;
+
         @Override
         public void processElement(ProcessContext c) {
            KV<String, CoGbkResult> e = c.element();
@@ -105,6 +107,8 @@ public class JoinExamples {
     // write to GCS
     PCollection<String> formattedResults = finalResultCollection
         .apply(ParDo.of(new DoFn<KV<String, String>, String>() {
+          private static final long serialVersionUID = 0;
+
           @Override
           public void processElement(ProcessContext c) {
             String outputstring = "Country code: " + c.element().getKey()

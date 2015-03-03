@@ -142,6 +142,8 @@ public class DataflowAssertTest implements Serializable {
 
     DataflowAssert.that(pcollection).satisfies(
         new SerializableFunction<Iterable<NotSerializableObject>, Void>() {
+          private static final long serialVersionUID = 0;
+
           @Override
           public Void apply(Iterable<NotSerializableObject> contents) {
             return (Void) null; // no problem!

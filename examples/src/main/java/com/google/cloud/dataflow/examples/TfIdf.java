@@ -220,6 +220,8 @@ public class TfIdf {
       PCollection<KV<URI, String>> uriToWords = uriToContent
           .apply(ParDo.named("SplitWords").of(
               new DoFn<KV<URI, String>, KV<URI, String>>() {
+                private static final long serialVersionUID = 0;
+
                 @Override
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey();
@@ -257,6 +259,8 @@ public class TfIdf {
       // by the URI key.
       PCollection<KV<URI, KV<String, Long>>> uriToWordAndCount = uriAndWordToCount
           .apply(ParDo.of(new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
+            private static final long serialVersionUID = 0;
+
             @Override
             public void processElement(ProcessContext c) {
               URI uri = c.element().getKey().getKey();
@@ -295,6 +299,8 @@ public class TfIdf {
       // divided by the total number of words in the document.
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTf = uriToWordAndCountAndTotal
           .apply(ParDo.of(new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
+            private static final long serialVersionUID = 0;
+
             @Override
             public void processElement(ProcessContext c) {
               URI uri = c.element().getKey();
@@ -319,6 +325,8 @@ public class TfIdf {
           .apply(ParDo
               .withSideInputs(totalDocuments)
               .of(new DoFn<KV<String, Long>, KV<String, Double>>() {
+                private static final long serialVersionUID = 0;
+
                 @Override
                 public void processElement(ProcessContext c) {
                   String word = c.element().getKey();
@@ -347,6 +355,8 @@ public class TfIdf {
       // divided by the log of the document frequency.
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = wordToUriAndTfAndDf
           .apply(ParDo.of(new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
+            private static final long serialVersionUID = 0;
+
             @Override
             public void processElement(ProcessContext c) {
               String word = c.element().getKey();
@@ -383,6 +393,8 @@ public class TfIdf {
     public PDone apply(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
       return wordToUriAndTfIdf
           .apply(ParDo.of(new DoFn<KV<String, KV<URI, Double>>, String>() {
+            private static final long serialVersionUID = 0;
+
             @Override
             public void processElement(ProcessContext c) {
               c.output(String.format("%s,\t%s,\t%f",

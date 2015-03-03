@@ -98,7 +98,9 @@ public final class ReaderFactory {
     }
 
     try {
-      return InstanceBuilder.ofType(new TypeToken<Reader<T>>() {})
+      return InstanceBuilder.ofType(new TypeToken<Reader<T>>() {
+          private static final long serialVersionUID = 0;
+      })
           .fromClassName(sourceFactoryClassName)
           .fromFactoryMethod("create")
           .withArg(PipelineOptions.class, options)

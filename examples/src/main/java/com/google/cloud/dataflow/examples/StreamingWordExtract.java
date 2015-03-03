@@ -88,6 +88,8 @@ public class StreamingWordExtract {
 
     static TableSchema getSchema() {
       return new TableSchema().setFields(new ArrayList<TableFieldSchema>() {
+            private static final long serialVersionUID = 0;
+
             // Compose the list of TableFieldSchema from tableSchema.
             {
               add(new TableFieldSchema().setName("string_field").setType("STRING"));

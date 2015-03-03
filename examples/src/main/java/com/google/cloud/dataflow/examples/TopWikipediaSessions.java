@@ -120,6 +120,8 @@ public class TopWikipediaSessions {
         .apply(Window.<KV<String, Long>>into(CalendarWindows.months(1)))
 
           .apply(Top.of(1, new SerializableComparator<KV<String, Long>>() {
+                    private static final long serialVersionUID = 0;
+
                     @Override
                     public int compare(KV<String, Long> o1, KV<String, Long> o2) {
                       return Long.compare(o1.getValue(), o2.getValue());
@@ -144,6 +146,8 @@ public class TopWikipediaSessions {
 
           .apply(ParDo.named("SampleUsers").of(
               new DoFn<String, String>() {
+                private static final long serialVersionUID = 0;
+
                 @Override
                 public void processElement(ProcessContext c) {
                   if (Math.abs(c.element().hashCode()) <= Integer.MAX_VALUE * samplingThreshold) {
@@ -156,6 +160,8 @@ public class TopWikipediaSessions {
 
           .apply(ParDo.named("SessionsToStrings").of(
               new DoFn<KV<String, Long>, KV<String, Long>>() {
+                private static final long serialVersionUID = 0;
+
                 @Override
                 public void processElement(ProcessContext c) {
                   c.output(KV.of(
@@ -168,6 +174,8 @@ public class TopWikipediaSessions {
 
           .apply(ParDo.named("FormatOutput").of(
               new DoFn<List<KV<String, Long>>, String>() {
+                private static final long serialVersionUID = 0;
+
                 @Override
                 public void processElement(ProcessContext c) {
                   for (KV<String, Long> item : c.element()) {

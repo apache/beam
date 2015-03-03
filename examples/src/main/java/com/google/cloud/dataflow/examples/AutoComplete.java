@@ -118,6 +118,8 @@ public class AutoComplete {
         // Map the KV outputs of Count into our own CompletionCandiate class.
         .apply(ParDo.of(
             new DoFn<KV<String, Long>, CompletionCandidate>() {
+              private static final long serialVersionUID = 0;
+
               @Override
               public void processElement(ProcessContext c) {
                 c.output(new CompletionCandidate(c.element().getKey(), c.element().getValue()));
@@ -233,6 +235,8 @@ public class AutoComplete {
             // ...together with those (previously excluded) candidates of length
             // exactly minPrefix...
             .and(input.apply(Filter.by(new SerializableFunction<CompletionCandidate, Boolean>() {
+                    private static final long serialVersionUID = 0;
+
                     public Boolean apply(CompletionCandidate c) {
                       return c.getValue().length() == minPrefix;
                     }

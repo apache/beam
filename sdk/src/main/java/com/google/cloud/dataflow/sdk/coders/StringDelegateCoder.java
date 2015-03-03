@@ -52,12 +52,16 @@ public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
   protected StringDelegateCoder(final Class<T> clazz) {
     super(StringUtf8Coder.of(),
       new CodingFunction<T, String>() {
+        private static final long serialVersionUID = 0;
+
         @Override
         public String apply(T input) {
           return input.toString();
         }
       },
       new CodingFunction<String, T>() {
+        private static final long serialVersionUID = 0;
+
         @Override
         public T apply(String input) throws
             NoSuchMethodException,

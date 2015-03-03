@@ -41,11 +41,15 @@ public class DelegateCoderTest {
   private static final Coder<Set<Integer>> coder = DelegateCoder.of(
       ListCoder.of(VarIntCoder.of()),
       new DelegateCoder.CodingFunction<Set<Integer>, List<Integer>>() {
+        private static final long serialVersionUID = 0;
+
         public List<Integer> apply(Set<Integer> input) {
           return Lists.newArrayList(input);
         }
       },
       new DelegateCoder.CodingFunction<List<Integer>, Set<Integer>>() {
+        private static final long serialVersionUID = 0;
+
         public Set<Integer> apply(List<Integer> input) {
           return Sets.newHashSet(input);
         }
