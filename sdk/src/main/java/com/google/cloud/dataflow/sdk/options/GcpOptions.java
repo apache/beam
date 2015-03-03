@@ -70,6 +70,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * This option controls which file to use when attempting to create the credentials using the
    * OAuth 2 webflow.
    */
+  @JsonIgnore
   @Description("Path to a file containing Google API secret")
   String getSecretsFile();
   void setSecretsFile(String value);
@@ -81,6 +82,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * This option if specified, needs be combined with the
    * {@link GcpOptions#getServiceAccountName() serviceAccountName}.
    */
+  @JsonIgnore
   @Description("Path to a file containing the P12 service credentials")
   String getServiceAccountKeyfile();
   void setServiceAccountKeyfile(String value);
@@ -92,10 +94,12 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * This option if specified, needs be combined with the
    * {@link GcpOptions#getServiceAccountKeyfile() serviceAccountKeyfile}.
    */
+  @JsonIgnore
   @Description("Name of the service account for Google APIs")
   String getServiceAccountName();
   void setServiceAccountName(String value);
 
+  @JsonIgnore
   @Description("The path to the gcloud binary. "
       + " Default is to search the system path.")
   String getGCloudPath();
