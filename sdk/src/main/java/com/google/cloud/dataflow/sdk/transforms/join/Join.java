@@ -37,10 +37,12 @@ public class Join {
    * @param <K> Type of the key for both collections
    * @param <V1> Type of the values for the left collection.
    * @param <V2> Type of the values for the right collection.
-   * @return A joined collection of KV where Key is of type V1 and Value is type V2.
+   * @return A joined collection of KV where Key is the key and value is a
+   *         KV where Key is of type V1 and Value is type V2.
    */
-  public static <K, V1, V2> PCollection<KV<V1, V2>> innerJoin(
-    final PCollection<KV<K, V1>> leftCollection, final PCollection<KV<K, V2>> rightCollection) {
+  public static <K, V1, V2> PCollection<KV<K, KV<V1, V2>>> innerJoin(
+    final PCollection<KV<K, V1>> leftCollection, final PCollection<KV<K, V2>> rightCollection)
+  {
     Preconditions.checkNotNull(leftCollection);
     Preconditions.checkNotNull(rightCollection);
 
@@ -53,7 +55,7 @@ public class Join {
         .apply(CoGroupByKey.<K>create());
 
     return coGbkResultCollection.apply(ParDo.of(
-      new DoFn<KV<K, CoGbkResult>, KV<V1, V2>>() {
+      new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
         @Override
         public void processElement(ProcessContext c) {
           KV<K, CoGbkResult> e = c.element();
@@ -63,13 +65,14 @@ public class Join {
 
           for (V1 leftValue : leftValuesIterable) {
             for (V2 rightValue : rightValuesIterable) {
-              c.output(KV.of(leftValue, rightValue));
+              c.output(KV.of(e.getKey(), KV.of(leftValue, rightValue)));
             }
           }
         }
       }))
-      .setCoder(KvCoder.of(((KvCoder) leftCollection.getCoder()).getValueCoder(),
-                           ((KvCoder) rightCollection.getCoder()).getValueCoder()));
+      .setCoder(KvCoder.of(((KvCoder) leftCollection.getCoder()).getKeyCoder(),
+                           KvCoder.of(((KvCoder) leftCollection.getCoder()).getValueCoder(),
+                                      ((KvCoder) rightCollection.getCoder()).getValueCoder())));
   }
 
   /**
@@ -80,10 +83,11 @@ public class Join {
    * @param <K> Type of the key for both collections
    * @param <V1> Type of the values for the left collection.
    * @param <V2> Type of the values for the right collection.
-   * @return A joined collection of KV where Key is of type V1 and Value is type V2. Values that
+   * @return A joined collection of KV where Key is the key and value is a
+   *         KV where Key is of type V1 and Value is type V2. Values that
    *         should be null or empty is replaced with nullValue.
    */
-  public static <K, V1, V2> PCollection<KV<V1, V2>> leftOuterJoin(
+  public static <K, V1, V2> PCollection<KV<K, KV<V1, V2>>> leftOuterJoin(
     final PCollection<KV<K, V1>> leftCollection,
     final PCollection<KV<K, V2>> rightCollection,
     final V2 nullValue) {
@@ -100,7 +104,7 @@ public class Join {
         .apply(CoGroupByKey.<K>create());
 
     return coGbkResultCollection.apply(ParDo.of(
-      new DoFn<KV<K, CoGbkResult>, KV<V1, V2>>() {
+      new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
         @Override
         public void processElement(ProcessContext c) {
           KV<K, CoGbkResult> e = c.element();
@@ -111,16 +115,17 @@ public class Join {
           for (V1 leftValue : leftValuesIterable) {
             if (rightValuesIterable.iterator().hasNext()) {
               for (V2 rightValue : rightValuesIterable) {
-                c.output(KV.of(leftValue, rightValue));
+                c.output(KV.of(e.getKey(), KV.of(leftValue, rightValue)));
               }
             } else {
-              c.output(KV.of(leftValue, nullValue));
+              c.output(KV.of(e.getKey(), KV.of(leftValue, nullValue)));
             }
           }
         }
       }))
-      .setCoder(KvCoder.of(((KvCoder) leftCollection.getCoder()).getValueCoder(),
-                           ((KvCoder) rightCollection.getCoder()).getValueCoder()));
+      .setCoder(KvCoder.of(((KvCoder) leftCollection.getCoder()).getKeyCoder(),
+                           KvCoder.of(((KvCoder) leftCollection.getCoder()).getValueCoder(),
+                                      ((KvCoder) rightCollection.getCoder()).getValueCoder())));
   }
 
   /**
@@ -131,10 +136,11 @@ public class Join {
    * @param <K> Type of the key for both collections
    * @param <V1> Type of the values for the left collection.
    * @param <V2> Type of the values for the right collection.
-   * @return A joined collection of KV where Key is of type V1 and Value is type V2. Keys that
+   * @return A joined collection of KV where Key is the key and value is a
+   *         KV where Key is of type V1 and Value is type V2. Keys that
    *         should be null or empty is replaced with nullValue.
    */
-  public static <K, V1, V2> PCollection<KV<V1, V2>> rightOuterJoin(
+  public static <K, V1, V2> PCollection<KV<K, KV<V1, V2>>> rightOuterJoin(
     final PCollection<KV<K, V1>> leftCollection,
     final PCollection<KV<K, V2>> rightCollection,
     final V1 nullValue) {
@@ -151,7 +157,7 @@ public class Join {
         .apply(CoGroupByKey.<K>create());
 
     return coGbkResultCollection.apply(ParDo.of(
-      new DoFn<KV<K, CoGbkResult>, KV<V1, V2>>() {
+      new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
         @Override
         public void processElement(ProcessContext c) {
           KV<K, CoGbkResult> e = c.element();
@@ -162,15 +168,16 @@ public class Join {
           for (V2 rightValue : rightValuesIterable) {
             if (leftValuesIterable.iterator().hasNext()) {
               for (V1 leftValue : leftValuesIterable) {
-                c.output(KV.of(leftValue, rightValue));
+                c.output(KV.of(e.getKey(), KV.of(leftValue, rightValue)));
               }
             } else {
-              c.output(KV.of(nullValue, rightValue));
+              c.output(KV.of(e.getKey(), KV.of(nullValue, rightValue)));
             }
           }
         }
       }))
-      .setCoder(KvCoder.of(((KvCoder) leftCollection.getCoder()).getValueCoder(),
-                           ((KvCoder) rightCollection.getCoder()).getValueCoder()));
+      .setCoder(KvCoder.of(((KvCoder) leftCollection.getCoder()).getKeyCoder(),
+                           KvCoder.of(((KvCoder) leftCollection.getCoder()).getValueCoder(),
+                                      ((KvCoder) rightCollection.getCoder()).getValueCoder())));
   }
 }
