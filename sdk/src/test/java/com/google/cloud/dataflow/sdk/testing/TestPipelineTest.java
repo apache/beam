@@ -71,4 +71,17 @@ public class TestPipelineTest {
     assertEquals("testZone", options.getZone());
     assertEquals(2, options.getDiskSizeGb());
   }
+
+  @Test
+  public void testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+    String stringOptions = mapper.writeValueAsString(
+        ImmutableMap.of("options",
+          ImmutableMap.<String, String>builder()
+          .build()));
+    System.getProperties().put("dataflowOptions", stringOptions);
+    TestDataflowPipelineOptions options = TestPipeline.getPipelineOptions();
+    assertEquals("TestPipelineTest", options.getAppName());
+    assertEquals("testCreationOfPipelineOptionsFromReallyV", options.getJobName());
+  }
 }

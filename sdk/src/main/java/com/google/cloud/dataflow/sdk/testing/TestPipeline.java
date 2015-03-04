@@ -136,7 +136,8 @@ public class TestPipeline extends Pipeline {
   private static String getJobName() {
     Optional<StackTraceElement> stackTraceElement = findCallersStackTrace();
     if (stackTraceElement.isPresent()) {
-      return stackTraceElement.get().getMethodName();
+      String name = stackTraceElement.get().getMethodName();
+      return name.substring(0, Math.min(40, name.length()));
     }
     return "unittestjob";
   }
