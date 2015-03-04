@@ -161,6 +161,49 @@ public class GroupAlsoByWindowsDoFnTest {
         Matchers.contains(window(10, 30)));
   }
 
+  @Test public void testDiscontiguousWindows() throws Exception {
+    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
+        KV<String, Iterable<String>>, List> runner =
+        makeRunner(FixedWindows.<String>of(Duration.millis(10)));
+
+    runner.startBundle();
+
+    runner.processElement(WindowedValue.valueInEmptyWindows(
+        KV.of("k", (Iterable<WindowedValue<String>>) Arrays.asList(
+            WindowedValue.of(
+                "v1",
+                new Instant(1),
+                Arrays.asList(window(0, 5))),
+            WindowedValue.of(
+                "v2",
+                new Instant(4),
+                Arrays.asList(window(1, 5))),
+            WindowedValue.of(
+                "v3",
+                new Instant(4),
+                Arrays.asList(window(0, 5)))))));
+
+    runner.finishBundle();
+
+    List<WindowedValue<KV<String, Iterable<String>>>> result = runner.getReceiver(outputTag);
+
+    assertEquals(2, result.size());
+
+    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
+    assertEquals("k", item0.getValue().getKey());
+    assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v1", "v3"));
+    assertEquals(new Instant(4), item0.getTimestamp());
+    assertThat(item0.getWindows(),
+        Matchers.contains(window(0, 5)));
+
+    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
+    assertEquals("k", item1.getValue().getKey());
+    assertThat(item1.getValue().getValue(), Matchers.contains("v2"));
+    assertEquals(new Instant(4), item1.getTimestamp());
+    assertThat(item1.getWindows(),
+        Matchers.contains(window(1, 5)));
+  }
+
   @Test public void testSessions() throws Exception {
     DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
         KV<String, Iterable<String>>, List> runner =

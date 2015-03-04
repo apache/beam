@@ -261,7 +261,7 @@ public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
     private void skipToValidElement() {
       while (iterator.hasNext()) {
         WindowedValue<V> peek = iterator.peek();
-        if (!peek.getTimestamp().isBefore(window.maxTimestamp())) {
+        if (peek.getTimestamp().isAfter(window.maxTimestamp())) {
           // We are past the end of this window, so there can't be any more
           // elements in this iterator.
           break;
