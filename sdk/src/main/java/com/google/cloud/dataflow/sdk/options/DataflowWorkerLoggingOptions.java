@@ -47,10 +47,12 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    * Later options with equivalent names override earlier options.
    * <p>
    * See {@link WorkerLogLevelOverride} for more information on how to configure logging
-   * on a per {@link Class}, {@link Package}, or name basis.
+   * on a per {@link Class}, {@link Package}, or name basis. If used from the command line,
+   * the expected format is {@code Name#Level}, further details on
+   * {@link WorkerLogLevelOverride#create(String)}.
    */
   WorkerLogLevelOverride[] getWorkerLogLevelOverrides();
-  void setWorkerLogLevelOverrides(WorkerLogLevelOverride[] string);
+  void setWorkerLogLevelOverrides(WorkerLogLevelOverride[] workerLogLevelOverrides);
 
   /**
    * Defines a log level override for a specific class, package, or name.
@@ -111,7 +113,11 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
     }
 
     /**
-     * Expects a value of the form {@code Name#Level}.
+     * Expects a value of the form {@code Name#Level}. The {@code Name} generally
+     * represents the fully qualified Java {@link Class#getName() class name},
+     * or fully qualified Java {@link Package#getName() package name}, or custom
+     * logger name. The {@code Level} represents the log level and must be one
+     * of {@link Level}.
      */
     @JsonCreator
     public static WorkerLogLevelOverride create(String value) {
