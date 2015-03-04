@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.runners.worker.logging;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions;
@@ -87,16 +86,14 @@ public class DataflowWorkerLoggingInitializerTest {
     DataflowWorkerLoggingInitializer.configure(options);
 
     Logger aLogger = LogManager.getLogManager().getLogger("A");
-    assertEquals(1, aLogger.getHandlers().length);
+    assertEquals(0, aLogger.getHandlers().length);
     assertEquals(Level.FINE, aLogger.getLevel());
-    assertFalse(aLogger.getUseParentHandlers());
-    assertTrue(isFileHandler(aLogger.getHandlers()[0], Level.ALL));
+    assertTrue(aLogger.getUseParentHandlers());
 
     Logger bLogger = LogManager.getLogManager().getLogger("B");
-    assertEquals(1, bLogger.getHandlers().length);
     assertEquals(Level.SEVERE, bLogger.getLevel());
-    assertFalse(bLogger.getUseParentHandlers());
-    assertTrue(isFileHandler(bLogger.getHandlers()[0], Level.ALL));
+    assertEquals(0, bLogger.getHandlers().length);
+    assertTrue(aLogger.getUseParentHandlers());
   }
 
   private boolean isFileHandler(Handler handler, Level level) {

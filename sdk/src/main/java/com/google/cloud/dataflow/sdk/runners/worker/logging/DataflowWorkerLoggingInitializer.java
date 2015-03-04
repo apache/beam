@@ -114,16 +114,11 @@ public class DataflowWorkerLoggingInitializer {
       LogManager.getLogManager().getLogger(ROOT_LOGGER_NAME).setLevel(
           LEVELS.inverse().get(options.getDefaultWorkerLogLevel()));
     }
-    /* We store a reference to all the custom loggers the user configured.
-     * To make sure that these custom levels override the default logger level,
-     * we break the parent chain and have the logger directly pass log records
-     * to the file handler. */
+
     if (options.getWorkerLogLevelOverrides() != null) {
       for (WorkerLogLevelOverride loggerOverride : options.getWorkerLogLevelOverrides()) {
         Logger logger = Logger.getLogger(loggerOverride.getName());
-        logger.setUseParentHandlers(false);
         logger.setLevel(LEVELS.inverse().get(loggerOverride.getLevel()));
-        logger.addHandler(fileHandler);
         configuredLoggers.add(logger);
       }
     }
