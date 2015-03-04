@@ -92,7 +92,7 @@ public class DataflowWorkerHarness {
    * Fetches and processes work units from the Dataflow service.
    */
   public static void main(String[] args) throws Exception {
-    Thread.currentThread().setUncaughtExceptionHandler(WorkerUncaughtExceptionHandler.INSTANCE);
+    Thread.setDefaultUncaughtExceptionHandler(WorkerUncaughtExceptionHandler.INSTANCE);
     DataflowWorkerLoggingInitializer.initialize();
 
     DataflowWorkerHarnessOptions pipelineOptions =

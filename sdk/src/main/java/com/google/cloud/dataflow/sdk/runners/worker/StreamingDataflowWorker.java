@@ -93,6 +93,9 @@ public class StreamingDataflowWorker {
   }
 
   public static void main(String[] args) throws Exception {
+    Thread.setDefaultUncaughtExceptionHandler(
+        DataflowWorkerHarness.WorkerUncaughtExceptionHandler.INSTANCE);
+
     DataflowWorkerLoggingInitializer.initialize();
     DataflowWorkerHarnessOptions options =
         PipelineOptionsFactory.createFromSystemProperties();
@@ -153,19 +156,9 @@ public class StreamingDataflowWorker {
       addComputation(mapTask);
     }
     this.threadFactory = new ThreadFactory() {
-        private final Thread.UncaughtExceptionHandler handler =
-            new Thread.UncaughtExceptionHandler() {
-              @Override
-              public void uncaughtException(Thread thread, Throwable e) {
-                LOG.error("Uncaught exception: ", e);
-                System.exit(1);
-              }
-            };
-
         @Override
         public Thread newThread(Runnable r) {
           Thread t = new Thread(r);
-          t.setUncaughtExceptionHandler(handler);
           t.setDaemon(true);
           return t;
         }
