@@ -369,18 +369,18 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
 
     private final Combiner<? super K, VI, VA, ?> combiner;
     private final SizeEstimator<? super K> keySizer;
-    private final SizeEstimator<? super VA> valueSizer;
+    private final SizeEstimator<? super VA> accumulatorSizer;
 
     public CombiningGroupingTable(long maxSize,
                                   GroupingKeyCreator<? super K> groupingKeyCreator,
                                   PairInfo pairInfo,
                                   Combiner<? super K, VI, VA, ?> combineFn,
                                   SizeEstimator<? super K> keySizer,
-                                  SizeEstimator<? super VA> valueSizer) {
+                                  SizeEstimator<? super VA> accumulatorSizer) {
       super(maxSize, groupingKeyCreator, pairInfo);
       this.combiner =  combineFn;
       this.keySizer = keySizer;
-      this.valueSizer = valueSizer;
+      this.accumulatorSizer = accumulatorSizer;
     }
 
     @Override
@@ -394,7 +394,7 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
         public long getSize() { return keySize + accumulatorSize; }
         public void add(VI value) throws Exception {
           accumulator = combiner.add(key, accumulator, value);
-          accumulatorSize = valueSizer.estimateSize(accumulator);
+          accumulatorSize = accumulatorSizer.estimateSize(accumulator);
         }
       };
     }
