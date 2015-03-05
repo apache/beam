@@ -23,8 +23,6 @@ import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.client.util.NanoClock;
-import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.pubsub.Pubsub;
@@ -153,7 +151,7 @@ public class Transport {
         new RetryHttpRequestInitializer(
             // Do not log the code 404. Code up the stack will deal with 404's if needed, and
             // logging it by default clutters the output during file staging.
-            options.getGcpCredential(), NanoClock.SYSTEM, Sleeper.DEFAULT, Arrays.asList(404)))
+            options.getGcpCredential(), Arrays.asList(404)))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(
             new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));

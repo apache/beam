@@ -133,10 +133,29 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
    *                applied to HttpRequest initialization.  May be null.
    */
   public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained) {
-    this(chained, NanoClock.SYSTEM, Sleeper.DEFAULT, Collections.<Integer>emptyList());
+    this(chained, Collections.<Integer>emptyList());
   }
 
+  /**
+   * @param chained a downstream HttpRequestInitializer, which will also be
+   *                applied to HttpRequest initialization.  May be null.
+   * @param additionalIgnoredResponseCodes a list of HTTP status codes which should not be logged.
+   */
   public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained,
+      Collection<Integer> additionalIgnoredResponseCodes) {
+    this(chained, NanoClock.SYSTEM, Sleeper.DEFAULT, additionalIgnoredResponseCodes);
+  }
+
+  /**
+   * Visible for testing.
+   *
+   * @param chained a downstream HttpRequestInitializer, which will also be
+   *                applied to HttpRequest initialization.  May be null.
+   * @param nanoClock used as a timing source for knowing how much time has elapsed.
+   * @param sleeper used to sleep between retries.
+   * @param additionalIgnoredResponseCodes a list of HTTP status codes which should not be logged.
+   */
+  RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained,
       NanoClock nanoClock, Sleeper sleeper, Collection<Integer> additionalIgnoredResponseCodes) {
     this.chained = chained;
     this.nanoClock = nanoClock;
