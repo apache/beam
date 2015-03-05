@@ -123,8 +123,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         "JobName invalid; the name must consist of only the characters "
             + "[-a-z0-9], starting with a letter and ending with a letter "
             + "or number");
-    Preconditions.checkArgument(jobName.length() <= 40,
-        "JobName too long; must be no more than 40 characters in length");
 
     return new DataflowPipelineRunner(dataflowOptions);
   }

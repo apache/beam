@@ -389,13 +389,11 @@ public class DataflowPipelineRunnerTest {
     List<String> invalidNames = Arrays.asList(
         "invalid_name",
         "0invalid",
-        "invalid-",
-        "this-one-is-too-long-01234567890123456789");
+        "invalid-");
     List<String> expectedReason = Arrays.asList(
         "JobName invalid",
         "JobName invalid",
-        "JobName invalid",
-        "JobName too long");
+        "JobName invalid");
 
     for (int i = 0; i < invalidNames.size(); ++i) {
       ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
@@ -416,7 +414,8 @@ public class DataflowPipelineRunnerTest {
 
   @Test
   public void testValidJobName() throws IOException {
-    List<String> names = Arrays.asList("ok", "Ok", "A-Ok", "ok-123");
+    List<String> names = Arrays.asList("ok", "Ok", "A-Ok", "ok-123",
+        "this-one-is-fairly-long-01234567890123456789");
 
     for (String name : names) {
       ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
