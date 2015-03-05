@@ -137,11 +137,11 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
   }
 
   public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained,
-      NanoClock nanoClock, Sleeper sleeper, Collection<Integer> ignoredResponseCodes) {
+      NanoClock nanoClock, Sleeper sleeper, Collection<Integer> additionalIgnoredResponseCodes) {
     this.chained = chained;
     this.nanoClock = nanoClock;
     this.sleeper = sleeper;
-    this.ignoredResponseCodes = new HashSet<>(ignoredResponseCodes);
+    this.ignoredResponseCodes.addAll(additionalIgnoredResponseCodes);
   }
 
   @Override
