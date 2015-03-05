@@ -119,6 +119,12 @@ public class StreamingModeExecutionContext extends ExecutionContext {
     }
 
     @Override
+    public <T> void remove(CodedTupleTag<T> tag) {
+      // Write ByteString.EMPTY to indicate the value associated with the tag is removed.
+      stateCache.put(tag, KV.of(null, ByteString.EMPTY));
+    }
+
+    @Override
     public CodedTupleTagMap lookup(List<? extends CodedTupleTag<?>> tags)
         throws CoderException, IOException {
       List<CodedTupleTag<?>> tagsToLookup = new ArrayList<>();

@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
@@ -39,31 +40,39 @@ public class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
     extends DoFn<TimerOrElement<KV<K, VI>>, KV<K, VO>> implements DoFn.RequiresKeyedState {
 
   protected WindowFn<?, W> windowFn;
+  protected KeyedCombineFn combineFn;
   protected Coder<VI> inputCoder;
 
   protected StreamingGroupAlsoByWindowsDoFn(
       WindowFn<?, W> windowFn,
+      KeyedCombineFn combineFn,
       Coder<VI> inputCoder) {
     this.windowFn = windowFn;
+    this.combineFn = combineFn;
     this.inputCoder = inputCoder;
   }
 
   public static <K, VI, VO, W extends BoundedWindow>
       StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W> create(
           WindowFn<?, W> windowFn,
+          KeyedCombineFn combineFn,
           Coder<VI> inputCoder) {
-    return new StreamingGroupAlsoByWindowsDoFn<>(windowFn, inputCoder);
+    return new StreamingGroupAlsoByWindowsDoFn<>(windowFn, combineFn, inputCoder);
   }
 
   private AbstractWindowSet<K, VI, VO, W> createWindowSet(
       K key,
       DoFnProcessContext<?, KV<K, VO>> context,
       AbstractWindowSet.ActiveWindowManager<W> activeWindowManager) throws Exception {
-    if (windowFn instanceof PartitioningWindowFn) {
+    if (combineFn != null) {
+      return new CombiningWindowSet(
+          key, windowFn, combineFn, inputCoder, context, activeWindowManager);
+    } else if (windowFn instanceof PartitioningWindowFn) {
       return new PartitionBufferingWindowSet(
           key, windowFn, inputCoder, context, activeWindowManager);
     } else {
-      return new BufferingWindowSet(key, windowFn, inputCoder, context, activeWindowManager);
+      return new BufferingWindowSet(
+          key, windowFn, inputCoder, context, activeWindowManager);
     }
   }
 

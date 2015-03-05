@@ -818,7 +818,7 @@ public class Combine {
    * {@link #perKey(SerializableFunction)}, and
    * {@link #groupedValues(SerializableFunction)}.
    */
-  static class SimpleCombineFn<V> extends CombineFn<V, List<V>, V> {
+  public static class SimpleCombineFn<V> extends CombineFn<V, List<V>, V> {
     /**
      * Returns a {@code CombineFn} that uses the given
      * {@code SerializableFunction} to combine values.

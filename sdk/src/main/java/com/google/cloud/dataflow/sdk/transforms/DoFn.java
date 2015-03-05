@@ -282,6 +282,11 @@ public abstract class DoFn<I, O> implements Serializable {
     public <T> void store(CodedTupleTag<T> tag, T value) throws IOException;
 
     /**
+     * Removes the data associated with the given tag from {@code KeyedState}.
+     */
+    public <T> void remove(CodedTupleTag<T> tag);
+
+    /**
      * Returns the value associated with the given tag in this
      * {@code KeyedState}, or {@code null} if the tag has no asssociated
      * value.

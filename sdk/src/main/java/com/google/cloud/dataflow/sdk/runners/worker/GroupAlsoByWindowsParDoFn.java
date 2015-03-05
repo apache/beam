@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
 import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
 
+import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -73,13 +74,15 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
     }
 
     byte[] serializedCombineFn = getBytes(cloudUserFn, PropertyNames.COMBINE_FN, null);
-    Object combineFn = null;
+    final Object combineFn;
     if (serializedCombineFn != null) {
       combineFn =
           SerializableUtils.deserializeFromByteArray(serializedCombineFn, "serialized combine fn");
       if (!(combineFn instanceof KeyedCombineFn)) {
         throw new Exception("unexpected kind of KeyedCombineFn: " + combineFn.getClass().getName());
       }
+    } else {
+      combineFn = null;
     }
 
     Map<String, Object> inputCoderObject = getObject(cloudUserFn, PropertyNames.INPUT_CODER);
@@ -106,18 +109,26 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       fnFactory = new DoFnInfoFactory() {
         @Override
         public DoFnInfo createDoFnInfo() {
-          return new DoFnInfo(StreamingGroupAlsoByWindowsDoFn.create(
-              (WindowFn) windowFn,
-              ((KvCoder) elemCoder).getValueCoder()),
+          return new DoFnInfo(
+              StreamingGroupAlsoByWindowsDoFn.create(
+                  (WindowFn) windowFn,
+                  (KeyedCombineFn) combineFn,
+                  ((KvCoder) elemCoder).getValueCoder()),
               null);
         }
       };
     } else {
+      //TODO: handle CombineFn in batch GroupAlsoByWindowsDoFn.
+      Preconditions.checkArgument(
+          combineFn == null,
+          "combineFn is expected to be null in batch, but it is " + combineFn);
       fnFactory = new DoFnInfoFactory() {
         @Override
         public DoFnInfo createDoFnInfo() {
           return new DoFnInfo(
-              new GroupAlsoByWindowsDoFn((WindowFn) windowFn, elemCoder),
+              new GroupAlsoByWindowsDoFn(
+                  (WindowFn) windowFn,
+                  elemCoder),
               null);
         }
       };

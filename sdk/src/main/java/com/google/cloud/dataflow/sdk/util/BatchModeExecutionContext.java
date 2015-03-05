@@ -107,6 +107,14 @@ public class BatchModeExecutionContext extends ExecutionContext {
     }
 
     @Override
+    public <T> void remove(CodedTupleTag<T> tag) {
+      Map<CodedTupleTag<?>, Object> perKeyState = state.get(getKey());
+      if (perKeyState != null) {
+        perKeyState.remove(tag);
+      }
+    }
+
+    @Override
     public CodedTupleTagMap lookup(List<? extends CodedTupleTag<?>> tags) {
       Map<CodedTupleTag<?>, Object> perKeyState = state.get(getKey());
       Map<CodedTupleTag<?>, Object> map = new HashMap<>();

@@ -68,7 +68,7 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
   @Override
   public KeyedState keyedState() {
     if (!(fn instanceof RequiresKeyedState)
-        || (element() != null && !(element() instanceof KV))) {
+        || !equivalentToKV(element())) {
       throw new UnsupportedOperationException(
           "Keyed state is only available in the context of a keyed DoFn marked as requiring state");
     }
@@ -138,5 +138,17 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
   private void checkTimestamp(Instant timestamp) {
     Preconditions.checkArgument(
         !timestamp.isBefore(windowedValue.getTimestamp().minus(fn.getAllowedTimestampSkew())));
+  }
+
+  private boolean equivalentToKV(I input) {
+    if (input == null) {
+      return true;
+    } else if (input instanceof KV) {
+      return true;
+    } else if (input instanceof TimerOrElement) {
+      return ((TimerOrElement) input).isTimer()
+          || ((TimerOrElement) input).element() instanceof KV;
+    }
+    return false;
   }
 }

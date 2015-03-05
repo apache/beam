@@ -23,6 +23,10 @@ import static org.junit.Assert.assertThat;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
@@ -63,7 +67,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testEmpty() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>,
         KV<String, Iterable<String>>, List> runner =
-        makeRunner(FixedWindows.<String>of(Duration.millis(10)));
+        makeRunner(FixedWindows.<String>of(Duration.millis(10)), null);
 
     runner.startBundle();
 
@@ -77,7 +81,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testFixedWindows() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>,
         KV<String, Iterable<String>>, List> runner =
-        makeRunner(FixedWindows.<String>of(Duration.millis(10)));
+        makeRunner(FixedWindows.<String>of(Duration.millis(10)), null);
 
     Coder<IntervalWindow> windowCoder = FixedWindows.<String>of(Duration.millis(10)).windowCoder();
 
@@ -135,7 +139,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testSlidingWindows() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>,
         KV<String, Iterable<String>>, List> runner =
-        makeRunner(SlidingWindows.<String>of(Duration.millis(20)).every(Duration.millis(10)));
+        makeRunner(SlidingWindows.<String>of(Duration.millis(20)).every(Duration.millis(10)), null);
 
     Coder<IntervalWindow> windowCoder =
         SlidingWindows.<String>of(Duration.millis(10)).every(Duration.millis(10)).windowCoder();
@@ -200,7 +204,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testSessions() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>,
         KV<String, Iterable<String>>, List> runner =
-        makeRunner(Sessions.<String>withGapDuration(Duration.millis(10)));
+        makeRunner(Sessions.<String>withGapDuration(Duration.millis(10)), null);
 
     Coder<IntervalWindow> windowCoder =
         Sessions.<String>withGapDuration(Duration.millis(10)).windowCoder();
@@ -256,16 +260,74 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertThat(item1.getWindows(), Matchers.contains(window(15, 25)));
   }
 
+  @Test public void testSessionsCombine() throws Exception {
+    CombineFn combineFn = Combine.SimpleCombineFn.of(new Sum.SumLongFn());
+    DoFnRunner<TimerOrElement<KV<String, Iterable<Long>>>,
+        KV<String, Iterable<Long>>, List> runner =
+        makeRunner(Sessions.<String>withGapDuration(Duration.millis(10)),
+                   combineFn.asKeyedFn());
 
-  private DoFnRunner<TimerOrElement<KV<String, String>>,
-    KV<String, Iterable<String>>, List> makeRunner(
-        WindowFn<? super String, IntervalWindow> windowingStrategy) {
+    Coder<IntervalWindow> windowCoder =
+        Sessions.<String>withGapDuration(Duration.millis(10)).windowCoder();
 
-    StreamingGroupAlsoByWindowsDoFn<String, String, Iterable<String>, IntervalWindow> fn =
-        StreamingGroupAlsoByWindowsDoFn.create(windowingStrategy, StringUtf8Coder.of());
+    runner.startBundle();
 
-    DoFnRunner<TimerOrElement<KV<String, String>>,
-        KV<String, Iterable<String>>, List> runner =
+    runner.processElement(WindowedValue.of(
+        TimerOrElement.element(KV.of("k", (Iterable<Long>) Arrays.asList(1L))),
+        new Instant(0),
+        Arrays.asList(window(0, 10))));
+
+    runner.processElement(WindowedValue.of(
+        TimerOrElement.element(KV.of("k", (Iterable<Long>) Arrays.asList(2L))),
+        new Instant(5),
+        Arrays.asList(window(5, 15))));
+
+    runner.processElement(WindowedValue.of(
+        TimerOrElement.element(KV.of("k", (Iterable<Long>) Arrays.asList(3L))),
+        new Instant(15),
+        Arrays.asList(window(15, 25))));
+
+    runner.processElement(WindowedValue.of(
+        TimerOrElement.element(KV.of("k", (Iterable<Long>) Arrays.asList(4L))),
+        new Instant(3),
+        Arrays.asList(window(3, 13))));
+
+    runner.processElement(WindowedValue.valueInEmptyWindows(
+        TimerOrElement.<KV<String, Iterable<Long>>>timer(
+            windowToString((IntervalWindow) window(0, 15), windowCoder),
+            new Instant(14), "k")));
+
+    runner.processElement(WindowedValue.valueInEmptyWindows(
+        TimerOrElement.<KV<String, Iterable<Long>>>timer(
+            windowToString((IntervalWindow) window(15, 25), windowCoder),
+            new Instant(24), "k")));
+
+    runner.finishBundle();
+
+    List<WindowedValue<KV<String, Iterable<Long>>>> result = runner.getReceiver(outputTag);
+
+    assertEquals(2, result.size());
+
+    WindowedValue<KV<String, Iterable<Long>>> item0 = result.get(0);
+    assertEquals("k", item0.getValue().getKey());
+    assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder(7L));
+    assertEquals(new Instant(14), item0.getTimestamp());
+    assertThat(item0.getWindows(), Matchers.contains(window(0, 15)));
+
+    WindowedValue<KV<String, Iterable<Long>>> item1 = result.get(1);
+    assertEquals("k", item1.getValue().getKey());
+    assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder(3L));
+    assertEquals(new Instant(24), item1.getTimestamp());
+    assertThat(item1.getWindows(), Matchers.contains(window(15, 25)));
+  }
+
+  private DoFnRunner makeRunner(
+        WindowFn<? super String, IntervalWindow> windowingStrategy,
+        KeyedCombineFn combineFn) {
+    StreamingGroupAlsoByWindowsDoFn fn =
+        StreamingGroupAlsoByWindowsDoFn.create(windowingStrategy, combineFn, StringUtf8Coder.of());
+
+    DoFnRunner runner =
         DoFnRunner.createWithListOutputs(
             PipelineOptionsFactory.create(),
             fn,
