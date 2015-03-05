@@ -51,6 +51,9 @@ import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -61,7 +64,7 @@ import java.util.Set;
 /**
  * An example that computes a basic TF-IDF search table for a directory or GCS prefix.
  *
- * <p> Concepts: joining data; side inputs
+ * <p> Concepts: joining data; side inputs; logging
  *
  * <p> To execute this pipeline locally, specify general pipeline configuration:
  *   --project=<PROJECT ID>
@@ -227,6 +230,11 @@ public class TfIdf {
                   URI uri = c.element().getKey();
                   String line = c.element().getValue();
                   for (String word : line.split("\\W+")) {
+                    // Log INFO messages when the word “love” is found.
+                    if (word.toLowerCase().equals("love")) {
+                      LOG.info("Found {}", word.toLowerCase());
+                    }
+
                     if (!word.isEmpty()) {
                       c.output(KV.of(uri, word.toLowerCase()));
                     }
@@ -373,6 +381,11 @@ public class TfIdf {
 
       return wordToUriAndTfIdf;
     }
+
+    // Instantiate Logger.
+    // It is suggested that the user specify the class name of the containing class
+    // (in this case ComputeTfIdf).
+    private static final Logger LOG = LoggerFactory.getLogger(ComputeTfIdf.class);
   }
 
   /**
