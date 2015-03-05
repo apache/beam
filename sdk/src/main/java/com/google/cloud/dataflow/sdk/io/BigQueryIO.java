@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
 import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
@@ -841,9 +842,10 @@ public class BigQueryIO {
     }
 
     LOG.info("Reading from BigQuery table {}", toTableSpec(ref));
-    List<TableRow> elems = ReaderUtils.readElemsFromReader(new BigQueryReader(client, ref));
+    List<WindowedValue<TableRow>> elems =
+        ReaderUtils.readElemsFromReader(new BigQueryReader(client, ref));
     LOG.info("Number of records read from BigQuery: {}", elems.size());
-    context.setPCollection(transform.getOutput(), elems);
+    context.setPCollectionWindowedValue(transform.getOutput(), elems);
   }
 
   /**

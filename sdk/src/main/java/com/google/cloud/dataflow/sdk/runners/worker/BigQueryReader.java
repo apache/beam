@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import java.io.IOException;
@@ -35,7 +36,7 @@ import java.util.NoSuchElementException;
  * progress reporting because the source is used only in situations where the entire table must be
  * read by each worker (i.e. the source is used as a side input).
  */
-public class BigQueryReader extends Reader<TableRow> {
+public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
   final TableReference tableRef;
   final BigQueryOptions bigQueryOptions;
   final Bigquery bigQueryClient;
@@ -57,7 +58,7 @@ public class BigQueryReader extends Reader<TableRow> {
   }
 
   @Override
-  public ReaderIterator<TableRow> iterator() throws IOException {
+  public ReaderIterator<WindowedValue<TableRow>> iterator() throws IOException {
     return new BigQueryReaderIterator(
         bigQueryClient != null
             ? bigQueryClient : Transport.newBigQueryClient(bigQueryOptions).build(),
@@ -67,7 +68,7 @@ public class BigQueryReader extends Reader<TableRow> {
   /**
    * A ReaderIterator that yields TableRow objects for each row of a BigQuery table.
    */
-  class BigQueryReaderIterator extends AbstractReaderIterator<TableRow> {
+  class BigQueryReaderIterator extends AbstractReaderIterator<WindowedValue<TableRow>> {
     private BigQueryTableRowIterator rowIterator;
 
     public BigQueryReaderIterator(Bigquery bigQueryClient, TableReference tableRef) {
@@ -80,11 +81,11 @@ public class BigQueryReader extends Reader<TableRow> {
     }
 
     @Override
-    public TableRow next() throws IOException {
+    public WindowedValue<TableRow> next() throws IOException {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
-      return rowIterator.next();
+      return WindowedValue.valueInGlobalWindow(rowIterator.next());
     }
 
     @Override

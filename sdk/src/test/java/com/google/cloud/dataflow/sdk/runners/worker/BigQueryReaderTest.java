@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.common.collect.Lists;
 
@@ -342,10 +343,10 @@ public class BigQueryReaderTest {
         bigQueryClient,
         new TableReference().setProjectId(PROJECT_ID).setDatasetId(DATASET).setTableId(TABLE));
 
-    Reader.ReaderIterator<TableRow> iterator = reader.iterator();
+    Reader.ReaderIterator<WindowedValue<TableRow>> iterator = reader.iterator();
     Assert.assertTrue(iterator.hasNext());
 
-    TableRow row = iterator.next();
+    TableRow row = iterator.next().getValue();
 
     Assert.assertEquals("Arthur", row.get("name"));
     Assert.assertEquals("42", row.get("integer"));
@@ -360,7 +361,7 @@ public class BigQueryReaderTest {
     Assert.assertTrue(((List<?>) row.get("repeatedFloat")).isEmpty());
     Assert.assertTrue(((List<?>) row.get("repeatedRecord")).isEmpty());
 
-    row = iterator.next();
+    row = iterator.next().getValue();
 
     Assert.assertEquals("Allison", row.get("name"));
     Assert.assertEquals("79", row.get("integer"));

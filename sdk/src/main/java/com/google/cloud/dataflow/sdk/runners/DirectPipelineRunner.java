@@ -488,6 +488,13 @@ public class DirectPipelineRunner
         PCollection<T> pc, List<ValueWithMetadata<T>> elements);
 
     /**
+     * Sets the value of the given PCollection, where each element also has a timestamp
+     * and collection of windows.
+     * Throws an exception if the PCollection's value has already been set.
+     */
+    <T> void setPCollectionWindowedValue(PCollection<T> pc, List<WindowedValue<T>> elements);
+
+    /**
      * Shorthand for setting the value of a PCollection where the elements do not have
      * timestamps or windows.
      * Throws an exception if the PCollection's value has already been set.
@@ -655,7 +662,7 @@ public class DirectPipelineRunner
      * Convert a list of T to a list of {@code ValueWithMetadata<T>}, with a timestamp of 0
      * and null windows.
      */
-    <T> List<ValueWithMetadata<T>> toValuesWithMetadata(List<T> values) {
+    <T> List<ValueWithMetadata<T>> toValueWithMetadata(List<T> values) {
       List<ValueWithMetadata<T>> result = new ArrayList<>(values.size());
       for (T value : values) {
         result.add(ValueWithMetadata.of(WindowedValue.valueInGlobalWindow(value)));
@@ -663,9 +670,27 @@ public class DirectPipelineRunner
       return result;
     }
 
+    /**
+     * Convert a list of {@code WindowedValue<T>} to a list of {@code ValueWithMetadata<T>}.
+     */
+    <T> List<ValueWithMetadata<T>> toValueWithMetadataFromWindowedValue(
+        List<WindowedValue<T>> values) {
+      List<ValueWithMetadata<T>> result = new ArrayList<>(values.size());
+      for (WindowedValue<T> value : values) {
+        result.add(ValueWithMetadata.of(value));
+      }
+      return result;
+    }
+
     @Override
     public <T> void setPCollection(PCollection<T> pc, List<T> elements) {
-      setPCollectionValuesWithMetadata(pc, toValuesWithMetadata(elements));
+      setPCollectionValuesWithMetadata(pc, toValueWithMetadata(elements));
+    }
+
+    @Override
+    public <T> void setPCollectionWindowedValue(
+        PCollection<T> pc, List<WindowedValue<T>> elements) {
+      setPCollectionValuesWithMetadata(pc, toValueWithMetadataFromWindowedValue(elements));
     }
 
     @Override
