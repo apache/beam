@@ -34,11 +34,11 @@ import com.google.cloud.dataflow.sdk.util.Values;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
+import com.google.common.base.Preconditions;
 
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -331,6 +331,8 @@ public class StreamingDataflowWorker {
       if (workerAndContext == null) {
         context = new StreamingModeExecutionContext(computation, stateFetcher);
         worker = MapTaskExecutorFactory.create(options, mapTask, context);
+        Preconditions.checkState(worker.supportsRestart(),
+            "Streaming runner requires all operations support restart.");
       } else {
         worker = workerAndContext.getWorker();
         context = workerAndContext.getContext();

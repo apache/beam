@@ -107,4 +107,13 @@ public class MapTaskExecutor extends WorkExecutor {
     stateSampler.close();
     super.close();
   }
+
+  public boolean supportsRestart() {
+    for (Operation op : operations) {
+      if (!op.supportsRestart()) {
+        return false;
+      }
+    }
+    return true;
+  }
 }
