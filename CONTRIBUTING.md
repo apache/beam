@@ -19,7 +19,12 @@ frustration later on.
 
 ### Code reviews
 All submissions, including submissions by project members, require review. We
-use Github pull requests for this purpose.
+use GitHub pull requests for this purpose.
+
+### Organization
+During our review and triage of incoming pull requests, we'll advise whether to
+include your contribution into the mainline SDK, or to maintain it within the
+separate group of [community-contributed modules](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/tree/master/contrib).
 
 ### The small print
 Contributions made by corporations are covered by a different agreement than
