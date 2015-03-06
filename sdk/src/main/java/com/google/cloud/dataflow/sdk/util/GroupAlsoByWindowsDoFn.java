@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
@@ -44,30 +45,34 @@ import java.util.PriorityQueue;
  * combining values.
  *
  * @param <K> key type
- * @param <V> input value element type
+ * @param <VI> input value element type
+ * @param <VO> output value element type
  * @param <W> window type
  */
 @SuppressWarnings("serial")
-public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
-    extends DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> {
+public class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
+    extends DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> {
   // TODO: Add back RequiresKeyed state once that is supported.
 
   protected WindowFn<?, W> windowFn;
-  protected Coder<V> inputCoder;
+  protected KeyedCombineFn<K, ?, VI, ?> combineFn;
+  protected Coder<VI> inputCoder;
 
   public GroupAlsoByWindowsDoFn(
       WindowFn<?, W> windowFn,
-      Coder<V> inputCoder) {
+      KeyedCombineFn<K, ?, VI, ?> combineFn,
+      Coder<VI> inputCoder) {
     this.windowFn = windowFn;
+    this.combineFn = combineFn;
     this.inputCoder = inputCoder;
   }
 
   @Override
   public void processElement(ProcessContext processContext) throws Exception {
-    DoFnProcessContext<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> context =
-        (DoFnProcessContext<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>>) processContext;
+    DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context =
+        (DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>) processContext;
 
-    if (windowFn instanceof NonMergingWindowFn) {
+    if (windowFn instanceof NonMergingWindowFn && combineFn == null) {
       processElementViaIterators(context);
     } else {
       processElementViaWindowSet(context);
@@ -75,15 +80,21 @@ public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
   }
 
   private void processElementViaWindowSet(
-      DoFnProcessContext<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> context)
+      DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context)
       throws Exception {
 
     K key = context.element().getKey();
     BatchActiveWindowManager<W> activeWindowManager = new BatchActiveWindowManager<>();
-    AbstractWindowSet<K, V, Iterable<V>, W> windowSet =
-        new BufferingWindowSet(key, windowFn, inputCoder, context, activeWindowManager);
+    AbstractWindowSet<K, VI, VO, W> windowSet;
+    if (combineFn == null) {
+      windowSet = new BufferingWindowSet(
+          key, windowFn, inputCoder, context, activeWindowManager);
+    } else {
+      windowSet = new CombiningWindowSet(
+          key, windowFn, combineFn, inputCoder, context, activeWindowManager);
+    }
 
-    for (WindowedValue<V> e : context.element().getValue()) {
+    for (WindowedValue<VI> e : context.element().getValue()) {
       for (BoundedWindow window : e.getWindows()) {
         windowSet.put((W) window, e.getValue());
       }
@@ -127,17 +138,17 @@ public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
   }
 
   private void processElementViaIterators(
-      DoFnProcessContext<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> context)
+      DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context)
       throws Exception {
     K key = context.element().getKey();
-    Iterable<WindowedValue<V>> value = context.element().getValue();
-    PeekingReiterator<WindowedValue<V>> iterator;
+    Iterable<WindowedValue<VI>> value = context.element().getValue();
+    PeekingReiterator<WindowedValue<VI>> iterator;
 
     if (value instanceof Collection) {
-      iterator = new PeekingReiterator<>(new ListReiterator<WindowedValue<V>>(
-          new ArrayList<WindowedValue<V>>((Collection<WindowedValue<V>>) value), 0));
+      iterator = new PeekingReiterator<>(new ListReiterator<WindowedValue<VI>>(
+          new ArrayList<WindowedValue<VI>>((Collection<WindowedValue<VI>>) value), 0));
     } else if (value instanceof Reiterable) {
-      iterator = new PeekingReiterator(((Reiterable<WindowedValue<V>>) value).iterator());
+      iterator = new PeekingReiterator(((Reiterable<WindowedValue<VI>>) value).iterator());
     } else {
       throw new IllegalArgumentException(
           "Input to GroupAlsoByWindowsDoFn must be a Collection or Reiterable");
@@ -148,7 +159,7 @@ public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
     ListMultimap<Instant, BoundedWindow> windows = ArrayListMultimap.create();
 
     while (iterator.hasNext()) {
-      WindowedValue<V> e = iterator.peek();
+      WindowedValue<VI> e = iterator.peek();
       for (BoundedWindow window : e.getWindows()) {
         // If this window is not already in the active set, emit a new WindowReiterable
         // corresponding to this window, starting at this element in the input Reiterable.
@@ -157,7 +168,7 @@ public class GroupAlsoByWindowsDoFn<K, V, W extends BoundedWindow>
           // for as long as it detects that there are no new windows.
           windows.put(window.maxTimestamp(), window);
           context.outputWindowedValue(
-              KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
+              KV.of(key, (VO) new WindowReiterable<VI>(iterator, window)),
               window.maxTimestamp(),
               Arrays.asList((W) window));
         }

@@ -252,9 +252,9 @@ public class GroupAlsoByWindowsDoFnTest {
     KV<String, Iterable<String>>, List> makeRunner(
         WindowFn<? super String, IntervalWindow> windowFn) {
 
-    GroupAlsoByWindowsDoFn<String, String, IntervalWindow> fn =
-        new GroupAlsoByWindowsDoFn<String, String, IntervalWindow>(
-            windowFn, StringUtf8Coder.of());
+    GroupAlsoByWindowsDoFn<String, String, Iterable<String>, IntervalWindow> fn =
+        new GroupAlsoByWindowsDoFn<String, String, Iterable<String>, IntervalWindow>(
+            windowFn, null, StringUtf8Coder.of());
 
     DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
         KV<String, Iterable<String>>, List> runner =

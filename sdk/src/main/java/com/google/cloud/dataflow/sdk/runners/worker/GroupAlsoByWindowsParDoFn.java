@@ -128,6 +128,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
           return new DoFnInfo(
               new GroupAlsoByWindowsDoFn(
                   (WindowFn) windowFn,
+                  (KeyedCombineFn) combineFn,
                   elemCoder),
               null);
         }
