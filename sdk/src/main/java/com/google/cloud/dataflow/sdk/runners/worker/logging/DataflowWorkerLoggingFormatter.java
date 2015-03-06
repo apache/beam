@@ -91,12 +91,12 @@ public class DataflowWorkerLoggingFormatter extends Formatter {
     return DATE_FORMATTER.print(record.getMillis())
         + " " + MoreObjects.firstNonNull(LEVELS.get(record.getLevel()),
                                          record.getLevel().getName())
-        + " " + MoreObjects.firstNonNull(jobId.get(), "unknown")
+        + " " + record.getMessage()
+        + " [" + MoreObjects.firstNonNull(jobId.get(), "unknown")
         + " " + MoreObjects.firstNonNull(workerId.get(), "unknown")
         + " " + MoreObjects.firstNonNull(workId.get(), "unknown")
         + " " + record.getThreadID()
-        + " " + record.getLoggerName()
-        + " " + record.getMessage() + System.lineSeparator()
+        + "] " + record.getLoggerName() + System.lineSeparator()
         + (exception != null ? exception : "");
   }
 

@@ -37,8 +37,8 @@ public class DataflowWorkerLoggingFormatterTest {
   @Test
   public void testWithUnsetValuesInMDC() {
     assertEquals(
-        "1970-01-01T00:00:00.001Z INFO unknown unknown unknown 2 LoggerName "
-        + "test.message" + System.lineSeparator(),
+        "1970-01-01T00:00:00.001Z INFO test.message [unknown unknown unknown 2] LoggerName"
+        + System.lineSeparator(),
         new DataflowWorkerLoggingFormatter().format(
             createLogRecord("test.message", null)));
   }
@@ -50,8 +50,8 @@ public class DataflowWorkerLoggingFormatterTest {
     DataflowWorkerLoggingFormatter.setWorkId("testWorkId");
 
     assertEquals(
-        "1970-01-01T00:00:00.001Z INFO testJobId testWorkerId testWorkId 2 LoggerName "
-        + "test.message" + System.lineSeparator(),
+        "1970-01-01T00:00:00.001Z INFO test.message [testJobId testWorkerId testWorkId 2] "
+        + "LoggerName" + System.lineSeparator(),
         new DataflowWorkerLoggingFormatter().format(
             createLogRecord("test.message", null)));
   }
@@ -63,8 +63,8 @@ public class DataflowWorkerLoggingFormatterTest {
     DataflowWorkerLoggingFormatter.setWorkId("testWorkId");
 
     assertEquals(
-        "1970-01-01T00:00:00.001Z INFO testJobId testWorkerId testWorkId 2 LoggerName "
-        + "test.message" + System.lineSeparator()
+        "1970-01-01T00:00:00.001Z INFO test.message [testJobId testWorkerId testWorkId 2] "
+        + "LoggerName" + System.lineSeparator()
         + "java.lang.Throwable: exception.test.message" + System.lineSeparator()
         + "\tat declaringClass1.method1(file1.java:1)" + System.lineSeparator()
         + "\tat declaringClass2.method2(file2.java:1)" + System.lineSeparator()
@@ -80,7 +80,7 @@ public class DataflowWorkerLoggingFormatterTest {
     DataflowWorkerLoggingFormatter.setWorkId("testWorkId");
 
     assertEquals(
-        "1970-01-01T00:00:00.001Z INFO testJobId testWorkerId testWorkId 2 LoggerName null"
+        "1970-01-01T00:00:00.001Z INFO null [testJobId testWorkerId testWorkId 2] LoggerName"
         + System.lineSeparator()
         + "java.lang.Throwable: exception.test.message" + System.lineSeparator()
         + "\tat declaringClass1.method1(file1.java:1)" + System.lineSeparator()
@@ -97,7 +97,7 @@ public class DataflowWorkerLoggingFormatterTest {
     DataflowWorkerLoggingFormatter.setWorkId("testWorkId");
 
     assertEquals(
-        "1970-01-01T00:00:00.001Z INFO testJobId testWorkerId testWorkId 2 LoggerName null"
+        "1970-01-01T00:00:00.001Z INFO null [testJobId testWorkerId testWorkId 2] LoggerName"
         + System.lineSeparator(),
         new DataflowWorkerLoggingFormatter().format(
             createLogRecord(null, null)));
