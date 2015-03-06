@@ -189,6 +189,13 @@ public class Window {
       return new Bound<>(name, fn);
     }
 
+    /**
+     * Returns the user-specified {@code WindowFn}.
+     */
+    public WindowFn<? super T, ?> getWindowFn() {
+      return fn;
+    }
+
     @Override
     public PCollection<T> apply(PCollection<T> input) {
       return PCollection.<T>createPrimitiveOutputInternal(fn);
