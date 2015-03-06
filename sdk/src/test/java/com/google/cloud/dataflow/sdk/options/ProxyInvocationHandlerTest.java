@@ -526,6 +526,11 @@ public class ProxyInvocationHandlerTest {
     }
 
     @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    @Override
     public boolean equals(Object obj) {
       return obj != null
           && getClass().equals(obj.getClass())
@@ -539,6 +544,11 @@ public class ProxyInvocationHandlerTest {
     public Integer intField;
     public List<InnerType> genericType;
     public InnerType innerType;
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
 
     @Override
     public boolean equals(Object obj) {
