@@ -84,6 +84,8 @@
             <compilerArgs>
               <arg>-Xlint:all</arg>
               <arg>-Werror</arg>
+              <!-- Override options warnings to support cross-compilation -->
+              <arg>-Xlint:-options</arg>
               <!-- Temporary lint overrides, to be removed over time. -->
               <arg>-Xlint:-cast</arg>
               <arg>-Xlint:-deprecation</arg>

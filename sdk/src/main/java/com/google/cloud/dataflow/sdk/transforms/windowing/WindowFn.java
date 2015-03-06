@@ -40,6 +40,7 @@ import java.util.Collection;
  */
 public abstract class WindowFn<T, W extends BoundedWindow>
     implements Serializable {
+  private static final long serialVersionUID = 0;
 
   /**
    * Information available when running {@link #assignWindows}.

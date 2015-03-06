@@ -55,6 +55,7 @@ import java.util.List;
  * @param <T> the type of elements handled by this coder, must extend {@code Message}
  */
 public class Proto2Coder<T extends Message> extends CustomCoder<T> {
+  private static final long serialVersionUID = 0;
 
   /**
    * Produces a new Proto2Coder instance, for a given Protobuf message class.

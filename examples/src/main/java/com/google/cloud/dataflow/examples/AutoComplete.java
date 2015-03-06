@@ -325,6 +325,11 @@ public class AutoComplete {
     }
 
     @Override
+    public int hashCode() {
+      return Long.valueOf(count).hashCode() ^ value.hashCode();
+    }
+
+    @Override
     public String toString() {
       return "CompletionCandidate[" + value + ", " + count + "]";
     }

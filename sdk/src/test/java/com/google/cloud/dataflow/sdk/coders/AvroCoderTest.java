@@ -113,6 +113,11 @@ public class AvroCoderTest {
     }
 
     @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    @Override
     public String toString() {
       return "Pojo{"
           + "text='" + text + '\''

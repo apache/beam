@@ -39,6 +39,7 @@ import java.util.Observer;
  */
 public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
     extends StandardCoder<IT> {
+  private static final long serialVersionUID = 0;
 
   public Coder<T> getElemCoder() { return elementCoder; }
 

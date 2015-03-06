@@ -52,6 +52,8 @@ import javax.annotation.Nullable;
  * @param <T> Type of elements read by the source.
  */
 public abstract class Source<T> implements Serializable {
+  private static final long serialVersionUID = 0;
+
   /**
    * Splits the source into shards.
    *
