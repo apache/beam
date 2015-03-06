@@ -26,6 +26,8 @@ import java.util.List;
  * @param <T> the type of the values being transcoded
  */
 public abstract class AtomicCoder<T> extends StandardCoder<T> {
+  private static final long serialVersionUID = 0;
+
   protected AtomicCoder() {}
 
   @Override

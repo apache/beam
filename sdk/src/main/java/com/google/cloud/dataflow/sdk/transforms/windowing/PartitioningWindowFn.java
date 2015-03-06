@@ -30,6 +30,8 @@ import java.util.Collection;
  */
 public abstract class PartitioningWindowFn<T, W extends BoundedWindow>
     extends NonMergingWindowFn<T, W> {
+  private static final long serialVersionUID = 0;
+
   /**
    * Returns the single window to which elements with this timestamp belong.
    */

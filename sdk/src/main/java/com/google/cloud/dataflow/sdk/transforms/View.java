@@ -335,6 +335,7 @@ public class View {
   private abstract static class PCollectionViewBase<T, WT>
       extends PValueBase
       implements PCollectionView<T, WT> {
+    private static final long serialVersionUID = 0;
 
     @Override
     public TupleTag<Iterable<WindowedValue<?>>> getTagInternal() {

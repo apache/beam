@@ -25,6 +25,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
  */
 public abstract class NonMergingWindowFn<T, W extends BoundedWindow>
     extends WindowFn<T, W> {
+  private static final long serialVersionUID = 0;
 
   @Override
   public final void mergeWindows(MergeContext c) { }

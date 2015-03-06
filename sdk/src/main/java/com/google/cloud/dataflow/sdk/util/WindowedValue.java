@@ -178,6 +178,8 @@ public class WindowedValue<V> {
    */
   public abstract static class WindowedValueCoder<T>
       extends StandardCoder<WindowedValue<T>> {
+    private static final long serialVersionUID = 0;
+
     final Coder<T> valueCoder;
 
     WindowedValueCoder(Coder<T> valueCoder) {

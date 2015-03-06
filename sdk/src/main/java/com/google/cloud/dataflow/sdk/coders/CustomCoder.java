@@ -39,6 +39,7 @@ import java.io.Serializable;
  */
 public abstract class CustomCoder<T> extends AtomicCoder<T>
     implements Serializable {
+  private static final long serialVersionUID = 0;
 
   @JsonCreator
   public static CustomCoder<?> of(
