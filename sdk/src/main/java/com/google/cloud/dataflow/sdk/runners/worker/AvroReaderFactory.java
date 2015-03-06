@@ -19,13 +19,12 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.cloud.dataflow.sdk.util.Structs.getLong;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
-import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.WindowedValue.ValueOnlyWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 /**
@@ -46,16 +45,11 @@ public class AvroReaderFactory {
     Long startOffset = getLong(spec, PropertyNames.START_OFFSET, null);
     Long endOffset = getLong(spec, PropertyNames.END_OFFSET, null);
 
-    if (!(coder instanceof WindowedValueCoder)) {
-      return new AvroByteReader<>(filename, startOffset, endOffset, coder);
-      //throw new IllegalArgumentException("Expected WindowedValueCoder");
-    }
-
-    WindowedValueCoder windowedCoder = (WindowedValueCoder) coder;
-    if (windowedCoder.getValueCoder() instanceof AvroCoder) {
-      return new AvroReader(filename, startOffset, endOffset, windowedCoder);
+    if (coder instanceof ValueOnlyWindowedValueCoder) {
+      return (Reader<T>) new AvroReader(
+          filename, startOffset, endOffset, (ValueOnlyWindowedValueCoder<?>) coder);
     } else {
-      return new AvroByteReader<>(filename, startOffset, endOffset, windowedCoder);
+      return new AvroByteReader<>(filename, startOffset, endOffset, coder);
     }
   }
 }

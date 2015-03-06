@@ -18,13 +18,12 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
-import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.WindowedValue.ValueOnlyWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 
 /**
@@ -47,16 +46,10 @@ public final class AvroSinkFactory {
       throws Exception {
     String filename = getString(spec, PropertyNames.FILENAME);
 
-    if (!(coder instanceof WindowedValueCoder)) {
-      return new AvroByteSink<>(filename, coder);
-      //throw new IllegalArgumentException("Expected WindowedValueCoder");
-    }
-
-    WindowedValueCoder windowedCoder = (WindowedValueCoder) coder;
-    if (windowedCoder.getValueCoder() instanceof AvroCoder) {
-      return new AvroSink(filename, windowedCoder);
+    if (coder instanceof ValueOnlyWindowedValueCoder) {
+      return (Sink<T>) new AvroSink(filename, (ValueOnlyWindowedValueCoder<?>) coder);
     } else {
-      return new AvroByteSink<>(filename, windowedCoder);
+      return new AvroByteSink<>(filename, coder);
     }
   }
 }

@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -67,7 +68,8 @@ public class AvroReaderFactoryTest {
 
   @Test
   public void testCreatePlainAvroByteReader() throws Exception {
-    Coder<?> coder = WindowedValue.getValueOnlyCoder(BigEndianIntegerCoder.of());
+    Coder<?> coder = WindowedValue.getFullCoder(
+        BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
     Reader<?> reader = runTestCreateAvroReader(pathToAvroFile, null, null, coder.asCloudObject());
 
     Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));
@@ -80,7 +82,8 @@ public class AvroReaderFactoryTest {
 
   @Test
   public void testCreateRichAvroByteReader() throws Exception {
-    Coder<?> coder = WindowedValue.getValueOnlyCoder(BigEndianIntegerCoder.of());
+    Coder<?> coder = WindowedValue.getFullCoder(
+        BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
     Reader<?> reader = runTestCreateAvroReader(pathToAvroFile, 200L, 500L, coder.asCloudObject());
 
     Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));

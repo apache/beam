@@ -54,10 +54,7 @@ public class AvroReader<T> extends Reader<WindowedValue<T>> {
   private final Schema schema;
 
   public AvroReader(String filename, @Nullable Long startPosition, @Nullable Long endPosition,
-      WindowedValue.WindowedValueCoder<T> coder) {
-    if (!(coder instanceof WindowedValue.ValueOnlyWindowedValueCoder)) {
-      throw new IllegalArgumentException("Expected ValueOnlyWindowedValueCoder");
-    }
+      WindowedValue.ValueOnlyWindowedValueCoder<T> coder) {
 
     if (!(coder.getValueCoder() instanceof AvroCoder)) {
       throw new IllegalArgumentException("AvroReader requires an AvroCoder");

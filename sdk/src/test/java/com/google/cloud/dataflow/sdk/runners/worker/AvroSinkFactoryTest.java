@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -59,7 +60,7 @@ public class AvroSinkFactoryTest {
   @Test
   public void testCreateAvroByteSink() throws Exception {
     Coder<?> coder =
-        WindowedValue.getValueOnlyCoder(BigEndianIntegerCoder.of());
+        WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
     Sink<?> sink = runTestCreateAvroSink(
         pathToAvroFile, coder.asCloudObject());
 

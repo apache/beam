@@ -127,7 +127,7 @@ public class WindowedValue<V> {
    * Returns the {@code Coder} to use for a {@code WindowedValue<T>},
    * using the given valueCoder and windowCoder.
    */
-  public static <T> WindowedValueCoder<T> getFullCoder(
+  public static <T> FullWindowedValueCoder<T> getFullCoder(
       Coder<T> valueCoder,
       Coder<? extends BoundedWindow> windowCoder) {
     return FullWindowedValueCoder.of(valueCoder, windowCoder);
@@ -136,7 +136,7 @@ public class WindowedValue<V> {
   /**
    * Returns the {@code ValueOnlyCoder} from the given valueCoder.
    */
-  public static <T> WindowedValueCoder<T> getValueOnlyCoder(Coder<T> valueCoder) {
+  public static <T> ValueOnlyWindowedValueCoder<T> getValueOnlyCoder(Coder<T> valueCoder) {
     return ValueOnlyWindowedValueCoder.of(valueCoder);
   }
 
