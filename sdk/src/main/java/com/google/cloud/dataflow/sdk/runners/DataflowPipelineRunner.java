@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
@@ -150,6 +151,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       boolean runnerSortsByTimestamp = true;
       return (Output) ((GroupByKey) transform).applyHelper(
           (PCollection<?>) input, options.isStreaming(), runnerSortsByTimestamp);
+    } else if (transform instanceof Create) {
+      return (Output) ((Create) transform).applyHelper(input, options.isStreaming());
     } else {
       return super.apply(transform, input);
     }

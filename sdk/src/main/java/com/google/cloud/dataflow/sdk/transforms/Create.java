@@ -17,10 +17,17 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.api.client.util.Preconditions;
+import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.IterableCoder;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -31,6 +38,7 @@ import com.google.common.reflect.TypeToken;
 
 import org.joda.time.Instant;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -184,9 +192,60 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
 
   @Override
   public PCollection<T> apply(PInput input) {
-    return PCollection.<T>createPrimitiveOutputInternal(new GlobalWindows());
+    return applyHelper(input, false);
   }
 
+  public PCollection<T> applyHelper(PInput input, boolean isStreaming) {
+    if (isStreaming) {
+      Coder<T> elemCoder = (Coder<T>) getElementCoder();
+      return Pipeline.applyTransform(
+          input, PubsubIO.Read.named("StartingSignal").subscription("_starting_signal/"))
+          .apply(ParDo.of(new DoFn<String, KV<Void, Void>>() {
+            private static final long serialVersionUID = 0;
+
+            @Override
+            public void processElement(DoFn<String, KV<Void, Void>>.ProcessContext c)
+                throws Exception {
+              c.output(KV.of((Void) null, (Void) null));
+            }
+          }))
+          .apply(ParDo.of(new OutputOnceDoFn<>(elems, elemCoder)));
+    } else {
+      return PCollection.<T>createPrimitiveOutputInternal(new GlobalWindows());
+    }
+  }
+
+  private static class OutputOnceDoFn<T> extends DoFn<KV<Void, Void>, T>
+      implements DoFn.RequiresKeyedState {
+    private static final long serialVersionUID = 0;
+
+    private final CodedTupleTag<String> outputOnceTag =
+        CodedTupleTag.of("outputOnce", StringUtf8Coder.of());
+    private final byte[] encodedBytes;
+    private final IterableCoder<T> iterableCoder;
+
+    public OutputOnceDoFn(Iterable<T> elems, Coder<T> coder) {
+      this.iterableCoder = IterableCoder.of(coder);
+      try {
+        this.encodedBytes = CoderUtils.encodeToByteArray(iterableCoder, elems);
+      } catch (CoderException e) {
+        throw new IllegalArgumentException(
+            "Unable to encode element '" + elems + "' using coder '" + coder + "'.", e);
+      }
+    }
+
+    @Override
+    public void processElement(ProcessContext c) throws IOException {
+      String state = c.keyedState().lookup(outputOnceTag);
+      if (state == null || state.isEmpty()) {
+        Iterable<T> elems = CoderUtils.decodeFromByteArray(iterableCoder, encodedBytes);
+        for (T t : elems) {
+          c.output(t);
+        }
+        c.keyedState().store(outputOnceTag, "done");
+      }
+    }
+  }
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -207,8 +266,7 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
     return elems;
   }
 
-  @Override
-  protected Coder<?> getDefaultOutputCoder() {
+  private Coder<?> getElementCoder() {
     // First try to deduce a coder using the types of the elements.
     Class<?> elementType = null;
     for (T elem : elems) {
@@ -222,7 +280,7 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
       }
     }
     if (elementType == null) {
-      return super.getDefaultOutputCoder();
+      return null;
     }
     if (elementType.getTypeParameters().length == 0) {
       Coder<?> candidate = getCoderRegistry().getDefaultCoder(TypeToken.of(elementType));
@@ -242,11 +300,17 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
         break;
       }
     }
-    if (coder != null) {
-      return coder;
-    }
+    return coder;
+  }
 
-    return super.getDefaultOutputCoder();
+  @Override
+  protected Coder<?> getDefaultOutputCoder() {
+    Coder<?> elemCoder = getElementCoder();
+    if (elemCoder == null) {
+      return super.getDefaultOutputCoder();
+    } else {
+      return elemCoder;
+    }
   }
 
   /**
@@ -279,12 +343,11 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
 
     private static class ConvertTimestamps<T> extends DoFn<TimestampedValue<T>, T> {
       @Override
-        public void processElement(ProcessContext c) {
+      public void processElement(ProcessContext c) {
         c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
       }
     }
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 

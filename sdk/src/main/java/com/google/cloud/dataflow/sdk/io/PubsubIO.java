@@ -64,6 +64,7 @@ public class PubsubIO {
   private static final int PUBSUB_NAME_MAX_LENGTH = 255;
 
   private static final String SUBSCRIPTION_RANDOM_TEST_PREFIX = "_random/";
+  private static final String SUBSCRIPTION_STARTING_SIGNAL = "_starting_signal/";
   private static final String TOPIC_DEV_NULL_TEST_NAME = "/topics/dev/null";
 
   /**
@@ -85,7 +86,8 @@ public class PubsubIO {
     }
 
     public static void validateSubscriptionName(String subscription) {
-      if (subscription.startsWith(SUBSCRIPTION_RANDOM_TEST_PREFIX)) {
+      if (subscription.startsWith(SUBSCRIPTION_RANDOM_TEST_PREFIX)
+          || subscription.startsWith(SUBSCRIPTION_STARTING_SIGNAL)) {
         return;
       }
       Matcher match = SUBSCRIPTION_REGEXP.matcher(subscription);
