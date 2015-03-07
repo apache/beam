@@ -30,7 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  * A {@code StringUtf8Coder} encodes Java Strings in UTF-8 encoding.
@@ -49,14 +49,10 @@ public class StringUtf8Coder extends AtomicCoder<String> {
 
   private static final StringUtf8Coder INSTANCE = new StringUtf8Coder();
 
-  private static class Singletons {
-    private static final Charset UTF8 = Charset.forName("UTF-8");
-  }
-
   // Writes a string with VarInt size prefix, supporting large strings.
   private static void writeString(String value, DataOutputStream dos)
       throws IOException {
-    byte[] bytes = value.getBytes(Singletons.UTF8);
+    byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
     VarInt.encode(bytes.length, dos);
     dos.write(bytes);
   }
@@ -69,7 +65,7 @@ public class StringUtf8Coder extends AtomicCoder<String> {
     }
     byte[] bytes = new byte[len];
     dis.readFully(bytes);
-    return new String(bytes, Singletons.UTF8);
+    return new String(bytes, StandardCharsets.UTF_8);
   }
 
   private StringUtf8Coder() {}
@@ -81,7 +77,7 @@ public class StringUtf8Coder extends AtomicCoder<String> {
       throw new CoderException("cannot encode a null String");
     }
     if (context.isWholeStream) {
-      byte[] bytes = value.getBytes(Singletons.UTF8);
+      byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
       if (outStream instanceof ExposedByteArrayOutputStream) {
         ((ExposedByteArrayOutputStream) outStream).writeAndOwn(bytes);
       } else {
@@ -97,7 +93,7 @@ public class StringUtf8Coder extends AtomicCoder<String> {
       throws IOException {
     if (context.isWholeStream) {
       byte[] bytes = StreamUtils.getBytes(inStream);
-      return new String(bytes, Singletons.UTF8);
+      return new String(bytes, StandardCharsets.UTF_8);
     } else {
       try {
         return readString(new DataInputStream(inStream));
@@ -124,7 +120,7 @@ public class StringUtf8Coder extends AtomicCoder<String> {
       throw new CoderException("cannot encode a null String");
     }
     if (context.isWholeStream) {
-      return value.getBytes(Singletons.UTF8).length;
+      return value.getBytes(StandardCharsets.UTF_8).length;
     } else {
       DataOutputStream stream = new DataOutputStream(new ByteArrayOutputStream());
       writeString(value, stream);
