@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageB;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageC;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -27,6 +28,7 @@ import org.junit.runners.JUnit4;
 /**
  * Tests for Proto2Coder.
  */
+@Ignore("Enable when we fix interal build process")
 @RunWith(JUnit4.class)
 public class Proto2CoderTest {
 
