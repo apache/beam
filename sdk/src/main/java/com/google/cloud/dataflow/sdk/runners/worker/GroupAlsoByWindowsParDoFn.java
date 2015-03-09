@@ -126,7 +126,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
         @Override
         public DoFnInfo createDoFnInfo() {
           return new DoFnInfo(
-              new GroupAlsoByWindowsDoFn(
+              GroupAlsoByWindowsDoFn.create(
                   (WindowFn) windowFn,
                   (KeyedCombineFn) combineFn,
                   elemCoder),

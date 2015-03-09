@@ -50,142 +50,207 @@ import java.util.PriorityQueue;
  * @param <W> window type
  */
 @SuppressWarnings("serial")
-public class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
+public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
     extends DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> {
-  // TODO: Add back RequiresKeyed state once that is supported.
 
-  protected WindowFn<?, W> windowFn;
-  protected KeyedCombineFn<K, ?, VI, ?> combineFn;
-  protected Coder<VI> inputCoder;
-
-  public GroupAlsoByWindowsDoFn(
-      WindowFn<?, W> windowFn,
-      KeyedCombineFn<K, ?, VI, ?> combineFn,
-      Coder<VI> inputCoder) {
-    this.windowFn = windowFn;
-    this.combineFn = combineFn;
-    this.inputCoder = inputCoder;
-  }
-
-  @Override
-  public void processElement(ProcessContext processContext) throws Exception {
-    DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context =
-        (DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>) processContext;
-
-    if (windowFn instanceof NonMergingWindowFn && combineFn == null) {
-      processElementViaIterators(context);
+  /**
+   * Create a {@link GroupAlsoByWindowsDoFn} without a combine function. Depending on the
+   * {@code windowFn} this will either use iterators or window sets to implement the grouping.
+   *
+   * @param windowFn The window function to use for grouping
+   * @param inputCoder the input coder to use
+   */
+  public static <K, V, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W>
+  create(final WindowFn<?, W> windowFn, final Coder<V> inputCoder) {
+    if (windowFn instanceof NonMergingWindowFn) {
+      return new GABWViaIteratorsDoFn<K, V, W>();
     } else {
-      processElementViaWindowSet(context);
+      return new GABWViaWindowSetDoFn<K, V, Iterable<V>, W>(windowFn) {
+        @Override
+        AbstractWindowSet<K, V, Iterable<V>, W> createWindowSet(K key,
+            DoFnProcessContext<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> context,
+            BatchActiveWindowManager<W> activeWindowManager) throws Exception {
+          return  new BufferingWindowSet<K, V, W>(key, windowFn, inputCoder,
+              context, activeWindowManager);
+        }
+      };
     }
-  }
-
-  private void processElementViaWindowSet(
-      DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context)
-      throws Exception {
-
-    K key = context.element().getKey();
-    BatchActiveWindowManager<W> activeWindowManager = new BatchActiveWindowManager<>();
-    AbstractWindowSet<K, VI, VO, W> windowSet;
-    if (combineFn == null) {
-      windowSet = new BufferingWindowSet(
-          key, windowFn, inputCoder, context, activeWindowManager);
-    } else {
-      windowSet = new CombiningWindowSet(
-          key, windowFn, combineFn, inputCoder, context, activeWindowManager);
-    }
-
-    for (WindowedValue<VI> e : context.element().getValue()) {
-      for (BoundedWindow window : e.getWindows()) {
-        windowSet.put((W) window, e.getValue());
-      }
-      ((WindowFn<Object, W>) windowFn)
-        .mergeWindows(new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowFn));
-
-      maybeOutputWindows(activeWindowManager, windowSet, windowFn, e.getTimestamp());
-    }
-
-    maybeOutputWindows(activeWindowManager, windowSet, windowFn, null);
-
-    windowSet.flush();
   }
 
   /**
-   * Outputs any windows that are complete, with their corresponding elemeents.
-   * If there are potentially complete windows, try merging windows first.
+   * Create a {@link GroupAlsoByWindowsDoFn} using the specified combineFn.
    */
-  private void maybeOutputWindows(
-      BatchActiveWindowManager<W> activeWindowManager,
-      AbstractWindowSet<?, ?, ?, W> windowSet,
-      WindowFn<?, W> windowFn,
-      Instant nextTimestamp) throws Exception {
-    if (activeWindowManager.hasMoreWindows()
-        && (nextTimestamp == null
-            || activeWindowManager.nextTimestamp().isBefore(nextTimestamp))) {
-      // There is at least one window ready to emit.  Merge now in case that window should be merged
-      // into a not yet completed one.
-      ((WindowFn<Object, W>) windowFn)
-        .mergeWindows(new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowFn));
-    }
+  private static <K, VA, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, VA, VA, W>
+  createCombine(final WindowFn<?, W> windowFn,
+      final KeyedCombineFn<K, ?, VA, ?> combineFn,
+      final Coder<VA> inputCoder) {
+    return new GABWViaWindowSetDoFn<K, VA, VA, W>(windowFn) {
+    @Override
+    AbstractWindowSet<K, VA, VA, W> createWindowSet(K key,
+        DoFnProcessContext<KV<K, Iterable<WindowedValue<VA>>>, KV<K, VA>> context,
+        BatchActiveWindowManager<W> activeWindowManager) throws Exception {
+        return new CombiningWindowSet<K, VA, W>(
+            key, windowFn, combineFn, inputCoder, context, activeWindowManager);
+      }
+    };
+  }
 
-    while (activeWindowManager.hasMoreWindows()
-        && (nextTimestamp == null
-            || activeWindowManager.nextTimestamp().isBefore(nextTimestamp))) {
-      W window = activeWindowManager.getWindow();
-      if (windowSet.contains(window)) {
-        windowSet.markCompleted(window);
+  /**
+   * Construct a {@link GroupAlsoByWindowsDoFn} using the {@code combineFn} if available.
+   */
+  public static <K, VI, VO, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, VI, VO, W>
+  create(WindowFn<?, W> windowFn, KeyedCombineFn<K, ?, VI, ?> combineFn,
+      Coder<VI> inputCoder) {
+    if (combineFn == null) {
+      // Without combineFn, it should be the case that VO = Iterable<VI>, so this is safe
+      @SuppressWarnings("unchecked")
+      GroupAlsoByWindowsDoFn<K, VI, VO, W> fn =
+          (GroupAlsoByWindowsDoFn<K, VI, VO, W>) create(windowFn, inputCoder);
+      return fn;
+    } else {
+      // With a combineFn, then VI = VO, and we'll use those as the type of the accumulator
+      @SuppressWarnings("unchecked")
+      GroupAlsoByWindowsDoFn<K, VI, VO, W> fn =
+          (GroupAlsoByWindowsDoFn<K, VI, VO, W>) createCombine(windowFn, combineFn, inputCoder);
+      return fn;
+    }
+  }
+
+  private static class GABWViaIteratorsDoFn<K, V, W extends BoundedWindow>
+      extends GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W> {
+
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      DoFnProcessContext<?, KV<K, Iterable<V>>> internal = (DoFnProcessContext) c;
+
+      K key = c.element().getKey();
+      Iterable<WindowedValue<V>> value = c.element().getValue();
+      PeekingReiterator<WindowedValue<V>> iterator;
+
+      if (value instanceof Collection) {
+        iterator = new PeekingReiterator<>(new ListReiterator<WindowedValue<V>>(
+            new ArrayList<WindowedValue<V>>((Collection<WindowedValue<V>>) value), 0));
+      } else if (value instanceof Reiterable) {
+        iterator = new PeekingReiterator<>(((Reiterable<WindowedValue<V>>) value).iterator());
+      } else {
+        throw new IllegalArgumentException(
+            "Input to GroupAlsoByWindowsDoFn must be a Collection or Reiterable");
+      }
+
+      // This ListMultimap is a map of window maxTimestamps to the list of active
+      // windows with that maxTimestamp.
+      ListMultimap<Instant, BoundedWindow> windows = ArrayListMultimap.create();
+
+      while (iterator.hasNext()) {
+        WindowedValue<V> e = iterator.peek();
+        for (BoundedWindow window : e.getWindows()) {
+          // If this window is not already in the active set, emit a new WindowReiterable
+          // corresponding to this window, starting at this element in the input Reiterable.
+          if (!windows.containsEntry(window.maxTimestamp(), window)) {
+            // Iterating through the WindowReiterable may advance iterator as an optimization
+            // for as long as it detects that there are no new windows.
+            windows.put(window.maxTimestamp(), window);
+            internal.outputWindowedValue(
+                KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
+                window.maxTimestamp(),
+                Arrays.asList(window));
+          }
+        }
+        // Copy the iterator in case the next DoFn cached its version of the iterator instead
+        // of immediately iterating through it.
+        // And, only advance the iterator if the consuming operation hasn't done so.
+        iterator = iterator.copy();
+        if (iterator.hasNext() && iterator.peek() == e) {
+          iterator.next();
+        }
+
+        // Remove all windows with maxTimestamp behind the current timestamp.
+        Iterator<Instant> windowIterator = windows.keys().iterator();
+        while (windowIterator.hasNext()
+            && windowIterator.next().isBefore(e.getTimestamp())) {
+          windowIterator.remove();
+        }
       }
     }
   }
 
-  private void processElementViaIterators(
-      DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context)
-      throws Exception {
-    K key = context.element().getKey();
-    Iterable<WindowedValue<VI>> value = context.element().getValue();
-    PeekingReiterator<WindowedValue<VI>> iterator;
+  private abstract static class GABWViaWindowSetDoFn<K, VI, VO, W extends BoundedWindow>
+     extends GroupAlsoByWindowsDoFn<K, VI, VO, W> {
 
-    if (value instanceof Collection) {
-      iterator = new PeekingReiterator<>(new ListReiterator<WindowedValue<VI>>(
-          new ArrayList<WindowedValue<VI>>((Collection<WindowedValue<VI>>) value), 0));
-    } else if (value instanceof Reiterable) {
-      iterator = new PeekingReiterator(((Reiterable<WindowedValue<VI>>) value).iterator());
-    } else {
-      throw new IllegalArgumentException(
-          "Input to GroupAlsoByWindowsDoFn must be a Collection or Reiterable");
+    private WindowFn<Object, W> windowFn;
+
+    public GABWViaWindowSetDoFn(WindowFn<?, W> windowFn) {
+      @SuppressWarnings("unchecked")
+      WindowFn<Object, W> noWildcard = (WindowFn<Object, W>) windowFn;
+      this.windowFn = noWildcard;
     }
 
-    // This ListMultimap is a map of window maxTimestamps to the list of active
-    // windows with that maxTimestamp.
-    ListMultimap<Instant, BoundedWindow> windows = ArrayListMultimap.create();
+    abstract AbstractWindowSet<K, VI, VO, W> createWindowSet(
+        K key,
+        DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context,
+        BatchActiveWindowManager<W> activeWindowManager)
+        throws Exception;
 
-    while (iterator.hasNext()) {
-      WindowedValue<VI> e = iterator.peek();
-      for (BoundedWindow window : e.getWindows()) {
-        // If this window is not already in the active set, emit a new WindowReiterable
-        // corresponding to this window, starting at this element in the input Reiterable.
-        if (!windows.containsEntry(window.maxTimestamp(), window)) {
-          // Iterating through the WindowReiterable may advance iterator as an optimization
-          // for as long as it detects that there are no new windows.
-          windows.put(window.maxTimestamp(), window);
-          context.outputWindowedValue(
-              KV.of(key, (VO) new WindowReiterable<VI>(iterator, window)),
-              window.maxTimestamp(),
-              Arrays.asList((W) window));
+    @Override
+    public void processElement(
+        DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>.ProcessContext c) throws Exception {
+      @SuppressWarnings("unchecked")
+      DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context =
+          (DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>) c;
+      processElementViaWindowSet(context);
+    }
+
+    public void processElementViaWindowSet(
+        DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context)
+            throws Exception {
+      K key = context.element().getKey();
+      BatchActiveWindowManager<W> activeWindowManager = new BatchActiveWindowManager<>();
+      AbstractWindowSet<K, VI, ?, W> windowSet =
+          createWindowSet(key, context, activeWindowManager);
+
+      for (WindowedValue<VI> e : context.element().getValue()) {
+        for (BoundedWindow window : e.getWindows()) {
+          @SuppressWarnings("unchecked")
+          W w = (W) window;
+          windowSet.put(w, e.getValue());
         }
-      }
-      // Copy the iterator in case the next DoFn cached its version of the iterator instead
-      // of immediately iterating through it.
-      // And, only advance the iterator if the consuming operation hasn't done so.
-      iterator = iterator.copy();
-      if (iterator.hasNext() && iterator.peek() == e) {
-        iterator.next();
+        windowFn.mergeWindows(
+            new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowFn));
+
+        maybeOutputWindows(activeWindowManager, windowSet, e.getTimestamp());
       }
 
-      // Remove all windows with maxTimestamp behind the current timestamp.
-      Iterator<Instant> windowIterator = windows.keys().iterator();
-      while (windowIterator.hasNext()
-          && windowIterator.next().isBefore(e.getTimestamp())) {
-        windowIterator.remove();
+      maybeOutputWindows(activeWindowManager, windowSet, null);
+
+      windowSet.flush();
+    }
+
+
+    /**
+     * Outputs any windows that are complete, with their corresponding elemeents.
+     * If there are potentially complete windows, try merging windows first.
+     */
+    private void maybeOutputWindows(
+        BatchActiveWindowManager<W> activeWindowManager,
+        AbstractWindowSet<?, ?, ?, W> windowSet,
+        Instant nextTimestamp) throws Exception {
+      if (activeWindowManager.hasMoreWindows()
+          && (nextTimestamp == null
+              || activeWindowManager.nextTimestamp().isBefore(nextTimestamp))) {
+        // There is at least one window ready to emit.  Merge now in case that window should be
+        // merged into a not yet completed one.
+        windowFn.mergeWindows(
+           new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowFn));
+      }
+
+      while (activeWindowManager.hasMoreWindows()
+          && (nextTimestamp == null
+              || activeWindowManager.nextTimestamp().isBefore(nextTimestamp))) {
+        W window = activeWindowManager.getWindow();
+        if (windowSet.contains(window)) {
+          windowSet.markCompleted(window);
+        }
       }
     }
   }
@@ -228,7 +293,8 @@ public class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
   }
 
   /**
-   * The {@link Reiterator} used by {@link WindowReiterable}.
+   * The {@link Reiterator} used by
+   * {@link com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn.WindowReiterable}.
    */
   private static class WindowReiterator<V> implements Reiterator<V> {
     private PeekingReiterator<WindowedValue<V>> iterator;
@@ -322,7 +388,7 @@ public class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
 
     @Override
     public Reiterator<T> copy() {
-      return new ListReiterator(list, index);
+      return new ListReiterator<T>(list, index);
     }
   }
 

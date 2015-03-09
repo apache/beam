@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
@@ -254,10 +253,10 @@ public class GroupByKey<K, V>
       Coder<KV<K, Iterable<V>>> outputKvCoder =
           KvCoder.of(keyCoder, outputValueCoder);
 
-      return input.apply(ParDo.of(
-          new GroupAlsoByWindowsDoFn<K, V, Iterable<V>, BoundedWindow>(
-              (WindowFn) windowFn, null, inputIterableElementValueCoder)))
-          .setCoder(outputKvCoder);
+      GroupAlsoByWindowsDoFn<K, V, Iterable<V>, ?> fn =
+          GroupAlsoByWindowsDoFn.create(windowFn, inputIterableElementValueCoder);
+
+      return input.apply(ParDo.of(fn)).setCoder(outputKvCoder);
     }
   }
 
