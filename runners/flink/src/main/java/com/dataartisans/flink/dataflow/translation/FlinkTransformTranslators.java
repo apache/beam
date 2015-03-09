@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResult;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResultSchema;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.join.KeyedPCollectionTuple;
+import com.google.cloud.dataflow.sdk.transforms.join.RawUnionValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -31,10 +32,8 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.SortPartitionOperator;
 import org.apache.flink.api.java.io.AvroInputFormat;
 import org.apache.flink.api.java.io.AvroOutputFormat;
 import org.apache.flink.api.java.io.TextInputFormat;
@@ -264,16 +263,8 @@ public class FlinkTransformTranslators {
 		public void translateNode(Combine.PerKey<K, VI, VO> transform, TranslationContext context) {
 			DataSet<KV<K, VI>> inputDataSet = context.getInputDataSet(transform.getInput());
 
-			Combine.KeyedCombineFn<K, VI, VA, VO> keyedCombineFn = null;
-			// This is super hacky, but unfortunately we cannot get the fn otherwise
-			try {
-				Field fnField = transform.getClass().getDeclaredField("fn");
-				fnField.setAccessible(true);
-				keyedCombineFn = (Combine.KeyedCombineFn<K, VI, VA, VO>) fnField.get(transform);
-			} catch (NoSuchFieldException | IllegalAccessException e) {
-				// we know that the field is there and it is accessible
-				System.out.println("Could not access KeyedCombineFn: " + e);
-			}
+			@SuppressWarnings("unchecked")
+			Combine.KeyedCombineFn<K, VI, VA, VO> keyedCombineFn = (Combine.KeyedCombineFn<K, VI, VA, VO>) transform.getFn();
 
 			KvCoder<K, VI> inputCoder = (KvCoder<K, VI>) transform.getInput().getCoder();
 
