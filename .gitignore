@@ -1,5 +1,5 @@
 target/
 
-# Ignore Intellij files
-.idea
+# Ignore IntelliJ files.
+.idea/
 *.iml
