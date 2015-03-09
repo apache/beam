@@ -66,7 +66,7 @@ public class CoderComperator<T> extends TypeComparator<T> {
 			byte[] arr = byteBuffer1.getBuffer();
 			byte[] arrOther = byteBuffer2.getBuffer();
 			if (byteBuffer1.size() != byteBuffer2.size()) {
-				return arr.length - arrOther.length;
+				return byteBuffer1.size() - byteBuffer2.size();
 			}
 			int len = byteBuffer1.size();
 			for(int i = 0; i < len; i++ ) {
