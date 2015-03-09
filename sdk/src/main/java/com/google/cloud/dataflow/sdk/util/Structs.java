@@ -59,7 +59,7 @@ public final class Structs {
       return defaultValue;
     }
     // TODO: Need to agree on a format for encoding bytes in
-    // a string that can be sent over the Apiary wire, over the cloud
+    // a string that can be sent to the backend, over the cloud
     // map task work API.  base64 encoding seems pretty common.  Switch to it?
     return StringUtils.jsonStringToByteArray(jsonString);
   }

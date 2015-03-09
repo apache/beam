@@ -55,8 +55,8 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
    * Http response codes that should be silently ignored.
    */
   private static final Set<Integer> DEFAULT_IGNORED_RESPONSE_CODES = new HashSet<>(
-      Arrays.asList(307 /* Redirect, handled by Apiary client */,
-                    308 /* Resume Incomplete, handled by Apiary client */));
+      Arrays.asList(307 /* Redirect, handled by the client library */,
+                    308 /* Resume Incomplete, handled by the client library */));
 
   /**
    * Http response timeout to use for hanging gets.
