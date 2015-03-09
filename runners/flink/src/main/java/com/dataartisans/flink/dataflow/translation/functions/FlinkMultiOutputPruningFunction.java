@@ -17,6 +17,7 @@
  */
 package com.dataartisans.flink.dataflow.translation.functions;
 
+import com.google.cloud.dataflow.sdk.transforms.join.RawUnionValue;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 

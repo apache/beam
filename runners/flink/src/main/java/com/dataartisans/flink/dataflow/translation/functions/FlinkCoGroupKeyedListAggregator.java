@@ -2,6 +2,7 @@ package com.dataartisans.flink.dataflow.translation.functions;
 
 import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResult;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResultSchema;
+import com.google.cloud.dataflow.sdk.transforms.join.RawUnionValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import org.apache.flink.api.common.functions.CoGroupFunction;
@@ -37,6 +38,7 @@ public class FlinkCoGroupKeyedListAggregator<K,V1,V2> implements CoGroupFunction
 			k = entry.getKey();
 			result.add(new RawUnionValue(index2, entry.getValue()));
 		}
-		out.collect(KV.of(k, new CoGbkResult(schema, (Iterable) result)));
+		System.out.println("result: "+result);
+		out.collect(KV.of(k, new CoGbkResult(schema, (List) result)));
 	}
 }
