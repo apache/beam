@@ -272,27 +272,28 @@ public class FlinkTransformTranslators {
 					keyedCombineFn.getAccumulatorCoder(transform.getPipeline().getCoderRegistry(), inputCoder.getKeyCoder(), inputCoder.getValueCoder());
 
 
+			TypeInformation<KV<K, VI>> kvCoderTypeInformation = new KvCoderTypeInformation<>(inputCoder);
 			TypeInformation<KV<K, VA>> partialReduceTypeInfo = new KvCoderTypeInformation<>(KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder));
 
-			FlinkPartialReduceFunction<K, VI, VA, VO> partialReduceFunction = new FlinkPartialReduceFunction<>(keyedCombineFn);
+			Grouping<KV<K, VI>> inputGrouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, kvCoderTypeInformation));
 
+			FlinkPartialReduceFunction<K, VI, VA> partialReduceFunction = new FlinkPartialReduceFunction<>(keyedCombineFn);
 
-			SortPartitionOperator<KV<K, VI>> sortPartitionOperator = new SortPartitionOperator<>
-					(inputDataSet, "key", Order.ASCENDING, "Sort for PartialReduce: " +
-							transform.getName());
-
-			MapPartitionOperator<KV<K, VI>, KV<K, VA>> partialReduceOperator = new
-					MapPartitionOperator<>(sortPartitionOperator, partialReduceTypeInfo,
-					partialReduceFunction, "PartialReduce: " + transform.getName());
+			// Partially GroupReduce the values into the intermediate format VA
+			GroupReducePartialOperator<KV<K, VI>, KV<K, VA>> partialGroupReduce =
+					new GroupReducePartialOperator<>(inputGrouping, partialReduceTypeInfo, partialReduceFunction,
+							"PartialGroupReduce: " + transform.getName());
 
 			GroupReduceFunction<KV<K, VA>, KV<K, VO>> reduceFunction = new FlinkReduceFunction<>(keyedCombineFn);
 
 			TypeInformation<KV<K, VO>> reduceTypeInfo = context.getTypeInfo(transform.getOutput());
 
-			Grouping<KV<K, VA>> grouping = new UnsortedGrouping<>(partialReduceOperator, new Keys.ExpressionKeys<>(new String[]{"key"}, partialReduceOperator.getType()));
+			Grouping<KV<K, VA>> intermediateGrouping = new UnsortedGrouping<>(partialGroupReduce, new Keys.ExpressionKeys<>(new String[]{"key"}, partialGroupReduce.getType()));
 
+			// Fully reduce the values and create output format VO
 			GroupReduceOperator<KV<K, VA>, KV<K, VO>> outputDataSet =
-					new GroupReduceOperator<>(grouping, reduceTypeInfo, reduceFunction, transform.getName());
+					new GroupReduceOperator<>(intermediateGrouping, reduceTypeInfo, reduceFunction, transform.getName());
+
 			context.setOutputDataSet(transform.getOutput(), outputDataSet);
 		}
 	}
