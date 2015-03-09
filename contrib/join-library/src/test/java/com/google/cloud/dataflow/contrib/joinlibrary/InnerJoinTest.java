@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.transforms.join;
+package com.google.cloud.dataflow.contrib.joinlibrary;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -29,11 +29,10 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-
 /**
- * This test Outer Left Join functionality.
+ * This test Inner Join functionality.
  */
-public class OuterLeftJoinTest {
+public class InnerJoinTest {
 
   Pipeline p;
   List<KV<String, Long>> leftListOfKv;
@@ -60,8 +59,8 @@ public class OuterLeftJoinTest {
     listRightOfKv.add(KV.of("Key2", "bar"));
     PCollection<KV<String, String>> rightCollection = p.apply(Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.leftOuterJoin(
-      leftCollection, rightCollection, "");
+    PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
+      leftCollection, rightCollection);
 
     expectedResult.add(KV.of("Key1", KV.of(5L, "foo")));
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
@@ -79,8 +78,8 @@ public class OuterLeftJoinTest {
     listRightOfKv.add(KV.of("Key2", "gazonk"));
     PCollection<KV<String, String>> rightCollection = p.apply(Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.leftOuterJoin(
-      leftCollection, rightCollection, "");
+    PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
+      leftCollection, rightCollection);
 
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
     expectedResult.add(KV.of("Key2", KV.of(4L, "gazonk")));
@@ -98,8 +97,8 @@ public class OuterLeftJoinTest {
     listRightOfKv.add(KV.of("Key2", "bar"));
     PCollection<KV<String, String>> rightCollection = p.apply(Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.leftOuterJoin(
-      leftCollection, rightCollection, "");
+    PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
+      leftCollection, rightCollection);
 
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
     expectedResult.add(KV.of("Key2", KV.of(6L, "bar")));
@@ -109,33 +108,27 @@ public class OuterLeftJoinTest {
   }
 
   @Test
-  public void testJoinOneToNoneMapping() {
+  public void testJoinNoneToNoneMapping() {
     leftListOfKv.add(KV.of("Key2", 4L));
     PCollection<KV<String, Long>> leftCollection = p.apply(Create.of(leftListOfKv));
 
     listRightOfKv.add(KV.of("Key3", "bar"));
     PCollection<KV<String, String>> rightCollection = p.apply(Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.leftOuterJoin(
-      leftCollection, rightCollection, "");
+    PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
+      leftCollection, rightCollection);
 
-    expectedResult.add(KV.of("Key2", KV.of(4L, "")));
     DataflowAssert.that(output).containsInAnyOrder(expectedResult);
     p.run();
   }
 
   @Test(expected = NullPointerException.class)
   public void testJoinLeftCollectionNull() {
-    Join.leftOuterJoin(null, p.apply(Create.of(listRightOfKv)), "");
+    Join.innerJoin(null, p.apply(Create.of(listRightOfKv)));
   }
 
   @Test(expected = NullPointerException.class)
   public void testJoinRightCollectionNull() {
-    Join.leftOuterJoin(p.apply(Create.of(leftListOfKv)), null, "");
-  }
-
-  @Test(expected = NullPointerException.class)
-  public void testJoinNullValueIsNull() {
-    Join.leftOuterJoin(p.apply(Create.of(leftListOfKv)), p.apply(Create.of(listRightOfKv)), null);
+    Join.innerJoin(p.apply(Create.of(leftListOfKv)), null);
   }
 }
