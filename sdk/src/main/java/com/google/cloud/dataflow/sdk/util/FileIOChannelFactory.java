@@ -99,4 +99,9 @@ public class FileIOChannelFactory implements IOChannelFactory {
   public long getSizeBytes(String spec) throws IOException {
     return Files.size(FileSystems.getDefault().getPath(spec));
   }
+
+  @Override
+  public boolean isReadSeekEfficient(String spec) throws IOException {
+    return true;
+  }
 }

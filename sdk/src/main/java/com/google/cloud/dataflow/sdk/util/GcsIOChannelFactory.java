@@ -72,4 +72,10 @@ public class GcsIOChannelFactory implements IOChannelFactory {
     GcsUtil util = options.getGcsUtil();
     return util.fileSize(path);
   }
+
+  @Override
+  public boolean isReadSeekEfficient(String spec) throws IOException {
+    // TODO It is incorrect to return true here for files with content encoding set to gzip.
+    return true;
+  }
 }

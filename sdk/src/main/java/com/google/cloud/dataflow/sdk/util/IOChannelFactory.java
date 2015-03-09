@@ -35,20 +35,20 @@ public interface IOChannelFactory {
    * Matches a specification, which may contain globs, against available
    * resources.
    *
-   * Glob handling is dependent on the implementation.  Implementations should
+   * <p>Glob handling is dependent on the implementation.  Implementations should
    * all support globs in the final component of a path (eg /foo/bar/*.txt),
    * however they are not required to support globs in the directory paths.
    *
-   * The result is the (possibly empty) set of specifications which match.
+   * <p>The result is the (possibly empty) set of specifications which match.
    */
   Collection<String> match(String spec) throws IOException;
 
   /**
    * Returns a read channel for the given specification.
    *
-   * The specification is not expanded; it is used verbatim.
+   * <p>The specification is not expanded; it is used verbatim.
    *
-   * If seeking is supported, then this returns a
+   * <p>If seeking is supported, then this returns a
    * {@link java.nio.channels.SeekableByteChannel}.
    */
   ReadableByteChannel open(String spec) throws IOException;
@@ -56,14 +56,28 @@ public interface IOChannelFactory {
   /**
    * Returns a write channel for the given specification.
    *
-   * The specification is not expanded; is it used verbatim.
+   * <p>The specification is not expanded; is it used verbatim.
    */
   WritableByteChannel create(String spec, String mimeType) throws IOException;
 
   /**
    * Returns the size in bytes for the given specification.
    *
-   * The specification is not expanded; it is used verbatim.
+   * <p>The specification is not expanded; it is used verbatim.
    */
   long getSizeBytes(String spec) throws IOException;
+
+  /**
+   * Returns {@code true} if the channel created when invoking method {@link #open} for the given
+   * file specification is guaranteed to be of type {@link java.nio.channels.SeekableByteChannel
+   * SeekableByteChannel} and if seeking into positions of the channel is recommended. Returns
+   * {@code false} if the channel returned is not a {@code SeekableByteChannel}. May return
+   * {@code false} even if the channel returned is a {@code SeekableByteChannel}, if seeking is not
+   * efficient for the given file specification.
+   *
+   * <p> Only efficiently seekable files can be split into offset ranges.
+   *
+   * <p>The specification is not expanded; it is used verbatim.
+   */
+  boolean isReadSeekEfficient(String spec) throws IOException;
 }
