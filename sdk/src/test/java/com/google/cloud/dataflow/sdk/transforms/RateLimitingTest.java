@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
@@ -153,7 +154,7 @@ public class RateLimitingTest {
     // The first failure should prevent the scheduling of any more elements.
     Assert.assertThat(fn.numFailures.get(),
         is(both(greaterThanOrEqualTo(1))
-            .and(lessThan(RateLimiting.DEFAULT_MAX_PARALLELISM))));
+            .and(lessThanOrEqualTo(RateLimiting.DEFAULT_MAX_PARALLELISM))));
   }
 
   /**
