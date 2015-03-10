@@ -9,6 +9,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
@@ -141,7 +142,7 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 
 	@Override
 	public boolean supportsNormalizedKey() {
-		return false;
+		return true;
 	}
 
 	@Override
@@ -151,27 +152,46 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 
 	@Override
 	public int getNormalizeKeyLen() {
-		return 0;
+		return 8;
 	}
 
 	@Override
 	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return false;
+		return true;
 	}
 
 	@Override
-	public void putNormalizedKey(KV<K, V> record, MemorySegment target, int offset, int numBytes) {
+	public void putNormalizedKey(KV<K, V> record, MemorySegment target, int offset, int len) {
+		final int limit = offset + len;
 
+		Coder<K> keyCoder = coder.getKeyCoder();
+
+		final int maxBytesPrefix = 8;
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream(maxBytesPrefix);
+		try {
+			keyCoder.encode(record.getKey(), baos, Coder.Context.NESTED);
+			byte[] arr = baos.toByteArray();
+			for(int i = 0; i < arr.length && i < maxBytesPrefix && offset < limit; i++) {
+				target.put(offset++, arr[i]);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		while (offset < limit) {
+			target.put(offset++, (byte) 0);
+		}
 	}
 
 	@Override
 	public void writeWithKeyNormalization(KV<K, V> record, DataOutputView target) throws IOException {
-
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public KV<K, V> readWithKeyDenormalization(KV<K, V> reuse, DataInputView source) throws IOException {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
