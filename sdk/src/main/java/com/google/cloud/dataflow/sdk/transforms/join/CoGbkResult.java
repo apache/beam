@@ -21,17 +21,21 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addObject;
 import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.ListCoder;
+import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
-import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.common.Reiterator;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.PeekingIterator;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,25 +44,24 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * A row result of a CoGroupByKey.  This is a tuple of Iterables produced for
  * a given key, and these can be accessed in different ways.
  */
 public class CoGbkResult {
-  // TODO: If we keep this representation for any amount of time,
-  // optimize it so that the union tag does not have to be repeated in the
-  // values stored under the union tag key.
   /**
    * A map of integer union tags to a list of union objects.
    * Note: the key and the embedded union tag are the same, so it is redundant
    * to store it multiple times, but for now it makes encoding easier.
    */
-  private final Map<Integer, List<RawUnionValue>> valueMap;
+  private final List<Iterable<?>> valueMap;
 
   private final CoGbkResultSchema schema;
+
+  private static final int DEFAULT_IN_MEMORY_ELEMENT_COUNT = 10_000;
+
+  private static final Logger LOG = LoggerFactory.getLogger(CoGbkResult.class);
 
   /**
    * A row in the PCollection resulting from a CoGroupByKey transform.
@@ -66,15 +69,35 @@ public class CoGbkResult {
    *
    * @param schema the set of tuple tags used to refer to input tables and
    *               result values
-   * @param values the raw results from a group-by-key
+   * @param taggedValues the raw results from a group-by-key
    */
+  public CoGbkResult(
+      CoGbkResultSchema schema,
+      Iterable<RawUnionValue> taggedValues) {
+    this(schema, taggedValues, DEFAULT_IN_MEMORY_ELEMENT_COUNT);
+  }
+
   @SuppressWarnings("unchecked")
   public CoGbkResult(
       CoGbkResultSchema schema,
-      Iterable<RawUnionValue> values) {
+      Iterable<RawUnionValue> taggedValues,
+      int inMemoryElementCount) {
     this.schema = schema;
-    valueMap = new TreeMap<>();
-    for (RawUnionValue value : values) {
+    valueMap = new ArrayList<>();
+    for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
+      valueMap.add(new ArrayList<>());
+    }
+
+    // Demultiplex the first imMemoryElementCount tagged union values
+    // according to their tag.
+    final Iterator<RawUnionValue> taggedIter = taggedValues.iterator();
+    int elementCount = 0;
+    while (taggedIter.hasNext()) {
+      if (elementCount++ >= inMemoryElementCount && taggedIter instanceof Reiterator) {
+        // Let the tails be lazy.
+        break;
+      }
+      RawUnionValue value = taggedIter.next();
       // Make sure the given union tag has a corresponding tuple tag in the
       // schema.
       int unionTag = value.getUnionTag();
@@ -82,17 +105,48 @@ public class CoGbkResult {
         throw new IllegalStateException("union tag " + unionTag +
             " has no corresponding tuple tag in the result schema");
       }
-      List<RawUnionValue> taggedValueList = valueMap.get(unionTag);
-      if (taggedValueList == null) {
-        taggedValueList = new ArrayList<>();
-        valueMap.put(unionTag, taggedValueList);
+      List<Object> valueList = (List<Object>) valueMap.get(unionTag);
+      valueList.add(value.getValue());
+    }
+
+    if (taggedIter.hasNext()) {
+      // If we get here, there were more elements than we can afford to
+      // keep in memory, so we copy the re-iterable of remaining items
+      // and append filtered views to each of the sorted lists computed earlier.
+      LOG.info("CoGbkResult has more than " + inMemoryElementCount + " elements,"
+               + "reiteration (which may be slow) is required.");
+      final Reiterator<RawUnionValue> tail = (Reiterator<RawUnionValue>) taggedIter;
+      for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
+        final int unionTag0 = unionTag;
+        final Iterable<?> head = valueMap.get(unionTag);
+        // This is a trinary-state array recording whether a given tag is
+        // present in the tail.  The inital value is null (unknown) for all
+        // tags, and the first iteration through the entire list will set
+        // these values to true or false to avoid needlessly iterating if
+        // filtering against a given tag would not match anything.
+        final Boolean[] containsTag = new Boolean[schema.size()];
+        valueMap.set(
+            unionTag,
+            new Iterable() {
+              Reiterator<RawUnionValue> start = tail.copy();
+              @Override
+              public Iterator iterator() {
+                return Iterators.concat(
+                    head.iterator(),
+                    new UnionValueIterator<>(unionTag0, tail.copy(), containsTag));
+              }
+            });
       }
-      taggedValueList.add(value);
     }
   }
 
   public boolean isEmpty() {
-    return valueMap == null || valueMap.isEmpty();
+    for (Iterable<?> tagValues : valueMap) {
+      if (tagValues.iterator().hasNext()) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -118,11 +172,9 @@ public class CoGbkResult {
       throw new IllegalArgumentException("TupleTag " + tag +
           " is not in the schema");
     }
-    List<RawUnionValue> unions = valueMap.get(index);
-    if (unions == null) {
-      return buildEmptyIterable(tag);
-    }
-    return new UnionValueIterable<>(unions);
+    @SuppressWarnings("unchecked")
+    Iterable<V> unions = (Iterable<V>) valueMap.get(index);
+    return unions;
   }
 
   /**
@@ -149,7 +201,8 @@ public class CoGbkResult {
   public static class CoGbkResultCoder extends StandardCoder<CoGbkResult> {
 
     private final CoGbkResultSchema schema;
-    private final MapCoder<Integer, List<RawUnionValue>> mapCoder;
+    private final UnionCoder unionCoder;
+    private MapCoder<Integer, List<RawUnionValue>> mapCoder;
 
     /**
      * Returns a CoGbkResultCoder for the given schema and unionCoder.
@@ -167,22 +220,14 @@ public class CoGbkResult {
         @JsonProperty(PropertyNames.CO_GBK_RESULT_SCHEMA) CoGbkResultSchema schema) {
       Preconditions.checkArgument(components.size() == 1,
           "Expecting 1 component, got " + components.size());
-      return new CoGbkResultCoder(schema, (MapCoder) components.get(0));
+      return new CoGbkResultCoder(schema, (UnionCoder) components.get(0));
     }
 
     private CoGbkResultCoder(
         CoGbkResultSchema tupleTags,
         UnionCoder unionCoder) {
       this.schema = tupleTags;
-      this.mapCoder = MapCoder.of(VarIntCoder.of(),
-          ListCoder.of(unionCoder));
-    }
-
-    private CoGbkResultCoder(
-        CoGbkResultSchema tupleTags,
-        MapCoder mapCoder) {
-      this.schema = tupleTags;
-      this.mapCoder = mapCoder;
+      this.unionCoder = unionCoder;
     }
 
 
@@ -193,7 +238,7 @@ public class CoGbkResult {
 
     @Override
     public List<? extends Coder<?>> getComponents() {
-      return Arrays.<Coder<?>>asList(mapCoder);
+      return Arrays.<Coder<?>>asList(unionCoder);
     }
 
     @Override
@@ -204,6 +249,7 @@ public class CoGbkResult {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void encode(
         CoGbkResult value,
         OutputStream outStream,
@@ -212,7 +258,9 @@ public class CoGbkResult {
       if (!schema.equals(value.getSchema())) {
         throw new CoderException("input schema does not match coder schema");
       }
-      mapCoder.encode(value.valueMap, outStream, context);
+      for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
+        tagListCoder(unionTag).encode(value.valueMap.get(unionTag), outStream, Context.NESTED);
+      }
     }
 
     @Override
@@ -220,9 +268,16 @@ public class CoGbkResult {
         InputStream inStream,
         Context context)
         throws CoderException, IOException {
-      Map<Integer, List<RawUnionValue>> map = mapCoder.decode(
-          inStream, context);
-      return new CoGbkResult(schema, map);
+      List<Iterable<?>> valueMap = new ArrayList<>();
+      for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
+        valueMap.add(tagListCoder(unionTag).decode(inStream, Context.NESTED));
+      }
+      return new CoGbkResult(schema, valueMap);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private IterableCoder tagListCoder(int unionTag) {
+      return IterableCoder.of(unionCoder.getComponents().get(unionTag));
     }
 
     @Override
@@ -267,9 +322,8 @@ public class CoGbkResult {
           "Attempting to call and() on a CoGbkResult apparently not created by"
           + " of().");
     }
-    Map<Integer, List<RawUnionValue>> valueMap = new TreeMap<>(this.valueMap);
-    valueMap.put(nextTestUnionId,
-        convertValueListToUnionList(nextTestUnionId, data));
+    List<Iterable<?>> valueMap = new ArrayList<>(this.valueMap);
+    valueMap.add(data);
     return new CoGbkResult(
         new CoGbkResultSchema(schema.getTupleTagList().and(tag)), valueMap,
         nextTestUnionId + 1);
@@ -280,7 +334,7 @@ public class CoGbkResult {
    */
   public static <V> CoGbkResult empty() {
     return new CoGbkResult(new CoGbkResultSchema(TupleTagList.empty()),
-        new TreeMap<Integer, List<RawUnionValue>>());
+        new ArrayList<Iterable<?>>());
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -289,7 +343,7 @@ public class CoGbkResult {
 
   private CoGbkResult(
       CoGbkResultSchema schema,
-      Map<Integer, List<RawUnionValue>> valueMap,
+      List<Iterable<?>> valueMap,
       int nextTestUnionId) {
     this(schema, valueMap);
     this.nextTestUnionId = nextTestUnionId;
@@ -297,22 +351,9 @@ public class CoGbkResult {
 
   private CoGbkResult(
       CoGbkResultSchema schema,
-      Map<Integer, List<RawUnionValue>> valueMap) {
+      List<Iterable<?>> valueMap) {
     this.schema = schema;
     this.valueMap = valueMap;
-  }
-
-  private static <V> List<RawUnionValue> convertValueListToUnionList(
-      int unionTag, List<V> data) {
-    List<RawUnionValue> unionList = new ArrayList<>();
-    for (V value : data) {
-      unionList.add(new RawUnionValue(unionTag, value));
-    }
-    return unionList;
-  }
-
-  private <V> Iterable<V> buildEmptyIterable(TupleTag<V> tag) {
-    return new ArrayList<>();
   }
 
   private <V> V innerGetOnly(
@@ -324,8 +365,9 @@ public class CoGbkResult {
       throw new IllegalArgumentException("TupleTag " + tag
           + " is not in the schema");
     }
-    List<RawUnionValue> unions = valueMap.get(index);
-    if (unions == null || unions.isEmpty()) {
+    @SuppressWarnings("unchecked")
+    Iterator<V> unions = (Iterator<V>) valueMap.get(index).iterator();
+    if (!unions.hasNext()) {
       if (useDefault) {
         return defaultValue;
       } else {
@@ -333,44 +375,67 @@ public class CoGbkResult {
             + " corresponds to an empty result, and no default was provided");
       }
     }
-    if (unions.size() != 1) {
+    V value = unions.next();
+    if (unions.hasNext()) {
       throw new IllegalArgumentException("TupleTag " + tag
-          + " corresponds to a non-singleton result of size " + unions.size());
+          + " corresponds to a non-singleton result");
     }
-    return (V) unions.get(0).getValue();
+    return value;
   }
 
   /**
-   * Lazily converts and recasts an {@code Iterable<RawUnionValue>} into an
-   * {@code Iterable<V>}, where V is the type of the raw union value's contents.
+   * Lazily filters and recasts an {@code Iterator<RawUnionValue>} into an
+   * {@code Iterator<V>}, where V is the type of the raw union value's contents.
    */
-  private static class UnionValueIterable<V> implements Iterable<V> {
+  private static class UnionValueIterator<V> implements Iterator<V> {
 
-    private final Iterable<RawUnionValue> unions;
+    private final int tag;
+    private final PeekingIterator<RawUnionValue> unions;
+    private final Boolean[] containsTag;
 
-    private UnionValueIterable(Iterable<RawUnionValue> unions) {
-      this.unions = unions;
+    private UnionValueIterator(int tag, Iterator<RawUnionValue> unions, Boolean[] containsTag) {
+      this.tag = tag;
+      this.unions = Iterators.peekingIterator(unions);
+      this.containsTag = containsTag;
     }
 
     @Override
-    public Iterator<V> iterator() {
-      final Iterator<RawUnionValue> unionsIterator = unions.iterator();
-      return new Iterator<V>() {
-        @Override
-        public boolean hasNext() {
-          return unionsIterator.hasNext();
+    public boolean hasNext() {
+      if (containsTag[tag] == Boolean.FALSE) {
+        return false;
+      }
+      advance();
+      if (unions.hasNext()) {
+        return true;
+      } else {
+        // We can now resolve all the "unknown" null values.
+        for (int i = 0; i < containsTag.length; i++) {
+          if (containsTag[i] == null) {
+            containsTag[i] = false;
+          }
         }
+        return false;
+      }
+    }
 
-        @Override
-        public V next() {
-          return (V) unionsIterator.next().getValue();
-        }
+    @Override
+    @SuppressWarnings("unchecked")
+    public V next() {
+      advance();
+      return (V) unions.next().getValue();
+    }
 
-        @Override
-        public void remove() {
-          throw new UnsupportedOperationException();
-        }
-      };
+    private void advance() {
+      int curTag;
+      while (unions.hasNext() && (curTag = unions.peek().getUnionTag()) != tag) {
+        containsTag[curTag] = true;
+        unions.next();
+      }
+    }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
     }
   }
 }
