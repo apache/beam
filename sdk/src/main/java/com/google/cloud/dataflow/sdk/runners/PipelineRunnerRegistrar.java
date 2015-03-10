@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.runners;
 
-import com.google.auto.service.AutoService;
-
 import java.util.ServiceLoader;
 
 /**
@@ -25,12 +23,14 @@ import java.util.ServiceLoader;
  * {@link PipelineRunner} registered with this SDK by creating a {@link ServiceLoader} entry
  * and a concrete implementation of this interface.
  * <p>
- * Note that automatic registration of any {@PipelineOptions} requires users
- * conform to the limit that each {@link PipelineRunner}'s {@link Class#getSimpleName() simple name}
- * must be unique.
+ * Note that automatic registration of any
+ * {@link com.google.cloud.dataflow.sdk.options.PipelineOptions} requires users
+ * conform to the limit that each {@link PipelineRunner}'s
+ * {@link Class#getSimpleName() simple name} must be unique.
  * <p>
  * It is optional but recommended to use one of the many build time tools such as
- * {@link AutoService} to generate the necessary META-INF files automatically.
+ * {@link com.google.auto.service.AutoService} to generate the necessary
+ * META-INF files automatically.
  */
 public interface PipelineRunnerRegistrar {
   public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners();

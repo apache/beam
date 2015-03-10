@@ -43,11 +43,12 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 @JsonDeserialize(using = Deserializer.class)
 public interface PipelineOptions {
   /**
-   * Transforms this object into an object of type <T>. <T> must extend {@link PipelineOptions}.
+   * Transforms this object into an object of type {@code <T>}. {@code <T>} must extend
+   * {@link PipelineOptions}.
    * <p>
-   * If <T> is not registered with the {@link PipelineOptionsFactory}, then we attempt to
-   * verify that <T> is composable with every interface that this instance of the PipelineOptions
-   * has seen.
+   * If {@code <T>} is not registered with the {@link PipelineOptionsFactory}, then we
+   * attempt to verify that {@code <T>} is composable with every interface that this
+   * instance of the {@code PipelineOptions} has seen.
    *
    * @param kls The class of the type to transform to.
    * @return An object of type kls.

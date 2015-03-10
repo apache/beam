@@ -81,7 +81,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * element will have the same timestamp and be in the same windows
      * as the input element passed to {@link DoFn#processElement}).
      *
-     * <p> If invoked from {@link #startBundle} or {@link #finishValue},
+     * <p> If invoked from {@link #startBundle} or {@link #finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -100,7 +100,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * {@link DoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
-     * <p> If invoked from {@link #startBundle} or {@link #finishValue},
+     * <p> If invoked from {@link #startBundle} or {@link #finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -122,7 +122,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * <p> The output element will have the same timestamp and be in the same
      * windows as the input element passed to {@link DoFn#processElement}).
      *
-     * <p> If invoked from {@link #startBundle} or {@link #finishValue},
+     * <p> If invoked from {@link #startBundle} or {@link #finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -145,7 +145,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * {@link DoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
-     * <p> If invoked from {@link #startBundle} or {@link #finishValue},
+     * <p> If invoked from {@link #startBundle} or {@link #finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element

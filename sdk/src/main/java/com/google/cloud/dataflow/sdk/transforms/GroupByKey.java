@@ -108,7 +108,7 @@ import java.util.Map;
  * have the same {@link WindowFn} as the input.
  *
  * <p> If the input {@code PCollection} contains late data (see
- * {@link com.google.cloud.dataflow.sdk.PubsubIO.Read.Bound#timestampLabel}
+ * {@link com.google.cloud.dataflow.sdk.io.PubsubIO.Read.Bound#timestampLabel}
  * for an example of how this can occur), then there may be multiple elements
  * output by a {@code GroupByKey} that correspond to the same key and window.
  *

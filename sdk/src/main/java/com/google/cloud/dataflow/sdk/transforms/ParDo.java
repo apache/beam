@@ -52,7 +52,7 @@ import java.util.Map;
  * <h2>{@code DoFn}s</h2>
  *
  * <p> The function to use to process each element is specified by a
- * {@link DoFn DoFn<I, O>}.
+ * {@link DoFn DoFn&lt;I, O&gt;}.
  *
  * <p> Conceptually, when a {@code ParDo} transform is executed, the
  * elements of the input {@code PCollection<I>} are first divided up

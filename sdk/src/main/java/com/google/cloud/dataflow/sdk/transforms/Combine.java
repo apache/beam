@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -728,8 +729,8 @@ public class Combine {
    * {@code Combine.Globally<VI, VO>} takes a {@code PCollection<VI>}
    * and returns a {@code PCollection<VO>} whose single element is the result of
    * combining all the elements of the input {@code PCollection},
-   * using a specified
-   * {@link CombineFn CombineFn<VI, VA, VO>}.  It is common
+   * using a specified}
+   * {@link CombineFn CombineFn&lt;VI, VA, VO&gt;}.  It is common
    * for {@code VI == VO}, but not required.  Common combining
    * functions include sums, mins, maxes, and averages of numbers,
    * conjunctions and disjunctions of booleans, statistical
@@ -1124,7 +1125,7 @@ public class Combine {
    * {@code GroupedValues<K, VI, VO>} takes a
    * {@code PCollection<KV<K, Iterable<VI>>>}, such as the result of
    * {@link GroupByKey}, applies a specified
-   * {@link KeyedCombineFn KeyedCombineFn<K, VI, VA, VO>}
+   * {@link KeyedCombineFn KeyedCombineFn&lt;K, VI, VA, VO&gt;}
    * to each of the input {@code KV<K, Iterable<VI>>} elements to
    * produce a combined output {@code KV<K, VO>} element, and returns a
    * {@code PCollection<KV<K, VO>>} containing all the combined output

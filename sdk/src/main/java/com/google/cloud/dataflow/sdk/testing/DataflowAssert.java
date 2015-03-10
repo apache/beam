@@ -77,7 +77,7 @@ public class DataflowAssert {
 
   /**
    * Constructs an {@link IterableAssert} for the elements of the provided
-   * {@link PCollection PCollection<T>}.
+   * {@link PCollection PCollection&lt;T&gt;}.
    */
   public static <T> IterableAssert<T> that(PCollection<T> actual) {
     return new IterableAssert<>(actual.apply(View.<T>asIterable()))
@@ -86,7 +86,8 @@ public class DataflowAssert {
 
   /**
    * Constructs an {@link IterableAssert} for the value of the provided
-   * {@link PCollection PCollection<Iterable<T>>}, which must be a singleton.
+   * {@link PCollection PCollection&lt;Iterable&lt;T&gt;&gt;}, which must be a
+   * singleton.
    */
   public static <T> IterableAssert<T> thatSingletonIterable(PCollection<Iterable<T>> actual) {
     List<? extends Coder<?>> maybeElementCoder = actual.getCoder().getCoderArguments();
@@ -125,7 +126,7 @@ public class DataflowAssert {
 
   /**
    * An assertion about the contents of a
-   * {@link PCollectionView PCollectionView<<Iterable<T>, ?>}.
+   * {@link PCollectionView PCollectionView&lt;Iterable&lt;T&gt;, ?&gt;}.
    */
   @SuppressWarnings("serial")
   public static class IterableAssert<T> implements Serializable {
@@ -247,7 +248,7 @@ public class DataflowAssert {
 
   /**
    * An assertion about the single value of type {@code T}
-   * associated with a {@link PCollectionView PCollectionView<T, ?>}.
+   * associated with a {@link PCollectionView PCollectionView&lt;T, ?&gt;}.
    */
   @SuppressWarnings("serial")
   public static class SingletonAssert<T> implements Serializable {
@@ -344,7 +345,7 @@ public class DataflowAssert {
   ////////////////////////////////////////////////////////////////////////
 
   /**
-   * An assertion checker that takes a single {@link PCollectionView PCollectionView<A, ?>}
+   * An assertion checker that takes a single {@link PCollectionView PCollectionView&lt;A, ?&gt;}
    * and an assertion over {@code A}, and checks it within a dataflow pipeline.
    *
    * <p> Note that the entire assertion must be serializable. If
@@ -382,8 +383,8 @@ public class DataflowAssert {
   }
 
   /**
-   * An assertion checker that takes a {@link PCollectionView PCollectionView<A, ?>},
-   * a {@link PCollectionView PCollectionView<B, ?>}, a relation
+   * An assertion checker that takes a {@link PCollectionView PCollectionView&lt;A, ?&gt;},
+   * a {@link PCollectionView PCollectionView&lt;B, ?&gt;}, a relation
    * over {@code A} and {@code B}, and checks that the relation holds
    * within a dataflow pipeline.
    *

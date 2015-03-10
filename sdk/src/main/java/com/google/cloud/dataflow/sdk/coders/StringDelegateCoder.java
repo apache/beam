@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.coders;
 import java.lang.reflect.InvocationTargetException;
 
 /**
- * A {@code StringDelegateCoder<T>} wraps a {@link Coder<String>}
+ * A {@code StringDelegateCoder<T>} wraps a {@code Coder<String>}
  * and encodes/decodes values of type {@code T} via string representations.
  *
  * <p> To decode, the input byte stream is decoded to

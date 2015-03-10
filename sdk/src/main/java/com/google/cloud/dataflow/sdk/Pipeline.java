@@ -50,8 +50,8 @@ import java.util.Set;
  * and concurrently.
  *
  * <p> Each {@code Pipeline} is self-contained and isolated from any other
- * {@code Pipeline}.  The {@link PValues} that are inputs and outputs of each of a
- * {@code Pipeline}'s {@link PTransform}s are also owned by that {@code Pipeline}.
+ * {@code Pipeline}.  The {@link PValue PValues} that are inputs and outputs of each of a
+ * {@code Pipeline}'s {@link PTransform PTransforms} are also owned by that {@code Pipeline}.
  * A {@code PValue} owned by one {@code Pipeline} can be read only by {@code PTransform}s
  * also owned by that {@code Pipeline}.
  *
@@ -279,7 +279,7 @@ public class Pipeline {
   }
 
   /**
-   * Returns all producing transforms for the {@link PValue}s contained
+   * Returns all producing transforms for the {@link PValue PValues} contained
    * in {@code output}.
    */
   private List<PTransform<?, ?>> getProducingTransforms(POutput output) {

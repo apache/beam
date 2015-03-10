@@ -367,7 +367,8 @@ public class DatastoreIO {
    * entities to a Datastore kind.
    *
    * <p> Current version only supports Write operation running on
-   * {@link DirectPipelineRunner}.  If Write is used on {@link DataflowPipelineRunner},
+   * {@link DirectPipelineRunner}.  If Write is used on
+   * {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner},
    * it throws {@link UnsupportedOperationException} and won't continue on the
    * operation.
    *

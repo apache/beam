@@ -52,8 +52,8 @@ import java.util.List;
 public class Flatten {
 
   /**
-   * Returns a {@link PTransform} that flattens a {@link CollectionList<T>}
-   * into a {@link PCollection<T>} containing all the elements of all
+   * Returns a {@link PTransform} that flattens a {@link PCollectionList}
+   * into a {@link PCollection} containing all the elements of all
    * the {@link PCollection}s in its input.
    *
    * <p> If any of the inputs to {@code Flatten<T>} require window merging,
@@ -98,8 +98,8 @@ public class Flatten {
   }
 
   /**
-   * A {@link PTransform} that flattens a {@link PCollectionList<T>}
-   * into a {@link PCollection<T>} containing all the elements of all
+   * A {@link PTransform} that flattens a {@link PCollectionList}
+   * into a {@link PCollection} containing all the elements of all
    * the {@link PCollection}s in its input.
    *
    * @param <T> the type of the elements in the input and output

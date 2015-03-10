@@ -23,11 +23,13 @@ import java.io.Serializable;
 /**
  * A {@code PCollectionView<T, WT>} is an immutable view of a
  * {@link PCollection} that can be accessed e.g. as a
- * side input to a {@link DoFn}.
+ * side input to a {@link com.google.cloud.dataflow.sdk.transforms.DoFn}.
  *
- * <p> A {@PCollectionView} should always be the output of a {@link PTransform}. It is
- * the joint responsibility of this transform and each {@link PipelineRunner} to
- * implement the view in a runner-specific manner.
+ * <p> A {@link PCollectionView} should always be the output of a
+ * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}. It is the joint
+ * responsibility of this transform and each
+ * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner} to implement the
+ * view in a runner-specific manner.
  *
  * @param <T> the type of the value(s) accessible via this {@code PCollectionView}
  * @param <WT> the type of the windowed value(s) accessible via this {@code PCollectionView}

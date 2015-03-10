@@ -45,9 +45,8 @@ public interface POutput {
    * {@code PTransform} in the given {@code Pipeline}.
    *
    * <p> Should expand this {@code POutput} and invoke
-   * {@link PValue#recordAsOutput(Pipeline,
-   * com.google.cloud.dataflow.sdk.transforms.PTransform,
-   * String)} on each component output {@code PValue}.
+   * {@link PValue#recordAsOutput(Pipeline, com.google.cloud.dataflow.sdk.transforms.PTransform)}
+   * on each component output {@code PValue}.
    *
    * <p> Automatically invoked as part of applying a
    * {@code PTransform}.  Not to be invoked directly by user code.

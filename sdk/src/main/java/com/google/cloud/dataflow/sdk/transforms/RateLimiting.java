@@ -27,7 +27,6 @@ import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.RateLimiter;
 
 import org.joda.time.Instant;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,7 +109,7 @@ public class RateLimiting {
      * <p> This rate limit may not be reachable unless there is sufficient
      * parallelism.
      *
-     * <p> A rate of <= 0.0 disables rate limiting.
+     * <p> A rate of &le; 0.0 disables rate limiting.
      */
     public RateLimitingTransform<I, O> withRateLimit(
         double maxElementsPerSecond) {

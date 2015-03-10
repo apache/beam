@@ -69,7 +69,8 @@ import java.util.regex.Pattern;
  * </ul>
  * <p>
  * BigQuery table references are stored as a {@link TableReference}, which comes
- * from the <a href="BigQuery Java Client API">BigQuery Java Client API</a>.
+ * from the <a href="https://cloud.google.com/bigquery/client-libraries">
+ * BigQuery Java Client API</a>.
  * Tables can be referred to as Strings, with or without the {@code projectId}.
  * A helper function is provided ({@link BigQueryIO#parseTableSpec(String)}),
  * which parses the following string forms into a {@link TableReference}:

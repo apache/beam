@@ -372,8 +372,9 @@ public class DirectPipelineRunner
 
     /**
      * Retrieves the values indicated by the given {@link PCollectionView}.
-     * Note that within the {@link DoFnContext} a {@link PCollectionView}
-     * converts from this representation to a suitable side input value.
+     * Note that within the {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context}
+     * implementation a {@link PCollectionView} should convert from this representation to a
+     * suitable side input value.
      */
     <T, WT> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T, WT> view);
   }

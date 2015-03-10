@@ -73,7 +73,7 @@ public class View {
   }
 
   /**
-   * Returns an {@link AsMultimap} that takes a {@link PCollection<KV>} as input
+   * Returns an {@link AsMultimap} that takes a {@link PCollection} as input
    * and produces a {@link PCollectionView} of the values to be consumed
    * as a {@code Map<K, Iterable<V>>} side input.
    *
@@ -84,8 +84,8 @@ public class View {
   }
 
   /**
-   * A {@PTransform} that produces a {@link PCollectionView} of a singleton {@link PCollection}
-   * yielding the single element it contains.
+   * A {@link PTransform} that produces a {@link PCollectionView} of a singleton
+   * {@link PCollection} yielding the single element it contains.
    *
    * <p> Instantiate via {@link View#asIterable}.
    */
@@ -106,8 +106,8 @@ public class View {
   }
 
   /**
-   * A {@PTransform} that produces a {@link PCollectionView} of a singleton {@link PCollection}
-   * yielding the single element it contains.
+   * A {@link PTransform} that produces a {@link PCollectionView} of a singleton
+   * {@link PCollection} yielding the single element it contains.
    *
    * <p> Instantiate via {@link View#asIterable}.
    */
@@ -127,7 +127,7 @@ public class View {
   }
 
   /**
-   * A {@PTransform} that produces a {@link PCollectionView} of a keyed {@link PCollection}
+   * A {@link PTransform} that produces a {@link PCollectionView} of a keyed {@link PCollection}
    * yielding a map of keys to all associated values.
    *
    * <p> Instantiate via {@link View#asMap}.
@@ -166,7 +166,7 @@ public class View {
 
 
   /**
-   * A {@PTransform} that produces a {@link PCollectionView} of a keyed {@link PCollection}
+   * A {@link PTransform} that produces a {@link PCollectionView} of a keyed {@link PCollection}
    * yielding a map of keys to a single associated values.
    *
    * <p> Instantiate via {@link View#asMap}.
