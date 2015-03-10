@@ -38,7 +38,6 @@ public class FlinkCoGroupKeyedListAggregator<K,V1,V2> implements CoGroupFunction
 			k = entry.getKey();
 			result.add(new RawUnionValue(index2, entry.getValue()));
 		}
-		System.out.println("result: "+result);
 		out.collect(KV.of(k, new CoGbkResult(schema, (List) result)));
 	}
 }
