@@ -20,34 +20,10 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 /**
- * {@code Count<T>} takes a {@code PCollection<T>} and returns a
- * {@code PCollection<KV<T, Long>>} representing a map from each
- * distinct element of the input {@code PCollection} to the number of times
- * that element occurs in the input.  Each of the keys in the output
- * {@code PCollection} is unique.
- *
- * <p> Two values of type {@code T} are compared for equality <b>not</b> by
- * regular Java {@link Object#equals}, but instead by first encoding
- * each of the elements using the {@code PCollection}'s {@code Coder}, and then
- * comparing the encoded bytes.  This admits efficient parallel
- * evaluation.
- *
- * <p> By default, the {@code Coder} of the keys of the output
- * {@code PCollection} is the same as the {@code Coder} of the
- * elements of the input {@code PCollection}.
- *
- * <p> Each output element is in the window by which its corresponding input
- * was grouped, and has the timestamp of the end of that window.  The output
- * {@code PCollection} has the same
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
- * as the input.
- *
- * <p> Example of use:
- * <pre> {@code
- * PCollection<String> words = ...;
- * PCollection<KV<String, Long>> wordCounts =
- *     words.apply(Count.<String>perElement());
- * } </pre>
+ * Count transforms can be used to count the number of elements in a PCollection.
+ * {@link PerElement Count.PerElement can be used to count the number of occurrences of each
+ * distinct element in the PCollection. {@link Globally Count.Globally} can
+ * be used to count the total number of elements in a PCollection.
  */
 public class Count {
 
