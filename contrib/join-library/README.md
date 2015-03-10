@@ -22,4 +22,4 @@ Example how to use join-library:
     PCollection<KV<String, KV<String, Long>>> joinedPcollection =
       Join.innerJoin(leftPcollection, rightPcollection);
 
-Questions or comments: <M.Runesson [at] gmail [dot] com>
+Questions or comments: `M.Runesson [at] gmail [dot] com`
