@@ -6,9 +6,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.google.cloud.dataflow</groupId>
-  <artifactId>join-library</artifactId>
+  <artifactId>google-cloud-dataflow-java-contrib-join-library</artifactId>
   <name>Join library</name>
-  <description>Library with generic join functions for DataFlow.</description>
+  <description>Library with generic join functions for Dataflow.</description>
   <version>0.0.2-SNAPSHOT</version>
   <packaging>jar</packaging>
 
