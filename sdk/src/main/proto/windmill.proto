@@ -81,8 +81,13 @@ message TagList {
   repeated Value values = 3;
 }
 
+message GlobalDataId {
+  required string tag = 1;
+  required bytes version = 2;
+}
+
 message GlobalData {
-  required bytes data_id = 1;
+  required GlobalDataId data_id = 1;
   optional bool is_ready = 2;
   optional bytes data = 3;
 }
@@ -93,7 +98,7 @@ message WorkItem {
 
   repeated InputMessageBundle message_bundles = 3;
   optional TimerBundle timers = 4;
-  repeated bytes global_data_ids_ready = 5;
+  repeated GlobalDataId global_data_id_notifications = 5;
 }
 
 message ComputationWorkItems {
@@ -122,7 +127,7 @@ message KeyedGetDataRequest {
   required fixed64 work_token = 2;
   repeated TagValue values_to_fetch = 3;
   repeated TagList lists_to_fetch = 4;
-  repeated GlobalData global_data_to_fetch = 5;
+  repeated GlobalDataId global_data_to_fetch = 5;
 }
 
 message ComputationGetDataRequest {
@@ -183,7 +188,7 @@ message WorkItemCommitRequest {
   repeated TagValue value_updates = 5;
   repeated TagList list_updates = 6;
   repeated Counter counter_updates = 8;
-  repeated bytes blocked_on_global_data_ids = 9;
+  repeated GlobalDataId global_data_id_requests = 9;
 }
 
 message ComputationCommitWorkRequest {
