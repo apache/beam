@@ -52,33 +52,32 @@ public class DataflowPipelineOptionsTest {
   }
 
   @Test
-  public void testAppNameAndUserNameIsTooLong() {
+  public void testAppNameAndUserNameAreLong() {
     resetDateTimeProviderRule.setDateTimeFixed("2014-12-08T19:07:06.698Z");
     System.getProperties().put("user.name", "abcdeabcdeabcdeabcdeabcdeabcde");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("1234567890123456789012345678901234567890");
-    assertEquals("a234567890123456789-abcdeabcd-1208190706", options.getJobName());
-    assertTrue(options.getJobName().length() <= 40);
+    assertEquals(
+        "a234567890123456789012345678901234567890-abcdeabcdeabcdeabcdeabcdeabcde-1208190706",
+        options.getJobName());
   }
 
   @Test
-  public void testAppNameIsTooLong() {
+  public void testAppNameIsLong() {
     resetDateTimeProviderRule.setDateTimeFixed("2014-12-08T19:07:06.698Z");
     System.getProperties().put("user.name", "abcde");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("1234567890123456789012345678901234567890");
-    assertEquals("a2345678901234567890123-abcde-1208190706", options.getJobName());
-    assertTrue(options.getJobName().length() <= 40);
+    assertEquals("a234567890123456789012345678901234567890-abcde-1208190706", options.getJobName());
   }
 
   @Test
-  public void testUserNameIsTooLong() {
+  public void testUserNameIsLong() {
     resetDateTimeProviderRule.setDateTimeFixed("2014-12-08T19:07:06.698Z");
     System.getProperties().put("user.name", "abcdeabcdeabcdeabcdeabcdeabcde");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("1234567890");
-    assertEquals("a234567890-abcdeabcdeabcdeabc-1208190706", options.getJobName());
-    assertTrue(options.getJobName().length() <= 40);
+    assertEquals("a234567890-abcdeabcdeabcdeabcdeabcdeabcde-1208190706", options.getJobName());
   }
 
 
@@ -88,7 +87,6 @@ public class DataflowPipelineOptionsTest {
     System.getProperties().put("user.name", "ði ıntəˈnæʃənəl ");
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setAppName("fəˈnɛtık əsoʊsiˈeıʃn");
-    assertEquals("f00n0t0k00so0si0e00-0i00nt00n-1208190706", options.getJobName());
-    assertTrue(options.getJobName().length() <= 40);
+    assertEquals("f00n0t0k00so0si0e00n-0i00nt00n000n0l0-1208190706", options.getJobName());
   }
 }

@@ -86,8 +86,6 @@ public interface DataflowPipelineOptions extends
   public static class JobNameFactory implements DefaultValueFactory<String> {
     private static final DateTimeFormatter FORMATTER =
         DateTimeFormat.forPattern("MMddHHmmss").withZone(DateTimeZone.UTC);
-    private static final int MAX_APP_NAME = 19;
-    private static final int MAX_USER_NAME = 9;
 
     @Override
     public String create(PipelineOptions options) {
@@ -100,14 +98,6 @@ public interface DataflowPipelineOptions extends
       String normalizedUserName = userName.toLowerCase()
                                           .replaceAll("[^a-z0-9]", "0");
       String datePart = FORMATTER.print(DateTimeUtils.currentTimeMillis());
-
-      // Maximize the amount of the app name and user name we can use.
-      normalizedAppName = normalizedAppName.substring(0,
-            Math.min(normalizedAppName.length(),
-                MAX_APP_NAME + Math.max(0, MAX_USER_NAME - normalizedUserName.length())));
-      normalizedUserName = normalizedUserName.substring(0,
-            Math.min(userName.length(),
-                MAX_USER_NAME + Math.max(0, MAX_APP_NAME - normalizedAppName.length())));
       return normalizedAppName + "-" + normalizedUserName + "-" + datePart;
     }
   }

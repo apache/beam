@@ -112,7 +112,6 @@ public class TestPipeline extends Pipeline {
           System.getProperty(PROPERTY_DATAFLOW_OPTIONS), PipelineOptions.class)
           .as(TestDataflowPipelineOptions.class);
       options.setAppName(getAppName());
-      options.setJobName(getJobName());
       return options;
     } catch (IOException e) {
       throw new RuntimeException("Unable to instantiate test options from system property "
@@ -120,26 +119,18 @@ public class TestPipeline extends Pipeline {
     }
   }
 
-  /** Returns the class name of the test, or a default name. */
+  /** Returns the class + method name of the test, or a default name. */
   private static String getAppName() {
     Optional<StackTraceElement> stackTraceElement = findCallersStackTrace();
     if (stackTraceElement.isPresent()) {
+      String methodName = stackTraceElement.get().getMethodName();
       String className = stackTraceElement.get().getClassName();
-      return className.contains(".")
-          ? className.substring(className.lastIndexOf(".") + 1)
-              : className;
+      if (className.contains(".")) {
+        className = className.substring(className.lastIndexOf(".") + 1);
+      }
+      return className + "-" + methodName;
     }
     return "UnitTest";
-  }
-
-  /** Returns the method name of the test, or a default name. */
-  private static String getJobName() {
-    Optional<StackTraceElement> stackTraceElement = findCallersStackTrace();
-    if (stackTraceElement.isPresent()) {
-      String name = stackTraceElement.get().getMethodName();
-      return name.substring(0, Math.min(40, name.length()));
-    }
-    return "unittestjob";
   }
 
   /** Returns the {@link StackTraceElement} of the calling class. */

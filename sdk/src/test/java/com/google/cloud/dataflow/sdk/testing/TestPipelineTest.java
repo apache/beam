@@ -16,8 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
+import static org.hamcrest.CoreMatchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.common.collect.ImmutableMap;
@@ -60,8 +62,7 @@ public class TestPipelineTest {
     System.getProperties().put("dataflowOptions", stringOptions);
     TestDataflowPipelineOptions options = TestPipeline.getPipelineOptions();
     assertEquals(DataflowPipelineRunner.class, options.getRunner());
-    assertEquals("TestPipelineTest", options.getAppName());
-    assertEquals("testCreationOfPipelineOptions", options.getJobName());
+    assertThat(options.getJobName(), startsWith("testpipelinetest0testcreationofpipelineoptions-"));
     assertEquals("testProject", options.getProject());
     assertEquals("testApiRootUrl", options.getApiRootUrl());
     assertEquals("testDataflowEndpoint", options.getDataflowEndpoint());
@@ -81,7 +82,9 @@ public class TestPipelineTest {
           .build()));
     System.getProperties().put("dataflowOptions", stringOptions);
     TestDataflowPipelineOptions options = TestPipeline.getPipelineOptions();
-    assertEquals("TestPipelineTest", options.getAppName());
-    assertEquals("testCreationOfPipelineOptionsFromReallyV", options.getJobName());
+    assertThat(options.getAppName(), startsWith(
+        "TestPipelineTest-testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase"));
+    assertThat(options.getJobName(), startsWith(
+        "testpipelinetest0testcreationofpipelineoptionsfrom"));
   }
 }
