@@ -36,6 +36,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
+import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
 import com.google.cloud.dataflow.sdk.testing.RestoreDataflowLoggingFormatter;
 import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
@@ -62,6 +63,7 @@ public class DataflowWorkerHarnessTest {
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public TestRule restoreLogging = new RestoreDataflowLoggingFormatter();
   @Rule public ExpectedException expectedException = ExpectedException.none();
+  @Rule public FastNanoClockAndSleeper fastNanoClockAndSleeper = new FastNanoClockAndSleeper();
   @Mock private MockHttpTransport transport;
   @Mock private MockLowLevelHttpRequest request;
   @Mock private DataflowWorker mockDataflowWorker;
@@ -80,20 +82,14 @@ public class DataflowWorkerHarnessTest {
   }
 
   @Test
-  public void testThatWeOnlyProcessWorkOncePerAvailableProcessor() throws Exception {
-    int numWorkers = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
-    when(mockDataflowWorker.getAndPerformWork()).thenReturn(true);
-    DataflowWorkerHarness.processWork(pipelineOptions, mockDataflowWorker);
-    verify(mockDataflowWorker, times(numWorkers)).getAndPerformWork();
-    verifyNoMoreInteractions(mockDataflowWorker);
-  }
-
-  @Test
-  public void testThatWeOnlyProcessWorkOncePerAvailableProcessorEvenWhenFailing() throws Exception {
-    int numWorkers = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
+  public void testThatWeRetryIfTaskExecutionFailAgainAndAgain() throws Exception {
+    int numWorkers = Math.max(Runtime.getRuntime().availableProcessors(), 1);
     when(mockDataflowWorker.getAndPerformWork()).thenReturn(false);
-    DataflowWorkerHarness.processWork(pipelineOptions, mockDataflowWorker);
-    verify(mockDataflowWorker, times(numWorkers)).getAndPerformWork();
+    DataflowWorkerHarness.processWork(
+            pipelineOptions, mockDataflowWorker, fastNanoClockAndSleeper);
+    // Test that the backoff mechanism will retry the BACKOFF_MAX_ATTEMPTS number of times.
+    verify(mockDataflowWorker, times(numWorkers * DataflowWorkerHarness.BACKOFF_MAX_ATTEMPTS))
+        .getAndPerformWork();
     verifyNoMoreInteractions(mockDataflowWorker);
   }
 

@@ -19,7 +19,9 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudTime;
 
-import com.google.api.client.util.Lists;
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
 import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
@@ -32,6 +34,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingInitializer;
+import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.GcsIOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -39,19 +42,17 @@ import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
-import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -72,6 +73,10 @@ public class DataflowWorkerHarness {
 
   private static final String APPLICATION_NAME = "DataflowWorkerHarness";
 
+  // ExponentialBackOff parameters for the task retry strategy. Visible for testing.
+  static final int BACKOFF_INITIAL_INTERVAL_MILLIS = 5000;  // 5 second
+  static final int BACKOFF_MAX_ATTEMPTS = 10;  // 10 attempts will take approx. 15 min.
+
   /**
    * This uncaught exception handler logs the {@link Throwable} to the logger, {@link System#err}
    * and exits the application with status code 1.
@@ -89,6 +94,14 @@ public class DataflowWorkerHarness {
   }
 
   /**
+   * Helper for initializing the BackOff used for retries.
+   */
+  private static BackOff createBackOff() {
+    return new AttemptBoundedExponentialBackOff(
+            BACKOFF_MAX_ATTEMPTS, BACKOFF_INITIAL_INTERVAL_MILLIS);
+  }
+
+  /**
    * Fetches and processes work units from the Dataflow service.
    */
   public static void main(String[] args) throws Exception {
@@ -99,47 +112,68 @@ public class DataflowWorkerHarness {
         PipelineOptionsFactory.createFromSystemProperties();
     DataflowWorkerLoggingInitializer.configure(pipelineOptions);
 
+    final Sleeper sleeper = Sleeper.DEFAULT;
     final DataflowWorker worker = create(pipelineOptions);
-    processWork(pipelineOptions, worker);
+    processWork(pipelineOptions, worker, sleeper);
+  }
+
+  /**
+   * A thread which repeatedly fetches and processes work units from the Dataflow service.
+   */
+  private static class WorkerThread implements Callable<Boolean> {
+    // sleeper is used to sleep the appropriate amount of time
+    WorkerThread(final DataflowWorker worker, final Sleeper sleeper) {
+      this.worker = worker;
+      this.sleeper = sleeper;
+      this.backOff = createBackOff();
+    }
+
+    @Override
+    public Boolean call() {
+      boolean success = true;
+      try {
+        do { // We loop getting and processing work.
+          try {
+            LOG.debug("Thread starting getAndPerformWork.");
+            success = worker.getAndPerformWork();
+            LOG.debug("{} processing one WorkItem.", success ? "Finished" : "Failed");
+          } catch (IOException e) {  // If there is a problem getting work.
+            success = false;
+          }
+          if (success) {
+            backOff.reset();
+          }
+          // Sleeping a while if there is a problem with the work, then go on with the next work.
+        } while (success || BackOffUtils.next(sleeper, backOff));
+      } catch (IOException e) {  // Failure of BackOff.
+        LOG.error("Already tried several attempts at working on tasks. Aborting.", e);
+      } catch (InterruptedException e) {
+        LOG.error("Interrupted during thread execution or sleep.", e);
+      }
+      return false;
+    }
+
+    private final DataflowWorker worker;
+    private final Sleeper sleeper;
+    private final BackOff backOff;
   }
 
   // Visible for testing.
   static void processWork(DataflowWorkerHarnessOptions pipelineOptions,
-      final DataflowWorker worker) {
+      final DataflowWorker worker, Sleeper sleeper) throws InterruptedException {
+    int numThreads = Math.max(Runtime.getRuntime().availableProcessors(), 1);
+    ExecutorService executor = pipelineOptions.getExecutorService();
+    final List<Callable<Boolean>> tasks = new LinkedList<>();
 
-    long startTime = DateTimeUtils.currentTimeMillis();
-    int numThreads = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
-    CompletionService<Boolean> completionService =
-        new ExecutorCompletionService<>(pipelineOptions.getExecutorService());
+    LOG.debug("Starting {} worker threads", numThreads);
+    // We start the appropriate number of threads.
     for (int i = 0; i < numThreads; ++i) {
-      completionService.submit(new Callable<Boolean>() {
-        @Override
-        public Boolean call() throws Exception {
-          return worker.getAndPerformWork();
-        }
-      });
+      tasks.add(new WorkerThread(worker, sleeper));
     }
 
-    List<Long> completionTimes = Lists.newArrayList();
-    for (int i = 0; i < numThreads; ++i) {
-      try {
-        // CompletionService returns the tasks in the order in which the completed at.
-        completionService.take().get();
-      } catch (Exception e) {
-        LOG.error("Failed waiting on thread to process work.", e);
-      }
-      completionTimes.add(DateTimeUtils.currentTimeMillis());
-    }
-
-    long endTime = DateTimeUtils.currentTimeMillis();
-    LOG.debug("Parallel worker thread processing start time: {}, end time: {}",
-        ISODateTimeFormat.dateTime().print(startTime),
-        ISODateTimeFormat.dateTime().print(endTime));
-    for (long completionTime : completionTimes) {
-      LOG.debug("Worker thread execution time {}ms, idle time waiting for other work threads: {}ms",
-          completionTime - startTime,
-          endTime - completionTime);
-    }
+    LOG.debug("Waiting for {} worker threads", numThreads);
+    // We wait forever unless there is a big problem.
+    executor.invokeAll(tasks);
   }
 
   static DataflowWorker create(DataflowWorkerHarnessOptions options) {
