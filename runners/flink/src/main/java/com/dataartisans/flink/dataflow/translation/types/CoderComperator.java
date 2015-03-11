@@ -159,7 +159,7 @@ public class CoderComperator<T> extends TypeComparator<T> {
 		final byte[] data = buffer1.getBuffer();
 		final int limit = offset + numBytes;
 
-		target.put(offset, data, 0, buffer1.size());
+		target.put(offset, data, 0, Math.min(numBytes, buffer1.size()));
 
 		offset += buffer1.size();
 
