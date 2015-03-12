@@ -132,15 +132,15 @@ public class Sum {
    * {@code Iterable} of {@code Integer}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumIntegerFn
-      implements SerializableFunction<Iterable<Integer>, Integer> {
+  public static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
     @Override
-    public Integer apply(Iterable<Integer> input) {
-      int sum = 0;
-      for (int value : input) {
-        sum += value;
-      }
-      return sum;
+    public int apply(int a, int b) {
+      return a + b;
+    }
+
+    @Override
+    public int identity() {
+      return 0;
     }
   }
 
@@ -149,15 +149,15 @@ public class Sum {
    * {@code Iterable} of {@code Long}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumLongFn
-      implements SerializableFunction<Iterable<Long>, Long> {
+  public static class SumLongFn extends Combine.BinaryCombineLongFn {
     @Override
-    public Long apply(Iterable<Long> input) {
-      long sum = 0;
-      for (long value : input) {
-        sum += value;
-      }
-      return sum;
+    public long apply(long a, long b) {
+      return a + b;
+    }
+
+    @Override
+    public long identity() {
+      return 0;
     }
   }
 
@@ -166,15 +166,15 @@ public class Sum {
    * {@code Iterable} of {@code Double}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumDoubleFn
-      implements SerializableFunction<Iterable<Double>, Double> {
+  public static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
     @Override
-    public Double apply(Iterable<Double> input) {
-      double sum = 0;
-      for (double value : input) {
-        sum += value;
-      }
-      return sum;
+    public double apply(double a, double b) {
+      return a + b;
+    }
+
+    @Override
+    public double identity() {
+      return 0;
     }
   }
 }

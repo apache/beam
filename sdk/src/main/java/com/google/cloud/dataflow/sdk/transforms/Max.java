@@ -133,15 +133,15 @@ public class Max {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A {@code SerializableFunction} that computes the maximum of an
-   * {@code Iterable} of numbers of type {@code N}, useful as an
-   * argument to {@link Combine#globally} or {@link Combine#perKey}.
+   * A {@code CombineFn} that computes the maximum of a set of elements
+   * of type {@code N}, useful as an argument to {@link Combine#globally}
+   * or {@link Combine#perKey}.
    *
    * @param <N> the type of the {@code Number}s being compared
    */
   @SuppressWarnings("serial")
-  public static class MaxFn<N extends Number & Comparable<N>>
-      implements SerializableFunction<Iterable<N>, N> {
+  public static class MaxFn<N extends Comparable<N>>
+      extends Combine.BinaryCombineFn<N> {
 
     /** The smallest value of type N. */
     private final N initialValue;
@@ -157,20 +157,19 @@ public class Max {
     }
 
     @Override
-    public N apply(Iterable<N> input) {
-      N max = initialValue;
-      for (N value : input) {
-        if (value.compareTo(max) > 0) {
-          max = value;
-        }
-      }
-      return max;
+    public N apply(N a, N b) {
+      return a.compareTo(b) >= 0 ? a : b;
+    }
+
+    @Override
+    public N identity() {
+      return initialValue;
     }
   }
 
   /**
-   * A {@code SerializableFunction} that computes the maximum of an
-   * {@code Iterable} of {@code Integer}s, useful as an argument to
+   * A {@code CombineFn} that computes the maximum of a collection
+   * of {@code Integer}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   @SuppressWarnings("serial")
@@ -179,8 +178,8 @@ public class Max {
   }
 
   /**
-   * A {@code SerializableFunction} that computes the maximum of an
-   * {@code Iterable} of {@code Long}s, useful as an argument to
+   * A {@code CombineFn} that computes the maximum of a collection
+   * of {@code Long}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   @SuppressWarnings("serial")
@@ -189,8 +188,8 @@ public class Max {
   }
 
   /**
-   * A {@code SerializableFunction} that computes the maximum of an
-   * {@code Iterable} of {@code Double}s, useful as an argument to
+   * A {@code CombineFn} that computes the maximum of a collection
+   * of {@code Double}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   @SuppressWarnings("serial")

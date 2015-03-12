@@ -24,7 +24,6 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
@@ -263,7 +262,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   }
 
   @Test public void testSessionsCombine() throws Exception {
-    CombineFn<Long, ?, Long> combineFn = Combine.SimpleCombineFn.of(new Sum.SumLongFn());
+    CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
     DoFnRunner<TimerOrElement<KV<String, Long>>,
         KV<String, Long>, List> runner =
         makeRunner(Sessions.withGapDuration(Duration.millis(10)),

@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
 import static org.junit.Assert.assertThat;
 
 import com.google.api.client.util.Preconditions;
@@ -341,6 +342,49 @@ public class CombineTest {
     DataflowAssert.that(hotMean).containsInAnyOrder(expected);
 
     p.run();
+  }
+
+  @Test
+  public void testBinaryCombineFn() {
+    Pipeline p = TestPipeline.create();
+    PCollection<KV<String, Integer>> input = copy(createInput(p, TABLE), 2);
+    PCollection<KV<String, Integer>> intProduct = input
+        .apply(Combine.<String, Integer, Integer>perKey(new TestProdInt()));
+    PCollection<KV<String, Integer>> objProduct = input
+        .apply(Combine.<String, Integer, Integer>perKey(new TestProdObj()));
+
+    List<KV<String, Integer>> expected = Arrays.asList(KV.of("a", 16), KV.of("b", 169));
+    DataflowAssert.that(intProduct).containsInAnyOrder(expected);
+    DataflowAssert.that(objProduct).containsInAnyOrder(expected);
+
+    p.run();
+  }
+
+  @Test
+  public void testBinaryCombineFnWithNulls() {
+    checkCombineFn(new NullCombiner(), Arrays.asList(3, 3, 5), 45);
+    checkCombineFn(new NullCombiner(), Arrays.asList(null, 3, 5), 30);
+    checkCombineFn(new NullCombiner(), Arrays.asList(3, 3, null), 18);
+    checkCombineFn(new NullCombiner(), Arrays.asList(null, 3, null), 12);
+    checkCombineFn(new NullCombiner(), Arrays.<Integer>asList(null, null, null), 8);
+  }
+
+  private static final class TestProdInt extends Combine.BinaryCombineIntegerFn {
+    public int apply(int left, int right) { return left * right; }
+    public int identity() { return 1; }
+  }
+
+  private static final class TestProdObj extends Combine.BinaryCombineFn<Integer> {
+    public Integer apply(Integer left, Integer right) { return left * right; }
+  }
+
+  /**
+   * Computes the product, considering null values to be 2.
+   */
+  private static final class NullCombiner extends Combine.BinaryCombineFn<Integer> {
+    public Integer apply(Integer left, Integer right) {
+      return (left == null ? 2 : left) * (right == null ? 2 : right);
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////

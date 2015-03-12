@@ -17,7 +17,12 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
+import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
+import com.google.cloud.dataflow.sdk.coders.CustomCoder;
+import com.google.cloud.dataflow.sdk.coders.DelegateCoder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
@@ -35,6 +40,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -441,6 +449,324 @@ public class Combine {
     }
   }
 
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * An abstract subclass of CombineFn for implementing combiners that are more
+   * easily expressed as binary operations.
+   */
+  public abstract static class BinaryCombineFn<V>
+      extends CombineFn<V, BinaryCombineFn.Holder<V>, V> {
+
+    /**
+     * Applies the binary operation to the two operands, returning the result.
+     */
+    public abstract V apply(V left, V right);
+
+    /**
+     * Returns the value that should be used for the combine of the empty set.
+     */
+    public V identity() {
+      return null;
+    }
+
+    @Override
+    public Holder<V> createAccumulator() {
+      return new Holder<>();
+    }
+
+    @Override
+    public void addInput(Holder<V> accumulator, V input) {
+      if (accumulator.present) {
+        accumulator.set(apply(accumulator.value, input));
+      } else {
+        accumulator.set(input);
+      }
+    }
+
+    @Override
+    public Holder<V> mergeAccumulators(Iterable<Holder<V>> accumulators) {
+      Holder<V> running = new Holder<>();
+      for (Holder<V> accumulator : accumulators) {
+        if (accumulator.present) {
+          if (running.present) {
+            running.set(apply(running.value, accumulator.value));
+          } else {
+            running.set(accumulator.value);
+          }
+        }
+      }
+      return running;
+    }
+
+    @Override
+    public V extractOutput(Holder<V> accumulator) {
+      if (accumulator.present) {
+        return accumulator.value;
+      } else {
+        return identity();
+      }
+    }
+
+    @Override
+    public Coder<Holder<V>> getAccumulatorCoder(CoderRegistry registry, final Coder<V> inputCoder) {
+      return new CustomCoder<Holder<V>>() {
+        @Override
+        public void encode(Holder<V> accumulator, OutputStream outStream, Context context)
+            throws CoderException, IOException {
+          if (accumulator.present) {
+            outStream.write(1);
+            inputCoder.encode(accumulator.value, outStream, context);
+          } else {
+            outStream.write(0);
+          }
+        }
+
+        @Override
+        public Holder<V> decode(InputStream inStream, Context context)
+            throws CoderException, IOException {
+          if (inStream.read() == 1) {
+            return new Holder(inputCoder.decode(inStream, context));
+          } else {
+            return new Holder<>();
+          }
+        }
+
+        @Override
+        @Deprecated
+        public boolean isDeterministic() {
+          return inputCoder.isDeterministic();
+        }
+
+        @Override
+        public void verifyDeterministic() throws NonDeterministicException {
+          inputCoder.verifyDeterministic();
+        }
+      };
+    }
+
+    @Override
+    public Coder<V> getDefaultOutputCoder(CoderRegistry registry, Coder<V> inputCoder) {
+      return inputCoder;
+    }
+
+    private static class Holder<V> {
+      public V value;
+      public boolean present;
+      public Holder() { }
+      public Holder(V value) { set(value); }
+      public void set(V value) {
+        this.present = true;
+        this.value = value;
+      }
+    }
+  }
+
+  /**
+   * An abstract subclass of CombineFn for implementing combiners that are more
+   * easily expressed as binary operations on ints.
+   */
+  public abstract static class BinaryCombineIntegerFn extends CombineFn<Integer, int[], Integer> {
+
+    /**
+     * Applies the binary operation to the two operands, returning the result.
+     */
+    public abstract int apply(int left, int right);
+
+    /**
+     * Returns the identity element of this operation, i.e. an element {@code e}
+     * such that {@code apply(e, x) == apply(x, e) == x} for all values of {@code x}.
+     */
+    public abstract int identity();
+
+    @Override
+    public int[] createAccumulator() {
+      return wrap(identity());
+    }
+
+    @Override
+    public void addInput(int[] accumulator, Integer input) {
+      accumulator[0] = apply(accumulator[0], input);
+    }
+
+    @Override
+    public int[] mergeAccumulators(Iterable<int[]> accumulators) {
+      Iterator<int[]> iter = accumulators.iterator();
+      if (!iter.hasNext()) {
+        return createAccumulator();
+      } else {
+        int running = iter.next()[0];
+        while (iter.hasNext()) {
+          running = apply(running, iter.next()[0]);
+        }
+        return wrap(running);
+      }
+    }
+
+    @Override
+    public Integer extractOutput(int[] accumulator) {
+      return accumulator[0];
+    }
+
+    @Override
+    public Coder<int[]> getAccumulatorCoder(CoderRegistry registry, Coder<Integer> inputCoder) {
+      return DelegateCoder.of(
+          inputCoder,
+          new DelegateCoder.CodingFunction<int[], Integer>() {
+            @Override public Integer apply(int[] accumulator) { return accumulator[0]; }
+          },
+          new DelegateCoder.CodingFunction<Integer, int[]>() {
+            @Override public int[] apply(Integer value) { return wrap(value); }
+          });
+    }
+
+    @Override
+    public Coder<Integer> getDefaultOutputCoder(CoderRegistry registry,
+                                                Coder<Integer> inputCoder) {
+      return inputCoder;
+    }
+
+    private int[] wrap(int value) {
+      return new int[] { value };
+    }
+  }
+
+  /**
+   * An abstract subclass of CombineFn for implementing combiners that are more
+   * easily expressed as binary operations on longs.
+   */
+  public abstract static class BinaryCombineLongFn extends CombineFn<Long, long[], Long> {
+
+    /**
+     * Applies the binary operation to the two operands, returning the result.
+     */
+    public abstract long apply(long left, long right);
+
+    /**
+     * Returns the identity element of this operation, i.e. an element {@code e}
+     * such that {@code apply(e, x) == apply(x, e) == x} for all values of {@code x}.
+     */
+    public abstract long identity();
+
+    @Override
+    public long[] createAccumulator() {
+      return wrap(identity());
+    }
+
+    @Override
+    public void addInput(long[] accumulator, Long input) {
+      accumulator[0] = apply(accumulator[0], input);
+    }
+
+    @Override
+    public long[] mergeAccumulators(Iterable<long[]> accumulators) {
+      Iterator<long[]> iter = accumulators.iterator();
+      if (!iter.hasNext()) {
+        return createAccumulator();
+      } else {
+        long running = iter.next()[0];
+        while (iter.hasNext()) {
+          running = apply(running, iter.next()[0]);
+        }
+        return wrap(running);
+      }
+    }
+
+    @Override
+    public Long extractOutput(long[] accumulator) {
+      return accumulator[0];
+    }
+
+    @Override
+    public Coder<long[]> getAccumulatorCoder(CoderRegistry registry, Coder<Long> inputCoder) {
+      return DelegateCoder.of(
+          inputCoder,
+          new DelegateCoder.CodingFunction<long[], Long>() {
+            @Override public Long apply(long[] accumulator) { return accumulator[0]; }
+          },
+          new DelegateCoder.CodingFunction<Long, long[]>() {
+            @Override public long[] apply(Long value) { return wrap(value); }
+          });
+    }
+
+    @Override
+    public Coder<Long> getDefaultOutputCoder(CoderRegistry registry, Coder<Long> inputCoder) {
+      return inputCoder;
+    }
+
+    private long[] wrap(long value) {
+      return new long[] { value };
+    }
+  }
+
+  /**
+   * An abstract subclass of CombineFn for implementing combiners that are more
+   * easily expressed as binary operations on doubles.
+   */
+  public abstract static class BinaryCombineDoubleFn extends CombineFn<Double, double[], Double> {
+
+    /**
+     * Applies the binary operation to the two operands, returning the result.
+     */
+    public abstract double apply(double left, double right);
+
+    /**
+     * Returns the identity element of this operation, i.e. an element {@code e}
+     * such that {@code apply(e, x) == apply(x, e) == x} for all values of {@code x}.
+     */
+    public abstract double identity();
+
+    @Override
+    public double[] createAccumulator() {
+      return wrap(identity());
+    }
+
+    @Override
+    public void addInput(double[] accumulator, Double input) {
+      accumulator[0] = apply(accumulator[0], input);
+    }
+
+    @Override
+    public double[] mergeAccumulators(Iterable<double[]> accumulators) {
+      Iterator<double[]> iter = accumulators.iterator();
+      if (!iter.hasNext()) {
+        return createAccumulator();
+      } else {
+        double running = iter.next()[0];
+        while (iter.hasNext()) {
+          running = apply(running, iter.next()[0]);
+        }
+        return wrap(running);
+      }
+    }
+
+    @Override
+    public Double extractOutput(double[] accumulator) {
+      return accumulator[0];
+    }
+
+    @Override
+    public Coder<double[]> getAccumulatorCoder(CoderRegistry registry, Coder<Double> inputCoder) {
+      return DelegateCoder.of(
+          inputCoder,
+          new DelegateCoder.CodingFunction<double[], Double>() {
+            @Override public Double apply(double[] accumulator) { return accumulator[0]; }
+          },
+          new DelegateCoder.CodingFunction<Double, double[]>() {
+            @Override public double[] apply(Double value) { return wrap(value); }
+          });
+    }
+
+    @Override
+    public Coder<Double> getDefaultOutputCoder(CoderRegistry registry, Coder<Double> inputCoder) {
+      return inputCoder;
+    }
+
+    private double[] wrap(double value) {
+      return new double[] { value };
+    }
+  }
 
   /////////////////////////////////////////////////////////////////////////////
 

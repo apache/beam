@@ -70,6 +70,23 @@ public class AggregatorImplTest {
                         CounterTestUtils.extractCounterUpdate(expectedCounter, false));
   }
 
+  @SuppressWarnings("rawtypes")
+  private <V, VA> void testAggregator(List<V> items,
+                                      Combine.CombineFn<V, VA, V> combiner,
+                                      Counter expectedCounter) {
+    CounterSet counters = new CounterSet();
+    Aggregator<V> aggregator = new AggregatorImpl<V, VA, V>(
+        AGGREGATOR_NAME, combiner, counters.getAddCounterMutator());
+    for (V item : items) {
+      aggregator.addValue(item);
+    }
+
+    List<MetricUpdate> cloudCounterSet = CounterTestUtils.extractCounterUpdates(counters, false);
+    Assert.assertEquals(cloudCounterSet.size(), 1);
+    Assert.assertEquals(cloudCounterSet.get(0),
+                        CounterTestUtils.extractCounterUpdate(expectedCounter, false));
+  }
+
   @Test
   public void testSumInteger() throws Exception {
     testAggregator(Arrays.asList(2, 4, 1, 3), new Sum.SumIntegerFn(),
@@ -128,12 +145,12 @@ public class AggregatorImplTest {
   public void testCompatibleDuplicateNames() throws Exception {
     CounterSet counters = new CounterSet();
     Aggregator<Integer> aggregator1 =
-        new AggregatorImpl<Integer, Iterable<Integer>, Integer>(
+        new AggregatorImpl<Integer, int[], Integer>(
             AGGREGATOR_NAME, new Sum.SumIntegerFn(),
             counters.getAddCounterMutator());
 
     Aggregator<Integer> aggregator2 =
-        new AggregatorImpl<Integer, Iterable<Integer>, Integer>(
+        new AggregatorImpl<Integer, int[], Integer>(
             AGGREGATOR_NAME, new Sum.SumIntegerFn(),
             counters.getAddCounterMutator());
 
@@ -148,7 +165,7 @@ public class AggregatorImplTest {
   @Test
   public void testIncompatibleDuplicateNames() throws Exception {
     CounterSet counters = new CounterSet();
-    new AggregatorImpl<Integer, Iterable<Integer>, Integer>(
+    new AggregatorImpl<Integer, int[], Integer>(
         AGGREGATOR_NAME, new Sum.SumIntegerFn(),
         counters.getAddCounterMutator());
 
@@ -156,7 +173,7 @@ public class AggregatorImplTest {
     expectedEx.expectMessage(Matchers.containsString(
         "aggregator's name collides with an existing aggregator or "
         + "system-provided counter of an incompatible type"));
-    new AggregatorImpl<Long, Iterable<Long>, Long>(
+    new AggregatorImpl<Long, long[], Long>(
         AGGREGATOR_NAME, new Sum.SumLongFn(),
         counters.getAddCounterMutator());
     }

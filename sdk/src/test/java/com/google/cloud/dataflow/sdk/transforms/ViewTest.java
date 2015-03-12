@@ -219,8 +219,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Integer>, ?> view = pipeline
         .apply(Create.of(KV.of("a", 1), KV.of("a", 20), KV.of("b", 3)))
-        .apply(View.<String, Integer>asMap().withCombiner(
-                   Combine.SimpleCombineFn.of(new Sum.SumIntegerFn())));
+        .apply(View.<String, Integer>asMap().withCombiner(new Sum.SumIntegerFn()));
 
     PCollection<KV<String, Integer>> output = pipeline
         .apply(Create.of("apple", "banana", "blackberry"))

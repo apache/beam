@@ -133,14 +133,14 @@ public class Min {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A {@code SerializableFunction} that computes the minimum of an
-   * {@code Iterable} of numbers of type {@code N}, useful as an
+   * A {@code CombineFn} that computes the minimum of a collection
+   * of elements of type {@code N}, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    *
    * @param <N> the type of the {@code Number}s being compared
    */
-  public static class MinFn<N extends Number & Comparable<N>>
-      implements SerializableFunction<Iterable<N>, N> {
+  public static class MinFn<N extends Comparable<N>>
+      extends Combine.BinaryCombineFn<N> {
     private static final long serialVersionUID = 0;
 
     /** The largest value of type N. */
@@ -157,20 +157,19 @@ public class Min {
     }
 
     @Override
-    public N apply(Iterable<N> input) {
-      N min = initialValue;
-      for (N value : input) {
-        if (value.compareTo(min) < 0) {
-          min = value;
-        }
-      }
-      return min;
+    public N apply(N a, N b) {
+      return a.compareTo(b) <= 0 ? a : b;
+    }
+
+    @Override
+    public N identity() {
+      return initialValue;
     }
   }
 
   /**
-   * A {@code SerializableFunction} that computes the minimum of an
-   * {@code Iterable} of {@code Integer}s, useful as an argument to
+   * A {@code CombineFn} that computes the minimum of a collection
+   * of {@code Integer}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class MinIntegerFn extends MinFn<Integer> {
@@ -180,8 +179,8 @@ public class Min {
   }
 
   /**
-   * A {@code SerializableFunction} that computes the minimum of an
-   * {@code Iterable} of {@code Long}s, useful as an argument to
+   * A {@code CombineFn} that computes the minimum of a collection
+   * of {@code Long}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class MinLongFn extends MinFn<Long> {
@@ -191,8 +190,8 @@ public class Min {
   }
 
   /**
-   * A {@code SerializableFunction} that computes the minimum of an
-   * {@code Iterable} of {@code Double}s, useful as an argument to
+   * A {@code CombineFn} that computes the minimum of a collection
+   * of {@code Double}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   public static class MinDoubleFn extends MinFn<Double> {
