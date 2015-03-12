@@ -26,7 +26,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -50,7 +49,6 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.collect.Lists;
 
-import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -295,13 +293,7 @@ public class GroupingShuffleReaderTest {
       stop = encodeBase64URLSafeString(fabricatePosition(1, null));
       proposedForkPosition.setShufflePosition(stop);
 
-      try {
-        iter.requestFork(toForkRequest(createApproximateProgress(proposedForkPosition)));
-        fail("IllegalArgumentException expected");
-      } catch (IllegalArgumentException e) {
-        assertThat(e.getMessage(), Matchers.containsString(
-            "Fork requested at a shuffle position beyond the end of the current range"));
-      }
+      assertNull(iter.requestFork(toForkRequest(createApproximateProgress(proposedForkPosition))));
     }
   }
 
@@ -330,14 +322,9 @@ public class GroupingShuffleReaderTest {
 
     try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
         groupingShuffleReader.iterator(shuffleReader)) {
-       // Cannot fork since the value provided is past the current stop position.
-       try {
-        iter.requestFork(forkRequestAtPosition(makeShufflePosition(kNumRecords + 1, null)));
-        fail("IllegalArgumentException expected");
-      } catch (IllegalArgumentException e) {
-        assertThat(e.getMessage(), Matchers.containsString(
-            "Fork requested at a shuffle position beyond the end of the current range"));
-      }
+      // Cannot fork since the value provided is past the current stop position.
+      assertNull(
+          iter.requestFork(forkRequestAtPosition(makeShufflePosition(kNumRecords + 1, null))));
 
       int i = 0;
       for (; iter.hasNext(); ++i) {

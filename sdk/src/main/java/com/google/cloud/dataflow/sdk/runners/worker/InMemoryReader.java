@@ -146,9 +146,10 @@ public class InMemoryReader<T> extends Reader<T> {
         return null;
       }
       if (forkIndex >= endPosition) {
-        throw new IllegalArgumentException(
-            "Fork requested at an index beyond the end of the current range: " + forkIndex
-            + " >= " + endPosition);
+        LOG.info(
+            "Fork requested at an index beyond the end of the current range: {} >= {}",
+            forkIndex, endPosition);
+        return null;
       }
 
       this.endPosition = forkIndex.intValue();

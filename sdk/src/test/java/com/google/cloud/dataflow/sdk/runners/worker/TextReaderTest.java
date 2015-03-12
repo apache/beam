@@ -44,7 +44,6 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
-import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -472,14 +471,7 @@ public class TextReaderTest {
       try (TextReader<String>.TextFileIterator iterator =
           (TextReader<String>.TextFileIterator) textReader.iterator()) {
         assertEquals(fileContent[0], iterator.next());
-        try {
-          iterator.requestFork(forkRequestAtByteOffset(stop));
-          fail("IllegalArgumentException expected");
-        } catch (IllegalArgumentException e) {
-          assertThat(e.getMessage(), Matchers.containsString(
-              "Fork requested at an offset beyond the end of the current range"));
-        }
-
+        assertNull(iterator.requestFork(forkRequestAtByteOffset(stop)));
         assertEquals(end, iterator.getEndOffset().longValue());
         assertFalse(iterator.hasNext());
         assertEquals(Arrays.asList(fileContent[0].length()), observer.getActualSizes());

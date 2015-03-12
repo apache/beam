@@ -27,9 +27,7 @@ import static com.google.cloud.dataflow.sdk.util.StringUtils.byteArrayToJsonStri
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
@@ -37,7 +35,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
-import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -176,13 +173,7 @@ public class InMemoryReaderTest {
     // Proposed fork position is after the current stop (end) position, no update.
     try (InMemoryReader.InMemoryReaderIterator iterator =
         (InMemoryReader.InMemoryReaderIterator) inMemoryReader.iterator()) {
-      try {
-        iterator.requestFork(forkRequestAtIndex(end + 1));
-        fail("IllegalArgumentException expected");
-      } catch (IllegalArgumentException e) {
-        assertThat(e.getMessage(), Matchers.containsString(
-            "Fork requested at an index beyond the end of the current range"));
-      }
+      assertNull(iterator.requestFork(forkRequestAtIndex(end + 1)));
       assertEquals((int) end, iterator.endPosition);
     }
   }

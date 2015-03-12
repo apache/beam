@@ -218,9 +218,10 @@ public abstract class FileBasedReader<T> extends Reader<T> {
       }
 
       if (endOffset != null && forkOffset >= endOffset) {
-        throw new IllegalArgumentException(
-            "Fork requested at an offset beyond the end of the current range: " + forkOffset
-            + " >= " + endOffset);
+        LOG.info(
+            "Fork requested at an offset beyond the end of the current range: {} >= {}",
+            forkOffset, endOffset);
+        return null;
       }
 
       this.endOffset = forkOffset;

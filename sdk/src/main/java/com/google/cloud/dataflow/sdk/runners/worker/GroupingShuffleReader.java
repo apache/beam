@@ -250,10 +250,11 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
       }
 
       if (this.stopPosition != null && newStopPosition.compareTo(this.stopPosition) >= 0) {
-        throw new IllegalArgumentException(
+        LOG.info(
             "Fork requested at a shuffle position beyond the end of the current range: "
-            + forkShufflePosition
-            + " >= current stop position: " + this.stopPosition.encodeBase64());
+            + "{} >= current stop position: {}",
+            forkShufflePosition, this.stopPosition.encodeBase64());
+        return null;
       }
 
       this.stopPosition = newStopPosition;
