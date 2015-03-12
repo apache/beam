@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
@@ -98,13 +99,15 @@ public abstract class FileBasedReader<T> extends Reader<T> {
     IOChannelFactory factory = IOChannelUtils.getFactory(filename);
     Collection<String> inputs = factory.match(filename);
     if (inputs.isEmpty()) {
-      throw new IOException("No match for file pattern '" + filename + "'");
+      throw new FileNotFoundException("No match for file pattern '" + filename + "'");
     }
 
     if (startPosition != null || endPosition != null) {
       if (inputs.size() != 1) {
-        throw new UnsupportedOperationException(
-            "Unable to apply range limits to multiple-input stream: " + filename);
+        throw new IllegalArgumentException(
+            "Offset range specified: [" + startPosition + ", " + endPosition + "), so "
+            + "an exact filename was expected, but more than 1 file matched \"" + filename
+            + "\" (total " + inputs.size() + "): apparently a filepattern was given.");
       }
 
       return newReaderIteratorForRangeInFile(factory, inputs.iterator().next(),

@@ -31,11 +31,13 @@ import org.apache.avro.io.DatumWriter;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
@@ -52,6 +54,8 @@ import javax.annotation.Nullable;
 public class AvroReaderTest {
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
 
   private <T> void runTestRead(
       List<List<T>> elemsList, AvroCoder<T> coder, boolean requireExactMatch) throws Exception {
@@ -177,6 +181,25 @@ public class AvroReaderTest {
   public void testReadBigRanges() throws Exception {
     runTestRead(generateInputBlocks(10, 128 * 1024, 100), AvroCoder.of(String.class),
         false/* don't require exact match */);
+  }
+
+  @Test
+  public void testErrorOnFileNotFound() throws Exception {
+    expectedException.expect(FileNotFoundException.class);
+    readElems("file-not-found", 0L, 100L, AvroCoder.of(String.class), new ArrayList<Integer>());
+  }
+
+  @Test
+  public void testErrorOnMultipleFiles() throws Exception {
+    File file1 = tmpFolder.newFile("foo1.avro");
+    File file2 = tmpFolder.newFile("foo2.avro");
+    Channels.newOutputStream(IOChannelUtils.create(file1.getPath(), MimeTypes.BINARY)).close();
+    Channels.newOutputStream(IOChannelUtils.create(file2.getPath(), MimeTypes.BINARY)).close();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("more than 1 file matched");
+    readElems(new File(tmpFolder.getRoot(), "*").getPath(), 0L, 100L,
+        AvroCoder.of(String.class), new ArrayList<Integer>());
   }
 
   // TODO: sharded filenames

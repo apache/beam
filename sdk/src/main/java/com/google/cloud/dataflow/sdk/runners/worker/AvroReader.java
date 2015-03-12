@@ -28,6 +28,7 @@ import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.SeekableInput;
 import org.apache.avro.io.DatumReader;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -70,16 +71,20 @@ public class AvroReader<T> extends Reader<WindowedValue<T>> {
   public ReaderIterator<WindowedValue<T>> iterator(DatumReader<T> datumReader) throws IOException {
     IOChannelFactory factory = IOChannelUtils.getFactory(filename);
     Collection<String> inputs = factory.match(filename);
+    if (inputs.isEmpty()) {
+      throw new FileNotFoundException("No match for file pattern '" + filename + "'");
+    }
 
     if (inputs.size() == 1) {
       String input = inputs.iterator().next();
       ReadableByteChannel reader = factory.open(input);
       return new AvroFileIterator(datumReader, input, reader, startPosition, endPosition);
-
     } else {
       if (startPosition != null || endPosition != null) {
-        throw new UnsupportedOperationException(
-            "Unable to apply range limits to multiple-input stream: " + filename);
+        throw new IllegalArgumentException(
+            "Offset range specified: [" + startPosition + ", " + endPosition + "), so "
+            + "an exact filename was expected, but more than 1 file matched \"" + filename
+            + "\" (total " + inputs.size() + "): apparently a filepattern was given.");
       }
       return new AvroFileMultiIterator(datumReader, factory, inputs.iterator());
     }

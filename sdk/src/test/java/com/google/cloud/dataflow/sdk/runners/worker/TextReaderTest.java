@@ -38,6 +38,8 @@ import com.google.cloud.dataflow.sdk.coders.TextualIntegerCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.io.TextIO.CompressionType;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
+import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
@@ -45,15 +47,18 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -79,6 +84,8 @@ public class TextReaderTest {
 
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
 
   private File initTestFile() throws IOException {
     File tmpFile = tmpFolder.newFile();
@@ -649,6 +656,29 @@ public class TextReaderTest {
     for (File file : files) {
       file.delete();
     }
+  }
+
+  @Test
+  public void testErrorOnFileNotFound() throws Exception {
+    expectedException.expect(FileNotFoundException.class);
+    TextReader<String> textReader = new TextReader<>(
+        "file-not-found", true, 0L, 100L,
+        StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
+    textReader.iterator();
+  }
+
+  @Test
+  public void testErrorOnMultipleFiles() throws Exception {
+    File file1 = tmpFolder.newFile("foo1.avro");
+    File file2 = tmpFolder.newFile("foo2.avro");
+    Channels.newOutputStream(IOChannelUtils.create(file1.getPath(), MimeTypes.BINARY)).close();
+    Channels.newOutputStream(IOChannelUtils.create(file2.getPath(), MimeTypes.BINARY)).close();
+    TextReader<String> textReader = new TextReader<>(
+        new File(tmpFolder.getRoot(), "*").getPath(), true, 0L, 100L,
+        StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("more than 1 file matched");
+    textReader.iterator();
   }
 
   // TODO: sharded filenames
