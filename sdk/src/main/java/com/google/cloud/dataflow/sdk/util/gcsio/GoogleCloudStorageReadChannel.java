@@ -255,16 +255,17 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       int remainingBeforeRead = buffer.remaining();
       try {
         int numBytesRead = readChannel.read(buffer);
-        Preconditions.checkState(numBytesRead != 0, "Read 0 bytes without blocking!");
+        checkIOPrecondition(numBytesRead != 0, "Read 0 bytes without blocking");
         if (numBytesRead < 0) {
           // Check that we didn't get a premature End of Stream signal by checking the number of
           // bytes read against the stream size. Unfortunately we don't have information about the
           // actual size of the data stream when stream compression is used, so we can only ignore
           // this case here.
-          Preconditions.checkState(isCompressedStream || currentPosition == size,
-              "Received end of stream result before all the file data has been received; "
-              + "totalBytesRead: %s, currentPosition: %s, size: %s",
-              totalBytesRead, currentPosition, size);
+          checkIOPrecondition(isCompressedStream || currentPosition == size,
+              String.format(
+                  "Received end of stream result before all the file data has been received; "
+                  + "totalBytesRead: %s, currentPosition: %s, size: %s",
+                  totalBytesRead, currentPosition, size));
           break;
         }
         totalBytesRead += numBytesRead;
@@ -341,7 +342,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
               readChannel.close();
               readChannel = null;
             } catch (SSLException ssle) {
-              LOG.warn("Got SSLException on readChannel.close() before retry; ignoring it.", ssle);
+              LOG.debug("Got SSLException on readChannel.close() before retry; ignoring it.", ssle);
               readChannel = null;
             }
             // For "other" exceptions, we'll let it propagate out without setting readChannel to
@@ -361,9 +362,9 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       // Check that we didn't get a premature End of Stream signal by checking the number of bytes
       // read against the stream size. Unfortunately we don't have information about the actual size
       // of the data stream when stream compression is used, so we can only ignore this case here.
-      Preconditions.checkState(isCompressedStream || currentPosition == size,
-          "Failed to read any data before all the file data has been received; "
-          + "currentPosition: %s, size: %s", currentPosition, size);
+      checkIOPrecondition(isCompressedStream || currentPosition == size,
+          String.format("Failed to read any data before all the file data has been received; "
+              + "currentPosition: %s, size: %s", currentPosition, size));
       return -1;
     } else {
       return totalBytesRead;
@@ -490,7 +491,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   /**
    * Seeks to the given position in the underlying stream.
    *
-   * Note: Seek is an expensive operation because a new stream is opened each time.
+   * <p>Note: Seek is an expensive operation because a new stream is opened each time.
    *
    * @throws java.io.FileNotFoundException if the underlying object does not exist.
    * @throws IOException on IO error
@@ -581,6 +582,19 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       throws IOException {
     if (!isOpen()) {
       throw new ClosedChannelException();
+    }
+  }
+
+  /**
+   * Throws an IOException if precondition is false.
+   *
+   * <p>This method should be used in place of Preconditions.checkState in cases where the
+   * precondition is derived from the status of the IO operation. That makes it possible to retry
+   * the operation by catching IOException.
+   */
+  private void checkIOPrecondition(boolean precondition, String errorMessage) throws IOException {
+    if (!precondition) {
+      throw new IOException(errorMessage);
     }
   }
 }
