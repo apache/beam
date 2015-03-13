@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import org.joda.time.Instant;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * A {@code BoundedWindow} represents a finite grouping of elements, with an
  * upper bound (larger timestamps represent more recent data) on the timestamps
@@ -30,6 +32,13 @@ import org.joda.time.Instant;
  * be treated as equal by {@code equals()} and {@code hashCode()}.
  */
 public abstract class BoundedWindow {
+  // The min and max timestmaps that won't overflow when they are converted to
+  // usec.
+  public static final Instant TIMESTAMP_MIN_VALUE =
+      new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
+  public static final Instant TIMESTAMP_MAX_VALUE =
+      new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
+
   /**
    * Returns the upper bound of timestamps for values in this window.
    */

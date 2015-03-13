@@ -123,7 +123,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
     final Instant inputTimestamp = timestamp;
 
     if (timestamp == null) {
-      timestamp = new Instant(Long.MIN_VALUE);
+      timestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
 
     if (windows == null) {

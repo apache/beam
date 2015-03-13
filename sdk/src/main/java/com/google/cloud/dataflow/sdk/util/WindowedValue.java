@@ -71,7 +71,7 @@ public class WindowedValue<V> {
    */
   public static <V> WindowedValue<V> valueInGlobalWindow(V value) {
     return new WindowedValue<>(value,
-                               new Instant(Long.MIN_VALUE),
+                               BoundedWindow.TIMESTAMP_MIN_VALUE,
                                Arrays.asList(GlobalWindow.INSTANCE));
   }
 
@@ -80,7 +80,7 @@ public class WindowedValue<V> {
    */
   public static <V> WindowedValue<V> valueInEmptyWindows(V value) {
     return new WindowedValue<V>(value,
-                                new Instant(Long.MIN_VALUE),
+                                BoundedWindow.TIMESTAMP_MIN_VALUE,
                                 Collections.<BoundedWindow>emptyList());
   }
 

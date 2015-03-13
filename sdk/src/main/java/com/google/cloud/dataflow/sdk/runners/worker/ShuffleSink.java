@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
@@ -194,7 +195,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
 
         } else if (groupValues) {
           // Sort values by timestamp so that GroupAlsoByWindows can run efficiently.
-          if (windowedElem.getTimestamp().getMillis() == Long.MIN_VALUE) {
+          if (windowedElem.getTimestamp().equals(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
             // Empty secondary keys sort before all other secondary keys, so we
             // can omit this common value here for efficiency.
             secondaryKeyBytes = null;

@@ -32,7 +32,7 @@ public class GlobalWindow extends BoundedWindow {
 
   @Override
   public Instant maxTimestamp() {
-    return new Instant(Long.MAX_VALUE);
+    return TIMESTAMP_MAX_VALUE;
   }
 
   private GlobalWindow() {}

@@ -37,6 +37,7 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
@@ -150,7 +151,7 @@ public class GroupingShuffleReaderTest {
 
         WindowedValue<KV<Integer, Reiterable<String>>> windowedValue = iter.next();
         // Verify value is in an empty windows.
-        assertEquals(Long.MIN_VALUE, windowedValue.getTimestamp().getMillis());
+        assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, windowedValue.getTimestamp());
         assertEquals(0, windowedValue.getWindows().size());
 
         KV<Integer, Reiterable<String>> elem = windowedValue.getValue();
