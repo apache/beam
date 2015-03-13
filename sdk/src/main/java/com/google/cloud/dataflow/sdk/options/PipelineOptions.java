@@ -56,7 +56,9 @@ public interface PipelineOptions {
   <T extends PipelineOptions> T as(Class<T> kls);
 
   @Validation.Required
-  @Description("The runner which will be used when executing the pipeline.")
+  @Description("The pipeline runner which will be used to execute the pipeline. "
+      + "For registered runners, the class name can be specified, otherwise the fully"
+      + "qualified name needs to be specified.")
   @Default.Class(DirectPipelineRunner.class)
   Class<? extends PipelineRunner<?>> getRunner();
   void setRunner(Class<? extends PipelineRunner<?>> kls);

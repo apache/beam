@@ -16,12 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
-import com.google.api.services.dataflow.Dataflow;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipeline;
-import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.common.base.MoreObjects;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
@@ -31,13 +27,14 @@ import org.joda.time.format.DateTimeFormatter;
 /**
  * Options which can be used to configure the {@link DataflowPipeline}.
  */
+@Description("Options which configure the Dataflow pipeline.")
 public interface DataflowPipelineOptions extends
     PipelineOptions, GcpOptions, ApplicationNameOptions, DataflowPipelineDebugOptions,
     DataflowPipelineWorkerPoolOptions, BigQueryOptions,
     GcsOptions, StreamingOptions, CloudDebuggerOptions, DataflowWorkerLoggingOptions {
 
   /**
-   * GCS path for temporary files.
+   * GCS path for temporary files, e.g. gs://bucket/object
    * <p>
    * Must be a valid Cloud Storage url, beginning with the prefix "gs://"
    * <p>
@@ -45,31 +42,37 @@ public interface DataflowPipelineOptions extends
    * {@link #getTempLocation()} is not set, then the Dataflow pipeline defaults to using
    * {@link #getStagingLocation()}.
    */
-  @Description("GCS path for temporary files, eg \"gs://bucket/object\".  "
-      + "Defaults to stagingLocation.")
+  @Description("GCS path for temporary files, eg \"gs://bucket/object\". "
+      + "Must be a valid Cloud Storage url, beginning with the prefix \"gs://\". "
+      + "At least one of tempLocation or stagingLocation must be set. If tempLocation is unset, "
+      + "defaults to using stagingLocation.")
   String getTempLocation();
   void setTempLocation(String value);
 
   /**
-   * GCS path for staging local files.
+   * GCS path for staging local files, e.g. gs://bucket/object
    * <p>
-   * If {@link #getStagingLocation()} is not set, then the Dataflow pipeline defaults to a staging
-   * directory within {@link #getTempLocation}.
+   * Must be a valid Cloud Storage url, beginning with the prefix "gs://"
    * <p>
-   * At least one of {@link #getTempLocation()} or {@link #getStagingLocation()} must be set.
+   * At least one of {@link #getTempLocation()} or {@link #getStagingLocation()} must be set. If
+   * {@link #getTempLocation()} is not set, then the Dataflow pipeline defaults to using
+   * {@link #getStagingLocation()}.
    */
-  @Description("GCS staging path.  Defaults to a staging directory"
-      + " with the tempLocation")
+  @Description("GCS path for staging local files, e.g. \"gs://bucket/object\". "
+      + "Must be a valid Cloud Storage url, beginning with the prefix \"gs://\". "
+      + "At least one of stagingLocation or tempLocation must be set. If stagingLocation is unset, "
+      + "defaults to using tempLocation.")
   String getStagingLocation();
   void setStagingLocation(String value);
 
   /**
-   * The job name is used as an idempotence key within the Dataflow service. If there
-   * is an existing job which is currently active, another job with the same name will
-   * not be able to be created.
+   * The Dataflow job name is used as an idempotence key within the Dataflow service.
+   * If there is an existing job which is currently active, another active job with the same
+   * name will not be able to be created. Defaults to using the ApplicationName-UserName-Date.
    */
-  @Description("Dataflow job name, to uniquely identify active jobs. "
-      + "Defaults to using the ApplicationName-UserName-Date.")
+  @Description("The Dataflow job name is used as an idempotence key within the Dataflow service. "
+      + "If there is an existing job which is currently active, another active job with the same "
+      + "name will not be able to be created. Defaults to using the ApplicationName-UserName-Date.")
   @Default.InstanceFactory(JobNameFactory.class)
   String getJobName();
   void setJobName(String value);
@@ -99,20 +102,6 @@ public interface DataflowPipelineOptions extends
                                           .replaceAll("[^a-z0-9]", "0");
       String datePart = FORMATTER.print(DateTimeUtils.currentTimeMillis());
       return normalizedAppName + "-" + normalizedUserName + "-" + datePart;
-    }
-  }
-
-  /** Alternative Dataflow client. */
-  @JsonIgnore
-  @Default.InstanceFactory(DataflowClientFactory.class)
-  Dataflow getDataflowClient();
-  void setDataflowClient(Dataflow value);
-
-  /** Returns the default Dataflow client built from the passed in PipelineOptions. */
-  public static class DataflowClientFactory implements DefaultValueFactory<Dataflow> {
-    @Override
-    public Dataflow create(PipelineOptions options) {
-        return Transport.newDataflowClient(options.as(DataflowPipelineOptions.class)).build();
     }
   }
 }

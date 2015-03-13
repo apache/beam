@@ -33,17 +33,29 @@ import java.util.concurrent.TimeUnit;
  */
 public interface GcsOptions extends
     ApplicationNameOptions, GcpOptions, PipelineOptions {
-  /** Alternative GcsUtil instance. */
+  /**
+   * The GcsUtil instance that should be used to communicate with Google Cloud Storage.
+   */
   @JsonIgnore
+  @Description("The GcsUtil instance that should be used to communicate with Google Cloud Storage.")
   @Default.InstanceFactory(GcsUtil.GcsUtilFactory.class)
+  @Hidden
   GcsUtil getGcsUtil();
   void setGcsUtil(GcsUtil value);
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Allows the user to provide an alternative ExecutorService if their
-  // environment does not support the default implementation.
+  /**
+   * The ExecutorService instance to use to create threads, can be overridden to specify an
+   * ExecutorService which is compatible with the users environment. If unset, the
+   * default is to create an ExecutorService with an unbounded number of threads which
+   * is compatible with Google AppEngine.
+   */
   @JsonIgnore
+  @Description("The ExecutorService instance to use to create multiple threads. can be overridden "
+      + "to specify an ExecutorService which is compatible with the users environment. If unset, "
+      + "the default is to create an ExecutorService with an unbounded number of threads which "
+      + "is compatible with Google AppEngine.")
   @Default.InstanceFactory(ExecutorServiceFactory.class)
+  @Hidden
   ExecutorService getExecutorService();
   void setExecutorService(ExecutorService value);
 

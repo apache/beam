@@ -22,12 +22,15 @@ import com.google.cloud.dataflow.sdk.runners.worker.DataflowWorkerHarness;
 import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -52,6 +55,8 @@ import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
@@ -62,11 +67,13 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
+import java.util.TreeSet;
 
 /**
  * Constructs a {@link PipelineOptions} or any derived interface which is composable to any other
@@ -136,6 +143,15 @@ public class PipelineOptionsFactory {
    * By default, strict parsing is enabled and arguments must conform to be either
    * {@code --booleanArgName} or {@code --argName=argValue}. Strict parsing can be disabled with
    * {@link Builder#withoutStrictParsing()}.
+   * <p>
+   * Help information can be output to {@link System#out} by specifying {@code --help} as an
+   * argument. After help is printed, the application will exit. Specifying only {@code --help}
+   * will print out the list of
+   * {@link PipelineOptionsFactory#getRegisteredOptions() registered options}
+   * by invoking {@link PipelineOptionsFactory#printHelp(PrintStream)}. Specifying
+   * {@code --help=PipelineOptionsClassName} will print out detailed usage information about the
+   * specifically requested PipelineOptions by invoking
+   * {@link PipelineOptionsFactory#printHelp(PrintStream, Class)}.
    */
   public static Builder fromArgs(String[] args) {
     return new Builder().fromArgs(args);
@@ -193,6 +209,15 @@ public class PipelineOptionsFactory {
      * By default, strict parsing is enabled and arguments must conform to be either
      * {@code --booleanArgName} or {@code --argName=argValue}. Strict parsing can be disabled with
      * {@link Builder#withoutStrictParsing()}.
+     * <p>
+     * Help information can be output to {@link System#out} by specifying {@code --help} as an
+     * argument. After help is printed, the application will exit. Specifying only {@code --help}
+     * will print out the list of
+     * {@link PipelineOptionsFactory#getRegisteredOptions() registered options}
+     * by invoking {@link PipelineOptionsFactory#printHelp(PrintStream)}. Specifying
+     * {@code --help=PipelineOptionsClassName} will print out detailed usage information about the
+     * specifically requested PipelineOptions by invoking
+     * {@link PipelineOptionsFactory#printHelp(PrintStream, Class)}.
      */
     public Builder fromArgs(String[] args) {
       Preconditions.checkNotNull(args, "Arguments should not be null.");
@@ -243,6 +268,7 @@ public class PipelineOptionsFactory {
       if (args != null) {
         ListMultimap<String, String> options = parseCommandLine(args, strictParsing);
         LOG.debug("Provided Arguments: {}", options);
+        printHelpUsageAndExitIfNeeded(options, System.out, true /* exit */);
         initialOptions = parseObjects(klass, options, strictParsing);
       }
 
@@ -261,6 +287,73 @@ public class PipelineOptionsFactory {
       }
       return t;
     }
+  }
+
+  /**
+   * Determines whether the generic {@code --help} was requested or help was
+   * requested for a specific class and invokes the appropriate
+   * {@link PipelineOptionsFactory#printHelp(PrintStream)} and
+   * {@link PipelineOptionsFactory#printHelp(PrintStream, Class)} variant.
+   * Prints to the specified {@link PrintStream}, and exits if requested.
+   * <p>
+   * Visible for testing.
+   * {@code printStream} and {@code exit} used for testing.
+   */
+  @SuppressWarnings("unchecked")
+  static boolean printHelpUsageAndExitIfNeeded(ListMultimap<String, String> options,
+      PrintStream printStream, boolean exit) {
+    if (options.containsKey("help")) {
+      final String helpOption = Iterables.getOnlyElement(options.get("help"));
+
+      // Print the generic help if only --help was specified.
+      if (Boolean.TRUE.toString().equals(helpOption)) {
+        printHelp(printStream);
+        if (exit) {
+          System.exit(0);
+        } else {
+          return true;
+        }
+      }
+
+      // Otherwise attempt to print the specific help option.
+      try {
+        Class<?> klass = Class.forName(helpOption);
+        if (!PipelineOptions.class.isAssignableFrom(klass)) {
+          throw new ClassNotFoundException("PipelineOptions of type " + klass + " not found.");
+        }
+        printHelp(printStream, (Class<? extends PipelineOptions>) klass);
+      } catch (ClassNotFoundException e) {
+        // If we didn't find an exact match, look for any that match the class name.
+        Iterable<Class<? extends PipelineOptions>> matches = Iterables.filter(
+            getRegisteredOptions(),
+            new Predicate<Class<? extends PipelineOptions>>() {
+              @Override
+              public boolean apply(Class<? extends PipelineOptions> input) {
+                if (helpOption.contains(".")) {
+                  return input.getName().endsWith(helpOption);
+                } else {
+                  return input.getSimpleName().equals(helpOption);
+                }
+              }
+          });
+        try {
+          printHelp(printStream, Iterables.getOnlyElement(matches));
+        } catch (NoSuchElementException exception) {
+          printStream.format("Unable to find option %s.%n", helpOption);
+          printHelp(printStream);
+        } catch (IllegalArgumentException exception) {
+          printStream.format("Multiple matches found for %s: %s.%n", helpOption,
+              Iterables.transform(matches, ReflectHelpers.CLASS_NAME));
+          printHelp(printStream);
+        }
+      }
+      if (exit) {
+        System.exit(0);
+      } else {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -340,6 +433,9 @@ public class PipelineOptionsFactory {
   /** A cache storing a mapping from a set of interfaces to its registration record. */
   private static final Map<Set<Class<? extends PipelineOptions>>, Registration<?>> COMBINED_CACHE =
       Maps.newConcurrentMap();
+
+  /** The width at which options should be output. */
+  private static final int TERMINAL_WIDTH = 80;
 
   static {
     try {
@@ -479,6 +575,162 @@ public class PipelineOptionsFactory {
     return Collections.unmodifiableSet(REGISTERED_OPTIONS);
   }
 
+  /**
+   * Outputs the set of registered options with the PipelineOptionsFactory
+   * with a description for each one if available to the output stream. This output
+   * is pretty printed and meant to be human readable. This method will attempt to
+   * format its output to be compatible with a terminal window.
+   */
+  public static void printHelp(PrintStream out) {
+    Preconditions.checkNotNull(out);
+    out.println("The set of registered options are:");
+    Set<Class<? extends PipelineOptions>> sortedOptions =
+        new TreeSet<>(ClassNameComparator.INSTANCE);
+    sortedOptions.addAll(REGISTERED_OPTIONS);
+    for (Class<? extends PipelineOptions> kls : sortedOptions) {
+      out.format("  %s%n", kls.getName());
+    }
+    out.format("%nUse --help=<OptionsName> for detailed help. For example:%n"
+        + "  --help=DataflowPipelineOptions <short names valid for registered options>%n"
+        + "  --help=com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions%n");
+  }
+
+  /**
+   * Outputs the set of options available to be set for the passed in {@link PipelineOptions}
+   * interface. The output is in a human readable format. The format is:
+   * <pre>
+   * OptionGroup:
+   *     ... option group description ...
+   *
+   *  --option1={@code <type>} or list of valid enum choices
+   *     Default: value (if available, see {@link Default})
+   *     ... option description ... (if available, see {@link Description})
+   *  --option2={@code <type>} or list of valid enum choices
+   *     Default: value (if available, see {@link Default})
+   *     ... option description ... (if available, see {@link Description})
+   * </pre>
+   * This method will attempt to format its output to be compatible with a terminal window.
+   */
+  public static void printHelp(PrintStream out, Class<? extends PipelineOptions> iface) {
+    Preconditions.checkNotNull(out);
+    Preconditions.checkNotNull(iface);
+    validateWellFormed(iface, REGISTERED_OPTIONS);
+
+    Iterable<Method> methods = getClosureOfMethodsOnInterface(iface);
+    ListMultimap<Class<?>, Method> ifaceToMethods = ArrayListMultimap.create();
+    for (Method method : methods) {
+      // Process only methods which are not marked as hidden.
+      if (method.getAnnotation(Hidden.class) == null) {
+        ifaceToMethods.put(method.getDeclaringClass(), method);
+      }
+    }
+    SortedSet<Class<?>> ifaces = new TreeSet<>(ClassNameComparator.INSTANCE);
+    // Keep interfaces which are not marked as hidden.
+    ifaces.addAll(Collections2.filter(ifaceToMethods.keySet(), new Predicate<Class<?>>() {
+      @Override
+      public boolean apply(Class<?> input) {
+        return input.getAnnotation(Hidden.class) == null;
+      }
+    }));
+    for (Class<?> currentIface : ifaces) {
+      Map<String, Method> propertyNamesToGetters =
+          getPropertyNamesToGetters(ifaceToMethods.get(currentIface));
+
+      // Don't output anything if there are no defined options
+      if (propertyNamesToGetters.isEmpty()) {
+        continue;
+      }
+
+      out.format("%s:%n", currentIface.getName());
+      prettyPrintDescription(out, currentIface.getAnnotation(Description.class));
+
+      out.println();
+
+      List<String> lists = Lists.newArrayList(propertyNamesToGetters.keySet());
+      Collections.sort(lists, String.CASE_INSENSITIVE_ORDER);
+      for (String propertyName : lists) {
+        Method method = propertyNamesToGetters.get(propertyName);
+        String printableType = method.getReturnType().getSimpleName();
+        if (method.getReturnType().isEnum()) {
+          printableType = Joiner.on(" | ").join(method.getReturnType().getEnumConstants());
+        }
+        out.format("  --%s=<%s>%n", propertyName, printableType);
+        Optional<String> defaultValue = getDefaultValueFromAnnotation(method);
+        if (defaultValue.isPresent()) {
+          out.format("    Default: %s%n", defaultValue.get());
+        }
+        prettyPrintDescription(out, method.getAnnotation(Description.class));
+      }
+      out.println();
+    }
+  }
+
+  /**
+   * Outputs the value of the description, breaking up long lines on white space characters
+   * and attempting to honor a line limit of {@code TERMINAL_WIDTH}.
+   */
+  private static void prettyPrintDescription(PrintStream out, Description description) {
+    final String spacing = "   ";
+    if (description == null || description.value() == null) {
+      return;
+    }
+
+    String[] words = description.value().split("\\s+");
+    if (words.length == 0) {
+      return;
+    }
+
+    out.print(spacing);
+    int lineLength = spacing.length();
+    for (int i = 0; i < words.length; ++i) {
+      out.print(" ");
+      out.print(words[i]);
+      lineLength += 1 + words[i].length();
+
+      // If the next word takes us over the terminal width, then goto the next line.
+      if (i + 1 != words.length && words[i + 1].length() + lineLength + 1 > TERMINAL_WIDTH) {
+        out.println();
+        out.print(spacing);
+        lineLength = spacing.length();
+      }
+    }
+    out.println();
+  }
+
+  /**
+   * Returns a string representation of the {@link Default} value on the passed in method.
+   */
+  private static Optional<String> getDefaultValueFromAnnotation(Method method) {
+    for (Annotation annotation : method.getAnnotations()) {
+      if (annotation instanceof Default.Class) {
+        return Optional.of(((Default.Class) annotation).value().getSimpleName());
+      } else if (annotation instanceof Default.String) {
+        return Optional.of(((Default.String) annotation).value());
+      } else if (annotation instanceof Default.Boolean) {
+        return Optional.of(Boolean.toString(((Default.Boolean) annotation).value()));
+      } else if (annotation instanceof Default.Character) {
+        return Optional.of(Character.toString(((Default.Character) annotation).value()));
+      } else if (annotation instanceof Default.Byte) {
+        return Optional.of(Byte.toString(((Default.Byte) annotation).value()));
+      } else if (annotation instanceof Default.Short) {
+        return Optional.of(Short.toString(((Default.Short) annotation).value()));
+      } else if (annotation instanceof Default.Integer) {
+        return Optional.of(Integer.toString(((Default.Integer) annotation).value()));
+      } else if (annotation instanceof Default.Long) {
+        return Optional.of(Long.toString(((Default.Long) annotation).value()));
+      } else if (annotation instanceof Default.Float) {
+        return Optional.of(Float.toString(((Default.Float) annotation).value()));
+      } else if (annotation instanceof Default.Double) {
+        return Optional.of(Double.toString(((Default.Double) annotation).value()));
+      } else if (annotation instanceof Default.Enum) {
+        return Optional.of(((Default.Enum) annotation).value());
+      } else if (annotation instanceof Default.InstanceFactory) {
+        return Optional.of(((Default.InstanceFactory) annotation).value().getSimpleName());
+      }
+    }
+    return Optional.absent();
+  }
+
   static Map<String, Class<? extends PipelineRunner<?>>> getRegisteredRunners() {
     return SUPPORTED_PIPELINE_RUNNERS;
   }
@@ -582,7 +834,7 @@ public class PipelineOptionsFactory {
   static Iterable<Method> getClosureOfMethodsOnInterface(Class<? extends PipelineOptions> iface) {
     Preconditions.checkNotNull(iface);
     Preconditions.checkArgument(iface.isInterface());
-    ImmutableList.Builder<Method> builder = ImmutableList.builder();
+    ImmutableSet.Builder<Method> builder = ImmutableSet.builder();
     Queue<Class<?>> interfacesToProcess = Queues.newArrayDeque();
     interfacesToProcess.add(iface);
     while (!interfacesToProcess.isEmpty()) {
@@ -604,21 +856,7 @@ public class PipelineOptionsFactory {
     // The sorting is important to make this method stable.
     SortedSet<Method> methods = Sets.newTreeSet(MethodComparator.INSTANCE);
     methods.addAll(Arrays.asList(beanClass.getMethods()));
-    // Build a map of property names to getters.
-    SortedMap<String, Method> propertyNamesToGetters = Maps.newTreeMap();
-    for (Method method : methods) {
-      String methodName = method.getName();
-      if ((!methodName.startsWith("get")
-          && !methodName.startsWith("is"))
-          || method.getParameterTypes().length != 0
-          || method.getReturnType() == void.class) {
-        continue;
-      }
-      String propertyName = Introspector.decapitalize(
-          methodName.startsWith("is") ? methodName.substring(2) : methodName.substring(3));
-      propertyNamesToGetters.put(propertyName, method);
-    }
-
+    SortedMap<String, Method> propertyNamesToGetters = getPropertyNamesToGetters(methods);
     List<PropertyDescriptor> descriptors = Lists.newArrayList();
 
     /*
@@ -643,6 +881,28 @@ public class PipelineOptionsFactory {
           getterToMethod.getKey(), getterToMethod.getValue(), null));
     }
     return descriptors;
+  }
+
+  /**
+   * Returns a map of the property name to the getter method it represents.
+   * If there are duplicate methods with the same bean name, then it is indeterminate
+   * as to which method will be returned.
+   */
+  private static SortedMap<String, Method> getPropertyNamesToGetters(Iterable<Method> methods) {
+    SortedMap<String, Method> propertyNamesToGetters = Maps.newTreeMap();
+    for (Method method : methods) {
+      String methodName = method.getName();
+      if ((!methodName.startsWith("get")
+          && !methodName.startsWith("is"))
+          || method.getParameterTypes().length != 0
+          || method.getReturnType() == void.class) {
+        continue;
+      }
+      String propertyName = Introspector.decapitalize(
+          methodName.startsWith("is") ? methodName.substring(2) : methodName.substring(3));
+      propertyNamesToGetters.put(propertyName, method);
+    }
+    return propertyNamesToGetters;
   }
 
   /**
@@ -782,7 +1042,16 @@ public class PipelineOptionsFactory {
         iface.getName());
   }
 
-  /** A {@link Comparator} which uses the classes canonical name to compare them. */
+  /** A {@link Comparator} which uses the classes name to compare them. */
+  private static class ClassNameComparator implements Comparator<Class<?>> {
+    static final ClassNameComparator INSTANCE = new ClassNameComparator();
+    @Override
+    public int compare(Class<?> o1, Class<?> o2) {
+      return o1.getName().compareTo(o2.getName());
+    }
+  }
+
+  /** A {@link Comparator} which uses the object's classes canonical name to compare them. */
   private static class ObjectsClassComparator implements Comparator<Object> {
     static final ObjectsClassComparator INSTANCE = new ObjectsClassComparator();
     @Override
@@ -914,7 +1183,7 @@ public class PipelineOptionsFactory {
   private static <T extends PipelineOptions> Map<String, Object> parseObjects(
       Class<T> klass, ListMultimap<String, String> options, boolean strictParsing) {
     Map<String, Method> propertyNamesToGetters = Maps.newHashMap();
-    PipelineOptionsFactory.validateWellFormed(klass, getRegisteredOptions());
+    PipelineOptionsFactory.validateWellFormed(klass, REGISTERED_OPTIONS);
     @SuppressWarnings("unchecked")
     Iterable<PropertyDescriptor> propertyDescriptors =
         PipelineOptionsFactory.getPropertyDescriptors(

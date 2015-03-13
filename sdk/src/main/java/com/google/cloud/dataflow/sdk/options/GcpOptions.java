@@ -58,22 +58,15 @@ import java.security.GeneralSecurityException;
  * application default credentials</a> falling back to gcloud. The other options can be
  * used by setting the corresponding properties.
  */
+@Description("Options used to configure Google Cloud Platform project and credentials.")
 public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /**
    * Project id to use when launching jobs.
    */
-  @Description("Project id.  Required when running a Dataflow in the cloud.")
+  @Description("Project id. Required when running a Dataflow in the cloud. "
+      + "See https://cloud.google.com/storage/docs/projects for further details.")
   String getProject();
   void setProject(String value);
-
-  /**
-   * This option controls which file to use when attempting to create the credentials using the
-   * OAuth 2 webflow.
-   */
-  @JsonIgnore
-  @Description("Path to a file containing Google API secret")
-  String getSecretsFile();
-  void setSecretsFile(String value);
 
   /**
    * This option controls which file to use when attempting to create the credentials using the
@@ -83,7 +76,9 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * {@link GcpOptions#getServiceAccountName() serviceAccountName}.
    */
   @JsonIgnore
-  @Description("Path to a file containing the P12 service credentials")
+  @Description("Controls which file to use when attempting to create the credentials "
+      + "using the service account method. This option if specified, needs to be combined with "
+      + "the serviceAccountName option.")
   String getServiceAccountKeyfile();
   void setServiceAccountKeyfile(String value);
 
@@ -95,7 +90,9 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * {@link GcpOptions#getServiceAccountKeyfile() serviceAccountKeyfile}.
    */
   @JsonIgnore
-  @Description("Name of the service account for Google APIs")
+  @Description("Controls which service account to use when attempting to create the credentials "
+      + "using the service account method. This option if specified, needs to be combined with "
+      + "the serviceAccountKeyfile option.")
   String getServiceAccountName();
   void setServiceAccountName(String value);
 
@@ -106,9 +103,33 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   void setGCloudPath(String value);
 
   /**
-   * Directory for storing dataflow credentials.
+   * This option controls which file to use when attempting to create the credentials
+   * using the OAuth 2 webflow. After the OAuth2 webflow, the credentials will be stored
+   * within credentialDir.
    */
-  @Description("Directory for storing dataflow credentials")
+  @JsonIgnore
+  @Description("This option controls which file to use when attempting to create the credentials "
+      + "using the OAuth 2 webflow. After the OAuth2 webflow, the credentials will be stored "
+      + "within credentialDir.")
+  String getSecretsFile();
+  void setSecretsFile(String value);
+
+  /**
+   * This option controls which credential store to use when creating the credentials
+   * using the OAuth 2 webflow.
+   */
+  @Description("This option controls which credential store to use when creating the credentials "
+      + "using the OAuth 2 webflow.")
+  @Default.String("cloud_dataflow")
+  String getCredentialId();
+  void setCredentialId(String value);
+
+  /**
+   * Directory for storing dataflow credentials after execution of the OAuth 2 webflow. Defaults
+   * to using the $HOME/.store/data-flow directory.
+   */
+  @Description("Directory for storing dataflow credentials after execution of the OAuth 2 webflow. "
+      + "Defaults to using the $HOME/.store/data-flow directory.")
   @Default.InstanceFactory(CredentialDirFactory.class)
   String getCredentialDir();
   void setCredentialDir(String value);
@@ -126,22 +147,30 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     }
   }
 
-  @Description("The credential identifier when using a persistent"
-      + " credential store")
-  @Default.String("cloud_dataflow")
-  String getCredentialId();
-  void setCredentialId(String value);
-
-  @Description("The factory class used to create oauth credentials")
+  /**
+   * The class of the credential factory that should be created and used to create
+   * credentials. If gcpCredential has not been set explicitly, an instance of this class will
+   * be constructed and used as a credential factory.
+   */
+  @Description("The class of the credential factory that should be created and used to create "
+      + "credentials. If gcpCredential has not been set explicitly, an instance of this class will "
+      + "be constructed and used as a credential factory. The default credential factory will")
   @Default.Class(GcpCredentialFactory.class)
   Class<? extends CredentialFactory> getCredentialFactoryClass();
   void setCredentialFactoryClass(
       Class<? extends CredentialFactory> credentialFactoryClass);
 
-  /** Alternative Google Cloud Platform Credential. */
+  /**
+   * The credential instance that should be used to authenticate against GCP services.
+   * If no credential has been set explicitly, the default is to use the instance factory
+   * which constructs a credential based upon the currently set credentialFactoryClass.
+   */
   @JsonIgnore
-  @Description("Google Cloud Platform user credentials.")
+  @Description("The credential instance that should be used to authenticate against GCP services. "
+      + "If no credential has been set explicitly, the default is to use the instance factory "
+      + "which constructs a credential based upon the currently set credentialFactoryClass.")
   @Default.InstanceFactory(GcpUserCredentialsFactory.class)
+  @Hidden
   Credential getGcpCredential();
   void setGcpCredential(Credential value);
 

@@ -25,6 +25,7 @@ import java.util.Arrays;
 /**
  * Options which are used to control logging configuration on the Dataflow worker.
  */
+@Description("Options which are used to control logging configuration on the Dataflow worker.")
 public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   /**
    * The set of log levels which can be used on the Dataflow worker.
@@ -34,9 +35,9 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   }
 
   /**
-   * This option controls the default log level of all loggers without a
-   * log level override.
+   * This option controls the default log level of all loggers without a log level override.
    */
+  @Description("Controls the default log level of all loggers without a log level override.")
   @Default.Enum("INFO")
   Level getDefaultWorkerLogLevel();
   void setDefaultWorkerLogLevel(Level level);
@@ -51,6 +52,16 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    * the expected format is {@code Name#Level}, further details on
    * {@link WorkerLogLevelOverride#create(String)}.
    */
+  @Description("This option controls the log levels for specifically named loggers. "
+      + "The expected format is Name#Level. The Dataflow worker uses java.util.logging which "
+      + "supports a logging hierarchy based off of names which are \".\" separated. "
+      + "For example, by specifying the value \"a.b.c.Foo#DEBUG\", the logger for the class "
+      + "\"a.b.c.Foo\" will be configured to output logs at the DEBUG level. Similarly, "
+      + "by specifying the value \"a.b.c#WARN\", all loggers underneath the \"a.b.c\" package "
+      + "will be configured to output logs at the WARN level. Note that multiple overrides can "
+      + "be specified and that later values with equivalent names override earlier values. Also, "
+      + "note that when multiple overrides are specified, the exact name followed by the closest "
+      + "parent takes precedence.")
   WorkerLogLevelOverride[] getWorkerLogLevelOverrides();
   void setWorkerLogLevelOverrides(WorkerLogLevelOverride... workerLogLevelOverrides);
 

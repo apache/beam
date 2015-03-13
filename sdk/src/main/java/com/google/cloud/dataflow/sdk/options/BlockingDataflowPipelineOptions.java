@@ -25,11 +25,14 @@ import java.io.PrintStream;
 /**
  * Options which are used to configure the {@link BlockingDataflowPipelineRunner}.
  */
+@Description("Configure options on the BlockingDataflowPipelineRunner.")
 public interface BlockingDataflowPipelineOptions extends DataflowPipelineOptions {
   /**
    * Output stream for job status messages.
    */
+  @Description("Where messages generated during execution of the Dataflow job will be output.")
   @JsonIgnore
+  @Hidden
   @Default.InstanceFactory(StandardOutputFactory.class)
   PrintStream getJobMessageOutput();
   void setJobMessageOutput(PrintStream value);

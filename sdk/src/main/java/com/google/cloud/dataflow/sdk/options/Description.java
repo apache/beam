@@ -22,9 +22,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Machine-readable description for options in {@link PipelineOptions}.
+ * Descriptions are used to generate human readable output when the --help
+ * command is specified. Description annotations placed on interfaces which extend
+ * {@link PipelineOptions} to describe groups of related options. Description annotations
+ * placed on getter methods will be used to provide human readable information
+ * for the specific option.
  */
-@Target(value = ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Description {
   String value();

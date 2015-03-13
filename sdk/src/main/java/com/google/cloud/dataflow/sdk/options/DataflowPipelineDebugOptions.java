@@ -16,19 +16,25 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import com.google.api.services.dataflow.Dataflow;
 import com.google.cloud.dataflow.sdk.util.DataflowPathValidator;
 import com.google.cloud.dataflow.sdk.util.GcsStager;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.Stager;
+import com.google.cloud.dataflow.sdk.util.Transport;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.List;
 
 /**
- * Options used for testing and debugging the Dataflow SDK.
+ * Internal. Options used to control execution of the Dataflow SDK for
+ * debugging and testing purposes.
  */
+@Description("[Internal] Options used to control execution of the Dataflow SDK for "
+    + "debugging and testing purposes.")
+@Hidden
 public interface DataflowPipelineDebugOptions extends PipelineOptions {
   /**
    * Dataflow endpoint to use.
@@ -40,7 +46,8 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
    * otherwise {@link #getApiRootUrl()} is used as the root
    * url.
    */
-  @Description("Cloud Dataflow Endpoint")
+  @Description("The URL for the Dataflow API. If the string contains \"://\""
+      + " will be treated as the entire URL, otherwise will be treated relative to apiRootUrl.")
   @Default.String("v1b3/projects/")
   String getDataflowEndpoint();
   void setDataflowEndpoint(String value);
@@ -51,61 +58,104 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
    * <p> Dataflow provides a number of experimental features that can be enabled
    * with this flag.
    *
-   * <p> Please sync with the Dataflow team when enabling any experiments.
+   * <p> Please sync with the Dataflow team before enabling any experiments.
    */
-  @Description("Backend experiments to enable.")
+  @Description("[Experimental] Dataflow provides a number of experimental features that can "
+      + "be enabled with this flag. Please sync with the Dataflow team before enabling any "
+      + "experiments.")
   List<String> getExperiments();
   void setExperiments(List<String> value);
 
   /**
-   * The API endpoint to use when communicating with the Dataflow service.
+   * The endpoint to use with the Dataflow API. dataflowEndpoint can override this value
+   * if it contains an absolute URL, otherwise apiRootUrl will be combined with dataflowEndpoint
+   * to generate the full URL to communicate with the Dataflow API.
    */
-  @Description("Google Cloud root API")
+  @Description("The endpoint to use with the Dataflow API. dataflowEndpoint can override this "
+      + "value if it contains an absolute URL, otherwise apiRootUrl will be combined with "
+      + "dataflowEndpoint to generate the full URL to communicate with the Dataflow API.")
   @Default.String("https://dataflow.googleapis.com/")
   String getApiRootUrl();
   void setApiRootUrl(String value);
 
   /**
-   * The path to write the translated Dataflow specification out to
-   * at job submission time.
+   * The path to write the translated Dataflow job specification out to
+   * at job submission time. The Dataflow job specification will be represented in JSON
+   * format.
    */
-  @Description("File for writing dataflow job descriptions")
+  @Description("The path to write the translated Dataflow job specification out to "
+      + "at job submission time. The Dataflow job specification will be represented in JSON "
+      + "format.")
   String getDataflowJobFile();
   void setDataflowJobFile(String value);
 
   /**
-   * The name of the validator class used to validate path names.
+   * The class of the validator that should be created and used to validate paths.
+   * If pathValidator has not been set explicitly, an instance of this class will be
+   * constructed and used as the path validator.
    */
-  @Description("The validator class used to validate path names.")
+  @Description("The class of the validator that should be created and used to validate paths. "
+      + "If pathValidator has not been set explicitly, an instance of this class will be "
+      + "constructed and used as the path validator.")
   @Default.Class(DataflowPathValidator.class)
   Class<? extends PathValidator> getPathValidatorClass();
   void setPathValidatorClass(Class<? extends PathValidator> validatorClass);
 
   /**
-   * The validator class used to validate path names.
+   * The path validator instance that should be created and used to validate paths.
+   * If no path validator has been set explicitly, the default is to use the instance factory which
+   * constructs a path validator based upon the currently set pathValidatorClass.
    */
   @JsonIgnore
-  @Description("The validator class used to validate path names.")
+  @Description("The path validator instance that should be created and used to validate paths. "
+      + "If no path validator has been set explicitly, the default is to use the instance factory "
+      + "which constructs a path validator based upon the currently set pathValidatorClass.")
   @Default.InstanceFactory(PathValidatorFactory.class)
   PathValidator getPathValidator();
   void setPathValidator(PathValidator validator);
 
   /**
-   * The class used to stage files.
+   * The class responsible for staging resources to be accessible by workers
+   * during job execution.
    */
-  @Description("The class used to stage files.")
+  @Description("The class of the stager that should be created and used to stage resources. "
+      + "If stager has not been set explicitly, an instance of this class will be "
+      + "constructed and used as the resource stager.")
   @Default.Class(GcsStager.class)
   Class<? extends Stager> getStagerClass();
   void setStagerClass(Class<? extends Stager> stagerClass);
 
   /**
-   * The stager instance used to stage files.
+   * The resource stager instance that should be created and used to stage resources.
+   * If no stager has been set explicitly, the default is to use the instance factory
+   * which constructs a resource stager based upon the currently set stagerClass.
    */
   @JsonIgnore
-  @Description("The class use to stage packages.")
+  @Description("The resource stager instance that should be created and used to stage resources. "
+      + "If no stager has been set explicitly, the default is to use the instance factory "
+      + "which constructs a resource stager based upon the currently set stagerClass.")
   @Default.InstanceFactory(StagerFactory.class)
   Stager getStager();
   void setStager(Stager stager);
+
+  /**
+   * An instance of the Dataflow client. Defaults to creating a Dataflow client
+   * using the current set of options.
+   */
+  @JsonIgnore
+  @Description("An instance of the Dataflow client. Defaults to creating a Dataflow client "
+      + "using the current set of options.")
+  @Default.InstanceFactory(DataflowClientFactory.class)
+  Dataflow getDataflowClient();
+  void setDataflowClient(Dataflow value);
+
+  /** Returns the default Dataflow client built from the passed in PipelineOptions. */
+  public static class DataflowClientFactory implements DefaultValueFactory<Dataflow> {
+    @Override
+    public Dataflow create(PipelineOptions options) {
+        return Transport.newDataflowClient(options.as(DataflowPipelineOptions.class)).build();
+    }
+  }
 
   /**
    * Creates a {@link PathValidator} object using the class specified in

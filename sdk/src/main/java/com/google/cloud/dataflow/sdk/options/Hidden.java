@@ -16,12 +16,16 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
 /**
- * Options used to configure streaming.
+ * Methods and/or interfaces annotated with {@code @Hidden} will be suppressed from
+ * being output when {@code --help} is specified on the command-line.
  */
-public interface StreamingOptions extends
-    ApplicationNameOptions, GcpOptions, PipelineOptions {
-  @Description("Set to true if running a streaming pipeline.")
-  boolean isStreaming();
-  void setStreaming(boolean value);
+@Target({ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Hidden {
 }

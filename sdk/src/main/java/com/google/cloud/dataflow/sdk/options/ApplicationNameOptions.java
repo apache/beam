@@ -23,11 +23,11 @@ public interface ApplicationNameOptions extends PipelineOptions {
   /**
    * Name of application, for display purposes.
    * <p>
-   * Defaults to the name of the class which constructs the
-   * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner}.
+   * Defaults to the name of the class which constructs the {@link PipelineOptions}
+   * via the {@link PipelineOptionsFactory}.
    */
-  @Description("Application name. Defaults to the name of the class which "
-      + "constructs the Pipeline.")
+  @Description("Name of application for display purposes. Defaults to the name of the class which "
+      + "constructs the PipelineOptions via the PipelineOptionsFactory.")
   String getAppName();
   void setAppName(String value);
 }

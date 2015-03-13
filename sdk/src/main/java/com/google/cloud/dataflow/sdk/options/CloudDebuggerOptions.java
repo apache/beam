@@ -22,13 +22,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 /**
  * Options for controlling Cloud Debugger. These options are experimental and subject to change.
  */
+@Description("[Experimental] Used to configure the Cloud Debugger")
 public interface CloudDebuggerOptions {
 
   /**
    * User defined application version. Cloud Debugger uses it to group all
-   * running debuggee processes. Version should be different if users have
+   * running debugged processes. Version should be different if users have
    * multiple parallel runs of the same application with different inputs.
    */
+  @Description("User defined application version. Cloud Debugger uses it to group all "
+      + "running debugged processes. cdbgVersion should be different if users have "
+      + "multiple parallel runs of the same application with different inputs.")
   String getCdbgVersion();
   void setCdbgVersion(String value);
 

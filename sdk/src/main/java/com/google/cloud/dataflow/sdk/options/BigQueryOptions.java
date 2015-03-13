@@ -19,10 +19,12 @@ package com.google.cloud.dataflow.sdk.options;
 /**
  * Properties needed when using BigQuery with the Dataflow SDK.
  */
+@Description("Options which are used to configure BigQuery. See "
+    + "https://cloud.google.com/bigquery/what-is-bigquery for details on BigQuery.")
 public interface BigQueryOptions extends ApplicationNameOptions, GcpOptions,
     PipelineOptions, StreamingOptions {
-  @Description("Temporary staging dataset ID for BigQuery "
-      + "table operations")
+  @Description("Temporary dataset for BigQuery table operations. "
+      + "Supported values are \"bigquery.googleapis.com/{dataset}\"")
   @Default.String("bigquery.googleapis.com/cloud_dataflow")
   String getTempDatasetId();
   void setTempDatasetId(String value);

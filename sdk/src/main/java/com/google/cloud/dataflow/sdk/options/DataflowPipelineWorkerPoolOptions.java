@@ -21,19 +21,23 @@ import java.util.List;
 /**
  * Options which are used to configure the Dataflow pipeline worker pool.
  */
+@Description("Options which are used to configure the Dataflow pipeline worker pool.")
 public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   /**
    * Disk source image to use by VMs for jobs.
    * @see <a href="https://developers.google.com/compute/docs/images">Compute Engine Images</a>
    */
-  @Description("Dataflow VM disk image.")
+  @Description("Disk source image to use by VMs for jobs. See "
+      + "https://developers.google.com/compute/docs/images for further details.")
   String getDiskSourceImage();
   void setDiskSourceImage(String value);
 
   /**
-   * Number of workers to use in remote execution.
+   * Number of workers to use when executing the Dataflow job.
    */
-  @Description("Number of workers, when using remote execution")
+  @Description("Number of workers to use when executing the Dataflow job. Note that "
+      + "selection of an autoscaling algorithm other then \"NONE\" will effect the "
+      + "size of the worker pool.")
   @Default.Integer(3)
   int getNumWorkers();
   void setNumWorkers(int value);
@@ -60,16 +64,19 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
     }
   }
 
-  @Description("(experimental) The autoscaling algorithm to use for the workerpool.")
+  @Description("[Experimental] The autoscaling algorithm to use for the workerpool. "
+      + "NONE: does not change the size of the worker pool. "
+      + "BASIC: autoscale the worker pool size up to maxNumWorkers until the job completes.")
   @Default.Enum("NONE")
   AutoscalingAlgorithmType getAutoscalingAlgorithm();
   void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);
 
   /**
-   * Max number of workers to use when using workerpool autoscaling.
+   * The maximum number of workers to use when using workerpool autoscaling.
    * This option is experimental and subject to change.
    */
-  @Description("Max number of workers to use, when using autoscaling")
+  @Description("[Experimental] The maximum number of workers to use when using workerpool "
+      + "autoscaling.")
   @Default.Integer(20)
   int getMaxNumWorkers();
   void setMaxNumWorkers(int value);
@@ -85,15 +92,15 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * GCE <a href="https://developers.google.com/compute/docs/zones"
    * >availability zone</a> for launching workers.
    *
-   * <p> Default is up to the service.
+   * <p> Default is up to the Dataflow service.
    */
   @Description("GCE availability zone for launching workers. "
-      + "Default is up to the service")
+      + "Default is up to the Dataflow service.")
   String getZone();
   void setZone(String value);
 
   /**
-   * Type of API for handling cluster management,i.e. resizing, healthchecking, etc.
+   * Type of API for handling cluster management, i.e. resizing, healthchecking, etc.
    */
   public enum ClusterManagerApiType {
     COMPUTE_ENGINE("compute.googleapis.com"),
@@ -110,15 +117,25 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
     }
   }
 
-  @Description("Type of API for handling cluster management,i.e. resizing, healthchecking, etc.")
+  /**
+   * Type of API for handling cluster management, i.e. resizing, healthchecking, etc.
+   */
+  @Description("Type of API for handling cluster management, i.e. resizing, healthchecking, etc.")
   @Default.Enum("COMPUTE_ENGINE")
   ClusterManagerApiType getClusterManagerApi();
   void setClusterManagerApi(ClusterManagerApiType value);
 
   /**
-   * Machine type to create worker VMs as.
+   * Machine type to create Dataflow worker VMs as.
+   * <p>
+   * See <a href="https://cloud.google.com/compute/docs/machine-types">GCE machine types</a>
+   * for a list of valid options.
+   * <p>
+   * If unset, the Dataflow service will choose a reasonable default.
    */
-  @Description("Dataflow VM machine type for workers.")
+  @Description("Machine type to create Dataflow worker VMs as. See "
+      + "https://cloud.google.com/compute/docs/machine-types for a list of valid options. "
+      + "If unset, the Dataflow service will choose a reasonable default.")
   String getWorkerMachineType();
   void setWorkerMachineType(String value);
 
@@ -141,23 +158,25 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   }
 
   /**
-   * Teardown policy for the VMs.
+   * The teardown policy for the VMs.
    *
    * <p> By default this is left unset and the service sets the default policy.
    */
-  @Description("The teardown policy for the VMs.")
+  @Description("The teardown policy for the VMs. By default this is left unset "
+      + "and the service sets the default policy.")
   TeardownPolicy getTeardownPolicy();
   void setTeardownPolicy(TeardownPolicy value);
 
   /**
    * List of local files to make available to workers.
    * <p>
-   * Jars are placed on the worker's classpath.
+   * Files are placed on the worker's classpath.
    * <p>
    * The default value is the list of jars from the main program's classpath.
    */
-  @Description("Files to stage on GCS and make available to "
-      + "workers.  The default value is all files from the classpath.")
+  @Description("Files to stage on GCS and make available to workers. "
+      + "Files are placed on the worker's classpath. "
+      + "The default value is all files from the classpath.")
   List<String> getFilesToStage();
   void setFilesToStage(List<String> value);
 }

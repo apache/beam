@@ -16,18 +16,23 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ListMultimap;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -38,6 +43,8 @@ import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.util.List;
 
 /** Tests for {@link PipelineOptionsFactory}. */
@@ -585,5 +592,154 @@ public class PipelineOptionsFactoryTest {
     String[] args = new String[] {"--=100"};
     expectedLogs.expectWarn("Strict parsing is disabled, ignoring option");
     PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
+  }
+
+  @Test
+  public void testWhenNoHelpIsRequested() {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ListMultimap<String, String> arguments = ArrayListMultimap.create();
+    assertFalse(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+        arguments, new PrintStream(baos), false /* exit */));
+    String output = new String(baos.toByteArray());
+    assertEquals("", output);
+  }
+
+  @Test
+  public void testDefaultHelpAsArgument() {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ListMultimap<String, String> arguments = ArrayListMultimap.create();
+    arguments.put("help", "true");
+    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+        arguments, new PrintStream(baos), false /* exit */));
+    String output = new String(baos.toByteArray());
+    assertThat(output, containsString("The set of registered options are:"));
+    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("Use --help=<OptionsName> for detailed help."));
+  }
+
+  @Test
+  public void testSpecificHelpAsArgument() {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ListMultimap<String, String> arguments = ArrayListMultimap.create();
+    arguments.put("help", "com.google.cloud.dataflow.sdk.options.PipelineOptions");
+    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+        arguments, new PrintStream(baos), false /* exit */));
+    String output = new String(baos.toByteArray());
+    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("--runner"));
+    assertThat(output, containsString("Default: DirectPipelineRunner"));
+    assertThat(output,
+        containsString("The pipeline runner which will be used to execute the pipeline."));
+  }
+
+  @Test
+  public void testSpecificHelpAsArgumentWithSimpleClassName() {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ListMultimap<String, String> arguments = ArrayListMultimap.create();
+    arguments.put("help", "PipelineOptions");
+    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+        arguments, new PrintStream(baos), false /* exit */));
+    String output = new String(baos.toByteArray());
+    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("--runner"));
+    assertThat(output, containsString("Default: DirectPipelineRunner"));
+    assertThat(output,
+        containsString("The pipeline runner which will be used to execute the pipeline."));
+  }
+
+  @Test
+  public void testSpecificHelpAsArgumentWithClassNameSuffix() {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ListMultimap<String, String> arguments = ArrayListMultimap.create();
+    arguments.put("help", "options.PipelineOptions");
+    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+        arguments, new PrintStream(baos), false /* exit */));
+    String output = new String(baos.toByteArray());
+    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("--runner"));
+    assertThat(output, containsString("Default: DirectPipelineRunner"));
+    assertThat(output,
+        containsString("The pipeline runner which will be used to execute the pipeline."));
+  }
+
+  /** Used for a name collision test with the other DataflowPipelineOptions. */
+  private interface DataflowPipelineOptions extends PipelineOptions {
+  }
+
+  @Test
+  public void testShortnameSpecificHelpHasMultipleMatches() {
+    PipelineOptionsFactory.register(DataflowPipelineOptions.class);
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ListMultimap<String, String> arguments = ArrayListMultimap.create();
+    arguments.put("help", "DataflowPipelineOptions");
+    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+        arguments, new PrintStream(baos), false /* exit */));
+    String output = new String(baos.toByteArray());
+    assertThat(output, containsString("Multiple matches found for DataflowPipelineOptions"));
+    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options."
+        + "PipelineOptionsFactoryTest$DataflowPipelineOptions"));
+    assertThat(output, containsString("The set of registered options are:"));
+    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+  }
+
+  @Test
+  public void testHelpWithOptionThatOutputsValidEnumTypes() {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ListMultimap<String, String> arguments = ArrayListMultimap.create();
+    arguments.put("help", "com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions");
+    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+        arguments, new PrintStream(baos), false /* exit */));
+    String output = new String(baos.toByteArray());
+    assertThat(output, containsString("<DEBUG | ERROR | INFO | TRACE | WARN>"));
+  }
+
+  @Test
+  public void testHelpWithBadOptionNameAsArgument() {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ListMultimap<String, String> arguments = ArrayListMultimap.create();
+    arguments.put("help", "com.google.cloud.dataflow.sdk.Pipeline");
+    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+        arguments, new PrintStream(baos), false /* exit */));
+    String output = new String(baos.toByteArray());
+    assertThat(output,
+        containsString("Unable to find option com.google.cloud.dataflow.sdk.Pipeline"));
+    assertThat(output, containsString("The set of registered options are:"));
+    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+  }
+
+  @Test
+  public void testHelpWithHiddenMethodAndInterface() {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ListMultimap<String, String> arguments = ArrayListMultimap.create();
+    arguments.put("help", "com.google.cloud.dataflow.sdk.option.DataflowPipelineOptions");
+    assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
+        arguments, new PrintStream(baos), false /* exit */));
+    String output = new String(baos.toByteArray());
+    // A hidden interface.
+    assertThat(output, not(
+        containsString("com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions")));
+    // A hidden option.
+    assertThat(output, not(containsString("--gcpCredential")));
+  }
+
+  @Test
+  public void testProgrammaticPrintHelp() {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    PipelineOptionsFactory.printHelp(new PrintStream(baos));
+    String output = new String(baos.toByteArray());
+    assertThat(output, containsString("The set of registered options are:"));
+    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+  }
+
+  @Test
+  public void testProgrammaticPrintHelpForSpecificType() {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    PipelineOptionsFactory.printHelp(new PrintStream(baos), PipelineOptions.class);
+    String output = new String(baos.toByteArray());
+    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("--runner"));
+    assertThat(output, containsString("Default: DirectPipelineRunner"));
+    assertThat(output,
+        containsString("The pipeline runner which will be used to execute the pipeline."));
   }
 }
