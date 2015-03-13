@@ -38,7 +38,7 @@ public interface GoogleApiDebugOptions extends PipelineOptions {
    * An invalid tracing token will result in 400 errors from Google when the API is invoked.
    */
   GoogleApiTracer[] getGoogleApiTrace();
-  void setGoogleApiTrace(GoogleApiTracer[] commands);
+  void setGoogleApiTrace(GoogleApiTracer... commands);
 
   /**
    * A {@link GoogleClientRequestInitializer} which adds the 'trace' token to Google API calls.

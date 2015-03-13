@@ -52,7 +52,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    * {@link WorkerLogLevelOverride#create(String)}.
    */
   WorkerLogLevelOverride[] getWorkerLogLevelOverrides();
-  void setWorkerLogLevelOverrides(WorkerLogLevelOverride[] workerLogLevelOverrides);
+  void setWorkerLogLevelOverrides(WorkerLogLevelOverride... workerLogLevelOverrides);
 
   /**
    * Defines a log level override for a specific class, package, or name.
