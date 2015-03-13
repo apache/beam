@@ -182,6 +182,30 @@
           </execution>
         </executions>
       </plugin>
+
+      <!-- This plugin tells Maven about an additional test-source directory to
+           build, which contains Avro-generated source files. This is not
+           strictly needed for the regular Maven build, but helps certain IDEs
+           automatically find and compile generated code. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>1.9.1</version>
+        <executions>
+          <execution>
+            <id>add-test-source</id>
+            <phase>generate-test-sources</phase>
+            <goals>
+              <goal>add-test-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${project.build.directory}/generated-test-sources/java</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 

@@ -196,6 +196,63 @@
             </dependency>
           </dependencies>
         </plugin>
+
+        <!-- This plugin's configuration tells the m2e plugin how to import this
+             Maven project into the Eclipse environment. -->
+        <plugin>
+          <groupId>org.eclipse.m2e</groupId>
+          <artifactId>lifecycle-mapping</artifactId>
+          <version>1.0.0</version>
+          <configuration>
+            <lifecycleMappingMetadata>
+              <pluginExecutions>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.apache.avro</groupId>
+                    <artifactId>avro-maven-plugin</artifactId>
+                    <versionRange>[1.7.7,)</versionRange>
+                    <goals>
+                      <goal>schema</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <execute>
+                      <runOnIncremental>false</runOnIncremental>
+                    </execute>
+                  </action>
+                </pluginExecution>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <versionRange>[2.5,)</versionRange>
+                    <goals>
+                      <goal>jar</goal>
+                      <goal>test-jar</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore/>
+                  </action>
+                </pluginExecution>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <versionRange>[0.7.1,)</versionRange>
+                    <goals>
+                      <goal>report</goal>
+                      <goal>prepare-agent</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore/>
+                  </action>
+                </pluginExecution>
+              </pluginExecutions>
+            </lifecycleMappingMetadata>
+          </configuration>
+        </plugin>
       </plugins>
     </pluginManagement>
   </build>
