@@ -54,6 +54,7 @@ import java.util.NoSuchElementException;
  * @param <T> Type of records represented by the source.
  */
 public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
+  private static final long serialVersionUID = 0;
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSource.class);
 
   private final String fileOrPatternSpec;

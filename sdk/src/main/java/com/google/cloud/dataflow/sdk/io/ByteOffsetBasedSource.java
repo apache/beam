@@ -45,6 +45,7 @@ import java.util.List;
  * @param <T> Type of records represented by the source.
  */
 public abstract class ByteOffsetBasedSource<T> extends Source<T> {
+  private static final long serialVersionUID = 0;
   private final long startOffset;
   private final long endOffset;
   private final long minShardSize;
