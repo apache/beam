@@ -167,7 +167,7 @@ public class PipelineOptionsFactoryTest {
   public void testHavingExtraneousMethodThrows() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Methods [java.lang.String extraneousMethod(int, java.lang.String)] on "
+        "Methods [extraneousMethod(int, String)] on "
         + "[com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$ExtraneousMethod] "
         + "do not conform to being bean properties.");
 

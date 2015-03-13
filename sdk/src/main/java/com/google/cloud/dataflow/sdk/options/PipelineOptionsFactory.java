@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.options;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
 import com.google.cloud.dataflow.sdk.runners.worker.DataflowWorkerHarness;
+import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -728,10 +729,10 @@ public class PipelineOptionsFactory {
 
       Iterable<String> getterClassNames = FluentIterable.from(getters)
           .transform(MethodToDeclaringClassFunction.INSTANCE)
-          .transform(ClassNameFunction.INSTANCE);
+          .transform(ReflectHelpers.CLASS_NAME);
       Iterable<String> gettersWithJsonIgnoreClassNames = FluentIterable.from(gettersWithJsonIgnore)
           .transform(MethodToDeclaringClassFunction.INSTANCE)
-          .transform(ClassNameFunction.INSTANCE);
+          .transform(ReflectHelpers.CLASS_NAME);
 
       Preconditions.checkArgument(gettersWithJsonIgnore.isEmpty()
           || getters.size() == gettersWithJsonIgnore.size(),
@@ -746,7 +747,7 @@ public class PipelineOptionsFactory {
 
       Iterable<String> settersWithJsonIgnoreClassNames = FluentIterable.from(settersWithJsonIgnore)
           .transform(MethodToDeclaringClassFunction.INSTANCE)
-          .transform(ClassNameFunction.INSTANCE);
+          .transform(ReflectHelpers.CLASS_NAME);
 
       Preconditions.checkArgument(settersWithJsonIgnore.isEmpty(),
           "Expected setter for property [%s] to not be marked with @JsonIgnore on %s",
@@ -777,7 +778,7 @@ public class PipelineOptionsFactory {
     Set<Method> unknownMethods = Sets.difference(Sets.newHashSet(klass.getMethods()), methods);
     Preconditions.checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
-        FluentIterable.from(unknownMethods).transform(MethodFormatterFunction.INSTANCE),
+        FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
         iface.getName());
   }
 
@@ -805,29 +806,6 @@ public class PipelineOptionsFactory {
     @Override
     public Class<?> apply(Method input) {
       return input.getReturnType();
-    }
-  }
-
-  /** A {@link Function} which turns a method into a simple method signature. */
-  private static class MethodFormatterFunction implements Function<Method, String> {
-    static final MethodFormatterFunction INSTANCE = new MethodFormatterFunction();
-    @Override
-    public String apply(Method input) {
-      String parameterTypes = FluentIterable.of(input.getParameterTypes())
-          .transform(ClassNameFunction.INSTANCE)
-          .toSortedList(String.CASE_INSENSITIVE_ORDER)
-          .toString();
-      return ClassNameFunction.INSTANCE.apply(input.getReturnType()) + " " + input.getName()
-          + "(" + parameterTypes.substring(1, parameterTypes.length() - 1) + ")";
-    }
-  }
-
-  /** A {@link Function} with returns the classes name. */
-  private static class ClassNameFunction implements Function<Class<?>, String> {
-    static final ClassNameFunction INSTANCE = new ClassNameFunction();
-    @Override
-    public String apply(Class<?> input) {
-      return input.getName();
     }
   }
 
