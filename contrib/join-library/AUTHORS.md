@@ -1,4 +1,4 @@
-# Authors of join-library               
+# Authors of join-library
 
 The following is the official list of authors for copyright purposes of this community-contributed module.
 
