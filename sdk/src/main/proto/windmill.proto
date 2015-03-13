@@ -178,7 +178,7 @@ message Counter {
   optional int64 mean_count = 6;
 }
 
-// next id: 10
+// next id: 11
 message WorkItemCommitRequest {
   required bytes key = 1;
   required fixed64 work_token = 2;
@@ -189,6 +189,7 @@ message WorkItemCommitRequest {
   repeated TagList list_updates = 6;
   repeated Counter counter_updates = 8;
   repeated GlobalDataId global_data_id_requests = 9;
+  repeated GlobalData global_data_updates = 10;
 }
 
 message ComputationCommitWorkRequest {
