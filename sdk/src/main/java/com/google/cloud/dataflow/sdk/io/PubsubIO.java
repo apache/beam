@@ -275,7 +275,7 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but with the given
+       * Returns a new PubsubIO.Read PTransform that's like this one but with the given
        * step name. Does not modify the object.
        */
       public Bound named(String name) {
@@ -284,7 +284,7 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but reading from the
+       * Returns a new PubsubIO.Read PTransform that's like this one but reading from the
        * given subscription. Does not modify the object.
        */
       public Bound subscription(String subscription) {
@@ -293,7 +293,7 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but reading from the
+       * Returns a new PubsubIO.Read PTransform that's like this one but reading from the
        * give topic. Does not modify the object.
        */
       public Bound topic(String topic) {
@@ -302,7 +302,7 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but reading timestamps
+       * Returns a new PubsubIO.Read PTransform that's like this one but reading timestamps
        * from the given PubSub label. Does not modify the object.
        */
       public Bound timestampLabel(String timestampLabel) {
@@ -311,7 +311,7 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but with the specified
+       * Returns a new PubsubIO.Read PTransform that's like this one but with the specified
        * setting for dropLateData. Does not modify the object.
        */
       public Bound dropLateData(boolean dropLateData) {
@@ -319,7 +319,7 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but reading unique ids
+       * Returns a new PubsubIO.Read PTransform that's like this one but reading unique ids
        * from the given PubSub label. Does not modify the object.
        */
       public Bound idLabel(String idLabel) {
@@ -452,7 +452,7 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but with the given step
+       * Returns a new PubsubIO.Write PTransform that's like this one but with the given step
        * name. Does not modify the object.
        */
       public Bound named(String name) {
@@ -460,7 +460,7 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but writing to the given
+       * Returns a new PubsubIO.Write PTransform that's like this one but writing to the given
        * topic. Does not modify the object.
        */
       public Bound topic(String topic) {
@@ -468,7 +468,7 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but publishing timestamps
+       * Returns a new PubsubIO.Write PTransform that's like this one but publishing timestamps
        * to the given PubSub label. Does not modify the object.
        */
       public Bound timestampLabel(String timestampLabel) {
@@ -476,7 +476,7 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but publishing record ids
+       * Returns a new PubsubIO.Write PTransform that's like this one but publishing record ids
        * to the given PubSub label. Does not modify the object.
        */
      public Bound idLabel(String idLabel) {
