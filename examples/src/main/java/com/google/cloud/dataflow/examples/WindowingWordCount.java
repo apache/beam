@@ -136,7 +136,7 @@ public class WindowingWordCount {
     @Description("Number of output shards (0 if the system should choose automatically)")
     @Default.Integer(0)
     int getNumShards();
-    void setNumShard(int value);
+    void setNumShards(int value);
   }
 
   private static String getOutputLocation(Options options) {
