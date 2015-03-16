@@ -41,18 +41,19 @@ import org.joda.time.Instant;
  * example see:
  *   https://cloud.google.com/dataflow/java-sdk/wordcount-example
  *
- * To execute this pipeline locally, specify general pipeline configuration:
+ * <p> To execute this pipeline locally, specify general pipeline configuration:
  *   --project=<PROJECT ID>
- * and example configuration:
- *   --output=[<LOCAL FILE> | gs://<OUTPUT PATH>]
+ * and a local output file or output prefix on GCS:
+ *   --output=[<LOCAL FILE> | gs://<OUTPUT PREFIX>]
  *
- * To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=<PROJECT ID> --stagingLocation=gs://<STAGING DIRECTORY>
+ * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ *   --project=<PROJECT ID>
+ *   --stagingLocation=gs://<STAGING DIRECTORY>
  *   --runner=BlockingDataflowPipelineRunner
- * and example configuration:
- *   --output=gs://<OUTPUT PATH>
+ * and an output prefix on GCS:
+ *   --output=gs://<OUTPUT PREFIX>
  *
- * The input file defaults to gs://dataflow-samples/shakespeare/kinglear.txt and can be
+ * <p> The input file defaults to gs://dataflow-samples/shakespeare/kinglear.txt and can be
  * overridden with --input.
  */
 public class WindowingWordCount {
