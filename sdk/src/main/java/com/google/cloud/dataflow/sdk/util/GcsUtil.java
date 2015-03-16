@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.util.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.dataflow.sdk.util.gcsio.GoogleCloudStorageWriteChannel;
+import com.google.common.collect.ImmutableList;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,7 +117,8 @@ public class GcsUtil {
 
   /**
    * Expands a pattern into matched paths. The pattern path may contain globs, which are expanded in
-   * the result. This function validates the existence of each matched file in GCS.
+   * the result. This function may return non-existent files so this should not be used to validate
+   * the existence of files in GCS.
    */
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
     Preconditions.checkArgument(isGcsPatternSupported(gcsPattern.getObject()));
@@ -124,9 +126,10 @@ public class GcsUtil {
     Pattern p = null;
     String prefix = null;
     if (!m.matches()) {
-      // Not a glob. But we should verify that the file exists in GCS.
-      prefix = gcsPattern.getObject();
-      p = Pattern.compile(gcsPattern.getObject());
+      // Not a glob.
+      // Results of GCS storage list feature is only eventually consistent so we should not use that
+      // feature to check the existence of single files.
+      return ImmutableList.of(gcsPattern);
     } else {
       // Part before the first wildcard character.
       prefix = m.group("PREFIX");

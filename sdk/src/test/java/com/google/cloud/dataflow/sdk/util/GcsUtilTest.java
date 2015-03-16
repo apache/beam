@@ -157,19 +157,6 @@ public class GcsUtilTest {
       assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
     }
 
-    // Directories should not match.
-    {
-      GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/");
-      List<GcsPath> pathList = gcsUtil.expand(pattern);
-      assertEquals(pathList.size(), 0);
-    }
-
-    {
-      GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory");
-      List<GcsPath> pathList = gcsUtil.expand(pattern);
-      assertEquals(pathList.size(), 0);
-    }
-
     // Test patterns.
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file*");
@@ -223,5 +210,47 @@ public class GcsUtilTest {
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage("Unsupported wildcard usage");
     gcsUtil.expand(pattern);
+  }
+
+  // GCSUtil.expand() should not fail for non-existent single files or directories, since GCS file
+  // listing is only eventually consistent.
+  @Test
+  public void testNonExistent() throws IOException {
+    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    pipelineOptions.setGcpCredential(Mockito.mock(Credential.class));
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.List mockStorageList = Mockito.mock(Storage.Objects.List.class);
+
+    Objects modelObjects = new Objects();
+    List<StorageObject> items = new ArrayList<>();
+
+    // A directory
+    items.add(new StorageObject().setBucket("testbucket").setName("testdirectory/"));
+    modelObjects.setItems(items);
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.list("testbucket")).thenReturn(mockStorageList);
+    when(mockStorageList.execute()).thenReturn(modelObjects);
+
+    {
+      GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/nonexistentfile");
+      List<GcsPath> expectedFiles =
+          ImmutableList.of(GcsPath.fromUri("gs://testbucket/testdirectory/nonexistentfile"));
+
+      assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
+    }
+
+    {
+      GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/nonexistentdirectory/");
+      List<GcsPath> expectedFiles =
+          ImmutableList.of(GcsPath.fromUri("gs://testbucket/testdirectory/nonexistentdirectory/"));
+
+      assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
+    }
   }
 }
