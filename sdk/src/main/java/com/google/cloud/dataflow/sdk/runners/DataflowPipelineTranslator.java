@@ -744,8 +744,8 @@ public class DataflowPipelineTranslator {
             translateTyped(transform, context);
           }
 
-          private <R, T, WT> void translateTyped(
-              View.CreatePCollectionView<R, T, WT> transform,
+          private <R, T> void translateTyped(
+              View.CreatePCollectionView<R, T> transform,
               TranslationContext context) {
             context.addStep(transform, "CollectionToSingleton");
             context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
@@ -936,7 +936,7 @@ public class DataflowPipelineTranslator {
 
   private static void translateInputs(
       PCollection<?> input,
-      List<PCollectionView<?, ?>> sideInputs,
+      List<PCollectionView<?>> sideInputs,
       TranslationContext context) {
     context.addInput(PropertyNames.PARALLEL_INPUT, input);
     translateSideInputs(sideInputs, context);
@@ -944,11 +944,11 @@ public class DataflowPipelineTranslator {
 
   // Used for ParDo
   private static void translateSideInputs(
-      List<PCollectionView<?, ?>> sideInputs,
+      List<PCollectionView<?>> sideInputs,
       TranslationContext context) {
     Map<String, Object> nonParInputs = new HashMap<>();
 
-    for (PCollectionView<?, ?> view : sideInputs) {
+    for (PCollectionView<?> view : sideInputs) {
       nonParInputs.put(
           view.getTagInternal().getId(),
           context.asOutputReference(view));

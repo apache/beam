@@ -145,7 +145,7 @@ public class TestUtils {
     return p.apply(Create.of(values)).setCoder(BigEndianIntegerCoder.of());
   }
 
-  public static PCollectionView<Integer, ?>
+  public static PCollectionView<Integer>
       createSingletonInt(Pipeline p, Integer value) {
     PCollection<Integer> collection = p.apply(Create.of(value));
     return collection.apply(View.<Integer>asSingleton());

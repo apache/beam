@@ -473,7 +473,7 @@ public class ParDo {
    * invoke, which will also bind the input/output types of this
    * {@code PTransform}.
    */
-  public static Unbound withSideInputs(PCollectionView<?, ?>... sideInputs) {
+  public static Unbound withSideInputs(PCollectionView<?>... sideInputs) {
     return new Unbound().withSideInputs(sideInputs);
   }
 
@@ -493,7 +493,7 @@ public class ParDo {
    * {@code PTransform}.
    */
   public static Unbound withSideInputs(
-      Iterable<? extends PCollectionView<?, ?>> sideInputs) {
+      Iterable<? extends PCollectionView<?>> sideInputs) {
     return new Unbound().withSideInputs(sideInputs);
   }
 
@@ -551,12 +551,12 @@ public class ParDo {
    */
   public static class Unbound {
     String name;
-    List<PCollectionView<?, ?>> sideInputs = Collections.emptyList();
+    List<PCollectionView<?>> sideInputs = Collections.emptyList();
 
     Unbound() {}
 
     Unbound(String name,
-            List<PCollectionView<?, ?>> sideInputs) {
+            List<PCollectionView<?>> sideInputs) {
       this.name = name;
       this.sideInputs = sideInputs;
     }
@@ -581,7 +581,7 @@ public class ParDo {
      * <p> See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
      */
-    public Unbound withSideInputs(PCollectionView<?, ?>... sideInputs) {
+    public Unbound withSideInputs(PCollectionView<?>... sideInputs) {
       return new Unbound(name, ImmutableList.copyOf(sideInputs));
     }
 
@@ -594,7 +594,7 @@ public class ParDo {
      * {@link ParDo#withSideInputs} for more explanation.
      */
     public Unbound withSideInputs(
-        Iterable<? extends PCollectionView<?, ?>> sideInputs) {
+        Iterable<? extends PCollectionView<?>> sideInputs) {
       return new Unbound(name, ImmutableList.copyOf(sideInputs));
     }
 
@@ -642,11 +642,11 @@ public class ParDo {
   public static class Bound<I, O>
       extends PTransform<PCollection<? extends I>, PCollection<O>> {
     // Inherits name.
-    List<PCollectionView<?, ?>> sideInputs;
+    List<PCollectionView<?>> sideInputs;
     DoFn<I, O> fn;
 
     Bound(String name,
-          List<PCollectionView<?, ?>> sideInputs,
+          List<PCollectionView<?>> sideInputs,
           DoFn<I, O> fn) {
       super(name);
       this.sideInputs = sideInputs;
@@ -672,7 +672,7 @@ public class ParDo {
      * <p> See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
      */
-    public Bound<I, O> withSideInputs(PCollectionView<?, ?>... sideInputs) {
+    public Bound<I, O> withSideInputs(PCollectionView<?>... sideInputs) {
       return new Bound<>(name, ImmutableList.copyOf(sideInputs), fn);
     }
 
@@ -685,7 +685,7 @@ public class ParDo {
      * {@link ParDo#withSideInputs} for more explanation.
      */
     public Bound<I, O> withSideInputs(
-        Iterable<? extends PCollectionView<?, ?>> sideInputs) {
+        Iterable<? extends PCollectionView<?>> sideInputs) {
       return new Bound<>(name, ImmutableList.copyOf(sideInputs), fn);
     }
 
@@ -732,7 +732,7 @@ public class ParDo {
       return fn;
     }
 
-    public List<PCollectionView<?, ?>> getSideInputs() {
+    public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
     }
   }
@@ -749,12 +749,12 @@ public class ParDo {
    */
   public static class UnboundMulti<O> {
     String name;
-    List<PCollectionView<?, ?>> sideInputs;
+    List<PCollectionView<?>> sideInputs;
     TupleTag<O> mainOutputTag;
     TupleTagList sideOutputTags;
 
     UnboundMulti(String name,
-                 List<PCollectionView<?, ?>> sideInputs,
+                 List<PCollectionView<?>> sideInputs,
                  TupleTag<O> mainOutputTag,
                  TupleTagList sideOutputTags) {
       this.name = name;
@@ -785,7 +785,7 @@ public class ParDo {
      * {@link ParDo#withSideInputs} for more explanation.
      */
     public UnboundMulti<O> withSideInputs(
-        PCollectionView<?, ?>... sideInputs) {
+        PCollectionView<?>... sideInputs) {
       return new UnboundMulti<>(
           name, ImmutableList.copyOf(sideInputs),
           mainOutputTag, sideOutputTags);
@@ -801,7 +801,7 @@ public class ParDo {
      * {@link ParDo#withSideInputs} for more explanation.
      */
     public UnboundMulti<O> withSideInputs(
-        Iterable<? extends PCollectionView<?, ?>> sideInputs) {
+        Iterable<? extends PCollectionView<?>> sideInputs) {
       return new UnboundMulti<>(
           name, ImmutableList.copyOf(sideInputs),
           mainOutputTag, sideOutputTags);
@@ -836,13 +836,13 @@ public class ParDo {
   public static class BoundMulti<I, O>
       extends PTransform<PCollection<? extends I>, PCollectionTuple> {
     // Inherits name.
-    List<PCollectionView<?, ?>> sideInputs;
+    List<PCollectionView<?>> sideInputs;
     TupleTag<O> mainOutputTag;
     TupleTagList sideOutputTags;
     DoFn<I, O> fn;
 
     BoundMulti(String name,
-               List<PCollectionView<?, ?>> sideInputs,
+               List<PCollectionView<?>> sideInputs,
                TupleTag<O> mainOutputTag,
                TupleTagList sideOutputTags,
                DoFn<I, O> fn) {
@@ -874,7 +874,7 @@ public class ParDo {
      * {@link ParDo#withSideInputs} for more explanation.
      */
     public BoundMulti<I, O> withSideInputs(
-        PCollectionView<?, ?>... sideInputs) {
+        PCollectionView<?>... sideInputs) {
       return new BoundMulti<>(
           name, ImmutableList.copyOf(sideInputs),
           mainOutputTag, sideOutputTags, fn);
@@ -889,7 +889,7 @@ public class ParDo {
      * {@link ParDo#withSideInputs} for more explanation.
      */
     public BoundMulti<I, O> withSideInputs(
-        Iterable<? extends PCollectionView<?, ?>> sideInputs) {
+        Iterable<? extends PCollectionView<?>> sideInputs) {
       return new BoundMulti<>(
           name, ImmutableList.copyOf(sideInputs),
           mainOutputTag, sideOutputTags, fn);
@@ -932,7 +932,7 @@ public class ParDo {
       return mainOutputTag;
     }
 
-    public List<PCollectionView<?, ?>> getSideInputs() {
+    public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
     }
   }
@@ -1016,7 +1016,7 @@ public class ParDo {
       DoFn<I, O> doFn,
       String name,
       PCollection<? extends I> input,
-      List<PCollectionView<?, ?>> sideInputs,
+      List<PCollectionView<?>> sideInputs,
       TupleTag<O> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       DirectPipelineRunner.EvaluationContext context,
@@ -1025,7 +1025,7 @@ public class ParDo {
     DoFn<I, O> fn = context.ensureSerializable(doFn);
 
     PTuple sideInputValues = PTuple.empty();
-    for (PCollectionView<?, ?> view : sideInputs) {
+    for (PCollectionView<?> view : sideInputs) {
       sideInputValues = sideInputValues.and(
           view.getTagInternal(),
           context.getPCollectionView(view));

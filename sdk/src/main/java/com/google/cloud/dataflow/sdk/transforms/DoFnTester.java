@@ -85,7 +85,7 @@ public class DoFnTester<I, O> {
    * <p> If this isn't called, {@code DoFnTester} assumes the
    * {@link DoFn} takes no side inputs.
    */
-  public void setSideInputs(Map<PCollectionView<?, ?>, Iterable<WindowedValue<?>>> sideInputs) {
+  public void setSideInputs(Map<PCollectionView<?>, Iterable<WindowedValue<?>>> sideInputs) {
     this.sideInputs = sideInputs;
     resetState();
   }
@@ -100,7 +100,7 @@ public class DoFnTester<I, O> {
    * <p> If this isn't called, {@code DoFnTester} assumes the
    * {@code DoFn} takes no side inputs.
    */
-  public void setSideInput(PCollectionView<?, ?> sideInput, Iterable<WindowedValue<?>> value) {
+  public void setSideInput(PCollectionView<?> sideInput, Iterable<WindowedValue<?>> value) {
     sideInputs.put(sideInput, value);
   }
 
@@ -110,7 +110,7 @@ public class DoFnTester<I, O> {
    * in the global window.
    */
   public void setSideInputInGlobalWindow(
-      PCollectionView<?, ?> sideInput,
+      PCollectionView<?> sideInput,
       Iterable<?> value) {
     sideInputs.put(
         sideInput,
@@ -302,7 +302,7 @@ public class DoFnTester<I, O> {
   final DoFn<I, O> origFn;
 
   /** The side input values to provide to the DoFn under test. */
-  private Map<PCollectionView<?, ?>, Iterable<WindowedValue<?>>> sideInputs =
+  private Map<PCollectionView<?>, Iterable<WindowedValue<?>>> sideInputs =
       new HashMap<>();
 
   /** The output tags used by the DoFn under test. */
@@ -343,7 +343,7 @@ public class DoFnTester<I, O> {
             origFn.toString());
     counterSet = new CounterSet();
     PTuple runnerSideInputs = PTuple.empty();
-    for (Map.Entry<PCollectionView<?, ?>, Iterable<WindowedValue<?>>> entry
+    for (Map.Entry<PCollectionView<?>, Iterable<WindowedValue<?>>> entry
         : sideInputs.entrySet()) {
       runnerSideInputs = runnerSideInputs.and(entry.getKey().getTagInternal(), entry.getValue());
     }

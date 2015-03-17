@@ -211,7 +211,7 @@ public class TfIdf {
       // Compute the total number of documents, and
       // prepare this singleton PCollectionView for
       // use as a side input.
-      final PCollectionView<Long, ?> totalDocuments =
+      final PCollectionView<Long> totalDocuments =
           uriToContent
           .apply(Keys.<URI>create())
           .apply(RemoveDuplicates.<URI>create())

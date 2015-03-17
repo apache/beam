@@ -89,13 +89,13 @@ public class ParDoTest implements Serializable {
     enum State { UNSTARTED, STARTED, PROCESSING, FINISHED }
     State state = State.UNSTARTED;
 
-    final List<PCollectionView<Integer, ?>> sideInputViews = new ArrayList<>();
+    final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
     final List<TupleTag<String>> sideOutputTupleTags = new ArrayList<>();
 
     public TestDoFn() {
     }
 
-    public TestDoFn(List<PCollectionView<Integer, ?>> sideInputViews,
+    public TestDoFn(List<PCollectionView<Integer>> sideInputViews,
                     List<TupleTag<String>> sideOutputTupleTags) {
       this.sideInputViews.addAll(sideInputViews);
       this.sideOutputTupleTags.addAll(sideOutputTupleTags);
@@ -127,7 +127,7 @@ public class ParDoTest implements Serializable {
     private void outputToAll(Context c, String value) {
       if (!sideInputViews.isEmpty()) {
         List<Integer> sideInputValues = new ArrayList<>();
-        for (PCollectionView<Integer, ?> sideInputView : sideInputViews) {
+        for (PCollectionView<Integer> sideInputView : sideInputViews) {
           sideInputValues.add(c.sideInput(sideInputView));
         }
         value += ": " + sideInputValues;
@@ -458,7 +458,7 @@ public class ParDoTest implements Serializable {
         input
         .apply(ParDo
                .of(new TestDoFn(
-                   Arrays.<PCollectionView<Integer, ?>>asList(),
+                   Arrays.<PCollectionView<Integer>>asList(),
                    Arrays.asList(sideTag1, sideTag2, sideTag3)))
                .withOutputTags(
                    mainTag,
@@ -522,7 +522,7 @@ public class ParDoTest implements Serializable {
     PCollection<String> output =
         input
         .apply(ParDo.of(new TestDoFn(
-            Arrays.<PCollectionView<Integer, ?>>asList(),
+            Arrays.<PCollectionView<Integer>>asList(),
             Arrays.asList(sideTag))));
 
     DataflowAssert.that(output)
@@ -579,9 +579,9 @@ public class ParDoTest implements Serializable {
 
     PCollection<Integer> input = createInts(p, inputs);
 
-    PCollectionView<Integer, ?> sideInput1 = TestUtils.createSingletonInt(p, 11);
-    PCollectionView<Integer, ?> sideInputUnread = TestUtils.createSingletonInt(p, -3333);
-    PCollectionView<Integer, ?> sideInput2 = TestUtils.createSingletonInt(p, 222);
+    PCollectionView<Integer> sideInput1 = TestUtils.createSingletonInt(p, 11);
+    PCollectionView<Integer> sideInputUnread = TestUtils.createSingletonInt(p, -3333);
+    PCollectionView<Integer> sideInput2 = TestUtils.createSingletonInt(p, 222);
 
     PCollection<String> output =
         input
@@ -607,11 +607,11 @@ public class ParDoTest implements Serializable {
 
     PCollection<Integer> input = createInts(p, inputs);
 
-    PCollectionView<Integer, ?> sideView = TestUtils.createSingletonInt(p, 3);
+    PCollectionView<Integer> sideView = TestUtils.createSingletonInt(p, 3);
 
     input
         .apply(ParDo.of(new TestDoFn(
-            Arrays.<PCollectionView<Integer, ?>>asList(sideView),
+            Arrays.<PCollectionView<Integer>>asList(sideView),
             Arrays.<TupleTag<String>>asList())));
 
     try {
@@ -807,7 +807,7 @@ public class ParDoTest implements Serializable {
         .apply(ParDo
                .named("MyParDo")
                .of(new TestDoFn(
-                   Arrays.<PCollectionView<Integer, ?>>asList(),
+                   Arrays.<PCollectionView<Integer>>asList(),
                    Arrays.asList(sideTag1, sideTag2, sideTag3)))
                .withOutputTags(
                    mainTag,

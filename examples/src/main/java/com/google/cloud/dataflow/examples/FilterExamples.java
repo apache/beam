@@ -170,7 +170,7 @@ public class FilterExamples {
 
       // Find the global mean, of all the mean_temp readings in the weather data,
       // and prepare this singleton PCollectionView for use as a side input.
-      final PCollectionView<Double, ?> globalMeanTemp =
+      final PCollectionView<Double> globalMeanTemp =
           meanTemps.apply(Mean.<Double>globally())
                .apply(View.<Double>asSingleton());
 

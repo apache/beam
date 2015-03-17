@@ -376,7 +376,7 @@ public class DirectPipelineRunner
      * implementation a {@link PCollectionView} should convert from this representation to a
      * suitable side input value.
      */
-    <T, WT> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T, WT> view);
+    <T, WT> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T> view);
   }
 
   /**
@@ -514,7 +514,7 @@ public class DirectPipelineRunner
      * Throws an exception if the {@link PCollectionView}'s value has already been set.
      */
     <R, T, WT> void setPCollectionView(
-        PCollectionView<T, WT> pc,
+        PCollectionView<T> pc,
         Iterable<WindowedValue<R>> value);
 
     /**
@@ -703,7 +703,7 @@ public class DirectPipelineRunner
 
     @Override
     public <R, T, WT> void setPCollectionView(
-        PCollectionView<T, WT> view,
+        PCollectionView<T> view,
         Iterable<WindowedValue<R>> value) {
       LOG.debug("Setting {} = {}", view, value);
       setPValue(view, value);
@@ -758,7 +758,7 @@ public class DirectPipelineRunner
      * converts from this representation to a suitable side input value.
      */
     @Override
-    public <T, WT> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T, WT> view) {
+    public <T, WT> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
       @SuppressWarnings("unchecked")
       Iterable<WindowedValue<?>> value = (Iterable<WindowedValue<?>>) getPValue(view);
       LOG.debug("Getting {} = {}", view, value);

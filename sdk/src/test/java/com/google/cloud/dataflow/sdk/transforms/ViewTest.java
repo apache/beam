@@ -56,7 +56,7 @@ public class ViewTest implements Serializable {
   public void testSingletonSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
-    final PCollectionView<Integer, ?> view = pipeline
+    final PCollectionView<Integer> view = pipeline
         .apply(Create.of(47))
         .apply(View.<Integer>asSingleton());
 
@@ -80,7 +80,7 @@ public class ViewTest implements Serializable {
   public void testEmptySingletonSideInput() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 
-    final PCollectionView<Integer, ?> view = pipeline
+    final PCollectionView<Integer> view = pipeline
         .apply(Create.<Integer>of())
         .setCoder(VarIntCoder.of())
         .apply(View.<Integer>asSingleton());
@@ -108,7 +108,7 @@ public class ViewTest implements Serializable {
   public void testNonSingletonSideInput() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 
-    final PCollectionView<Integer, ?> view = pipeline
+    final PCollectionView<Integer> view = pipeline
         .apply(Create.<Integer>of(1, 2, 3))
         .apply(View.<Integer>asSingleton());
 
@@ -136,7 +136,7 @@ public class ViewTest implements Serializable {
   public void testIterableSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
-    final PCollectionView<Iterable<Integer>, ?> view = pipeline
+    final PCollectionView<Iterable<Integer>> view = pipeline
         .apply(Create.of(11, 13, 17, 23))
         .apply(View.<Integer>asIterable());
 
@@ -164,7 +164,7 @@ public class ViewTest implements Serializable {
   public void testMapSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
-    final PCollectionView<Map<String, Iterable<Integer>>, ?> view = pipeline
+    final PCollectionView<Map<String, Iterable<Integer>>> view = pipeline
         .apply(Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
         .apply(View.<String, Integer>asMap());
 
@@ -192,7 +192,7 @@ public class ViewTest implements Serializable {
   public void testSingletonMapSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
-    final PCollectionView<Map<String, Integer>, ?> view = pipeline
+    final PCollectionView<Map<String, Integer>> view = pipeline
         .apply(Create.of(KV.of("a", 1), KV.of("b", 3)))
         .apply(View.<String, Integer>asMap().withSingletonValues());
 
@@ -217,7 +217,7 @@ public class ViewTest implements Serializable {
   public void testCombinedMapSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
-    final PCollectionView<Map<String, Integer>, ?> view = pipeline
+    final PCollectionView<Map<String, Integer>> view = pipeline
         .apply(Create.of(KV.of("a", 1), KV.of("a", 20), KV.of("b", 3)))
         .apply(View.<String, Integer>asMap().withCombiner(new Sum.SumIntegerFn()));
 

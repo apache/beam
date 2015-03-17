@@ -72,7 +72,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * @throws IllegalArgumentException if this is not a side input
      * @see ParDo#withSideInputs
      */
-    public abstract <T> T sideInput(PCollectionView<T, ?> view);
+    public abstract <T> T sideInput(PCollectionView<T> view);
 
     /**
      * Adds the given element to the main output {@code PCollection}.

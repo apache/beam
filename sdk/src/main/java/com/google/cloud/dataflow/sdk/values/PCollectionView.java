@@ -21,7 +21,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import java.io.Serializable;
 
 /**
- * A {@code PCollectionView<T, WT>} is an immutable view of a
+ * A {@code PCollectionView<T>} is an immutable view of a
  * {@link PCollection} that can be accessed e.g. as a
  * side input to a {@link com.google.cloud.dataflow.sdk.transforms.DoFn}.
  *
@@ -32,9 +32,8 @@ import java.io.Serializable;
  * view in a runner-specific manner.
  *
  * @param <T> the type of the value(s) accessible via this {@code PCollectionView}
- * @param <WT> the type of the windowed value(s) accessible via this {@code PCollectionView}
  */
-public interface PCollectionView<T, WT> extends PValue, Serializable {
+public interface PCollectionView<T> extends PValue, Serializable {
   /**
    * A unique identifier, for internal use.
    */

@@ -90,17 +90,16 @@ public class View {
    * <p> Instantiate via {@link View#asIterable}.
    */
   public static class AsIterable<T> extends PTransform<
-      PCollection<T>,
-      PCollectionView<Iterable<T>, Iterable<WindowedValue<T>>>> {
+      PCollection<T>, PCollectionView<Iterable<T>>> {
     private static final long serialVersionUID = 0;
 
     private AsIterable() { }
 
     @Override
-    public PCollectionView<Iterable<T>, Iterable<WindowedValue<T>>> apply(
+    public PCollectionView<Iterable<T>> apply(
         PCollection<T> input) {
       return input.apply(
-          new CreatePCollectionView<T, Iterable<T>, Iterable<WindowedValue<T>>>(
+          new CreatePCollectionView<T, Iterable<T>>(
               new IterablePCollectionView<T>(input.getPipeline())));
     }
   }
@@ -112,15 +111,15 @@ public class View {
    * <p> Instantiate via {@link View#asIterable}.
    */
   public static class AsSingleton<T>
-      extends PTransform<PCollection<T>, PCollectionView<T, WindowedValue<T>>> {
+      extends PTransform<PCollection<T>, PCollectionView<T>> {
     private static final long serialVersionUID = 0;
 
     private AsSingleton() { }
 
     @Override
-    public PCollectionView<T, WindowedValue<T>> apply(PCollection<T> input) {
+    public PCollectionView<T> apply(PCollection<T> input) {
       return input.apply(
-          new CreatePCollectionView<T, T, WindowedValue<T>>(
+          new CreatePCollectionView<T, T>(
             new SingletonPCollectionView<T>(input.getPipeline())));
     }
 
@@ -133,7 +132,7 @@ public class View {
    * <p> Instantiate via {@link View#asMap}.
    */
   public static class AsMultimap<K, V>
-      extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>, ?>> {
+      extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
     private static final long serialVersionUID = 0;
 
     private AsMultimap() { }
@@ -157,9 +156,9 @@ public class View {
     }
 
     @Override
-    public PCollectionView<Map<K, Iterable<V>>, ?> apply(PCollection<KV<K, V>> input) {
+    public PCollectionView<Map<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
       return input.apply(
-        new CreatePCollectionView<KV<K, V>, Map<K, Iterable<V>>, Object>(
+        new CreatePCollectionView<KV<K, V>, Map<K, Iterable<V>>>(
           new MultimapPCollectionView<K, V>(input.getPipeline())));
     }
   }
@@ -172,7 +171,7 @@ public class View {
    * <p> Instantiate via {@link View#asMap}.
    */
   public static class AsSingletonMap<K, VI, VO>
-      extends PTransform<PCollection<KV<K, VI>>, PCollectionView<Map<K, VO>, ?>> {
+      extends PTransform<PCollection<KV<K, VI>>, PCollectionView<Map<K, VO>>> {
     private static final long serialVersionUID = 0;
 
     private CombineFn<VI, ?, VO> combineFn;
@@ -182,7 +181,7 @@ public class View {
     }
 
     @Override
-    public PCollectionView<Map<K, VO>, ?> apply(PCollection<KV<K, VI>> input) {
+    public PCollectionView<Map<K, VO>> apply(PCollection<KV<K, VI>> input) {
       // VI == VO if combineFn is null
       @SuppressWarnings("unchecked")
       PCollection<KV<K, VO>> combined =
@@ -190,7 +189,7 @@ public class View {
         ? (PCollection) input
         : input.apply(Combine.perKey(combineFn.<K>asKeyedFn()));
       return combined.apply(
-        new CreatePCollectionView<KV<K, VO>, Map<K, VO>, Object>(
+        new CreatePCollectionView<KV<K, VO>, Map<K, VO>>(
           new MapPCollectionView<K, VO>(input.getPipeline())));
     }
   }
@@ -208,18 +207,18 @@ public class View {
    * @param <WT> The type associated with a windowed side input from the
    * PCollectionView
    */
-  public static class CreatePCollectionView<R, T, WT>
-      extends PTransform<PCollection<R>, PCollectionView<T, WT>> {
+  public static class CreatePCollectionView<R, T>
+      extends PTransform<PCollection<R>, PCollectionView<T>> {
     private static final long serialVersionUID = 0;
 
-    private PCollectionView<T, WT> view;
+    private PCollectionView<T> view;
 
-    public CreatePCollectionView(PCollectionView<T, WT> view) {
+    public CreatePCollectionView(PCollectionView<T> view) {
       this.view = view;
     }
 
     @Override
-    public PCollectionView<T, WT> apply(PCollection<R> input) {
+    public PCollectionView<T> apply(PCollection<R> input) {
       return view;
     }
 
@@ -234,8 +233,8 @@ public class View {
               evaluateTyped(transform, context);
             }
 
-            private <R, T, WT> void evaluateTyped(
-                CreatePCollectionView<R, T, WT> transform,
+            private <R, T> void evaluateTyped(
+                CreatePCollectionView<R, T> transform,
                 DirectPipelineRunner.EvaluationContext context) {
               List<WindowedValue<R>> elems =
                   context.getPCollectionWindowedValues(transform.getInput());
@@ -246,7 +245,7 @@ public class View {
   }
 
   private static class SingletonPCollectionView<T>
-      extends PCollectionViewBase<T, WindowedValue<T>> {
+      extends PCollectionViewBase<T> {
     private static final long serialVersionUID = 0;
 
     public SingletonPCollectionView(Pipeline pipeline) {
@@ -270,7 +269,7 @@ public class View {
   }
 
   private static class IterablePCollectionView<T>
-      extends PCollectionViewBase<Iterable<T>, Iterable<WindowedValue<T>>> {
+      extends PCollectionViewBase<Iterable<T>> {
     private static final long serialVersionUID = 0;
 
     public IterablePCollectionView(Pipeline pipeline) {
@@ -290,7 +289,7 @@ public class View {
   }
 
   private static class MultimapPCollectionView<K, V>
-      extends PCollectionViewBase<Map<K, Iterable<V>>, Object> {
+      extends PCollectionViewBase<Map<K, Iterable<V>>> {
     private static final long serialVersionUID = 0;
 
     public MultimapPCollectionView(Pipeline pipeline) {
@@ -311,7 +310,7 @@ public class View {
   }
 
   private static class MapPCollectionView<K, V>
-      extends PCollectionViewBase<Map<K, V>, Object> {
+      extends PCollectionViewBase<Map<K, V>> {
     private static final long serialVersionUID = 0;
 
     public MapPCollectionView(Pipeline pipeline) {
@@ -332,9 +331,9 @@ public class View {
     }
   }
 
-  private abstract static class PCollectionViewBase<T, WT>
+  private abstract static class PCollectionViewBase<T>
       extends PValueBase
-      implements PCollectionView<T, WT> {
+      implements PCollectionView<T> {
     private static final long serialVersionUID = 0;
 
     @Override

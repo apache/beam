@@ -78,9 +78,9 @@ public class First<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private static final long serialVersionUID = 0;
 
     long limit;
-    final PCollectionView<Iterable<T>, ?> iterableView;
+    final PCollectionView<Iterable<T>> iterableView;
 
-    public CopyFirstDoFn(long limit, PCollectionView<Iterable<T>, ?> iterableView) {
+    public CopyFirstDoFn(long limit, PCollectionView<Iterable<T>> iterableView) {
       this.limit = limit;
       this.iterableView = iterableView;
     }
@@ -98,7 +98,7 @@ public class First<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   @Override
   public PCollection<T> apply(PCollection<T> in) {
-    PCollectionView<Iterable<T>, ?> iterableView = in.apply(View.<T>asIterable());
+    PCollectionView<Iterable<T>> iterableView = in.apply(View.<T>asIterable());
     return
         in.getPipeline()
         .apply(Create.of((Void) null)).setCoder(VoidCoder.of())

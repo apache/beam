@@ -1111,7 +1111,7 @@ public class Combine {
     }
 
     private PCollection<VO> insertDefaultValueIfEmpty(PCollection<VO> maybeEmpty) {
-      final PCollectionView<Iterable<VO>, ?> maybeEmptyView = maybeEmpty.apply(
+      final PCollectionView<Iterable<VO>> maybeEmptyView = maybeEmpty.apply(
           View.<VO>asIterable());
       return maybeEmpty.getPipeline()
           .apply(Create.of((Void) null)).setCoder(VoidCoder.of())

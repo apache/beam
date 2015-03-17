@@ -496,14 +496,14 @@ public class DataflowPipelineTranslatorTest {
   @Test
   public void testToSingletonTranslation() throws Exception {
     // A "change detector" test that makes sure the translation
-    // of getting a PCollectionView<T, ...> does not change
+    // of getting a PCollectionView<T> does not change
     // in bad ways during refactor
 
     DataflowPipelineOptions options = buildPipelineOptions();
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     DataflowPipeline pipeline = DataflowPipeline.create(options);
-    PCollectionView<Integer, ?> view =  pipeline
+    PCollectionView<Integer> view =  pipeline
         .apply(Create.of(1))
         .apply(View.<Integer>asSingleton());
     Job job = translator.translate(pipeline, Collections.<DataflowPackage>emptyList());
@@ -522,14 +522,14 @@ public class DataflowPipelineTranslatorTest {
   @Test
   public void testToIterableTranslation() throws Exception {
     // A "change detector" test that makes sure the translation
-    // of getting a PCollectionView<Iterable<T>, ...> does not change
+    // of getting a PCollectionView<Iterable<T>> does not change
     // in bad ways during refactor
 
     DataflowPipelineOptions options = buildPipelineOptions();
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     DataflowPipeline pipeline = DataflowPipeline.create(options);
-    PCollectionView<Iterable<Integer>, ?> view =  pipeline
+    PCollectionView<Iterable<Integer>> view =  pipeline
         .apply(Create.of(1, 2, 3))
         .apply(View.<Integer>asIterable());
     Job job = translator.translate(pipeline, Collections.<DataflowPackage>emptyList());

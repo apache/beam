@@ -103,7 +103,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> T sideInput(PCollectionView<T, ?> view) {
+  public <T> T sideInput(PCollectionView<T> view) {
     TupleTag<?> tag = view.getTagInternal();
     if (!sideInputCache.containsKey(tag)) {
       if (!sideInputs.has(tag)) {

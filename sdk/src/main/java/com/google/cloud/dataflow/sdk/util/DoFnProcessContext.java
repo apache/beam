@@ -77,7 +77,7 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
   }
 
   @Override
-  public <T> T sideInput(PCollectionView<T, ?> view) {
+  public <T> T sideInput(PCollectionView<T> view) {
     return context.sideInput(view);
   }
 
