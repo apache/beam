@@ -95,12 +95,20 @@ public class Proto2Coder<T extends Message> extends CustomCoder<T> {
 
   @Override
   public void encode(T value, OutputStream outStream, Context context) throws IOException {
-    value.writeTo(outStream);
+    if (context.isWholeStream) {
+      value.writeTo(outStream);
+    } else {
+      value.writeDelimitedTo(outStream);
+    }
   }
 
   @Override
   public T decode(InputStream inStream, Context context) throws IOException {
-    return (T) getParser().parseFrom(inStream, getExtensionRegistry());
+    if (context.isWholeStream) {
+      return (T) getParser().parseFrom(inStream, getExtensionRegistry());
+    } else {
+      return (T) getParser().parseDelimitedFrom(inStream, getExtensionRegistry());
+    }
   }
 
   private Parser<T> getParser() {

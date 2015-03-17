@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.coders;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageB;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageC;
+import com.google.common.collect.ImmutableList;
 
 import org.junit.Ignore;
 import org.junit.Test;
@@ -42,6 +43,26 @@ public class Proto2CoderTest {
             .setField1(false).build())
         .build();
     CoderProperties.coderDecodeEncodeEqual(Proto2Coder.of(MessageA.class), value);
+  }
+
+  @Test
+  public void testCoderEncodeDecodeEqualNestedContext() throws Exception {
+    MessageA value1 = MessageA.newBuilder()
+        .setField1("hello")
+        .addField2(MessageB.newBuilder()
+            .setField1(true).build())
+        .addField2(MessageB.newBuilder()
+            .setField1(false).build())
+        .build();
+    MessageA value2 = MessageA.newBuilder()
+        .setField1("world")
+        .addField2(MessageB.newBuilder()
+            .setField1(false).build())
+        .addField2(MessageB.newBuilder()
+            .setField1(true).build())
+        .build();
+    CoderProperties.coderDecodeEncodeEqual(ListCoder.of(Proto2Coder.of(MessageA.class)),
+        ImmutableList.of(value1, value2));
   }
 
   @Test
