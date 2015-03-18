@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -172,8 +173,9 @@ public class DatastoreIO {
   /**
    * A source that reads the result rows of a Datastore query as {@code Entity} objects.
    */
-  @SuppressWarnings("serial")
   public static class Source extends com.google.cloud.dataflow.sdk.io.Source<Entity> {
+    private static final long serialVersionUID = -6078498627204891522L;
+
     String host;
     String datasetId;
     Query query;
@@ -217,7 +219,7 @@ public class DatastoreIO {
       Datastore datastore = getDatastore(options);
       if (query.getKindCount() != 1) {
         throw new UnsupportedOperationException(
-            "Can only estimate size for queries specifying exactly 1 kind");
+            "Can only estimate size for queries specifying exactly 1 kind.");
       }
       String ourKind = query.getKind(0).getName();
       long latestTimestamp = queryLatestStatisticsTimestamp(datastore);
@@ -231,7 +233,7 @@ public class DatastoreIO {
 
       long now = System.currentTimeMillis();
       DatastoreV1.RunQueryResponse response = datastore.runQuery(request);
-      LOG.info("Query for per-kind statistics took " + (System.currentTimeMillis() - now) + "ms");
+      LOG.info("Query for per-kind statistics took {}ms", System.currentTimeMillis() - now);
 
       DatastoreV1.QueryResultBatch batch = response.getBatch();
       if (batch.getEntityResultCount() == 0) {
@@ -256,8 +258,8 @@ public class DatastoreIO {
 
       long now = System.currentTimeMillis();
       DatastoreV1.RunQueryResponse response = datastore.runQuery(request);
-      LOG.info("Query for latest stats timestamp of dataset " + datasetId + " took "
-          + (System.currentTimeMillis() - now) + "ms");
+      LOG.info("Query for latest stats timestamp of dataset {} took {}ms",
+          datasetId, System.currentTimeMillis() - now);
       DatastoreV1.QueryResultBatch batch = response.getBatch();
       if (batch.getEntityResultCount() == 0) {
         throw new NoSuchElementException(
@@ -340,6 +342,21 @@ public class DatastoreIO {
       res.mockEstimateSizeBytes = estimateSizeBytes;
       return res;
     }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder();
+      sb.append("Datastore: ");
+      sb.append("host ").append((host == null) ? "null" : host);
+      sb.append("; dataset ").append((datasetId == null) ? "null" : datasetId);
+      sb.append("; query: ");
+      if (query == null) {
+        sb.append("null");
+      } else {
+        sb.append("\n").append(query.toString());
+      }
+      return sb.toString();
+    }
   }
 
   ///////////////////// Write Class /////////////////////////////////
@@ -421,7 +438,7 @@ public class DatastoreIO {
     @Override
     public PDone apply(PCollection<Entity> input) {
       if (this.host == null || this.datasetId == null) {
-        throw new IllegalStateException("need to set Datastore host and dataasetId"
+        throw new IllegalStateException("need to set Datastore host and datasetId"
             + "of a DatastoreIO.Write transform");
       }
 
@@ -515,25 +532,14 @@ public class DatastoreIO {
       creq.getMutationBuilder().addAllInsertAutoId(listOfEntities);
       datastore.commit(creq.build());
     } catch (DatastoreException e) {
-      LOG.warn("Error while doing datastore operation: {}", e);
       throw new RuntimeException("Datastore exception", e);
     }
   }
 
   /**
-   * An iterator over the records from a query of the datastore.
-   *
-   * <p> Usage:
-   * <pre>{@code
-   *   DatastoreIterator iterator = new DatastoreIterator(query, datastore);
-   *   while (iterator.advance()) {
-   *     Entity e = iterator.getCurrent();
-   *     ...
-   *   }
-   * }</pre>
+   * A reader over the records from a query of the datastore.
    */
-  public static class DatastoreReader
-      implements Source.Reader<Entity> {
+  public static class DatastoreReader implements Source.Reader<Entity> {
     /**
      * Query to select records.
      */
@@ -620,7 +626,7 @@ public class DatastoreIO {
      * and updates the cursor to get the next batch as needed.
      * Query has specified limit and offset from InputSplit.
      */
-    private java.util.Iterator getIteratorAndMoveCursor()
+    private Iterator<DatastoreV1.EntityResult> getIteratorAndMoveCursor()
         throws DatastoreException {
       if (currentBatch != null && currentBatch.hasEndCursor()) {
         query.setStartCursor(currentBatch.getEndCursor());

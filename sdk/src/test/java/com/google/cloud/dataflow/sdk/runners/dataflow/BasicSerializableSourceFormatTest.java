@@ -21,10 +21,15 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceOperationResponseToCloudSourceOperationResponse;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
+import static com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
@@ -48,15 +53,20 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
+import com.google.common.base.Preconditions;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
@@ -65,6 +75,9 @@ import javax.annotation.Nullable;
  */
 @RunWith(JUnit4.class)
 public class BasicSerializableSourceFormatTest {
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
+
   static class TestIO {
     public static Read fromRange(int from, int to) {
       return new Read(from, to);
@@ -111,6 +124,11 @@ public class BasicSerializableSourceFormatTest {
 
       @Override
       public void validate() {}
+
+      @Override
+      public String toString() {
+        return "[" + from + ", " + to + ")";
+      }
 
       @Override
       public Coder<Integer> getDefaultOutputCoder() {
@@ -179,8 +197,147 @@ public class BasicSerializableSourceFormatTest {
     }
   }
 
+  /**
+   * A source that cannot do anything. Intended to be overridden for testing of individual methods.
+   */
+  private static class MockSource extends Source<Integer> {
+    private static final long serialVersionUID = -5041539913488064889L;
+
+    @Override
+    public List<? extends Source<Integer>> splitIntoShards(
+        long desiredShardSizeBytes, PipelineOptions options) throws Exception {
+      return Arrays.asList(this);
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+      return 0L;
+    }
+
+    @Override
+    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
+      return false;
+    }
+
+    @Override
+    public void validate() { }
+
+    @Override
+    public String toString() {
+      return "<unknown>";
+    }
+
+    @Override
+    public Coder<Integer> getDefaultOutputCoder() {
+      return BigEndianIntegerCoder.of();
+    }
+  }
+
+  private static class SourceProducingInvalidSplits extends MockSource {
+    private static final long serialVersionUID = -1731497848893255523L;
+
+    private String description;
+    private String errorMessage;
+
+    private SourceProducingInvalidSplits(String description, String errorMessage) {
+      this.description = description;
+      this.errorMessage = errorMessage;
+    }
+
+    @Override
+    public List<? extends Source<Integer>> splitIntoShards(
+        long desiredShardSizeBytes, PipelineOptions options) throws Exception {
+      Preconditions.checkState(errorMessage == null, "Unexpected invalid source");
+      return Arrays.asList(
+          new SourceProducingInvalidSplits("goodShard", null),
+          new SourceProducingInvalidSplits("badShard", "intentionally invalid"));
+    }
+
+    @Override
+    public void validate() {
+      Preconditions.checkState(errorMessage == null, errorMessage);
+    }
+
+    @Override
+    public String toString() {
+      return description;
+    }
+  }
+
+  @Test
+  public void testSplittingProducedInvalidSource() throws Exception {
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    com.google.api.services.dataflow.model.Source cloudSource =
+        translateIOToCloudSource(new SourceProducingInvalidSplits("original", null), options);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(allOf(
+        containsString("Splitting a valid source produced an invalid shard"),
+        containsString("original"),
+        containsString("badShard")));
+    expectedException.expectCause(hasMessage(containsString("intentionally invalid")));
+    performSplit(cloudSource, options);
+  }
+
+  private static class FailingReader implements Source.Reader<Integer> {
+    @Override
+    public boolean start() throws IOException {
+      throw new IOException("Intentional error");
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      throw new IllegalStateException("Should have failed in start()");
+    }
+
+    @Override
+    public Integer getCurrent() throws NoSuchElementException {
+      throw new IllegalStateException("Should have failed in start()");
+    }
+
+    @Override
+    public void close() throws IOException { }
+  }
+
+  private static class SourceProducingFailingReader extends MockSource {
+    private static final long serialVersionUID = -1288303253742972653L;
+
+    @Override
+    protected Reader<Integer> createBasicReader(
+        PipelineOptions options, Coder<Integer> coder, @Nullable ExecutionContext executionContext)
+        throws IOException {
+      return new FailingReader();
+    }
+
+    @Override
+    public String toString() {
+      return "Some description";
+    }
+  }
+
+  @Test
+  public void testFailureToStartReadingIncludesSourceDetails() throws Exception {
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    com.google.api.services.dataflow.model.Source source =
+        translateIOToCloudSource(new SourceProducingFailingReader(), options);
+    // Unfortunately Hamcrest doesn't have a matcher that can match on the exception's
+    // printStackTrace(), however we just want to verify that the error and source description
+    // would be contained in the exception *somewhere*, not necessarily in the top-level
+    // Exception object. So instead we use Throwables.getStackTraceAsString and match on that.
+    try {
+      CloudSourceUtils.readElemsFromSource(options, source);
+      fail("Expected to fail");
+    } catch (Exception e) {
+      assertThat(
+          getStackTraceAsString(e),
+          allOf(containsString("Intentional error"), containsString("Some description")));
+    }
+  }
+
   private static com.google.api.services.dataflow.model.Source translateIOToCloudSource(
-      TestIO.Read io, DataflowPipelineOptions options) throws Exception {
+      Source<?> io, DataflowPipelineOptions options) throws Exception {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline p = Pipeline.create(options);
     p.begin().apply(ReadSource.from(io));
@@ -206,7 +363,7 @@ public class BasicSerializableSourceFormatTest {
     return res;
   }
 
-  private SourceSplitResponse performSplit(
+  private static SourceSplitResponse performSplit(
       com.google.api.services.dataflow.model.Source source, PipelineOptions options)
       throws Exception {
     SourceSplitRequest splitRequest = new SourceSplitRequest();

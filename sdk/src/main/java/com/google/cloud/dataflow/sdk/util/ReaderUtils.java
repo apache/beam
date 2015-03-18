@@ -37,7 +37,7 @@ public class ReaderUtils {
         elems.add(it.next());
       }
     } catch (IOException e) {
-      throw new RuntimeException("Failed to read from source: " + reader, e);
+      throw new RuntimeException("Failed to read from reader: " + reader, e);
     }
     return elems;
   }

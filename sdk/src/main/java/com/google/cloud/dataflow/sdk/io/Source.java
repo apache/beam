@@ -47,6 +47,9 @@ import javax.annotation.Nullable;
  * non-transient instance variable state will be serialized in the main program
  * and then deserialized on remote worker machines.
  *
+ * <p> {@code Source} objects should implement {@link Object#toString}, as it will be
+ * used in important error and debugging messages.
+ *
  * <p> This API is experimental and subject to change.
  *
  * @param <T> Type of elements read by the source.
@@ -98,8 +101,9 @@ public abstract class Source<T> implements Serializable {
   }
 
   /**
-   * Checks that this source is valid, before it can be used into a pipeline.
-   * It is recommended to use {@link com.google.common.base.Preconditions} for implementing
+   * Checks that this source is valid, before it can be used in a pipeline.
+   *
+   * <p>It is recommended to use {@link com.google.common.base.Preconditions} for implementing
    * this method.
    */
   public abstract void validate();

@@ -94,14 +94,6 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
     } else {
       mode = Mode.SUBRANGE_OF_SINGLE_FILE;
     }
-    if (mode == Mode.FILEPATTERN || mode == Mode.FULL_SINGLE_FILE) {
-      Preconditions.checkArgument(startOffset == 0,
-          "FileBasedSource is based on a file pattern or a full single file but the starting offset"
-          + " proposed " + startOffset + " is not zero");
-      Preconditions.checkArgument(startOffset == 0,
-          "FileBasedSource is based on a file pattern or a full single file but the starting offset"
-          + " proposed " + endOffset + " is not Long.MAX_VALUE");
-    }
     this.fileOrPatternSpec = fileOrPatternSpec;
   }
 
@@ -234,6 +226,41 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
       return new FilePatternReader(fileReaders.iterator());
     } else {
       return createSingleFileReader(options, coder, executionContext);
+    }
+  }
+
+  @Override
+  public String toString() {
+    switch (mode) {
+      case FILEPATTERN:
+        return fileOrPatternSpec;
+      case FULL_SINGLE_FILE:
+        return fileOrPatternSpec;
+      case SUBRANGE_OF_SINGLE_FILE:
+        return fileOrPatternSpec + " range " + super.toString();
+      default:
+        throw new IllegalStateException("Unexpected mode: " + mode);
+    }
+  }
+
+  @Override
+  public void validate() {
+    super.validate();
+    switch (mode) {
+      case FILEPATTERN:
+      case FULL_SINGLE_FILE:
+        Preconditions.checkArgument(getStartOffset() == 0,
+            "FileBasedSource is based on a file pattern or a full single file "
+            + "but the starting offset proposed " + getStartOffset() + " is not zero");
+        Preconditions.checkArgument(getEndOffset() == Long.MAX_VALUE,
+            "FileBasedSource is based on a file pattern or a full single file "
+            + "but the ending offset proposed " + getEndOffset() + " is not Long.MAX_VALUE");
+        break;
+      case SUBRANGE_OF_SINGLE_FILE:
+        // Nothing more to validate.
+        break;
+      default:
+        throw new IllegalStateException("Unknown mode: " + mode);
     }
   }
 
@@ -453,8 +480,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
 
     /**
      * Reads the next record from the channel provided by {@link #startReading}. Methods
-     * {@link #getCurrent}, {@link #getCurrentOffset}, and {@link #isSplitPoint} should return the
-     * corresponding information about the record read by the last invocation of this method.
+     * {@link #getCurrent}, {@link #getCurrentOffset}, and {@link #isAtSplitPoint()} should return
+     * the corresponding information about the record read by the last invocation of this method.
      *
      * @return {@code true} if a record was successfully read, {@code false} if the end of the
      *         channel was reached before successfully reading a new record.

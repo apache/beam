@@ -46,6 +46,7 @@ import java.util.List;
  */
 public abstract class ByteOffsetBasedSource<T> extends Source<T> {
   private static final long serialVersionUID = 0;
+
   private final long startOffset;
   private final long endOffset;
   private final long minShardSize;
@@ -65,12 +66,6 @@ public abstract class ByteOffsetBasedSource<T> extends Source<T> {
     this.startOffset = startOffset;
     this.endOffset = endOffset;
     this.minShardSize = minShardSize;
-    Preconditions.checkArgument(startOffset >= 0,
-        "Start offset has value " + startOffset + ", must be non-negative");
-    Preconditions.checkArgument(endOffset >= 0,
-        "End offset has value " + endOffset + ", must be non-negative");
-    Preconditions.checkArgument(minShardSize >= 0,
-        "minShardSize has value " + minShardSize + ", must be non-negative");
   }
 
   /**
@@ -123,6 +118,23 @@ public abstract class ByteOffsetBasedSource<T> extends Source<T> {
       start = end;
     }
     return subSources;
+  }
+
+  @Override
+  public void validate() {
+    Preconditions.checkArgument(this.startOffset >= 0,
+        "Start offset has value " + this.startOffset + ", must be non-negative");
+    Preconditions.checkArgument(this.endOffset >= 0,
+        "End offset has value " + this.endOffset + ", must be non-negative");
+    Preconditions.checkArgument(this.startOffset < this.endOffset,
+        "Start offset " + this.startOffset + " must be before end offset " + this.endOffset);
+    Preconditions.checkArgument(this.minShardSize >= 0,
+        "minShardSize has value " + this.minShardSize + ", must be non-negative");
+  }
+
+  @Override
+  public String toString() {
+    return "[" + startOffset + ", " + endOffset + ")";
   }
 
   /**

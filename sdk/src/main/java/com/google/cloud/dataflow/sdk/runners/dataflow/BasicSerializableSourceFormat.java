@@ -99,15 +99,16 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   /**
    * Factory method allowing this class to satisfy the implicit contract of {@code SourceFactory}.
    */
-  @SuppressWarnings("unchecked")
   public static <T> com.google.cloud.dataflow.sdk.util.common.worker.Reader create(
       final PipelineOptions options, CloudObject spec, final Coder<WindowedValue<T>> coder,
       final ExecutionContext executionContext) throws Exception {
+    @SuppressWarnings("unchecked")
     final Source<T> source = (Source<T>) deserializeFromCloudSource(spec);
     return new com.google.cloud.dataflow.sdk.util.common.worker.Reader() {
       @Override
       public ReaderIterator iterator() throws IOException {
-        return new BasicSerializableSourceFormat.ReaderIterator<>(
+        return new BasicSerializableSourceFormat.ReaderIterator<T>(
+            source,
             source.createWindowedReader(options, coder, executionContext));
       }
     };
@@ -115,6 +116,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
 
   private SourceSplitResponse performSplit(SourceSplitRequest request) throws Exception {
     Source<?> source = deserializeFromCloudSource(request.getSource().getSpec());
+    LOG.debug("Splitting source: {}", source);
 
     // Produce simple independent, unsplittable shards with no metadata attached.
     SourceSplitResponse response = new SourceSplitResponse();
@@ -125,7 +127,17 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     if (desiredShardSizeBytes == null) {
       desiredShardSizeBytes = DEFAULT_DESIRED_SHARD_SIZE_BYTES;
     }
-    for (Source split : source.splitIntoShards(desiredShardSizeBytes, options)) {
+    List<? extends Source<?>> shards = source.splitIntoShards(desiredShardSizeBytes, options);
+    LOG.debug("Splitting produced {} shards", shards.size());
+    for (Source<?> split : shards) {
+      try {
+        split.validate();
+      } catch  (Exception e) {
+        throw new IllegalArgumentException(
+            "Splitting a valid source produced an invalid shard. "
+            + "\nOriginal source: " + source
+            + "\nInvalid shard: " + split, e);
+      }
       SourceSplitShard shard = new SourceSplitShard();
 
       com.google.api.services.dataflow.model.Source cloudSource =
@@ -151,9 +163,16 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     return response;
   }
 
-  private static Source<?> deserializeFromCloudSource(Map<String, Object> spec) throws Exception {
-    return (Source<?>) deserializeFromByteArray(
+  public static Source<?> deserializeFromCloudSource(Map<String, Object> spec) throws Exception {
+    Source<?> source = (Source<?>) deserializeFromByteArray(
         Base64.decodeBase64(getString(spec, SERIALIZED_SOURCE)), "Source");
+    try {
+      source.validate();
+    } catch (Exception e) {
+      LOG.error("Invalid source: " + source, e);
+      throw e;
+    }
+    return source;
   }
 
   static com.google.api.services.dataflow.model.Source serializeToCloudSource(
@@ -222,14 +241,15 @@ public class BasicSerializableSourceFormat implements SourceFormat {
    *
    * TODO: Consider changing the API of Reader.ReaderIterator so this adapter wouldn't be needed.
    */
-  private static class ReaderIterator<T>
-      implements com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator {
-    private Source.Reader<T> reader;
+  private static class ReaderIterator<T> implements Reader.ReaderIterator<WindowedValue<T>> {
+    private final Source<T> source;
+    private Source.Reader<WindowedValue<T>> reader;
     private boolean hasNext;
-    private T next;
+    private WindowedValue<T> next;
     private boolean advanced;
 
-    private ReaderIterator(Source.Reader<T> reader) {
+    private ReaderIterator(Source<T> source, Source.Reader<WindowedValue<T>> reader) {
+      this.source = source;
       this.reader = reader;
     }
 
@@ -242,11 +262,11 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     }
 
     @Override
-    public T next() throws IOException {
+    public WindowedValue<T> next() throws IOException {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
-      T res = this.next;
+      WindowedValue<T> res = this.next;
       advanceInternal();
       return res;
     }
@@ -254,7 +274,12 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     private void advanceInternal() throws IOException {
       try {
         if (!advanced) {
-          hasNext = reader.start();
+          try {
+            hasNext = reader.start();
+          } catch (Exception e) {
+            throw new IOException(
+                "Failed to start reading from source: " + source, e);
+          }
         } else {
           hasNext = reader.advance();
         }
@@ -268,8 +293,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     }
 
     @Override
-    public com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator copy()
-        throws IOException {
+    public Reader.ReaderIterator<WindowedValue<T>> copy() throws IOException {
       throw new UnsupportedOperationException();
     }
 
