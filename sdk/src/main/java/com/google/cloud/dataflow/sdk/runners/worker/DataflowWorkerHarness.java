@@ -39,6 +39,7 @@ import com.google.cloud.dataflow.sdk.util.GcsIOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.cloud.dataflow.sdk.util.common.worker.WorkProgressUpdater;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.DateTime;
@@ -235,7 +236,8 @@ public class DataflowWorkerHarness {
       // This shouldn't be necessary, but a valid cloud duration string is
       // required by the Google API parsing framework.  TODO: Fix the framework
       // so that an empty or not-present string can be used as a default value.
-      request.setRequestedLeaseDuration(toCloudDuration(Duration.standardSeconds(60)));
+      request.setRequestedLeaseDuration(
+          toCloudDuration(Duration.millis(WorkProgressUpdater.DEFAULT_LEASE_DURATION_MILLIS)));
 
       LOG.debug("Leasing work: {}", request);
 

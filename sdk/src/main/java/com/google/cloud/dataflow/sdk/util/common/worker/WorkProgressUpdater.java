@@ -46,7 +46,7 @@ public abstract class WorkProgressUpdater {
   private static final Logger LOG = LoggerFactory.getLogger(WorkProgressUpdater.class);
 
   /** The default lease duration to request from the external worker service. */
-  private static final long DEFAULT_LEASE_DURATION_MILLIS = 3 * 60 * 1000;
+  public static final long DEFAULT_LEASE_DURATION_MILLIS = 3 * 60 * 1000;
 
   /** The lease renewal RPC latency margin. */
   private static final long LEASE_RENEWAL_LATENCY_MARGIN =
