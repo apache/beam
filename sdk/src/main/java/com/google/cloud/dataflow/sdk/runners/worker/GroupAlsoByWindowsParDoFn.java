@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
@@ -64,13 +65,17 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler sampler /* unused */)
       throws Exception {
-    final Object windowFnObj =
-        SerializableUtils.deserializeFromByteArray(
-            getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
-            "serialized window fn");
-    if (!(windowFnObj instanceof WindowFn)) {
-      throw new Exception(
-          "unexpected kind of WindowFn: " + windowFnObj.getClass().getName());
+    final Object windowFnObj;
+    byte[] encodedWindowFn = getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN);
+    if (encodedWindowFn.length == 0) {
+      windowFnObj = new GlobalWindows();
+    } else {
+      windowFnObj =
+        SerializableUtils.deserializeFromByteArray(encodedWindowFn, "serialized window fn");
+      if (!(windowFnObj instanceof WindowFn)) {
+        throw new Exception(
+            "unexpected kind of WindowFn: " + windowFnObj.getClass().getName());
+      }
     }
     final WindowFn windowFn = (WindowFn) windowFnObj;
 
