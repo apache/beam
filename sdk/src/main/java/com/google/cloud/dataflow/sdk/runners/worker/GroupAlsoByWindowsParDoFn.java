@@ -41,7 +41,9 @@ import com.google.cloud.dataflow.sdk.util.StreamingGroupAlsoByWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
+import com.google.common.collect.Iterables;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -80,7 +82,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
     final WindowFn windowFn = (WindowFn) windowFnObj;
 
     byte[] serializedCombineFn = getBytes(cloudUserFn, PropertyNames.COMBINE_FN, null);
-    final KeyedCombineFn combineFn;
+    KeyedCombineFn combineFn;
     if (serializedCombineFn != null) {
       Object combineFnObj =
           SerializableUtils.deserializeFromByteArray(serializedCombineFn, "serialized combine fn");
@@ -113,6 +115,45 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       isStreamingPipeline = ((StreamingOptions) options).isStreaming();
     }
 
+    boolean isMergingOnly = true;
+    final KeyedCombineFn maybeMergingCombineFn;
+    if (isMergingOnly && combineFn != null) {
+      class MergingKeyedCombineFn<K, VA> extends KeyedCombineFn<K, VA, List<VA>, VA> {
+        private static final long serialVersionUID = 0;
+        final KeyedCombineFn<K, ?, VA, ?> combineFn;
+        MergingKeyedCombineFn(KeyedCombineFn<K, ?, VA, ?> combineFn) {
+          this.combineFn = combineFn;
+        }
+        public List<VA> createAccumulator(K key) {
+          return new ArrayList<>();
+        }
+        public void addInput(K key, List<VA> accumulator, VA input) {
+          accumulator.add(input);
+          // TODO: Buffer more once we have compaction operation.
+          if (accumulator.size() > 1) {
+            VA all = combineFn.mergeAccumulators(key, accumulator);
+            accumulator.clear();
+            accumulator.add(all);
+          }
+        }
+        public List<VA> mergeAccumulators(K key, Iterable<List<VA>> accumulators) {
+          List<VA> singleton = new ArrayList<>();
+          singleton.add(combineFn.mergeAccumulators(key, Iterables.concat(accumulators)));
+          return singleton;
+        }
+        public VA extractOutput(K key, List<VA> accumulator) {
+          if (accumulator.size() == 0) {
+            return combineFn.createAccumulator(key);
+          } else {
+            return combineFn.mergeAccumulators(key, accumulator);
+          }
+        }
+      };
+      maybeMergingCombineFn = new MergingKeyedCombineFn(combineFn);
+    } else {
+      maybeMergingCombineFn = combineFn;
+    }
+
     DoFnInfoFactory fnFactory;
     if (isStreamingPipeline) {
       fnFactory = new DoFnInfoFactory() {
@@ -121,7 +162,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
           return new DoFnInfo(
               StreamingGroupAlsoByWindowsDoFn.create(
                   windowFn,
-                  combineFn,
+                  maybeMergingCombineFn,
                   kvCoder.getKeyCoder(),
                   kvCoder.getValueCoder()),
               null);
@@ -138,7 +179,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
           return new DoFnInfo(
               GroupAlsoByWindowsDoFn.create(
                   windowFn,
-                  combineFn,
+                  maybeMergingCombineFn,
                   kvCoder.getKeyCoder(),
                   kvCoder.getValueCoder()),
               null);
