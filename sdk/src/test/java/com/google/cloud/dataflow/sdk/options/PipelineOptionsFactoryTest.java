@@ -742,4 +742,38 @@ public class PipelineOptionsFactoryTest {
     assertThat(output,
         containsString("The pipeline runner which will be used to execute the pipeline."));
   }
+
+  @Test
+  public void testFindProperClassLoaderIfContextClassLoaderIsNull() throws InterruptedException {
+    final ClassLoader[] classLoader = new ClassLoader[1];
+    Thread thread = new Thread(new Runnable() {
+
+      @Override
+      public void run() {
+        classLoader[0] = PipelineOptionsFactory.findClassLoader();
+      }
+    });
+    thread.setContextClassLoader(null);
+    thread.start();
+    thread.join();
+    assertEquals(PipelineOptionsFactory.class.getClassLoader(), classLoader[0]);
+  }
+
+  @Test
+  public void testFindProperClassLoaderIfContextClassLoaderIsAvailable()
+      throws InterruptedException {
+    final ClassLoader[] classLoader = new ClassLoader[1];
+    Thread thread = new Thread(new Runnable() {
+
+      @Override
+      public void run() {
+        classLoader[0] = PipelineOptionsFactory.findClassLoader();
+      }
+    });
+    ClassLoader cl = new ClassLoader() {};
+    thread.setContextClassLoader(cl);
+    thread.start();
+    thread.join();
+    assertEquals(cl, classLoader[0]);
+  }
 }

@@ -437,6 +437,22 @@ public class PipelineOptionsFactory {
   /** The width at which options should be output. */
   private static final int TERMINAL_WIDTH = 80;
 
+  /**
+   * Finds the appropriate {@code ClassLoader} to be used by the {@link ServiceLoader#load} call,
+   * which by default would use the context {@code ClassLoader} which can be null. The fallback is
+   * as follow: context ClassLoader, class ClassLoader and finaly the system ClassLoader.
+   */
+  static ClassLoader findClassLoader() {
+    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+    if (classLoader == null) {
+      classLoader = PipelineOptionsFactory.class.getClassLoader();
+    }
+    if (classLoader == null) {
+      classLoader = ClassLoader.getSystemClassLoader();
+    }
+    return classLoader;
+  }
+
   static {
     try {
       IGNORED_METHODS = ImmutableSet.<Method>builder()
@@ -453,13 +469,15 @@ public class PipelineOptionsFactory {
       throw new ExceptionInInitializerError(e);
     }
 
+    ClassLoader classLoader = findClassLoader();
+
     // Store the list of all available pipeline runners.
     ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
             ImmutableMap.builder();
     Set<PipelineRunnerRegistrar> pipelineRunnerRegistrars =
         Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
     pipelineRunnerRegistrars.addAll(
-        Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class)));
+        Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class, classLoader)));
     for (PipelineRunnerRegistrar registrar : pipelineRunnerRegistrars) {
       for (Class<? extends PipelineRunner<?>> klass : registrar.getPipelineRunners()) {
         builder.put(klass.getSimpleName(), klass);
@@ -472,7 +490,7 @@ public class PipelineOptionsFactory {
     Set<PipelineOptionsRegistrar> pipelineOptionsRegistrars =
         Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
     pipelineOptionsRegistrars.addAll(
-        Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class)));
+        Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class, classLoader)));
     for (PipelineOptionsRegistrar registrar : pipelineOptionsRegistrars) {
       for (Class<? extends PipelineOptions> klass : registrar.getPipelineOptions()) {
         register(klass);
