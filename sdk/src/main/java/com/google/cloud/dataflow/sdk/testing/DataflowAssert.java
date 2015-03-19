@@ -230,7 +230,7 @@ public class DataflowAssert {
      * <p> Returns this {@code IterableAssert}.
      */
     public IterableAssert<T> containsInOrder(T... expectedElements) {
-      return this.satisfies(
+      return satisfies(
           new AssertContainsInOrderRelation<T>(),
           Arrays.asList(expectedElements));
     }
@@ -242,7 +242,7 @@ public class DataflowAssert {
      * <p> Returns this {@code IterableAssert}.
      */
     public IterableAssert<T> containsInOrder(Iterable<T> expectedElements) {
-      return this.satisfies(new AssertContainsInOrderRelation<T>(), expectedElements);
+      return satisfies(new AssertContainsInOrderRelation<T>(), expectedElements);
     }
   }
 

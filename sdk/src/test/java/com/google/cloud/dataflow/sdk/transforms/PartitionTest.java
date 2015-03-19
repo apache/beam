@@ -45,12 +45,14 @@ import java.util.List;
 @SuppressWarnings("serial")
 public class PartitionTest implements Serializable {
   static class ModFn implements PartitionFn<Integer> {
+    @Override
     public int partitionFor(Integer elem, int numPartitions) {
       return elem % numPartitions;
     }
   }
 
   static class IdentityFn implements PartitionFn<Integer> {
+    @Override
     public int partitionFor(Integer elem, int numPartitions) {
       return elem;
     }

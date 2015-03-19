@@ -40,7 +40,7 @@ import java.util.List;
  * PCollection<String> pc2 = ...;
  * PCollection<String> pc3 = ...;
  * PCollectionList<String> pcs = PCollectionList.of(pc1).and(pc2).and(pc3);
- * PCollection<String> merged = pcs.apply(Flatten.<String>.pCollections());
+ * PCollection<String> merged = pcs.apply(Flatten.<String>pCollections());
  * } </pre>
  *
  * <p> By default, the {@code Coder} of the output {@code PCollection}
