@@ -113,7 +113,7 @@ public class ParDoTest implements Serializable {
       assertThat(state,
                  anyOf(equalTo(State.STARTED), equalTo(State.PROCESSING)));
       state = State.PROCESSING;
-      outputToAll(c, "processing: " + c.element());
+      outputToAllWithSideInputs(c, "processing: " + c.element());
     }
 
     @Override
@@ -125,6 +125,14 @@ public class ParDoTest implements Serializable {
     }
 
     private void outputToAll(Context c, String value) {
+      c.output(value);
+      for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
+        c.sideOutput(sideOutputTupleTag,
+                     sideOutputTupleTag.getId() + ": " + value);
+      }
+    }
+
+    private void outputToAllWithSideInputs(ProcessContext c, String value) {
       if (!sideInputViews.isEmpty()) {
         List<Integer> sideInputValues = new ArrayList<>();
         for (PCollectionView<Integer> sideInputView : sideInputViews) {
@@ -229,12 +237,10 @@ public class ParDoTest implements Serializable {
         assertEquals(starteds.size(), finisheds.size());
         assertTrue(starteds.size() > 0);
         for (String started : starteds) {
-          assertEquals(sideOutputPrefix + "started" + sideInputsSuffix,
-                       started);
+          assertEquals(sideOutputPrefix + "started", started);
         }
         for (String finished : finisheds) {
-          assertEquals(sideOutputPrefix + "finished" + sideInputsSuffix,
-                       finished);
+          assertEquals(sideOutputPrefix + "finished", finished);
         }
 
         return null;

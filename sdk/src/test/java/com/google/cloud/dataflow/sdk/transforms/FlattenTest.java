@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
@@ -33,6 +34,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
 import org.joda.time.Duration;
 import org.junit.Assert;
@@ -101,8 +103,9 @@ public class FlattenTest implements Serializable {
     p.run();
   }
 
+  // TODO: re-enable running this test on the service once empty flattens
+  // followed by ParDos work properly.
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testFlattenPCollectionListEmpty() {
     Pipeline p = TestPipeline.create();
 
@@ -115,10 +118,38 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testEmptyFlattenAsSideInput() {
+    Pipeline p = TestPipeline.create();
+
+    final PCollectionView<Iterable<String>> view =
+        PCollectionList.<String>empty(p)
+        .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of())
+        .apply(View.<String>asIterable());
+
+    PCollection<String> output = p
+        .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
+        .apply(ParDo.withSideInputs(view).of(new DoFn<Void, String>() {
+                  private static final long serialVersionUID = 0;
+
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    for (String side : c.sideInput(view)) {
+                      c.output(side);
+                    }
+                  }
+                }));
+
+    DataflowAssert.that(output).containsInAnyOrder();
+    p.run();
+  }
+
+  @Test
   // TODO: Enable this test to run on the Dataflow service when it is
   // correctly implemented.
   // @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testFlattenPCollectionListEmptyThenParDo() {
+
     Pipeline p = TestPipeline.create();
 
     PCollection<String> output =

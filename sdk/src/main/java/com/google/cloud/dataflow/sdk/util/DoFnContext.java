@@ -29,6 +29,8 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
@@ -51,7 +53,7 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
   final PipelineOptions options;
   final DoFn<I, O> fn;
   final PTuple sideInputs;
-  final Map<TupleTag<?>, Object> sideInputCache;
+  final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
   final OutputManager<R> outputManager;
   final Map<TupleTag<?>, R> outputMap;
   final TupleTag<O> mainOutputTag;
@@ -101,21 +103,40 @@ class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
     return options;
   }
 
-  @Override
   @SuppressWarnings("unchecked")
-  public <T> T sideInput(PCollectionView<T> view) {
+  <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
     TupleTag<?> tag = view.getTagInternal();
-    if (!sideInputCache.containsKey(tag)) {
+    Map<BoundedWindow, Object> tagCache = sideInputCache.get(tag);
+    if (tagCache == null) {
       if (!sideInputs.has(tag)) {
         throw new IllegalArgumentException(
             "calling sideInput() with unknown view; " +
             "did you forget to pass the view in " +
             "ParDo.withSideInputs()?");
       }
-      sideInputCache.put(
-          tag, view.fromIterableInternal((Iterable<WindowedValue<?>>) sideInputs.get(tag)));
+      tagCache = new HashMap<>();
+      sideInputCache.put(tag, tagCache);
     }
-    return (T) sideInputCache.get(tag);
+
+    final BoundedWindow sideInputWindow =
+        view.getWindowFnInternal().getSideInputWindow(mainInputWindow);
+
+    T result = (T) tagCache.get(sideInputWindow);
+
+    // TODO: Consider partial prefetching like in CoGBK to reduce iteration cost.
+    if (result == null) {
+      result = view.fromIterableInternal(Iterables.filter(
+          (Iterable<WindowedValue<?>>) sideInputs.get(tag),
+          new Predicate<WindowedValue<?>>() {
+            @Override
+            public boolean apply(WindowedValue<?> element) {
+              return element.getWindows().contains(sideInputWindow);
+            }
+          }));
+      tagCache.put(sideInputWindow, result);
+    }
+
+    return result;
   }
 
   <T> WindowedValue<T> makeWindowedValue(

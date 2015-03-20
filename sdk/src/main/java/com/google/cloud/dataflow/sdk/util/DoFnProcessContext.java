@@ -32,6 +32,7 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 import java.util.Collection;
+import java.util.Iterator;
 
 /**
  * A concrete implementation of {@link DoFn<I, O>.ProcessContext} used for running
@@ -66,6 +67,21 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
   }
 
   @Override
+  public <T> T sideInput(PCollectionView<T> view) {
+    Iterator<? extends BoundedWindow> windowIter = windows().iterator();
+    if (!windowIter.hasNext()) {
+      throw new IllegalStateException(
+          "sideInput called when main input element is not in any windows");
+    }
+    BoundedWindow window = windowIter.next();
+    if (windowIter.hasNext()) {
+      throw new IllegalStateException(
+          "sideInput called when main input element is in multiple windows");
+    }
+    return context.sideInput(view, window);
+  }
+
+  @Override
   public KeyedState keyedState() {
     if (!(fn instanceof RequiresKeyedState)
         || !equivalentToKV(element())) {
@@ -74,11 +90,6 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
     }
 
     return context.stepContext;
-  }
-
-  @Override
-  public <T> T sideInput(PCollectionView<T> view) {
-    return context.sideInput(view);
   }
 
   @Override

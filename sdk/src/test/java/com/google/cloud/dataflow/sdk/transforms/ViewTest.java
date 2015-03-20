@@ -20,11 +20,19 @@ import static org.hamcrest.CoreMatchers.isA;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -214,6 +222,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testCombinedMapSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -237,4 +246,131 @@ public class ViewTest implements Serializable {
 
     pipeline.run();
   }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testWindowedSideInputFixedToFixed() {
+    Pipeline p = TestPipeline.create();
+
+    final PCollectionView<Integer> view = p
+        .apply(Create.timestamped(
+            TimestampedValue.of(1, new Instant(1)),
+            TimestampedValue.of(2, new Instant(11)),
+            TimestampedValue.of(3, new Instant(13))))
+        .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
+        .apply(Sum.integersGlobally().withoutDefaults())
+        .apply(View.<Integer>asSingleton());
+
+    PCollection<String> output = p
+        .apply(Create.timestamped(
+            TimestampedValue.of("A", new Instant(4)),
+            TimestampedValue.of("B", new Instant(15)),
+            TimestampedValue.of("C", new Instant(7))))
+        .apply(Window.<String>into(FixedWindows.of(Duration.millis(10))))
+        .apply(ParDo.withSideInputs(view).of(
+            new DoFn<String, String>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                c.output(c.element() + c.sideInput(view));
+              }
+            }));
+
+    DataflowAssert.that(output).containsInAnyOrder("A1", "B5", "C1");
+
+    p.run();
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testWindowedSideInputFixedToGlobal() {
+    Pipeline p = TestPipeline.create();
+
+    final PCollectionView<Integer> view = p
+        .apply(Create.timestamped(
+            TimestampedValue.of(1, new Instant(1)),
+            TimestampedValue.of(2, new Instant(11)),
+            TimestampedValue.of(3, new Instant(13))))
+        .apply(Window.<Integer>into(new GlobalWindows()))
+        .apply(Sum.integersGlobally())
+        .apply(View.<Integer>asSingleton());
+
+    PCollection<String> output = p
+        .apply(Create.timestamped(
+            TimestampedValue.of("A", new Instant(4)),
+            TimestampedValue.of("B", new Instant(15)),
+            TimestampedValue.of("C", new Instant(7))))
+        .apply(Window.<String>into(FixedWindows.of(Duration.millis(10))))
+        .apply(ParDo.withSideInputs(view).of(
+            new DoFn<String, String>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                c.output(c.element() + c.sideInput(view));
+              }
+            }));
+
+    DataflowAssert.that(output).containsInAnyOrder("A6", "B6", "C6");
+
+    p.run();
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testWindowedSideInputFixedToFixedWithDefault() {
+    Pipeline p = TestPipeline.create();
+
+    final PCollectionView<Integer> view = p
+        .apply(Create.timestamped(
+            TimestampedValue.of(2, new Instant(11)),
+            TimestampedValue.of(3, new Instant(13))))
+        .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
+        .apply(Sum.integersGlobally().asSingletonView());
+
+    PCollection<String> output = p
+        .apply(Create.timestamped(
+            TimestampedValue.of("A", new Instant(4)),
+            TimestampedValue.of("B", new Instant(15)),
+            TimestampedValue.of("C", new Instant(7))))
+        .apply(Window.<String>into(FixedWindows.of(Duration.millis(10))))
+        .apply(ParDo.withSideInputs(view).of(
+            new DoFn<String, String>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                c.output(c.element() + c.sideInput(view));
+              }
+            }));
+
+    DataflowAssert.that(output).containsInAnyOrder("A0", "B5", "C0");
+
+    p.run();
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testSideInputWithNullDefault() {
+    Pipeline p = TestPipeline.create();
+
+    final PCollectionView<Void> view = p
+        .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
+        .apply(Combine.globally(new SerializableFunction<Iterable<Void>, Void>() {
+                  @Override
+                  public Void apply(Iterable<Void> input) {
+                    return (Void) null;
+                  }
+                }).asSingletonView());
+
+    PCollection<String> output = p
+        .apply(Create.of(""))
+        .apply(ParDo.withSideInputs(view).of(
+            new DoFn<String, String>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                c.output(c.element() + c.sideInput(view));
+              }
+            }));
+
+    DataflowAssert.that(output).containsInAnyOrder("null");
+
+    p.run();
+  }
+
 }
