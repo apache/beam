@@ -213,8 +213,7 @@ public class MapTaskExecutorFactory {
     public Object getKeyFromInputPair(Object pair) {
       @SuppressWarnings("unchecked")
       WindowedValue<KV<?, ?>> windowedKv = (WindowedValue<KV<?, ?>>) pair;
-      return WindowedValue.of(
-          windowedKv.getValue().getKey(), windowedKv.getTimestamp(), windowedKv.getWindows());
+      return windowedKv.withValue(windowedKv.getValue().getKey());
     }
     @Override
     public Object getValueFromInputPair(Object pair) {
@@ -225,10 +224,7 @@ public class MapTaskExecutorFactory {
     @Override
     public Object makeOutputPair(Object key, Object values) {
       WindowedValue<?> windowedKey = (WindowedValue<?>) key;
-      return WindowedValue.of(
-          KV.of(windowedKey.getValue(), values),
-          windowedKey.getTimestamp(),
-          windowedKey.getWindows());
+      return windowedKey.withValue(KV.of(windowedKey.getValue(), values));
     }
   }
 

@@ -41,28 +41,55 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * An immutable triple of value, timestamp, and windows.
  *
  * @param <V> the type of the value
  */
-public class WindowedValue<V> {
+public abstract class WindowedValue<V> {
 
-  private final V value;
-  private final Instant timestamp;
-  private final Collection<? extends BoundedWindow> windows;
+  protected final V value;
 
   /**
-   * Returns a {@code WindowedValue} with the given value, timestamp, and windows.
+   * Returns a {@code WindowedValue} with the given value, timestamp,
+   * and windows.
    */
   public static <V> WindowedValue<V> of(
       V value,
       Instant timestamp,
       Collection<? extends BoundedWindow> windows) {
-    return new WindowedValue<>(value, timestamp, windows);
+    Iterator<? extends BoundedWindow> windowsIter = windows.iterator();
+    if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
+      if (!windowsIter.hasNext()) {
+        return valueInEmptyWindows(value);
+      }
+      BoundedWindow firstWindow = windowsIter.next();
+      if (!windowsIter.hasNext()
+          && GlobalWindow.INSTANCE.equals(firstWindow)) {
+        return valueInGlobalWindow(value);
+      }
+      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows);
+    } else {
+      if (windowsIter.hasNext()) {
+        BoundedWindow firstWindow = windowsIter.next();
+        if (!windowsIter.hasNext()) {
+          if (GlobalWindow.INSTANCE.equals(firstWindow)) {
+            return new TimestampedValueInGlobalWindow<>(
+                value, timestamp);
+          } else {
+            return new TimestampedValueInSingleWindow<>(
+                value, timestamp, firstWindow);
+          }
+        }
+      }
+      // value in 0 or several windows.
+      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows);
+    }
   }
 
   /**
@@ -70,37 +97,26 @@ public class WindowedValue<V> {
    * and {@code GlobalWindow}.
    */
   public static <V> WindowedValue<V> valueInGlobalWindow(V value) {
-    return new WindowedValue<>(value,
-                               BoundedWindow.TIMESTAMP_MIN_VALUE,
-                               Arrays.asList(GlobalWindow.INSTANCE));
+    return new ValueInGlobalWindow<>(value);
   }
 
   /**
-   * Returns a {@code WindowedValue} with the given value and default timestamp and empty windows.
+   * Returns a {@code WindowedValue} with the given value and default
+   * timestamp and empty windows.
    */
   public static <V> WindowedValue<V> valueInEmptyWindows(V value) {
-    return new WindowedValue<V>(value,
-                                BoundedWindow.TIMESTAMP_MIN_VALUE,
-                                Collections.<BoundedWindow>emptyList());
+    return new ValueInEmptyWindows<>(value);
   }
 
-  private WindowedValue(V value,
-                        Instant timestamp,
-                        Collection<? extends BoundedWindow> windows) {
-    checkNotNull(timestamp);
-    checkNotNull(windows);
-
+  private WindowedValue(V value) {
     this.value = value;
-    this.timestamp = timestamp;
-    this.windows = windows;
   }
 
   /**
-   * Returns a new {@code WindowedValue} that is a copy of this one, but with a different value.
+   * Returns a new {@code WindowedValue} that is a copy of this one,
+   * but with a different value.
    */
-  public <V> WindowedValue<V> withValue(V value) {
-    return new WindowedValue<>(value, this.timestamp, this.windows);
-  }
+  public abstract <V> WindowedValue<V> withValue(V value);
 
   /**
    * Returns the value of this {@code WindowedValue}.
@@ -112,16 +128,298 @@ public class WindowedValue<V> {
   /**
    * Returns the timestamp of this {@code WindowedValue}.
    */
-  public Instant getTimestamp() {
-    return timestamp;
-  }
+  public abstract Instant getTimestamp();
 
   /**
    * Returns the windows of this {@code WindowedValue}.
    */
-  public Collection<? extends BoundedWindow> getWindows() {
-    return windows;
+  public abstract Collection<? extends BoundedWindow> getWindows();
+
+  @Override
+  public abstract boolean equals(Object o);
+
+  @Override
+  public abstract int hashCode();
+
+  @Override
+  public abstract String toString();
+
+  private static final Collection<? extends BoundedWindow> GLOBAL_WINDOWS =
+      Collections.singletonList(GlobalWindow.INSTANCE);
+
+  /**
+   * The abstract superclass of WindowedValue representations where
+   * timestamp == MIN.
+   */
+  private abstract static class MinTimestampWindowedValue<V>
+      extends WindowedValue<V> {
+    public MinTimestampWindowedValue(V value) {
+      super(value);
+    }
+
+    @Override
+    public Instant getTimestamp() {
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
   }
+
+  /**
+   * The representation of a WindowedValue where timestamp == MIN and
+   * windows == {GlobalWindow}.
+   */
+  private static class ValueInGlobalWindow<V>
+      extends MinTimestampWindowedValue<V> {
+    public ValueInGlobalWindow(V value) { super(value); }
+
+    @Override
+    public <V> WindowedValue<V> withValue(V value) {
+      return new ValueInGlobalWindow<>(value);
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> getWindows() {
+      return GLOBAL_WINDOWS;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof ValueInGlobalWindow) {
+        ValueInGlobalWindow<?> that = (ValueInGlobalWindow) o;
+        return Objects.equals(that.value, this.value);
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(value);
+    }
+
+    @Override
+    public String toString() {
+      return "[ValueInGlobalWindow: " + value + "]";
+    }
+  }
+
+  /**
+   * The representation of a WindowedValue where timestamp == MIN and
+   * windows == {}.
+   */
+  private static class ValueInEmptyWindows<V>
+      extends MinTimestampWindowedValue<V> {
+    public ValueInEmptyWindows(V value) { super(value); }
+
+    @Override
+    public <V> WindowedValue<V> withValue(V value) {
+      return new ValueInEmptyWindows<>(value);
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> getWindows() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof ValueInEmptyWindows) {
+        ValueInEmptyWindows<?> that = (ValueInEmptyWindows) o;
+        return Objects.equals(that.value, this.value);
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(value);
+    }
+
+    @Override
+    public String toString() {
+      return "[ValueInEmptyWindows: " + value + "]";
+    }
+  }
+
+  /**
+   * The abstract superclass of WindowedValue representations where
+   * timestamp is arbitrary.
+   */
+  private abstract static class TimestampedWindowedValue<V>
+      extends WindowedValue<V> {
+    protected final Instant timestamp;
+
+    public TimestampedWindowedValue(V value,
+                                    Instant timestamp) {
+      super(value);
+      this.timestamp = checkNotNull(timestamp);
+    }
+
+    @Override
+    public Instant getTimestamp() {
+      return timestamp;
+    }
+  }
+
+  /**
+   * The representation of a WindowedValue where timestamp {@code >}
+   * MIN and windows == {GlobalWindow}.
+   */
+  private static class TimestampedValueInGlobalWindow<V>
+      extends TimestampedWindowedValue<V> {
+    public TimestampedValueInGlobalWindow(V value,
+                                          Instant timestamp) {
+      super(value, timestamp);
+    }
+
+    @Override
+    public <V> WindowedValue<V> withValue(V value) {
+      return new TimestampedValueInGlobalWindow<>(value, timestamp);
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> getWindows() {
+      return GLOBAL_WINDOWS;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof TimestampedValueInGlobalWindow) {
+        TimestampedValueInGlobalWindow<?> that =
+            (TimestampedValueInGlobalWindow) o;
+        return Objects.equals(that.value, this.value)
+            && that.timestamp.isEqual(this.timestamp);
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(value, timestamp);
+    }
+
+    @Override
+    public String toString() {
+      return "[ValueInGlobalWindow: " + value
+          + ", timestamp: " + timestamp.getMillis() + "]";
+    }
+  }
+
+  /**
+   * The representation of a WindowedValue where timestamp is arbitrary and
+   * windows == a single non-Global window.
+   */
+  private static class TimestampedValueInSingleWindow<V>
+      extends TimestampedWindowedValue<V> {
+    private final BoundedWindow window;
+
+    public TimestampedValueInSingleWindow(V value,
+                                          Instant timestamp,
+                                          BoundedWindow window) {
+      super(value, timestamp);
+      this.window = checkNotNull(window);
+    }
+
+    @Override
+    public <V> WindowedValue<V> withValue(V value) {
+      return new TimestampedValueInSingleWindow<>(value, timestamp, window);
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> getWindows() {
+      return Collections.singletonList(window);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof TimestampedValueInSingleWindow) {
+        TimestampedValueInSingleWindow<?> that =
+            (TimestampedValueInSingleWindow) o;
+        return Objects.equals(that.value, this.value)
+            && that.timestamp.isEqual(this.timestamp)
+            && that.window.equals(this.window);
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(value, timestamp, window);
+    }
+
+    @Override
+    public String toString() {
+      return "[WindowedValue: " + value
+          + ", timestamp: " + timestamp.getMillis()
+          + ", window: " + window + "]";
+    }
+  }
+
+  /**
+   * The representation of a WindowedValue, excluding the special
+   * cases captured above.
+   */
+  private static class TimestampedValueInMultipleWindows<V>
+      extends TimestampedWindowedValue<V> {
+    private Collection<? extends BoundedWindow> windows;
+
+    public TimestampedValueInMultipleWindows(
+        V value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows) {
+      super(value, timestamp);
+      this.windows = checkNotNull(windows);
+    }
+
+    @Override
+    public <V> WindowedValue<V> withValue(V value) {
+      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows);
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> getWindows() {
+      return windows;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof TimestampedValueInMultipleWindows) {
+        TimestampedValueInMultipleWindows<?> that =
+            (TimestampedValueInMultipleWindows) o;
+        if (Objects.equals(that.value, this.value)
+            && that.timestamp.isEqual(this.timestamp)) {
+          ensureWindowsAreASet();
+          that.ensureWindowsAreASet();
+          return that.windows.equals(this.windows);
+        }
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      ensureWindowsAreASet();
+      return Objects.hash(value, timestamp, windows);
+    }
+
+    @Override
+    public String toString() {
+      return "[WindowedValue: " + value
+          + ", timestamp: " + timestamp.getMillis()
+          + ", windows: " + windows + "]";
+    }
+
+    private void ensureWindowsAreASet() {
+      if (!(windows instanceof Set)) {
+        windows = new LinkedHashSet<>(windows);
+      }
+    }
+  }
+
+
+  /////////////////////////////////////////////////////////////////////////////
 
   /**
    * Returns the {@code Coder} to use for a {@code WindowedValue<T>},
@@ -139,39 +437,6 @@ public class WindowedValue<V> {
   public static <T> ValueOnlyWindowedValueCoder<T> getValueOnlyCoder(Coder<T> valueCoder) {
     return ValueOnlyWindowedValueCoder.of(valueCoder);
   }
-
-  @Override
-  public boolean equals(Object o) {
-    if (o instanceof WindowedValue) {
-      WindowedValue<?> that = (WindowedValue) o;
-      if (Objects.equals(that.value, this.value)
-          && that.timestamp.isEqual(timestamp)
-          && that.windows.size() == windows.size()) {
-        for (Iterator<?> thatIterator = that.windows.iterator(), thisIterator = windows.iterator();
-            thatIterator.hasNext() && thisIterator.hasNext();
-            /* do nothing */) {
-          if (!thatIterator.next().equals(thisIterator.next())) {
-            return false;
-          }
-        }
-        return true;
-      }
-    }
-    return false;
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(value, timestamp, Arrays.hashCode(windows.toArray()));
-  }
-
-  @Override
-  public String toString() {
-    return "[WindowedValue: " + value + ", timestamp: " + timestamp.getMillis()
-        + ", windows: " + windows + "]";
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
 
   /**
    * Abstract class for {@code WindowedValue} coder.

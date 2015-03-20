@@ -46,15 +46,15 @@ public class GlobalWindow extends BoundedWindow {
     public static final Coder INSTANCE = new Coder();
 
     @Override
-      public void encode(GlobalWindow window, OutputStream outStream, Context context) {}
+    public void encode(GlobalWindow window, OutputStream outStream, Context context) {}
 
     @Override
-      public GlobalWindow decode(InputStream inStream, Context context) {
+    public GlobalWindow decode(InputStream inStream, Context context) {
       return GlobalWindow.INSTANCE;
     }
 
     @Override
-      public boolean isDeterministic() {
+    public boolean isDeterministic() {
       return true;
     }
 

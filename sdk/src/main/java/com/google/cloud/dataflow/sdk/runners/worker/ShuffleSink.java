@@ -208,7 +208,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
           secondaryKeyBytes = null;
           valueBytes = CoderUtils.encodeToByteArray(
               windowedValueCoder,
-              WindowedValue.of(value, windowedElem.getTimestamp(), windowedElem.getWindows()));
+              windowedElem.withValue(value));
         }
 
       } else {
