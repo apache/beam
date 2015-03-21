@@ -28,7 +28,6 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetad
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.ReifyTimestampAndWindowsDoFn;
@@ -463,13 +462,7 @@ public class GroupByKey<K, V>
       // window function, which uses a single global window for all
       // elements.  We can implement this using a more-primitive
       // non-window-aware GBK transform.
-      return input
-          .apply(new GroupByKeyOnly<K, V>())
-
-          // In the non-global window case, GroupAlsoByWindows adds the windows
-          // back to the PCollection elements.  We don't have that here, so
-          // explicitly put the elements back into GlobalWindows.
-          .apply(Window.<KV<K, Iterable<V>>>into(new GlobalWindows()));
+      return input.apply(new GroupByKeyOnly<K, V>());
 
     } else if (isStreaming) {
       // If using the streaming runner, the service will do the insertion of

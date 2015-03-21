@@ -25,8 +25,6 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.View;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.common.base.Optional;
@@ -82,8 +80,7 @@ public class DataflowAssert {
    * {@link PCollection PCollection&lt;T&gt;}.
    */
   public static <T> IterableAssert<T> that(PCollection<T> actual) {
-    return
-        new IterableAssert<>(inGlobalWindows(actual).apply(View.<T>asIterable()))
+    return new IterableAssert<>(actual.apply(View.<T>asIterable()))
         .setCoder(actual.getCoder());
   }
 
@@ -104,7 +101,7 @@ public class DataflowAssert {
         + " single Coder<T> to apply to the elements.");
     }
 
-    return new IterableAssert<>(inGlobalWindows(actual).apply(View.<Iterable<T>>asSingleton()))
+    return new IterableAssert<>(actual.apply(View.<Iterable<T>>asSingleton()))
         .setCoder(tCoder);
   }
 
@@ -121,7 +118,7 @@ public class DataflowAssert {
    * {@code PCollection PCollection<T>}, which must be a singleton.
    */
   public static <T> SingletonAssert<T> thatSingleton(PCollection<T> actual) {
-    return new SingletonAssert<>(inGlobalWindows(actual).apply(View.<T>asSingleton()))
+    return new SingletonAssert<>(actual.apply(View.<T>asSingleton()))
         .setCoder(actual.getCoder());
   }
 
@@ -346,16 +343,6 @@ public class DataflowAssert {
   }
 
   ////////////////////////////////////////////////////////////////////////
-
-  /**
-   * Returns a new PCollection equivalent to the input, but with all elements
-   * in the GlobalWindow.  Preserves ordering if the input is ordered.
-   */
-  private static <T> PCollection<T> inGlobalWindows(PCollection<T> input) {
-    return input
-        .apply(Window.<T>into(new GlobalWindows()))
-        .setOrdered(input.isOrdered());
-  }
 
   /**
    * An assertion checker that takes a single {@link PCollectionView PCollectionView&lt;A&gt;}

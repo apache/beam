@@ -22,7 +22,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * Default {@link WindowFn} where all data is in the same window.
+ * Default {@link WindowFn} where all data is in the same bucket.
  */
 @SuppressWarnings("serial")
 public class GlobalWindows
@@ -40,10 +40,5 @@ public class GlobalWindows
   @Override
   public Coder<GlobalWindow> windowCoder() {
     return GlobalWindow.Coder.INSTANCE;
-  }
-
-  @Override
-  public GlobalWindow getSideInputWindow(BoundedWindow window) {
-    return GlobalWindow.INSTANCE;
   }
 }

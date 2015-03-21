@@ -17,12 +17,8 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -34,7 +30,6 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -105,7 +100,7 @@ public class View {
         PCollection<T> input) {
       return input.apply(
           new CreatePCollectionView<T, Iterable<T>>(
-              new IterablePCollectionView<T>(input.getPipeline(), input.getWindowFn())));
+              new IterablePCollectionView<T>(input.getPipeline())));
     }
   }
 
@@ -118,34 +113,16 @@ public class View {
   public static class AsSingleton<T>
       extends PTransform<PCollection<T>, PCollectionView<T>> {
     private static final long serialVersionUID = 0;
-    private final T defaultValue;
-    private final boolean hasDefault;
 
-    private AsSingleton() {
-      this.defaultValue = null;
-      this.hasDefault = false;
-    }
-
-    private AsSingleton(T defaultValue) {
-      this.defaultValue = defaultValue;
-      this.hasDefault = true;
-    }
-
-    /**
-     * Default value to return for windows with no value in them.
-     */
-    public AsSingleton<T> withDefaultValue(T defaultValue) {
-      return new AsSingleton(defaultValue);
-    }
+    private AsSingleton() { }
 
     @Override
     public PCollectionView<T> apply(PCollection<T> input) {
       return input.apply(
           new CreatePCollectionView<T, T>(
-              new SingletonPCollectionView<T>(
-                  input.getPipeline(), input.getWindowFn(),
-                  hasDefault, defaultValue, input.getCoder())));
+            new SingletonPCollectionView<T>(input.getPipeline())));
     }
+
   }
 
   /**
@@ -181,10 +158,11 @@ public class View {
     @Override
     public PCollectionView<Map<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
       return input.apply(
-          new CreatePCollectionView<KV<K, V>, Map<K, Iterable<V>>>(
-              new MultimapPCollectionView<K, V>(input.getPipeline(), input.getWindowFn())));
+        new CreatePCollectionView<KV<K, V>, Map<K, Iterable<V>>>(
+          new MultimapPCollectionView<K, V>(input.getPipeline())));
     }
   }
+
 
   /**
    * A {@link PTransform} that produces a {@link PCollectionView} of a keyed {@link PCollection}
@@ -211,8 +189,8 @@ public class View {
         ? (PCollection) input
         : input.apply(Combine.perKey(combineFn.<K>asKeyedFn()));
       return combined.apply(
-          new CreatePCollectionView<KV<K, VO>, Map<K, VO>>(
-              new MapPCollectionView<K, VO>(input.getPipeline(), combined.getWindowFn())));
+        new CreatePCollectionView<KV<K, VO>, Map<K, VO>>(
+          new MapPCollectionView<K, VO>(input.getPipeline())));
     }
   }
 
@@ -269,40 +247,14 @@ public class View {
   private static class SingletonPCollectionView<T>
       extends PCollectionViewBase<T> {
     private static final long serialVersionUID = 0;
-    private byte[] encodedDefaultValue;
-    private transient T defaultValue;
-    private Coder<T> defaultValueCoder;
 
-    public SingletonPCollectionView(
-        Pipeline pipeline, WindowFn<?, ?> windowFn,
-        boolean hasDefault, T defaultValue, Coder<T> defaultValueCoder) {
-      super(windowFn);
+    public SingletonPCollectionView(Pipeline pipeline) {
       setPipelineInternal(pipeline);
-      this.defaultValue = defaultValue;
-      this.defaultValueCoder = defaultValueCoder;
-      if (hasDefault) {
-        try {
-          this.encodedDefaultValue = CoderUtils.encodeToByteArray(defaultValueCoder, defaultValue);
-        } catch (IOException e) {
-          throw new RuntimeException("Unexpected IOException: ", e);
-        }
-      }
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public T fromIterableInternal(Iterable<WindowedValue<?>> contents) {
-      if (encodedDefaultValue != null && defaultValue == null) {
-        try {
-          defaultValue = CoderUtils.decodeFromByteArray(defaultValueCoder, encodedDefaultValue);
-        } catch (IOException e) {
-          throw new RuntimeException("Unexpected IOException: ", e);
-        }
-      }
-
-      if (encodedDefaultValue != null && !contents.iterator().hasNext()) {
-        return defaultValue;
-      }
       try {
         return (T) Iterables.getOnlyElement(contents).getValue();
       } catch (NoSuchElementException exc) {
@@ -320,8 +272,7 @@ public class View {
       extends PCollectionViewBase<Iterable<T>> {
     private static final long serialVersionUID = 0;
 
-    public IterablePCollectionView(Pipeline pipeline, WindowFn<?, ?> windowFn) {
-      super(windowFn);
+    public IterablePCollectionView(Pipeline pipeline) {
       setPipelineInternal(pipeline);
     }
 
@@ -341,8 +292,7 @@ public class View {
       extends PCollectionViewBase<Map<K, Iterable<V>>> {
     private static final long serialVersionUID = 0;
 
-    public MultimapPCollectionView(Pipeline pipeline, WindowFn<?, ?> windowFn) {
-      super(windowFn);
+    public MultimapPCollectionView(Pipeline pipeline) {
       setPipelineInternal(pipeline);
     }
 
@@ -363,8 +313,7 @@ public class View {
       extends PCollectionViewBase<Map<K, V>> {
     private static final long serialVersionUID = 0;
 
-    public MapPCollectionView(Pipeline pipeline, WindowFn<?, ?> windowFn) {
-      super(windowFn);
+    public MapPCollectionView(Pipeline pipeline) {
       setPipelineInternal(pipeline);
     }
 
@@ -387,25 +336,11 @@ public class View {
       implements PCollectionView<T> {
     private static final long serialVersionUID = 0;
 
-    PCollectionViewBase(WindowFn<?, ?> windowFn) {
-      if (windowFn instanceof InvalidWindows) {
-        throw new IllegalArgumentException("WindowFn of PCollectionView cannot be InvalidWindows");
-      }
-      this.windowFn = windowFn;
-    }
-
     @Override
     public TupleTag<Iterable<WindowedValue<?>>> getTagInternal() {
       return tag;
     }
 
-    @Override
-    public WindowFn getWindowFnInternal() {
-      return windowFn;
-    }
-
     private TupleTag<Iterable<WindowedValue<?>>> tag = new TupleTag<>();
-
-    private WindowFn<?, ?> windowFn;
   }
 }

@@ -115,46 +115,4 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    * by this windowFn.
    */
   public abstract Coder<W> windowCoder();
-
-  /**
-   * Returns the window of the side input corresponding to the given window of
-   * the main input. By default, this runs assignWindows over a non-existent
-   * element whose timestamp is the maxTimestamp() of the input window.
-   *
-   * <p> For example, if both the main and side inputs are windowed by
-   * {@link FixedWindows}, the side input corresponding to a particular main
-   * input element will be the one in the same window as that element.
-   *
-   * <p> Authors of custom {@code WindowFn}s should override this if that is not
-   * the desired behavior for side inputs with their {@code WindowFn}.
-   */
-  public W getSideInputWindow(final BoundedWindow window) {
-    if (window instanceof GlobalWindow) {
-      throw new IllegalArgumentException(
-          "Attempted to get side input window for GlobalWindow from non-global WindowFn");
-    }
-
-    try {
-      return assignWindows(new AssignContext() {
-          @Override
-          public T element() {
-            throw new UnsupportedOperationException(
-                "WindowFn attemped to access input element when none was available");
-          }
-
-          @Override
-          public Instant timestamp() {
-            return window.maxTimestamp();
-          }
-
-          @Override
-          public Collection<? extends BoundedWindow> windows() {
-            throw new UnsupportedOperationException(
-                "WindowFn attemped to access input windows when none were available");
-          }
-        }).iterator().next();
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to get side input window: ", e);
-    }
-  }
 }

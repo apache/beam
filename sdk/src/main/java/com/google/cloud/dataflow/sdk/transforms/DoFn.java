@@ -67,6 +67,14 @@ public abstract class DoFn<I, O> implements Serializable {
     public abstract PipelineOptions getPipelineOptions();
 
     /**
+     * Returns the value of the side input.
+     *
+     * @throws IllegalArgumentException if this is not a side input
+     * @see ParDo#withSideInputs
+     */
+    public abstract <T> T sideInput(PCollectionView<T> view);
+
+    /**
      * Adds the given element to the main output {@code PCollection}.
      *
      * <p> If invoked from {@link DoFn#processElement}, the output
@@ -198,19 +206,6 @@ public abstract class DoFn<I, O> implements Serializable {
      * Returns the input element to be processed.
      */
     public abstract I element();
-
-    /**
-     * Returns the value of the side input for the window corresponding to the
-     * window of the main input element.
-     *
-     * <p> See
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn#getSideInputWindow}
-     * for how this corresponding window is determined.
-     *
-     * @throws IllegalArgumentException if this is not a side input
-     * @see ParDo#withSideInputs
-     */
-    public abstract <T> T sideInput(PCollectionView<T> view);
 
     /**
      * Returns this {@code DoFn}'s state associated with the input

@@ -126,7 +126,7 @@ public class TopWikipediaSessions {
                     public int compare(KV<String, Long> o1, KV<String, Long> o2) {
                       return Long.compare(o1.getValue(), o2.getValue());
                     }
-                  }).withoutDefaults());
+                  }));
     }
   }
 

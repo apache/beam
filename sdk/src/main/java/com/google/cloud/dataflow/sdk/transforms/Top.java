@@ -80,9 +80,10 @@ public class Top {
    * {@code KV}s and return the top values associated with each key.
    */
   public static <T, C extends Comparator<T> & Serializable>
-      Combine.Globally<T, List<T>> of(int count, C compareFn) {
+      PTransform<PCollection<T>, PCollection<List<T>>> of(int count, C compareFn) {
     return Combine.globally(new TopCombineFn<>(count, compareFn))
         .withName("Top");
+
   }
 
   /**
@@ -120,7 +121,7 @@ public class Top {
    * {@code KV}s and return the top values associated with each key.
    */
   public static <T extends Comparable<T>>
-      Combine.Globally<T, List<T>> smallest(int count) {
+      PTransform<PCollection<T>, PCollection<List<T>>> smallest(int count) {
     return Combine.globally(new TopCombineFn<>(count, new Smallest<T>()))
         .withName("Top.Smallest");
   }
@@ -160,7 +161,7 @@ public class Top {
    * {@code KV}s and return the top values associated with each key.
    */
   public static <T extends Comparable<T>>
-      Combine.Globally<T, List<T>> largest(int count) {
+      PTransform<PCollection<T>, PCollection<List<T>>> largest(int count) {
     return Combine.globally(new TopCombineFn<>(count, new Largest<T>()))
         .withName("Top.Largest");
   }
