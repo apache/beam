@@ -86,15 +86,15 @@ public class FileBasedSourceTest {
     ReadableByteChannel channel = null;
     final String splitHeader;
 
-    public TestFileBasedSource(boolean isFilePattern, String fileOrPattern, long minShardSize,
+    public TestFileBasedSource(boolean isFilePattern, String fileOrPattern, long minBundleSize,
         String splitHeader) {
-      super(isFilePattern, fileOrPattern, minShardSize, 0L, Long.MAX_VALUE);
+      super(isFilePattern, fileOrPattern, minBundleSize, 0L, Long.MAX_VALUE);
       this.splitHeader = splitHeader;
     }
 
-    public TestFileBasedSource(String fileOrPattern, long minShardSize, long startOffset,
+    public TestFileBasedSource(String fileOrPattern, long minBundleSize, long startOffset,
         long endOffset, String splitHeader) {
-      super(false, fileOrPattern, minShardSize, startOffset, endOffset);
+      super(false, fileOrPattern, minBundleSize, startOffset, endOffset);
       this.splitHeader = splitHeader;
     }
 
@@ -113,7 +113,7 @@ public class FileBasedSourceTest {
 
     @Override
     public FileBasedSource<String> createForSubrangeOfFile(String fileName, long start, long end) {
-      return new TestFileBasedSource(fileName, getMinShardSize(), start, end, splitHeader);
+      return new TestFileBasedSource(fileName, getMinBundleSize(), start, end, splitHeader);
     }
 
     @Override
@@ -141,7 +141,7 @@ public class FileBasedSourceTest {
     private final ByteBuffer buf;
     private static final int BUF_SIZE = 1024;
     private String currentValue = null;
-    private boolean emptyShard = false;
+    private boolean emptyBundle = false;
 
     public TestReader(TestFileBasedSource source) {
       super(source);
@@ -189,13 +189,13 @@ public class FileBasedSourceTest {
         nextOffset += readNextLine(new ByteArrayOutputStream());
       }
       if (nextOffset >= getSource().getEndOffset()) {
-        emptyShard = true;
+        emptyBundle = true;
       }
     }
 
     @Override
     protected boolean readNextRecord() throws IOException {
-      if (emptyShard) {
+      if (emptyBundle) {
         return false;
       }
 
@@ -238,7 +238,7 @@ public class FileBasedSourceTest {
     private final String splitHeader;
     private boolean isAtSplitPoint = false;
     private long currentOffset;
-    private boolean emptyShard = false;
+    private boolean emptyBundle = false;
 
     public TestReaderWithSplits(TestFileBasedSource source) {
       super(source);
@@ -266,7 +266,7 @@ public class FileBasedSourceTest {
         current = super.getCurrent();
       }
       if (currentOffset >= getSource().getEndOffset()) {
-        emptyShard = true;
+        emptyBundle = true;
       }
     }
 
@@ -275,7 +275,7 @@ public class FileBasedSourceTest {
       // Get next record. If next record is a header read up to the next non-header record (ignoring
       // any empty splits that does not have any records).
 
-      if (emptyShard) {
+      if (emptyBundle) {
         return false;
       }
 
@@ -611,7 +611,7 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source = new TestFileBasedSource(false, file.getPath(), 16, null);
 
-    List<? extends Source<String>> sources = source.splitIntoShards(32, null);
+    List<? extends Source<String>> sources = source.splitIntoBundles(32, null);
 
     // Not a trivial split.
     assertTrue(sources.size() > 1);
@@ -744,7 +744,7 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source =
         new TestFileBasedSource(true, file1.getParent() + "/" + "file*", 64, null);
-    List<? extends Source<String>> sources = source.splitIntoShards(512, null);
+    List<? extends Source<String>> sources = source.splitIntoBundles(512, null);
 
     // Not a trivial split.
     assertTrue(sources.size() > 1);

@@ -30,7 +30,7 @@ import javax.annotation.Nullable;
 
 /**
  * Base class for defining input formats, with custom logic for splitting the input
- * into shards (parts of the input, each of which may be processed on a different worker)
+ * into bundles (parts of the input, each of which may be processed on a different worker)
  * and creating a {@code Source} for reading the input.
  *
  * <p> To use this class for supporting your custom input type, derive your class
@@ -58,13 +58,13 @@ public abstract class Source<T> implements Serializable {
   private static final long serialVersionUID = 0;
 
   /**
-   * Splits the source into shards.
+   * Splits the source into bundles.
    *
    * <p> {@code PipelineOptions} can be used to get information such as
    * credentials for accessing an external storage.
    */
-  public abstract List<? extends Source<T>> splitIntoShards(
-      long desiredShardSizeBytes, PipelineOptions options) throws Exception;
+  public abstract List<? extends Source<T>> splitIntoBundles(
+      long desiredBundleSizeBytes, PipelineOptions options) throws Exception;
 
   /**
    * An estimate of the total size (in bytes) of the data that would be read from this source.

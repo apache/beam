@@ -146,13 +146,13 @@ public class DatastoreIOTest {
               }
             });
 
-    List<DatastoreIO.Source> shards = io.splitIntoShards(1024, options);
-    assertEquals(8, shards.size());
+    List<DatastoreIO.Source> bundles = io.splitIntoBundles(1024, options);
+    assertEquals(8, bundles.size());
     for (int i = 0; i < 8; ++i) {
-      DatastoreIO.Source shard = shards.get(i);
-      Query shardQuery = shard.query;
-      assertEquals("mykind", shardQuery.getKind(0).getName());
-      assertEquals(i, shardQuery.getFilter().getPropertyFilter().getValue().getIntegerValue());
+      DatastoreIO.Source bundle = bundles.get(i);
+      Query bundleQuery = bundle.query;
+      assertEquals("mykind", bundleQuery.getKind(0).getName());
+      assertEquals(i, bundleQuery.getFilter().getPropertyFilter().getValue().getIntegerValue());
     }
   }
 

@@ -70,7 +70,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   /**
    * Create a {@code FileBasedSource} based on a file or a file pattern specification.
    *
-   * <p>See {@link ByteOffsetBasedSource} for detailed descriptions of {@code minShardSize},
+   * <p>See {@link ByteOffsetBasedSource} for detailed descriptions of {@code minBundleSize},
    * {@code startOffset}, and {@code endOffset}.
    *
    * @param isFilePattern if {@code true} provided {@code fileOrPatternSpec} may be a file pattern
@@ -79,14 +79,14 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    *        verbatim.
    * @param fileOrPatternSpec {@link IOChannelFactory} specification of file or file pattern
    *        represented by the {@link FileBasedSource}.
-   * @param minShardSize minimum shard size in bytes.
+   * @param minBundleSize minimum bundle size in bytes.
    * @param startOffset starting byte offset.
    * @param endOffset ending byte offset. If the specified value {@code >= #getMaxEndOffset()} it
    *        implies {@code #getMaxEndOffSet()}.
    */
-  public FileBasedSource(boolean isFilePattern, String fileOrPatternSpec, long minShardSize,
+  public FileBasedSource(boolean isFilePattern, String fileOrPatternSpec, long minBundleSize,
       long startOffset, long endOffset) {
-    super(startOffset, endOffset, minShardSize);
+    super(startOffset, endOffset, minBundleSize);
     if (isFilePattern) {
       mode = Mode.FILEPATTERN;
     } else if (startOffset == 0 && endOffset == Long.MAX_VALUE) {
@@ -173,9 +173,9 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   }
 
   @Override
-  public final List<? extends FileBasedSource<T>> splitIntoShards(long desiredShardSizeBytes,
+  public final List<? extends FileBasedSource<T>> splitIntoBundles(long desiredBundleSizeBytes,
       PipelineOptions options) throws Exception {
-    // This implementation of method splitIntoShards is provided to simplify subclasses. Here we
+    // This implementation of method splitIntoBundles is provided to simplify subclasses. Here we
     // split a FileBasedSource based on a file pattern to FileBasedSources based on full single
     // files. For files that can be efficiently seeked, we further split FileBasedSources based on
     // those files to FileBasedSources based on sub ranges of single files.
@@ -184,8 +184,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
       long startTime = System.currentTimeMillis();
       List<FileBasedSource<T>> splitResults = new ArrayList<>();
       for (String file : expandFilePattern()) {
-        splitResults.addAll(createForSubrangeOfFile(file, 0, Long.MAX_VALUE).splitIntoShards(
-            desiredShardSizeBytes, options));
+        splitResults.addAll(createForSubrangeOfFile(file, 0, Long.MAX_VALUE).splitIntoBundles(
+            desiredBundleSizeBytes, options));
       }
       LOG.debug("Splitting the source based on file pattern " + fileOrPatternSpec + " took "
           + (System.currentTimeMillis() - startTime) + " ms");
@@ -198,7 +198,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
       if (factory.isReadSeekEfficient(fileOrPatternSpec)) {
         List<FileBasedSource<T>> splitResults = new ArrayList<>();
         for (ByteOffsetBasedSource<T> split :
-            super.splitIntoShards(desiredShardSizeBytes, options)) {
+            super.splitIntoBundles(desiredBundleSizeBytes, options)) {
           splitResults.add((FileBasedSource<T>) split);
         }
         return splitResults;

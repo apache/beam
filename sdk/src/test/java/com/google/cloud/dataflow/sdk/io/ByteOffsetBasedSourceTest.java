@@ -35,8 +35,8 @@ public class ByteOffsetBasedSourceTest {
 
     private static final long serialVersionUID = 85539250;
 
-    public TestByteOffsetBasedSource(long startOffset, long endOffset, long minShardSize) {
-      super(startOffset, endOffset, minShardSize);
+    public TestByteOffsetBasedSource(long startOffset, long endOffset, long minBundleSize) {
+      super(startOffset, endOffset, minBundleSize);
     }
 
     @Override
@@ -83,44 +83,44 @@ public class ByteOffsetBasedSourceTest {
   public void testSplitPositionsZeroStart() throws Exception {
     long start = 0;
     long end = 1000;
-    long minShardSize = 50;
-    long desiredShardSize = 150;
-    TestByteOffsetBasedSource testSource = new TestByteOffsetBasedSource(start, end, minShardSize);
+    long minBundleSize = 50;
+    long desiredBundleSize = 150;
+    TestByteOffsetBasedSource testSource = new TestByteOffsetBasedSource(start, end, minBundleSize);
     long[] boundaries = {0, 150, 300, 450, 600, 750, 900, 1000};
-    assertSplitsAre(testSource.splitIntoShards(desiredShardSize, null), boundaries);
+    assertSplitsAre(testSource.splitIntoBundles(desiredBundleSize, null), boundaries);
   }
 
   @Test
   public void testSplitPositionsNonZeroStart() throws Exception {
     long start = 300;
     long end = 1000;
-    long minShardSize = 50;
-    long desiredShardSize = 150;
-    TestByteOffsetBasedSource testSource = new TestByteOffsetBasedSource(start, end, minShardSize);
+    long minBundleSize = 50;
+    long desiredBundleSize = 150;
+    TestByteOffsetBasedSource testSource = new TestByteOffsetBasedSource(start, end, minBundleSize);
     long[] boundaries = {300, 450, 600, 750, 900, 1000};
-    assertSplitsAre(testSource.splitIntoShards(desiredShardSize, null), boundaries);
+    assertSplitsAre(testSource.splitIntoBundles(desiredBundleSize, null), boundaries);
   }
 
   @Test
-  public void testMinShardSize() throws Exception {
+  public void testMinBundleSize() throws Exception {
     long start = 300;
     long end = 1000;
-    long minShardSize = 150;
-    long desiredShardSize = 100;
-    TestByteOffsetBasedSource testSource = new TestByteOffsetBasedSource(start, end, minShardSize);
+    long minBundleSize = 150;
+    long desiredBundleSize = 100;
+    TestByteOffsetBasedSource testSource = new TestByteOffsetBasedSource(start, end, minBundleSize);
     long[] boundaries = {300, 450, 600, 750, 1000};
-    assertSplitsAre(testSource.splitIntoShards(desiredShardSize, null), boundaries);
+    assertSplitsAre(testSource.splitIntoBundles(desiredBundleSize, null), boundaries);
   }
 
   @Test
-  public void testSplitPositionsCollapseEndShard() throws Exception {
+  public void testSplitPositionsCollapseEndBundle() throws Exception {
     long start = 0;
     long end = 1000;
-    long minShardSize = 50;
-    long desiredShardSize = 110;
-    TestByteOffsetBasedSource testSource = new TestByteOffsetBasedSource(start, end, minShardSize);
-    // Last 10 bytes should collapse to the previous shard.
+    long minBundleSize = 50;
+    long desiredBundleSize = 110;
+    TestByteOffsetBasedSource testSource = new TestByteOffsetBasedSource(start, end, minBundleSize);
+    // Last 10 bytes should collapse to the previous bundle.
     long[] boundaries = {0, 110, 220, 330, 440, 550, 660, 770, 880, 1000};
-    assertSplitsAre(testSource.splitIntoShards(desiredShardSize, null), boundaries);
+    assertSplitsAre(testSource.splitIntoBundles(desiredBundleSize, null), boundaries);
   }
 }

@@ -67,7 +67,7 @@ import java.util.NoSuchElementException;
  */
 public class BasicSerializableSourceFormat implements SourceFormat {
   private static final String SERIALIZED_SOURCE = "serialized_source";
-  private static final long DEFAULT_DESIRED_SHARD_SIZE_BYTES = 64 * (1 << 20);
+  private static final long DEFAULT_DESIRED_BUNDLE_SIZE_BYTES = 64 * (1 << 20);
 
   private static final Logger LOG = LoggerFactory.getLogger(BasicSerializableSourceFormat.class);
 
@@ -118,35 +118,35 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     Source<?> source = deserializeFromCloudSource(request.getSource().getSpec());
     LOG.debug("Splitting source: {}", source);
 
-    // Produce simple independent, unsplittable shards with no metadata attached.
+    // Produce simple independent, unsplittable bundles with no metadata attached.
     SourceSplitResponse response = new SourceSplitResponse();
     response.setShards(new ArrayList<SourceSplitShard>());
     SourceSplitOptions splitOptions = request.getOptions();
-    Long desiredShardSizeBytes =
+    Long desiredBundleSizeBytes =
         (splitOptions == null) ? null : splitOptions.getDesiredShardSizeBytes();
-    if (desiredShardSizeBytes == null) {
-      desiredShardSizeBytes = DEFAULT_DESIRED_SHARD_SIZE_BYTES;
+    if (desiredBundleSizeBytes == null) {
+      desiredBundleSizeBytes = DEFAULT_DESIRED_BUNDLE_SIZE_BYTES;
     }
-    List<? extends Source<?>> shards = source.splitIntoShards(desiredShardSizeBytes, options);
-    LOG.debug("Splitting produced {} shards", shards.size());
-    for (Source<?> split : shards) {
+    List<? extends Source<?>> bundles = source.splitIntoBundles(desiredBundleSizeBytes, options);
+    LOG.debug("Splitting produced {} bundles", bundles.size());
+    for (Source<?> split : bundles) {
       try {
         split.validate();
       } catch  (Exception e) {
         throw new IllegalArgumentException(
-            "Splitting a valid source produced an invalid shard. "
+            "Splitting a valid source produced an invalid bundle. "
             + "\nOriginal source: " + source
-            + "\nInvalid shard: " + split, e);
+            + "\nInvalid bundle: " + split, e);
       }
-      SourceSplitShard shard = new SourceSplitShard();
+      SourceSplitShard bundle = new SourceSplitShard();
 
       com.google.api.services.dataflow.model.Source cloudSource =
           serializeToCloudSource(split, options);
       cloudSource.setDoesNotNeedSplitting(true);
 
-      shard.setDerivationMode("SOURCE_DERIVATION_MODE_INDEPENDENT");
-      shard.setSource(cloudSource);
-      response.getShards().add(shard);
+      bundle.setDerivationMode("SOURCE_DERIVATION_MODE_INDEPENDENT");
+      bundle.setSource(cloudSource);
+      response.getShards().add(bundle);
     }
     response.setOutcome("SOURCE_SPLIT_OUTCOME_SPLITTING_HAPPENED");
     return response;

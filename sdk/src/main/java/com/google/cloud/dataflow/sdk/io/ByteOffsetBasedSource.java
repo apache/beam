@@ -28,7 +28,7 @@ import java.util.List;
  * {@code ByteOffsetBasedSource}.
  *
  * <p>This is a common base class for all sources that use a byte offset range. It stores the range
- * and implements splitting into shards. This should be used for sources which can be cheaply read
+ * and implements splitting into bundles. This should be used for sources which can be cheaply read
  * starting at any given byte offset.
  *
  * <p>The byte offset range of the source is between {@code startOffset} (inclusive) and endOffset
@@ -49,7 +49,7 @@ public abstract class ByteOffsetBasedSource<T> extends Source<T> {
 
   private final long startOffset;
   private final long endOffset;
-  private final long minShardSize;
+  private final long minBundleSize;
 
   /**
    * @param startOffset starting byte offset (inclusive) of the source. Must be non-negative.
@@ -58,14 +58,14 @@ public abstract class ByteOffsetBasedSource<T> extends Source<T> {
    *        {@code offset >= getMaxEndOffset()}, e.g., {@code Long.MAX_VALUE}, means the same as
    *        {@code getMaxEndOffset()}. Must be {@code >= startOffset}.
    *
-   * @param minShardSize minimum shard size in bytes that should be used when splitting the source
+   * @param minBundleSize minimum bundle size in bytes that should be used when splitting the source
    *        into sub-sources. This will not be respected if the total range of the source is smaller
-   *        than the specified {@code minShardSize}. Must be non-negative.
+   *        than the specified {@code minBundleSize}. Must be non-negative.
    */
-  public ByteOffsetBasedSource(long startOffset, long endOffset, long minShardSize) {
+  public ByteOffsetBasedSource(long startOffset, long endOffset, long minBundleSize) {
     this.startOffset = startOffset;
     this.endOffset = endOffset;
-    this.minShardSize = minShardSize;
+    this.minBundleSize = minBundleSize;
   }
 
   /**
@@ -84,33 +84,33 @@ public abstract class ByteOffsetBasedSource<T> extends Source<T> {
   }
 
   /**
-   * Returns the minimum shard size that should be used when splitting the source into sub-sources.
+   * Returns the minimum bundle size that should be used when splitting the source into sub-sources.
    * This will not be respected if the total range of the source is smaller than the specified
-   * {@code minShardSize}.
+   * {@code minBundleSize}.
    */
-  public long getMinShardSize() {
-    return minShardSize;
+  public long getMinBundleSize() {
+    return minBundleSize;
   }
 
   @Override
-  public List<? extends ByteOffsetBasedSource<T>> splitIntoShards(long desiredShardSizeBytes,
+  public List<? extends ByteOffsetBasedSource<T>> splitIntoBundles(long desiredBundleSizeBytes,
       PipelineOptions options) throws Exception {
-    // Split the range into shards based on the desiredShardSizeBytes. Final shard is adjusted to
-    // make sure that we do not end up with a too small shard at the end. If desiredShardSizeBytes
-    // is smaller than the minShardSize of the source then minShardSize will be used instead.
+    // Split the range into bundles based on the desiredBundleSizeBytes. Final bundle is adjusted to
+    // make sure that we do not end up with a too small bundle at the end. If desiredBundleSizeBytes
+    // is smaller than the minBundleSize of the source then minBundleSize will be used instead.
 
-    desiredShardSizeBytes = Math.max(desiredShardSizeBytes, minShardSize);
+    desiredBundleSizeBytes = Math.max(desiredBundleSizeBytes, minBundleSize);
 
     List<ByteOffsetBasedSource<T>> subSources = new ArrayList<>();
     long start = startOffset;
     long maxEnd = Math.min(endOffset, getMaxEndOffset(options));
 
     while (start < maxEnd) {
-      long end = start + desiredShardSizeBytes;
+      long end = start + desiredBundleSizeBytes;
       end = Math.min(end, maxEnd);
-      // Avoid having a too small shard at the end and ensure that we respect minShardSize.
+      // Avoid having a too small bundle at the end and ensure that we respect minBundleSize.
       long remainingBytes = maxEnd - end;
-      if ((remainingBytes < desiredShardSizeBytes / 4) || (remainingBytes < minShardSize)) {
+      if ((remainingBytes < desiredBundleSizeBytes / 4) || (remainingBytes < minBundleSize)) {
         end = maxEnd;
       }
       subSources.add(createSourceForSubrange(start, end));
@@ -128,8 +128,8 @@ public abstract class ByteOffsetBasedSource<T> extends Source<T> {
         "End offset has value " + this.endOffset + ", must be non-negative");
     Preconditions.checkArgument(this.startOffset < this.endOffset,
         "Start offset " + this.startOffset + " must be before end offset " + this.endOffset);
-    Preconditions.checkArgument(this.minShardSize >= 0,
-        "minShardSize has value " + this.minShardSize + ", must be non-negative");
+    Preconditions.checkArgument(this.minBundleSize >= 0,
+        "minBundleSize has value " + this.minBundleSize + ", must be non-negative");
   }
 
   @Override

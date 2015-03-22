@@ -276,12 +276,12 @@ public class DatastoreIO {
     }
 
     @Override
-    public List<Source> splitIntoShards(long desiredShardSizeBytes, PipelineOptions options)
+    public List<Source> splitIntoBundles(long desiredBundleSizeBytes, PipelineOptions options)
         throws Exception {
       DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
       long numSplits;
       try {
-        numSplits = getEstimatedSizeBytes(options) / desiredShardSizeBytes;
+        numSplits = getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
       } catch (Exception e) {
         LOG.warn("Estimated size unavailable, using number of workers", e);
         // Fallback in case estimated size is unavailable.

@@ -95,7 +95,7 @@ public class BasicSerializableSourceFormatTest {
       }
 
       @Override
-      public List<Read> splitIntoShards(long desiredShardSizeBytes, PipelineOptions options)
+      public List<Read> splitIntoBundles(long desiredBundleSizeBytes, PipelineOptions options)
           throws Exception {
         List<Read> res = new ArrayList<>();
         DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
@@ -167,7 +167,7 @@ public class BasicSerializableSourceFormatTest {
   }
 
   @Test
-  public void testSplitAndReadShardsBack() throws Exception {
+  public void testSplitAndReadBundlesBack() throws Exception {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     options.setNumWorkers(5);
@@ -180,15 +180,15 @@ public class BasicSerializableSourceFormatTest {
     }
     SourceSplitResponse response = performSplit(source, options);
     assertEquals("SOURCE_SPLIT_OUTCOME_SPLITTING_HAPPENED", response.getOutcome());
-    List<SourceSplitShard> shards = response.getShards();
-    assertEquals(5, shards.size());
+    List<SourceSplitShard> bundles = response.getShards();
+    assertEquals(5, bundles.size());
     for (int i = 0; i < 5; ++i) {
-      SourceSplitShard shard = shards.get(i);
-      assertEquals("SOURCE_DERIVATION_MODE_INDEPENDENT", shard.getDerivationMode());
-      com.google.api.services.dataflow.model.Source shardSource = shard.getSource();
-      assertTrue(shardSource.getDoesNotNeedSplitting());
-      shardSource.setCodec(source.getCodec());
-      List<WindowedValue<Integer>> xs = CloudSourceUtils.readElemsFromSource(options, shardSource);
+      SourceSplitShard bundle = bundles.get(i);
+      assertEquals("SOURCE_DERIVATION_MODE_INDEPENDENT", bundle.getDerivationMode());
+      com.google.api.services.dataflow.model.Source bundleSource = bundle.getSource();
+      assertTrue(bundleSource.getDoesNotNeedSplitting());
+      bundleSource.setCodec(source.getCodec());
+      List<WindowedValue<Integer>> xs = CloudSourceUtils.readElemsFromSource(options, bundleSource);
       assertThat(
           xs,
           contains(
@@ -204,8 +204,8 @@ public class BasicSerializableSourceFormatTest {
     private static final long serialVersionUID = -5041539913488064889L;
 
     @Override
-    public List<? extends Source<Integer>> splitIntoShards(
-        long desiredShardSizeBytes, PipelineOptions options) throws Exception {
+    public List<? extends Source<Integer>> splitIntoBundles(
+        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       return Arrays.asList(this);
     }
 
@@ -245,12 +245,12 @@ public class BasicSerializableSourceFormatTest {
     }
 
     @Override
-    public List<? extends Source<Integer>> splitIntoShards(
-        long desiredShardSizeBytes, PipelineOptions options) throws Exception {
+    public List<? extends Source<Integer>> splitIntoBundles(
+        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       Preconditions.checkState(errorMessage == null, "Unexpected invalid source");
       return Arrays.asList(
-          new SourceProducingInvalidSplits("goodShard", null),
-          new SourceProducingInvalidSplits("badShard", "intentionally invalid"));
+          new SourceProducingInvalidSplits("goodBundle", null),
+          new SourceProducingInvalidSplits("badBundle", "intentionally invalid"));
     }
 
     @Override
@@ -273,9 +273,9 @@ public class BasicSerializableSourceFormatTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(allOf(
-        containsString("Splitting a valid source produced an invalid shard"),
+        containsString("Splitting a valid source produced an invalid bundle"),
         containsString("original"),
-        containsString("badShard")));
+        containsString("badBundle")));
     expectedException.expectCause(hasMessage(containsString("intentionally invalid")));
     performSplit(cloudSource, options);
   }
