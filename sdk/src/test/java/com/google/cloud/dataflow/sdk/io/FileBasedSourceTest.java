@@ -368,7 +368,7 @@ public class FileBasedSourceTest {
     createFileWithData("otherfile", data4);
 
     TestFileBasedSource source =
-        new TestFileBasedSource(true, file1.getParent() + "/" + "file*", 64, null);
+        new TestFileBasedSource(true, new File(file1.getParent(), "file*").getPath(), 64, null);
     List<String> expectedResults = new ArrayList<String>();
     expectedResults.addAll(data1);
     expectedResults.addAll(data2);
@@ -384,8 +384,9 @@ public class FileBasedSourceTest {
     IOChannelFactory mockIOFactory = Mockito.mock(IOChannelFactory.class);
     String parent = file1.getParent();
     String pattern = "mocked://test";
-    when(mockIOFactory.match(pattern)).thenReturn(
-        ImmutableList.of(parent + "/" + "file1", parent + "/" + "file2", parent + "/" + "file3"));
+    when(mockIOFactory.match(pattern)).thenReturn(ImmutableList.of(
+        new File(parent, "file1").getPath(), new File(parent, "file2").getPath(),
+        new File(parent, "file3").getPath()));
     IOChannelUtils.setIOFactory("mocked", mockIOFactory);
 
     List<String> data2 = createStringDataset(3, 50);
@@ -672,7 +673,7 @@ public class FileBasedSourceTest {
     createFileWithData("otherfile", data4);
 
     TestFileBasedSource source =
-        new TestFileBasedSource(true, file1.getParent() + "/" + "file*", 64, null);
+        new TestFileBasedSource(true, new File(file1.getParent(), "file*").getPath(), 64, null);
 
     PCollection<String> output = p.apply(ReadSource.from(source).named("ReadFileData"));
 
@@ -720,7 +721,7 @@ public class FileBasedSourceTest {
     createFileWithData("anotherfile", data5);
 
     TestFileBasedSource source =
-        new TestFileBasedSource(true, file1.getParent() + "/" + "file*", 64, null);
+        new TestFileBasedSource(true, new File(file1.getParent(), "file*").getPath(), 64, null);
 
     // Estimated size of the file pattern based source should be the total size of files that the
     // corresponding pattern is expanded into.
@@ -743,7 +744,7 @@ public class FileBasedSourceTest {
     createFileWithData("otherfile", data4);
 
     TestFileBasedSource source =
-        new TestFileBasedSource(true, file1.getParent() + "/" + "file*", 64, null);
+        new TestFileBasedSource(true, new File(file1.getParent(), "file*").getPath(), 64, null);
     List<? extends Source<String>> sources = source.splitIntoBundles(512, null);
 
     // Not a trivial split.
