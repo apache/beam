@@ -195,30 +195,6 @@ Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 					</execution>
 				</executions>
 			</plugin>
-
-			<!-- Shade away the google stuff since guave conflicts with flink->hadoop->guava  -->
-			<!-- This creates a fat-jar that can be submitted to a Flink Cluster.  -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.3</version>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<relocations>
-								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>flink.dataflow.shaded.com.google</shadedPattern>
-								</relocation>
-							</relocations>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
 		</plugins>
 
 	</build>
