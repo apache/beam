@@ -296,11 +296,12 @@ public class FlinkTransformTranslators {
 
 			FlinkPartialReduceFunction<K, VI, VA> partialReduceFunction = new FlinkPartialReduceFunction<>(keyedCombineFn);
 
-			// Partially GroupReduce the values into the intermediate format VA
+			// Partially GroupReduce the values into the intermediate format VA (combine)
 			GroupCombineOperator<KV<K, VI>, KV<K, VA>> groupCombine =
 					new GroupCombineOperator<>(inputGrouping, partialReduceTypeInfo, partialReduceFunction,
 							"GroupCombine: " + transform.getName());
 
+			// Reduce fully to VO
 			GroupReduceFunction<KV<K, VA>, KV<K, VO>> reduceFunction = new FlinkReduceFunction<>(keyedCombineFn);
 
 			TypeInformation<KV<K, VO>> reduceTypeInfo = context.getTypeInfo(transform.getOutput());
