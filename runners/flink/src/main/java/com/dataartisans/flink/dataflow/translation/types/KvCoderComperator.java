@@ -211,7 +211,7 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 	public void putNormalizedKey(KV<K, V> record, MemorySegment target, int offset, int numBytes) {
 		buffer1.reset();
 		try {
-			keyCoder.encode(record.getKey(), buffer1, Coder.Context.OUTER);
+			keyCoder.encode(record.getKey(), buffer1, Coder.Context.NESTED);
 		} catch (IOException e) {
 			throw new RuntimeException("Could not serializer " + record + " using coder " + coder + ": " + e);
 		}
