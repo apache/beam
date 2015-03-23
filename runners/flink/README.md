@@ -7,17 +7,7 @@ run Dataflow programs with Flink as an execution engine.
 # Getting Started
 
 To get started using Google Dataflow on top of Apache Flink, we need to install the
-latest version of Flink and Flink-Dataflow.
-
-## Install Flink ##
-
-To install the latest version of Flink, execute the following:
-
-    git clone https://github.com/apache/flink.git
-
-Then build and install Flink in your local Maven repository. This will take some minutes.
-
-    mvn clean install -DskipTests
+latest version of Flink-Dataflow.
 
 ## Install Flink-Dataflow ##
 
