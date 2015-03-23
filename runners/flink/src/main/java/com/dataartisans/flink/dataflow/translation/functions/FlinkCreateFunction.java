@@ -15,6 +15,7 @@
  */
 package com.dataartisans.flink.dataflow.translation.functions;
 
+import com.dataartisans.flink.dataflow.translation.types.VoidCoderTypeSerializer;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
@@ -40,10 +41,18 @@ public class FlinkCreateFunction<IN, OUT> implements FlatMapFunction<IN, OUT> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void flatMap(IN value, Collector<OUT> out) throws Exception {
+
 		for (byte[] element : elements) {
 			ByteArrayInputStream bai = new ByteArrayInputStream(element);
-			out.collect(coder.decode(bai, Coder.Context.OUTER));
+			OUT outValue = coder.decode(bai, Coder.Context.OUTER);
+			if (outValue == null) {
+				// TODO Flink doesn't allow null values in records
+				out.collect((OUT) VoidCoderTypeSerializer.VoidValue.INSTANCE);
+			} else {
+				out.collect(outValue);
+			}
 		}
 	}
 }
