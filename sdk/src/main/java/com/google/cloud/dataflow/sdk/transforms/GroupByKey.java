@@ -254,7 +254,7 @@ public class GroupByKey<K, V>
           KvCoder.of(keyCoder, outputValueCoder);
 
       GroupAlsoByWindowsDoFn<K, V, Iterable<V>, ?> fn =
-          GroupAlsoByWindowsDoFn.create(windowFn, inputIterableElementValueCoder);
+          GroupAlsoByWindowsDoFn.createForIterable(windowFn, inputIterableElementValueCoder);
 
       return input.apply(ParDo.of(fn)).setCoder(outputKvCoder);
     }

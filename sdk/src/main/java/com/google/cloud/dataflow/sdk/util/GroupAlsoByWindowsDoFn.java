@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.util.common.PeekingReiterator;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.Reiterator;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 
@@ -61,7 +62,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
    * @param inputCoder the input coder to use
    */
   public static <K, V, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W>
-  create(final WindowFn<?, W> windowFn, final Coder<V> inputCoder) {
+  createForIterable(final WindowFn<?, W> windowFn, final Coder<V> inputCoder) {
     if (windowFn instanceof NonMergingWindowFn) {
       return new GABWViaIteratorsDoFn<K, V, W>();
     } else {
@@ -78,14 +79,15 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
   }
 
   /**
-   * Create a {@link GroupAlsoByWindowsDoFn} using the specified combineFn.
+   * Construct a {@link GroupAlsoByWindowsDoFn} using the {@code combineFn} if available.
    */
-  private static <K, VI, VA, VO, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, VI, VO, W>
-  createCombine(
+  public static <K, VI, VO, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, VI, VO, W>
+  create(
       final WindowFn<?, W> windowFn,
-      final KeyedCombineFn<K, VI, VA, VO> combineFn,
+      final KeyedCombineFn<K, VI, ?, VO> combineFn,
       final Coder<K> keyCoder,
       final Coder<VI> inputCoder) {
+    Preconditions.checkNotNull(combineFn);
     return new GABWViaWindowSetDoFn<K, VI, VO, W>(windowFn) {
       @Override
       AbstractWindowSet<K, VI, VO, W> createWindowSet(
@@ -94,28 +96,9 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
           BatchActiveWindowManager<W> activeWindowManager) throws Exception {
         return CombiningWindowSet.create(
             key, windowFn, combineFn, keyCoder, inputCoder,
-            (DoFnProcessContext<?, KV<K, VO>>) (DoFnProcessContext) context, activeWindowManager);
+            context, activeWindowManager);
       }
     };
-  }
-
-  /**
-   * Construct a {@link GroupAlsoByWindowsDoFn} using the {@code combineFn} if available.
-   */
-  public static <K, VI, VO, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, VI, VO, W>
-  create(WindowFn<?, W> windowFn, KeyedCombineFn<K, VI, ?, VO> combineFn,
-      Coder<K> keyCoder, Coder<VI> inputCoder) {
-    if (combineFn == null) {
-      // Without combineFn, it should be the case that VO = Iterable<VI>, so this is safe
-      @SuppressWarnings("unchecked")
-      GroupAlsoByWindowsDoFn<K, VI, VO, W> fn =
-          (GroupAlsoByWindowsDoFn<K, VI, VO, W>) create(windowFn, inputCoder);
-      return fn;
-    } else {
-      GroupAlsoByWindowsDoFn<K, VI, VO, W> fn =
-          createCombine(windowFn, combineFn, keyCoder, inputCoder);
-      return fn;
-    }
   }
 
   private static class GABWViaIteratorsDoFn<K, V, W extends BoundedWindow>

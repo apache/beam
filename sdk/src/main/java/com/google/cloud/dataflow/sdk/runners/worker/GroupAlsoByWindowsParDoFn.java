@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
 import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
 
-import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -27,6 +26,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -67,7 +67,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler sampler /* unused */)
       throws Exception {
-    final Object windowFnObj;
+    Object windowFnObj;
     byte[] encodedWindowFn = getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN);
     if (encodedWindowFn.length == 0) {
       windowFnObj = new GlobalWindows();
@@ -79,7 +79,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
             "unexpected kind of WindowFn: " + windowFnObj.getClass().getName());
       }
     }
-    final WindowFn windowFn = (WindowFn) windowFnObj;
+    WindowFn windowFn = (WindowFn) windowFnObj;
 
     byte[] serializedCombineFn = getBytes(cloudUserFn, PropertyNames.COMBINE_FN, null);
     KeyedCombineFn combineFn;
@@ -103,12 +103,12 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
           "Expected WindowedValueCoder for inputCoder, got: "
           + inputCoder.getClass().getName());
     }
-    final Coder elemCoder = ((WindowedValueCoder) inputCoder).getValueCoder();
+    Coder elemCoder = ((WindowedValueCoder) inputCoder).getValueCoder();
     if (!(elemCoder instanceof KvCoder)) {
       throw new Exception(
           "Expected KvCoder for inputCoder, got: " + elemCoder.getClass().getName());
     }
-    final KvCoder kvCoder = (KvCoder) elemCoder;
+    KvCoder kvCoder = (KvCoder) elemCoder;
 
     boolean isStreamingPipeline = false;
     if (options instanceof StreamingOptions) {
@@ -116,78 +116,87 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
     }
 
     boolean isMergingOnly = true;
-    final KeyedCombineFn maybeMergingCombineFn;
+    KeyedCombineFn maybeMergingCombineFn;
     if (isMergingOnly && combineFn != null) {
-      class MergingKeyedCombineFn<K, VA> extends KeyedCombineFn<K, VA, List<VA>, VA> {
-        private static final long serialVersionUID = 0;
-        final KeyedCombineFn<K, ?, VA, ?> combineFn;
-        MergingKeyedCombineFn(KeyedCombineFn<K, ?, VA, ?> combineFn) {
-          this.combineFn = combineFn;
-        }
-        public List<VA> createAccumulator(K key) {
-          return new ArrayList<>();
-        }
-        public void addInput(K key, List<VA> accumulator, VA input) {
-          accumulator.add(input);
-          // TODO: Buffer more once we have compaction operation.
-          if (accumulator.size() > 1) {
-            VA all = combineFn.mergeAccumulators(key, accumulator);
-            accumulator.clear();
-            accumulator.add(all);
-          }
-        }
-        public List<VA> mergeAccumulators(K key, Iterable<List<VA>> accumulators) {
-          List<VA> singleton = new ArrayList<>();
-          singleton.add(combineFn.mergeAccumulators(key, Iterables.concat(accumulators)));
-          return singleton;
-        }
-        public VA extractOutput(K key, List<VA> accumulator) {
-          if (accumulator.size() == 0) {
-            return combineFn.createAccumulator(key);
-          } else {
-            return combineFn.mergeAccumulators(key, accumulator);
-          }
-        }
-      };
+
       maybeMergingCombineFn = new MergingKeyedCombineFn(combineFn);
     } else {
       maybeMergingCombineFn = combineFn;
     }
 
     DoFnInfoFactory fnFactory;
-    if (isStreamingPipeline) {
-      fnFactory = new DoFnInfoFactory() {
-        @Override
-        public DoFnInfo createDoFnInfo() {
-          return new DoFnInfo(
-              StreamingGroupAlsoByWindowsDoFn.create(
-                  windowFn,
-                  maybeMergingCombineFn,
-                  kvCoder.getKeyCoder(),
-                  kvCoder.getValueCoder()),
-              null);
-        }
-      };
-    } else {
-      //TODO: handle CombineFn in batch GroupAlsoByWindowsDoFn.
-      Preconditions.checkArgument(
-          combineFn == null,
-          "combineFn is expected to be null in batch, but it is " + combineFn);
-      fnFactory = new DoFnInfoFactory() {
-        @Override
-        public DoFnInfo createDoFnInfo() {
-          return new DoFnInfo(
-              GroupAlsoByWindowsDoFn.create(
-                  windowFn,
-                  maybeMergingCombineFn,
-                  kvCoder.getKeyCoder(),
-                  kvCoder.getValueCoder()),
-              null);
-        }
-      };
-    }
+    final DoFn groupAlsoByWindowsDoFn = getGroupAlsoByWindowsDoFn(
+        isStreamingPipeline, windowFn, kvCoder, maybeMergingCombineFn);
+
+    fnFactory = new DoFnInfoFactory() {
+      @Override
+      public DoFnInfo createDoFnInfo() {
+        return new DoFnInfo(groupAlsoByWindowsDoFn, null);
+      }
+    };
     return new GroupAlsoByWindowsParDoFn(
         options, fnFactory, stepName, executionContext, addCounterMutator);
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  private static DoFn getGroupAlsoByWindowsDoFn(
+      boolean isStreamingPipeline,
+      WindowFn windowFn,
+      KvCoder kvCoder,
+      KeyedCombineFn maybeMergingCombineFn) {
+    if (isStreamingPipeline) {
+      if (maybeMergingCombineFn == null) {
+        return StreamingGroupAlsoByWindowsDoFn.createForIterable(
+            windowFn, kvCoder.getValueCoder());
+      } else {
+        return StreamingGroupAlsoByWindowsDoFn.create(
+            windowFn, maybeMergingCombineFn, kvCoder.getKeyCoder(), kvCoder.getValueCoder());
+      }
+    } else {
+      if (maybeMergingCombineFn == null) {
+        return GroupAlsoByWindowsDoFn.createForIterable(
+            windowFn, kvCoder.getValueCoder());
+      } else {
+        return GroupAlsoByWindowsDoFn.create(
+            windowFn, maybeMergingCombineFn, kvCoder.getKeyCoder(), kvCoder.getValueCoder());
+      }
+    }
+  }
+
+  static class MergingKeyedCombineFn<K, VA> extends KeyedCombineFn<K, VA, List<VA>, VA> {
+    private static final long serialVersionUID = 0;
+    final KeyedCombineFn<K, ?, VA, ?> keyedCombineFn;
+    MergingKeyedCombineFn(KeyedCombineFn<K, ?, VA, ?> keyedCombineFn) {
+      this.keyedCombineFn = keyedCombineFn;
+    }
+    @Override
+    public List<VA> createAccumulator(K key) {
+      return new ArrayList<>();
+    }
+    @Override
+    public void addInput(K key, List<VA> accumulator, VA input) {
+      accumulator.add(input);
+      // TODO: Buffer more once we have compaction operation.
+      if (accumulator.size() > 1) {
+        VA all = keyedCombineFn.mergeAccumulators(key, accumulator);
+        accumulator.clear();
+        accumulator.add(all);
+      }
+    }
+    @Override
+    public List<VA> mergeAccumulators(K key, Iterable<List<VA>> accumulators) {
+      List<VA> singleton = new ArrayList<>();
+      singleton.add(keyedCombineFn.mergeAccumulators(key, Iterables.concat(accumulators)));
+      return singleton;
+    }
+    @Override
+    public VA extractOutput(K key, List<VA> accumulator) {
+      if (accumulator.size() == 0) {
+        return keyedCombineFn.createAccumulator(key);
+      } else {
+        return keyedCombineFn.mergeAccumulators(key, accumulator);
+      }
+    }
   }
 
   private GroupAlsoByWindowsParDoFn(

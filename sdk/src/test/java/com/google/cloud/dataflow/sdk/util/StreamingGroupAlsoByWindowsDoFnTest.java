@@ -325,23 +325,24 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
   private DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>, List>
       makeRunner(WindowFn<? super String, IntervalWindow> windowFn) {
-    return makeRunner(windowFn, null, StringUtf8Coder.of());
+    StreamingGroupAlsoByWindowsDoFn<String, String, Iterable<String>, IntervalWindow> fn =
+        StreamingGroupAlsoByWindowsDoFn.createForIterable(windowFn, StringUtf8Coder.of());
+    return makeRunner(windowFn, fn);
   }
 
   private DoFnRunner<TimerOrElement<KV<String, Long>>, KV<String, Long>, List> makeRunner(
         WindowFn<? super String, IntervalWindow> windowFn,
         KeyedCombineFn<String, Long, ?, Long> combineFn) {
-    return makeRunner(windowFn, combineFn, BigEndianLongCoder.of());
+    StreamingGroupAlsoByWindowsDoFn<String, Long, Long, IntervalWindow> fn =
+        StreamingGroupAlsoByWindowsDoFn.create(
+            windowFn, combineFn, StringUtf8Coder.of(), BigEndianLongCoder.of());
+
+    return makeRunner(windowFn, fn);
   }
 
   private <VI, VO> DoFnRunner<TimerOrElement<KV<String, VI>>, KV<String, VO>, List> makeRunner(
-        WindowFn<? super String, IntervalWindow> windowFn,
-        KeyedCombineFn<String, VI, ?, VO> combineFn,
-        Coder<VI> inputValueCoder) {
-    StreamingGroupAlsoByWindowsDoFn<String, VI, VO, IntervalWindow> fn =
-        StreamingGroupAlsoByWindowsDoFn.create(
-            windowFn, combineFn, StringUtf8Coder.of(), inputValueCoder);
-
+      WindowFn<? super String, IntervalWindow> windowFn,
+      StreamingGroupAlsoByWindowsDoFn<String, VI, VO, IntervalWindow> fn) {
     return
         DoFnRunner.createWithListOutputs(
             PipelineOptionsFactory.create(),
