@@ -449,7 +449,7 @@ public class FlinkTransformTranslators {
 			TypeInformation<OUT> typeInformation = context.getTypeInfo(transform.getOutput());
 			Iterable<OUT> elements = transform.getElements();
 
-			// we need to serializer the elements to byte arrays, since they might contain
+			// we need to serialize the elements to byte arrays, since they might contain
 			// elements that are not serializable by Java serialization. We deserialize them
 			// in the FlatMap function using the Coder.
 
