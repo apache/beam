@@ -209,7 +209,9 @@ public class FileBasedSourceTest {
       }
       nextOffset += offsetAdjustment;
       isAtSplitPoint = true;
-      currentValue = CoderUtils.decodeFromByteArray(StringUtf8Coder.of(), buf.toByteArray());
+      // When running on Windows, each line obtained from 'readNextLine()' will end with a '\r'
+      // since we use '\n' as the line boundary of the reader. So we trim it off here.
+      currentValue = CoderUtils.decodeFromByteArray(StringUtf8Coder.of(), buf.toByteArray()).trim();
       return true;
     }
 
