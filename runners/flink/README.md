@@ -56,3 +56,11 @@ Then let's run the included WordCount locally on your machine:
     mvn exec:exec -Dinput=kinglear.txt -Doutput=wordcounts.txt
 
 Congratulations, you have run your first Google Dataflow program on top of Apache Flink!
+
+
+# Running Dataflow on Flink on a cluster
+
+You can run your Dataflow program on a Apache Flink cluster as well. For more
+information, please visit the [Apache Flink Website](http://flink.apache.org) or
+contact the
+[Mailinglists](http://flink.apache.org/community.html#mailing-lists).
