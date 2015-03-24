@@ -164,7 +164,7 @@ public class DataflowWorkProgressUpdaterTest {
     workItem.setJobId(JOB_ID);
     workItem.setId(WORK_ID);
     workItem.setLeaseExpireTime(toCloudTime(new Instant(nowMillis + 1000)));
-    workItem.setReportStatusInterval(toCloudDuration(Duration.millis(500)));
+    workItem.setReportStatusInterval(toCloudDuration(Duration.millis(300)));
 
     progressUpdater = new DataflowWorkProgressUpdater(workItem, worker, workUnitClient, options);
   }
@@ -172,7 +172,7 @@ public class DataflowWorkProgressUpdaterTest {
   // TODO: Remove sleeps from this test by using a mock sleeper.  This
   // requires a redesign of the WorkProgressUpdater to use a Sleeper and
   // not use a ScheduledThreadExecutor which relies on real time passing.
-  @Test(timeout = 2000)
+  @Test(timeout = 1000)
   public void workProgressUpdaterUpdates() throws Exception {
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
         .thenReturn(generateServiceState(nowMillis + 2000, 1000, null));
@@ -180,8 +180,8 @@ public class DataflowWorkProgressUpdaterTest {
     setUpMetrics(3);
     setUpProgress(approximateProgressAtIndex(1L));
     progressUpdater.startReportingProgress();
-    // The initial update should be sent after leaseRemainingTime / 2.
-    verify(workUnitClient, timeout(600))
+    // The initial update should be sent after 300.
+    verify(workUnitClient, timeout(400))
         .reportWorkItemStatus(argThat(
             new ExpectedDataflowWorkItemStatus().withCounters(2).withMetrics(3).withProgress(
                 approximateProgressAtIndex(1L))));
@@ -198,15 +198,15 @@ public class DataflowWorkProgressUpdaterTest {
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
         .thenReturn(generateServiceState(nowMillis + 2000, 1000, positionAtIndex(3L)))
         .thenReturn(generateServiceState(nowMillis + 3000, 2000, null))
+        .thenReturn(generateServiceState(nowMillis + 1000, 3000, null))
         .thenReturn(generateServiceState(nowMillis + 4000, 3000, null));
 
     setUpCounters(3);
     setUpMetrics(2);
     setUpProgress(approximateProgressAtIndex(1L));
     progressUpdater.startReportingProgress();
-    // The initial update should be sent after
-    // leaseRemainingTime (1000) / 2 = 500.
-    verify(workUnitClient, timeout(600))
+    // The initial update should be sent after 300.
+    verify(workUnitClient, timeout(400))
         .reportWorkItemStatus(argThat(
             new ExpectedDataflowWorkItemStatus().withCounters(3).withMetrics(2).withProgress(
                 approximateProgressAtIndex(1L)).withReportIndex(1L)));
@@ -214,7 +214,7 @@ public class DataflowWorkProgressUpdaterTest {
     setUpCounters(5);
     setUpMetrics(6);
     setUpProgress(approximateProgressAtIndex(2L));
-    // The second update should be sent after one second (2000 / 2).
+    // The second update should be sent after one second as requested.
     verify(workUnitClient, timeout(1100))
         .reportWorkItemStatus(argThat(
             new ExpectedDataflowWorkItemStatus()
@@ -229,19 +229,28 @@ public class DataflowWorkProgressUpdaterTest {
 
     setUpProgress(approximateProgressAtIndex(3L));
 
-    // The third update should be sent after one and half seconds (3000 / 2).
-    verify(workUnitClient, timeout(1600))
+    // The third update should be sent after 2 seconds.
+    verify(workUnitClient, timeout(2100))
         .reportWorkItemStatus(argThat(
             new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(3L))
                 .withReportIndex(3L)));
 
+    setUpProgress(approximateProgressAtIndex(4L));
+
+    // The forth update should not respect the suggested report interval.
+    // It should be sent before the lease expires
+    verify(workUnitClient, timeout(900))
+        .reportWorkItemStatus(argThat(
+            new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(4L))
+                .withReportIndex(4L)));
+
     progressUpdater.stopReportingProgress();
 
-    assertEquals(4L, progressUpdater.getNextReportIndex());
+    assertEquals(5L, progressUpdater.getNextReportIndex());
   }
 
   // Verifies that a last update is sent when there is an unacknowledged split request.
-  @Test(timeout = 3000)
+  @Test(timeout = 2000)
   public void workProgressUpdaterLastUpdate() throws Exception {
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
         .thenReturn(generateServiceState(nowMillis + 2000, 1000, positionAtIndex(2L)))
@@ -249,8 +258,8 @@ public class DataflowWorkProgressUpdaterTest {
 
     setUpProgress(approximateProgressAtIndex(1L));
     progressUpdater.startReportingProgress();
-    // The initial update should be sent after leaseRemainingTime / 2 = 500 msec.
-    Thread.sleep(600);
+    // The initial update should be sent after 300 msec.
+    Thread.sleep(200);
     verify(workUnitClient, timeout(200))
         .reportWorkItemStatus(argThat(
             new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(1L))));
@@ -262,7 +271,7 @@ public class DataflowWorkProgressUpdaterTest {
     assertEquals(positionAtIndex(2L), toCloudPosition(splitResult.getAcceptedPosition()));
 
     setUpProgress(approximateProgressAtIndex(2L));
-    // The second update should be sent after one second (2000 / 2).
+    // The second update should be sent after one second.
 
     // Not enough time for an update so the latest split result is not acknowledged.
     Thread.sleep(200);

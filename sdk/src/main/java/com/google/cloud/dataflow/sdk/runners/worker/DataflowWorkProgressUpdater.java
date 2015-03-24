@@ -77,6 +77,11 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   }
 
   @Override
+  protected long getWorkUnitSuggestedReportingInterval(){
+    return fromCloudDuration(workItem.getReportStatusInterval()).getMillis();
+  }
+
+  @Override
   protected void reportProgressHelper() throws Exception {
     WorkItemStatus status = buildStatus(workItem, false/*completed*/, worker.getOutputCounters(),
         worker.getOutputMetrics(), options, worker.getWorkerProgress(), dynamicSplitResultToReport,
@@ -91,7 +96,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       nextReportIndex++;
 
       progressReportIntervalMs = nextProgressReportInterval(
-          fromCloudDuration(workItem.getReportStatusInterval()).getMillis(),
+          getWorkUnitSuggestedReportingInterval(),
           leaseRemainingTime(getLeaseExpirationTimestamp(result)));
 
       ApproximateProgress suggestedStopPoint = result.getSuggestedStopPoint();

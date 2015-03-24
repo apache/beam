@@ -94,11 +94,11 @@ public abstract class WorkProgressUpdater {
    * Starts sending work progress updates to the worker service.
    */
   public void startReportingProgress() {
-    // Send the initial work progress report half-way through the lease
-    // expiration. Subsequent intervals adapt to hints from the service.
+    // The initial work progress report is sent according to hints from the service if any.
+    // Otherwise the default is half-way through the lease.
     long leaseRemainingTime = leaseRemainingTime(getWorkUnitLeaseExpirationTimestamp());
     progressReportIntervalMs =
-        nextProgressReportInterval(leaseRemainingTime / 2, leaseRemainingTime);
+        nextProgressReportInterval(getWorkUnitSuggestedReportingInterval(), leaseRemainingTime);
     requestedLeaseDurationMs = DEFAULT_LEASE_DURATION_MILLIS;
 
     LOG.debug("Started reporting progress for work item: {}", workString());
@@ -223,6 +223,13 @@ public abstract class WorkProgressUpdater {
    * Returns the current work item's lease expiration timestamp.
    */
   protected abstract long getWorkUnitLeaseExpirationTimestamp();
+
+  /**
+   * Returns the current work item's suggested progress Reporting interval.
+   */
+  protected long getWorkUnitSuggestedReportingInterval() {
+    return getWorkUnitLeaseExpirationTimestamp() / 2;
+  }
 
   /**
    * Returns a string representation of the work item whose progress
