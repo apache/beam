@@ -19,7 +19,14 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
+
+import javax.annotation.Nullable;
 
 /**
  * Utilities for working with with {@link Class Classes} and {@link Method Methods}.
@@ -54,7 +61,7 @@ public class ReflectHelpers {
 
   /** A {@link Function} with returns the classes name. */
   public static final Function<Class<?>, String> CLASS_NAME =
-      new Function<Class<?>, String>(){
+      new Function<Class<?>, String>() {
     @Override
     public String apply(Class<?> input) {
       return input.getName();
@@ -63,10 +70,74 @@ public class ReflectHelpers {
 
   /** A {@link Function} with returns the classes name. */
   public static final Function<Class<?>, String> CLASS_SIMPLE_NAME =
-      new Function<Class<?>, String>(){
+      new Function<Class<?>, String>() {
     @Override
     public String apply(Class<?> input) {
       return input.getSimpleName();
+    }
+  };
+
+  /** A {@link Function} which formats types. */
+  public static final Function<Type, String> TYPE_SIMPLE_DESCRIPTION =
+      new Function<Type, String>() {
+    @Override
+    @Nullable
+    public String apply(@Nullable Type input) {
+      StringBuilder builder = new StringBuilder();
+      format(builder, input);
+      return builder.toString();
+    }
+
+    private void format(StringBuilder builder, Type t) {
+      if (t instanceof Class) {
+        formatClass(builder, (Class<?>) t);
+      } else if (t instanceof TypeVariable) {
+        formatTypeVariable(builder, (TypeVariable<?>) t);
+      } else if (t instanceof WildcardType) {
+        formatWildcardType(builder, (WildcardType) t);
+      } else if (t instanceof ParameterizedType) {
+        formatParameterizedType(builder, (ParameterizedType) t);
+      } else if (t instanceof GenericArrayType) {
+        formatGenericArrayType(builder, (GenericArrayType) t);
+      } else {
+        builder.append(t.toString());
+      }
+    }
+
+    private void formatClass(StringBuilder builder, Class<?> clazz) {
+      builder.append(clazz.getSimpleName());
+    }
+
+    private void formatTypeVariable(StringBuilder builder, TypeVariable<?> t) {
+      builder.append(t.getName());
+    }
+
+    private void formatWildcardType(StringBuilder builder, WildcardType t) {
+      builder.append("?");
+      for (Type lowerBound : t.getLowerBounds()) {
+        builder.append(" super ");
+        format(builder, lowerBound);
+      }
+      for (Type upperBound : t.getUpperBounds()) {
+        if (!Object.class.equals(upperBound)) {
+          builder.append(" extends ");
+          format(builder, upperBound);
+        }
+      }
+    }
+
+    private void formatParameterizedType(StringBuilder builder, ParameterizedType t) {
+      format(builder, t.getRawType());
+      builder.append('<');
+      COMMA_SEPARATOR.appendTo(builder,
+          FluentIterable.of(t.getActualTypeArguments())
+          .transform(TYPE_SIMPLE_DESCRIPTION));
+      builder.append('>');
+    }
+
+    private void formatGenericArrayType(StringBuilder builder, GenericArrayType t) {
+      format(builder, t.getGenericComponentType());
+      builder.append("[]");
     }
   };
 }

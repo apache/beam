@@ -17,11 +17,14 @@ package com.google.cloud.dataflow.sdk.util.common;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.reflect.TypeToken;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tests for {@link ReflectHelpers}.
@@ -73,4 +76,61 @@ public class ReflectHelpersTest {
   void oneArg(int n) {}
   @SuppressWarnings("unused")
   void twoArg(String foo, List<Integer> bar) {}
+
+  @Test
+  public void testTypeFormatterOnClasses() throws Exception {
+    assertEquals("Integer",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer.class));
+    assertEquals("int",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int.class));
+    assertEquals("Map",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Map.class));
+    assertEquals(getClass().getSimpleName(),
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(getClass()));
+  }
+
+  @Test
+  public void testTypeFormatterOnArrays() throws Exception {
+    assertEquals("Integer[]",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(Integer[].class));
+    assertEquals("int[]",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(int[].class));
+  }
+
+  @Test
+  public void testTypeFormatterWithGenerics() throws Exception {
+    assertEquals("Map<Integer, String>",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
+            new TypeToken<Map<Integer, String>>() {
+              private static final long serialVersionUID = 0;
+            }.getType()));
+    assertEquals("Map<?, String>",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
+            new TypeToken<Map<?, String>>() {
+              private static final long serialVersionUID = 0;
+            }.getType()));
+    assertEquals("Map<? extends Integer, String>",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
+            new TypeToken<Map<? extends Integer, String>>() {
+              private static final long serialVersionUID = 0;
+            }.getType()));
+  }
+
+  @Test
+  public <I> void testTypeFormatterWithWildcards() throws Exception {
+    assertEquals("Map<I, I>",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
+            new TypeToken<Map<I, I>>() {
+              private static final long serialVersionUID = 0;
+            }.getType()));
+  }
+
+  @Test
+  public <I, O> void testTypeFormatterWithMultipleWildcards() throws Exception {
+    assertEquals("Map<? super I, ? extends O>",
+        ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
+            new TypeToken<Map<? super I, ? extends O>>() {
+              private static final long serialVersionUID = 0;
+            }.getType()));
+  }
 }
