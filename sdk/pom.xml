@@ -213,7 +213,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-dataflow</artifactId>
-      <version>v1beta3-rev7-1.19.1</version>
+      <version>v1beta3-rev8-1.19.1</version>
       <exclusions>
         <!-- Exclude an old version of guava which is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
