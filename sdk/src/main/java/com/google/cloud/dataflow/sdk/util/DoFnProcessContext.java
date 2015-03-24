@@ -25,6 +25,8 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresKeyedState;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -32,6 +34,7 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 import java.util.Collection;
+import java.util.Iterator;
 
 /**
  * A concrete implementation of {@link DoFn<I, O>.ProcessContext} used for running
@@ -66,6 +69,29 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
   }
 
   @Override
+  public <T> T sideInput(PCollectionView<T> view) {
+    Iterator<? extends BoundedWindow> windowIter = windows().iterator();
+    BoundedWindow window;
+    if (!windowIter.hasNext()) {
+      if (context.windowFn instanceof GlobalWindows) {
+        // TODO: Remove this once GroupByKeyOnly no longer outputs elements
+        // without windows
+        window = GlobalWindow.INSTANCE;
+      } else {
+        throw new IllegalStateException(
+            "sideInput called when main input element is not in any windows");
+      }
+    } else {
+      window = windowIter.next();
+      if (windowIter.hasNext()) {
+        throw new IllegalStateException(
+            "sideInput called when main input element is in multiple windows");
+      }
+    }
+    return context.sideInput(view, window);
+  }
+
+  @Override
   public KeyedState keyedState() {
     if (!(fn instanceof RequiresKeyedState)
         || !equivalentToKV(element())) {
@@ -74,11 +100,6 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
     }
 
     return context.stepContext;
-  }
-
-  @Override
-  public <T> T sideInput(PCollectionView<T> view) {
-    return context.sideInput(view);
   }
 
   @Override

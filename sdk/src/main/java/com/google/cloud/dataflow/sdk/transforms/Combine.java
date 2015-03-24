@@ -59,14 +59,15 @@ public class Combine {
   /**
    * Returns a {@link Globally Combine.Globally} {@code PTransform}
    * that uses the given {@code SerializableFunction} to combine all
-   * the elements of the input {@code PCollection} into a singleton
-   * {@code PCollection} value.  The types of the input elements and the
-   * output value must be the same.
+   * the elements in each window of the input {@code PCollection} into a
+   * single value in the output {@code PCollection}.  The types of the input
+   * elements and the output elements must be the same.
    *
-   * <p>If the input {@code PCollection} is empty, the ouput will contain a the
-   * default value of the combining function if the input is windowed into
-   * the {@link GlobalWindows}; otherwise, the output will be empty.  Note: this
-   * behavior is subject to change.
+   * <p> If the input {@code PCollection} is windowed into {@link GlobalWindows},
+   * a default value in the {@link GlobalWindow} will be output if the input
+   * {@code PCollection} is empty.  To use this with inputs with other windowing,
+   * either {@link Globally#withoutDefaults} or {@link Globally#asSingletonView}
+   * must be called.
    *
    * <p> See {@link Globally Combine.Globally} for more information.
    */
@@ -77,21 +78,22 @@ public class Combine {
 
   /**
    * Returns a {@link Globally Combine.Globally} {@code PTransform}
-   * that uses the given {@code CombineFn} to combine all the elements
-   * of the input {@code PCollection} into a singleton {@code PCollection}
-   * value.  The types of the input elements and the output value can
-   * differ.
+   * that uses the given {@code SerializableFunction} to combine all
+   * the elements in each window of the input {@code PCollection} into a
+   * single value in the output {@code PCollection}.  The types of the input
+   * elements and the output elements can differ
    *
-   * If the input {@code PCollection} is empty, the ouput will contain a the
-   * default value of the combining function if the input is windowed into
-   * the {@link GlobalWindows}; otherwise, the output will be empty.  Note: this
-   * behavior is subject to change.
+   * <p> If the input {@code PCollection} is windowed into {@link GlobalWindows},
+   * a default value in the {@link GlobalWindow} will be output if the input
+   * {@code PCollection} is empty.  To use this with inputs with other windowing,
+   * either {@link Globally#withoutDefaults} or {@link Globally#asSingletonView}
+   * must be called.
    *
    * <p> See {@link Globally Combine.Globally} for more information.
    */
   public static <VI, VO> Globally<VI, VO> globally(
       CombineFn<? super VI, ?, VO> fn) {
-    return new Globally<>(fn);
+    return new Globally<>(fn, true);
   }
 
   /**
@@ -1053,10 +1055,9 @@ public class Combine {
 
   /**
    * {@code Combine.Globally<VI, VO>} takes a {@code PCollection<VI>}
-   * and returns a {@code PCollection<VO>} whose single element is the result of
-   * combining all the elements of the input {@code PCollection},
-   * using a specified}
-   * {@link CombineFn CombineFn&lt;VI, VA, VO&gt;}.  It is common
+   * and returns a {@code PCollection<VO>} whose elements are the result of
+   * combining all the elements in each window of the input {@code PCollection},
+   * using a specified {@link CombineFn CombineFn<VI, VA, VO>}.  It is common
    * for {@code VI == VO}, but not required.  Common combining
    * functions include sums, mins, maxes, and averages of numbers,
    * conjunctions and disjunctions of booleans, statistical
@@ -1074,6 +1075,11 @@ public class Combine {
    * intermediate results combined further, in an arbitrary tree
    * reduction pattern, until a single result value is produced.
    *
+   * <p> If the input {@code PCollection} is windowed into {@link GlobalWindows},
+   * a default value in the {@link GlobalWindow} will be output if the input
+   * {@code PCollection} is empty.  To use this with inputs with other windowing,
+   * either {@link #withoutDefaults} or {@link #asSingletonView} must be called.
+   *
    * <p> By default, the {@code Coder} of the output {@code PValue<VO>}
    * is inferred from the concrete type of the
    * {@code CombineFn<VI, VA, VO>}'s output type {@code VO}.
@@ -1090,9 +1096,36 @@ public class Combine {
       extends PTransform<PCollection<VI>, PCollection<VO>> {
 
     private final CombineFn<? super VI, ?, VO> fn;
+    private final boolean insertDefault;
 
-    private Globally(CombineFn<? super VI, ?, VO> fn) {
+    private Globally(CombineFn<? super VI, ?, VO> fn, boolean insertDefault) {
       this.fn = fn;
+      this.insertDefault = insertDefault;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Globally<VI, VO> withName(String name) {
+      return (Globally<VI, VO>) super.withName(name);
+    }
+
+    /**
+     * Returns a {@link PTransform} that produces a {@code PCollectionView}
+     * whose elements are the result of combining elements per-window in
+     * the input {@code PCollection}.  If a value is requested from the view
+     * for a window that is not present, the result of calling the {@code CombineFn}
+     * on empty input will returned.
+     */
+    public GloballyAsSingletonView<VI, VO> asSingletonView() {
+      return new GloballyAsSingletonView<>(fn, insertDefault);
+    }
+
+    /**
+     * Returns a {@link PTransform} identical to this, but that does not attempt to
+     * provide a default value in the case of empty input.
+     */
+    public Globally<VI, VO> withoutDefaults() {
+      return new Globally<>(fn, false);
     }
 
     @Override
@@ -1103,7 +1136,13 @@ public class Combine {
           .apply(Combine.<Void, VI, VO>perKey(fn.<Void>asKeyedFn()))
           .apply(Values.<VO>create());
 
-      if (input.getWindowFn().isCompatible(new GlobalWindows())) {
+      if (insertDefault) {
+        if (!output.getWindowFn().isCompatible(new GlobalWindows())) {
+          throw new IllegalStateException(
+              "Attempted to add default value to PCollection not windowed by GlobalWindows. "
+              + "Instead, use Combine.globally().withoutDefaults() or "
+              + "Combine.globally().asSingletonView().");
+        }
         return insertDefaultValueIfEmpty(output);
       } else {
         return output;
@@ -1117,15 +1156,15 @@ public class Combine {
           .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
           .apply(ParDo.of(
               new DoFn<Void, VO>() {
-                  @Override
-                  public void processElement(DoFn<Void, VO>.ProcessContext c) {
-                    Iterator<VO> combined = c.sideInput(maybeEmptyView).iterator();
-                    if (combined.hasNext()) {
-                      c.output(combined.next());
-                    } else {
-                      c.output(fn.apply(Collections.<VI>emptyList()));
-                    }
+                @Override
+                public void processElement(DoFn<Void, VO>.ProcessContext c) {
+                  Iterator<VO> combined = c.sideInput(maybeEmptyView).iterator();
+                  if (combined.hasNext()) {
+                    c.output(combined.next());
+                  } else {
+                    c.output(fn.apply(Collections.<VI>emptyList()));
                   }
+                }
               }).withSideInputs(maybeEmptyView))
           .setCoder(maybeEmpty.getCoder());
     }
@@ -1133,6 +1172,81 @@ public class Combine {
     @Override
     protected String getKindString() {
       return "Combine.Globally";
+    }
+  }
+
+  /**
+   * {@code Combine.GloballyAsSingletonView<VI, VO>} takes a {@code PCollection<VI>}
+   * and returns a {@code PCollectionView<VO>} whose elements are the result of
+   * combining all the elements in each window of the input {@code PCollection},
+   * using a specified {@link CombineFn CombineFn<VI, VA, VO>}. It is common for
+   * {@code VI == VO}, but not required. Common combining
+   * functions include sums, mins, maxes, and averages of numbers,
+   * conjunctions and disjunctions of booleans, statistical
+   * aggregations, etc.
+   *
+   * <p> Example of use:
+   * <pre> {@code
+   * PCollection<Integer> pc = ...;
+   * PCollection<Integer> sum = pc.apply(
+   *     Combine.globally(new Sum.SumIntegerFn()));
+   * } </pre>
+   *
+   * <p> Combining can happen in parallel, with different subsets of the
+   * input {@code PCollection} being combined separately, and their
+   * intermediate results combined further, in an arbitrary tree
+   * reduction pattern, until a single result value is produced.
+   *
+   * <p> If a value is requested from the view for a window that is not present
+   * and {@code insertDefault} is true, the result of calling the {@code CombineFn}
+   * on empty input will returned. If {@code insertDefault} is false, an
+   * exception will be thrown instead.
+   *
+   * <p> By default, the {@code Coder} of the output {@code PValue<VO>}
+   * is inferred from the concrete type of the
+   * {@code CombineFn<VI, VA, VO>}'s output type {@code VO}.
+   *
+   * <p> See also {@link #perKey}/{@link PerKey Combine.PerKey} and
+   * {@link #groupedValues}/{@link GroupedValues Combine.GroupedValues},
+   * which are useful for combining values associated with each key in
+   * a {@code PCollection} of {@code KV}s.
+   *
+   * @param <VI> type of input values
+   * @param <VO> type of output values
+   */
+  public static class GloballyAsSingletonView<VI, VO>
+      extends PTransform<PCollection<VI>, PCollectionView<VO>> {
+
+    private final CombineFn<? super VI, ?, VO> fn;
+    private final boolean insertDefault;
+
+    private GloballyAsSingletonView(CombineFn<? super VI, ?, VO> fn, boolean insertDefault) {
+      this.fn = fn;
+      this.insertDefault = insertDefault;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public GloballyAsSingletonView<VI, VO> withName(String name) {
+      return (GloballyAsSingletonView<VI, VO>) super.withName(name);
+    }
+
+    @Override
+    public PCollectionView<VO> apply(PCollection<VI> input) {
+      PCollection<VO> combined = input
+          .apply(Combine.globally(fn).withoutDefaults());
+      if (insertDefault) {
+        return combined
+            .apply(View.<VO>asSingleton().withDefaultValue(
+                fn.apply(Collections.<VI>emptyList())));
+      } else {
+        return combined.apply(View.<VO>asSingleton());
+      }
+    }
+
+    @Override
+    protected String getKindString() {
+      return "Combine.GloballyAsSingletonView";
     }
   }
 

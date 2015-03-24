@@ -45,6 +45,7 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
@@ -204,7 +205,7 @@ public class CombineTest {
 
     PCollection<Integer> sum = input
         .apply(Values.<Integer>create())
-        .apply(Combine.globally(new SumInts()));
+        .apply(Combine.globally(new SumInts()).withoutDefaults());
 
     PCollection<KV<String, Integer>> sumPerKey = input
         .apply(Combine.<String, Integer>perKey(new SumInts()));
@@ -231,7 +232,7 @@ public class CombineTest {
 
     PCollection<Integer> sum = input
         .apply(Values.<Integer>create())
-        .apply(Combine.globally(new SumInts()));
+        .apply(Combine.globally(new SumInts()).withoutDefaults());
 
     PCollection<KV<String, Integer>> sumPerKey = input
         .apply(Combine.<String, Integer>perKey(new SumInts()));
@@ -252,7 +253,7 @@ public class CombineTest {
     PCollection<Double> mean = p
         .apply(Create.<Integer>of()).setCoder(BigEndianIntegerCoder.of())
         .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(1))))
-        .apply(Combine.globally(new MeanInts()));
+        .apply(Combine.globally(new MeanInts()).withoutDefaults());
 
     DataflowAssert.that(mean).containsInAnyOrder();
 
@@ -385,6 +386,27 @@ public class CombineTest {
     public Integer apply(Integer left, Integer right) {
       return (left == null ? 2 : left) * (right == null ? 2 : right);
     }
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testCombineGloballyAsSingletonView() {
+    Pipeline p = TestPipeline.create();
+    final PCollectionView<Integer> view = p
+        .apply(Create.<Integer>of())
+        .setCoder(BigEndianIntegerCoder.of())
+        .apply(Sum.integersGlobally().asSingletonView());
+
+    PCollection<Integer> output = p
+        .apply(Create.of((Void) null))
+        .apply(ParDo.of(new DoFn<Void, Integer>() {
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    c.output(c.sideInput(view));
+                  }
+                }));
+
+    DataflowAssert.thatSingleton(output).isEqualTo(0);
   }
 
   ////////////////////////////////////////////////////////////////////////////
