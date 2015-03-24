@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
+
 import com.google.api.services.dataflow.model.FlattenInstruction;
 import com.google.api.services.dataflow.model.InstructionInput;
 import com.google.api.services.dataflow.model.InstructionOutput;
@@ -28,9 +30,12 @@ import com.google.api.services.dataflow.model.WriteInstruction;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
@@ -188,16 +193,62 @@ public class MapTaskExecutorFactory {
     OutputReceiver[] receivers =
         createOutputReceivers(instruction, counterPrefix, addCounterMutator, stateSampler, 1);
 
-    PartialGroupByKeyOperation operation =
-        new PartialGroupByKeyOperation(instruction.getSystemName(),
-            new WindowingCoderGroupingKeyCreator(keyCoder),
-            new CoderSizeEstimator(WindowedValue.getValueOnlyCoder(keyCoder)),
-            new CoderSizeEstimator(valueCoder), 0.001/*sizeEstimatorSampleRate*/, PairInfo.create(),
-            receivers, counterPrefix, addCounterMutator, stateSampler);
+    PartialGroupByKeyOperation.Combiner valueCombiner = createValueCombiner(pgbk);
+
+    PartialGroupByKeyOperation operation = new PartialGroupByKeyOperation(
+        instruction.getSystemName(),
+        new WindowingCoderGroupingKeyCreator(keyCoder),
+        new CoderSizeEstimator(WindowedValue.getValueOnlyCoder(keyCoder)),
+        new CoderSizeEstimator(valueCoder), 0.001 /*sizeEstimatorSampleRate*/, valueCombiner,
+        PairInfo.create(), receivers, counterPrefix, addCounterMutator, stateSampler);
 
     attachInput(operation, pgbk.getInput(), priorOperations);
 
     return operation;
+  }
+
+  static ValueCombiner createValueCombiner(PartialGroupByKeyInstruction pgbk) throws Exception {
+    if (pgbk.getValueCombiningFn() == null) {
+      return null;
+    }
+
+    Object deserializedFn = SerializableUtils.deserializeFromByteArray(
+        getBytes(CloudObject.fromSpec(pgbk.getValueCombiningFn()), PropertyNames.SERIALIZED_FN),
+        "serialized combine fn");
+    return new ValueCombiner((Combine.KeyedCombineFn) deserializedFn);
+  }
+
+  /**
+   * Implements PGBKOp.Combiner via Combine.KeyedCombineFn.
+   */
+  public static class ValueCombiner<K, VI, VA, VO>
+      implements PartialGroupByKeyOperation.Combiner<K, VI, VA, VO> {
+    private final Combine.KeyedCombineFn<K, VI, VA, VO> combineFn;
+
+    private ValueCombiner(Combine.KeyedCombineFn<K, VI, VA, VO> combineFn) {
+      this.combineFn = combineFn;
+    }
+
+    @Override
+    public VA createAccumulator(K key) {
+      return this.combineFn.createAccumulator(key);
+    }
+
+    @Override
+    public VA add(K key, VA accumulator, VI value) {
+      this.combineFn.addInput(key, accumulator, value);
+      return accumulator;
+    }
+
+    @Override
+    public VA merge(K key, Iterable<VA> accumulators) {
+      return this.combineFn.mergeAccumulators(key, accumulators);
+    }
+
+    @Override
+    public VO extract(K key, VA accumulator) {
+      return this.combineFn.extractOutput(key, accumulator);
+    }
   }
 
   /**

@@ -128,6 +128,89 @@ public class PartialGroupByKeyOperationTest {
         counterSet);
   }
 
+  @Test
+  public void testRunPartialGroupByKeyOperationWithCombiner() throws Exception {
+    Coder keyCoder = StringUtf8Coder.of();
+    Coder valueCoder = BigEndianIntegerCoder.of();
+
+    CounterSet counterSet = new CounterSet();
+    String counterPrefix = "test-";
+    StateSampler stateSampler = new StateSampler(
+        counterPrefix, counterSet.getAddCounterMutator());
+    TestReceiver receiver =
+        new TestReceiver(new ElementByteSizeObservableCoder(
+                             WindowedValue.getValueOnlyCoder(KvCoder.of(keyCoder, valueCoder))),
+            counterSet, counterPrefix);
+
+    Combiner<WindowedValue<String>, Integer, Integer, Integer> combineFn =
+        new Combiner<WindowedValue<String>, Integer, Integer, Integer>() {
+          public Integer createAccumulator(WindowedValue<String> key) {
+            return 0;
+          }
+          public Integer add(WindowedValue<String> key, Integer accumulator, Integer value) {
+            return accumulator + value;
+          }
+          public Integer merge(WindowedValue<String> key, Iterable<Integer> accumulators) {
+            Integer sum = 0;
+            for (Integer part : accumulators) {
+              sum += part;
+            }
+            return sum;
+          }
+          public Integer extract(WindowedValue<String> key, Integer accumulator) {
+            return accumulator;
+          }
+        };
+
+    PartialGroupByKeyOperation pgbkOperation =
+        new PartialGroupByKeyOperation(
+            new WindowingCoderGroupingKeyCreator(keyCoder),
+            new CoderSizeEstimator(WindowedValue.getValueOnlyCoder(keyCoder)),
+            new CoderSizeEstimator(valueCoder),
+            combineFn,
+            PairInfo.create(),
+            receiver,
+            counterPrefix,
+            counterSet.getAddCounterMutator(),
+            stateSampler);
+
+    pgbkOperation.start();
+
+    pgbkOperation.process(WindowedValue.valueInGlobalWindow(KV.of("hi", 4)));
+    pgbkOperation.process(WindowedValue.valueInGlobalWindow(KV.of("there", 5)));
+    pgbkOperation.process(WindowedValue.valueInGlobalWindow(KV.of("hi", 6)));
+    pgbkOperation.process(WindowedValue.valueInGlobalWindow(KV.of("joe", 7)));
+    pgbkOperation.process(WindowedValue.valueInGlobalWindow(KV.of("there", 8)));
+    pgbkOperation.process(WindowedValue.valueInGlobalWindow(KV.of("hi", 9)));
+
+    pgbkOperation.finish();
+
+    assertThat(receiver.outputElems,
+               IsIterableContainingInAnyOrder.<Object>containsInAnyOrder(
+                   WindowedValue.valueInGlobalWindow(KV.of("hi", 19)),
+                   WindowedValue.valueInGlobalWindow(KV.of("there", 13)),
+                   WindowedValue.valueInGlobalWindow(KV.of("joe", 7))));
+
+    // Exact counter values depend on size of encoded data.  If encoding
+    // changes, then these expected counters should change to match.
+    assertEquals(
+        new CounterSet(
+            Counter.longs("test-PartialGroupByKeyOperation-start-msecs", SUM)
+                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                    "test-PartialGroupByKeyOperation-start-msecs")).getAggregate(false)),
+            Counter.longs("test-PartialGroupByKeyOperation-process-msecs", SUM)
+                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                    "test-PartialGroupByKeyOperation-process-msecs")).getAggregate(false)),
+            Counter.longs("test-PartialGroupByKeyOperation-finish-msecs", SUM)
+                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                    "test-PartialGroupByKeyOperation-finish-msecs")).getAggregate(false)),
+            Counter.longs("test_receiver_out-ElementCount", SUM)
+                .resetToValue(3L),
+            Counter.longs("test_receiver_out-MeanByteCount", MEAN)
+                .resetToValue(3, 25L)),
+        counterSet);
+  }
+
   // TODO: Add tests about early flushing when the table fills.
 
   ////////////////////////////////////////////////////////////////////////////

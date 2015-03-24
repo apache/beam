@@ -133,43 +133,79 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
       String counterPrefix,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler) {
-    super(operationName, receivers, counterPrefix, addCounterMutator, stateSampler);
-    groupingTable = new BufferingGroupingTable(
-        DEFAULT_MAX_GROUPING_TABLE_BYTES, groupingKeyCreator,
-        pairInfo, keySizeEstimator, valueSizeEstimator);
+    this(operationName, groupingKeyCreator, keySizeEstimator, valueSizeEstimator, null, pairInfo,
+        receivers, counterPrefix, addCounterMutator, stateSampler);
   }
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public PartialGroupByKeyOperation(
+      String operationName,
+      GroupingKeyCreator<?> groupingKeyCreator,
+      SizeEstimator<?> keySizeEstimator, SizeEstimator<?> valueSizeEstimator,
+      Combiner combineFn,
+      PairInfo pairInfo,
+      OutputReceiver[] receivers,
+      String counterPrefix,
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler) {
+    super(operationName, receivers, counterPrefix, addCounterMutator, stateSampler);
+    if (combineFn == null) {
+      groupingTable = new BufferingGroupingTable(DEFAULT_MAX_GROUPING_TABLE_BYTES,
+          groupingKeyCreator, pairInfo, keySizeEstimator, valueSizeEstimator);
+    } else {
+      groupingTable = new CombiningGroupingTable(DEFAULT_MAX_GROUPING_TABLE_BYTES,
+          groupingKeyCreator, pairInfo, combineFn, keySizeEstimator, valueSizeEstimator);
+    }
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public PartialGroupByKeyOperation(
       String operationName,
       GroupingKeyCreator<?> groupingKeyCreator,
       SizeEstimator<?> keySizeEstimator, SizeEstimator<?> valueSizeEstimator,
       double sizeEstimatorSampleRate,
+      Combiner combineFn,
       PairInfo pairInfo,
       OutputReceiver[] receivers,
       String counterPrefix,
-      CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) {
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler) {
     this(operationName, groupingKeyCreator,
         new SamplingSizeEstimator(keySizeEstimator, sizeEstimatorSampleRate, 1.0),
-        new SamplingSizeEstimator(valueSizeEstimator, sizeEstimatorSampleRate, 1.0),
+        new SamplingSizeEstimator(valueSizeEstimator, sizeEstimatorSampleRate, 1.0), combineFn,
         pairInfo, receivers, counterPrefix, addCounterMutator, stateSampler);
   }
 
   /** Invoked by tests. */
+  public PartialGroupByKeyOperation(GroupingKeyCreator<?> groupingKeyCreator,
+      SizeEstimator<?> keySizeEstimator, SizeEstimator<?> valueSizeEstimator, PairInfo pairInfo,
+      OutputReceiver outputReceiver, String counterPrefix,
+      CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) {
+    this(groupingKeyCreator,
+        keySizeEstimator, valueSizeEstimator, null, pairInfo,
+        outputReceiver,
+        counterPrefix,
+        addCounterMutator,
+        stateSampler);
+  }
+
+  /** Invoked by tests. */
+  @SuppressWarnings({"rawtypes"})
   public PartialGroupByKeyOperation(
       GroupingKeyCreator<?> groupingKeyCreator,
       SizeEstimator<?> keySizeEstimator, SizeEstimator<?> valueSizeEstimator,
+      Combiner combineFn,
       PairInfo pairInfo,
       OutputReceiver outputReceiver,
       String counterPrefix,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler) {
     this("PartialGroupByKeyOperation", groupingKeyCreator,
-         keySizeEstimator, valueSizeEstimator, pairInfo,
-         new OutputReceiver[]{ outputReceiver },
-         counterPrefix,
-         addCounterMutator,
-         stateSampler);
+        keySizeEstimator, valueSizeEstimator, combineFn, pairInfo,
+        new OutputReceiver[]{ outputReceiver },
+        counterPrefix,
+        addCounterMutator,
+        stateSampler);
   }
 
   @Override
