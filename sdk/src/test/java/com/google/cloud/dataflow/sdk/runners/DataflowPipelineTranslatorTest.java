@@ -216,7 +216,7 @@ public class DataflowPipelineTranslatorTest {
         p, Collections.<DataflowPackage>emptyList());
 
     for (WorkerPool pool : job.getEnvironment().getWorkerPools()) {
-      if (pool.getKind() == DataflowPipelineTranslator.HARNESS_WORKER_POOL) {
+      if ("harness".equals(pool.getKind())) {
         assertEquals(pool.getMetadata().get("debugger"), expectedConfig);
       }
     }

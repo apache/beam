@@ -107,7 +107,6 @@ import javax.annotation.Nullable;
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class DataflowPipelineTranslator {
   // Must be kept in sync with their internal counterparts.
-  public static final String HARNESS_WORKER_POOL = "harness";
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineTranslator.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -352,7 +351,7 @@ public class DataflowPipelineTranslator {
 
       WorkerPool workerPool = new WorkerPool();
 
-      workerPool.setKind(HARNESS_WORKER_POOL);
+      workerPool.setKind(options.getWorkerPoolType());
       if (options.getTeardownPolicy() != null) {
         workerPool.setTeardownPolicy(options.getTeardownPolicy().getTeardownPolicyName());
       }
@@ -406,9 +405,7 @@ public class DataflowPipelineTranslator {
         // Use separate data disk for streaming.
         Disk disk = new Disk();
         disk.setSizeGb(10);
-        disk.setDiskType(
-            // TODO: Fill in the project and zone.
-            "compute.googleapis.com/projects//zones//diskTypes/pd-standard");
+        disk.setDiskType(options.getWorkerDiskType());
         // TODO: introduce a separate location for Windmill binary in the
         // TaskRunner so it wouldn't interfere with the data disk mount point.
         disk.setMountPoint("/windmill");
