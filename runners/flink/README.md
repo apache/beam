@@ -47,12 +47,12 @@ p.run();
 ```
 
 
-To execute the example, get some sample data and run:
-
+To execute the example, let's first get some sample data:
 
     curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > kinglear.txt
-    mvn exec:java -Dexec.mainClass=com.dataartisans.flink.dataflow.examples.WordCount \
-        -Dexec.args="--input=kinglear.txt --output=wordcounts.txt"
 
+Then let's run the included WordCount locally on your machine:
+
+    mvn exec:exec -Dinput=kinglear.txt -Doutput=wordcounts.txt
 
 Congratulations, you have run your first Google Dataflow program on top of Apache Flink!
