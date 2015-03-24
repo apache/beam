@@ -86,18 +86,18 @@ public abstract class Reader<T> extends Observable {
      * current input of this {@link ReaderIterator} before this call.
      * <p>
      * The boundary between the primary part and the residual part is specified in
-     * a framework-specific way using {@link ForkRequest}: e.g., if the framework supports the
-     * notion of positions, it might be a position at which the input is asked to split itself
-     * (which is not necessarily the same position at which it <i>will</i> split itself); it might
-     * be an approximate fraction of input, or something else.
+     * a framework-specific way using {@link Reader.DynamicSplitRequest}: e.g., if the framework
+     * supports the notion of positions, it might be a position at which the input is asked to split
+     * itself (which is not necessarily the same position at which it <i>will</i> split itself);
+     * it might be an approximate fraction of input, or something else.
      * <p>
-     * {@link ForkResult} encodes, in a framework-specific way, the information sufficient to
-     * construct a description of the resulting primary and residual inputs. For example, it might,
-     * again, be a position demarcating these parts, or it might be a pair of fully-specified input
-     * descriptions, or something else.
+     * {@link Reader.DynamicSplitResult} encodes, in a framework-specific way, the information
+     * sufficient to construct a description of the resulting primary and residual inputs.
+     * For example, it might, again, be a position demarcating these parts, or it might be a pair of
+     * fully-specified input descriptions, or something else.
      * <p>
-     * After a successful call to {@link #requestFork}, subsequent calls should be interpreted
-     * relative to the new primary.
+     * After a successful call to {@link #requestDynamicSplit}, subsequent calls should be
+     * interpreted relative to the new primary.
      * <p>
      * This method is not required to be thread-safe, and it will not be
      * called concurrently to any other methods.
@@ -105,11 +105,12 @@ public abstract class Reader<T> extends Observable {
      * This call should not affect the range of input represented by the {@link Reader} which
      * produced this {@link ReaderIterator}.
      *
-     * @return {@code null} if the {@link ForkRequest} cannot be honored (in that case the input
-     *   represented by this {@link ReaderIterator} stays the same), or a {@link ForkResult}
-     *   describing how the input was split into a primary and residual part.
+     * @return {@code null} if the {@link Reader.DynamicSplitRequest} cannot be honored
+     *   (in that case the input represented by this {@link ReaderIterator} stays the same), or
+     *   a {@link Reader.DynamicSplitResult} describing how the input was split into a primary
+     *   and residual part.
      */
-    public ForkResult requestFork(ForkRequest request);
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest request);
   }
 
   /** An abstract base class for ReaderIterator implementations. */
@@ -130,7 +131,7 @@ public abstract class Reader<T> extends Observable {
     }
 
     @Override
-    public ForkResult requestFork(ForkRequest forkRequest) {
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
       return null;
     }
   }
@@ -156,25 +157,25 @@ public abstract class Reader<T> extends Observable {
   public interface Position {}
 
   /**
-   * A framework-specific way to specify how {@link ReaderIterator#requestFork} should split
+   * A framework-specific way to specify how {@link ReaderIterator#requestDynamicSplit} should split
    * the input into a primary and residual part.
    */
-  public interface ForkRequest {}
+  public interface DynamicSplitRequest {}
 
   /**
-   * A framework-specific way to specify how {@link ReaderIterator#requestFork} has split
+   * A framework-specific way to specify how {@link ReaderIterator#requestDynamicSplit} has split
    * the input into a primary and residual part.
    */
-  public interface ForkResult {}
+  public interface DynamicSplitResult {}
 
   /**
-   * A {@link ForkResult} which specifies the boundary between the primary and residual parts
-   * of the input using a {@link Position}.
+   * A {@link Reader.DynamicSplitResult} which specifies the boundary between the primary and
+   * residual parts of the input using a {@link Position}.
    */
-  public static final class ForkResultWithPosition implements ForkResult {
+  public static final class DynamicSplitResultWithPosition implements DynamicSplitResult {
     private final Position acceptedPosition;
 
-    public ForkResultWithPosition(Position acceptedPosition) {
+    public DynamicSplitResultWithPosition(Position acceptedPosition) {
       this.acceptedPosition = acceptedPosition;
     }
 

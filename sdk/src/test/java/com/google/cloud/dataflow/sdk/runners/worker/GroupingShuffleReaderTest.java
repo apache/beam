@@ -17,11 +17,11 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.forkRequestAtPosition;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromForkResult;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toForkRequest;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toDynamicSplitRequest;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -267,7 +267,7 @@ public class GroupingShuffleReaderTest {
   }
 
   @Test
-  public void testReadFromEmptyShuffleDataAndRequestFork() throws Exception {
+  public void testReadFromEmptyShuffleDataAndRequestDynamicSplit() throws Exception {
     BatchModeExecutionContext context = new BatchModeExecutionContext();
     GroupingShuffleReader<Integer, Integer> groupingShuffleReader = new GroupingShuffleReader<>(
         PipelineOptionsFactory.create(), null, null, null,
@@ -278,28 +278,30 @@ public class GroupingShuffleReaderTest {
     TestShuffleReader shuffleReader = new TestShuffleReader();
     try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
         groupingShuffleReader.iterator(shuffleReader)) {
-      // Can fork, the source range spans the entire interval.
-      Position proposedForkPosition = new Position();
+      // Can split, the source range spans the entire interval.
+      Position proposedSplitPosition = new Position();
       String stop = encodeBase64URLSafeString(fabricatePosition(0, null));
-      proposedForkPosition.setShufflePosition(stop);
+      proposedSplitPosition.setShufflePosition(stop);
 
-      Reader.ForkResult forkResult =
-          iter.requestFork(toForkRequest(createApproximateProgress(proposedForkPosition)));
-      Reader.Position acceptedForkPosition =
-          ((Reader.ForkResultWithPosition) forkResult).getAcceptedPosition();
-      assertEquals(stop, toCloudPosition(acceptedForkPosition).getShufflePosition());
+      Reader.DynamicSplitResult dynamicSplitResult =
+          iter.requestDynamicSplit(toDynamicSplitRequest(
+              createApproximateProgress(proposedSplitPosition)));
+      Reader.Position acceptedSplitPosition =
+          ((Reader.DynamicSplitResultWithPosition) dynamicSplitResult).getAcceptedPosition();
+      assertEquals(stop, toCloudPosition(acceptedSplitPosition).getShufflePosition());
 
 
-      // Cannot fork at a position >= the current stop position
+      // Cannot split at a position >= the current stop position
       stop = encodeBase64URLSafeString(fabricatePosition(1, null));
-      proposedForkPosition.setShufflePosition(stop);
+      proposedSplitPosition.setShufflePosition(stop);
 
-      assertNull(iter.requestFork(toForkRequest(createApproximateProgress(proposedForkPosition))));
+      assertNull(iter.requestDynamicSplit(toDynamicSplitRequest(
+          createApproximateProgress(proposedSplitPosition))));
     }
   }
 
   @Test
-  public void testReadFromShuffleDataAndFailToFork() throws Exception {
+  public void testReadFromShuffleDataAndFailToSplit() throws Exception {
     BatchModeExecutionContext context = new BatchModeExecutionContext();
     final int kFirstShard = 0;
 
@@ -323,9 +325,9 @@ public class GroupingShuffleReaderTest {
 
     try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
         groupingShuffleReader.iterator(shuffleReader)) {
-      // Cannot fork since the value provided is past the current stop position.
-      assertNull(
-          iter.requestFork(forkRequestAtPosition(makeShufflePosition(kNumRecords + 1, null))));
+      // Cannot split since the value provided is past the current stop position.
+      assertNull(iter.requestDynamicSplit(splitRequestAtPosition(
+          makeShufflePosition(kNumRecords + 1, null))));
 
       int i = 0;
       for (; iter.hasNext(); ++i) {
@@ -333,21 +335,23 @@ public class GroupingShuffleReaderTest {
         if (i == 0) {
           // First record
           byte[] key = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
-          // Cannot fork since the fork position is identical with the position of the record
+          // Cannot split since the split position is identical with the position of the record
           // that was just returned.
           assertNull(
-              iter.requestFork(forkRequestAtPosition(makeShufflePosition(kFirstShard, key))));
+              iter.requestDynamicSplit(splitRequestAtPosition(
+                  makeShufflePosition(kFirstShard, key))));
 
-          // Cannot fork since the requested fork position comes before current position
+          // Cannot split since the requested split position comes before current position
           assertNull(
-              iter.requestFork(forkRequestAtPosition(makeShufflePosition(kFirstShard, null))));
+              iter.requestDynamicSplit(splitRequestAtPosition(
+                  makeShufflePosition(kFirstShard, null))));
         }
       }
       assertEquals(kNumRecords, i);
 
-      // Cannot fork since all input was consumed.
+      // Cannot split since all input was consumed.
       assertNull(
-          iter.requestFork(forkRequestAtPosition(makeShufflePosition(kFirstShard, null))));
+          iter.requestDynamicSplit(splitRequestAtPosition(makeShufflePosition(kFirstShard, null))));
     }
   }
 
@@ -357,7 +361,7 @@ public class GroupingShuffleReaderTest {
   }
 
   @Test
-  public void testReadFromShuffleAndFork() throws Exception {
+  public void testReadFromShuffleAndDynamicSplit() throws Exception {
     BatchModeExecutionContext context = new BatchModeExecutionContext();
     GroupingShuffleReader<Integer, Integer> groupingShuffleReader = new GroupingShuffleReader<>(
         PipelineOptionsFactory.create(), null, null, null,
@@ -392,14 +396,14 @@ public class GroupingShuffleReaderTest {
     int i = 0;
     try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
         groupingShuffleReader.iterator(shuffleReader)) {
-      assertNull(iter.requestFork(forkRequestAtPosition(new Position())));
+      assertNull(iter.requestDynamicSplit(splitRequestAtPosition(new Position())));
 
-      // Fork at the shard boundary
-      Reader.ForkResult forkResult =
-          iter.requestFork(forkRequestAtPosition(makeShufflePosition(kSecondShard, null)));
+      // Split at the shard boundary
+      Reader.DynamicSplitResult dynamicSplitResult =
+          iter.requestDynamicSplit(splitRequestAtPosition(makeShufflePosition(kSecondShard, null)));
       assertEquals(
           encodeBase64URLSafeString(fabricatePosition(kSecondShard, null)),
-          positionFromForkResult(forkResult).getShufflePosition());
+          positionFromSplitResult(dynamicSplitResult).getShufflePosition());
 
       while (iter.hasNext()) {
         // iter.hasNext() is supposed to be side-effect-free and give the same result if called
@@ -476,13 +480,13 @@ public class GroupingShuffleReaderTest {
       }
       assertFalse(readerIterator.hasNext());
 
-      // Cannot fork since all input was consumed.
-      Position proposedForkPosition = new Position();
+      // Cannot split since all input was consumed.
+      Position proposedSplitPosition = new Position();
       String stop = encodeBase64URLSafeString(fabricatePosition(0, null));
-      proposedForkPosition.setShufflePosition(stop);
+      proposedSplitPosition.setShufflePosition(stop);
       assertNull(
-          readerIterator.requestFork(
-              toForkRequest(createApproximateProgress(proposedForkPosition))));
+          readerIterator.requestDynamicSplit(
+              toDynamicSplitRequest(createApproximateProgress(proposedSplitPosition))));
     }
   }
 

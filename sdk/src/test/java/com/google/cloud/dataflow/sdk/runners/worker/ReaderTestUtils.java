@@ -17,7 +17,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toForkRequest;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toDynamicSplitRequest;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.Position;
@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
 
 /**
  * Helpers for testing {@code Reader} and related classes, especially
- * {@link Reader.ReaderIterator#getProgress} and {@link Reader.ReaderIterator#requestFork}.
+ * {@link Reader.ReaderIterator#getProgress} and {@link Reader.ReaderIterator#requestDynamicSplit}.
  */
 public class ReaderTestUtils {
   public static Position positionAtIndex(@Nullable Long index) {
@@ -50,20 +50,21 @@ public class ReaderTestUtils {
     return approximateProgressAtPosition(positionAtByteOffset(byteOffset));
   }
 
-  public static Reader.ForkRequest forkRequestAtPosition(@Nullable Position position) {
-    return toForkRequest(approximateProgressAtPosition(position));
+  public static Reader.DynamicSplitRequest splitRequestAtPosition(@Nullable Position position) {
+    return toDynamicSplitRequest(approximateProgressAtPosition(position));
   }
 
-  public static Reader.ForkRequest forkRequestAtIndex(@Nullable Long index) {
-    return toForkRequest(approximateProgressAtIndex(index));
+  public static Reader.DynamicSplitRequest splitRequestAtIndex(@Nullable Long index) {
+    return toDynamicSplitRequest(approximateProgressAtIndex(index));
   }
 
-  public static Reader.ForkRequest forkRequestAtByteOffset(@Nullable Long byteOffset) {
-    return toForkRequest(approximateProgressAtByteOffset(byteOffset));
+  public static Reader.DynamicSplitRequest splitRequestAtByteOffset(@Nullable Long byteOffset) {
+    return toDynamicSplitRequest(approximateProgressAtByteOffset(byteOffset));
   }
 
-  public static Position positionFromForkResult(Reader.ForkResult forkResult) {
-    return toCloudPosition(((Reader.ForkResultWithPosition) forkResult).getAcceptedPosition());
+  public static Position positionFromSplitResult(Reader.DynamicSplitResult dynamicSplitResult) {
+    return toCloudPosition(
+        ((Reader.DynamicSplitResultWithPosition) dynamicSplitResult).getAcceptedPosition());
   }
 
   public static Position positionFromProgress(Reader.Progress progress) {

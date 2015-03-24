@@ -211,7 +211,7 @@ public class DataflowWorker {
   static WorkItemStatus buildStatus(WorkItem workItem, boolean completed,
       @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
       DataflowWorkerHarnessOptions options, @Nullable Reader.Progress progress,
-      @Nullable Reader.ForkResult forkResult,
+      @Nullable Reader.DynamicSplitResult dynamicSplitResult,
       @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors,
       long finalReportIndex) {
     WorkItemStatus status = new WorkItemStatus();
@@ -256,11 +256,13 @@ public class DataflowWorker {
     if (progress != null) {
       status.setProgress(readerProgressToCloudProgress(progress));
     }
-    if (forkResult instanceof Reader.ForkResultWithPosition) {
-      Reader.ForkResultWithPosition asPosition = (Reader.ForkResultWithPosition) forkResult;
+    if (dynamicSplitResult instanceof Reader.DynamicSplitResultWithPosition) {
+      Reader.DynamicSplitResultWithPosition asPosition =
+          (Reader.DynamicSplitResultWithPosition) dynamicSplitResult;
       status.setStopPosition(toCloudPosition(asPosition.getAcceptedPosition()));
-    } else if (forkResult != null) {
-      throw new IllegalArgumentException("Unexpected type of fork result: " + forkResult);
+    } else if (dynamicSplitResult != null) {
+      throw new IllegalArgumentException(
+          "Unexpected type of dynamic split result: " + dynamicSplitResult);
     }
 
     if (workItem.getSourceOperationTask() != null) {

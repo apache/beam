@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.forkRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -196,38 +196,40 @@ public abstract class FileBasedReader<T> extends Reader<T> {
     }
 
     @Override
-    public ForkResult requestFork(ForkRequest forkRequest) {
-      checkNotNull(forkRequest);
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
+      checkNotNull(splitRequest);
 
-      // Currently, file-based Reader only supports fork at a byte offset.
-      ApproximateProgress forkProgress = forkRequestToApproximateProgress(forkRequest);
-      com.google.api.services.dataflow.model.Position forkPosition = forkProgress.getPosition();
-      if (forkPosition == null) {
-        LOG.warn("FileBasedReader only supports fork at a Position. Requested: {}", forkRequest);
+      // Currently, file-based Reader only supports split at a byte offset.
+      ApproximateProgress splitProgress = splitRequestToApproximateProgress(splitRequest);
+      com.google.api.services.dataflow.model.Position splitPosition = splitProgress.getPosition();
+      if (splitPosition == null) {
+        LOG.warn("FileBasedReader only supports split at a Position. Requested: {}",
+            splitRequest);
         return null;
       }
-      Long forkOffset = forkPosition.getByteOffset();
-      if (forkOffset == null) {
-        LOG.warn("FileBasedReader only supports fork at byte offset. Requested: {}", forkPosition);
+      Long splitOffset = splitPosition.getByteOffset();
+      if (splitOffset == null) {
+        LOG.warn("FileBasedReader only supports split at byte offset. Requested: {}",
+            splitPosition);
         return null;
       }
-      if (forkOffset <= offset) {
-        LOG.info("Already progressed to offset {} which is after the requested fork offset {}",
-            offset, forkOffset);
+      if (splitOffset <= offset) {
+        LOG.info("Already progressed to offset {} which is after the requested split offset {}",
+            offset, splitOffset);
         return null;
       }
 
-      if (endOffset != null && forkOffset >= endOffset) {
+      if (endOffset != null && splitOffset >= endOffset) {
         LOG.info(
-            "Fork requested at an offset beyond the end of the current range: {} >= {}",
-            forkOffset, endOffset);
+            "Split requested at an offset beyond the end of the current range: {} >= {}",
+            splitOffset, endOffset);
         return null;
       }
 
-      this.endOffset = forkOffset;
-      LOG.info("Forked FileBasedReader at offset {}", forkOffset);
+      this.endOffset = splitOffset;
+      LOG.info("Split FileBasedReader at offset {}", splitOffset);
 
-      return new ForkResultWithPosition(cloudPositionToReaderPosition(forkPosition));
+      return new DynamicSplitResultWithPosition(cloudPositionToReaderPosition(splitPosition));
     }
 
     /**

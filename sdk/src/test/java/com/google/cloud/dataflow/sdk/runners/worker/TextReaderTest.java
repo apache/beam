@@ -16,9 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.forkRequestAtByteOffset;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.forkRequestAtPosition;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromForkResult;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtByteOffset;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
@@ -408,7 +408,7 @@ public class TextReaderTest {
 
       try (TextReader<String>.TextFileIterator iterator =
           (TextReader<String>.TextFileIterator) textReader.iterator()) {
-        assertNull(iterator.requestFork(forkRequestAtPosition(new Position())));
+        assertNull(iterator.requestDynamicSplit(splitRequestAtPosition(new Position())));
       }
     }
 
@@ -424,7 +424,7 @@ public class TextReaderTest {
         assertNull(iterator.getEndOffset());
         assertEquals(
             Long.valueOf(stop),
-            positionFromForkResult(iterator.requestFork(forkRequestAtByteOffset(stop)))
+            positionFromSplitResult(iterator.requestDynamicSplit(splitRequestAtByteOffset(stop)))
                 .getByteOffset());
         assertEquals(stop, iterator.getEndOffset().longValue());
         assertEquals(fileContent[0], iterator.next());
@@ -450,7 +450,7 @@ public class TextReaderTest {
         assertThat(
             readerProgressToCloudProgress(iterator.getProgress()).getPosition().getByteOffset(),
             greaterThan(stop));
-        assertNull(iterator.requestFork(forkRequestAtByteOffset(stop)));
+        assertNull(iterator.requestDynamicSplit(splitRequestAtByteOffset(stop)));
         assertNull(iterator.getEndOffset());
         assertTrue(iterator.hasNext());
         assertEquals(fileContent[2], iterator.next());
@@ -471,7 +471,7 @@ public class TextReaderTest {
       try (TextReader<String>.TextFileIterator iterator =
           (TextReader<String>.TextFileIterator) textReader.iterator()) {
         assertEquals(fileContent[0], iterator.next());
-        assertNull(iterator.requestFork(forkRequestAtByteOffset(stop)));
+        assertNull(iterator.requestDynamicSplit(splitRequestAtByteOffset(stop)));
         assertEquals(end, iterator.getEndOffset().longValue());
         assertFalse(iterator.hasNext());
         assertEquals(Arrays.asList(fileContent[0].length()), observer.getActualSizes());

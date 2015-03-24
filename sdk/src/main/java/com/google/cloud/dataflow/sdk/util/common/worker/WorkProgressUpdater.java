@@ -78,11 +78,11 @@ public abstract class WorkProgressUpdater {
   protected long progressReportIntervalMs;
 
   /**
-   * The {@link Reader.ForkResult} to report to the service in the next progress update,
-   * or {@code null} if there is nothing to report (if no fork happened since the last progress
-   * update).
+   * The {@link Reader.DynamicSplitResult} to report to the service in the next progress update,
+   * or {@code null} if there is nothing to report (if no dynamic split happened since the last
+   * progress update).
    */
-  protected Reader.ForkResult forkResultToReport;
+  protected Reader.DynamicSplitResult dynamicSplitResultToReport;
 
   public WorkProgressUpdater(WorkExecutor worker) {
     this.worker = worker;
@@ -119,10 +119,10 @@ public abstract class WorkProgressUpdater {
       executor.shutdownNow();
     }
 
-    // We send a final progress report in case there was an unreported fork.
-    if (forkResultToReport != null) {
-      LOG.debug("Sending final progress update with unreported fork: {} "
-          + "for work item: {}", forkResultToReport, workString());
+    // We send a final progress report in case there was an unreported dynamic split.
+    if (dynamicSplitResultToReport != null) {
+      LOG.debug("Sending final progress update with unreported split: {} "
+          + "for work item: {}", dynamicSplitResultToReport, workString());
       reportProgressHelper(); // This call can fail with an exception
     }
 
@@ -210,8 +210,8 @@ public abstract class WorkProgressUpdater {
   }
 
   // Visible for testing.
-  public Reader.ForkResult getForkResultToReport() {
-    return forkResultToReport;
+  public Reader.DynamicSplitResult getDynamicSplitResultToReport() {
+    return dynamicSplitResultToReport;
   }
 
   /**

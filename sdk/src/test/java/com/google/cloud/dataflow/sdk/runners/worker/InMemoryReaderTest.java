@@ -17,11 +17,11 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.approximateProgressAtIndex;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.forkRequestAtIndex;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionAtIndex;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromForkResult;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtIndex;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toForkRequest;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toDynamicSplitRequest;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.junit.Assert.assertEquals;
@@ -133,7 +133,7 @@ public class InMemoryReaderTest {
   }
 
   @Test
-  public void testFork() throws Exception {
+  public void testDynamicSplit() throws Exception {
     List<Integer> elements = Arrays.asList(33, 44, 55, 66, 77, 88);
     final long start = 1L;
     final long stop = 3L;
@@ -143,37 +143,38 @@ public class InMemoryReaderTest {
     InMemoryReader<Integer> inMemoryReader =
         new InMemoryReader<>(encodedElements(elements, coder), start, end, coder);
 
-    // Illegal proposed fork position.
+    // Illegal proposed split position.
     try (Reader.ReaderIterator<Integer> iterator = inMemoryReader.iterator()) {
-      assertNull(iterator.requestFork(toForkRequest(new ApproximateProgress())));
-      assertNull(iterator.requestFork(forkRequestAtIndex(null)));
+      assertNull(iterator.requestDynamicSplit(toDynamicSplitRequest(new ApproximateProgress())));
+      assertNull(iterator.requestDynamicSplit(splitRequestAtIndex(null)));
     }
 
     // Successful update.
     try (InMemoryReader<Integer>.InMemoryReaderIterator iterator =
         (InMemoryReader<Integer>.InMemoryReaderIterator) inMemoryReader.iterator()) {
-      Reader.ForkResult forkResult = iterator.requestFork(forkRequestAtIndex(stop));
-      assertEquals(positionAtIndex(stop), positionFromForkResult(forkResult));
+      Reader.DynamicSplitResult dynamicSplitResult = iterator.requestDynamicSplit(
+          splitRequestAtIndex(stop));
+      assertEquals(positionAtIndex(stop), positionFromSplitResult(dynamicSplitResult));
       assertEquals(stop, iterator.endPosition);
       assertEquals(44, iterator.next().intValue());
       assertEquals(55, iterator.next().intValue());
       assertFalse(iterator.hasNext());
     }
 
-    // Proposed fork position is before the current position, no update.
+    // Proposed split position is before the current position, no update.
     try (InMemoryReader<Integer>.InMemoryReaderIterator iterator =
         (InMemoryReader<Integer>.InMemoryReaderIterator) inMemoryReader.iterator()) {
       assertEquals(44, iterator.next().intValue());
       assertEquals(55, iterator.next().intValue());
-      assertNull(iterator.requestFork(forkRequestAtIndex(stop)));
+      assertNull(iterator.requestDynamicSplit(splitRequestAtIndex(stop)));
       assertEquals((int) end, iterator.endPosition);
       assertTrue(iterator.hasNext());
     }
 
-    // Proposed fork position is after the current stop (end) position, no update.
+    // Proposed split position is after the current stop (end) position, no update.
     try (InMemoryReader.InMemoryReaderIterator iterator =
         (InMemoryReader.InMemoryReaderIterator) inMemoryReader.iterator()) {
-      assertNull(iterator.requestFork(forkRequestAtIndex(end + 1)));
+      assertNull(iterator.requestDynamicSplit(splitRequestAtIndex(end + 1)));
       assertEquals((int) end, iterator.endPosition);
     }
   }

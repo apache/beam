@@ -16,12 +16,12 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.forkRequestAtIndex;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionAtIndex;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtIndex;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.forkRequestToApproximateProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
@@ -114,7 +114,7 @@ public class ReadOperationTest {
   }
 
   @Test
-  public void testFork() throws Exception {
+  public void testDynamicSplit() throws Exception {
     MockReaderIterator iterator = new MockReaderIterator(0, 10);
     CounterSet counterSet = new CounterSet();
     MockOutputReceiver receiver = new MockOutputReceiver(counterSet.getAddCounterMutator());
@@ -124,31 +124,34 @@ public class ReadOperationTest {
     // Update progress on every iteration of the read loop.
     readOperation.setProgressUpdatePeriodMs(0);
 
-    // An unstarted ReadOperation refuses fork requests.
+    // An unstarted ReadOperation refuses split requests.
     Assert.assertNull(
-        readOperation.requestFork(forkRequestAtIndex(7L)));
+        readOperation.requestDynamicSplit(splitRequestAtIndex(7L)));
 
     Thread thread = runReadLoopInThread(readOperation);
     iterator.offerNext(0); // Await first next() and return 0 from it.
     // Read loop is now blocked in process() (not next()).
-    Reader.ForkResultWithPosition fork = (Reader.ForkResultWithPosition) readOperation.requestFork(
-        forkRequestAtIndex(7L));
-    Assert.assertNotNull(fork);
-    Assert.assertEquals(positionAtIndex(7L), toCloudPosition(fork.getAcceptedPosition()));
+    Reader.DynamicSplitResultWithPosition split =
+        (Reader.DynamicSplitResultWithPosition) readOperation.requestDynamicSplit(
+          splitRequestAtIndex(7L));
+    Assert.assertNotNull(split);
+    Assert.assertEquals(positionAtIndex(7L), toCloudPosition(split.getAcceptedPosition()));
     receiver.unblockProcess();
     iterator.offerNext(1);
     receiver.unblockProcess();
     iterator.offerNext(2);
 
-    // Should accept a fork at an earlier position than previously requested.
-    // Should reject a fork at a later position than previously requested.
+    // Should accept a split at an earlier position than previously requested.
+    // Should reject a split at a later position than previously requested.
     // Note that here we're testing our own MockReaderIterator class, so it's kind of pointless,
     // but we're also testing that ReadOperation correctly relays the request to the iterator.
-    fork = (Reader.ForkResultWithPosition) readOperation.requestFork(forkRequestAtIndex(5L));
-    Assert.assertNotNull(fork);
-    Assert.assertEquals(positionAtIndex(5L), toCloudPosition(fork.getAcceptedPosition()));
-    fork = (Reader.ForkResultWithPosition) readOperation.requestFork(forkRequestAtIndex(5L));
-    Assert.assertNull(fork);
+    split = (Reader.DynamicSplitResultWithPosition) readOperation.requestDynamicSplit(
+        splitRequestAtIndex(5L));
+    Assert.assertNotNull(split);
+    Assert.assertEquals(positionAtIndex(5L), toCloudPosition(split.getAcceptedPosition()));
+    split = (Reader.DynamicSplitResultWithPosition) readOperation.requestDynamicSplit(
+        splitRequestAtIndex(5L));
+    Assert.assertNull(split);
     receiver.unblockProcess();
 
     iterator.offerNext(3);
@@ -160,8 +163,8 @@ public class ReadOperationTest {
 
     thread.join();
 
-    // Operation is now finished. Check that it refuses a fork request.
-    Assert.assertNull(readOperation.requestFork(forkRequestAtIndex(5L)));
+    // Operation is now finished. Check that it refuses a split request.
+    Assert.assertNull(readOperation.requestDynamicSplit(splitRequestAtIndex(5L)));
   }
 
   private Thread runReadLoopInThread(final ReadOperation readOperation) {
@@ -212,14 +215,15 @@ public class ReadOperationTest {
     }
 
     @Override
-    public Reader.ForkResult requestFork(Reader.ForkRequest forkRequest) {
-      ApproximateProgress progress = forkRequestToApproximateProgress(forkRequest);
+    public Reader.DynamicSplitResult requestDynamicSplit(
+        Reader.DynamicSplitRequest splitRequest) {
+      ApproximateProgress progress = splitRequestToApproximateProgress(splitRequest);
       int index = progress.getPosition().getRecordIndex().intValue();
       if (index >= to) {
         return null;
       } else {
         this.to = index;
-        return new Reader.ForkResultWithPosition(
+        return new Reader.DynamicSplitResultWithPosition(
             cloudPositionToReaderPosition(progress.getPosition()));
       }
     }

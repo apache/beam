@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.forkRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
 import static java.lang.Math.min;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
@@ -124,38 +124,39 @@ public class InMemoryReader<T> extends Reader<T> {
     }
 
     @Override
-    public ForkResult requestFork(ForkRequest forkRequest) {
-      checkNotNull(forkRequest);
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
+      checkNotNull(splitRequest);
 
-      com.google.api.services.dataflow.model.Position forkPosition =
-          forkRequestToApproximateProgress(forkRequest).getPosition();
-      if (forkPosition == null) {
-        LOG.warn("InMemoryReader only supports fork at a Position. Requested: {}", forkRequest);
+      com.google.api.services.dataflow.model.Position splitPosition =
+          splitRequestToApproximateProgress(splitRequest).getPosition();
+      if (splitPosition == null) {
+        LOG.warn("InMemoryReader only supports split at a Position. Requested: {}",
+            splitRequest);
         return null;
       }
 
-      Long forkIndex = forkPosition.getRecordIndex();
-      if (forkIndex == null) {
-        LOG.warn("InMemoryReader only supports fork at a record index. Requested: {}",
-            forkPosition);
+      Long splitIndex = splitPosition.getRecordIndex();
+      if (splitIndex == null) {
+        LOG.warn("InMemoryReader only supports split at a record index. Requested: {}",
+            splitPosition);
         return null;
       }
-      if (forkIndex <= index) {
-        LOG.info("Already progressed to index {} which is after the requested fork index {}",
-            index, forkIndex);
+      if (splitIndex <= index) {
+        LOG.info("Already progressed to index {} which is after the requested split index {}",
+            index, splitIndex);
         return null;
       }
-      if (forkIndex >= endPosition) {
+      if (splitIndex >= endPosition) {
         LOG.info(
-            "Fork requested at an index beyond the end of the current range: {} >= {}",
-            forkIndex, endPosition);
+            "Split requested at an index beyond the end of the current range: {} >= {}",
+            splitIndex, endPosition);
         return null;
       }
 
-      this.endPosition = forkIndex.intValue();
-      LOG.info("Forked InMemoryReader at index {}", forkIndex);
+      this.endPosition = splitIndex.intValue();
+      LOG.info("Split InMemoryReader at index {}", splitIndex);
 
-      return new ForkResultWithPosition(cloudPositionToReaderPosition(forkPosition));
+      return new DynamicSplitResultWithPosition(cloudPositionToReaderPosition(splitPosition));
     }
   }
 }

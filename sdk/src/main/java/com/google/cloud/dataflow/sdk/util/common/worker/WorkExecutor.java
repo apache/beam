@@ -83,10 +83,12 @@ public abstract class WorkExecutor implements AutoCloseable {
   }
 
   /**
-   * See {@link Reader.ReaderIterator#requestFork}. Makes sense only for tasks which read input.
+   * See {@link Reader.ReaderIterator#requestDynamicSplit}.
+   * Makes sense only for tasks which read input.
    */
-  public Reader.ForkResult requestFork(Reader.ForkRequest forkRequest) throws Exception {
-    // By default, fork is unsupported.
+  public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest)
+      throws Exception {
+    // By default, dynamic splitting is unsupported.
     return null;
   }
 

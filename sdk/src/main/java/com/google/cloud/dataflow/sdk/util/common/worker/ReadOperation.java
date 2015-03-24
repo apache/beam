@@ -220,9 +220,9 @@ public class ReadOperation extends Operation {
   }
 
   /**
-   * Relays the fork request to {@code ReaderIterator}.
+   * Relays the split request to {@code ReaderIterator}.
    */
-  public Reader.ForkResult requestFork(Reader.ForkRequest forkRequest) {
+  public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest) {
     synchronized (initializationStateLock) {
       if (isFinished()) {
         LOG.warn("Iterator is in the Finished state, returning null stop position.");
@@ -230,10 +230,11 @@ public class ReadOperation extends Operation {
       }
       synchronized (sourceIteratorLock) {
         if (readerIterator == null) {
-          LOG.warn("Iterator has not been initialized, refusing to fork at {}", forkRequest);
+          LOG.warn("Iterator has not been initialized, refusing to split at {}",
+              splitRequest);
           return null;
         }
-        return readerIterator.requestFork(forkRequest);
+        return readerIterator.requestDynamicSplit(splitRequest);
       }
     }
   }

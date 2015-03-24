@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.forkRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
 
 import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.ApproximateProgress;
@@ -225,42 +225,43 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
      * {@code KV<K, Reiterable<V>>} to be returned by the {@link GroupingShuffleReaderIterator}.
      */
     @Override
-    public ForkResult requestFork(ForkRequest forkRequest) {
-      checkNotNull(forkRequest);
-      ApproximateProgress forkProgress = forkRequestToApproximateProgress(forkRequest);
-      com.google.api.services.dataflow.model.Position forkPosition = forkProgress.getPosition();
-      if (forkPosition == null) {
-        LOG.warn("GroupingShuffleReader only supports fork at a Position. Requested: {}",
-            forkRequest);
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
+      checkNotNull(splitRequest);
+      ApproximateProgress splitProgress = splitRequestToApproximateProgress(
+          splitRequest);
+      com.google.api.services.dataflow.model.Position splitPosition = splitProgress.getPosition();
+      if (splitPosition == null) {
+        LOG.warn("GroupingShuffleReader only supports split at a Position. Requested: {}",
+            splitRequest);
         return null;
       }
-      String forkShufflePosition = forkPosition.getShufflePosition();
-      if (forkShufflePosition == null) {
-        LOG.warn("GroupingShuffleReader only supports fork at a shuffle position. Requested: {}",
-            forkPosition);
+      String splitShufflePosition = splitPosition.getShufflePosition();
+      if (splitShufflePosition == null) {
+        LOG.warn("GroupingShuffleReader only supports split at a shuffle position. Requested: {}",
+            splitPosition);
         return null;
       }
       ByteArrayShufflePosition newStopPosition =
-          ByteArrayShufflePosition.fromBase64(forkShufflePosition);
+          ByteArrayShufflePosition.fromBase64(splitShufflePosition);
       if (newStopPosition.compareTo(promisedPosition) <= 0) {
         LOG.info("Already progressed to promised shuffle position {} "
-            + "which is after the requested fork shuffle position {}",
-            promisedPosition.encodeBase64(), forkShufflePosition);
+            + "which is after the requested split shuffle position {}",
+            promisedPosition.encodeBase64(), splitShufflePosition);
         return null;
       }
 
       if (this.stopPosition != null && newStopPosition.compareTo(this.stopPosition) >= 0) {
         LOG.info(
-            "Fork requested at a shuffle position beyond the end of the current range: "
+            "Split requested at a shuffle position beyond the end of the current range: "
             + "{} >= current stop position: {}",
-            forkShufflePosition, this.stopPosition.encodeBase64());
+            splitShufflePosition, this.stopPosition.encodeBase64());
         return null;
       }
 
       this.stopPosition = newStopPosition;
-      LOG.info("Forked GroupingShuffleReader at {}", forkShufflePosition);
+      LOG.info("Split GroupingShuffleReader at {}", splitShufflePosition);
 
-      return new ForkResultWithPosition(cloudPositionToReaderPosition(forkPosition));
+      return new DynamicSplitResultWithPosition(cloudPositionToReaderPosition(splitPosition));
     }
 
     /**

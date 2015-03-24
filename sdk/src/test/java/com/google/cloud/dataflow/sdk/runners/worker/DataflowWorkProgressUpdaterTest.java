@@ -21,7 +21,7 @@ import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.appro
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionAtIndex;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.forkRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 import static com.google.cloud.dataflow.sdk.util.CloudCounterUtils.extractCounter;
 import static com.google.cloud.dataflow.sdk.util.CloudMetricUtils.extractCloudMetric;
@@ -96,13 +96,13 @@ public class DataflowWorkProgressUpdaterTest {
     }
 
     @Override
-    public Reader.ForkResult requestFork(Reader.ForkRequest forkRequest) {
+    public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest) {
       @Nullable
-      ApproximateProgress progress = forkRequestToApproximateProgress(forkRequest);
+      ApproximateProgress progress = splitRequestToApproximateProgress(splitRequest);
       if (progress == null) {
         return null;
       }
-      return new Reader.ForkResultWithPosition(
+      return new Reader.DynamicSplitResultWithPosition(
           cloudPositionToReaderPosition(progress.getPosition()));
     }
 
@@ -189,7 +189,7 @@ public class DataflowWorkProgressUpdaterTest {
   }
 
   // Verifies that ReportWorkItemStatusRequest contains correct progress report
-  // and actual fork result.
+  // and actual dynamic split result.
   @Test(timeout = 5000)
   public void workProgressUpdaterAdaptsProgressInterval() throws Exception {
     // Mock that the next reportProgress call will return a response that asks
@@ -221,11 +221,11 @@ public class DataflowWorkProgressUpdaterTest {
                 .withCounters(5)
                 .withMetrics(6)
                 .withProgress(approximateProgressAtIndex(2L))
-                .withForkAtPosition(positionAtIndex(3L))
+                .withDynamicSplitAtPosition(positionAtIndex(3L))
                 .withReportIndex(2L)));
 
-    // After the request is sent, reset cached fork result to null.
-    assertNull(progressUpdater.getForkResultToReport());
+    // After the request is sent, reset cached dynamic split result to null.
+    assertNull(progressUpdater.getDynamicSplitResultToReport());
 
     setUpProgress(approximateProgressAtIndex(3L));
 
@@ -255,30 +255,31 @@ public class DataflowWorkProgressUpdaterTest {
         .reportWorkItemStatus(argThat(
             new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(1L))));
 
-    // The first update should include the new fork result..
+    // The first update should include the new dynamic split result.
     // Verify that the progressUpdater has recorded it.
-    Reader.ForkResultWithPosition forkResult =
-        (Reader.ForkResultWithPosition) progressUpdater.getForkResultToReport();
-    assertEquals(positionAtIndex(2L), toCloudPosition(forkResult.getAcceptedPosition()));
+    Reader.DynamicSplitResultWithPosition splitResult =
+        (Reader.DynamicSplitResultWithPosition) progressUpdater.getDynamicSplitResultToReport();
+    assertEquals(positionAtIndex(2L), toCloudPosition(splitResult.getAcceptedPosition()));
 
     setUpProgress(approximateProgressAtIndex(2L));
     // The second update should be sent after one second (2000 / 2).
 
-    // Not enough time for an update so the latest fork result is not acknowledged.
+    // Not enough time for an update so the latest split result is not acknowledged.
     Thread.sleep(200);
 
-    // Check that the progressUpdater still has a pending fork result to send
-    forkResult = (Reader.ForkResultWithPosition) progressUpdater.getForkResultToReport();
-    assertEquals(positionAtIndex(2L), toCloudPosition(forkResult.getAcceptedPosition()));
+    // Check that the progressUpdater still has a pending split result to send
+    splitResult = (Reader.DynamicSplitResultWithPosition)
+        progressUpdater.getDynamicSplitResultToReport();
+    assertEquals(positionAtIndex(2L), toCloudPosition(splitResult.getAcceptedPosition()));
 
     progressUpdater.stopReportingProgress(); // Should send the last update.
-    // Check that the progressUpdater is done with reporting its latest fork result.
-    assertNull(progressUpdater.getForkResultToReport());
+    // Check that the progressUpdater is done with reporting its latest split result.
+    assertNull(progressUpdater.getDynamicSplitResultToReport());
 
-    // Verify that the last update contained the latest fork result.
+    // Verify that the last update contained the latest split result.
     verify(workUnitClient, timeout(1000))
         .reportWorkItemStatus(argThat(
-            new ExpectedDataflowWorkItemStatus().withForkAtPosition(positionAtIndex(2L))));
+            new ExpectedDataflowWorkItemStatus().withDynamicSplitAtPosition(positionAtIndex(2L))));
   }
 
   private void setUpCounters(int n) {
@@ -346,7 +347,7 @@ public class DataflowWorkProgressUpdaterTest {
     ApproximateProgress expectedProgress;
 
     @Nullable
-    Position expectedForkPosition;
+    Position expectedSplitPosition;
 
     @Nullable
     Long expectedReportIndex;
@@ -366,8 +367,9 @@ public class DataflowWorkProgressUpdaterTest {
       return this;
     }
 
-    public ExpectedDataflowWorkItemStatus withForkAtPosition(Position expectedForkPosition) {
-      this.expectedForkPosition = expectedForkPosition;
+    public ExpectedDataflowWorkItemStatus withDynamicSplitAtPosition(
+        Position expectedSplitPosition) {
+      this.expectedSplitPosition = expectedSplitPosition;
       return this;
     }
 
@@ -392,10 +394,10 @@ public class DataflowWorkProgressUpdaterTest {
       if (this.expectedProgress != null) {
         values.add("progress " + this.expectedProgress);
       }
-      if (this.expectedForkPosition != null) {
-        values.add("fork position " + this.expectedForkPosition);
+      if (this.expectedSplitPosition != null) {
+        values.add("split position " + this.expectedSplitPosition);
       } else {
-        values.add("no fork position present");
+        values.add("no split position present");
       }
       if (this.expectedReportIndex != null) {
         values.add("reportIndex " + this.expectedReportIndex);
@@ -446,10 +448,10 @@ public class DataflowWorkProgressUpdaterTest {
 
     private boolean matchStopPosition(WorkItemStatus status) {
       Position actualStopPosition = status.getStopPosition();
-      if (expectedForkPosition == null) {
+      if (expectedSplitPosition == null) {
         return actualStopPosition == null;
       }
-      return expectedForkPosition.equals(actualStopPosition);
+      return expectedSplitPosition.equals(actualStopPosition);
     }
 
     private boolean matchReportIndex(WorkItemStatus status) {

@@ -17,13 +17,13 @@
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.approximateProgressAtIndex;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.forkRequestAtIndex;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionAtIndex;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromForkResult;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtIndex;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.forkRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
@@ -100,10 +100,10 @@ public class MapTaskExecutorTest {
     }
 
     @Override
-    public Reader.ForkResult requestFork(Reader.ForkRequest forkRequest) {
+    public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest) {
       // Fakes the return with the same position as proposed.
-      return new Reader.ForkResultWithPosition(cloudPositionToReaderPosition(
-          forkRequestToApproximateProgress(forkRequest).getPosition()));
+      return new Reader.DynamicSplitResultWithPosition(cloudPositionToReaderPosition(
+          splitRequestToApproximateProgress(splitRequest).getPosition()));
     }
 
     public void setProgress(ApproximateProgress progress) {
@@ -242,7 +242,8 @@ public class MapTaskExecutorTest {
     operation.setProgress(approximateProgressAtIndex(1L));
     Assert.assertEquals(positionAtIndex(1L), positionFromProgress(executor.getWorkerProgress()));
     Assert.assertEquals(
-        positionAtIndex(1L), positionFromForkResult(executor.requestFork(forkRequestAtIndex(1L))));
+        positionAtIndex(1L),
+        positionFromSplitResult(executor.requestDynamicSplit(splitRequestAtIndex(1L))));
 
     executor.close();
   }

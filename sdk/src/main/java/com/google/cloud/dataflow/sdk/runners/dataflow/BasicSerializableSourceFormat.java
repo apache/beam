@@ -308,7 +308,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     }
 
     @Override
-    public Reader.ForkResult requestFork(Reader.ForkRequest request) {
+    public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest request) {
       return null;
     }
   }

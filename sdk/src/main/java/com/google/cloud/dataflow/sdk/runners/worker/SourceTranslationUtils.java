@@ -85,14 +85,16 @@ public class SourceTranslationUtils {
     return (spec == null) ? null : ((DataflowSourceSpec) spec).cloudSource;
   }
 
-  public static ApproximateProgress forkRequestToApproximateProgress(
-      @Nullable Reader.ForkRequest stopRequest) {
-    return (stopRequest == null) ? null : ((DataflowForkRequest) stopRequest).approximateProgress;
+  public static ApproximateProgress splitRequestToApproximateProgress(
+      @Nullable Reader.DynamicSplitRequest splitRequest) {
+    return (splitRequest == null)
+        ? null : ((DataflowDynamicSplitRequest) splitRequest).approximateProgress;
   }
 
-  public static Reader.ForkRequest toForkRequest(
+  public static Reader.DynamicSplitRequest toDynamicSplitRequest(
       @Nullable ApproximateProgress approximateProgress) {
-    return (approximateProgress == null) ? null : new DataflowForkRequest(approximateProgress);
+    return (approximateProgress == null)
+        ? null : new DataflowDynamicSplitRequest(approximateProgress);
   }
 
   static class DataflowReaderProgress implements Reader.Progress {
@@ -175,10 +177,10 @@ public class SourceTranslationUtils {
     return res;
   }
 
-  private static class DataflowForkRequest implements Reader.ForkRequest {
+  private static class DataflowDynamicSplitRequest implements Reader.DynamicSplitRequest {
     public final ApproximateProgress approximateProgress;
 
-    private DataflowForkRequest(ApproximateProgress approximateProgress) {
+    private DataflowDynamicSplitRequest(ApproximateProgress approximateProgress) {
       this.approximateProgress = approximateProgress;
     }
   }

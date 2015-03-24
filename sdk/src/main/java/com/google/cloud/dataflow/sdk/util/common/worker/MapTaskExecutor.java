@@ -85,8 +85,9 @@ public class MapTaskExecutor extends WorkExecutor {
   }
 
   @Override
-  public Reader.ForkResult requestFork(Reader.ForkRequest forkRequest) throws Exception {
-    return getReadOperation().requestFork(forkRequest);
+  public Reader.DynamicSplitResult requestDynamicSplit(
+      Reader.DynamicSplitRequest splitRequest) throws Exception {
+    return getReadOperation().requestDynamicSplit(splitRequest);
   }
 
   ReadOperation getReadOperation() throws Exception {

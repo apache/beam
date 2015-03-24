@@ -96,8 +96,8 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
     }
 
     @Override
-    public ForkResult requestFork(ForkRequest forkRequest) {
-      // For now fork is not supported because this source
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
+      // For now dynamic splitting is not supported because this source
       // is used only when an entire table needs to be read by each worker (used
       // as a side input for instance).
       throw new UnsupportedOperationException();

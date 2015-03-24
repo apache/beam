@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.DataflowWorker.buildStatus;
 import static com.google.cloud.dataflow.sdk.runners.worker.DataflowWorker.uniqueId;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toForkRequest;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toDynamicSplitRequest;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudDuration;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudTime;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
@@ -79,7 +79,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   @Override
   protected void reportProgressHelper() throws Exception {
     WorkItemStatus status = buildStatus(workItem, false/*completed*/, worker.getOutputCounters(),
-        worker.getOutputMetrics(), options, worker.getWorkerProgress(), forkResultToReport,
+        worker.getOutputMetrics(), options, worker.getWorkerProgress(), dynamicSplitResultToReport,
         null/*sourceOperationResponse*/, null/*errors*/,
         getNextReportIndex());
     status.setRequestedLeaseDuration(toCloudDuration(Duration.millis(requestedLeaseDurationMs)));
@@ -87,7 +87,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
     if (result != null) {
       // Resets state after a successful progress report.
-      forkResultToReport = null;
+      dynamicSplitResultToReport = null;
       nextReportIndex++;
 
       progressReportIntervalMs = nextProgressReportInterval(
@@ -96,8 +96,9 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
       ApproximateProgress suggestedStopPoint = result.getSuggestedStopPoint();
       if (suggestedStopPoint != null) {
-        LOG.info("Proposing fork of work unit {} at {}", workString(), suggestedStopPoint);
-        forkResultToReport = worker.requestFork(toForkRequest(suggestedStopPoint));
+        LOG.info("Proposing dynamic split of work unit {} at {}", workString(), suggestedStopPoint);
+        dynamicSplitResultToReport = worker.requestDynamicSplit(
+            toDynamicSplitRequest(suggestedStopPoint));
       }
     }
   }
