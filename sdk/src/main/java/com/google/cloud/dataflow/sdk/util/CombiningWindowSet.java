@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
@@ -62,7 +63,7 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
       KeyedCombineFn<K, VI, VA, VO> combineFn,
       Coder<K> keyCoder,
       Coder<VI> inputValueCoder,
-      DoFnProcessContext<?, KV<K, VO>> context,
+      DoFn<?, KV<K, VO>>.ProcessContext context,
       ActiveWindowManager<W> activeWindowManager) throws Exception {
     super(key, windowFn, inputValueCoder, context, activeWindowManager);
     this.combineFn = combineFn;
@@ -83,7 +84,7 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
       KeyedCombineFn<K, VI, VA, VO> combineFn,
       Coder<K> keyCoder,
       Coder<VI> inputValueCoder,
-      DoFnProcessContext<?, KV<K, VO>> context,
+      DoFn<?, KV<K, VO>>.ProcessContext context,
       ActiveWindowManager<W> activeWindowManager) throws Exception {
     return new CombiningWindowSet<K, VI, VA, VO, W>(
         key, windowFn, combineFn, keyCoder, inputValueCoder, context, activeWindowManager);
