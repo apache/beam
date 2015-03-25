@@ -19,19 +19,19 @@ package com.dataartisans.flink.dataflow.translation.functions;
 
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.values.KV;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 
 import java.util.Iterator;
 
 /**
- * Flink {@link org.apache.flink.api.common.functions.FlatCombineFunction} for executing a
+ * Flink {@link org.apache.flink.api.common.functions.GroupCombineFunction} for executing a
  * {@link com.google.cloud.dataflow.sdk.transforms.Combine.PerKey} operation. This reads the input
  * {@link com.google.cloud.dataflow.sdk.values.KV} elements VI, extracts the key and emits accumulated
  * values which have the intermediate format VA.
  */
-public class FlinkPartialReduceFunction<K, VI, VA> implements FlatCombineFunction<KV<K, VI>, KV<K, VA>> {
+public class FlinkPartialReduceFunction<K, VI, VA> implements GroupCombineFunction<KV<K, VI>, KV<K, VA>> {
 
 	private final Combine.KeyedCombineFn<K, VI, VA, ?> keyedCombineFn;
 
