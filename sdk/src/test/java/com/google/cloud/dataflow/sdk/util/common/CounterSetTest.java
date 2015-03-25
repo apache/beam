@@ -19,12 +19,16 @@ package com.google.cloud.dataflow.sdk.util.common;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MAX;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SET;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -33,43 +37,125 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CounterSetTest {
-  @Test
-  public void testSet() {
-    CounterSet set = new CounterSet();
-    assertTrue(set.add(Counter.longs("c1", SUM)));
-    assertFalse(set.add(Counter.longs("c1", SUM)));
-    assertTrue(set.add(Counter.longs("c2", MAX)));
-    assertEquals(2, set.size());
+  private CounterSet set;
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
+  @Before
+  public void setup() {
+    set = new CounterSet();
   }
 
   @Test
-  public void testAddCounterMutator() {
-    CounterSet set = new CounterSet();
-    Counter c1 = Counter.longs("c1", SUM);
-    Counter c1SecondInstance = Counter.longs("c1", SUM);
-    Counter c1IncompatibleInstance = Counter.longs("c1", SET);
-    Counter c2 = Counter.longs("c2", MAX);
-    Counter c2IncompatibleInstance = Counter.doubles("c2", MAX);
+  public void testAddWithDifferentNamesAddsAll() {
+    Counter<?> c1 = Counter.longs("c1", SUM);
+    Counter<?> c2 = Counter.ints("c2", MAX);
 
-    assertEquals(c1, set.getAddCounterMutator().addCounter(c1));
-    assertEquals(c2, set.getAddCounterMutator().addCounter(c2));
+    boolean c1Add = set.add(c1);
+    boolean c2Add = set.add(c2);
 
-    assertEquals(c1, set.getAddCounterMutator().addCounter(c1SecondInstance));
-
-    try {
-      set.getAddCounterMutator().addCounter(c1IncompatibleInstance);
-      fail("should have failed");
-    } catch (IllegalArgumentException exn) {
-      // Expected.
-    }
-
-    try {
-      set.getAddCounterMutator().addCounter(c2IncompatibleInstance);
-      fail("should have failed");
-    } catch (IllegalArgumentException exn) {
-      // Expected.
-    }
-
-    assertEquals(2, set.size());
+    assertTrue(c1Add);
+    assertTrue(c2Add);
+    assertThat(set, containsInAnyOrder(c1, c2));
   }
+
+  @Test
+  public void testAddWithAlreadyPresentNameReturnsFalse() {
+    Counter<?> c1 = Counter.longs("c1", SUM);
+    Counter<?> c1Dup = Counter.longs("c1", SUM);
+
+    boolean c1Add = set.add(c1);
+    boolean c1DupAdd = set.add(c1Dup);
+
+    assertTrue(c1Add);
+    assertFalse(c1DupAdd);
+    assertThat(set, containsInAnyOrder((Counter) c1));
+  }
+
+  @Test
+  public void testAddOrReuseWithAlreadyPresentReturnsPresent() {
+    Counter<?> c1 = Counter.longs("c1", SUM);
+    Counter<?> c1Dup = Counter.longs("c1", SUM);
+
+    Counter<?> c1AddResult = set.addOrReuseCounter(c1);
+    Counter<?> c1DupAddResult = set.addOrReuseCounter(c1Dup);
+
+    assertSame(c1, c1AddResult);
+    assertSame(c1AddResult, c1DupAddResult);
+    assertThat(set, containsInAnyOrder((Counter) c1));
+  }
+
+  @Test
+  public void testAddOrReuseWithNoCounterReturnsProvided() {
+    Counter<?> c1 = Counter.longs("c1", SUM);
+
+    Counter<?> c1AddResult = set.addOrReuseCounter(c1);
+
+    assertSame(c1, c1AddResult);
+    assertThat(set, containsInAnyOrder((Counter) c1));
+  }
+
+  @Test
+  public void testAddOrReuseWithIncompatibleTypesThrowsException() {
+    Counter<?> c1 = Counter.longs("c1", SUM);
+    Counter<?> c1Incompatible = Counter.ints("c1", MAX);
+
+    set.addOrReuseCounter(c1);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Counter " + c1Incompatible
+        + " duplicates incompatible counter " + c1 + " in " + set);
+
+    set.addOrReuseCounter(c1Incompatible);
+  }
+
+  @Test
+  public void testAddCounterMutatorAddCounterAddsCounter() {
+    Counter<?> c1 = Counter.longs("c1", SUM);
+
+    Counter<?> addC1Result = set.getAddCounterMutator().addCounter(c1);
+
+    assertSame(c1, addC1Result);
+    assertThat(set, containsInAnyOrder((Counter) c1));
+  }
+
+  @Test
+  public void testAddCounterMutatorAddEqualCounterReusesCounter() {
+    Counter<?> c1 = Counter.longs("c1", SUM);
+    Counter<?> c1dup = Counter.longs("c1", SUM);
+
+    Counter<?> addC1Result = set.getAddCounterMutator().addCounter(c1);
+    Counter<?> addC1DupResult = set.getAddCounterMutator().addCounter(c1dup);
+
+    assertThat(set, containsInAnyOrder((Counter) c1));
+    assertSame(c1, addC1Result);
+    assertSame(c1, addC1DupResult);
+  }
+
+  @Test
+  public void testAddCounterMutatorIncompatibleTypesThrowsException() {
+    Counter<?> c1 = Counter.longs("c1", SUM);
+    Counter<?> c1Incompatible = Counter.longs("c1", SET);
+
+    set.getAddCounterMutator().addCounter(c1);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Counter " + c1Incompatible
+        + " duplicates incompatible counter " + c1 + " in " + set);
+
+    set.getAddCounterMutator().addCounter(c1Incompatible);
+  }
+
+  @Test
+  public void testAddCounterMutatorAddMultipleCounters() {
+    Counter<?> c1 = Counter.longs("c1", SUM);
+    Counter<?> c2 = Counter.longs("c2", MAX);
+
+    set.getAddCounterMutator().addCounter(c1);
+    set.getAddCounterMutator().addCounter(c2);
+
+    assertThat(set, containsInAnyOrder(c1, c2));
+  }
+
 }
