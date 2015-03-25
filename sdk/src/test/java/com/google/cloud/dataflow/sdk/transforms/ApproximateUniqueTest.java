@@ -24,10 +24,8 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.DoubleCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.EvaluationResults;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -265,39 +263,30 @@ public class ApproximateUniqueTest {
    *
    * @param <E> the type of elements in the input PCollection.
    */
-  private static class CountElements<E> extends CombineFn<E, Long[], Long> {
+  private static class CountElements<E> extends CombineFn<E, Long, Long> {
 
     @Override
-    public Long[] createAccumulator() {
-      Long[] accumulator = new Long[1];
-      accumulator[0] = 0L;
-      return accumulator;
+    public Long createAccumulator() {
+      return 0L;
     }
 
     @Override
-    public void addInput(Long[] accumulator, E input) {
-      accumulator[0]++;
+    public Long addInput(Long accumulator, E input) {
+      return accumulator + 1;
     }
 
     @Override
-    public Long[] mergeAccumulators(Iterable<Long[]> accumulators) {
-      Long[] sum = new Long[1];
-      sum[0] = 0L;
-      for (Long[] accumulator : accumulators) {
-        sum[0] += accumulator[0];
+    public Long mergeAccumulators(Iterable<Long> accumulators) {
+      long sum = 0;
+      for (Long accumulator : accumulators) {
+        sum += accumulator;
       }
       return sum;
     }
 
     @Override
-    public Long extractOutput(Long[] accumulator) {
-      return accumulator[0];
-    }
-
-    @Override
-    public Coder<Long[]> getAccumulatorCoder(CoderRegistry registry,
-        Coder<E> inputCoder) {
-      return SerializableCoder.of(Long[].class);
+    public Long extractOutput(Long accumulator) {
+      return accumulator;
     }
   }
 }

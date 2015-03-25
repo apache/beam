@@ -435,8 +435,9 @@ public class CombineTest {
     }
 
     @Override
-    public void addInput(Set<Integer> accumulator, Integer input) {
+    public Set<Integer> addInput(Set<Integer> accumulator, Integer input) {
       accumulator.add(input);
+      return accumulator;
     }
 
     @Override

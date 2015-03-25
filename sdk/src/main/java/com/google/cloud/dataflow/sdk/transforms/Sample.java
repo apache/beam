@@ -119,9 +119,10 @@ public class Sample {
     }
 
     @Override
-    public void addInput(Top.TopCombineFn<KV<Integer, T>>.Heap accumulator,
-                         T input) {
+    public Top.TopCombineFn<KV<Integer, T>>.Heap addInput(
+        Top.TopCombineFn<KV<Integer, T>>.Heap accumulator, T input) {
       accumulator.addInput(KV.of(rand.nextInt(), input));
+      return accumulator;
     }
 
     @Override

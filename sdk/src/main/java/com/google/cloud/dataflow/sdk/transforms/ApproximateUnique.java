@@ -356,9 +356,10 @@ public class ApproximateUnique {
     }
 
     @Override
-    public void addInput(LargestUnique heap, T input) {
+    public LargestUnique addInput(LargestUnique heap, T input) {
       try {
         heap.add(hash(input, coder));
+        return heap;
       } catch (Throwable e) {
         throw new RuntimeException(e);
       }

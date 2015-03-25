@@ -173,7 +173,7 @@ public class CombineValuesFn extends NormalParDoFn {
       K key = kv.getKey();
       VA accum = this.combineFn.createAccumulator(key);
       for (VI input : kv.getValue()) {
-        this.combineFn.addInput(key, accum, input);
+        accum = this.combineFn.addInput(key, accum, input);
       }
 
       c.output(KV.of(key, accum));

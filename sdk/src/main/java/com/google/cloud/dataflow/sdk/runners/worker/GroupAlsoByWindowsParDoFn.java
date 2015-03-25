@@ -118,7 +118,6 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
     boolean isMergingOnly = true;
     KeyedCombineFn maybeMergingCombineFn;
     if (isMergingOnly && combineFn != null) {
-
       maybeMergingCombineFn = new MergingKeyedCombineFn(combineFn);
     } else {
       maybeMergingCombineFn = combineFn;
@@ -174,20 +173,18 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       return new ArrayList<>();
     }
     @Override
-    public void addInput(K key, List<VA> accumulator, VA input) {
+    public List<VA> addInput(K key, List<VA> accumulator, VA input) {
       accumulator.add(input);
       // TODO: Buffer more once we have compaction operation.
       if (accumulator.size() > 1) {
-        VA all = keyedCombineFn.mergeAccumulators(key, accumulator);
-        accumulator.clear();
-        accumulator.add(all);
+        return mergeToSingleton(key, accumulator);
+      } else {
+        return accumulator;
       }
     }
     @Override
     public List<VA> mergeAccumulators(K key, Iterable<List<VA>> accumulators) {
-      List<VA> singleton = new ArrayList<>();
-      singleton.add(keyedCombineFn.mergeAccumulators(key, Iterables.concat(accumulators)));
-      return singleton;
+      return mergeToSingleton(key, Iterables.concat(accumulators));
     }
     @Override
     public VA extractOutput(K key, List<VA> accumulator) {
@@ -196,6 +193,11 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       } else {
         return keyedCombineFn.mergeAccumulators(key, accumulator);
       }
+    }
+    private List<VA> mergeToSingleton(K key, Iterable<VA> accumulators) {
+      List<VA> singleton = new ArrayList<>();
+      singleton.add(keyedCombineFn.mergeAccumulators(key, accumulators));
+      return singleton;
     }
   }
 

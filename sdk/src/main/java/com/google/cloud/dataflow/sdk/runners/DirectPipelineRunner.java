@@ -287,7 +287,7 @@ public class DirectPipelineRunner
       boolean hasInput = false;
 
       for (VI value : values) {
-        fn.addInput(key, accumulator, value);
+        accumulator = fn.addInput(key, accumulator, value);
         hasInput = true;
 
         // For each index i, flip a 1/2^i weighted coin for whether to

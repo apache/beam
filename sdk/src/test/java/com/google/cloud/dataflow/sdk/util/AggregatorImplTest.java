@@ -188,10 +188,13 @@ public class AggregatorImplTest {
           @Override
           public List<Integer> createAccumulator() { return null; }
           @Override
-          public void addInput(List<Integer> accumulator, Integer input) { }
+          public List<Integer> addInput(List<Integer> accumulator, Integer input) {
+            return null;
+          }
           @Override
           public List<Integer> mergeAccumulators(Iterable<List<Integer>> accumulators) {
-            return null; }
+            return null;
+          }
           @Override
           public Integer extractOutput(List<Integer> accumulator) { return null; }
         },

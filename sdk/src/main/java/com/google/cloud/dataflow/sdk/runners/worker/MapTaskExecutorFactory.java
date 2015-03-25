@@ -236,8 +236,7 @@ public class MapTaskExecutorFactory {
 
     @Override
     public VA add(K key, VA accumulator, VI value) {
-      this.combineFn.addInput(key, accumulator, value);
-      return accumulator;
+      return this.combineFn.addInput(key, accumulator, value);
     }
 
     @Override

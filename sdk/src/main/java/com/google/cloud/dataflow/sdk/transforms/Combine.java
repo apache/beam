@@ -328,10 +328,12 @@ public class Combine {
     public abstract VA createAccumulator();
 
     /**
-     * Adds the given input value to the given accumulator,
-     * modifying the accumulator.
+     * Adds the given input value to the given accumulator, returning the
+     * new accumulator value.
+     *
+     * <P> For efficiency, the input accumulator may be modified and returned.
      */
-    public abstract void addInput(VA accumulator, VI input);
+    public abstract VA addInput(VA accumulator, VI input);
 
     /**
      * Returns an accumulator representing the accumulation of all the
@@ -422,8 +424,8 @@ public class Combine {
         }
 
         @Override
-        public void addInput(K key, VA accumulator, VI input) {
-          CombineFn.this.addInput(accumulator, input);
+        public VA addInput(K key, VA accumulator, VI input) {
+          return CombineFn.this.addInput(accumulator, input);
         }
 
         @Override
@@ -479,12 +481,13 @@ public class Combine {
     }
 
     @Override
-    public void addInput(Holder<V> accumulator, V input) {
+    public Holder<V> addInput(Holder<V> accumulator, V input) {
       if (accumulator.present) {
         accumulator.set(apply(accumulator.value, input));
       } else {
         accumulator.set(input);
       }
+      return accumulator;
     }
 
     @Override
@@ -588,8 +591,9 @@ public class Combine {
     }
 
     @Override
-    public void addInput(int[] accumulator, Integer input) {
+    public int[] addInput(int[] accumulator, Integer input) {
       accumulator[0] = apply(accumulator[0], input);
+      return accumulator;
     }
 
     @Override
@@ -657,8 +661,9 @@ public class Combine {
     }
 
     @Override
-    public void addInput(long[] accumulator, Long input) {
+    public long[] addInput(long[] accumulator, Long input) {
       accumulator[0] = apply(accumulator[0], input);
+      return accumulator;
     }
 
     @Override
@@ -725,8 +730,9 @@ public class Combine {
     }
 
     @Override
-    public void addInput(double[] accumulator, Double input) {
+    public double[] addInput(double[] accumulator, Double input) {
       accumulator[0] = apply(accumulator[0], input);
+      return accumulator;
     }
 
     @Override
@@ -843,8 +849,9 @@ public class Combine {
     }
 
     @Override
-    public final void addInput(VA accumulator, VI input) {
+    public final VA addInput(VA accumulator, VI input) {
       accumulator.addInput(input);
+      return accumulator;
     }
 
     @Override
@@ -964,10 +971,12 @@ public class Combine {
      * Adds the given input value to the given accumulator,
      * modifying the accumulator.
      *
+     * <P> For efficiency, the input accumulator may be modified and returned.
+     *
      * @param key the key that all the accumulated values using the
      * accumulator are associated with
      */
-    public abstract void addInput(K key, VA accumulator, VI value);
+    public abstract VA addInput(K key, VA accumulator, VI value);
 
     /**
      * Returns an accumulator representing the accumulation of all the
@@ -1288,25 +1297,29 @@ public class Combine {
     }
 
     @Override
-    public void addInput(List<V> accumulator, V input) {
+    public List<V> addInput(List<V> accumulator, V input) {
       accumulator.add(input);
       if (accumulator.size() > BUFFER_SIZE) {
-        V combined = combiner.apply(accumulator);
-        accumulator.clear();
-        accumulator.add(combined);
+        return mergeToSingleton(accumulator);
+      } else {
+        return accumulator;
       }
     }
 
     @Override
     public List<V> mergeAccumulators(Iterable<List<V>> accumulators) {
-      List<V> singleton = new ArrayList<>();
-      singleton.add(combiner.apply(Iterables.concat(accumulators)));
-      return singleton;
+      return mergeToSingleton(Iterables.concat(accumulators));
     }
 
     @Override
     public V extractOutput(List<V> accumulator) {
       return combiner.apply(accumulator);
+    }
+
+    private List<V> mergeToSingleton(Iterable<V> values) {
+      List<V> singleton = new ArrayList<>();
+      singleton.add(combiner.apply(values));
+      return singleton;
     }
   }
 
@@ -1454,8 +1467,8 @@ public class Combine {
               return fn.createAccumulator(key.getKey());
             }
             @Override
-            public void addInput(KV<K, Integer> key, VA accumulator, VI value) {
-              fn.addInput(key.getKey(), accumulator, value);
+            public VA addInput(KV<K, Integer> key, VA accumulator, VI value) {
+              return fn.addInput(key.getKey(), accumulator, value);
             }
             @Override
             public VA mergeAccumulators(KV<K, Integer> key, Iterable<VA> accumulators) {
@@ -1476,29 +1489,24 @@ public class Combine {
 
       @SuppressWarnings("unchecked")
       final KvCoder<K, VI> inputCoder = ((KvCoder<K, VI>) input.getCoder());
-      // List required because the accumulator must be mutable.
-      KeyedCombineFn<K, VA, List<VA>, VO> hotPostCombine =
-          new KeyedCombineFn<K, VA, List<VA>, VO>() {
+      KeyedCombineFn<K, VA, VA, VO> hotPostCombine =
+          new KeyedCombineFn<K, VA, VA, VO>() {
             @Override
-            public List<VA> createAccumulator(K key) {
-              return new ArrayList<>();
+            public VA createAccumulator(K key) {
+              return fn.createAccumulator(key);
             }
             @Override
-            public void addInput(K key, List<VA> accumulator, VA value) {
-              VA merged = fn.mergeAccumulators(
-                  key, Iterables.concat(accumulator, ImmutableList.of(value)));
-              accumulator.clear();
-              accumulator.add(merged);
+            public VA addInput(K key, VA accumulator, VA value) {
+              return fn.mergeAccumulators(
+                  key, ImmutableList.of(accumulator, value));
             }
             @Override
-            public List<VA> mergeAccumulators(K key, Iterable<List<VA>> accumulators) {
-              List<VA> singleton = new ArrayList<>();
-              singleton.add(fn.mergeAccumulators(key, Iterables.concat(accumulators)));
-              return singleton;
+            public VA mergeAccumulators(K key, Iterable<VA> accumulators) {
+              return fn.mergeAccumulators(key, accumulators);
             }
             @Override
-            public VO extractOutput(K key, List<VA> accumulator) {
-              return fn.extractOutput(key, fn.mergeAccumulators(key, accumulator));
+            public VO extractOutput(K key, VA accumulator) {
+              return fn.extractOutput(key, accumulator);
             }
             @Override
             public Coder<VO> getDefaultOutputCoder(
