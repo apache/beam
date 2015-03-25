@@ -33,11 +33,14 @@ public class ReifyTimestampAndWindowsDoFn<K, V>
   @Override
   public void processElement(ProcessContext c)
       throws Exception {
+    @SuppressWarnings("unchecked")
+    DoFnProcessContext<KV<K, V>, KV<K, WindowedValue<V>>> context =
+        (DoFnProcessContext<KV<K, V>, KV<K, WindowedValue<V>>>) c;
     KV<K, V> kv = c.element();
     K key = kv.getKey();
     V value = kv.getValue();
     c.output(KV.of(
         key,
-        WindowedValue.of(value, c.timestamp(), c.windowingInternals().windows())));
+        WindowedValue.of(value, c.timestamp(), context.windows())));
   }
 }

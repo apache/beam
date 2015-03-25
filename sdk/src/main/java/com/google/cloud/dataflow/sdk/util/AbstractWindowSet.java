@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -80,14 +79,14 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
   protected final K key;
   protected final WindowFn<?, W> windowFn;
   protected final Coder<VI> inputCoder;
-  protected final DoFn<?, KV<K, VO>>.ProcessContext context;
+  protected final DoFnProcessContext<?, KV<K, VO>> context;
   protected final ActiveWindowManager<W> activeWindowManager;
 
   protected AbstractWindowSet(
       K key,
       WindowFn<?, W> windowFn,
       Coder<VI> inputCoder,
-      DoFn<?, KV<K, VO>>.ProcessContext context,
+      DoFnProcessContext<?, KV<K, VO>> context,
       ActiveWindowManager<W> activeWindowManager) {
     this.key = key;
     this.windowFn = windowFn;
@@ -159,7 +158,7 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
   public void markCompleted(W window) throws Exception {
     VO value = finalValue(window);
     remove(window);
-    context.windowingInternals().outputWindowedValue(
+    context.outputWindowedValue(
         KV.of(key, value),
         window.maxTimestamp(),
         Arrays.asList(window));

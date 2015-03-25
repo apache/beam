@@ -324,11 +324,6 @@ public class RateLimiting {
       public BoundedWindow window() {
         return context.window();
       }
-
-      @Override
-      public WindowingInternals<I, O> windowingInternals() {
-        return context.windowingInternals();
-      }
     }
 
     private final DoFn<I, O> doFn;

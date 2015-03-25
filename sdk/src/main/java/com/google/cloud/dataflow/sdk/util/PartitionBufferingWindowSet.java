@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.util;
 import static com.google.cloud.dataflow.sdk.util.WindowUtils.bufferTag;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
@@ -41,14 +40,14 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
       K key,
       WindowFn<?, W> windowFn,
       Coder<V> inputCoder,
-      DoFn<?, KV<K, Iterable<V>>>.ProcessContext context,
+      DoFnProcessContext<?, KV<K, Iterable<V>>> context,
       ActiveWindowManager<W> activeWindowManager) {
     super(key, windowFn, inputCoder, context, activeWindowManager);
   }
 
   @Override
   public void put(W window, V value) throws Exception {
-    context.windowingInternals().writeToTagList(
+    context.context.stepContext.writeToTagList(
         bufferTag(window, windowFn.windowCoder(), inputCoder), value, context.timestamp());
     // Adds the window even if it is already present, relying on the streaming backend to
     // de-deduplicate.
@@ -57,7 +56,7 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
 
   @Override
   public void remove(W window) throws Exception {
-    context.windowingInternals().deleteTagList(
+    context.context.stepContext.deleteTagList(
         bufferTag(window, windowFn.windowCoder(), inputCoder));
     activeWindowManager.removeWindow(window);
   }
@@ -80,7 +79,7 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
   @Override
   protected Iterable<V> finalValue(W window) throws Exception {
     CodedTupleTag<V> tag = bufferTag(window, windowFn.windowCoder(), inputCoder);
-    Iterable<V> result = context.windowingInternals().readTagList(tag);
+    Iterable<V> result = context.context.stepContext.readTagList(tag);
     if (result == null) {
       throw new IllegalStateException("finalValue called for non-existent window");
     }

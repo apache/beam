@@ -40,26 +40,27 @@ public class AssignWindowsDoFn<T, W extends BoundedWindow> extends DoFn<T, T> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public void processElement(final ProcessContext c) throws Exception {
+  public void processElement(ProcessContext c) throws Exception {
+    final DoFnProcessContext<T, T> context = (DoFnProcessContext<T, T>) c;
     Collection<W> windows =
         ((WindowFn<T, W>) fn).assignWindows(
             ((WindowFn<T, W>) fn).new AssignContext() {
                 @Override
                 public T element() {
-                  return c.element();
+                  return context.element();
                 }
 
                 @Override
                 public Instant timestamp() {
-                  return c.timestamp();
+                  return context.timestamp();
                 }
 
                 @Override
                 public Collection<? extends BoundedWindow> windows() {
-                  return c.windowingInternals().windows();
+                  return context.windows();
                 }
               });
 
-    c.windowingInternals().outputWindowedValue(c.element(), c.timestamp(), windows);
+    context.outputWindowedValue(context.element(), context.timestamp(), windows);
   }
 }
