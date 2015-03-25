@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
@@ -74,7 +75,8 @@ public class WindowingWordCount {
   }
 
   /** A DoFn that converts a Word and Count into a printable string. */
-  static class FormatCountsFn extends DoFn<KV<String, Long>, String> {
+  static class FormatCountsFn extends DoFn<KV<String, Long>, String>
+      implements RequiresWindowAccess {
     private static final long serialVersionUID = 0;
 
     @Override
@@ -82,7 +84,7 @@ public class WindowingWordCount {
       String output = "Element: " + c.element().getKey()
           + " Value: " + c.element().getValue()
           + " Timestamp: " + c.timestamp()
-          + " Windows: (" + c.windows() + ")";
+          + " Window: (" + c.window() + ")";
       c.output(output);
     }
   }

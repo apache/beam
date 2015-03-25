@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -125,8 +127,22 @@ public class DoFnRunner<I, O, R> {
    * the current element.
    */
   public void processElement(WindowedValue<I> elem) {
-    DoFnProcessContext<I, O> processContext = new DoFnProcessContext<I, O>(fn, context, elem);
 
+    if (elem.getWindows().size() == 1
+        || !RequiresWindowAccess.class.isAssignableFrom(fn.getClass())) {
+      invokeProcessElement(elem);
+    } else {
+      // We could modify the windowed value (and the processContext) to
+      // avoid repeated allocations, but this is more straightforward.
+      for (BoundedWindow window : elem.getWindows()) {
+        invokeProcessElement(WindowedValue.of(
+            elem.getValue(), elem.getTimestamp(), window));
+      }
+    }
+  }
+
+  private void invokeProcessElement(WindowedValue<I> elem) {
+    DoFnProcessContext<I, O> processContext = new DoFnProcessContext<I, O>(fn, context, elem);
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       fn.processElement(processContext);

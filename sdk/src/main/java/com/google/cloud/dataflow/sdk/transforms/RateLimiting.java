@@ -30,7 +30,6 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -322,8 +321,8 @@ public class RateLimiting {
       }
 
       @Override
-      public Collection<? extends BoundedWindow> windows() {
-        return context.windows();
+      public BoundedWindow window() {
+        return context.window();
       }
     }
 

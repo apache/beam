@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.SerializableComparator;
@@ -130,7 +131,34 @@ public class TopWikipediaSessions {
     }
   }
 
+  static class SessionsToStringsDoFn extends DoFn<KV<String, Long>, KV<String, Long>>
+      implements RequiresWindowAccess {
+
+    private static final long serialVersionUID = 0;
+
+    @Override
+    public void processElement(ProcessContext c) {
+      c.output(KV.of(
+          c.element().getKey() + " : " + c.window(), c.element().getValue()));
+    }
+  }
+
+  static class FormatOutputDoFn extends DoFn<List<KV<String, Long>>, String>
+      implements RequiresWindowAccess {
+    private static final long serialVersionUID = 0;
+
+    @Override
+    public void processElement(ProcessContext c) {
+      for (KV<String, Long> item : c.element()) {
+        String session = item.getKey();
+        long count = item.getValue();
+        c.output(session + " : " + count + " : " + ((IntervalWindow) c.window()).start());
+      }
+    }
+  }
+
   static class ComputeTopSessions extends PTransform<PCollection<TableRow>, PCollection<String>> {
+
     private static final long serialVersionUID = 0;
 
     private final double samplingThreshold;
@@ -158,35 +186,9 @@ public class TopWikipediaSessions {
 
           .apply(new ComputeSessions())
 
-          .apply(ParDo.named("SessionsToStrings").of(
-              new DoFn<KV<String, Long>, KV<String, Long>>() {
-                private static final long serialVersionUID = 0;
-
-                @Override
-                public void processElement(ProcessContext c) {
-                  c.output(KV.of(
-                      c.element().getKey() + " : "
-                      + c.windows().iterator().next(), c.element().getValue()));
-                }
-              }))
-
+          .apply(ParDo.named("SessionsToStrings").of(new SessionsToStringsDoFn()))
           .apply(new TopPerMonth())
-
-          .apply(ParDo.named("FormatOutput").of(
-              new DoFn<List<KV<String, Long>>, String>() {
-                private static final long serialVersionUID = 0;
-
-                @Override
-                public void processElement(ProcessContext c) {
-                  for (KV<String, Long> item : c.element()) {
-                    String session = item.getKey();
-                    long count = item.getValue();
-                    c.output(
-                        session + " : " + count + " : "
-                        + ((IntervalWindow) c.windows().iterator().next()).start());
-                  }
-                }
-              }));
+          .apply(ParDo.named("FormatOutput").of(new FormatOutputDoFn()));
     }
   }
 

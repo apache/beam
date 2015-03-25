@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -56,6 +57,15 @@ public class WindowingTest implements Serializable {
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private static class WindowedCount extends PTransform<PCollection<String>, PCollection<String>> {
+
+    private final class FormatCountsDoFn
+        extends DoFn<KV<String, Long>, String> implements RequiresWindowAccess {
+      @Override
+          public void processElement(ProcessContext c) {
+        c.output(c.element().getKey() + ":" + c.element().getValue()
+            + ":" + c.timestamp().getMillis() + ":" + c.window());
+      }
+    }
     private WindowFn<Object, ?> windowFn;
     public WindowedCount(WindowFn<? super String, ?> windowFn) {
       this.windowFn = (WindowFn) windowFn;
@@ -66,21 +76,14 @@ public class WindowingTest implements Serializable {
           .apply(Window.named("Window").<String>into(windowFn))
           .apply(Count.<String>perElement())
           .apply(ParDo
-              .named("FormatCounts")
-              .of(new DoFn<KV<String, Long>, String>() {
-                    @Override
-                        public void processElement(ProcessContext c) {
-                      c.output(c.element().getKey() + ":" + c.element().getValue()
-                          + ":" + c.timestamp().getMillis() + ":" + c.windows());
-                    }
-                  }))
+              .named("FormatCounts").of(new FormatCountsDoFn()))
           .setCoder(StringUtf8Coder.of());
     }
   }
 
   private String output(String value, int count, int timestamp, int windowStart, int windowEnd) {
     return value + ":" + count + ":" + timestamp
-        + ":[[" + new Instant(windowStart) + ".." + new Instant(windowEnd) + ")]";
+        + ":[" + new Instant(windowStart) + ".." + new Instant(windowEnd) + ")";
   }
 
   @Test

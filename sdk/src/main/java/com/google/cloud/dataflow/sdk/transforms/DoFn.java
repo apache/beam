@@ -30,7 +30,6 @@ import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -229,7 +228,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * key.
      *
      * @throws UnsupportedOperationException if this {@link DoFn} does
-     * not implement {@link RequiresKeyedState}
+     * not implement {@link RequiresKeyedState}.
      */
     public abstract KeyedState keyedState();
 
@@ -242,12 +241,15 @@ public abstract class DoFn<I, O> implements Serializable {
     public abstract Instant timestamp();
 
     /**
-     * Returns the set of windows to which the input element has been assigned.
+     * Returns the window into which the input element has been assigned.
      *
      * <p> See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window}
      * for more information.
+     *
+     * @throws UnsupportedOperationException if this {@link DoFn} does
+     * not implement {@link RequiresWindowAccess}.
      */
-    public abstract Collection<? extends BoundedWindow> windows();
+    public abstract BoundedWindow window();
   }
 
   /**
@@ -271,6 +273,14 @@ public abstract class DoFn<I, O> implements Serializable {
    * <p> This functionality is experimental and likely to change.
    */
   public interface RequiresKeyedState {}
+
+  /**
+   * Interface for signaling that a {@link DoFn} needs to access the window the
+   * element is being processed in, via {@link DoFn.ProcessContext#window}.
+   *
+   * <p> This functionality is experimental and likely to change.
+   */
+  public interface RequiresWindowAccess {}
 
   /**
    * Interface for interacting with keyed state.

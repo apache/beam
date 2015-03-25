@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresKeyedState;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
@@ -30,6 +31,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
@@ -102,6 +104,16 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
     return context.stepContext;
   }
 
+
+  @Override
+  public BoundedWindow window() {
+    if (!(fn instanceof RequiresWindowAccess)) {
+      throw new UnsupportedOperationException(
+          "window() is only available in the context of a DoFn marked as RequiresWindow.");
+    }
+    return Iterables.getOnlyElement(windows());
+  }
+
   @Override
   public void output(O output) {
     context.outputWindowedValue(output, windowedValue.getTimestamp(), windowedValue.getWindows());
@@ -151,7 +163,6 @@ class DoFnProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
     return windowedValue.getTimestamp();
   }
 
-  @Override
   public Collection<? extends BoundedWindow> windows() {
     return windowedValue.getWindows();
   }

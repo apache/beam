@@ -40,6 +40,7 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
@@ -84,6 +85,13 @@ public class ParDoTest implements Serializable {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
+  private static class PrintingDoFn extends DoFn<String, String> implements RequiresWindowAccess {
+    @Override
+    public void processElement(ProcessContext c) {
+      c.output(c.element() + ":" + c.timestamp().getMillis()
+          + ":" + c.window().maxTimestamp().getMillis());
+    }
+  }
 
   static class TestDoFn extends DoFn<Integer, String> {
     enum State { UNSTARTED, STARTED, PROCESSING, FINISHED }
@@ -1173,13 +1181,7 @@ public class ParDoTest implements Serializable {
                     System.out.println("Finish: 3");
                   }
                 }))
-        .apply(ParDo.of(new DoFn<String, String>() {
-                  @Override
-                  public void processElement(ProcessContext c) {
-                    c.output(c.element() + ":" + c.timestamp().getMillis()
-                        + ":" + c.windows().iterator().next().maxTimestamp().getMillis());
-                  }
-                }));
+        .apply(ParDo.of(new PrintingDoFn()));
 
     DataflowAssert.that(output).containsInAnyOrder("elem:1:1", "start:2:2", "finish:3:3");
 

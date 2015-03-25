@@ -22,7 +22,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -33,6 +32,7 @@ import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -385,7 +385,7 @@ public class CoGroupByKeyTest implements Serializable {
    * results of a CoGroupByKey.
    */
   private static class ClickOfPurchaseFn extends
-      DoFn<KV<Integer, CoGbkResult>, KV<String, String>> {
+      DoFn<KV<Integer, CoGbkResult>, KV<String, String>> implements RequiresWindowAccess {
     private final TupleTag<String> clicksTag;
 
     private final TupleTag<String> purchasesTag;
@@ -399,8 +399,7 @@ public class CoGroupByKeyTest implements Serializable {
 
     @Override
     public void processElement(ProcessContext c) {
-      Preconditions.checkState(c.windows().size() == 1);
-      BoundedWindow w = c.windows().iterator().next();
+      BoundedWindow w = c.window();
       KV<Integer, CoGbkResult> e = c.element();
       CoGbkResult row = e.getValue();
       Iterable<String> clicks = row.getAll(clicksTag);

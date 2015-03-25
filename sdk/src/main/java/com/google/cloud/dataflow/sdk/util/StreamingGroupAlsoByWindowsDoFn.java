@@ -108,7 +108,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
             doFnContext,
             new StreamingActiveWindowManager<>(windowFn, doFnContext));
 
-        for (BoundedWindow window : context.windows()) {
+        for (BoundedWindow window : doFnContext.windows()) {
           @SuppressWarnings("unchecked")
           W w = (W) window;
           windowSet.put(w, value);

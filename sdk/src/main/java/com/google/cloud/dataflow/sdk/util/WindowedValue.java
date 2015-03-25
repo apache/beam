@@ -40,7 +40,6 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -63,32 +62,30 @@ public abstract class WindowedValue<V> {
       V value,
       Instant timestamp,
       Collection<? extends BoundedWindow> windows) {
-    Iterator<? extends BoundedWindow> windowsIter = windows.iterator();
-    if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
-      if (!windowsIter.hasNext()) {
-        return valueInEmptyWindows(value);
-      }
-      BoundedWindow firstWindow = windowsIter.next();
-      if (!windowsIter.hasNext()
-          && GlobalWindow.INSTANCE.equals(firstWindow)) {
-        return valueInGlobalWindow(value);
-      }
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows);
+
+    if (windows.size() == 0 && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
+      return valueInEmptyWindows(value);
+    } else if (windows.size() == 1) {
+      return of(value, timestamp, windows.iterator().next());
     } else {
-      if (windowsIter.hasNext()) {
-        BoundedWindow firstWindow = windowsIter.next();
-        if (!windowsIter.hasNext()) {
-          if (GlobalWindow.INSTANCE.equals(firstWindow)) {
-            return new TimestampedValueInGlobalWindow<>(
-                value, timestamp);
-          } else {
-            return new TimestampedValueInSingleWindow<>(
-                value, timestamp, firstWindow);
-          }
-        }
-      }
-      // value in 0 or several windows.
       return new TimestampedValueInMultipleWindows<>(value, timestamp, windows);
+    }
+  }
+
+  /**
+   * Returns a {@code WindowedValue} with the given value, timestamp, and window.
+   */
+  public static <V> WindowedValue<V> of(
+      V value,
+      Instant timestamp,
+      BoundedWindow window) {
+    boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
+    if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
+      return valueInGlobalWindow(value);
+    } else if (isGlobal) {
+      return new TimestampedValueInGlobalWindow<>(value, timestamp);
+    } else {
+      return new TimestampedValueInSingleWindow<>(value, timestamp, window);
     }
   }
 
