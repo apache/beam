@@ -27,6 +27,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
+import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
@@ -260,6 +261,9 @@ public class DataflowWorker {
       Reader.DynamicSplitResultWithPosition asPosition =
           (Reader.DynamicSplitResultWithPosition) dynamicSplitResult;
       status.setStopPosition(toCloudPosition(asPosition.getAcceptedPosition()));
+    } else if (dynamicSplitResult instanceof BasicSerializableSourceFormat.SourceSplit) {
+      status.setSourceFork(BasicSerializableSourceFormat.toSourceSplit(
+          (BasicSerializableSourceFormat.SourceSplit) dynamicSplitResult, options));
     } else if (dynamicSplitResult != null) {
       throw new IllegalArgumentException(
           "Unexpected type of dynamic split result: " + dynamicSplitResult);

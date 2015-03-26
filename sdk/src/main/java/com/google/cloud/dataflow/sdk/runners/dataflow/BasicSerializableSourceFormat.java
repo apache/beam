@@ -26,6 +26,8 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
 import com.google.api.client.util.Base64;
+import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.SourceFork;
 import com.google.api.services.dataflow.model.SourceGetMetadataRequest;
 import com.google.api.services.dataflow.model.SourceGetMetadataResponse;
 import com.google.api.services.dataflow.model.SourceMetadata;
@@ -36,11 +38,13 @@ import com.google.api.services.dataflow.model.SourceSplitRequest;
 import com.google.api.services.dataflow.model.SourceSplitResponse;
 import com.google.api.services.dataflow.model.SourceSplitShard;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.ReadSource;
 import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -77,6 +81,42 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   /**
+   * A {@code DynamicSplitResult} specified explicitly by a pair of {@code Source}
+   * objects describing the primary and residual sources.
+   */
+  public static final class SourceSplit<T> implements Reader.DynamicSplitResult {
+    public final Source<T> primary;
+    public final Source<T> residual;
+
+    public SourceSplit(Source<T> primary, Source<T> residual) {
+      this.primary = primary;
+      this.residual = residual;
+    }
+  }
+
+  public static SourceFork toSourceSplit(
+      SourceSplit<?> sourceSplitResult, PipelineOptions options) {
+    SourceFork sourceSplit = new SourceFork();
+    com.google.api.services.dataflow.model.Source primarySource;
+    com.google.api.services.dataflow.model.Source residualSource;
+    try {
+      primarySource = serializeToCloudSource(sourceSplitResult.primary, options);
+      residualSource = serializeToCloudSource(sourceSplitResult.residual, options);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to serialize one of the parts of the source split", e);
+    }
+    sourceSplit.setPrimary(
+        new SourceSplitShard()
+            .setDerivationMode("SOURCE_DERIVATION_MODE_INDEPENDENT")
+            .setSource(primarySource));
+    sourceSplit.setResidual(
+        new SourceSplitShard()
+            .setDerivationMode("SOURCE_DERIVATION_MODE_INDEPENDENT")
+            .setSource(residualSource));
+    return sourceSplit;
+  }
+
+  /**
    * Executes a protocol-level split {@code SourceOperationRequest} by deserializing its source
    * to a {@code Source}, splitting it, and serializing results back.
    */
@@ -96,11 +136,12 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   /**
-   * Factory method allowing this class to satisfy the implicit contract of {@code SourceFactory}.
+   * Factory method allowing this class to satisfy the implicit contract of
+   * {@link com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory}.
    */
-  public static <T> Reader<WindowedValue<T>> create(final PipelineOptions options, CloudObject spec,
-      final Coder<WindowedValue<T>> coder, final ExecutionContext executionContext)
-      throws Exception {
+  public static <T> Reader<WindowedValue<T>> create(
+      final PipelineOptions options, CloudObject spec, Coder<WindowedValue<T>> coder,
+      final ExecutionContext executionContext) throws Exception {
     // The parameter "coder" is deliberately never used. It is an artifact of ReaderFactory:
     // some readers need a coder, some don't (i.e. for some it doesn't even make sense),
     // but ReaderFactory passes it to all readers anyway.
@@ -109,8 +150,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     return new Reader<WindowedValue<T>>() {
       @Override
       public ReaderIterator<WindowedValue<T>> iterator() throws IOException {
-        return new BasicSerializableSourceFormat.ReaderIterator<T>(
-            source,
+        return new BasicSerializableSourceFormat.ReaderIterator<>(
             source.createReader(options, executionContext));
       }
     };
@@ -158,8 +198,11 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       throws Exception {
     Source<?> source = deserializeFromCloudSource(request.getSource().getSpec());
     SourceMetadata metadata = new SourceMetadata();
-    metadata.setProducesSortedKeys(source.producesSortedKeys(options));
-    metadata.setEstimatedSizeBytes(source.getEstimatedSizeBytes(options));
+    if (source instanceof BoundedSource) {
+      BoundedSource<?> boundedSource = (BoundedSource<?>) source;
+      metadata.setProducesSortedKeys(boundedSource.producesSortedKeys(options));
+      metadata.setEstimatedSizeBytes(boundedSource.getEstimatedSizeBytes(options));
+    }
     SourceGetMetadataResponse response = new SourceGetMetadataResponse();
     response.setMetadata(metadata);
     return response;
@@ -187,13 +230,20 @@ public class BasicSerializableSourceFormat implements SourceFormat {
         cloudSource.getSpec(), SERIALIZED_SOURCE, encodeBase64String(serializeToByteArray(source)));
 
     SourceMetadata metadata = new SourceMetadata();
-    metadata.setProducesSortedKeys(source.producesSortedKeys(options));
+    if (source instanceof BoundedSource) {
+      BoundedSource<?> boundedSource = (BoundedSource<?>) source;
+      try {
+        metadata.setProducesSortedKeys(boundedSource.producesSortedKeys(options));
+      } catch (Exception e) {
+        LOG.warn("Failed to check if the source produces sorted keys: " + source, e);
+      }
 
-    // Size estimation is best effort so we continue even if it fails here.
-    try {
-      metadata.setEstimatedSizeBytes(source.getEstimatedSizeBytes(options));
-    } catch (Exception e) {
-      LOG.warn("Size estimation of the source failed.", e);
+      // Size estimation is best effort so we continue even if it fails here.
+      try {
+        metadata.setEstimatedSizeBytes(boundedSource.getEstimatedSizeBytes(options));
+      } catch (Exception e) {
+        LOG.warn("Size estimation of the source failed: " + source, e);
+      }
     }
 
     cloudSource.setMetadata(metadata);
@@ -245,23 +295,47 @@ public class BasicSerializableSourceFormat implements SourceFormat {
    * TODO: Consider changing the API of Reader.ReaderIterator so this adapter wouldn't be needed.
    */
   private static class ReaderIterator<T> implements Reader.ReaderIterator<WindowedValue<T>> {
-    private final Source<T> source;
+    private enum NextState {
+      UNKNOWN_BEFORE_START,
+      UNKNOWN_BEFORE_ADVANCE,
+      AVAILABLE,
+      FINISHED
+    }
     private Source.Reader<T> reader;
-    private boolean hasNext;
-    private T next;
-    private boolean advanced;
+    private NextState state = NextState.UNKNOWN_BEFORE_START;
 
-    private ReaderIterator(Source<T> source, Source.Reader<T> reader) {
-      this.source = source;
+    private ReaderIterator(Source.Reader<T> reader) {
       this.reader = reader;
     }
 
     @Override
     public boolean hasNext() throws IOException {
-      if (!advanced) {
-        advanceInternal();
+      switch(state) {
+        case UNKNOWN_BEFORE_START:
+          try {
+            if (reader.start()) {
+              state = NextState.AVAILABLE;
+              return true;
+            } else {
+              state = NextState.FINISHED;
+              return false;
+            }
+          } catch (Exception e) {
+            throw new IOException(
+                "Failed to start reading from source: " + reader.getCurrentSource(), e);
+          }
+        case UNKNOWN_BEFORE_ADVANCE:
+          if (reader.advance()) {
+            state = NextState.AVAILABLE;
+            return true;
+          } else {
+            state = NextState.FINISHED;
+            return false;
+          }
+        case AVAILABLE: return true;
+        case FINISHED: return false;
+        default: throw new AssertionError();
       }
-      return hasNext;
     }
 
     @Override
@@ -269,30 +343,8 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
-      T res = this.next;
-      advanceInternal();
-      return WindowedValue.valueInGlobalWindow(res);
-    }
-
-    private void advanceInternal() throws IOException {
-      try {
-        if (!advanced) {
-          try {
-            hasNext = reader.start();
-          } catch (Exception e) {
-            throw new IOException(
-                "Failed to start reading from source: " + source, e);
-          }
-        } else {
-          hasNext = reader.advance();
-        }
-        if (hasNext) {
-          next = reader.getCurrent();
-        }
-        advanced = true;
-      } catch (Exception e) {
-        throw new IOException(e);
-      }
+      state = NextState.UNKNOWN_BEFORE_ADVANCE;
+      return WindowedValue.valueInGlobalWindow(reader.getCurrent());
     }
 
     @Override
@@ -307,12 +359,67 @@ public class BasicSerializableSourceFormat implements SourceFormat {
 
     @Override
     public Reader.Progress getProgress() {
-      return null;
+      if (reader instanceof BoundedSource.BoundedReader) {
+        ApproximateProgress progress = new ApproximateProgress();
+        Double fractionConsumed = ((BoundedSource.BoundedReader<?>) reader).getFractionConsumed();
+        if (fractionConsumed != null) {
+          progress.setPercentComplete(fractionConsumed.floatValue());
+        }
+        return SourceTranslationUtils.cloudProgressToReaderProgress(progress);
+      } else {
+        // Progress estimation for unbounded sources not yet supported.
+        return null;
+      }
     }
 
     @Override
     public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest request) {
-      return null;
+      if (!(reader instanceof BoundedSource.BoundedReader)) {
+        throw new IllegalStateException(
+            "Unexpected requestDynamicSplit on an unbounded source: " + reader.getCurrentSource()
+            + ", request: " + request);
+      }
+
+      BoundedSource.BoundedReader<T> boundedReader = (BoundedSource.BoundedReader<T>) reader;
+      ApproximateProgress stopPosition =
+          SourceTranslationUtils.splitRequestToApproximateProgress(request);
+      Float fractionConsumed = stopPosition.getPercentComplete();
+      if (fractionConsumed == null) {
+        // Only truncating at a fraction is currently supported.
+        return null;
+      }
+      BoundedSource<T> original = boundedReader.getCurrentSource();
+      BoundedSource<T> residual = boundedReader.splitAtFraction(fractionConsumed.doubleValue());
+      if (residual == null) {
+        return null;
+      }
+      // Try to catch some potential subclass implementation errors early.
+      Source<T> primary = boundedReader.getCurrentSource();
+      if (original == primary) {
+        throw new IllegalStateException(
+          "Successful split did not change the current source: primary is identical to original"
+          + " (Source objects MUST be immutable): " + primary);
+      }
+      if (original == residual) {
+        throw new IllegalStateException(
+          "Successful split did not change the current source: residual is identical to original"
+          + " (Source objects MUST be immutable): " + residual);
+      }
+      try {
+        primary.validate();
+      } catch (Exception e) {
+        throw new IllegalStateException(
+            "Successful split produced an illegal primary source. "
+            + "\nOriginal: " + original + "\nPrimary: " + primary + "\nResidual: " + residual);
+      }
+      try {
+        residual.validate();
+      } catch (Exception e) {
+        throw new IllegalStateException(
+            "Successful split produced an illegal residual source. "
+            + "\nOriginal: " + original + "\nPrimary: " + primary + "\nResidual: " + residual);
+      }
+      return new SourceSplit<T>(primary, residual);
     }
   }
 }

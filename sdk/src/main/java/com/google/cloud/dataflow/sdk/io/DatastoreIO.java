@@ -173,7 +173,7 @@ public class DatastoreIO {
   /**
    * A source that reads the result rows of a Datastore query as {@code Entity} objects.
    */
-  public static class Source extends com.google.cloud.dataflow.sdk.io.Source<Entity> {
+  public static class Source extends BoundedSource<Entity> {
     private static final long serialVersionUID = -6078498627204891522L;
 
     String host;
@@ -302,10 +302,10 @@ public class DatastoreIO {
     }
 
     @Override
-    public Reader<Entity> createReader(
+    public BoundedReader<Entity> createReader(
         PipelineOptions pipelineOptions, ExecutionContext executionContext)
         throws IOException {
-      return new DatastoreReader(query, getDatastore(pipelineOptions));
+      return new DatastoreReader(this, getDatastore(pipelineOptions));
     }
 
     @Override
@@ -539,16 +539,13 @@ public class DatastoreIO {
   /**
    * A reader over the records from a query of the datastore.
    */
-  public static class DatastoreReader implements Source.Reader<Entity> {
-    /**
-     * Query to select records.
-     */
-    private Query.Builder query;
+  public static class DatastoreReader implements BoundedSource.BoundedReader<Entity> {
+    private final Source source;
 
     /**
      * Datastore to read from.
      */
-    private Datastore datastore;
+    private final Datastore datastore;
 
     /**
      * True if more results may be available.
@@ -578,13 +575,11 @@ public class DatastoreIO {
     /**
      * Returns a DatastoreIterator with query and Datastore object set.
      *
-     * @param query the query to select records.
      * @param datastore a datastore connection to use.
      */
-    public DatastoreReader(Query query, Datastore datastore) {
-      this.query = query.toBuilder().clone();
+    public DatastoreReader(Source source, Datastore datastore) {
+      this.source = source;
       this.datastore = datastore;
-      this.query.setLimit(QUERY_LIMIT);
     }
 
     @Override
@@ -621,6 +616,23 @@ public class DatastoreIO {
       // Nothing
     }
 
+    @Override
+    public DatastoreIO.Source getCurrentSource() {
+      return source;
+    }
+
+    @Override
+    public DatastoreIO.Source splitAtFraction(double fraction) {
+      // Not supported.
+      return null;
+    }
+
+    @Override
+    public Double getFractionConsumed() {
+      // Not supported.
+      return null;
+    }
+
     /**
      * Returns an iterator over the next batch of records for the query
      * and updates the cursor to get the next batch as needed.
@@ -628,6 +640,8 @@ public class DatastoreIO {
      */
     private Iterator<DatastoreV1.EntityResult> getIteratorAndMoveCursor()
         throws DatastoreException {
+      Query.Builder query = this.source.query.toBuilder().clone();
+      query.setLimit(QUERY_LIMIT);
       if (currentBatch != null && currentBatch.hasEndCursor()) {
         query.setStartCursor(currentBatch.getEndCursor());
       }

@@ -123,17 +123,17 @@ public abstract class FileBasedReader<T> extends Reader<T> {
   protected abstract class FileBasedIterator extends AbstractReaderIterator<T> {
     protected final CopyableSeekableByteChannel seeker;
     protected final PushbackInputStream stream;
-    protected final Long startOffset;
+    protected final long startOffset;
     protected Long endOffset;
     protected final ProgressTracker<Integer> tracker;
     protected ByteArrayOutputStream nextElement;
     protected boolean nextElementComputed = false;
     protected long offset;
-    protected FileBasedReader.DecompressingStreamFactory compressionStreamFactory;
+    protected DecompressingStreamFactory compressionStreamFactory;
 
     FileBasedIterator(CopyableSeekableByteChannel seeker, long startOffset, long offset,
         @Nullable Long endOffset, ProgressTracker<Integer> tracker,
-        FileBasedReader.DecompressingStreamFactory compressionStreamFactory) throws IOException {
+        DecompressingStreamFactory compressionStreamFactory) throws IOException {
       this.seeker = checkNotNull(seeker);
       this.seeker.position(startOffset);
       this.compressionStreamFactory = compressionStreamFactory;
@@ -182,15 +182,26 @@ public abstract class FileBasedReader<T> extends Reader<T> {
 
     @Override
     public Progress getProgress() {
-      // Currently we assume that only a offset position is reported as
+      // Currently we assume that only a offset position and fraction are reported as
       // current progress. An implementor can override this method to update
-      // other metrics, e.g. completion percentage or remaining time.
+      // other metrics, e.g. report a different completion percentage or remaining time.
       com.google.api.services.dataflow.model.Position currentPosition =
           new com.google.api.services.dataflow.model.Position();
       currentPosition.setByteOffset(offset);
 
       ApproximateProgress progress = new ApproximateProgress();
       progress.setPosition(currentPosition);
+
+      // If endOffset is null, we don't know the fraction consumed.
+      if (endOffset != null) {
+        // offset, in principle, can go beyond endOffset, e.g.:
+        // - We just read the last record and offset points to its end, which is after endOffset
+        // - This is some block-based file format where not every record is a "split point" and some
+        //   records can *start* after endOffset (though the first record of the next shard would
+        //   start still later).
+        progress.setPercentComplete(
+            Math.min(1.0f, 1.0f * (offset - startOffset) / (endOffset - startOffset)));
+      }
 
       return cloudProgressToReaderProgress(progress);
     }
@@ -279,7 +290,7 @@ public abstract class FileBasedReader<T> extends Reader<T> {
    * is checked against known extensions to determine a compression type to use.
    */
   protected static class FilenameBasedStreamFactory
-      implements FileBasedReader.DecompressingStreamFactory {
+      implements DecompressingStreamFactory {
     private String filename;
     private TextIO.CompressionType compressionType;
 

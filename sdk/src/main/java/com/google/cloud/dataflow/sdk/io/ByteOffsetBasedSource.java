@@ -17,6 +17,9 @@ package com.google.cloud.dataflow.sdk.io;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.common.base.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,7 +47,7 @@ import java.util.List;
  *
  * @param <T> Type of records represented by the source.
  */
-public abstract class ByteOffsetBasedSource<T> extends Source<T> {
+public abstract class ByteOffsetBasedSource<T> extends BoundedSource<T> {
   private static final long serialVersionUID = 0;
 
   private final long startOffset;
@@ -152,12 +155,17 @@ public abstract class ByteOffsetBasedSource<T> extends Source<T> {
   /**
    * A reader that implements code common to readers of all {@link ByteOffsetBasedSource}s.
    */
-  public abstract static class ByteOffsetBasedReader<T> implements Reader<T> {
+  public abstract static class ByteOffsetBasedReader<T> implements BoundedReader<T> {
+    private static final Logger LOG = LoggerFactory.getLogger(ByteOffsetBasedReader.class);
+
+    private ByteOffsetBasedSource<T> source;
 
     /**
      * @param source the {@code ByteOffsetBasedSource} to be read by the current reader.
      */
-    public ByteOffsetBasedReader(ByteOffsetBasedSource<T> source) {}
+    public ByteOffsetBasedReader(ByteOffsetBasedSource<T> source) {
+      this.source = source;
+    }
 
     /**
      * Returns the current offset of the reader. The value returned by this method is undefined
@@ -170,5 +178,66 @@ public abstract class ByteOffsetBasedSource<T> extends Source<T> {
      * described in the comment to {@code ByteOffsetBasedSource}.
      */
     protected abstract long getCurrentOffset();
+
+    @Override
+    public ByteOffsetBasedSource<T> getCurrentSource() {
+      return source;
+    }
+
+    @Override
+    public Double getFractionConsumed() {
+      if (source.getEndOffset() == Long.MAX_VALUE) {
+        // True fraction consumed is unknown.
+        return null;
+      }
+      // TODO: a more sophisticated implementation could account for the fact that
+      // the first record's offset is not necessarily the same as getStartOffset(),
+      // and same for the last record. For example, we could assume that
+      // the position of the last record is as far after getEndOffset() as the
+      // position of the first record was after getStartOffset(), and compute
+      // fraction based on this adjusted range.
+      long current = getCurrentOffset();
+      double fraction =
+          1.0 * (current - source.getStartOffset())
+              / (source.getEndOffset() - source.getStartOffset());
+      return Math.max(0, Math.min(1, fraction));
+    }
+
+    @Override
+    public ByteOffsetBasedSource<T> splitAtFraction(double fraction) {
+      if (source.getEndOffset() == Long.MAX_VALUE) {
+        // Impossible to convert fraction to an offset.
+        LOG.debug("Refusing to split at fraction {} because source does not have an end offset",
+            fraction);
+        return null;
+      }
+      long start = source.getStartOffset();
+      long end = source.getEndOffset();
+      long splitOffset = (long) (start + fraction * (end - start));
+      long current = getCurrentOffset();
+      if (splitOffset <= current) {
+        LOG.info(
+            "Refusing to split at fraction {} (offset {}) because current offset is {} of [{}, {})",
+            fraction, splitOffset, current, start, end);
+        return null;
+      }
+      if (splitOffset <= start || splitOffset >= end) {
+        LOG.info(
+            "Refusing to split at fraction {} (offset {}) outside current range [{}, {})",
+            fraction, splitOffset, start, end);
+        return null;
+      }
+      // Note: we intentionally ignore minBundleSize here.
+      // It is useful to respect it during initial splitting so we don't produce work items
+      // which are likely to turn out too small - but once dynamic work rebalancing kicks in,
+      // its estimates are far more precise and should take priority. If it says split into
+      // tiny single-record bundles, we should do that.
+      ByteOffsetBasedSource<T> primary = source.createSourceForSubrange(start, splitOffset);
+      ByteOffsetBasedSource<T> residual = source.createSourceForSubrange(splitOffset, end);
+      this.source = primary;
+      LOG.info("Split at fraction {} (offset {}) of [{}, {}) (current offset {})",
+          fraction, splitOffset, start, end, current);
+      return residual;
+    }
   }
 }

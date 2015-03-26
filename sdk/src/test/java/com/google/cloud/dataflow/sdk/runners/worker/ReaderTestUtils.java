@@ -50,6 +50,10 @@ public class ReaderTestUtils {
     return approximateProgressAtPosition(positionAtByteOffset(byteOffset));
   }
 
+  public static ApproximateProgress approximateProgressAtFraction(@Nullable Float fraction) {
+    return new ApproximateProgress().setPercentComplete(fraction);
+  }
+
   public static Reader.DynamicSplitRequest splitRequestAtPosition(@Nullable Position position) {
     return toDynamicSplitRequest(approximateProgressAtPosition(position));
   }
@@ -69,5 +73,9 @@ public class ReaderTestUtils {
 
   public static Position positionFromProgress(Reader.Progress progress) {
     return readerProgressToCloudProgress(progress).getPosition();
+  }
+
+  public static Reader.DynamicSplitRequest splitRequestAtFraction(float fraction) {
+    return toDynamicSplitRequest(approximateProgressAtFraction(fraction));
   }
 }

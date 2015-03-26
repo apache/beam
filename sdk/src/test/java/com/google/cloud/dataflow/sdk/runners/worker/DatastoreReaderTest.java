@@ -49,9 +49,7 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 public class DatastoreReaderTest {
-  private static final String TEST_HOST = "http://localhost:8080";
   private static final String TEST_KIND = "mykind";
-  private static final String TEST_DATASET = "mydataset";
   private static final String TEST_PROPERTY = "myproperty";
 
   private static class IsValidRequest extends ArgumentMatcher<RunQueryRequest> {
@@ -62,9 +60,9 @@ public class DatastoreReaderTest {
     }
   }
 
-  private EntityResult createEntityResult(String kind, String val) {
-    Entity entity = Entity.newBuilder().addProperty(
-        makeProperty(TEST_PROPERTY, makeValue(val))).build();
+  private EntityResult createEntityResult(String val) {
+    Entity entity =
+        Entity.newBuilder().addProperty(makeProperty(TEST_PROPERTY, makeValue(val))).build();
     return EntityResult.newBuilder().setEntity(entity).build();
   }
 
@@ -75,11 +73,11 @@ public class DatastoreReaderTest {
     RunQueryResponse.Builder thirdResponseBuilder = RunQueryResponse.newBuilder();
     {
       QueryResultBatch.Builder resultsBatch = QueryResultBatch.newBuilder();
-      resultsBatch.addEntityResult(0, createEntityResult(TEST_KIND, "val0"));
-      resultsBatch.addEntityResult(1, createEntityResult(TEST_KIND, "val1"));
-      resultsBatch.addEntityResult(2, createEntityResult(TEST_KIND, "val2"));
-      resultsBatch.addEntityResult(3, createEntityResult(TEST_KIND, "val3"));
-      resultsBatch.addEntityResult(4, createEntityResult(TEST_KIND, "val4"));
+      resultsBatch.addEntityResult(0, createEntityResult("val0"));
+      resultsBatch.addEntityResult(1, createEntityResult("val1"));
+      resultsBatch.addEntityResult(2, createEntityResult("val2"));
+      resultsBatch.addEntityResult(3, createEntityResult("val3"));
+      resultsBatch.addEntityResult(4, createEntityResult("val4"));
       resultsBatch.setEntityResultType(ResultType.FULL);
 
       resultsBatch.setMoreResults(MoreResultsType.NOT_FINISHED);
@@ -88,11 +86,11 @@ public class DatastoreReaderTest {
     }
     {
       QueryResultBatch.Builder resultsBatch = QueryResultBatch.newBuilder();
-      resultsBatch.addEntityResult(0, createEntityResult(TEST_KIND, "val5"));
-      resultsBatch.addEntityResult(1, createEntityResult(TEST_KIND, "val6"));
-      resultsBatch.addEntityResult(2, createEntityResult(TEST_KIND, "val7"));
-      resultsBatch.addEntityResult(3, createEntityResult(TEST_KIND, "val8"));
-      resultsBatch.addEntityResult(4, createEntityResult(TEST_KIND, "val9"));
+      resultsBatch.addEntityResult(0, createEntityResult("val5"));
+      resultsBatch.addEntityResult(1, createEntityResult("val6"));
+      resultsBatch.addEntityResult(2, createEntityResult("val7"));
+      resultsBatch.addEntityResult(3, createEntityResult("val8"));
+      resultsBatch.addEntityResult(4, createEntityResult("val9"));
       resultsBatch.setEntityResultType(ResultType.FULL);
 
       resultsBatch.setMoreResults(MoreResultsType.NOT_FINISHED);
@@ -123,7 +121,8 @@ public class DatastoreReaderTest {
     q.addKindBuilder().setName(TEST_KIND);
     Query query = q.build();
 
-    DatastoreIO.DatastoreReader iterator = new DatastoreIO.DatastoreReader(query, datastore);
+    DatastoreIO.DatastoreReader iterator =
+        new DatastoreIO.DatastoreReader(DatastoreIO.read().withQuery(query), datastore);
 
     List<Entity> entityResults = new ArrayList<Entity>();
     while (iterator.advance()) {

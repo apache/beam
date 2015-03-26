@@ -14,6 +14,9 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionFails;
+import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
+import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -24,7 +27,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.FileBasedSource.FileBasedReader;
 import com.google.cloud.dataflow.sdk.io.FileBasedSource.Mode;
-import com.google.cloud.dataflow.sdk.io.Source.Reader;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
@@ -83,7 +85,6 @@ public class FileBasedSourceTest {
 
     private static final long serialVersionUID = 85539251;
 
-    ReadableByteChannel channel = null;
     final String splitHeader;
 
     public TestFileBasedSource(boolean isFilePattern, String fileOrPattern, long minBundleSize,
@@ -174,7 +175,7 @@ public class FileBasedSourceTest {
     @Override
     protected void startReading(ReadableByteChannel channel) throws IOException {
       boolean removeLine = false;
-      if (getSource().getMode() == Mode.SUBRANGE_OF_SINGLE_FILE) {
+      if (getCurrentSource().getMode() == Mode.SUBRANGE_OF_SINGLE_FILE) {
         SeekableByteChannel seekChannel = (SeekableByteChannel) channel;
         // If we are not at the beginning of a line, we should ignore the current line.
         if (seekChannel.position() > 0) {
@@ -188,7 +189,7 @@ public class FileBasedSourceTest {
       if (removeLine) {
         nextOffset += readNextLine(new ByteArrayOutputStream());
       }
-      if (nextOffset >= getSource().getEndOffset()) {
+      if (nextOffset >= getCurrentSource().getEndOffset()) {
         emptyBundle = true;
       }
     }
@@ -267,7 +268,7 @@ public class FileBasedSourceTest {
         }
         current = super.getCurrent();
       }
-      if (currentOffset >= getSource().getEndOffset()) {
+      if (currentOffset >= getCurrentSource().getEndOffset()) {
         emptyBundle = true;
       }
     }
@@ -335,14 +336,6 @@ public class FileBasedSourceTest {
     return list;
   }
 
-  private List<String> readEverythingFromReader(Reader<String> reader) throws IOException {
-    List<String> results = new ArrayList<String>();
-    for (boolean available = reader.start(); available; available = reader.advance()) {
-      results.add(reader.getCurrent());
-    }
-    return results;
-  }
-
   @Test
   public void testFullyReadSingleFile() throws IOException {
     List<String> data = createStringDataset(3, 50);
@@ -351,8 +344,7 @@ public class FileBasedSourceTest {
     File file = createFileWithData(fileName, data);
 
     TestFileBasedSource source = new TestFileBasedSource(false, file.getPath(), 64, null);
-    assertThat(data, containsInAnyOrder(
-        readEverythingFromReader(source.createReader(null, null)).toArray()));
+    assertEquals(data, readFromSource(source));
   }
 
   @Test
@@ -375,8 +367,37 @@ public class FileBasedSourceTest {
     expectedResults.addAll(data1);
     expectedResults.addAll(data2);
     expectedResults.addAll(data3);
-    assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createReader(null, null)).toArray()));
+    assertThat(expectedResults, containsInAnyOrder(readFromSource(source).toArray()));
+  }
+
+  @Test
+  public void testFractionConsumedWhenReadingFilepattern() throws IOException {
+    List<String> data1 = createStringDataset(3, 1000);
+    File file1 = createFileWithData("file1", data1);
+
+    List<String> data2 = createStringDataset(3, 1000);
+    createFileWithData("file2", data2);
+
+    List<String> data3 = createStringDataset(3, 1000);
+    createFileWithData("file3", data3);
+
+    TestFileBasedSource source =
+        new TestFileBasedSource(true, file1.getParent() + "/" + "file*", 1024, null);
+    BoundedSource.BoundedReader<String> reader = source.createReader(null, null);
+    double lastFractionConsumed = 0.0;
+    assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+    assertTrue(reader.start());
+    assertTrue(reader.advance());
+    assertTrue(reader.advance());
+    // We're inside the first file. Should be in [0, 1/3).
+    assertTrue(reader.getFractionConsumed() > 0.0);
+    assertTrue(reader.getFractionConsumed() < 1.0 / 3.0);
+    while (reader.advance()) {
+      double fractionConsumed = reader.getFractionConsumed();
+      assertTrue(fractionConsumed > lastFractionConsumed);
+      lastFractionConsumed = fractionConsumed;
+    }
+    assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
   }
 
   @Test
@@ -405,8 +426,7 @@ public class FileBasedSourceTest {
     List<String> expectedResults = new ArrayList<String>();
     expectedResults.addAll(data2);
     expectedResults.addAll(data3);
-    assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createReader(null, null)).toArray()));
+    assertThat(expectedResults, containsInAnyOrder(readFromSource(source).toArray()));
   }
 
   @Test
@@ -421,8 +441,8 @@ public class FileBasedSourceTest {
         new TestFileBasedSource(file.getPath(), 64, 25, Long.MAX_VALUE, null);
 
     List<String> results = new ArrayList<String>();
-    results.addAll(readEverythingFromReader(source1.createReader(null, null)));
-    results.addAll(readEverythingFromReader(source2.createReader(null, null)));
+    results.addAll(readFromSource(source1));
+    results.addAll(readFromSource(source2));
     assertThat(data, containsInAnyOrder(results.toArray()));
   }
 
@@ -445,8 +465,7 @@ public class FileBasedSourceTest {
     // Remove all occurrences of header from expected results.
     expectedResults.removeAll(Arrays.asList(header));
 
-    assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createReader(null, null)).toArray()));
+    assertEquals(expectedResults, readFromSource(source));
   }
 
   @Test
@@ -470,8 +489,8 @@ public class FileBasedSourceTest {
     expectedResults.removeAll(Arrays.asList(header));
 
     List<String> results = new ArrayList<>();
-    results.addAll(readEverythingFromReader(source1.createReader(null, null)));
-    results.addAll(readEverythingFromReader(source2.createReader(null, null)));
+    results.addAll(readFromSource(source1));
+    results.addAll(readFromSource(source2));
 
     assertThat(expectedResults, containsInAnyOrder(results.toArray()));
   }
@@ -499,9 +518,9 @@ public class FileBasedSourceTest {
     expectedResults.removeAll(Arrays.asList(header));
 
     List<String> results = new ArrayList<>();
-    results.addAll(readEverythingFromReader(source1.createReader(null, null)));
-    results.addAll(readEverythingFromReader(source2.createReader(null, null)));
-    results.addAll(readEverythingFromReader(source3.createReader(null, null)));
+    results.addAll(readFromSource(source1));
+    results.addAll(readFromSource(source2));
+    results.addAll(readFromSource(source3));
 
     assertThat(expectedResults, containsInAnyOrder(results.toArray()));
   }
@@ -529,9 +548,9 @@ public class FileBasedSourceTest {
     expectedResults.removeAll(Arrays.asList(header));
 
     List<String> results = new ArrayList<>();
-    results.addAll(readEverythingFromReader(source1.createReader(null, null)));
-    results.addAll(readEverythingFromReader(source2.createReader(null, null)));
-    results.addAll(readEverythingFromReader(source3.createReader(null, null)));
+    results.addAll(readFromSource(source1));
+    results.addAll(readFromSource(source2));
+    results.addAll(readFromSource(source3));
 
     assertThat(expectedResults, containsInAnyOrder(results.toArray()));
   }
@@ -555,18 +574,15 @@ public class FileBasedSourceTest {
     // Split starts after "<" of the header
     TestFileBasedSource source =
         new TestFileBasedSource(file.getPath(), 64, 1, Long.MAX_VALUE, header);
-    assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createReader(null, null)).toArray()));
+    assertThat(expectedResults, containsInAnyOrder(readFromSource(source).toArray()));
 
     // Split starts after "<h" of the header
     source = new TestFileBasedSource(file.getPath(), 64, 2, Long.MAX_VALUE, header);
-    assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createReader(null, null)).toArray()));
+    assertThat(expectedResults, containsInAnyOrder(readFromSource(source).toArray()));
 
     // Split starts after "<h>" of the header
     source = new TestFileBasedSource(file.getPath(), 64, 3, Long.MAX_VALUE, header);
-    assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createReader(null, null)).toArray()));
+    assertThat(expectedResults, containsInAnyOrder(readFromSource(source).toArray()));
   }
 
   @Test
@@ -581,9 +597,9 @@ public class FileBasedSourceTest {
         new TestFileBasedSource(file.getPath(), 64, 72, Long.MAX_VALUE, null);
 
     List<String> results = new ArrayList<>();
-    results.addAll(readEverythingFromReader(source1.createReader(null, null)));
-    results.addAll(readEverythingFromReader(source2.createReader(null, null)));
-    results.addAll(readEverythingFromReader(source3.createReader(null, null)));
+    results.addAll(readFromSource(source1));
+    results.addAll(readFromSource(source2));
+    results.addAll(readFromSource(source3));
 
     assertThat(data, containsInAnyOrder(results.toArray()));
   }
@@ -600,8 +616,9 @@ public class FileBasedSourceTest {
         new TestFileBasedSource(file.getPath(), 1024, 162, Long.MAX_VALUE, null);
 
     List<String> results = new ArrayList<>();
-    results.addAll(readEverythingFromReader(source1.createReader(null, null)));
-    results.addAll(readEverythingFromReader(source2.createReader(null, null)));
+    results.addAll(readFromSource(source1));
+    results.addAll(readFromSource(source2));
+
     assertThat(data, containsInAnyOrder(results.toArray()));
   }
 
@@ -621,7 +638,7 @@ public class FileBasedSourceTest {
 
     List<String> results = new ArrayList<String>();
     for (Source<String> split : sources) {
-      results.addAll(readEverythingFromReader(split.createReader(null, null)));
+      results.addAll(readFromSource(split));
     }
 
     assertThat(data, containsInAnyOrder(results.toArray()));
@@ -754,7 +771,7 @@ public class FileBasedSourceTest {
 
     List<String> results = new ArrayList<String>();
     for (Source<String> split : sources) {
-      results.addAll(readEverythingFromReader(split.createReader(null, null)));
+      results.addAll(readFromSource(split));
     }
 
     List<String> expectedResults = new ArrayList<String>();
@@ -763,5 +780,20 @@ public class FileBasedSourceTest {
     expectedResults.addAll(data3);
 
     assertThat(expectedResults, containsInAnyOrder(results.toArray()));
+  }
+
+  @Test
+  public void testSplitAtFraction() throws IOException {
+    File file = createFileWithData("file", createStringDataset(3, 100));
+
+    TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 1, 0, 400, null);
+    assertSplitAtFractionSucceedsAndConsistent(source, 0, 0.7);
+    assertSplitAtFractionSucceedsAndConsistent(source, 1, 0.7);
+    assertSplitAtFractionSucceedsAndConsistent(source, 30, 0.7);
+    assertSplitAtFractionFails(source, 0, 0.0);
+    assertSplitAtFractionFails(source, 70, 0.3);
+    assertSplitAtFractionFails(source, 100, 1.0);
+    assertSplitAtFractionFails(source, 100, 0.99);
+    assertSplitAtFractionSucceedsAndConsistent(source, 100, 0.995);
   }
 }

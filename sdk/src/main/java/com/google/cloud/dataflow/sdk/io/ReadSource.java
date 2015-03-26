@@ -62,7 +62,7 @@ public class ReadSource {
     private static final long serialVersionUID = 0;
 
     @Nullable
-    private Source<T> source;
+    private final Source<T> source;
 
     private Bound(@Nullable String name, @Nullable Source<T> source) {
       super(name);

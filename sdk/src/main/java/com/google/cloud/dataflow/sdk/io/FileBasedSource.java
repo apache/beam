@@ -29,8 +29,8 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.NoSuchElementException;
 
 /**
@@ -210,19 +210,26 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   }
 
   @Override
-  public final Reader<T> createReader(PipelineOptions options,
-                                      ExecutionContext executionContext) throws IOException {
+  public final BoundedReader<T> createReader(PipelineOptions options,
+                                             ExecutionContext executionContext) throws IOException {
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
       Collection<String> files = expandFilePattern();
       List<FileBasedReader<T>> fileReaders = new ArrayList<>();
       for (String fileName : files) {
-        fileReaders.add(createForSubrangeOfFile(fileName, 0, Long.MAX_VALUE).createSingleFileReader(
+        long endOffset;
+        try {
+          endOffset = IOChannelUtils.getFactory(fileName).getSizeBytes(fileName);
+        } catch (IOException e) {
+          LOG.warn("Failed to get size of " + fileName, e);
+          endOffset = Long.MAX_VALUE;
+        }
+        fileReaders.add(createForSubrangeOfFile(fileName, 0, endOffset).createSingleFileReader(
             options, executionContext));
       }
       LOG.debug("Creating a reader for file pattern " + fileOrPatternSpec + " took "
           + (System.currentTimeMillis() - startTime) + " ms");
-      return new FilePatternReader(fileReaders.iterator());
+      return new FilePatternReader(this, fileReaders);
     } else {
       return createSingleFileReader(options, executionContext);
     }
@@ -357,7 +364,6 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
                                                 // offset but the last split point may not have been
                                                 // reached.
     private boolean startCalled = false;
-    private FileBasedSource<T> source = null;
 
     /**
      * Subclasses should not perform IO operations at the constructor. All IO operations should be
@@ -367,15 +373,16 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
       super(source);
       Preconditions.checkArgument(source.getMode() != Mode.FILEPATTERN,
           "FileBasedReader does not support reading file patterns");
-      this.source = source;
     }
 
-    protected final FileBasedSource<T> getSource() {
-      return source;
+    @Override
+    public FileBasedSource<T> getCurrentSource() {
+      return (FileBasedSource<T>) super.getCurrentSource();
     }
 
     @Override
     public final boolean start() throws IOException {
+      FileBasedSource<T> source = getCurrentSource();
       Preconditions.checkState(!startCalled, "start() should only be called once");
       IOChannelFactory factory = IOChannelUtils.getFactory(source.getFileOrPatternSpec());
       this.channel = factory.open(source.getFileOrPatternSpec());
@@ -402,6 +409,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
 
     @Override
     public final boolean advance() throws IOException {
+      FileBasedSource<T> source = getCurrentSource();
       Preconditions.checkState(startCalled, "advance() called before calling start()");
       if (finished) {
         return false;
@@ -489,12 +497,16 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   }
 
   // An internal Reader implementation that concatenates a sequence of FileBasedReaders.
-  private class FilePatternReader implements Reader<T> {
-    final Iterator<FileBasedReader<T>> fileReaders;
+  private class FilePatternReader implements BoundedReader<T> {
+    private final FileBasedSource<T> source;
+    private final List<FileBasedReader<T>> fileReaders;
+    final ListIterator<FileBasedReader<T>> fileReadersIterator;
     FileBasedReader<T> currentReader = null;
 
-    public FilePatternReader(Iterator<FileBasedReader<T>> fileReaders) {
+    public FilePatternReader(FileBasedSource<T> source, List<FileBasedReader<T>> fileReaders) {
+      this.source = source;
       this.fileReaders = fileReaders;
+      this.fileReadersIterator = fileReaders.listIterator();
     }
 
     @Override
@@ -512,8 +524,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
     }
 
     private boolean startNextNonemptyReader() throws IOException {
-      while (fileReaders.hasNext()) {
-        currentReader = fileReaders.next();
+      while (fileReadersIterator.hasNext()) {
+        currentReader = fileReadersIterator.next();
         if (currentReader.start()) {
           return true;
         }
@@ -533,9 +545,43 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
     public void close() throws IOException {
       // Close all readers that may have not yet been closed.
       currentReader.close();
-      while (fileReaders.hasNext()) {
-        fileReaders.next().close();
+      while (fileReadersIterator.hasNext()) {
+        fileReadersIterator.next().close();
       }
+    }
+
+    @Override
+    public FileBasedSource<T> getCurrentSource() {
+      return source;
+    }
+
+    @Override
+    public FileBasedSource<T> splitAtFraction(double fraction) {
+      // Unsupported. TODO: implement.
+      LOG.debug("Dynamic splitting of FilePatternReader is unsupported.");
+      return null;
+    }
+
+    @Override
+    public Double getFractionConsumed() {
+      if (currentReader == null) {
+        return 0.0;
+      }
+      if (fileReaders.isEmpty()) {
+        return 1.0;
+      }
+      int index = fileReadersIterator.previousIndex();
+      int numReaders = fileReaders.size();
+      if (index == numReaders) {
+        return 1.0;
+      }
+      double before = 1.0 * index / numReaders;
+      double after = 1.0 * (index + 1) / numReaders;
+      Double fractionOfCurrentReader = currentReader.getFractionConsumed();
+      if (fractionOfCurrentReader == null) {
+        return before;
+      }
+      return before + fractionOfCurrentReader * (after - before);
     }
   }
 }

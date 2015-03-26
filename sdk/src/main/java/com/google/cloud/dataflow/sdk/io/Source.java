@@ -44,6 +44,10 @@ import javax.annotation.Nullable;
  * non-transient instance variable state will be serialized in the main program
  * and then deserialized on remote worker machines.
  *
+ * <p> {@code Source} classes MUST be effectively immutable. The only acceptable use of
+ * mutable fields is to cache the results of expensive operations, and such fields MUST be
+ * marked {@code transient}.
+ *
  * <p> {@code Source} objects should implement {@link Object#toString}, as it will be
  * used in important error and debugging messages.
  *
@@ -62,19 +66,6 @@ public abstract class Source<T> implements Serializable {
    */
   public abstract List<? extends Source<T>> splitIntoBundles(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception;
-
-  /**
-   * An estimate of the total size (in bytes) of the data that would be read from this source.
-   * This estimate is in terms of external storage size, before any decompression or other
-   * processing done by the reader.
-   */
-  public abstract long getEstimatedSizeBytes(PipelineOptions options) throws Exception;
-
-  /**
-   * Whether this source is known to produce key/value pairs with the (encoded) keys in
-   * lexicographically sorted order.
-   */
-  public abstract boolean producesSortedKeys(PipelineOptions options) throws Exception;
 
   /**
    * Creates a reader for this source.
@@ -115,7 +106,6 @@ public abstract class Source<T> implements Serializable {
    * Note: this interface is work-in-progress and may change.
    */
   public interface Reader<T> extends AutoCloseable {
-
     /**
      * Initializes the reader and advances the reader to the first record.
      *
@@ -128,7 +118,7 @@ public abstract class Source<T> implements Serializable {
     public boolean start() throws IOException;
 
     /**
-     * Advances the iterator to the next valid record.
+     * Advances the reader to the next valid record.
      * Invalidates the result of the previous {@link #getCurrent} call.
      * @return {@code true} if a record was read, {@code false} if we're at the end of input.
      */
@@ -138,16 +128,25 @@ public abstract class Source<T> implements Serializable {
      * Returns the value of the data item which was read by the last {@link #start} or
      * {@link #advance} call.
      *
-     * @throws java.util.NoSuchElementException if the iterator is at the beginning of the input and
+     * @throws java.util.NoSuchElementException if the reader is at the beginning of the input and
      *         {@link #start} or {@link #advance} wasn't called, or if the last {@link #start} or
      *         {@link #advance} returned {@code false}.
      */
     public T getCurrent() throws NoSuchElementException;
 
     /**
-     * Closes the iterator. The iterator cannot be used after this method was called.
+     * Closes the reader. The reader cannot be used after this method is called.
      */
     @Override
     public void close() throws IOException;
+
+    /**
+     * Returns a {@code Source} describing the same input that this {@code Reader} reads
+     * (including items already read).
+     * <p>
+     * A reader created from the result of {@code getCurrentSource}, if consumed, MUST
+     * return the same data items as the current reader.
+     */
+    public Source<T> getCurrentSource();
   }
 }

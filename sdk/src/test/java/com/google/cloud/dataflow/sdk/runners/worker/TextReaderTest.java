@@ -374,7 +374,7 @@ public class TextReaderTest {
   }
 
   @Test
-  public void testGetApproximatePosition() throws Exception {
+  public void testGetProgressNoEndOffset() throws Exception {
     File tmpFile = initTestFile();
     TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, 0L, null,
         StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
@@ -388,9 +388,31 @@ public class TextReaderTest {
       iterator.next();
       progress = readerProgressToCloudProgress(iterator.getProgress());
       assertEquals(24L, progress.getPosition().getByteOffset().longValue());
+      // Since end position is not specified, percentComplete should be null.
+      assertNull(progress.getPercentComplete());
+
       iterator.next();
       progress = readerProgressToCloudProgress(iterator.getProgress());
       assertEquals(34L, progress.getPosition().getByteOffset().longValue());
+      assertFalse(iterator.hasNext());
+    }
+  }
+
+  @Test
+  public void testGetProgressWithEndOffset() throws Exception {
+    File tmpFile = initTestFile();
+    TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, 0L, 40L,
+        StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
+
+    try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+      ApproximateProgress progress = readerProgressToCloudProgress(iterator.getProgress());
+      iterator.next();
+      progress = readerProgressToCloudProgress(iterator.getProgress());
+      assertEquals(1.0f * 11 / 40, progress.getPercentComplete(), 1e-6);
+      iterator.next();
+      iterator.next();
+      progress = readerProgressToCloudProgress(iterator.getProgress());
+      assertEquals(1.0f * 34 / 40, progress.getPercentComplete(), 1e-6);
       assertFalse(iterator.hasNext());
     }
   }
