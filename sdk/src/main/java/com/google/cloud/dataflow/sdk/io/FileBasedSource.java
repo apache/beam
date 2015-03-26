@@ -15,7 +15,6 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import com.google.api.client.util.Preconditions;
-import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
@@ -144,8 +143,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * source assuming the source represents a single file. File patterns will be handled by
    * {@code FileBasedSource} implementation automatically.
    */
-  public abstract FileBasedReader<T> createSingleFileReader(PipelineOptions options, Coder<T> coder,
-      ExecutionContext executionContext);
+  public abstract FileBasedReader<T> createSingleFileReader(PipelineOptions options,
+                                                            ExecutionContext executionContext);
 
   @Override
   public final long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
@@ -211,21 +210,21 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   }
 
   @Override
-  protected final Reader<T> createBasicReader(PipelineOptions options, Coder<T> coder,
-      ExecutionContext executionContext) throws IOException {
+  public final Reader<T> createReader(PipelineOptions options,
+                                      ExecutionContext executionContext) throws IOException {
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
       Collection<String> files = expandFilePattern();
       List<FileBasedReader<T>> fileReaders = new ArrayList<>();
       for (String fileName : files) {
         fileReaders.add(createForSubrangeOfFile(fileName, 0, Long.MAX_VALUE).createSingleFileReader(
-            options, coder, executionContext));
+            options, executionContext));
       }
       LOG.debug("Creating a reader for file pattern " + fileOrPatternSpec + " took "
           + (System.currentTimeMillis() - startTime) + " ms");
       return new FilePatternReader(fileReaders.iterator());
     } else {
-      return createSingleFileReader(options, coder, executionContext);
+      return createSingleFileReader(options, executionContext);
     }
   }
 

@@ -302,8 +302,8 @@ public class DatastoreIO {
     }
 
     @Override
-    public Reader<Entity> createBasicReader(
-        PipelineOptions pipelineOptions, Coder<Entity> coder, ExecutionContext executionContext)
+    public Reader<Entity> createReader(
+        PipelineOptions pipelineOptions, ExecutionContext executionContext)
         throws IOException {
       return new DatastoreReader(query, getDatastore(pipelineOptions));
     }

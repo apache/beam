@@ -21,6 +21,7 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceOperationResponseToCloudSourceOperationResponse;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
+import static com.google.cloud.dataflow.sdk.util.WindowedValue.valueInGlobalWindow;
 import static com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -117,8 +118,8 @@ public class BasicSerializableSourceFormatTest {
       }
 
       @Override
-      public Reader<Integer> createBasicReader(PipelineOptions options, Coder<Integer> coder,
-          @Nullable ExecutionContext executionContext) throws IOException {
+      public Reader<Integer> createReader(
+          PipelineOptions options, @Nullable ExecutionContext executionContext) throws IOException {
         return new RangeReader(this);
       }
 
@@ -176,7 +177,7 @@ public class BasicSerializableSourceFormatTest {
     List<WindowedValue<Integer>> elems = CloudSourceUtils.readElemsFromSource(options, source);
     assertEquals(10, elems.size());
     for (int i = 0; i < 10; ++i) {
-      assertEquals(WindowedValue.valueInGlobalWindow(10 + i), elems.get(i));
+      assertEquals(valueInGlobalWindow(10 + i), elems.get(i));
     }
     SourceSplitResponse response = performSplit(source, options);
     assertEquals("SOURCE_SPLIT_OUTCOME_SPLITTING_HAPPENED", response.getOutcome());
@@ -189,11 +190,7 @@ public class BasicSerializableSourceFormatTest {
       assertTrue(bundleSource.getDoesNotNeedSplitting());
       bundleSource.setCodec(source.getCodec());
       List<WindowedValue<Integer>> xs = CloudSourceUtils.readElemsFromSource(options, bundleSource);
-      assertThat(
-          xs,
-          contains(
-              WindowedValue.valueInGlobalWindow(10 + 2 * i),
-              WindowedValue.valueInGlobalWindow(11 + 2 * i)));
+      assertThat(xs, contains(valueInGlobalWindow(10 + 2 * i), valueInGlobalWindow(11 + 2 * i)));
     }
   }
 
@@ -304,8 +301,8 @@ public class BasicSerializableSourceFormatTest {
     private static final long serialVersionUID = -1288303253742972653L;
 
     @Override
-    protected Reader<Integer> createBasicReader(
-        PipelineOptions options, Coder<Integer> coder, @Nullable ExecutionContext executionContext)
+    public Reader<Integer> createReader(
+        PipelineOptions options, @Nullable ExecutionContext executionContext)
         throws IOException {
       return new FailingReader();
     }

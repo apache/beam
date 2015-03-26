@@ -59,11 +59,10 @@ import java.util.NoSuchElementException;
 
 /**
  * A helper class for supporting sources defined as {@code Source}.
- *
+ * <p>
  * Provides a bridge between the high-level {@code Source} API and the raw
  * API-level {@code SourceFormat} API, by encoding the serialized
  * {@code Source} in a parameter of the API {@code Source} message.
- * <p>
  */
 public class BasicSerializableSourceFormat implements SourceFormat {
   private static final String SERIALIZED_SOURCE = "serialized_source";
@@ -99,17 +98,20 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   /**
    * Factory method allowing this class to satisfy the implicit contract of {@code SourceFactory}.
    */
-  public static <T> com.google.cloud.dataflow.sdk.util.common.worker.Reader create(
-      final PipelineOptions options, CloudObject spec, final Coder<WindowedValue<T>> coder,
-      final ExecutionContext executionContext) throws Exception {
+  public static <T> Reader<WindowedValue<T>> create(final PipelineOptions options, CloudObject spec,
+      final Coder<WindowedValue<T>> coder, final ExecutionContext executionContext)
+      throws Exception {
+    // The parameter "coder" is deliberately never used. It is an artifact of ReaderFactory:
+    // some readers need a coder, some don't (i.e. for some it doesn't even make sense),
+    // but ReaderFactory passes it to all readers anyway.
     @SuppressWarnings("unchecked")
     final Source<T> source = (Source<T>) deserializeFromCloudSource(spec);
-    return new com.google.cloud.dataflow.sdk.util.common.worker.Reader() {
+    return new Reader<WindowedValue<T>>() {
       @Override
-      public ReaderIterator iterator() throws IOException {
+      public ReaderIterator<WindowedValue<T>> iterator() throws IOException {
         return new BasicSerializableSourceFormat.ReaderIterator<T>(
             source,
-            source.createWindowedReader(options, coder, executionContext));
+            source.createReader(options, executionContext));
       }
     };
   }
@@ -176,7 +178,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   static com.google.api.services.dataflow.model.Source serializeToCloudSource(
-      Source source, PipelineOptions options) throws Exception {
+      Source<?> source, PipelineOptions options) throws Exception {
     com.google.api.services.dataflow.model.Source cloudSource =
         new com.google.api.services.dataflow.model.Source();
     // We ourselves act as the SourceFormat.
@@ -201,18 +203,18 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   public static <T> void evaluateReadHelper(
       ReadSource.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
     try {
-      List<WindowedValue<T>> elems = new ArrayList<>();
+      List<T> elems = new ArrayList<>();
       Source<T> source = transform.getSource();
-      try (Source.Reader<WindowedValue<T>> reader =
-          source.createWindowedReader(context.getPipelineOptions(),
-              WindowedValue.getValueOnlyCoder(source.getDefaultOutputCoder()), null)) {
+      try (Source.Reader<T> reader = source.createReader(
+          context.getPipelineOptions(), null)) {
         for (boolean available = reader.start(); available; available = reader.advance()) {
           elems.add(reader.getCurrent());
         }
       }
       List<DirectPipelineRunner.ValueWithMetadata<T>> output = new ArrayList<>();
-      for (WindowedValue<T> elem : elems) {
-        output.add(DirectPipelineRunner.ValueWithMetadata.of(elem));
+      for (T elem : elems) {
+        output.add(DirectPipelineRunner.ValueWithMetadata.of(
+            WindowedValue.valueInGlobalWindow(elem)));
       }
       context.setPCollectionValuesWithMetadata(transform.getOutput(), output);
     } catch (Exception e) {
@@ -236,19 +238,20 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   /**
-   * Adapter from the {@code Source.Reader} interface to
-   * {@code Reader.ReaderIterator}.
-   *
+   * Adapter from the {@code Source.Reader} interface to {@code Reader.ReaderIterator},
+   * wrapping every value into the global window. Proper windowing will be assigned by the
+   * subsequent Window transform.
+   * <p>
    * TODO: Consider changing the API of Reader.ReaderIterator so this adapter wouldn't be needed.
    */
   private static class ReaderIterator<T> implements Reader.ReaderIterator<WindowedValue<T>> {
     private final Source<T> source;
-    private Source.Reader<WindowedValue<T>> reader;
+    private Source.Reader<T> reader;
     private boolean hasNext;
-    private WindowedValue<T> next;
+    private T next;
     private boolean advanced;
 
-    private ReaderIterator(Source<T> source, Source.Reader<WindowedValue<T>> reader) {
+    private ReaderIterator(Source<T> source, Source.Reader<T> reader) {
       this.source = source;
       this.reader = reader;
     }
@@ -266,9 +269,9 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
-      WindowedValue<T> res = this.next;
+      T res = this.next;
       advanceInternal();
-      return res;
+      return WindowedValue.valueInGlobalWindow(res);
     }
 
     private void advanceInternal() throws IOException {
@@ -293,7 +296,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     }
 
     @Override
-    public Reader.ReaderIterator<WindowedValue<T>> copy() throws IOException {
+    public ReaderIterator<T> copy() throws IOException {
       throw new UnsupportedOperationException();
     }
 
