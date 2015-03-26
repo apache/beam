@@ -80,7 +80,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   private DataflowPipelineRunnerHooks hooks;
 
   // Environment version information
-  private static final String ENVIRONMENT_MAJOR_VERSION = "2";
+  private static final String ENVIRONMENT_MAJOR_VERSION = "1";
 
   /**
    * Construct a runner from the provided options.
