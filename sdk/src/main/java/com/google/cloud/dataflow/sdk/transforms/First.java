@@ -25,10 +25,6 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
  * produces a new {@code PCollection<T>} containing up to limit
  * elements of the input {@code PCollection}.
  *
- * <p> If the input and output {@code PCollection}s are ordered, then
- * {@code First} will select the first elements, otherwise it will
- * select any elements.
- *
  * <p> If limit is less than or equal to the size of the input
  * {@code PCollection}, then all the input's elements will be selected.
  *

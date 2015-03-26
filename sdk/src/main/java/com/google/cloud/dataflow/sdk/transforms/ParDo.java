@@ -266,26 +266,6 @@ import java.util.Map;
  * This style of {@code TupleTag} instantiation is used in the example of
  * multiple side outputs, above.
  *
- * <h2>Ordered Input and/or Output PCollections</h2>
- *
- * <p> If the input {@code PCollection} is ordered (see
- * {@link PCollection#setOrdered}), then each batch of the input
- * processed by a {@code DoFn} instance will correspond to a
- * consecutive subsequence of elements of the input, and the
- * {@link DoFn#processElement} operation will be invoked on each
- * element of the batch in order; otherwise, batches will correspond
- * to arbitrary subsets of elements of the input, processed in
- * arbitrary order.
- *
- * <p> Independently, if a main or side output {@code PCollection} is
- * ordered, then the order in which elements are output to it will be
- * preserved in the output {@code PCollection}; otherwise, the order
- * in which elements are output to the {@code PCollection} doesn't
- * matter.  If the input {@code PCollection} is also ordered, then the
- * sequences of elements output from the batches will be concatenated
- * together in the same order as the batches appear in the input,
- * supporting order-preserving transforms on {@code PCollection}s.
- *
  * <h2>Serializability of {@code DoFn}s</h2>
  *
  * <p> A {@code DoFn} passed to a {@code ParDo} transform must be

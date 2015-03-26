@@ -76,24 +76,6 @@ public class WithKeysTest {
     p.run();
   }
 
-  // TODO: setOrdered(true) isn't supported yet by the Dataflow service.
-  @Test
-  public void testExtractKeysOrdered() {
-    Pipeline p = TestPipeline.create();
-
-    PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION))).setCoder(
-            StringUtf8Coder.of());
-
-    input.setOrdered(true);
-    PCollection<KV<Integer, String>> output = input.apply(WithKeys.of(
-        new LengthAsKey())).setOrdered(true);
-    DataflowAssert.that(output)
-        .containsInAnyOrder(WITH_KEYS);
-
-    p.run();
-  }
-
   @Test
   public void testConstantKeys() {
     Pipeline p = TestPipeline.create();

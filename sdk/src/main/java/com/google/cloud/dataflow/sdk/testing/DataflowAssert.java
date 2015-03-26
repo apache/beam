@@ -196,7 +196,6 @@ public class DataflowAssert {
       new TwoSideInputAssert<Iterable<T>, Iterable<T>>(actualView,
           actualView.getPipeline()
               .apply(Create.of(expectedElements))
-              .setOrdered(true)
               .setCoder(getCoder())
               .apply(View.<T>asIterable()))
           .satisfies(relation);
@@ -224,29 +223,6 @@ public class DataflowAssert {
         new AssertContainsInAnyOrderRelation<T>(),
         Arrays.asList(expectedElements));
     };
-
-
-    /**
-     * Checks that the {@code Iterable} contains the expected elements, in the
-     * specified order.
-     *
-     * <p> Returns this {@code IterableAssert}.
-     */
-    public IterableAssert<T> containsInOrder(T... expectedElements) {
-      return satisfies(
-          new AssertContainsInOrderRelation<T>(),
-          Arrays.asList(expectedElements));
-    }
-
-    /**
-     * Checks that the {@code Iterable} contains the expected elements, in the
-     * specified order.
-     *
-     * <p> Returns this {@code IterableAssert}.
-     */
-    public IterableAssert<T> containsInOrder(Iterable<T> expectedElements) {
-      return satisfies(new AssertContainsInOrderRelation<T>(), expectedElements);
-    }
   }
 
   /**
@@ -320,7 +296,6 @@ public class DataflowAssert {
       new TwoSideInputAssert<T, T>(actualView,
           actualView.getPipeline()
               .apply(Create.of(expectedValue))
-              .setOrdered(true)
               .setCoder(getCoder())
               .apply(View.<T>asSingleton()))
           .satisfies(relation);
@@ -349,12 +324,10 @@ public class DataflowAssert {
 
   /**
    * Returns a new PCollection equivalent to the input, but with all elements
-   * in the GlobalWindow.  Preserves ordering if the input is ordered.
+   * in the GlobalWindow.
    */
   private static <T> PCollection<T> inGlobalWindows(PCollection<T> input) {
-    return input
-        .apply(Window.<T>into(new GlobalWindows()))
-        .setOrdered(input.isOrdered());
+    return input.apply(Window.<T>into(new GlobalWindows()));
   }
 
   /**

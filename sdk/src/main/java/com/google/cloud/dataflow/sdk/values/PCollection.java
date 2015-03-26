@@ -120,44 +120,6 @@ public class PCollection<T> extends TypedPValue<T> {
   }
 
   /**
-   * Returns whether or not the elements of this PCollection have a
-   * well-defined and fixed order, such that subsequent reading of the
-   * PCollection is guaranteed to process the elements in order.
-   *
-   * <p> Requiring a fixed order can limit optimization opportunities.
-   *
-   * <p> By default, PCollections do not have a well-defined or fixed order.
-   */
-  public boolean isOrdered() {
-    return isOrdered;
-  }
-
-  /**
-   * Sets whether or not this PCollection should preserve the order in
-   * which elements are put in it, such that subsequent parallel
-   * reading of the PCollection is guaranteed to process the elements
-   * in order.
-   *
-   * <p> Requiring a fixed order can limit optimization opportunities.
-   *
-   * <p> Returns {@code this}.
-   *
-   * @throws IllegalStateException if this PCollection has already
-   * been finalized and is no longer settable, e.g., by having
-   * {@code apply()} called on it
-   */
-  public PCollection<T> setOrdered(boolean isOrdered) {
-    if (this.isOrdered != isOrdered) {
-      if (isFinishedSpecifyingInternal()) {
-        throw new IllegalStateException(
-            "cannot change the orderedness of " + this + " once it's been used");
-      }
-      this.isOrdered = isOrdered;
-    }
-    return this;
-  }
-
-  /**
    * Applies the given PTransform to this input PCollection, and
    * returns the PTransform's Output.
    */
@@ -174,13 +136,6 @@ public class PCollection<T> extends TypedPValue<T> {
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal details below here.
-
-  /**
-   * Whether or not the elements of this PCollection have a
-   * well-defined and fixed order, such that subsequent reading of the
-   * PCollection is guaranteed to process the elements in order.
-   */
-  private boolean isOrdered = false;
 
   /**
    * {@link WindowFn} that will be used to merge windows in

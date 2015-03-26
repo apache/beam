@@ -46,54 +46,36 @@ import java.util.TreeSet;
 public class FirstTest
     implements Serializable /* to allow anon inner classes */ {
   // PRE: lines contains no duplicates.
-  void runTestFirst(final List<String> lines, int limit, boolean ordered) {
+  void runTestFirst(final List<String> lines, int limit) {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input = p.apply(Create.of(lines))
         .setCoder(StringUtf8Coder.of());
 
-    if (ordered) {
-      input.setOrdered(true);
-    }
-
     PCollection<String> output =
         input.apply(First.<String>of(limit));
 
-    if (ordered) {
-      output.setOrdered(true);
-    }
-
     final int expectedSize = Math.min(limit, lines.size());
-    if (ordered) {
-      List<String> expected = lines.subList(0, expectedSize);
-      if (expected.isEmpty()) {
-        DataflowAssert.that(output)
-            .containsInAnyOrder(expected);
-      } else {
-        DataflowAssert.that(output)
-            .containsInOrder(expected);
-      }
-    } else {
-      DataflowAssert.that(output)
-          .satisfies(new SerializableFunction<Iterable<String>, Void>() {
-              @Override
-              public Void apply(Iterable<String> actualIter) {
-                // Make sure actual is the right length, and is a
-                // subset of expected.
-                List<String> actual = new ArrayList<>();
-                for (String s : actualIter) {
-                  actual.add(s);
-                }
-                assertEquals(expectedSize, actual.size());
-                Set<String> actualAsSet = new TreeSet<>(actual);
-                Set<String> linesAsSet = new TreeSet<>(lines);
-                assertEquals(actual.size(), actualAsSet.size());
-                assertEquals(lines.size(), linesAsSet.size());
-                assertTrue(linesAsSet.containsAll(actualAsSet));
-                return null;
+
+    DataflowAssert.that(output)
+        .satisfies(new SerializableFunction<Iterable<String>, Void>() {
+            @Override
+            public Void apply(Iterable<String> actualIter) {
+              // Make sure actual is the right length, and is a
+              // subset of expected.
+              List<String> actual = new ArrayList<>();
+              for (String s : actualIter) {
+                actual.add(s);
               }
-            });
-    }
+              assertEquals(expectedSize, actual.size());
+              Set<String> actualAsSet = new TreeSet<>(actual);
+              Set<String> linesAsSet = new TreeSet<>(lines);
+              assertEquals(actual.size(), actualAsSet.size());
+              assertEquals(lines.size(), linesAsSet.size());
+              assertTrue(linesAsSet.containsAll(actualAsSet));
+              return null;
+            }
+          });
 
     p.run();
   }
@@ -101,41 +83,23 @@ public class FirstTest
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testFirst() {
-    runTestFirst(LINES, 0, false);
-    runTestFirst(LINES, LINES.size() / 2, false);
-    runTestFirst(LINES, LINES.size() * 2, false);
+    runTestFirst(LINES, 0);
+    runTestFirst(LINES, LINES.size() / 2);
+    runTestFirst(LINES, LINES.size() * 2);
   }
 
   @Test
   // Extra tests, not worth the time to run on the real service.
   public void testFirstMore() {
-    runTestFirst(LINES, LINES.size() - 1, false);
-    runTestFirst(LINES, LINES.size(), false);
-    runTestFirst(LINES, LINES.size() + 1, false);
-  }
-
-  // TODO: setOrdered(true) isn't supported yet by the Dataflow service.
-  @Test
-  public void testFirstOrdered() {
-    runTestFirst(LINES, 0, true);
-    runTestFirst(LINES, LINES.size() / 2, true);
-    runTestFirst(LINES, LINES.size() - 1, true);
-    runTestFirst(LINES, LINES.size(), true);
-    runTestFirst(LINES, LINES.size() + 1, true);
-    runTestFirst(LINES, LINES.size() * 2, true);
+    runTestFirst(LINES, LINES.size() - 1);
+    runTestFirst(LINES, LINES.size());
+    runTestFirst(LINES, LINES.size() + 1);
   }
 
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testFirstEmpty() {
-    runTestFirst(NO_LINES, 0, false);
-    runTestFirst(NO_LINES, 1, false);
-  }
-
-  @Test
-  // TODO: setOrdered(true) isn't supported yet by the Dataflow service.
-  public void testFirstEmptyOrdered() {
-    runTestFirst(NO_LINES, 0, true);
-    runTestFirst(NO_LINES, 1, true);
+    runTestFirst(NO_LINES, 0);
+    runTestFirst(NO_LINES, 1);
   }
 }

@@ -64,20 +64,6 @@ public class CreateTest {
     p.run();
   }
 
-  // TODO: setOrdered(true) isn't supported yet by the Dataflow service.
-  @Test
-  public void testCreateOrdered() {
-    Pipeline p = TestPipeline.create();
-
-    PCollection<String> output =
-        p.apply(Create.of(LINES))
-        .setOrdered(true);
-
-    DataflowAssert.that(output)
-        .containsInOrder(LINES_ARRAY);
-    p.run();
-  }
-
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testCreateEmpty() {

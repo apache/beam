@@ -66,24 +66,6 @@ public class KeysTest {
     p.run();
   }
 
-  // TODO: setOrdered(true) isn't supported yet by the Dataflow service.
-  @Test
-  public void testKeysOrdered() {
-    Pipeline p = TestPipeline.create();
-
-    PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(Arrays.asList(TABLE))).setCoder(
-            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
-
-    input.setOrdered(true);
-    PCollection<String> output =
-        input.apply(Keys.<String>create()).setOrdered(true);
-    DataflowAssert.that(output)
-        .containsInOrder("one", "two", "three", "dup", "dup");
-
-    p.run();
-  }
-
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testKeysEmpty() {

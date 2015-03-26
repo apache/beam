@@ -270,9 +270,6 @@ public class GroupByKey<K, V>
   public static class GroupByKeyOnly<K, V>
       extends PTransform<PCollection<KV<K, V>>,
                          PCollection<KV<K, Iterable<V>>>> {
-    // TODO: Define and implement sorting by value.
-    boolean sortsValues = false;
-
     public GroupByKeyOnly() { }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -300,10 +297,6 @@ public class GroupByKey<K, V>
       } catch (NonDeterministicException e) {
         throw new IllegalStateException(
             "the keyCoder of a GroupByKey must be deterministic", e);
-      }
-      if (getOutput().isOrdered()) {
-        throw new IllegalStateException(
-            "the result of a GroupByKey cannot be specified to be ordered");
       }
       super.finishSpecifying();
     }
@@ -356,13 +349,6 @@ public class GroupByKey<K, V>
     @Override
     protected Coder<KV<K, Iterable<V>>> getDefaultOutputCoder() {
       return getOutputKvCoder();
-    }
-
-    /**
-     * Returns whether this GBK sorts values.
-     */
-    boolean sortsValues() {
-      return sortsValues;
     }
   }
 
@@ -428,8 +414,7 @@ public class GroupByKey<K, V>
       GroupingKey<K> groupingKey = entry.getKey();
       K key = groupingKey.getKey();
       List<V> values = entry.getValue();
-      values = context.randomizeIfUnordered(
-          transform.sortsValues(), values, true /* inPlaceAllowed */);
+      values = context.randomizeIfUnordered(values, true /* inPlaceAllowed */);
       outputElems.add(ValueWithMetadata
                       .of(WindowedValue.valueInEmptyWindows(KV.<K, Iterable<V>>of(key, values)))
                       .withKey(key));

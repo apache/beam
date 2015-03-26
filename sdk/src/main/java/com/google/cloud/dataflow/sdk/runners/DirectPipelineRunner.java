@@ -525,13 +525,12 @@ public class DirectPipelineRunner
     <T> T ensureElementEncodable(TypedPValue<T> pvalue, T element);
 
     /**
-     * If the evaluation context is testing unorderedness and
-     * !isOrdered, randomly permutes the order of the elements, in a
+     * If the evaluation context is testing unorderedness,
+     * randomly permutes the order of the elements, in a
      * copy if !inPlaceAllowed, and returns the permuted list,
      * otherwise returns the argument unchanged.
      */
-    <T> List<T> randomizeIfUnordered(boolean isOrdered,
-                                     List<T> elements,
+    <T> List<T> randomizeIfUnordered(List<T> elements,
                                      boolean inPlaceAllowed);
 
     /**
@@ -737,8 +736,7 @@ public class DirectPipelineRunner
     public <T> List<ValueWithMetadata<T>> getPCollectionValuesWithMetadata(PCollection<T> pc) {
       @SuppressWarnings("unchecked")
       List<ValueWithMetadata<T>> elements = (List<ValueWithMetadata<T>>) getPValue(pc);
-      elements = randomizeIfUnordered(
-          pc.isOrdered(), elements, false /* not inPlaceAllowed */);
+      elements = randomizeIfUnordered(elements, false /* not inPlaceAllowed */);
       LOG.debug("Getting {} = {}", pc, elements);
       return elements;
     }
@@ -791,10 +789,9 @@ public class DirectPipelineRunner
     }
 
     @Override
-    public <T> List<T> randomizeIfUnordered(boolean isOrdered,
-                                            List<T> elements,
+    public <T> List<T> randomizeIfUnordered(List<T> elements,
                                             boolean inPlaceAllowed) {
-      if (!testUnorderedness || isOrdered) {
+      if (!testUnorderedness) {
         return elements;
       }
       List<T> elementsCopy = new ArrayList<>(elements);

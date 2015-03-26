@@ -415,25 +415,6 @@ public class ParDoTest implements Serializable {
     p.run();
   }
 
-  // TODO: setOrdered(true) isn't supported yet by the Dataflow service.
-  @Test
-  public void testParDoOrdered() {
-    Pipeline p = TestPipeline.create();
-
-    List<Integer> inputs = Arrays.asList(3, -42, 666);
-
-    PCollection<Integer> input = createInts(p, inputs).setOrdered(true);
-
-    PCollection<String> output =
-        input
-        .apply(ParDo.of(new TestDoFn())).setOrdered(true);
-
-    DataflowAssert.that(output)
-        .satisfies(TestDoFn.HasExpectedOutput.forInput(inputs).inOrder());
-
-    p.run();
-  }
-
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testParDoEmpty() {
@@ -1067,7 +1048,7 @@ public class ParDoTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<Integer> input =
-        createInts(p, Arrays.asList(3, 42, 6)).setOrdered(true);
+        createInts(p, Arrays.asList(3, 42, 6));
 
     PCollection<String> output =
         input
@@ -1088,7 +1069,7 @@ public class ParDoTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<Integer> input =
-        createInts(p, Arrays.asList(3, 42, 6)).setOrdered(true);
+        createInts(p, Arrays.asList(3, 42, 6));
 
     final TupleTag<Integer> mainTag = new TupleTag<Integer>(){};
     final TupleTag<Integer> sideTag = new TupleTag<Integer>(){};
@@ -1119,7 +1100,7 @@ public class ParDoTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<Integer> input =
-        createInts(p, Arrays.asList(3, 42, 6)).setOrdered(true);
+        createInts(p, Arrays.asList(3, 42, 6));
 
     PCollection<String> output =
         input
@@ -1140,7 +1121,7 @@ public class ParDoTest implements Serializable {
   public void testParDoShiftTimestampInvalid() {
     Pipeline p = TestPipeline.create();
 
-    createInts(p, Arrays.asList(3, 42, 6)).setOrdered(true)
+    createInts(p, Arrays.asList(3, 42, 6))
         .apply(ParDo.of(new TestOutputTimestampDoFn()))
         .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.millis(1000),
                                                    Duration.millis(-1001))))

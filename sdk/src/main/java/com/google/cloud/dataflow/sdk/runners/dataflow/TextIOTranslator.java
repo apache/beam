@@ -60,8 +60,6 @@ public class TextIOTranslator {
       context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
       context.addInput(PropertyNames.VALIDATE_SOURCE, transform.needsValidation());
       context.addInput(PropertyNames.COMPRESSION_TYPE, transform.getCompressionType().toString());
-
-      // TODO: Orderedness?
     }
   }
 

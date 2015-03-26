@@ -58,7 +58,6 @@ public class AvroIOTranslator {
       context.addInput(PropertyNames.FILEPATTERN, filepattern);
       context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
       context.addInput(PropertyNames.VALIDATE_SOURCE, transform.needsValidation());
-      // TODO: Orderedness?
     }
   }
 

@@ -837,7 +837,6 @@ public class DataflowPipelineTranslator {
             }
             context.addInput(PropertyNames.INPUTS, inputs);
             context.addOutput(PropertyNames.OUTPUT, transform.getOutput());
-            // TODO: Need to specify orderedness.
           }
         });
 
@@ -975,7 +974,6 @@ public class DataflowPipelineTranslator {
       TupleTag<?> tag = entry.getKey();
       PCollection<?> output = entry.getValue();
       context.addOutput(tag.getId(), output);
-      // TODO: Need to specify orderedness.
     }
   }
 }

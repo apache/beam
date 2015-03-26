@@ -72,29 +72,6 @@ public class KvSwapTest {
     p.run();
   }
 
-  // TODO: setOrdered(true) isn't supported yet by the Dataflow service.
-  @Test
-  public void testKvSwapOrdered() {
-    Pipeline p = TestPipeline.create();
-
-    PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(Arrays.asList(TABLE))).setCoder(
-            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
-
-    input.setOrdered(true);
-    PCollection<KV<Integer, String>> output = input.apply(
-        KvSwap.<String, Integer>create()).setOrdered(true);
-
-    DataflowAssert.that(output).containsInOrder(
-        KV.of(1, "one"),
-        KV.of(2, "two"),
-        KV.of(3, "three"),
-        KV.of(4, "four"),
-        KV.of(4, "dup"),
-        KV.of(5, "dup"));
-    p.run();
-  }
-
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testKvSwapEmpty() {

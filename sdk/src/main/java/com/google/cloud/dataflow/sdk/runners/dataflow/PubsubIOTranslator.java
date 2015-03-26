@@ -67,7 +67,6 @@ public class PubsubIOTranslator {
         context.addInput(PropertyNames.PUBSUB_ID_LABEL, transform.getIdLabel());
       }
       context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
-      // TODO: Orderedness?
     }
   }
 

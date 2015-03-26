@@ -196,37 +196,4 @@ public class DataflowAssertTest implements Serializable {
 
     pipeline.run();
   }
-
-
-  @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
-  public void testContainsInOrder() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
-
-    PCollection<Integer> pcollection = pipeline
-        .apply(Create.of(1, 2, 3, 4))
-        .setOrdered(true);
-
-    DataflowAssert.that(pcollection).containsInOrder(1, 2, 3, 4);
-
-    pipeline.run();
-  }
-
-  @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
-  public void testContainsInOrderFalse() throws Exception {
-    // The actual AssertionError is deep in the stack
-    // TODO: dig it out
-    thrown.expect(RuntimeException.class);
-
-    Pipeline pipeline = TestPipeline.create();
-
-    PCollection<Integer> pcollection = pipeline
-        .apply(Create.of(1, 2, 3, 4))
-        .setOrdered(true);
-
-    DataflowAssert.that(pcollection).containsInOrder(1, 2, 4, 3);
-
-    pipeline.run();
-  }
 }

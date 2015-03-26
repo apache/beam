@@ -56,14 +56,14 @@ public class FlattenTest implements Serializable {
 
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
-  public void testFlattenPCollectionListUnordered() {
+  public void testFlattenPCollectionList() {
     Pipeline p = TestPipeline.create();
 
     List<String>[] inputs = new List[] {
       LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES };
 
     PCollection<String> output =
-        makePCollectionListOfStrings(false /* not ordered */, p, inputs)
+        makePCollectionListOfStrings(p, inputs)
         .apply(Flatten.<String>pCollections());
 
     DataflowAssert.that(output).containsInAnyOrder(flatten(inputs));
@@ -72,34 +72,18 @@ public class FlattenTest implements Serializable {
 
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
-  public void testFlattenPCollectionListUnorderedThenParDo() {
+  public void testFlattenPCollectionListThenParDo() {
     Pipeline p = TestPipeline.create();
 
     List<String>[] inputs = new List[] {
       LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES };
 
     PCollection<String> output =
-        makePCollectionListOfStrings(false /* not ordered */, p, inputs)
+        makePCollectionListOfStrings(p, inputs)
         .apply(Flatten.<String>pCollections())
         .apply(ParDo.of(new IdentityFn<String>(){}));
 
     DataflowAssert.that(output).containsInAnyOrder(flatten(inputs));
-    p.run();
-  }
-
-  // TODO: setOrdered(true) isn't supported yet by the Dataflow service.
-  @Test
-  public void testFlattenPCollectionListOrdered() {
-    Pipeline p = TestPipeline.create();
-
-    List<String>[] inputs = new List[] {
-      LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES };
-
-    PCollection<String> output =
-        makePCollectionListOfStrings(true /* ordered */, p, inputs)
-        .apply(Flatten.<String>pCollections()).setOrdered(true);
-
-    DataflowAssert.that(output).containsInOrder(flatten(inputs));
     p.run();
   }
 
@@ -178,24 +162,6 @@ public class FlattenTest implements Serializable {
 
     DataflowAssert.that(output)
         .containsInAnyOrder(LINES_ARRAY);
-
-    p.run();
-  }
-
-  // TODO: setOrdered(true) isn't supported yet by the Dataflow service.
-  @Test
-  public void testFlattenIterablesOrdered() {
-    Pipeline p = TestPipeline.create();
-
-    PCollection<Iterable<String>> input = p
-        .apply(Create.<Iterable<String>>of(LINES))
-        .setCoder(IterableCoder.of(StringUtf8Coder.of()));
-
-    PCollection<String> output =
-        input.apply(Flatten.<String>iterables()).setOrdered(true);
-
-    DataflowAssert.that(output)
-        .containsInOrder(LINES_ARRAY);
 
     p.run();
   }
@@ -296,23 +262,18 @@ public class FlattenTest implements Serializable {
   }
 
   private PCollectionList<String> makePCollectionListOfStrings(
-      boolean ordered,
       Pipeline p,
       List<String>... lists) {
-    return makePCollectionList(ordered, p, StringUtf8Coder.of(), lists);
+    return makePCollectionList(p, StringUtf8Coder.of(), lists);
   }
 
   private <T> PCollectionList<T> makePCollectionList(
-      boolean ordered,
       Pipeline p,
       Coder<T> coder,
       List<T>... lists) {
     List<PCollection<T>> pcs = new ArrayList<>();
     for (List<T> list : lists) {
       PCollection<T> pc = p.apply(Create.of(list)).setCoder(coder);
-      if (ordered) {
-        pc.setOrdered(true);
-      }
       pcs.add(pc);
     }
     return PCollectionList.of(pcs);
