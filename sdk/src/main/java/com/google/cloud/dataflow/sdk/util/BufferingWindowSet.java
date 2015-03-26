@@ -21,6 +21,7 @@ import static com.google.cloud.dataflow.sdk.util.WindowUtils.bufferTag;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.SetCoder;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
@@ -72,12 +73,12 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
       K key,
       WindowFn<?, W> windowFn,
       Coder<V> inputCoder,
-      DoFnProcessContext<?, KV<K, Iterable<V>>> context,
+      DoFn<?, KV<K, Iterable<V>>>.ProcessContext context,
       ActiveWindowManager<W> activeWindowManager) throws Exception {
     super(key, windowFn, inputCoder, context, activeWindowManager);
 
     mergeTree = emptyIfNull(
-        context.context.stepContext.lookup(Arrays.asList(mergeTreeTag))
+        context.keyedState().lookup(Arrays.asList(mergeTreeTag))
         .get(mergeTreeTag));
 
     originalMergeTree = deepCopy(mergeTree);
@@ -85,7 +86,7 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
 
   @Override
   public void put(W window, V value) throws Exception {
-    context.context.stepContext.writeToTagList(
+    context.windowingInternals().writeToTagList(
         bufferTag(window, windowFn.windowCoder(), inputCoder),
         value,
         context.timestamp());
@@ -99,10 +100,10 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   public void remove(W window) throws Exception {
     Set<W> subWindows = mergeTree.get(window);
     for (W w : subWindows) {
-      context.context.stepContext.deleteTagList(
+      context.windowingInternals().deleteTagList(
           bufferTag(w, windowFn.windowCoder(), inputCoder));
     }
-    context.context.stepContext.deleteTagList(
+    context.windowingInternals().deleteTagList(
         bufferTag(window, windowFn.windowCoder(), inputCoder));
     mergeTree.remove(window);
     activeWindowManager.removeWindow(window);
@@ -159,7 +160,7 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
     }
 
     for (W curWindow : curWindows) {
-      Iterable<V> items = context.context.stepContext.readTagList(bufferTag(
+      Iterable<V> items = context.windowingInternals().readTagList(bufferTag(
           curWindow, windowFn.windowCoder(), inputCoder));
       for (V item : items) {
         toEmit.add(item);
@@ -172,7 +173,7 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   @Override
   public void flush() throws Exception {
     if (!mergeTree.equals(originalMergeTree)) {
-      context.context.stepContext.store(mergeTreeTag, mergeTree);
+      context.keyedState().store(mergeTreeTag, mergeTree);
     }
   }
 

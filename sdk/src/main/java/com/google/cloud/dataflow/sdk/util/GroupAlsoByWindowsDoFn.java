@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresKeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
@@ -52,7 +53,8 @@ import java.util.PriorityQueue;
  */
 @SuppressWarnings("serial")
 public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
-    extends DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> {
+    extends DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>
+    implements RequiresKeyedState {
 
   /**
    * Create a {@link GroupAlsoByWindowsDoFn} without a combine function. Depending on the
@@ -69,7 +71,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
       return new GABWViaWindowSetDoFn<K, V, Iterable<V>, W>(windowFn) {
         @Override
         AbstractWindowSet<K, V, Iterable<V>, W> createWindowSet(K key,
-            DoFnProcessContext<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> context,
+            DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>>.ProcessContext context,
             BatchActiveWindowManager<W> activeWindowManager) throws Exception {
           return  new BufferingWindowSet<K, V, W>(key, windowFn, inputCoder,
               context, activeWindowManager);
@@ -92,7 +94,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
       @Override
       AbstractWindowSet<K, VI, VO, W> createWindowSet(
           K key,
-          DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context,
+          DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>.ProcessContext context,
           BatchActiveWindowManager<W> activeWindowManager) throws Exception {
         return CombiningWindowSet.create(
             key, windowFn, combineFn, keyCoder, inputCoder,
@@ -106,9 +108,6 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      DoFnProcessContext<?, KV<K, Iterable<V>>> internal = (DoFnProcessContext) c;
-
       K key = c.element().getKey();
       Iterable<WindowedValue<V>> value = c.element().getValue();
       PeekingReiterator<WindowedValue<V>> iterator;
@@ -136,7 +135,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
             // Iterating through the WindowReiterable may advance iterator as an optimization
             // for as long as it detects that there are no new windows.
             windows.put(window.maxTimestamp(), window);
-            internal.outputWindowedValue(
+            c.windowingInternals().outputWindowedValue(
                 KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
                 window.maxTimestamp(),
                 Arrays.asList(window));
@@ -173,28 +172,18 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
 
     abstract AbstractWindowSet<K, VI, VO, W> createWindowSet(
         K key,
-        DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context,
+        DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>.ProcessContext context,
         BatchActiveWindowManager<W> activeWindowManager)
         throws Exception;
 
     @Override
     public void processElement(
         DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>.ProcessContext c) throws Exception {
-      @SuppressWarnings("unchecked")
-      DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context =
-          (DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>) c;
-      processElementViaWindowSet(context);
-    }
-
-    public void processElementViaWindowSet(
-        DoFnProcessContext<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>> context)
-            throws Exception {
-      K key = context.element().getKey();
+      K key = c.element().getKey();
       BatchActiveWindowManager<W> activeWindowManager = new BatchActiveWindowManager<>();
-      AbstractWindowSet<K, VI, ?, W> windowSet =
-          createWindowSet(key, context, activeWindowManager);
+      AbstractWindowSet<K, VI, ?, W> windowSet = createWindowSet(key, c, activeWindowManager);
 
-      for (WindowedValue<VI> e : context.element().getValue()) {
+      for (WindowedValue<VI> e : c.element().getValue()) {
         for (BoundedWindow window : e.getWindows()) {
           @SuppressWarnings("unchecked")
           W w = (W) window;
