@@ -147,7 +147,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     if (!isDeterministic()) {
-      throw new NonDeterministicException(this, "Coder reported it was not determinsitic.");
+      throw new NonDeterministicException(this, "Coder reported it was not deterministic.");
     }
   }
 
