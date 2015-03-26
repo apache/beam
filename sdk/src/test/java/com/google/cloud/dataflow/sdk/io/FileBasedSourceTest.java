@@ -352,7 +352,7 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source = new TestFileBasedSource(false, file.getPath(), 64, null);
     assertThat(data, containsInAnyOrder(
-        readEverythingFromReader(source.createBasicReader(null, null, null)).toArray()));
+        readEverythingFromReader(source.createReader(null, null, null)).toArray()));
   }
 
   @Test
@@ -376,7 +376,7 @@ public class FileBasedSourceTest {
     expectedResults.addAll(data2);
     expectedResults.addAll(data3);
     assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createBasicReader(null, null, null)).toArray()));
+        readEverythingFromReader(source.createReader(null, null, null)).toArray()));
   }
 
   @Test
@@ -406,7 +406,7 @@ public class FileBasedSourceTest {
     expectedResults.addAll(data2);
     expectedResults.addAll(data3);
     assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createBasicReader(null, null, null)).toArray()));
+        readEverythingFromReader(source.createReader(null, null, null)).toArray()));
   }
 
   @Test
@@ -421,8 +421,8 @@ public class FileBasedSourceTest {
         new TestFileBasedSource(file.getPath(), 64, 25, Long.MAX_VALUE, null);
 
     List<String> results = new ArrayList<String>();
-    results.addAll(readEverythingFromReader(source1.createBasicReader(null, null, null)));
-    results.addAll(readEverythingFromReader(source2.createBasicReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source1.createReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source2.createReader(null, null, null)));
     assertThat(data, containsInAnyOrder(results.toArray()));
   }
 
@@ -446,7 +446,7 @@ public class FileBasedSourceTest {
     expectedResults.removeAll(Arrays.asList(header));
 
     assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createBasicReader(null, null, null)).toArray()));
+        readEverythingFromReader(source.createReader(null, null, null)).toArray()));
   }
 
   @Test
@@ -470,8 +470,8 @@ public class FileBasedSourceTest {
     expectedResults.removeAll(Arrays.asList(header));
 
     List<String> results = new ArrayList<>();
-    results.addAll(readEverythingFromReader(source1.createBasicReader(null, null, null)));
-    results.addAll(readEverythingFromReader(source2.createBasicReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source1.createReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source2.createReader(null, null, null)));
 
     assertThat(expectedResults, containsInAnyOrder(results.toArray()));
   }
@@ -499,9 +499,9 @@ public class FileBasedSourceTest {
     expectedResults.removeAll(Arrays.asList(header));
 
     List<String> results = new ArrayList<>();
-    results.addAll(readEverythingFromReader(source1.createBasicReader(null, null, null)));
-    results.addAll(readEverythingFromReader(source2.createBasicReader(null, null, null)));
-    results.addAll(readEverythingFromReader(source3.createBasicReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source1.createReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source2.createReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source3.createReader(null, null, null)));
 
     assertThat(expectedResults, containsInAnyOrder(results.toArray()));
   }
@@ -529,9 +529,9 @@ public class FileBasedSourceTest {
     expectedResults.removeAll(Arrays.asList(header));
 
     List<String> results = new ArrayList<>();
-    results.addAll(readEverythingFromReader(source1.createBasicReader(null, null, null)));
-    results.addAll(readEverythingFromReader(source2.createBasicReader(null, null, null)));
-    results.addAll(readEverythingFromReader(source3.createBasicReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source1.createReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source2.createReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source3.createReader(null, null, null)));
 
     assertThat(expectedResults, containsInAnyOrder(results.toArray()));
   }
@@ -556,17 +556,17 @@ public class FileBasedSourceTest {
     TestFileBasedSource source =
         new TestFileBasedSource(file.getPath(), 64, 1, Long.MAX_VALUE, header);
     assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createBasicReader(null, null, null)).toArray()));
+        readEverythingFromReader(source.createReader(null, null, null)).toArray()));
 
     // Split starts after "<h" of the header
     source = new TestFileBasedSource(file.getPath(), 64, 2, Long.MAX_VALUE, header);
     assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createBasicReader(null, null, null)).toArray()));
+        readEverythingFromReader(source.createReader(null, null, null)).toArray()));
 
     // Split starts after "<h>" of the header
     source = new TestFileBasedSource(file.getPath(), 64, 3, Long.MAX_VALUE, header);
     assertThat(expectedResults, containsInAnyOrder(
-        readEverythingFromReader(source.createBasicReader(null, null, null)).toArray()));
+        readEverythingFromReader(source.createReader(null, null, null)).toArray()));
   }
 
   @Test
@@ -581,9 +581,9 @@ public class FileBasedSourceTest {
         new TestFileBasedSource(file.getPath(), 64, 72, Long.MAX_VALUE, null);
 
     List<String> results = new ArrayList<>();
-    results.addAll(readEverythingFromReader(source1.createBasicReader(null, null, null)));
-    results.addAll(readEverythingFromReader(source2.createBasicReader(null, null, null)));
-    results.addAll(readEverythingFromReader(source3.createBasicReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source1.createReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source2.createReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source3.createReader(null, null, null)));
 
     assertThat(data, containsInAnyOrder(results.toArray()));
   }
@@ -600,8 +600,8 @@ public class FileBasedSourceTest {
         new TestFileBasedSource(file.getPath(), 1024, 162, Long.MAX_VALUE, null);
 
     List<String> results = new ArrayList<>();
-    results.addAll(readEverythingFromReader(source1.createBasicReader(null, null, null)));
-    results.addAll(readEverythingFromReader(source2.createBasicReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source1.createReader(null, null, null)));
+    results.addAll(readEverythingFromReader(source2.createReader(null, null, null)));
     assertThat(data, containsInAnyOrder(results.toArray()));
   }
 
@@ -621,7 +621,7 @@ public class FileBasedSourceTest {
 
     List<String> results = new ArrayList<String>();
     for (Source<String> split : sources) {
-      results.addAll(readEverythingFromReader(split.createBasicReader(null, null, null)));
+      results.addAll(readEverythingFromReader(split.createReader(null, null, null)));
     }
 
     assertThat(data, containsInAnyOrder(results.toArray()));
@@ -754,7 +754,7 @@ public class FileBasedSourceTest {
 
     List<String> results = new ArrayList<String>();
     for (Source<String> split : sources) {
-      results.addAll(readEverythingFromReader(split.createBasicReader(null, null, null)));
+      results.addAll(readEverythingFromReader(split.createReader(null, null, null)));
     }
 
     List<String> expectedResults = new ArrayList<String>();

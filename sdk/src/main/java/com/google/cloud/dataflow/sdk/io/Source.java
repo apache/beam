@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.io;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -34,9 +33,7 @@ import javax.annotation.Nullable;
  * and creating a {@code Source} for reading the input.
  *
  * <p> To use this class for supporting your custom input type, derive your class
- * class from it, and override the abstract methods. Also override either
- * {@link #createWindowedReader} if your source supports timestamps and windows,
- * or {@link #createBasicReader} otherwise. For an example, see {@link DatastoreIO}.
+ * class from it, and override the abstract methods. For an example, see {@link DatastoreIO}.
  *
  * <p> A {@code Source} passed to a {@code Read} transform must be
  * {@code Serializable}.  This allows the {@code Source} instance
@@ -80,23 +77,10 @@ public abstract class Source<T> implements Serializable {
   public abstract boolean producesSortedKeys(PipelineOptions options) throws Exception;
 
   /**
-   * Creates a windowed reader for this source. The default implementation wraps
-   * {@link #createBasicReader}. Override this function if your reader supports timestamps
-   * and windows; otherwise, override {@link #createBasicReader} instead.
+   * Creates a reader for this source.
    */
-  public Reader<WindowedValue<T>> createWindowedReader(PipelineOptions options,
-      Coder<WindowedValue<T>> coder, @Nullable ExecutionContext executionContext)
-      throws IOException {
-    return new WindowedReaderWrapper<T>(createBasicReader(
-        options, ((WindowedValue.WindowedValueCoder<T>) coder).getValueCoder(), executionContext));
-  }
-
-  /**
-   * Creates a basic (non-windowed) reader for this source. If you override this method, each value
-   * returned by this reader will be wrapped into the global window.
-   */
-  protected Reader<T> createBasicReader(PipelineOptions options, Coder<T> coder,
-      @Nullable ExecutionContext executionContext) throws IOException {
+  public Reader<T> createReader(PipelineOptions options, Coder<T> coder,
+                                @Nullable ExecutionContext executionContext) throws IOException {
     throw new UnsupportedOperationException();
   }
 
@@ -165,36 +149,5 @@ public abstract class Source<T> implements Serializable {
      */
     @Override
     public void close() throws IOException;
-  }
-
-  /**
-   * An adapter from {@code SourceIterator<T>} to {@code SourceIterator<WindowedValue<T>>}.
-   */
-  private static class WindowedReaderWrapper<T> implements Reader<WindowedValue<T>> {
-    private final Reader<T> reader;
-
-    public WindowedReaderWrapper(Reader<T> reader) {
-      this.reader = reader;
-    }
-
-    @Override
-    public boolean start() throws IOException {
-      return reader.start();
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      return reader.advance();
-    }
-
-    @Override
-    public WindowedValue<T> getCurrent() throws NoSuchElementException {
-      return WindowedValue.valueInGlobalWindow(reader.getCurrent());
-    }
-
-    @Override
-    public void close() throws IOException {
-      reader.close();
-    }
   }
 }

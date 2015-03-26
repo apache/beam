@@ -211,8 +211,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   }
 
   @Override
-  protected final Reader<T> createBasicReader(PipelineOptions options, Coder<T> coder,
-      ExecutionContext executionContext) throws IOException {
+  public final Reader<T> createReader(PipelineOptions options, Coder<T> coder,
+                                      ExecutionContext executionContext) throws IOException {
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
       Collection<String> files = expandFilePattern();
