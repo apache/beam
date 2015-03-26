@@ -51,6 +51,7 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 import com.google.common.base.Preconditions;
 
@@ -116,8 +117,7 @@ public class BasicSerializableSourceFormatTest {
       }
 
       @Override
-      public Reader<Integer> createReader(
-          PipelineOptions options, Coder<Integer> coder,
+      public Reader<Integer> createBasicReader(PipelineOptions options, Coder<Integer> coder,
           @Nullable ExecutionContext executionContext) throws IOException {
         return new RangeReader(this);
       }
@@ -173,10 +173,10 @@ public class BasicSerializableSourceFormatTest {
     options.setNumWorkers(5);
     com.google.api.services.dataflow.model.Source source =
         translateIOToCloudSource(TestIO.fromRange(10, 20), options);
-    List<Integer> elems = CloudSourceUtils.readElemsFromSource(options, source);
+    List<WindowedValue<Integer>> elems = CloudSourceUtils.readElemsFromSource(options, source);
     assertEquals(10, elems.size());
     for (int i = 0; i < 10; ++i) {
-      assertEquals(Integer.valueOf(10 + i), elems.get(i));
+      assertEquals(WindowedValue.valueInGlobalWindow(10 + i), elems.get(i));
     }
     SourceSplitResponse response = performSplit(source, options);
     assertEquals("SOURCE_SPLIT_OUTCOME_SPLITTING_HAPPENED", response.getOutcome());
@@ -188,8 +188,12 @@ public class BasicSerializableSourceFormatTest {
       com.google.api.services.dataflow.model.Source bundleSource = bundle.getSource();
       assertTrue(bundleSource.getDoesNotNeedSplitting());
       bundleSource.setCodec(source.getCodec());
-      List<Integer> xs = CloudSourceUtils.readElemsFromSource(options, bundleSource);
-      assertThat(xs, contains(10 + 2 * i, 11 + 2 * i));
+      List<WindowedValue<Integer>> xs = CloudSourceUtils.readElemsFromSource(options, bundleSource);
+      assertThat(
+          xs,
+          contains(
+              WindowedValue.valueInGlobalWindow(10 + 2 * i),
+              WindowedValue.valueInGlobalWindow(11 + 2 * i)));
     }
   }
 
@@ -300,7 +304,7 @@ public class BasicSerializableSourceFormatTest {
     private static final long serialVersionUID = -1288303253742972653L;
 
     @Override
-    public Reader<Integer> createReader(
+    protected Reader<Integer> createBasicReader(
         PipelineOptions options, Coder<Integer> coder, @Nullable ExecutionContext executionContext)
         throws IOException {
       return new FailingReader();
