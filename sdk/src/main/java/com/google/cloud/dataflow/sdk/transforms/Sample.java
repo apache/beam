@@ -21,9 +21,12 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
+import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +38,33 @@ import java.util.Random;
  * key in a {@code PCollection} of {@code KV}s.
  **/
 public class Sample {
+
+  /**
+   * {@code Sample#any(long)} takes a {@code PCollection<T>} and a limit, and
+   * produces a new {@code PCollection<T>} containing up to limit
+   * elements of the input {@code PCollection}.
+   *
+   * <p> If limit is less than or equal to the size of the input
+   * {@code PCollection}, then all the input's elements will be selected.
+   *
+   * <p> All of the elements of the output {@code PCollection} should fit into
+   * main memory of a single worker machine.  This operation does not
+   * run in parallel.
+   *
+   * <p> Example of use:
+   * <pre> {@code
+   * PCollection<String> input = ...;
+   * PCollection<String> output = input.apply(Sample.<String>any(100));
+   * } </pre>bla
+   *
+   * @param <T> the type of the elements of the input and output
+   * {@code PCollection}s
+   * @param limit the number of elements to take from the input
+   */
+  public static <T> PTransform<PCollection<T>, PCollection<T>> any(long limit) {
+    return new SampleAny<>(limit);
+  }
+
   /**
    * Returns a {@code PTransform} that takes a {@code PCollection<T>},
    * selects {@code sampleSize} elements, uniformly at random, and returns a
@@ -91,6 +121,63 @@ public class Sample {
 
 
   /////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * A {@link PTransform} that takes a {@code PCollection<T>} and a limit, and
+   * produces a new {@code PCollection<T>} containing up to limit
+   * elements of the input {@code PCollection}.
+   */
+  public static class SampleAny<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private static final long serialVersionUID = 0;
+    private final long limit;
+
+    /**
+     * Constructs a {@code SampleAny<T>} PTransform that, when applied,
+     * produces a new PCollection containing up to {@code limit}
+     * elements of its input {@code PCollection}.
+     */
+    private SampleAny(long limit) {
+      Preconditions.checkArgument(limit >= 0, "Expected non-negative limit, received %s.", limit);
+      this.limit = limit;
+    }
+
+    @Override
+    public PCollection<T> apply(PCollection<T> in) {
+      PCollectionView<Iterable<T>> iterableView = in.apply(View.<T>asIterable());
+      return
+          in.getPipeline()
+          .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
+          .apply(ParDo
+                 .withSideInputs(iterableView)
+                 .of(new SampleAnyDoFn<>(limit, iterableView)))
+          .setCoder(in.getCoder());
+    }
+  }
+
+  /**
+   * A {@link DoFn} that returns up to limit elements from the side input PCollection.
+   */
+  private static class SampleAnyDoFn<T> extends DoFn<Void, T> {
+    private static final long serialVersionUID = 0;
+
+    long limit;
+    final PCollectionView<Iterable<T>> iterableView;
+
+    public SampleAnyDoFn(long limit, PCollectionView<Iterable<T>> iterableView) {
+      this.limit = limit;
+      this.iterableView = iterableView;
+    }
+
+    @Override
+    public void processElement(ProcessContext c) {
+      for (T i : c.sideInput(iterableView)) {
+        if (limit-- <= 0) {
+          break;
+        }
+        c.output(i);
+      }
+    }
+  }
 
   /**
    * {@code CombineFn} that computes a fixed-size sample of a

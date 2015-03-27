@@ -25,8 +25,8 @@ import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.First;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.Sample;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -53,7 +53,7 @@ public class TransformTreeTest {
   enum TransformsSeen {
     READ,
     WRITE,
-    FIRST
+    SAMPLE_ANY
   }
 
   /**
@@ -99,14 +99,14 @@ public class TransformTreeTest {
     }
   }
 
-  // Builds a pipeline containing a composite operation (First), then
+  // Builds a pipeline containing a composite operation (Pick), then
   // visits the nodes and verifies that the hierarchy was captured.
   @Test
   public void testCompositeCapture() throws Exception {
     Pipeline p = DirectPipeline.createForTest();
 
     p.apply(TextIO.Read.named("ReadMyFile").from("gs://bucket/object"))
-        .apply(First.<String>of(10))
+        .apply(Sample.<String>any(10))
         .apply(TextIO.Write.named("WriteMyFile").to("gs://bucket/object"));
 
     final EnumSet<TransformsSeen> visited =
@@ -118,8 +118,8 @@ public class TransformTreeTest {
       @Override
       public void enterCompositeTransform(TransformTreeNode node) {
         PTransform<?, ?> transform = node.getTransform();
-        if (transform instanceof First) {
-          Assert.assertTrue(visited.add(TransformsSeen.FIRST));
+        if (transform instanceof Sample.SampleAny) {
+          Assert.assertTrue(visited.add(TransformsSeen.SAMPLE_ANY));
           Assert.assertNotNull(node.getEnclosingNode());
           Assert.assertTrue(node.isCompositeNode());
         }
@@ -130,16 +130,16 @@ public class TransformTreeTest {
       @Override
       public void leaveCompositeTransform(TransformTreeNode node) {
         PTransform<?, ?> transform = node.getTransform();
-        if (transform instanceof First) {
-          Assert.assertTrue(left.add(TransformsSeen.FIRST));
+        if (transform instanceof Sample.SampleAny) {
+          Assert.assertTrue(left.add(TransformsSeen.SAMPLE_ANY));
         }
       }
 
       @Override
       public void visitTransform(TransformTreeNode node) {
         PTransform<?, ?> transform = node.getTransform();
-        // First is a composite, should not be visited here.
-        Assert.assertThat(transform, not(instanceOf(First.class)));
+        // Pick is a composite, should not be visited here.
+        Assert.assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
         if (transform instanceof TextIO.Read.Bound) {
           Assert.assertTrue(visited.add(TransformsSeen.READ));
         } else if (transform instanceof TextIO.Write.Bound) {
@@ -153,7 +153,7 @@ public class TransformTreeTest {
     });
 
     Assert.assertTrue(visited.equals(EnumSet.allOf(TransformsSeen.class)));
-    Assert.assertTrue(left.equals(EnumSet.of(TransformsSeen.FIRST)));
+    Assert.assertTrue(left.equals(EnumSet.of(TransformsSeen.SAMPLE_ANY)));
   }
 
   @Test(expected = IllegalStateException.class)
