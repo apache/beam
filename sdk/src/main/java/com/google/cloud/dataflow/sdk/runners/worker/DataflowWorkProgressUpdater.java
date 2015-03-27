@@ -96,7 +96,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       nextReportIndex++;
 
       progressReportIntervalMs = nextProgressReportInterval(
-          getWorkUnitSuggestedReportingInterval(),
+          fromCloudDuration(result.getReportStatusInterval()).getMillis(),
           leaseRemainingTime(getLeaseExpirationTimestamp(result)));
 
       ApproximateProgress suggestedStopPoint = result.getSuggestedStopPoint();
