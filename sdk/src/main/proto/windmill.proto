@@ -38,6 +38,11 @@ message Message {
 message Timer {
   required bytes tag = 1;
   optional int64 timestamp = 2 [default=-0x8000000000000000];
+  enum Type {
+    WATERMARK = 0;
+    REALTIME = 1;
+  }
+  optional Type type = 3 [default = WATERMARK];
 }
 
 message InputMessageBundle {
