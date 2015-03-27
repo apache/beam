@@ -1376,24 +1376,24 @@ public class Combine {
      * combining transform that inserts an intermediate node to combine "hot"
      * keys partially before performing the full combine.
      *
-     * @param hotKeySpread a function from keys to an integer N, where the key
+     * @param hotKeyFanout a function from keys to an integer N, where the key
      * will be spread among N intermediate nodes for partial combining.
      * If N is less than or equal to 1, this key will not be sent through an
      * intermediate node.
      */
-    public PerKeyWithHotKeys<K, VI, VO> withHotKeys(
-        SerializableFunction<? super K, Integer> hotKeySpread) {
-      return new PerKeyWithHotKeys<K, VI, VO>(fn, hotKeySpread).withName(name);
+    public PerKeyWithHotKeyFanout<K, VI, VO> withHotKeyFanout(
+        SerializableFunction<? super K, Integer> hotKeyFanout) {
+      return new PerKeyWithHotKeyFanout<K, VI, VO>(fn, hotKeyFanout).withName(name);
     }
 
     /**
-     * Like {@link #withHotKeys(SerializableFunction)}, but returning the given
+     * Like {@link #withHotKeyFanout(SerializableFunction)}, but returning the given
      * constant value for every key.
      */
-    public PerKeyWithHotKeys<K, VI, VO> withHotKeys(final int hotKeySpread) {
-      return withHotKeys(
+    public PerKeyWithHotKeyFanout<K, VI, VO> withHotKeyFanout(final int hotKeyFanout) {
+      return withHotKeyFanout(
           new SerializableFunction<K, Integer>(){
-            @Override public Integer apply(K unused) { return hotKeySpread; }
+            @Override public Integer apply(K unused) { return hotKeyFanout; }
           });
     }
 
@@ -1426,23 +1426,23 @@ public class Combine {
   /**
    * Like {@link PerKey}, but sharding the combining of hot keys.
    */
-  public static class PerKeyWithHotKeys<K, VI, VO>
+  public static class PerKeyWithHotKeyFanout<K, VI, VO>
       extends PTransform<PCollection<KV<K, VI>>, PCollection<KV<K, VO>>> {
 
     private final transient KeyedCombineFn<? super K, ? super VI, ?, VO> fn;
-    private final SerializableFunction<? super K, Integer> hotKeySpread;
+    private final SerializableFunction<? super K, Integer> hotKeyFanout;
 
-    private PerKeyWithHotKeys(
+    private PerKeyWithHotKeyFanout(
         KeyedCombineFn<? super K, ? super VI, ?, VO> fn,
-        SerializableFunction<? super K, Integer> hotKeySpread) {
+        SerializableFunction<? super K, Integer> hotKeyFanout) {
       this.fn = fn;
-      this.hotKeySpread = hotKeySpread;
+      this.hotKeyFanout = hotKeyFanout;
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public PerKeyWithHotKeys<K, VI, VO> withName(String name) {
-      return (PerKeyWithHotKeys<K, VI, VO>) super.withName(name);
+    public PerKeyWithHotKeyFanout<K, VI, VO> withName(String name) {
+      return (PerKeyWithHotKeyFanout<K, VI, VO>) super.withName(name);
     }
 
     @Override
@@ -1515,7 +1515,7 @@ public class Combine {
             }
       };
 
-      // Use the provided hotKeySpread fn to split into "hot" and "cold" keys,
+      // Use the provided hotKeyFanout fn to split into "hot" and "cold" keys,
       // augmenting the hot keys with a nonce.
       final TupleTag<KV<KV<K, Integer>, VI>> hot = new TupleTag<>();
       final TupleTag<KV<K, VI>> cold = new TupleTag<>();
@@ -1525,7 +1525,7 @@ public class Combine {
                      @Override
                      public void processElement(ProcessContext c) {
                        KV<K, VI> kv = c.element();
-                       int spread = hotKeySpread.apply(kv.getKey());
+                       int spread = hotKeyFanout.apply(kv.getKey());
                        if (spread <= 1) {
                          c.output(kv);
                        } else {

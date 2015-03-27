@@ -315,7 +315,7 @@ public class CombineTest {
         counter.new Counter(1, 1, 0, 0)));
   }
 
-  private static final SerializableFunction<String, Integer> hotKeySpread =
+  private static final SerializableFunction<String, Integer> hotKeyFanout =
       new SerializableFunction<String, Integer>() {
         @Override
         public Integer apply(String input) {
@@ -331,11 +331,11 @@ public class CombineTest {
     KeyedCombineFn<String, Integer, ?, Double> mean =
         new MeanInts().<String>asKeyedFn();
     PCollection<KV<String, Double>> coldMean = input.apply(
-        Combine.perKey(mean).withHotKeys(0));
+        Combine.perKey(mean).withHotKeyFanout(0));
     PCollection<KV<String, Double>> warmMean = input.apply(
-        Combine.perKey(mean).withHotKeys(hotKeySpread));
+        Combine.perKey(mean).withHotKeyFanout(hotKeyFanout));
     PCollection<KV<String, Double>> hotMean = input.apply(
-        Combine.perKey(mean).withHotKeys(5));
+        Combine.perKey(mean).withHotKeyFanout(5));
 
     List<KV<String, Double>> expected = Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0));
     DataflowAssert.that(coldMean).containsInAnyOrder(expected);

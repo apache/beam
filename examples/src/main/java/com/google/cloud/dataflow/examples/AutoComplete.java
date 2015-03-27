@@ -163,10 +163,10 @@ public class AutoComplete {
 
         // Find and return the top candiates for each prefix.
         .apply(Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix)
-               .withHotKeys(new HotKeySpread()));
+               .withHotKeyFanout(new HotKeyFanout()));
     }
 
-    private static class HotKeySpread implements SerializableFunction<String, Integer> {
+    private static class HotKeyFanout implements SerializableFunction<String, Integer> {
       private static final long serialVersionUID = 0;
 
       @Override
