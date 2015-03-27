@@ -68,10 +68,32 @@ public class Count {
   public static class Globally<T>
       extends PTransform<PCollection<T>, PCollection<Long>> {
 
-    public Globally() { }
+    private final boolean withoutDefaults;
+
+    public Globally() {
+      this.withoutDefaults = false;
+    }
+
+    private Globally(boolean withoutDefaults) {
+      this.withoutDefaults = withoutDefaults;
+    }
+
+    /**
+     * Returns a {@link PTransform} identical to Globally(), but that does not attempt to
+     * provide a default value in the case of empty input.
+     */
+    public Globally<T> withoutDefaults() {
+      return new Globally<T>(true /* withoutDefaults */);
+    }
 
     @Override
     public PCollection<Long> apply(PCollection<T> input) {
+      Combine.Globally<Long, Long> sumGlobally;
+      if (withoutDefaults) {
+        sumGlobally = Sum.longsGlobally().withoutDefaults();
+      } else {
+        sumGlobally = Sum.longsGlobally();
+      }
       return
           input
           .apply(ParDo.named("Init")
@@ -81,7 +103,7 @@ public class Count {
                        c.output(1L);
                      }
                    }))
-          .apply(Sum.longsGlobally());
+          .apply(sumGlobally);
     }
   }
 
