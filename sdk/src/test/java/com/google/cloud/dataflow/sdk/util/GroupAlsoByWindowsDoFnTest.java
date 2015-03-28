@@ -18,12 +18,14 @@ package com.google.cloud.dataflow.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-
+import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
@@ -247,27 +249,81 @@ public class GroupAlsoByWindowsDoFnTest {
         Matchers.contains(window(15, 25)));
   }
 
+  @Test public void testSessionsCombine() throws Exception {
+    CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
+    DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>,
+        KV<String, Long>, List> runner =
+        makeRunner(Sessions.<String>withGapDuration(Duration.millis(10)),
+                   combineFn.<String>asKeyedFn());
+    runner.startBundle();
+
+    runner.processElement(WindowedValue.valueInEmptyWindows(
+        KV.of("k", (Iterable<WindowedValue<Long>>) Arrays.asList(
+            WindowedValue.of(
+                1L,
+                new Instant(0),
+                Arrays.asList(window(0, 10))),
+            WindowedValue.of(
+                2L,
+                new Instant(5),
+                Arrays.asList(window(5, 15))),
+            WindowedValue.of(
+                4L,
+                new Instant(15),
+                Arrays.asList(window(15, 25)))))));
+
+    runner.finishBundle();
+
+    List<WindowedValue<KV<String, Long>>> result = runner.getReceiver(outputTag);
+
+    assertEquals(2, result.size());
+
+    WindowedValue<KV<String, Long>> item0 = result.get(0);
+    assertEquals("k", item0.getValue().getKey());
+    assertEquals(3L, item0.getValue().getValue().longValue());
+    assertEquals(new Instant(14), item0.getTimestamp());
+    assertThat(item0.getWindows(), Matchers.contains(window(0, 15)));
+
+    WindowedValue<KV<String, Long>> item1 = result.get(1);
+    assertEquals("k", item1.getValue().getKey());
+    assertEquals(4L, item1.getValue().getValue().longValue());
+    assertEquals(new Instant(24), item1.getTimestamp());
+    assertThat(item1.getWindows(), Matchers.contains(window(15, 25)));
+  }
 
   private DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-    KV<String, Iterable<String>>, List> makeRunner(
-        WindowFn<? super String, IntervalWindow> windowFn) {
-
+      KV<String, Iterable<String>>, List> makeRunner(
+          WindowFn<? super String, IntervalWindow> windowFn) {
     GroupAlsoByWindowsDoFn<String, String, Iterable<String>, IntervalWindow> fn =
         GroupAlsoByWindowsDoFn.createForIterable(windowFn, StringUtf8Coder.of());
+    return makeRunner(windowFn, fn);
+  }
 
-    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-        KV<String, Iterable<String>>, List> runner =
+  private DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>,
+      KV<String, Long>, List> makeRunner(
+        WindowFn<? super String, IntervalWindow> windowFn,
+        KeyedCombineFn<String, Long, ?, Long> combineFn) {
+    GroupAlsoByWindowsDoFn<String, Long, Long, IntervalWindow> fn =
+        GroupAlsoByWindowsDoFn.create(
+            windowFn, combineFn, StringUtf8Coder.of(), BigEndianLongCoder.of());
+
+    return makeRunner(windowFn, fn);
+  }
+
+  private <VI, VO> DoFnRunner<KV<String, Iterable<WindowedValue<VI>>>,
+    KV<String, VO>, List> makeRunner(
+        WindowFn<? super String, IntervalWindow> windowFn,
+        GroupAlsoByWindowsDoFn<String, VI, VO, IntervalWindow> fn) {
+    return
         DoFnRunner.createWithListOutputs(
             PipelineOptionsFactory.create(),
             fn,
             PTuple.empty(),
-            outputTag,
+            (TupleTag<KV<String, VO>>) (TupleTag) outputTag,
             new ArrayList<TupleTag<?>>(),
             execContext.createStepContext("merge"),
             counters.getAddCounterMutator(),
-            new GlobalWindows());
-
-    return runner;
+            windowFn);
   }
 
   private BoundedWindow window(long start, long end) {

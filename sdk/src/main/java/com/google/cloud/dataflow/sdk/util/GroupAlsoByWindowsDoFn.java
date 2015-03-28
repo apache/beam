@@ -222,9 +222,8 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
           && (nextTimestamp == null
               || activeWindowManager.nextTimestamp().isBefore(nextTimestamp))) {
         W window = activeWindowManager.getWindow();
-        if (windowSet.contains(window)) {
-          windowSet.markCompleted(window);
-        }
+        Preconditions.checkState(windowSet.contains(window));
+        windowSet.markCompleted(window);
       }
     }
   }

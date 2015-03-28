@@ -115,7 +115,7 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
   @Override
   protected void remove(W window) throws Exception {
     context.keyedState().remove(accumulatorTag(window));
-    activeWindowManager.addWindow(window);
+    activeWindowManager.removeWindow(window);
     liveWindowsModified = liveWindows.remove(window);
   }
 
@@ -142,8 +142,10 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
   private void store(W window, VA va) throws Exception {
     CodedTupleTag<VA> tag = accumulatorTag(window);
     context.keyedState().store(tag, va);
-    activeWindowManager.addWindow(window);
-    liveWindowsModified = liveWindows.add(window);
+    if (!contains(window)) {
+      activeWindowManager.addWindow(window);
+      liveWindowsModified = liveWindows.add(window);
+    }
   }
 
   @Override
