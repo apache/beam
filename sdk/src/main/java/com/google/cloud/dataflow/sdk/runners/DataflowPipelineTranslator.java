@@ -857,6 +857,8 @@ public class DataflowPipelineTranslator {
             context.addStep(transform, "GroupByKey");
             context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
             context.addOutput(PropertyNames.OUTPUT, transform.getOutput());
+            context.addInput(
+                PropertyNames.DISALLOW_COMBINER_LIFTING, transform.disallowCombinerLifting());
             // TODO: sortsValues
           }
         });

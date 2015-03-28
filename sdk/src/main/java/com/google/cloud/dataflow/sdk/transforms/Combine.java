@@ -156,7 +156,16 @@ public class Combine {
    */
   public static <K, VI, VO> PerKey<K, VI, VO> perKey(
       KeyedCombineFn<? super K, ? super VI, ?, VO> fn) {
-    return new PerKey<>(fn);
+    return new PerKey<>(fn, false /*fewKeys*/);
+  }
+
+  /**
+   * Returns a {@link PerKey Combine.PerKey}, and set fewKeys
+   * in {@link GroupByKey}.
+   */
+  private static <K, VI, VO> PerKey<K, VI, VO> fewKeys(
+      KeyedCombineFn<? super K, ? super VI, ?, VO> fn) {
+    return new PerKey<>(fn, true /*fewKeys*/);
   }
 
   /**
@@ -1142,7 +1151,7 @@ public class Combine {
       PCollection<VO> output = input
           .apply(WithKeys.<Void, VI>of((Void) null))
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
-          .apply(Combine.<Void, VI, VO>perKey(fn.<Void>asKeyedFn()))
+          .apply(Combine.<Void, VI, VO>fewKeys(fn.<Void>asKeyedFn()))
           .apply(Values.<VO>create());
 
       if (insertDefault) {
@@ -1364,10 +1373,13 @@ public class Combine {
     extends PTransform<PCollection<KV<K, VI>>, PCollection<KV<K, VO>>> {
 
     private final transient KeyedCombineFn<? super K, ? super VI, ?, VO> fn;
+    private final boolean fewKeys;
 
     private PerKey(
-        KeyedCombineFn<? super K, ? super VI, ?, VO> fn) {
+        KeyedCombineFn<? super K, ? super VI, ?, VO> fn,
+        boolean fewKeys) {
       this.fn = fn;
+      this.fewKeys = fewKeys;
     }
 
     /**
@@ -1413,7 +1425,7 @@ public class Combine {
     @Override
     public PCollection<KV<K, VO>> apply(PCollection<KV<K, VI>> input) {
       return input
-        .apply(GroupByKey.<K, VI>create())
+        .apply(GroupByKey.<K, VI>create(fewKeys))
         .apply(Combine.<K, VI, VO>groupedValues(fn));
     }
 

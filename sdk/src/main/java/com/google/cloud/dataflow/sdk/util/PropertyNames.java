@@ -60,6 +60,7 @@ public class PropertyNames {
   public static final String IS_PAIR_LIKE = "is_pair_like";
   public static final String IS_STREAM_LIKE = "is_stream_like";
   public static final String IS_WRAPPER = "is_wrapper";
+  public static final String DISALLOW_COMBINER_LIFTING = "disallow_combiner_lifting";
   public static final String NON_PARALLEL_INPUTS = "non_parallel_inputs";
   public static final String NUM_SHARDS = "num_shards";
   public static final String OBJECT_TYPE_NAME = "@type";

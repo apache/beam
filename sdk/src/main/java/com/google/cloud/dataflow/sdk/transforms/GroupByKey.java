@@ -126,6 +126,13 @@ import java.util.Map;
 public class GroupByKey<K, V>
     extends PTransform<PCollection<KV<K, V>>,
                        PCollection<KV<K, Iterable<V>>>> {
+
+  private final boolean fewKeys;
+
+  private GroupByKey(boolean fewKeys) {
+    this.fewKeys = fewKeys;
+  }
+
   /**
    * Returns a {@code GroupByKey<K, V>} {@code PTransform}.
    *
@@ -136,7 +143,21 @@ public class GroupByKey<K, V>
    * {@code PCollection}
    */
   public static <K, V> GroupByKey<K, V> create() {
-    return new GroupByKey<>();
+    return new GroupByKey<>(false);
+  }
+
+  /**
+   * Returns a {@code GroupByKey<K, V>} {@code PTransform}.
+   *
+   * @param <K> the type of the keys of the input and output
+   * {@code PCollection}s
+   * @param <V> the type of the values of the input {@code PCollection}
+   * and the elements of the {@code Iterable}s in the output
+   * {@code PCollection}
+   * @param fewKeys whether it groups just few keys.
+   */
+  static <K, V> GroupByKey<K, V> create(boolean fewKeys) {
+    return new GroupByKey<>(fewKeys);
   }
 
 
@@ -270,7 +291,11 @@ public class GroupByKey<K, V>
   public static class GroupByKeyOnly<K, V>
       extends PTransform<PCollection<KV<K, V>>,
                          PCollection<KV<K, Iterable<V>>>> {
-    public GroupByKeyOnly() { }
+    final boolean disallowCombinerLifting;
+
+    public GroupByKeyOnly(boolean disallowCombinerLifting) {
+      this.disallowCombinerLifting = disallowCombinerLifting;
+    }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
@@ -349,6 +374,13 @@ public class GroupByKey<K, V>
     @Override
     protected Coder<KV<K, Iterable<V>>> getDefaultOutputCoder() {
       return getOutputKvCoder();
+    }
+
+    /**
+     * Returns whether this GBK allows lifting combiner through.
+     */
+    public boolean disallowCombinerLifting() {
+      return disallowCombinerLifting;
     }
   }
 
@@ -442,18 +474,21 @@ public class GroupByKey<K, V>
           "GroupByKey must have a valid Window merge function.  "
           + "Invalid because: " + cause);
     }
+    boolean disallowCombinerLifting = !(windowFn instanceof NonMergingWindowFn)
+        || (isStreaming && !fewKeys);
+
     if (windowFn.isCompatible(new GlobalWindows())) {
       // The input PCollection is using the degenerate default
       // window function, which uses a single global window for all
       // elements.  We can implement this using a more-primitive
       // non-window-aware GBK transform.
-      return input.apply(new GroupByKeyOnly<K, V>());
+      return input.apply(new GroupByKeyOnly<K, V>(disallowCombinerLifting));
 
     } else if (isStreaming) {
       // If using the streaming runner, the service will do the insertion of
       // the GroupAlsoByWindow step.
       // TODO: Remove this case once the Dataflow Runner handles GBK directly
-      return input.apply(new GroupByKeyOnly<K, V>());
+      return input.apply(new GroupByKeyOnly<K, V>(disallowCombinerLifting));
 
     } else {
       // By default, implement GroupByKey[AndWindow] via a series of lower-level
@@ -464,7 +499,7 @@ public class GroupByKey<K, V>
           .apply(new ReifyTimestampsAndWindows<K, V>())
 
           // Group by just the key.
-          .apply(new GroupByKeyOnly<K, WindowedValue<V>>());
+          .apply(new GroupByKeyOnly<K, WindowedValue<V>>(disallowCombinerLifting));
 
       if (!runnerSortsByTimestamp) {
         // Sort each key's values by timestamp. GroupAlsoByWindow requires
