@@ -20,80 +20,28 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 
-import java.util.Arrays;
 import java.util.Collection;
 
 /**
  * Abstract class representing a set of active windows for a key.
  */
 abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
-  /**
-   * Hook for determining how to keep track of active windows and when they
-   * should be marked as complete.
-   */
-  interface ActiveWindowManager<W> {
-    /**
-     * Notes that a window has been added to the active set.
-     *
-     * <p> The given window must not already be active.
-     */
-    void addWindow(W window) throws Exception;
-
-    /**
-     * Notes that a window has been explicitly removed from the active set.
-     *
-     * <p> The given window must currently be active.
-     *
-     * <p> Windows are implicitly removed from the active set when they are
-     * complete, and this method will not be called.  This method is called when
-     * a window is merged into another and thus is no longer active.
-     */
-    void removeWindow(W window) throws Exception;
-  }
-
-  /**
-   * Wrapper around AbstractWindowSet that provides the MergeContext interface.
-   */
-  static class WindowMergeContext<T, W extends BoundedWindow>
-      extends WindowFn<T, W>.MergeContext {
-    private final AbstractWindowSet<?, ?, ?, W> windowSet;
-
-    @SuppressWarnings("unchecked")
-    public WindowMergeContext(
-        AbstractWindowSet<?, ?, ?, W> windowSet,
-        WindowFn<?, W> windowFn) {
-      ((WindowFn<T, W>) windowFn).super();
-      this.windowSet = windowSet;
-    }
-
-    @Override public Collection<W> windows() {
-      return windowSet.windows();
-    }
-
-    @Override public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
-      windowSet.merge(toBeMerged, mergeResult);
-    }
-  }
-
   protected final K key;
   protected final WindowFn<?, W> windowFn;
   protected final Coder<VI> inputCoder;
-  protected final DoFn<?, KV<K, VO>>.ProcessContext context;
-  protected final ActiveWindowManager<W> activeWindowManager;
+  protected final DoFn<?, ?>.ProcessContext context;
 
   protected AbstractWindowSet(
       K key,
       WindowFn<?, W> windowFn,
       Coder<VI> inputCoder,
-      DoFn<?, KV<K, VO>>.ProcessContext context,
-      ActiveWindowManager<W> activeWindowManager) {
+      DoFn<?, ?>.ProcessContext context) {
     this.key = key;
     this.windowFn = windowFn;
     this.inputCoder = inputCoder;
     this.context = context;
-    this.activeWindowManager = activeWindowManager;
   }
 
   /**
@@ -115,7 +63,7 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
    * If not, adds the window to the set first, then puts the element
    * in the window.
    */
-  protected abstract void put(W window, VI value) throws Exception;
+  protected abstract WindowStatus put(W window, VI value) throws Exception;
 
   /**
    * Removes the given window from the set.
@@ -135,7 +83,7 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
    * and disjoint from the {@code toBeMerged} set of previous calls
    * to {@code merge}.
    *
-   * <p> {@code mergeResult} must either not be in {@link @windows} or be in
+   * <p> {@code mergeResult} must either not be in {@link #windows} or be in
    * {@code toBeMerged}.
    *
    * <p> {@code AbstractWindowSet} subclasses may throw
@@ -154,19 +102,11 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
   protected abstract boolean contains(W window);
 
   /**
-   * Marks the window as complete, causing its elements to be emitted.
-   */
-  public void markCompleted(W window) throws Exception {
-    VO value = finalValue(window);
-    remove(window);
-    context.windowingInternals().outputWindowedValue(
-        KV.of(key, value),
-        window.maxTimestamp(),
-        Arrays.asList(window));
-  }
-
-  /**
    * Hook for WindowSets to take action before they are deleted.
    */
-  protected void flush() throws Exception {}
+  protected void persist() throws Exception {}
+
+  public K getKey() {
+    return key;
+  }
 }

@@ -233,6 +233,11 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
+            windowToString((IntervalWindow) window(0, 10), windowCoder),
+            new Instant(9), "k")));
+
+    runner.processElement(WindowedValue.valueInEmptyWindows(
+        TimerOrElement.<KV<String, String>>timer(
             windowToString((IntervalWindow) window(0, 15), windowCoder),
             new Instant(14), "k")));
 
@@ -292,6 +297,13 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         TimerOrElement.element(KV.of("k", 4L)),
         new Instant(3),
         Arrays.asList(window(3, 13))));
+
+    // TODO: To simplify tests, create a timer manager that can sweep a watermark past some timers
+    // and fire them as appropriate. This would essentially be the batch timer context.
+    runner.processElement(WindowedValue.valueInEmptyWindows(
+        TimerOrElement.<KV<String, Long>>timer(
+            windowToString((IntervalWindow) window(0, 10), windowCoder),
+            new Instant(9), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, Long>>timer(

@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 
@@ -41,25 +42,23 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
       K key,
       WindowFn<?, W> windowFn,
       Coder<V> inputCoder,
-      DoFn<?, KV<K, Iterable<V>>>.ProcessContext context,
-      ActiveWindowManager<W> activeWindowManager) {
-    super(key, windowFn, inputCoder, context, activeWindowManager);
+      DoFn<?, KV<K, Iterable<V>>>.ProcessContext context) {
+    super(key, windowFn, inputCoder, context);
   }
 
   @Override
-  public void put(W window, V value) throws Exception {
+  public WindowStatus put(W window, V value) throws Exception {
     context.windowingInternals().writeToTagList(
         bufferTag(window, windowFn.windowCoder(), inputCoder), value, context.timestamp());
     // Adds the window even if it is already present, relying on the streaming backend to
-    // de-deduplicate.
-    activeWindowManager.addWindow(window);
+    // de-duplicate.
+    return WindowStatus.UNKNOWN;
   }
 
   @Override
   public void remove(W window) throws Exception {
     context.windowingInternals().deleteTagList(
         bufferTag(window, windowFn.windowCoder(), inputCoder));
-    activeWindowManager.removeWindow(window);
   }
 
   @Override

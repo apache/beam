@@ -148,7 +148,6 @@ public class DoFnRunner<I, O, R> {
    * the current element.
    */
   public void processElement(WindowedValue<I> elem) {
-
     if (elem.getWindows().size() == 1
         || !RequiresWindowAccess.class.isAssignableFrom(fn.getClass())) {
       invokeProcessElement(elem);

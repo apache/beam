@@ -23,12 +23,15 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresKeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TimerManager;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
 
-import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.PriorityQueue;
 
 /**
@@ -60,10 +63,8 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
       return new GABWViaWindowSetDoFn<K, V, Iterable<V>, W>(windowFn) {
         @Override
         AbstractWindowSet<K, V, Iterable<V>, W> createWindowSet(K key,
-            DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>>.ProcessContext context,
-            BatchActiveWindowManager<W> activeWindowManager) throws Exception {
-          return  new BufferingWindowSet<K, V, W>(key, windowFn, inputCoder,
-              context, activeWindowManager);
+            DoFn<?, KV<K, Iterable<V>>>.ProcessContext context) throws Exception {
+          return new BufferingWindowSet<K, V, W>(key, windowFn, inputCoder, context);
         }
       };
     }
@@ -83,11 +84,8 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
       @Override
       AbstractWindowSet<K, VI, VO, W> createWindowSet(
           K key,
-          DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>.ProcessContext context,
-          BatchActiveWindowManager<W> activeWindowManager) throws Exception {
-        return CombiningWindowSet.create(
-            key, windowFn, combineFn, keyCoder, inputCoder,
-            context, activeWindowManager);
+          DoFn<?, KV<K, VO>>.ProcessContext context) throws Exception {
+        return new CombiningWindowSet<>(key, windowFn, combineFn, keyCoder, inputCoder, context);
       }
     };
   }
@@ -104,102 +102,125 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
     }
 
     abstract AbstractWindowSet<K, VI, VO, W> createWindowSet(
-        K key,
-        DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>.ProcessContext context,
-        BatchActiveWindowManager<W> activeWindowManager)
+        K key, DoFn<?, KV<K, VO>>.ProcessContext context)
         throws Exception;
 
     @Override
     public void processElement(
         DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>.ProcessContext c) throws Exception {
       K key = c.element().getKey();
-      BatchActiveWindowManager<W> activeWindowManager = new BatchActiveWindowManager<>();
-      AbstractWindowSet<K, VI, ?, W> windowSet = createWindowSet(key, c, activeWindowManager);
+      AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(key, c);
+
+      BatchTimerManager timerManager = new BatchTimerManager();
+      TriggerExecutor<K, VI, VO, W> triggerExecutor = new TriggerExecutor<>(
+          windowFn, timerManager,
+          new DefaultTrigger<W>(),
+          c.windowingInternals(), windowSet);
 
       for (WindowedValue<VI> e : c.element().getValue()) {
-        for (BoundedWindow window : e.getWindows()) {
-          @SuppressWarnings("unchecked")
-          W w = (W) window;
-          windowSet.put(w, e.getValue());
-        }
-        windowFn.mergeWindows(
-            new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowFn));
+        // First, handle anything that needs to happen for this element
+        triggerExecutor.onElement(e.getValue(), e.getWindows());
 
-        maybeOutputWindows(activeWindowManager, windowSet, e.getTimestamp());
+        // Then, since elements are sorted by their timestamp, advance the watermark and fire any
+        // timers that need to be fired.
+        advanceWatermark(timerManager, triggerExecutor, e.getTimestamp());
       }
 
-      maybeOutputWindows(activeWindowManager, windowSet, null);
+      // Finish any pending windows by advance the watermark to infinity.
+      advanceWatermark(timerManager, triggerExecutor, new Instant(Long.MAX_VALUE));
 
-      windowSet.flush();
+      windowSet.persist();
     }
 
-    /**
-     * Outputs any windows that are complete, with their corresponding elemeents.
-     * If there are potentially complete windows, try merging windows first.
-     */
-    private void maybeOutputWindows(
-        BatchActiveWindowManager<W> activeWindowManager,
-        AbstractWindowSet<?, ?, ?, W> windowSet,
-        Instant nextTimestamp) throws Exception {
-      if (activeWindowManager.hasMoreWindows()
-          && (nextTimestamp == null
-              || activeWindowManager.nextTimestamp().isBefore(nextTimestamp))) {
-        // There is at least one window ready to emit.  Merge now in case that window should be
-        // merged into a not yet completed one.
-        windowFn.mergeWindows(
-           new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowFn));
-      }
-
-      while (activeWindowManager.hasMoreWindows()
-          && (nextTimestamp == null
-              || activeWindowManager.nextTimestamp().isBefore(nextTimestamp))) {
-        W window = activeWindowManager.getWindow();
-        Preconditions.checkState(windowSet.contains(window));
-        windowSet.markCompleted(window);
+    private void advanceWatermark(BatchTimerManager timerManager,
+        TriggerExecutor<?, ?, ?, ?> triggerExecutor, Instant instant) throws Exception {
+      while (timerManager.readyToFire(instant)) {
+        BatchTimer tagToFire = timerManager.tagToFire();
+        triggerExecutor.onTimer(tagToFire.tag);
       }
     }
   }
 
-  private static class BatchActiveWindowManager<W extends BoundedWindow>
-      implements AbstractWindowSet.ActiveWindowManager<W> {
+  private static class BatchTimer implements Comparable<BatchTimer> {
+
+    private final String tag;
+    private final Instant time;
+
+    public BatchTimer(String tag, Instant time) {
+      this.tag = tag;
+      this.time = time;
+    }
+
+    @Override
+    public String toString() {
+      return time + ": " + tag;
+    }
+
+    @Override
+    public int compareTo(BatchTimer o) {
+      return time.compareTo(o.time);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(time, tag);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other instanceof BatchTimer) {
+        BatchTimer that = (BatchTimer) other;
+        return Objects.equals(this.time, that.time)
+            && Objects.equals(this.tag, that.tag);
+      }
+      return false;
+    }
+  }
+
+  private static class BatchTimerManager implements TimerManager {
+
     // Sort the windows by their end timestamps so that we can efficiently
     // ask for the next window that will be completed.
-    PriorityQueue<W> windows = new PriorityQueue<>(11, new Comparator<W>() {
-          @Override
-          public int compare(W w1, W w2) {
-            return w1.maxTimestamp().compareTo(w2.maxTimestamp());
-          }
-        });
+    private PriorityQueue<BatchTimer> timers = new PriorityQueue<>(11);
+    private Map<String, BatchTimer> tagToTimer = new HashMap<>();
 
     @Override
-    public void addWindow(W window) {
-      windows.add(window);
+    public void setTimer(String tag, Instant timestamp) {
+      BatchTimer newTimer = new BatchTimer(tag, timestamp);
+
+      BatchTimer oldTimer = tagToTimer.put(tag, newTimer);
+      if (oldTimer != null) {
+        timers.remove(oldTimer);
+      }
+      timers.add(newTimer);
     }
 
     @Override
-    public void removeWindow(W window) {
-      windows.remove(window);
+    public void deleteTimer(String tag) {
+      timers.remove(tagToTimer.get(tag));
+      tagToTimer.remove(tag);
     }
 
     /**
-     * Returns whether there are more windows.
+     * Determine if there if the next timer is ready to fire at the given timestamp.
      */
-    public boolean hasMoreWindows() {
-      return windows.peek() != null;
+    public boolean readyToFire(Instant timestamp) {
+      BatchTimer firstTimer = timers.peek();
+      return firstTimer != null && timestamp.isAfter(firstTimer.time);
     }
 
     /**
-     * Returns the timestamp of the next window.
+     * Get the tag to fire.
      */
-    public Instant nextTimestamp() {
-      return windows.peek().maxTimestamp();
+    public BatchTimer tagToFire() {
+      BatchTimer timer = timers.remove();
+      tagToTimer.remove(timer.tag);
+      return timer;
     }
 
-    /**
-     * Returns the next window.
-     */
-    public W getWindow() {
-      return windows.peek();
+    @Override
+    public String toString() {
+      return timers.toString();
     }
   }
 }

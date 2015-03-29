@@ -22,10 +22,11 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TimerManager;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
 
-import java.io.IOException;
+import org.joda.time.Instant;
 
 /**
  * DoFn that merges windows and groups elements in those windows.
@@ -49,11 +50,10 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
     return new StreamingGABWViaWindowSetDoFn<K, VI, VO, W>(windowFn) {
       @Override
       AbstractWindowSet<K, VI, VO, W> createWindowSet(K key,
-          DoFn<TimerOrElement<KV<K, VI>>, KV<K, VO>>.ProcessContext context,
-          StreamingActiveWindowManager<W> activeWindowManager)
+          DoFn<TimerOrElement<KV<K, VI>>, KV<K, VO>>.ProcessContext context)
           throws Exception {
-        return CombiningWindowSet.create(
-            key, windowFn, combineFn, keyCoder, inputValueCoder, context, activeWindowManager);
+        return new CombiningWindowSet<>(
+            key, windowFn, combineFn, keyCoder, inputValueCoder, context);
       }
     };
   }
@@ -64,15 +64,14 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
     return new StreamingGABWViaWindowSetDoFn<K, VI, Iterable<VI>, W>(windowFn) {
       @Override
       AbstractWindowSet<K, VI, Iterable<VI>, W> createWindowSet(K key,
-          DoFn<TimerOrElement<KV<K, VI>>, KV<K, Iterable<VI>>>.ProcessContext context,
-          StreamingActiveWindowManager<W> activeWindowManager)
+          DoFn<TimerOrElement<KV<K, VI>>, KV<K, Iterable<VI>>>.ProcessContext context)
           throws Exception {
         if (windowFn instanceof PartitioningWindowFn) {
           return new PartitionBufferingWindowSet<K, VI, W>(
-            key, windowFn, inputValueCoder, context, activeWindowManager);
+            key, windowFn, inputValueCoder, context);
         } else {
           return new BufferingWindowSet<K, VI, W>(
-              key, windowFn, inputValueCoder, context, activeWindowManager);
+              key, windowFn, inputValueCoder, context);
         }
       }
     };
@@ -90,8 +89,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
 
     abstract AbstractWindowSet<K, VI, VO, W> createWindowSet(
         K key,
-        DoFn<TimerOrElement<KV<K, VI>>, KV<K, VO>>.ProcessContext context,
-        StreamingActiveWindowManager<W> activeWindowManager)
+        DoFn<TimerOrElement<KV<K, VI>>, KV<K, VO>>.ProcessContext context)
         throws Exception;
 
     @Override
@@ -100,67 +98,50 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
         KV<K, VI> element = context.element().element();
         K key = element.getKey();
         VI value = element.getValue();
-        AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(
-            key, context,
-            new StreamingActiveWindowManager<>(windowFn, context));
+        AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(key, context);
+        TriggerExecutor<K, VI, VO, W> executor = new TriggerExecutor<>(
+            windowFn,
+            new StreamingTimerManager(context),
+            new DefaultTrigger<W>(),
+            context.windowingInternals(),
+            windowSet);
 
-        for (BoundedWindow window : context.windowingInternals().windows()) {
-          @SuppressWarnings("unchecked")
-          W w = (W) window;
-          windowSet.put(w, value);
-        }
-
-        windowSet.flush();
+        executor.onElement(value, context.windowingInternals().windows());
+        windowSet.persist();
       } else {
         TimerOrElement<KV<K, VI>> timer = context.element();
-        AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(
-            (K) timer.key(),
-            context,
-            new StreamingActiveWindowManager<>(windowFn, context));
+        @SuppressWarnings("unchecked")
+        K key = (K) timer.key();
+        AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(key, context);
+        TriggerExecutor<K, VI, VO, W> executor = new TriggerExecutor<>(
+            windowFn,
+            new StreamingTimerManager(context),
+            new DefaultTrigger<W>(),
+            context.windowingInternals(),
+            windowSet);
 
-        // Attempt to merge windows before emitting; that may remove the current window under
-        // consideration.
-        windowFn.mergeWindows(
-            new AbstractWindowSet.WindowMergeContext<Object, W>(windowSet, windowFn));
-
-        W window = WindowUtils.windowFromString(timer.tag(), windowFn.windowCoder());
-
-        if ((windowFn instanceof PartitioningWindowFn) || windowSet.contains(window)) {
-          Preconditions.checkState(!timer.timestamp().isBefore(window.maxTimestamp()));
-          windowSet.markCompleted(window);
-          windowSet.flush();
-        }
+        executor.onTimer(timer.tag());
+        windowSet.persist();
       }
     }
   }
 
-  private static class StreamingActiveWindowManager<W extends BoundedWindow>
-      implements AbstractWindowSet.ActiveWindowManager<W> {
-    WindowFn<?, W> windowFn;
-    DoFn<?, ?>.ProcessContext context;
+  private static class StreamingTimerManager implements TimerManager {
 
-    StreamingActiveWindowManager(
-        WindowFn<?, W> windowFn,
-        DoFn<?, ?>.ProcessContext context) {
-      this.windowFn = windowFn;
+    private DoFn<?, ?>.ProcessContext context;
+
+    public StreamingTimerManager(DoFn<?, ?>.ProcessContext context) {
       this.context = context;
     }
 
     @Override
-    public void addWindow(W window) throws IOException {
-      context.windowingInternals().setTimer(
-          WindowUtils.windowToString(window, windowFn.windowCoder()), window.maxTimestamp());
+    public void setTimer(String timer, Instant timestamp) {
+      context.windowingInternals().setTimer(timer, timestamp);
     }
 
     @Override
-    public void removeWindow(W window) throws IOException {
-      if (windowFn instanceof PartitioningWindowFn) {
-        // For PartitioningWindowFn, each window triggers exactly one timer.
-        // And, timers are automatically deleted once they are fired.
-        return;
-      }
-      context.windowingInternals().deleteTimer(
-          WindowUtils.windowToString(window, windowFn.windowCoder()));
+    public void deleteTimer(String timer) {
+      context.windowingInternals().deleteTimer(timer);
     }
   }
 }

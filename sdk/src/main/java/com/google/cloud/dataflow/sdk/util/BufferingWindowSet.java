@@ -24,8 +24,8 @@ import com.google.cloud.dataflow.sdk.coders.SetCoder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.KV;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,9 +73,8 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
       K key,
       WindowFn<?, W> windowFn,
       Coder<V> inputCoder,
-      DoFn<?, KV<K, Iterable<V>>>.ProcessContext context,
-      ActiveWindowManager<W> activeWindowManager) throws Exception {
-    super(key, windowFn, inputCoder, context, activeWindowManager);
+      DoFn<?, ?>.ProcessContext context) throws Exception {
+    super(key, windowFn, inputCoder, context);
 
     mergeTree = emptyIfNull(
         context.keyedState().lookup(Arrays.asList(mergeTreeTag))
@@ -85,14 +84,17 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   }
 
   @Override
-  public void put(W window, V value) throws Exception {
+  public WindowStatus put(W window, V value) throws Exception {
     context.windowingInternals().writeToTagList(
         bufferTag(window, windowFn.windowCoder(), inputCoder),
         value,
         context.timestamp());
+
     if (!mergeTree.containsKey(window)) {
       mergeTree.put(window, new HashSet<W>());
-      activeWindowManager.addWindow(window);
+      return WindowStatus.NEW;
+    } else {
+      return WindowStatus.EXISTING;
     }
   }
 
@@ -106,7 +108,6 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
     context.windowingInternals().deleteTagList(
         bufferTag(window, windowFn.windowCoder(), inputCoder));
     mergeTree.remove(window);
-    activeWindowManager.removeWindow(window);
   }
 
   @Override
@@ -122,10 +123,8 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
       subWindows.addAll(mergeTree.get(other));
       subWindows.add(other);
       mergeTree.remove(other);
-      activeWindowManager.removeWindow(other);
     }
     mergeTree.put(newWindow, subWindows);
-    activeWindowManager.addWindow(newWindow);
   }
 
   @Override
@@ -171,7 +170,7 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   }
 
   @Override
-  public void flush() throws Exception {
+  public void persist() throws Exception {
     if (!mergeTree.equals(originalMergeTree)) {
       context.keyedState().store(mergeTreeTag, mergeTree);
     }
