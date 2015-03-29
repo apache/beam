@@ -16,19 +16,15 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import static com.google.cloud.dataflow.sdk.TestUtils.LINES;
-import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.client.util.Joiner;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
-import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.common.base.Preconditions;
 
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -37,10 +33,7 @@ import org.junit.runners.JUnit4;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
 
 /**
  * Tests for Sample transform.
@@ -182,74 +175,5 @@ public class SampleTest {
     DataflowAssert.thatSingletonIterable(output)
         .satisfies(new VerifyCorrectSample<>(6, REPEATED_DATA));
     p.run();
-  }
-
-  private static class VerifyAnySample implements SerializableFunction<Iterable<String>, Void> {
-    private final List<String> lines;
-    private final int limit;
-    private VerifyAnySample(List<String> lines, int limit) {
-      this.lines = lines;
-      this.limit = limit;
-    }
-
-    @Override
-    public Void apply(Iterable<String> actualIter) {
-      final int expectedSize = Math.min(limit, lines.size());
-
-      // Make sure actual is the right length, and is a
-      // subset of expected.
-      List<String> actual = new ArrayList<>();
-      for (String s : actualIter) {
-        actual.add(s);
-      }
-      assertEquals(expectedSize, actual.size());
-      Set<String> actualAsSet = new TreeSet<>(actual);
-      Set<String> linesAsSet = new TreeSet<>(lines);
-      assertEquals(actual.size(), actualAsSet.size());
-      assertEquals(lines.size(), linesAsSet.size());
-      assertTrue(linesAsSet.containsAll(actualAsSet));
-      return null;
-    }
-  }
-
-  void runPickAnyTest(final List<String> lines, int limit) {
-    Preconditions.checkArgument(new HashSet<String>(lines).size() == lines.size(),
-        "Duplicates are unsupported.");
-    Pipeline p = TestPipeline.create();
-
-    PCollection<String> input = p.apply(Create.of(lines))
-        .setCoder(StringUtf8Coder.of());
-
-    PCollection<String> output =
-        input.apply(Sample.<String>any(limit));
-
-
-    DataflowAssert.that(output)
-        .satisfies(new VerifyAnySample(lines, limit));
-
-    p.run();
-  }
-
-  @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
-  public void testPickAny() {
-    runPickAnyTest(LINES, 0);
-    runPickAnyTest(LINES, LINES.size() / 2);
-    runPickAnyTest(LINES, LINES.size() * 2);
-  }
-
-  @Test
-  // Extra tests, not worth the time to run on the real service.
-  public void testPickAnyMore() {
-    runPickAnyTest(LINES, LINES.size() - 1);
-    runPickAnyTest(LINES, LINES.size());
-    runPickAnyTest(LINES, LINES.size() + 1);
-  }
-
-  @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
-  public void testPickAnyWhenEmpty() {
-    runPickAnyTest(NO_LINES, 0);
-    runPickAnyTest(NO_LINES, 1);
   }
 }
