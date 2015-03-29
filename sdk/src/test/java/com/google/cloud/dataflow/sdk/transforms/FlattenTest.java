@@ -87,9 +87,8 @@ public class FlattenTest implements Serializable {
     p.run();
   }
 
-  // TODO: re-enable running this test on the service once empty flattens
-  // followed by ParDos work properly.
   @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testFlattenPCollectionListEmpty() {
     Pipeline p = TestPipeline.create();
 
@@ -129,9 +128,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  // TODO: Enable this test to run on the Dataflow service when it is
-  // correctly implemented.
-  // @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testFlattenPCollectionListEmptyThenParDo() {
 
     Pipeline p = TestPipeline.create();
