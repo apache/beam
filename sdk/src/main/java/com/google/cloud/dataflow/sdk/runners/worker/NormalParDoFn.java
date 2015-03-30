@@ -21,6 +21,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
@@ -30,12 +31,14 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
+import com.google.cloud.dataflow.sdk.util.StreamingSideInputDoFnRunner;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.OutputReceiver;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.Receiver;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Throwables;
 
@@ -85,13 +88,20 @@ public class NormalParDoFn extends ParDoFn {
         }
       };
 
+    // If the side input data has already been computed, it will be in sideInputInfo.  Otherwise,
+    // we need to look it up dynamically from the Views.
     PTuple sideInputValues = PTuple.empty();
+    Iterable<PCollectionView<?>> sideInputViews = fnFactory.createDoFnInfo().getSideInputViews();
     if (sideInputInfos != null) {
       for (SideInputInfo sideInputInfo : sideInputInfos) {
         Object sideInputValue = SideInputUtils.readSideInput(
             options, sideInputInfo, executionContext);
         TupleTag<Object> tag = new TupleTag<>(sideInputInfo.getTag());
         sideInputValues = sideInputValues.and(tag, sideInputValue);
+      }
+    } else if (sideInputViews != null) {
+      for (PCollectionView<?> view : sideInputViews) {
+        sideInputValues = sideInputValues.and(view.getTagInternal(), null);
       }
     }
 
@@ -164,56 +174,68 @@ public class NormalParDoFn extends ParDoFn {
       stepContext = executionContext.getStepContext(stepName);
     }
 
-    fnRunner = DoFnRunner.create(
-        options,
-        fnFactory.createDoFnInfo().getDoFn(),
-        sideInputValues,
-        new OutputManager<Receiver>() {
-          final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs =
-              new HashMap<>();
+    DoFnInfo doFnInfo = fnFactory.createDoFnInfo();
 
-          @Override
-          public Receiver initialize(TupleTag tag) {
-            // Declared outputs.
-            if (tag.equals(mainOutputTag)) {
-              return receivers[0];
-            } else if (sideOutputTags.contains(tag)) {
-              return receivers[sideOutputTags.indexOf(tag) + 1];
-            }
+    OutputManager<Receiver> outputManager = new OutputManager<Receiver>() {
+      final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs =
+      new HashMap<>();
 
-            // Undeclared outputs.
-            OutputReceiver receiver = undeclaredOutputs.get(tag);
-            if (receiver == null) {
-              // A new undeclared output.
-              // TODO: plumb through the operationName, so that we can
-              // name implicit outputs after it.
-              String outputName = "implicit-" + tag.getId();
-              // TODO: plumb through the counter prefix, so we can
-              // make it available to the OutputReceiver class in case
-              // it wants to use it in naming output counters.  (It
-              // doesn't today.)
-              String counterPrefix = "";
-              receiver = new OutputReceiver(
-                  outputName, counterPrefix, addCounterMutator);
-              undeclaredOutputs.put(tag, receiver);
-            }
-            return receiver;
-          }
+      @Override
+      public Receiver initialize(TupleTag tag) {
+        // Declared outputs.
+        if (tag.equals(mainOutputTag)) {
+          return receivers[0];
+        } else if (sideOutputTags.contains(tag)) {
+          return receivers[sideOutputTags.indexOf(tag) + 1];
+        }
 
-          @Override
-          public void output(Receiver receiver, WindowedValue<?> output) {
-            try {
-              receiver.process(output);
-            } catch (Throwable t) {
-              throw Throwables.propagate(t);
-            }
-          }
-        },
-        mainOutputTag,
-        sideOutputTags,
-        stepContext,
-        addCounterMutator,
-        fnFactory.createDoFnInfo().getWindowFn());
+        // Undeclared outputs.
+        OutputReceiver receiver = undeclaredOutputs.get(tag);
+        if (receiver == null) {
+          // A new undeclared output.
+          // TODO: plumb through the operationName, so that we can
+          // name implicit outputs after it.
+          String outputName = "implicit-" + tag.getId();
+          // TODO: plumb through the counter prefix, so we can
+          // make it available to the OutputReceiver class in case
+          // it wants to use it in naming output counters.  (It
+          // doesn't today.)
+          String counterPrefix = "";
+          receiver = new OutputReceiver(
+              outputName, counterPrefix, addCounterMutator);
+          undeclaredOutputs.put(tag, receiver);
+        }
+        return receiver;
+      }
+
+      @Override
+      public void output(Receiver receiver, WindowedValue<?> output) {
+        try {
+          receiver.process(output);
+        } catch (Throwable t) {
+          throw Throwables.propagate(t);
+        }
+      }
+    };
+
+
+
+    if (options.as(StreamingOptions.class).isStreaming() && !sideInputValues.getAll().isEmpty()) {
+      fnRunner = new StreamingSideInputDoFnRunner(
+          options, doFnInfo, sideInputValues, outputManager,
+          mainOutputTag, sideOutputTags, stepContext, addCounterMutator);
+    } else {
+      fnRunner = DoFnRunner.create(
+          options,
+          doFnInfo.getDoFn(),
+          sideInputValues,
+          outputManager,
+          mainOutputTag,
+          sideOutputTags,
+          stepContext,
+          addCounterMutator,
+          doFnInfo.getWindowFn());
+    }
 
     fnRunner.startBundle();
   }

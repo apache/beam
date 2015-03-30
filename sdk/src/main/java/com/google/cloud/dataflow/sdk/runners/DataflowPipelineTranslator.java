@@ -467,7 +467,7 @@ public class DataflowPipelineTranslator {
       if (options.isStreaming()
           && value instanceof PCollectionView) {
         throw new UnsupportedOperationException(
-             "PCollectionViews are not supported in streaming Dataflow.");
+            "PCollectionViews are not supported in streaming Dataflow.");
       }
       if (value.getProducingTransformInternal() == null) {
         throw new RuntimeException(
@@ -878,7 +878,8 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(transform.getInput(), transform.getSideInputs(), context);
-            translateFn(transform.getFn(), transform.getInput().getWindowFn(), context);
+            translateFn(transform.getFn(), transform.getInput().getWindowFn(),
+                transform.getSideInputs(), transform.getInput().getCoder(), context);
             translateOutputs(transform.getOutput(), context);
           }
         });
@@ -898,7 +899,8 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(transform.getInput(), transform.getSideInputs(), context);
-            translateFn(transform.getFn(), transform.getInput().getWindowFn(), context);
+            translateFn(transform.getFn(), transform.getInput().getWindowFn(),
+                transform.getSideInputs(), transform.getInput().getCoder(), context);
             context.addOutput("out", transform.getOutput());
           }
         });
@@ -959,11 +961,16 @@ public class DataflowPipelineTranslator {
   private static void translateFn(
       DoFn fn,
       WindowFn windowFn,
+      Iterable<PCollectionView<?>> sideInputs,
+      Coder inputCoder,
       TranslationContext context) {
     context.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     context.addInput(
         PropertyNames.SERIALIZED_FN,
-        byteArrayToJsonString(serializeToByteArray(new DoFnInfo(fn, windowFn))));
+        byteArrayToJsonString(serializeToByteArray(
+            new DoFnInfo(fn, windowFn)
+            .setSideInputViews(sideInputs)
+            .setInputCoder(inputCoder))));
     if (fn instanceof DoFn.RequiresKeyedState
         // Adjust requires keyed state property for the Dataflow Service.
         // TODO: Remove when this is performed by the service.

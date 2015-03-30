@@ -16,9 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -378,6 +380,14 @@ public abstract class DoFn<I, O> implements Serializable {
      * Access the windows the element is being processed in without "exploding" it.
      */
     Collection<? extends BoundedWindow> windows();
+
+    /**
+     * Write the given {@link PCollectionView} data to a location accessible by other workers.
+     */
+    <T> void writePCollectionViewData(
+        TupleTag<?> tag,
+        Iterable<WindowedValue<T>> data,
+        Coder<T> elemCoder) throws IOException;
   }
 
   /////////////////////////////////////////////////////////////////////////////

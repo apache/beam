@@ -17,6 +17,8 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.api.client.util.Preconditions;
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -36,7 +38,6 @@ import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 
@@ -76,15 +77,16 @@ public class DoFnRunner<I, O, R> {
   /** The context used for running the DoFn. */
   public final DoFnContext<I, O, R> context;
 
-  private DoFnRunner(PipelineOptions options,
-                     DoFn<I, O> fn,
-                     PTuple sideInputs,
-                     OutputManager<R> outputManager,
-                     TupleTag<O> mainOutputTag,
-                     List<TupleTag<?>> sideOutputTags,
-                     StepContext stepContext,
-                     CounterSet.AddCounterMutator addCounterMutator,
-                     WindowFn windowFn) {
+  DoFnRunner(
+      PipelineOptions options,
+      DoFn<I, O> fn,
+      PTuple sideInputs,
+      OutputManager<R> outputManager,
+      TupleTag<O> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
+      StepContext stepContext,
+      CounterSet.AddCounterMutator addCounterMutator,
+      WindowFn windowFn) {
     this.fn = fn;
     this.context = new DoFnContext<>(options, fn, sideInputs, outputManager,
                                      mainOutputTag, sideOutputTags, stepContext,
@@ -149,7 +151,8 @@ public class DoFnRunner<I, O, R> {
    */
   public void processElement(WindowedValue<I> elem) {
     if (elem.getWindows().size() == 1
-        || !RequiresWindowAccess.class.isAssignableFrom(fn.getClass())) {
+        || !RequiresWindowAccess.class.isAssignableFrom(fn.getClass())
+        || !context.sideInputs.getAll().isEmpty()) {
       invokeProcessElement(elem);
     } else {
       // We could modify the windowed value (and the processContext) to
@@ -161,8 +164,8 @@ public class DoFnRunner<I, O, R> {
     }
   }
 
-  private void invokeProcessElement(WindowedValue<I> elem) {
-    DoFnProcessContext<I, O> processContext = new DoFnProcessContext<I, O>(fn, context, elem);
+  protected void invokeProcessElement(WindowedValue<I> elem) {
+    DoFn<I, O>.ProcessContext processContext = createProcessContext(elem);
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       fn.processElement(processContext);
@@ -256,41 +259,7 @@ public class DoFnRunner<I, O, R> {
 
     @SuppressWarnings("unchecked")
     <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
-      TupleTag<?> tag = view.getTagInternal();
-      Map<BoundedWindow, Object> tagCache = sideInputCache.get(tag);
-      if (tagCache == null) {
-        if (!sideInputs.has(tag)) {
-          throw new IllegalArgumentException(
-              "calling sideInput() with unknown view; did you forget to pass the view in "
-              + "ParDo.withSideInputs()?");
-        }
-        tagCache = new HashMap<>();
-        sideInputCache.put(tag, tagCache);
-      }
-
-      final BoundedWindow sideInputWindow =
-          view.getWindowFnInternal().getSideInputWindow(mainInputWindow);
-
-      T result = (T) tagCache.get(sideInputWindow);
-
-      // TODO: Consider partial prefetching like in CoGBK to reduce iteration cost.
-      if (result == null) {
-        if (windowFn instanceof GlobalWindows) {
-          result = view.fromIterableInternal((Iterable<WindowedValue<?>>) sideInputs.get(tag));
-        } else {
-          result = view.fromIterableInternal(Iterables.filter(
-              (Iterable<WindowedValue<?>>) sideInputs.get(tag),
-              new Predicate<WindowedValue<?>>() {
-                @Override
-                public boolean apply(WindowedValue<?> element) {
-                  return element.getWindows().contains(sideInputWindow);
-                }
-              }));
-        }
-        tagCache.put(sideInputWindow, result);
-      }
-
-      return result;
+      return stepContext.getExecutionContext().getSideInput(view, mainInputWindow, sideInputs);
     }
 
     <T> WindowedValue<T> makeWindowedValue(
@@ -414,6 +383,13 @@ public class DoFnRunner<I, O, R> {
       return new AggregatorImpl<AI, Iterable<AI>, AO>(
           generateInternalAggregatorName(name), combiner, addCounterMutator);
     }
+  }
+
+  /**
+   * Returns a new {@link DoFn.ProcessContext} for the given element.
+   */
+  protected DoFn<I, O>.ProcessContext createProcessContext(WindowedValue<I> elem) {
+    return new DoFnProcessContext<I, O>(fn, context, elem);
   }
 
   /**
@@ -603,7 +579,19 @@ public class DoFnRunner<I, O, R> {
         public Collection<? extends BoundedWindow> windows() {
           return windowedValue.getWindows();
         }
+
+        @Override
+        public <T> void writePCollectionViewData(
+            TupleTag<?> tag,
+            Iterable<WindowedValue<T>> data,
+            Coder<T> elemCoder) throws IOException {
+          Coder<BoundedWindow> windowCoder = (Coder<BoundedWindow>) context.windowFn.windowCoder();
+
+          context.stepContext.getExecutionContext().writePCollectionViewData(
+              tag, data, IterableCoder.of(WindowedValue.getFullCoder(elemCoder, windowCoder)),
+              window(), windowCoder);
+        }
       };
     }
-}
+  }
 }

@@ -16,12 +16,17 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.protobuf.ByteString;
 
 import org.joda.time.Instant;
@@ -41,6 +46,7 @@ public class StreamingModeExecutionContext extends ExecutionContext {
   private Windmill.WorkItem work;
   private StateFetcher stateFetcher;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
+  private Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
 
   public StreamingModeExecutionContext(String computation, StateFetcher stateFetcher) {
     this.computation = computation;
@@ -50,6 +56,7 @@ public class StreamingModeExecutionContext extends ExecutionContext {
   public void start(Windmill.WorkItem work, Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.work = work;
     this.outputBuilder = outputBuilder;
+    this.sideInputCache = new HashMap<>();
   }
 
   @Override
@@ -71,6 +78,91 @@ public class StreamingModeExecutionContext extends ExecutionContext {
   public void deleteTimer(String timer) {
     outputBuilder.addOutputTimers(
         Windmill.Timer.newBuilder().setTag(ByteString.copyFromUtf8(timer)).build());
+  }
+
+  @Override
+  public <T> T getSideInput(
+      PCollectionView<T> view, BoundedWindow mainInputWindow, PTuple sideInputs) {
+    if (!sideInputs.has(view.getTagInternal())) {
+      throw new IllegalArgumentException(
+          "calling sideInput() with unknown view; " +
+          "did you forget to pass the view in " +
+          "ParDo.withSideInputs()?");
+    }
+
+    return fetchSideInput(view, mainInputWindow, SideInputState.KNOWN_READY);
+  }
+
+  /**
+   * Fetch the given side input asynchronously and return true if it is present.
+   */
+  public boolean issueSideInputFetch(
+      PCollectionView<?> view, BoundedWindow mainInputWindow) {
+    return fetchSideInput(view, mainInputWindow, SideInputState.UNKNOWN) != null;
+  }
+
+  /**
+   * Fetches the requested sideInput, and maintains a view of the cache that doesn't remove
+   * items until the active work item is finished.
+   */
+  private <T> T fetchSideInput(
+      PCollectionView<?> view, BoundedWindow mainInputWindow, SideInputState state) {
+    BoundedWindow sideInputWindow = view.getWindowFnInternal().getSideInputWindow(mainInputWindow);
+
+    Map<BoundedWindow, Object> tagCache = sideInputCache.get(view.getTagInternal());
+    if (tagCache == null) {
+      tagCache = new HashMap<>();
+      sideInputCache.put(view.getTagInternal(), tagCache);
+    }
+
+    T sideInput = (T) tagCache.get(sideInputWindow);
+    if (sideInput == null) {
+      sideInput = (T) stateFetcher.fetchSideInput(view, sideInputWindow, state);
+      if (sideInput != null) {
+        tagCache.put(sideInputWindow, sideInput);
+        return sideInput;
+      } else {
+        return null;
+      }
+    } else {
+      return sideInput;
+    }
+  }
+
+  @Override
+  public <T, W extends BoundedWindow> void writePCollectionViewData(
+      TupleTag<?> tag,
+      Iterable<WindowedValue<T>> data, Coder<Iterable<WindowedValue<T>>> dataCoder,
+      W window, Coder<W> windowCoder) throws IOException {
+    if (getSerializedKey().size() != 0) {
+      throw new IllegalStateException("writePCollectionViewData must follow a Combine.globally");
+    }
+
+    ByteString.Output dataStream = ByteString.newOutput();
+    dataCoder.encode(data, dataStream, Coder.Context.OUTER);
+
+    ByteString.Output windowStream = ByteString.newOutput();
+    windowCoder.encode(window, windowStream, Coder.Context.OUTER);
+
+    outputBuilder.addGlobalDataUpdates(
+        Windmill.GlobalData.newBuilder()
+        .setDataId(
+            Windmill.GlobalDataId.newBuilder()
+            .setTag(tag.getId())
+            .setVersion(windowStream.toByteString())
+            .build())
+        .setData(dataStream.toByteString())
+        .build());
+  }
+
+  public Iterable<Windmill.GlobalDataId> getSideInputNotifications() {
+    return work.getGlobalDataIdNotificationsList();
+  }
+
+  public void setBlockingSideInputs(Iterable<Windmill.GlobalDataId> sideInputs) {
+    for (Windmill.GlobalDataId id : sideInputs) {
+      outputBuilder.addGlobalDataIdRequests(id);
+    }
   }
 
   public ByteString getSerializedKey() {

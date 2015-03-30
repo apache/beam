@@ -16,9 +16,12 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import org.joda.time.Instant;
@@ -88,6 +91,23 @@ public abstract class ExecutionContext {
    * is called.
    */
   public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {}
+
+  /**
+   * Returns the side input associated with the given view and window, given the set of side
+   * inputs available.
+   */
+  public abstract <T> T getSideInput(
+      PCollectionView<T> view, BoundedWindow mainInputWindow, PTuple sideInputs);
+
+  /**
+   * Writes the given {@link PCollectionView} data to a globally accessible location.
+   */
+  public <T, W extends BoundedWindow> void writePCollectionViewData(
+      TupleTag<?> tag,
+      Iterable<WindowedValue<T>> data, Coder<Iterable<WindowedValue<T>>> dataCoder,
+      W window, Coder<W> windowCoder) throws IOException {
+    throw new UnsupportedOperationException("Not implemented.");
+  }
 
   /**
    * Per-step, per-key context used for retrieving state.

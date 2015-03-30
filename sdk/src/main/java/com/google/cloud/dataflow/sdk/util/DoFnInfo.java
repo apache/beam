@@ -16,8 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
 import java.io.Serializable;
 
@@ -31,6 +33,8 @@ public class DoFnInfo<I, O> implements Serializable {
   private static final long serialVersionUID = 0;
   private DoFn<I, O> doFn;
   private WindowFn<?, ?> windowFn;
+  private Iterable<PCollectionView<?>> sideInputViews;
+  private Coder<I> inputCoder;
 
   public DoFnInfo(DoFn<I, O> doFn, WindowFn<?, ?> windowFn) {
     this.doFn = doFn;
@@ -43,5 +47,23 @@ public class DoFnInfo<I, O> implements Serializable {
 
   public WindowFn<?, ?> getWindowFn() {
     return windowFn;
+  }
+
+  public DoFnInfo<I, O> setSideInputViews(Iterable<PCollectionView<?>> sideInputViews) {
+    this.sideInputViews = sideInputViews;
+    return this;
+  }
+
+  public Iterable<PCollectionView<?>> getSideInputViews() {
+    return sideInputViews;
+  }
+
+  public DoFnInfo<I, O> setInputCoder(Coder<I> inputCoder) {
+    this.inputCoder = inputCoder;
+    return this;
+  }
+
+  public Coder<I> getInputCoder() {
+    return inputCoder;
   }
 }
