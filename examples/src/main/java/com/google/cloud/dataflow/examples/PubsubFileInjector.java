@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.options.Validation;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.RateLimiting;
+import com.google.cloud.dataflow.sdk.transforms.IntraBundleParallelization;
 import com.google.cloud.dataflow.sdk.util.Transport;
 
 import java.io.IOException;
@@ -99,7 +99,7 @@ public class PubsubFileInjector {
 
     pipeline
         .apply(TextIO.Read.from(options.getInput()))
-        .apply(RateLimiting.perWorker(new Publish(options.getOutputTopic()))
+        .apply(IntraBundleParallelization.of(new Publish(options.getOutputTopic()))
             .withMaxParallelism(20));
 
     pipeline.run();
