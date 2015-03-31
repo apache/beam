@@ -17,31 +17,49 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.WindowingInternals;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 
+import org.joda.time.Instant;
+
+import java.io.Serializable;
 import java.util.Collection;
 
 /**
  * Abstract class representing a set of active windows for a key.
  */
 abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
+
+  /**
+   * Factory for creating a window set.
+   */
+  public interface Factory<K, VI, VO, W extends BoundedWindow> extends Serializable {
+    public AbstractWindowSet<K, VI, VO, W> create(
+        K key,
+        Coder<W> windowCoder,
+        KeyedState keyedState,
+        WindowingInternals<?, ?> windowingInternals) throws Exception;
+  }
+
   protected final K key;
-  protected final WindowFn<?, W> windowFn;
+  protected final Coder<W> windowCoder;
   protected final Coder<VI> inputCoder;
-  protected final DoFn<?, ?>.ProcessContext context;
+  protected final KeyedState keyedState;
+  protected final WindowingInternals<?, ?> windowingInternals;
 
   protected AbstractWindowSet(
       K key,
-      WindowFn<?, W> windowFn,
+      Coder<W> windowCoder,
       Coder<VI> inputCoder,
-      DoFn<?, ?>.ProcessContext context) {
+      KeyedState keyedState,
+      WindowingInternals<?, ?> windowingInternals) {
     this.key = key;
-    this.windowFn = windowFn;
+    this.windowCoder = windowCoder;
     this.inputCoder = inputCoder;
-    this.context = context;
+    this.keyedState = keyedState;
+    this.windowingInternals = windowingInternals;
   }
 
   /**
@@ -63,7 +81,7 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
    * If not, adds the window to the set first, then puts the element
    * in the window.
    */
-  protected abstract WindowStatus put(W window, VI value) throws Exception;
+  protected abstract WindowStatus put(W window, VI value, Instant timestamp) throws Exception;
 
   /**
    * Removes the given window from the set.

@@ -19,12 +19,13 @@ package com.google.cloud.dataflow.sdk.util;
 import static com.google.cloud.dataflow.sdk.util.WindowUtils.bufferTag;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.WindowingInternals;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.KV;
+
+import org.joda.time.Instant;
 
 import java.util.Collection;
 
@@ -38,27 +39,45 @@ import java.util.Collection;
  */
 class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
     extends AbstractWindowSet<K, V, Iterable<V>, W> {
-  PartitionBufferingWindowSet(
+
+  public static <K, V, W extends BoundedWindow>
+  AbstractWindowSet.Factory<K, V, Iterable<V>, W> factory(final Coder<V> inputCoder) {
+    return new AbstractWindowSet.Factory<K, V, Iterable<V>, W>() {
+
+      private static final long serialVersionUID = 0L;
+
+      @Override
+      public AbstractWindowSet<K, V, Iterable<V>, W> create(K key,
+          Coder<W> windowFn, KeyedState keyedState,
+          WindowingInternals<?, ?> windowingInternals) throws Exception {
+        return new PartitionBufferingWindowSet<>(
+            key, windowFn, inputCoder, keyedState, windowingInternals);
+      }
+    };
+  }
+
+  private PartitionBufferingWindowSet(
       K key,
-      WindowFn<?, W> windowFn,
+      Coder<W> windowCoder,
       Coder<V> inputCoder,
-      DoFn<?, KV<K, Iterable<V>>>.ProcessContext context) {
-    super(key, windowFn, inputCoder, context);
+      KeyedState keyedState,
+      WindowingInternals<?, ?> windowingInternals) {
+    super(key, windowCoder, inputCoder, keyedState, windowingInternals);
   }
 
   @Override
-  public WindowStatus put(W window, V value) throws Exception {
-    context.windowingInternals().writeToTagList(
-        bufferTag(window, windowFn.windowCoder(), inputCoder), value, context.timestamp());
+  public WindowStatus put(W window, V value, Instant timestamp) throws Exception {
+    windowingInternals.writeToTagList(
+        bufferTag(window, windowCoder, inputCoder), value, timestamp);
+
     // Adds the window even if it is already present, relying on the streaming backend to
-    // de-duplicate.
+    // de-duplicate. As such, we don't know if this was a genuinely new window.
     return WindowStatus.UNKNOWN;
   }
 
   @Override
   public void remove(W window) throws Exception {
-    context.windowingInternals().deleteTagList(
-        bufferTag(window, windowFn.windowCoder(), inputCoder));
+    windowingInternals.deleteTagList(bufferTag(window, windowCoder, inputCoder));
   }
 
   @Override
@@ -78,8 +97,8 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
 
   @Override
   protected Iterable<V> finalValue(W window) throws Exception {
-    CodedTupleTag<V> tag = bufferTag(window, windowFn.windowCoder(), inputCoder);
-    Iterable<V> result = context.windowingInternals().readTagList(tag);
+    CodedTupleTag<V> tag = bufferTag(window, windowCoder, inputCoder);
+    Iterable<V> result = windowingInternals.readTagList(tag);
     if (result == null) {
       throw new IllegalStateException("finalValue called for non-existent window");
     }

@@ -21,11 +21,13 @@ import static com.google.cloud.dataflow.sdk.util.WindowUtils.bufferTag;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.SetCoder;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.WindowingInternals;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+
+import org.joda.time.Instant;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,16 +44,29 @@ import java.util.Set;
  */
 class BufferingWindowSet<K, V, W extends BoundedWindow>
     extends AbstractWindowSet<K, V, Iterable<V>, W> {
+
+  public static <K, V, W extends BoundedWindow>
+  AbstractWindowSet.Factory<K, V, Iterable<V>, W> factory(final Coder<V> inputCoder) {
+    return new AbstractWindowSet.Factory<K, V, Iterable<V>, W>() {
+
+      private static final long serialVersionUID = 0L;
+
+      @Override
+      public AbstractWindowSet<K, V, Iterable<V>, W> create(K key,
+          Coder<W> windowCoder, KeyedState keyedState,
+          WindowingInternals<?, ?> windowingInternals) throws Exception {
+        return new BufferingWindowSet<>(
+            key, windowCoder, inputCoder, keyedState, windowingInternals);
+      }
+    };
+  }
+
   /**
    * Tag for storing the merge tree, the data structure that keeps
    * track of which windows have been merged together.
    */
   private final CodedTupleTag<Map<W, Set<W>>> mergeTreeTag =
-      CodedTupleTag.of(
-          "mergeTree",
-          MapCoder.of(
-              windowFn.windowCoder(),
-              SetCoder.of(windowFn.windowCoder())));
+      CodedTupleTag.of("mergeTree", MapCoder.of(windowCoder, SetCoder.of(windowCoder)));
 
   /**
    * A map of live windows to windows that were merged into them.
@@ -71,24 +86,24 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
 
   protected BufferingWindowSet(
       K key,
-      WindowFn<?, W> windowFn,
+      Coder<W> windowCoder,
       Coder<V> inputCoder,
-      DoFn<?, ?>.ProcessContext context) throws Exception {
-    super(key, windowFn, inputCoder, context);
+      KeyedState keyedState,
+      WindowingInternals<?, ?> windowingInternals) throws Exception {
+    super(key, windowCoder, inputCoder, keyedState, windowingInternals);
 
     mergeTree = emptyIfNull(
-        context.keyedState().lookup(Arrays.asList(mergeTreeTag))
+        keyedState.lookup(Arrays.asList(mergeTreeTag))
         .get(mergeTreeTag));
 
     originalMergeTree = deepCopy(mergeTree);
   }
 
   @Override
-  public WindowStatus put(W window, V value) throws Exception {
-    context.windowingInternals().writeToTagList(
-        bufferTag(window, windowFn.windowCoder(), inputCoder),
+  public WindowStatus put(W window, V value, Instant timestamp) throws Exception {
+    windowingInternals.writeToTagList(bufferTag(window, windowCoder, inputCoder),
         value,
-        context.timestamp());
+        timestamp);
 
     if (!mergeTree.containsKey(window)) {
       mergeTree.put(window, new HashSet<W>());
@@ -102,11 +117,9 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   public void remove(W window) throws Exception {
     Set<W> subWindows = mergeTree.get(window);
     for (W w : subWindows) {
-      context.windowingInternals().deleteTagList(
-          bufferTag(w, windowFn.windowCoder(), inputCoder));
+      windowingInternals.deleteTagList(bufferTag(w, windowCoder, inputCoder));
     }
-    context.windowingInternals().deleteTagList(
-        bufferTag(window, windowFn.windowCoder(), inputCoder));
+    windowingInternals.deleteTagList(bufferTag(window, windowCoder, inputCoder));
     mergeTree.remove(window);
   }
 
@@ -159,8 +172,8 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
     }
 
     for (W curWindow : curWindows) {
-      Iterable<V> items = context.windowingInternals().readTagList(bufferTag(
-          curWindow, windowFn.windowCoder(), inputCoder));
+      Iterable<V> items = windowingInternals.readTagList(
+          bufferTag(curWindow, windowCoder, inputCoder));
       for (V item : items) {
         toEmit.add(item);
       }
@@ -172,7 +185,7 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   @Override
   public void persist() throws Exception {
     if (!mergeTree.equals(originalMergeTree)) {
-      context.keyedState().store(mergeTreeTag, mergeTree);
+      keyedState.store(mergeTreeTag, mergeTree);
     }
   }
 

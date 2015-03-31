@@ -30,16 +30,16 @@ public class DefaultTrigger<W extends BoundedWindow> implements Trigger<Object, 
   @Override
   public void onElement(
       TriggerContext<W> c, Object value, W window, WindowStatus status) throws Exception {
-    c.setTimer(window, window.maxTimestamp());
+    c.setTimer(window, window.maxTimestamp(), TimeDomain.EVENT_TIME);
   }
 
   @Override
   public void onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception {
     for (W oldWindow : oldWindows) {
-      c.deleteTimer(oldWindow);
+      c.deleteTimer(oldWindow, TimeDomain.EVENT_TIME);
     }
 
-    c.setTimer(newWindow, newWindow.maxTimestamp());
+    c.setTimer(newWindow, newWindow.maxTimestamp(), TimeDomain.EVENT_TIME);
   }
 
   @Override

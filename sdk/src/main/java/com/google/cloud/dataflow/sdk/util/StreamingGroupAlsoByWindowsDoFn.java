@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.AbstractWindowSet.Factory;
 import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TimerManager;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
@@ -40,57 +41,41 @@ import org.joda.time.Instant;
 public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
     extends DoFn<TimerOrElement<KV<K, VI>>, KV<K, VO>> implements DoFn.RequiresKeyedState {
 
-  public static <K, VI, VO, W extends BoundedWindow>
+  public static <K, VI, VA, VO, W extends BoundedWindow>
       StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W> create(
           final WindowFn<?, W> windowFn,
-          final KeyedCombineFn<K, VI, ?, VO> combineFn,
+          final KeyedCombineFn<K, VI, VA, VO> combineFn,
           final Coder<K> keyCoder,
           final Coder<VI> inputValueCoder) {
     Preconditions.checkNotNull(combineFn);
-    return new StreamingGABWViaWindowSetDoFn<K, VI, VO, W>(windowFn) {
-      @Override
-      AbstractWindowSet<K, VI, VO, W> createWindowSet(K key,
-          DoFn<TimerOrElement<KV<K, VI>>, KV<K, VO>>.ProcessContext context)
-          throws Exception {
-        return new CombiningWindowSet<>(
-            key, windowFn, combineFn, keyCoder, inputValueCoder, context);
-      }
-    };
+    return new StreamingGABWViaWindowSetDoFn<>(windowFn,
+        CombiningWindowSet.<K, VI, VA, VO, W>factory(combineFn, keyCoder, inputValueCoder));
   }
 
   public static <K, VI, W extends BoundedWindow>
   StreamingGroupAlsoByWindowsDoFn<K, VI, Iterable<VI>, W>
   createForIterable(final WindowFn<?, W> windowFn, final Coder<VI> inputValueCoder) {
-    return new StreamingGABWViaWindowSetDoFn<K, VI, Iterable<VI>, W>(windowFn) {
-      @Override
-      AbstractWindowSet<K, VI, Iterable<VI>, W> createWindowSet(K key,
-          DoFn<TimerOrElement<KV<K, VI>>, KV<K, Iterable<VI>>>.ProcessContext context)
-          throws Exception {
-        if (windowFn instanceof PartitioningWindowFn) {
-          return new PartitionBufferingWindowSet<K, VI, W>(
-            key, windowFn, inputValueCoder, context);
-        } else {
-          return new BufferingWindowSet<K, VI, W>(
-              key, windowFn, inputValueCoder, context);
-        }
-      }
-    };
+    if (windowFn instanceof PartitioningWindowFn) {
+      return new StreamingGABWViaWindowSetDoFn<>(windowFn,
+          PartitionBufferingWindowSet.<K, VI, W>factory(inputValueCoder));
+    } else {
+      return new StreamingGABWViaWindowSetDoFn<>(windowFn,
+          BufferingWindowSet.<K, VI, W>factory(inputValueCoder));
+    }
   }
 
-  private abstract static class StreamingGABWViaWindowSetDoFn<K, VI, VO, W extends BoundedWindow>
+  private static class StreamingGABWViaWindowSetDoFn<K, VI, VO, W extends BoundedWindow>
   extends StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W> {
     private final WindowFn<Object, W> windowFn;
+    private Factory<K, VI, VO, W> windowSetFactory;
 
-    public StreamingGABWViaWindowSetDoFn(WindowFn<?, W> windowFn) {
+    public StreamingGABWViaWindowSetDoFn(WindowFn<?, W> windowFn,
+        AbstractWindowSet.Factory<K, VI, VO, W> windowSetFactory) {
+      this.windowSetFactory = windowSetFactory;
       @SuppressWarnings("unchecked")
       WindowFn<Object, W> noWildcard = (WindowFn<Object, W>) windowFn;
       this.windowFn = noWildcard;
     }
-
-    abstract AbstractWindowSet<K, VI, VO, W> createWindowSet(
-        K key,
-        DoFn<TimerOrElement<KV<K, VI>>, KV<K, VO>>.ProcessContext context)
-        throws Exception;
 
     @Override
     public void processElement(ProcessContext context) throws Exception {
@@ -98,7 +83,8 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
         KV<K, VI> element = context.element().element();
         K key = element.getKey();
         VI value = element.getValue();
-        AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(key, context);
+        AbstractWindowSet<K, VI, VO, W> windowSet = windowSetFactory.create(
+                key, windowFn.windowCoder(), context.keyedState(), context.windowingInternals());
         TriggerExecutor<K, VI, VO, W> executor = new TriggerExecutor<>(
             windowFn,
             new StreamingTimerManager(context),
@@ -106,13 +92,15 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
             context.windowingInternals(),
             windowSet);
 
-        executor.onElement(value, context.windowingInternals().windows());
+        executor.onElement(WindowedValue.of(
+            value, context.timestamp(), context.windowingInternals().windows()));
         windowSet.persist();
       } else {
         TimerOrElement<KV<K, VI>> timer = context.element();
         @SuppressWarnings("unchecked")
         K key = (K) timer.key();
-        AbstractWindowSet<K, VI, VO, W> windowSet = createWindowSet(key, context);
+        AbstractWindowSet<K, VI, VO, W> windowSet = windowSetFactory.create(
+            key, windowFn.windowCoder(), context.keyedState(), context.windowingInternals());
         TriggerExecutor<K, VI, VO, W> executor = new TriggerExecutor<>(
             windowFn,
             new StreamingTimerManager(context),
@@ -135,12 +123,18 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
     }
 
     @Override
-    public void setTimer(String timer, Instant timestamp) {
+    public void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain) {
+      // TODO: Hook up support for processing-time timers.
+      Preconditions.checkArgument(Trigger.TimeDomain.EVENT_TIME.equals(domain),
+          "Streaming currently only supports Watermark based timers.");
       context.windowingInternals().setTimer(timer, timestamp);
     }
 
     @Override
-    public void deleteTimer(String timer) {
+    public void deleteTimer(String timer, Trigger.TimeDomain domain) {
+      // TODO: Hook up support for processing-time timers.
+      Preconditions.checkArgument(Trigger.TimeDomain.EVENT_TIME.equals(domain),
+          "Streaming currently only supports Watermark based timers.");
       context.windowingInternals().deleteTimer(timer);
     }
   }

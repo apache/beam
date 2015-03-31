@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.WindowingInternals;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -51,17 +52,18 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements Trig
    * Methods that the system must provide in order for us to implement triggers.
    */
   public interface TimerManager {
+
     /**
      * Writes out a timer to be fired when the watermark reaches the given
      * timestamp.  Timers are identified by their name, and can be moved
      * by calling {@code setTimer} again, or deleted with {@link #deleteTimer}.
      */
-    void setTimer(String timer, Instant timestamp);
+    void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain);
 
     /**
      * Deletes the given timer.
      */
-    void deleteTimer(String timer);
+    void deleteTimer(String timer, Trigger.TimeDomain domain);
   }
 
   public TriggerExecutor(
@@ -78,14 +80,14 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements Trig
     this.mergeContext = new MergeContext();
   }
 
-  public void onElement(
-      VI value, Iterable<? extends BoundedWindow> windows) throws Exception {
-    for (BoundedWindow window : windows) {
+  public void onElement(WindowedValue<VI> value) throws Exception {
+    for (BoundedWindow window : value.getWindows()) {
       @SuppressWarnings("unchecked")
       W w = (W) window;
-      WindowStatus status = windowSet.put(w, value);
 
-      trigger.onElement(this, value, w, status);
+      WindowStatus status = windowSet.put(w, value.getValue(), value.getTimestamp());
+
+      trigger.onElement(this, value.getValue(), w, status);
     }
   }
 
@@ -137,12 +139,17 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements Trig
   }
 
   @Override
-  public void setTimer(W window, Instant timestamp) throws IOException {
-    timerManager.setTimer(WindowUtils.windowToString(window, windowFn.windowCoder()), timestamp);
+  public void setTimer(W window, Instant timestamp, TimeDomain domain) throws IOException {
+    timerManager.setTimer(
+        WindowUtils.windowToString(window, windowFn.windowCoder()),
+        timestamp,
+        domain);
   }
 
   @Override
-  public void deleteTimer(W window) throws IOException {
-    timerManager.deleteTimer(WindowUtils.windowToString(window, windowFn.windowCoder()));
+  public void deleteTimer(W window, TimeDomain domain) throws IOException {
+    timerManager.deleteTimer(
+        WindowUtils.windowToString(window, windowFn.windowCoder()),
+        domain);
   }
 }

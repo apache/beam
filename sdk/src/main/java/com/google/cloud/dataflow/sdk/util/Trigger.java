@@ -33,6 +33,23 @@ import java.io.IOException;
 public interface Trigger<T, W extends BoundedWindow> {
 
   /**
+   * Types of timers that are supported.
+   */
+  public enum TimeDomain {
+    /**
+     * Timers that fire based on the timestamp of events. Once set, the timer will fire when the
+     * system watermark passes the specified time.
+     */
+    EVENT_TIME,
+
+    /**
+     * Timers that fire based on the current processing time. Once set, the timer will fire at some
+     * point when the system time is after the specified time.
+     */
+    PROCESSING_TIME;
+  }
+
+  /**
    * Status of the element in the window.
    */
   public enum WindowStatus {
@@ -54,12 +71,12 @@ public interface Trigger<T, W extends BoundedWindow> {
      * TODO: Support processing time
      * TODO: Support per-trigger timers.
      */
-    public void setTimer(W window, Instant timestamp) throws IOException;
+    public void setTimer(W window, Instant timestamp, TimeDomain timeDomain) throws IOException;
 
     /**
      * Delete a timer that has been set for the specified window.
      */
-    public void deleteTimer(W window) throws IOException;
+    public void deleteTimer(W window, TimeDomain timeDomain) throws IOException;
 
     /**
      * Emit the given window.

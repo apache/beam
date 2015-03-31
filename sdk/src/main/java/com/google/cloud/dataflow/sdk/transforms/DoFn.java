@@ -359,6 +359,7 @@ public abstract class DoFn<I, O> implements Serializable {
 
     /**
      * Reads the elements of the list in stored state corresponding to the provided tag.
+     * If the tag is undefined, will return an empty list rather than null.
      *
      * @throws IOException if decoding any of the requested values fails
      */
