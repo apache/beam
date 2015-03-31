@@ -21,8 +21,9 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addList;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import com.google.common.io.ByteStreams;
+import com.google.common.io.CountingOutputStream;
 
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -122,9 +123,9 @@ public abstract class StandardCoder<T> implements Coder<T> {
   protected long getEncodedElementByteSize(T value, Context context)
       throws Exception {
     try {
-      ByteArrayOutputStream os = new ByteArrayOutputStream();
+      CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream());
       encode(value, os, context);
-      return os.size();
+      return os.getCount();
     } catch (Exception exn) {
       throw new IllegalArgumentException(
           "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
