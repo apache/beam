@@ -83,6 +83,13 @@ public class SerializableUtils {
     return copy;
   }
 
+  public static <T extends Serializable> T clone(T value) {
+    @SuppressWarnings("unchecked")
+    T copy = (T) deserializeFromByteArray(serializeToByteArray(value),
+        value.toString());
+    return copy;
+  }
+
   /**
    * Serializes a Coder and verifies that it can be correctly deserialized.
    * <p>

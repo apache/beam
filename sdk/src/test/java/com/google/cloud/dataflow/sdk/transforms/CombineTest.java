@@ -74,7 +74,9 @@ import java.util.Set;
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
-public class CombineTest {
+public class CombineTest implements Serializable {
+  // This test is Serializable, just so that it's easy to have
+  // anonymous inner classes inside the non-static test methods.
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   static final KV<String, Integer>[] TABLE = new KV[] {

@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.PTuple;
+import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -630,7 +631,7 @@ public class ParDo {
           DoFn<I, O> fn) {
       super(name);
       this.sideInputs = sideInputs;
-      this.fn = fn;
+      this.fn = SerializableUtils.clone(fn);
     }
 
     /**
@@ -830,7 +831,7 @@ public class ParDo {
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.sideOutputTags = sideOutputTags;
-      this.fn = fn;
+      this.fn = SerializableUtils.clone(fn);
     }
 
     /**
