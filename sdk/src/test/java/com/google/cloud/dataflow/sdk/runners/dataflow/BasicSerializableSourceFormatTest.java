@@ -39,11 +39,11 @@ import static org.junit.Assert.fail;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.api.services.dataflow.model.DerivedSource;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceSplitRequest;
 import com.google.api.services.dataflow.model.SourceSplitResponse;
-import com.google.api.services.dataflow.model.SourceSplitShard;
 import com.google.api.services.dataflow.model.Step;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
@@ -232,10 +232,10 @@ public class BasicSerializableSourceFormatTest {
     }
     SourceSplitResponse response = performSplit(source, options);
     assertEquals("SOURCE_SPLIT_OUTCOME_SPLITTING_HAPPENED", response.getOutcome());
-    List<SourceSplitShard> bundles = response.getShards();
+    List<DerivedSource> bundles = response.getBundles();
     assertEquals(5, bundles.size());
     for (int i = 0; i < 5; ++i) {
-      SourceSplitShard bundle = bundles.get(i);
+      DerivedSource bundle = bundles.get(i);
       assertEquals("SOURCE_DERIVATION_MODE_INDEPENDENT", bundle.getDerivationMode());
       com.google.api.services.dataflow.model.Source bundleSource = bundle.getSource();
       assertTrue(bundleSource.getDoesNotNeedSplitting());

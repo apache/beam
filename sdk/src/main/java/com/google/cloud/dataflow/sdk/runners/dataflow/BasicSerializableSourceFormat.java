@@ -27,7 +27,8 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
 import com.google.api.client.util.Base64;
 import com.google.api.services.dataflow.model.ApproximateProgress;
-import com.google.api.services.dataflow.model.SourceFork;
+import com.google.api.services.dataflow.model.DerivedSource;
+import com.google.api.services.dataflow.model.DynamicSourceSplit;
 import com.google.api.services.dataflow.model.SourceGetMetadataRequest;
 import com.google.api.services.dataflow.model.SourceGetMetadataResponse;
 import com.google.api.services.dataflow.model.SourceMetadata;
@@ -36,7 +37,6 @@ import com.google.api.services.dataflow.model.SourceOperationResponse;
 import com.google.api.services.dataflow.model.SourceSplitOptions;
 import com.google.api.services.dataflow.model.SourceSplitRequest;
 import com.google.api.services.dataflow.model.SourceSplitResponse;
-import com.google.api.services.dataflow.model.SourceSplitShard;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.ReadSource;
@@ -94,9 +94,9 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     }
   }
 
-  public static SourceFork toSourceSplit(
+  public static DynamicSourceSplit toSourceSplit(
       SourceSplit<?> sourceSplitResult, PipelineOptions options) {
-    SourceFork sourceSplit = new SourceFork();
+    DynamicSourceSplit sourceSplit = new DynamicSourceSplit();
     com.google.api.services.dataflow.model.Source primarySource;
     com.google.api.services.dataflow.model.Source residualSource;
     try {
@@ -106,11 +106,11 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       throw new RuntimeException("Failed to serialize one of the parts of the source split", e);
     }
     sourceSplit.setPrimary(
-        new SourceSplitShard()
+        new DerivedSource()
             .setDerivationMode("SOURCE_DERIVATION_MODE_INDEPENDENT")
             .setSource(primarySource));
     sourceSplit.setResidual(
-        new SourceSplitShard()
+        new DerivedSource()
             .setDerivationMode("SOURCE_DERIVATION_MODE_INDEPENDENT")
             .setSource(residualSource));
     return sourceSplit;
@@ -162,10 +162,10 @@ public class BasicSerializableSourceFormat implements SourceFormat {
 
     // Produce simple independent, unsplittable bundles with no metadata attached.
     SourceSplitResponse response = new SourceSplitResponse();
-    response.setShards(new ArrayList<SourceSplitShard>());
+    response.setBundles(new ArrayList<DerivedSource>());
     SourceSplitOptions splitOptions = request.getOptions();
     Long desiredBundleSizeBytes =
-        (splitOptions == null) ? null : splitOptions.getDesiredShardSizeBytes();
+        (splitOptions == null) ? null : splitOptions.getDesiredBundleSizeBytes();
     if (desiredBundleSizeBytes == null) {
       desiredBundleSizeBytes = DEFAULT_DESIRED_BUNDLE_SIZE_BYTES;
     }
@@ -180,7 +180,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
             + "\nOriginal source: " + source
             + "\nInvalid bundle: " + split, e);
       }
-      SourceSplitShard bundle = new SourceSplitShard();
+      DerivedSource bundle = new DerivedSource();
 
       com.google.api.services.dataflow.model.Source cloudSource =
           serializeToCloudSource(split, options);
@@ -188,7 +188,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
 
       bundle.setDerivationMode("SOURCE_DERIVATION_MODE_INDEPENDENT");
       bundle.setSource(cloudSource);
-      response.getShards().add(bundle);
+      response.getBundles().add(bundle);
     }
     response.setOutcome("SOURCE_SPLIT_OUTCOME_SPLITTING_HAPPENED");
     return response;

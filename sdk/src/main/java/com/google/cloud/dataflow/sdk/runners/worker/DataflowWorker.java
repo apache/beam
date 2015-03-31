@@ -262,7 +262,7 @@ public class DataflowWorker {
           (Reader.DynamicSplitResultWithPosition) dynamicSplitResult;
       status.setStopPosition(toCloudPosition(asPosition.getAcceptedPosition()));
     } else if (dynamicSplitResult instanceof BasicSerializableSourceFormat.SourceSplit) {
-      status.setSourceFork(BasicSerializableSourceFormat.toSourceSplit(
+      status.setDynamicSourceSplit(BasicSerializableSourceFormat.toSourceSplit(
           (BasicSerializableSourceFormat.SourceSplit) dynamicSplitResult, options));
     } else if (dynamicSplitResult != null) {
       throw new IllegalArgumentException(

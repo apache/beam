@@ -216,13 +216,13 @@ public abstract class ByteOffsetBasedSource<T> extends BoundedSource<T> {
       long splitOffset = (long) (start + fraction * (end - start));
       long current = getCurrentOffset();
       if (splitOffset <= current) {
-        LOG.info(
+        LOG.debug(
             "Refusing to split at fraction {} (offset {}) because current offset is {} of [{}, {})",
             fraction, splitOffset, current, start, end);
         return null;
       }
       if (splitOffset <= start || splitOffset >= end) {
-        LOG.info(
+        LOG.debug(
             "Refusing to split at fraction {} (offset {}) outside current range [{}, {})",
             fraction, splitOffset, start, end);
         return null;

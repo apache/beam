@@ -264,7 +264,7 @@ public class ByteOffsetBasedSourceTest {
     CoarseByteRangeSource original = new CoarseByteRangeSource(13, 35, 1, 10);
     int maxItems = readFromSource(original).size();
     for (int numItems = 0; numItems <= maxItems; ++numItems) {
-      for (double splitFraction = 0.0; splitFraction < 1.1; splitFraction += 0.01) {
+      for (double splitFraction = 0.0; splitFraction < 1.1; splitFraction += 0.05) {
         assertSplitAtFractionBehavior(
             original, numItems, splitFraction, MUST_BE_CONSISTENT_IF_SUCCEEDS);
       }
