@@ -41,7 +41,6 @@ import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -729,16 +728,13 @@ public class CounterTest {
       set.addCounter(c);
     }
 
-    List<MetricUpdate> cloudCountersFromSet = CloudCounterUtils.extractCounters(set, true);
+    Set<MetricUpdate> cloudCountersFromSet = new HashSet<>(
+        CloudCounterUtils.extractCounters(set, true));
 
-    List<MetricUpdate> cloudCountersFromArray =
-        CounterTestUtils.extractCounterUpdates(Arrays.asList(counters), true);
+    Set<MetricUpdate> cloudCountersFromArray =
+        new HashSet<>(CounterTestUtils.extractCounterUpdates(Arrays.asList(counters), true));
 
-    assertEquals(cloudCountersFromArray.size(), cloudCountersFromSet.size());
-    for (int i = 0; i < cloudCountersFromArray.size(); i++) {
-      assertEquals(cloudCountersFromArray.get(i), cloudCountersFromSet.get(i));
-    }
-
+    assertEquals(cloudCountersFromSet, cloudCountersFromArray);
     assertEquals(2, cloudCountersFromSet.size()); // empty set was ignored
   }
 }
