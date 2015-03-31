@@ -77,7 +77,7 @@ function run_bundled {
   local cmd='java -cp '"$JAR_FILE"' \
     com.google.cloud.dataflow.examples.WordCount \
     --runner=DirectPipelineRunner \
-    --input='"$input"' \
+    --input='"'$input'"' \
     --output='"$outfile_prefix"
   echo "$name: Running $cmd" >&2
   sh -c "$cmd"
@@ -89,9 +89,9 @@ function run_all_ways {
   local input=$2
   local expected_hash=$3
 
-  run_via_mvn ${name}a $input $expected_hash
+  run_via_mvn ${name}a "$input" $expected_hash
   check_for_jar_file
-  run_bundled ${name}b $input $expected_hash
+  run_bundled ${name}b "$input" $expected_hash
 }
 
 function check_for_jar_file {
