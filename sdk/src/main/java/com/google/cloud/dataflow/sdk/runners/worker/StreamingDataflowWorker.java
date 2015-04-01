@@ -74,7 +74,7 @@ public class StreamingDataflowWorker {
   // Memory threshold over which no new work will be processed.
   // Set to a value >= 1 to disable pushback.
   static final double PUSHBACK_THRESHOLD_RATIO = 0.9;
-  static final String WINDMILL_SERVER_CLASS_NAME =
+  static final String DEFAULT_WINDMILL_SERVER_CLASS_NAME =
       "com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServer";
 
   /**
@@ -116,13 +116,18 @@ public class StreamingDataflowWorker {
       statusPort = Integer.parseInt(System.getProperty("status_port"));
     }
 
+    String windmillServerClassName = DEFAULT_WINDMILL_SERVER_CLASS_NAME;
+    if (System.getProperties().containsKey("windmill.serverclassname")) {
+      windmillServerClassName = System.getProperty("windmill.serverclassname");
+    }
+
     ArrayList<MapTask> mapTasks = new ArrayList<>();
     for (int i = 0; i < args.length; i++) {
       mapTasks.add(parseMapTask(args[i]));
     }
 
     WindmillServerStub windmillServer =
-        (WindmillServerStub) Class.forName(WINDMILL_SERVER_CLASS_NAME)
+        (WindmillServerStub) Class.forName(windmillServerClassName)
         .getDeclaredConstructor(String.class).newInstance(hostport);
 
     StreamingDataflowWorker worker =
