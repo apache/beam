@@ -48,7 +48,8 @@ import java.util.NoSuchElementException;
  *
  * <p>In addition to the methods left abstract from {@code Source}, subclasses must implement
  * methods to create a sub-source and a reader for a range of a single file -
- * {@link #createForSubrangeOfFile} and {@link #createSingleFileReader}.
+ * {@link #createForSubrangeOfFile} and {@link #createSingleFileReader}. Please refer to
+ * {@link XMLSource} for an example implementation of {@code FilebasedSource}.
  *
  * @param <T> Type of records represented by the source.
  */
@@ -63,37 +64,47 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * A given {@code FileBasedSource} represents a file resource of one of these types.
    */
   public enum Mode {
-    FILEPATTERN, FULL_SINGLE_FILE, SUBRANGE_OF_SINGLE_FILE
+    FILEPATTERN,
+    SINGLE_FILE_OR_SUBRANGE
   }
 
   /**
-   * Create a {@code FileBasedSource} based on a file or a file pattern specification.
+   * Create a {@code FileBaseSource} based on a file or a file pattern specification. This
+   * constructor must be used when creating a new {@code FileBasedSource} for a file pattern.
    *
-   * <p>See {@link ByteOffsetBasedSource} for detailed descriptions of {@code minBundleSize},
-   * {@code startOffset}, and {@code endOffset}.
+   * <p> See {@link ByteOffsetBasedSource} for a detailed description of {@code minBundleSize}.
    *
-   * @param isFilePattern if {@code true} provided {@code fileOrPatternSpec} may be a file pattern
-   *        and {@code FileBasedSource} will try to expand the file pattern, if {@code false}
-   *        provided {@code fileOrPatternSpec} will be considered a single file and will be used
-   *        verbatim.
    * @param fileOrPatternSpec {@link IOChannelFactory} specification of file or file pattern
    *        represented by the {@link FileBasedSource}.
+   * @param minBundleSize minimum bundle size in bytes.
+   */
+  public FileBasedSource(String fileOrPatternSpec, long minBundleSize) {
+    super(0, Long.MAX_VALUE, minBundleSize);
+    mode = Mode.FILEPATTERN;
+    this.fileOrPatternSpec = fileOrPatternSpec;
+  }
+
+  /**
+   * Create a {@code FileBasedSource} based on a single file. This constructor must be used when
+   * creating a new {@code FileBasedSource} for a subrange of a single file.
+   * Additionally, this constructor must be used to create new {@code FileBasedSource}s when
+   * subclasses implement the method {@link #createForSubrangeOfFile}.
+   *
+   * <p> See {@link ByteOffsetBasedSource} for detailed descriptions of {@code minBundleSize},
+   * {@code startOffset}, and {@code endOffset}.
+   *
+   * @param fileName {@link IOChannelFactory} specification of the file represented by the
+   *        {@link FileBasedSource}.
    * @param minBundleSize minimum bundle size in bytes.
    * @param startOffset starting byte offset.
    * @param endOffset ending byte offset. If the specified value {@code >= #getMaxEndOffset()} it
    *        implies {@code #getMaxEndOffSet()}.
    */
-  public FileBasedSource(boolean isFilePattern, String fileOrPatternSpec, long minBundleSize,
+  public FileBasedSource(String fileName, long minBundleSize,
       long startOffset, long endOffset) {
     super(startOffset, endOffset, minBundleSize);
-    if (isFilePattern) {
-      mode = Mode.FILEPATTERN;
-    } else if (startOffset == 0 && endOffset == Long.MAX_VALUE) {
-      mode = Mode.FULL_SINGLE_FILE;
-    } else {
-      mode = Mode.SUBRANGE_OF_SINGLE_FILE;
-    }
-    this.fileOrPatternSpec = fileOrPatternSpec;
+    mode = Mode.SINGLE_FILE_OR_SUBRANGE;
+    this.fileOrPatternSpec = fileName;
   }
 
   public final String getFileOrPatternSpec() {
@@ -117,7 +128,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
 
     FileBasedSource<T> source = createForSubrangeOfFile(fileOrPatternSpec, start, end);
     if (start > 0 || end != Long.MAX_VALUE) {
-      Preconditions.checkArgument(source.getMode() == Mode.SUBRANGE_OF_SINGLE_FILE,
+      Preconditions.checkArgument(source.getMode() == Mode.SINGLE_FILE_OR_SUBRANGE,
           "Source created for the range [" + start + "," + end + ")"
           + " must be a subrange source");
     }
@@ -128,8 +139,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * Creates and returns a new {@code FileBasedSource} of the same type as the current
    * {@code FileBasedSource} backed by a given file and an offset range. When current source is
    * being split, this method is used to generate new sub-sources. When creating the source
-   * subclasses must call the constructor of {@code FileBasedSource} with exactly the same
-   * {@code start} and {@code end} values passed here.
+   * subclasses must call the constructor {@link #FileBasedSource(String, long, long, long)} of
+   * {@code FileBasedSource} with corresponding parameter values passed here.
    *
    * @param fileName file backing the new {@code FileBasedSource}.
    * @param start starting byte offset of the new {@code FileBasedSource}.
@@ -182,7 +193,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
       List<FileBasedSource<T>> splitResults = new ArrayList<>();
-      for (String file : expandFilePattern()) {
+      for (String file : FileBasedSource.expandFilePattern(fileOrPatternSpec)) {
         splitResults.addAll(createForSubrangeOfFile(file, 0, Long.MAX_VALUE).splitIntoBundles(
             desiredBundleSizeBytes, options));
       }
@@ -212,9 +223,12 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   @Override
   public final BoundedReader<T> createReader(PipelineOptions options,
                                              ExecutionContext executionContext) throws IOException {
+    // Validate the current source prior to creating a reader for it.
+    this.validate();
+
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
-      Collection<String> files = expandFilePattern();
+      Collection<String> files = FileBasedSource.expandFilePattern(fileOrPatternSpec);
       List<FileBasedReader<T>> fileReaders = new ArrayList<>();
       for (String fileName : files) {
         long endOffset;
@@ -240,9 +254,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
     switch (mode) {
       case FILEPATTERN:
         return fileOrPatternSpec;
-      case FULL_SINGLE_FILE:
-        return fileOrPatternSpec;
-      case SUBRANGE_OF_SINGLE_FILE:
+      case SINGLE_FILE_OR_SUBRANGE:
         return fileOrPatternSpec + " range " + super.toString();
       default:
         throw new IllegalStateException("Unexpected mode: " + mode);
@@ -254,7 +266,6 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
     super.validate();
     switch (mode) {
       case FILEPATTERN:
-      case FULL_SINGLE_FILE:
         Preconditions.checkArgument(getStartOffset() == 0,
             "FileBasedSource is based on a file pattern or a full single file "
             + "but the starting offset proposed " + getStartOffset() + " is not zero");
@@ -262,7 +273,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
             "FileBasedSource is based on a file pattern or a full single file "
             + "but the ending offset proposed " + getEndOffset() + " is not Long.MAX_VALUE");
         break;
-      case SUBRANGE_OF_SINGLE_FILE:
+      case SINGLE_FILE_OR_SUBRANGE:
         // Nothing more to validate.
         break;
       default:
@@ -283,10 +294,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
     }
   }
 
-  private Collection<String> expandFilePattern() throws IOException {
-    if (mode != Mode.FILEPATTERN) {
-      throw new IllegalArgumentException("Not a file pattern");
-    }
+  private static Collection<String> expandFilePattern(String fileOrPatternSpec) throws IOException {
     IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec);
     return factory.match(fileOrPatternSpec);
   }
@@ -392,7 +400,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
         seekChannel.position(source.getStartOffset());
       } else {
         // Channel is not seekable. Must not be a subrange.
-        Preconditions.checkArgument(source.mode != Mode.SUBRANGE_OF_SINGLE_FILE,
+        Preconditions.checkArgument(source.mode != Mode.SINGLE_FILE_OR_SUBRANGE,
             "Subrange-based sources must only be defined for file types that support seekable "
             + " read channels");
         Preconditions.checkArgument(source.getStartOffset() == 0, "Start offset "
@@ -452,10 +460,9 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
     /**
      * Specifies if the current record of the reader is at a split point.
      *
-     * <p>This returns {@code true} if {@link #readNextRecord} was invoked at least once and the
-     * last record returned by {@link #readNextRecord} is at a split point, {@code false} otherwise.
-     * Please refer to {@link FileBasedSource.FileBasedReader FileBasedReader} for the definition of
-     * split points.
+     * <p>This returns {@code true} if the last record returned by {@link #readNextRecord} is at a
+     * split point, {@code false} otherwise. Please refer to {@link FileBasedSource.FileBasedReader
+     * FileBasedReader} for the definition of split points.
      */
     protected abstract boolean isAtSplitPoint();
 

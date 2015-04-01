@@ -87,15 +87,15 @@ public class FileBasedSourceTest {
 
     final String splitHeader;
 
-    public TestFileBasedSource(boolean isFilePattern, String fileOrPattern, long minBundleSize,
+    public TestFileBasedSource(String fileOrPattern, long minBundleSize,
         String splitHeader) {
-      super(isFilePattern, fileOrPattern, minBundleSize, 0L, Long.MAX_VALUE);
+      super(fileOrPattern, minBundleSize);
       this.splitHeader = splitHeader;
     }
 
     public TestFileBasedSource(String fileOrPattern, long minBundleSize, long startOffset,
         long endOffset, String splitHeader) {
-      super(false, fileOrPattern, minBundleSize, startOffset, endOffset);
+      super(fileOrPattern, minBundleSize, startOffset, endOffset);
       this.splitHeader = splitHeader;
     }
 
@@ -175,7 +175,7 @@ public class FileBasedSourceTest {
     @Override
     protected void startReading(ReadableByteChannel channel) throws IOException {
       boolean removeLine = false;
-      if (getCurrentSource().getMode() == Mode.SUBRANGE_OF_SINGLE_FILE) {
+      if (getCurrentSource().getMode() == Mode.SINGLE_FILE_OR_SUBRANGE) {
         SeekableByteChannel seekChannel = (SeekableByteChannel) channel;
         // If we are not at the beginning of a line, we should ignore the current line.
         if (seekChannel.position() > 0) {
@@ -343,7 +343,7 @@ public class FileBasedSourceTest {
     String fileName = "file";
     File file = createFileWithData(fileName, data);
 
-    TestFileBasedSource source = new TestFileBasedSource(false, file.getPath(), 64, null);
+    TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 64, null);
     assertEquals(data, readFromSource(source));
   }
 
@@ -362,7 +362,7 @@ public class FileBasedSourceTest {
     createFileWithData("otherfile", data4);
 
     TestFileBasedSource source =
-        new TestFileBasedSource(true, new File(file1.getParent(), "file*").getPath(), 64, null);
+        new TestFileBasedSource(new File(file1.getParent(), "file*").getPath(), 64, null);
     List<String> expectedResults = new ArrayList<String>();
     expectedResults.addAll(data1);
     expectedResults.addAll(data2);
@@ -382,7 +382,7 @@ public class FileBasedSourceTest {
     createFileWithData("file3", data3);
 
     TestFileBasedSource source =
-        new TestFileBasedSource(true, file1.getParent() + "/" + "file*", 1024, null);
+        new TestFileBasedSource(file1.getParent() + "/" + "file*", 1024, null);
     BoundedSource.BoundedReader<String> reader = source.createReader(null, null);
     double lastFractionConsumed = 0.0;
     assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
@@ -421,7 +421,7 @@ public class FileBasedSourceTest {
     List<String> data4 = createStringDataset(3, 50);
     createFileWithData("otherfile", data4);
 
-    TestFileBasedSource source = new TestFileBasedSource(true, pattern, 64, null);
+    TestFileBasedSource source = new TestFileBasedSource(pattern, 64, null);
 
     List<String> expectedResults = new ArrayList<String>();
     expectedResults.addAll(data2);
@@ -458,7 +458,7 @@ public class FileBasedSourceTest {
     File file = createFileWithData(fileName, data);
 
     TestFileBasedSource source =
-        new TestFileBasedSource(file.getPath(), 64, 0, Long.MAX_VALUE, header);
+        new TestFileBasedSource(file.getPath(), 64, header);
 
     List<String> expectedResults = new ArrayList<String>();
     expectedResults.addAll(data);
@@ -629,7 +629,7 @@ public class FileBasedSourceTest {
     String fileName = "file";
     File file = createFileWithData(fileName, data);
 
-    TestFileBasedSource source = new TestFileBasedSource(false, file.getPath(), 16, null);
+    TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 16, null);
 
     List<? extends Source<String>> sources = source.splitIntoBundles(32, null);
 
@@ -656,7 +656,7 @@ public class FileBasedSourceTest {
     String fileName = "file";
     File file = createFileWithData(fileName, data);
 
-    TestFileBasedSource source = new TestFileBasedSource(false, file.getPath(), 64, null);
+    TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 64, null);
 
     PCollection<String> output = p.apply(ReadSource.from(source).named("ReadFileData"));
 
@@ -692,7 +692,7 @@ public class FileBasedSourceTest {
     createFileWithData("otherfile", data4);
 
     TestFileBasedSource source =
-        new TestFileBasedSource(true, new File(file1.getParent(), "file*").getPath(), 64, null);
+        new TestFileBasedSource(new File(file1.getParent(), "file*").getPath(), 64, null);
 
     PCollection<String> output = p.apply(ReadSource.from(source).named("ReadFileData"));
 
@@ -718,7 +718,7 @@ public class FileBasedSourceTest {
     String fileName = "file";
     File file = createFileWithData(fileName, data);
 
-    TestFileBasedSource source = new TestFileBasedSource(false, file.getPath(), 64, null);
+    TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 64, null);
     assertEquals(file.length(), source.getEstimatedSizeBytes(null));
   }
 
@@ -740,7 +740,7 @@ public class FileBasedSourceTest {
     createFileWithData("anotherfile", data5);
 
     TestFileBasedSource source =
-        new TestFileBasedSource(true, new File(file1.getParent(), "file*").getPath(), 64, null);
+        new TestFileBasedSource(new File(file1.getParent(), "file*").getPath(), 64, null);
 
     // Estimated size of the file pattern based source should be the total size of files that the
     // corresponding pattern is expanded into.
@@ -763,7 +763,7 @@ public class FileBasedSourceTest {
     createFileWithData("otherfile", data4);
 
     TestFileBasedSource source =
-        new TestFileBasedSource(true, new File(file1.getParent(), "file*").getPath(), 64, null);
+        new TestFileBasedSource(new File(file1.getParent(), "file*").getPath(), 64, null);
     List<? extends Source<String>> sources = source.splitIntoBundles(512, null);
 
     // Not a trivial split.

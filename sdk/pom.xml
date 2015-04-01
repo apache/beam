@@ -413,6 +413,20 @@
       <version>9.2.6.v20141205</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.codehaus.woodstox</groupId>
+      <artifactId>stax2-api</artifactId>
+      <version>3.1.1</version>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>org.codehaus.woodstox</groupId>
+      <artifactId>woodstox-core-asl</artifactId>
+      <version>4.1.2</version>
+      <optional>true</optional>
+    </dependency>
+
     <!-- build dependencies -->
     <dependency>
       <groupId>com.google.auto.service</groupId>
