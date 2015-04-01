@@ -17,10 +17,10 @@
 package com.google.cloud.dataflow.sdk.options;
 
 /**
- * Options which are used exclusively within the Dataflow worker harness.
+ * Options that are used exclusively within the Dataflow worker harness.
  * These options have no effect at pipeline creation time.
  */
-@Description("[Internal] Options which are used exclusively within the Dataflow worker harness. "
+@Description("[Internal] Options that are used exclusively within the Dataflow worker harness. "
     + "These options have no effect at pipeline creation time.")
 @Hidden
 public interface DataflowWorkerHarnessOptions extends DataflowPipelineOptions {

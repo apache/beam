@@ -66,7 +66,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * Returns status code 0 on successful completion, 1 on any uncaught failures.
  * <p>
  * TODO: add support for VM initialization via config.
- * During initialization, we should take a configuration which specifies
+ * During initialization, we should take a configuration that specifies
  * an initialization function, allowing user code to run on VM startup.
  */
 public class DataflowWorkerHarness {
@@ -119,7 +119,7 @@ public class DataflowWorkerHarness {
   }
 
   /**
-   * A thread which repeatedly fetches and processes work units from the Dataflow service.
+   * A thread that repeatedly fetches and processes work units from the Dataflow service.
    */
   private static class WorkerThread implements Callable<Boolean> {
     // sleeper is used to sleep the appropriate amount of time

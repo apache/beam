@@ -109,15 +109,16 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
    * The number of bytes of overhead to store an entry in the
    * grouping table (a {@code HashMap<StructuralByteArray, KeyAndValues>}),
    * ignoring the actual number of bytes in the keys and values:
-   *
-   * - an array element (1 word),
-   * - a HashMap.Entry (4 words),
-   * - a StructuralByteArray (1 words),
-   * - a backing array (guessed at 1 word for the length),
-   * - a KeyAndValues (2 words),
-   * - an ArrayList (2 words),
-   * - a backing array (1 word),
-   * - per-object overhead (JVM-specific, guessed at 2 words * 6 objects).
+   * <ul>
+   * <li> an array element (1 word),
+   * <li> a HashMap.Entry (4 words),
+   * <li> a StructuralByteArray (1 words),
+   * <li> a backing array (guessed at 1 word for the length),
+   * <li> a KeyAndValues (2 words),
+   * <li> an ArrayList (2 words),
+   * <li> a backing array (1 word),
+   * <li> per-object overhead (JVM-specific, guessed at 2 words * 6 objects).
+   * </ul>
    */
   static final int PER_KEY_OVERHEAD = 24 * BYTES_PER_JVM_WORD;
 
@@ -534,8 +535,8 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
         // Uses the geometric distribution to return the likely distance between
         // successive independent trials of a fixed probability p. This gives the
         // same uniform distribution of branching on Math.random() < p, but with
-        // one random number generation per success rather than one per test,
-        // which can be a significant savings if p is small.
+        // one random number generation per success rather than one
+        // per test, which can be a significant savings if p is small.
         nextSample = rate == 1.0
             ? 0
             : (long) Math.floor(Math.log(random.nextDouble()) / Math.log(1 - rate));

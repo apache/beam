@@ -62,8 +62,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * An example that computes the most popular hash tags for a for every prefix,
- * which can be used for auto-completion.
+ * An example that computes the most popular hash tags
+ * for every prefix, which can be used for auto-completion.
  *
  * <p> Concepts: Using the same pipeline in both streaming and batch, combiners,
  *               composite transforms.
@@ -84,8 +84,8 @@ import java.util.regex.Pattern;
  *   --inputTopic=/topics/someproject/sometopic
  *   [--outputDataset=<DATASTORE DATASET ID>]
  *
- * <p> Which will update the datastore every 10 seconds based on the last 30 minutes
- * of data received.
+ * <p> This will update the datastore every 10 seconds based on the last
+ * 30 minutes of data received.
  */
 public class AutoComplete {
 

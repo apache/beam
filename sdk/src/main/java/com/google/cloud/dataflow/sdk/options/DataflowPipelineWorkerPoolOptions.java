@@ -19,9 +19,9 @@ package com.google.cloud.dataflow.sdk.options;
 import java.util.List;
 
 /**
- * Options which are used to configure the Dataflow pipeline worker pool.
+ * Options that are used to configure the Dataflow pipeline worker pool.
  */
-@Description("Options which are used to configure the Dataflow pipeline worker pool.")
+@Description("Options that are used to configure the Dataflow pipeline worker pool.")
 public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   /**
    * Disk source image to use by VMs for jobs.

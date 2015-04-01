@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
 /**
- * An interface for sources which can perform operations on source specifications, such as
+ * An interface for sources that can perform operations on source specifications, such as
  * splitting the source and computing its metadata. See {@code SourceOperationRequest} for details.
  */
 public interface SourceFormat {

@@ -133,8 +133,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    *
    * @param fileName file backing the new {@code FileBasedSource}.
    * @param start starting byte offset of the new {@code FileBasedSource}.
-   * @param end ending byte offset of the new {@code FileBasedSource}. May be Long.MAX_VALUE, in
-   *        which case it will be inferred using {@link #getMaxEndOffset}.
+   * @param end ending byte offset of the new {@code FileBasedSource}. May be Long.MAX_VALUE,
+   *        in which case it will be inferred using {@link #getMaxEndOffset}.
    */
   public abstract FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end);
 
@@ -302,7 +302,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * source. Subclasses of this reader should implement {@link #startReading} to get access to this
    * channel. If the source corresponding to the reader is for a subrange of a file the
    * {@code ReadableByteChannel} provided is guaranteed to be an instance of the type
-   * {@link SeekableByteChannel} which may be used by subclass to traverse back in the channel to
+   * {@link SeekableByteChannel}, which may be used by subclass to traverse back in the channel to
    * determine the correct starting position.
    *
    * <h2>Split Points</h2>
@@ -312,8 +312,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * record starting at or after offset A, up to but not including the first record starting at or
    * after offset B".
    *
-   * <p>More complex formats, such as some block-based formats, may have records which are not
-   * directly addressable: i.e. for some records, there is no way to describe the location of a
+   * <p>More complex formats, such as some block-based formats, may have records that are not
+   * directly addressable: i.e., for some records, there is no way to describe the location of a
    * record using a single offset number. For example, imagine a file format consisting of a
    * sequence of blocks, where each block is compressed using some block compression algorithm. Then
    * blocks have offsets, but individual records don't. More complex cases are also possible.
@@ -329,7 +329,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * the block-based format above, the only split points would be the first records in each block.
    *
    * <p>With the above definition of split points an extended definition of the offset of a record
-   * can be specified. For a record which is at a split point, its offset is defined to be the
+   * can be specified. For a record that is at a split point, its offset is defined to be the
    * largest A such that reading a source with the range [A, Long.MAX_VALUE) includes this record;
    * offsets of other records are only required to be non-strictly increasing. Offsets of records of
    * a {@code FileBasedReader} should be set based on this definition.

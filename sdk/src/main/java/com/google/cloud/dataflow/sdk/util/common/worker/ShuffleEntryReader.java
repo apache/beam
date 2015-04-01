@@ -28,7 +28,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public interface ShuffleEntryReader {
   /**
-   * Returns an iterator which reads a range of entries from a shuffle dataset.
+   * Returns an iterator that reads a range of entries from a shuffle dataset.
    *
    * @param startPosition encodes the initial key from where to read.
    * This parameter may be null, indicating that the read should start

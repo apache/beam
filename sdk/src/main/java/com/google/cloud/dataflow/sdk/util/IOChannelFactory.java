@@ -23,10 +23,10 @@ import java.util.Collection;
 
 /**
  * Defines a factory for working with read and write channels.
- *
+ * <p>
  * Channels provide an abstract API for IO operations.
- *
- * See <a href="http://docs.oracle.com/javase/7/docs/api/java/nio/channels/package-summary.html
+ * <p>
+ * See <a href="http://docs.oracle.com/javase/7/docs/api/java/nio/channels/package-summary.html"
  * >Java NIO Channels</a>
  */
 public interface IOChannelFactory {
@@ -39,7 +39,7 @@ public interface IOChannelFactory {
    * all support globs in the final component of a path (eg /foo/bar/*.txt),
    * however they are not required to support globs in the directory paths.
    *
-   * <p>The result is the (possibly empty) set of specifications which match.
+   * <p>The result is the (possibly empty) set of specifications that match.
    */
   Collection<String> match(String spec) throws IOException;
 

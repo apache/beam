@@ -66,8 +66,8 @@ public class BigQueryTornadoes {
       "clouddataflow-readonly:samples.weather_stations";
 
   /**
-   * Examines each row in the input table. If a tornado was recorded in that sample, the month in
-   * which it occurred is output.
+   * Examines each row in the input table. If a tornado was recorded
+   * in that sample, the month in which it occurred is output.
    */
   static class ExtractTornadoesFn extends DoFn<TableRow, Integer> {
     private static final long serialVersionUID = 0;
@@ -99,7 +99,7 @@ public class BigQueryTornadoes {
 
   /**
    * Takes rows from a table and generates a table of counts.
-   *
+   * <p>
    * The input schema is described by
    * https://developers.google.com/bigquery/docs/dataset-gsod .
    * The output contains the total number of tornadoes found in each month in

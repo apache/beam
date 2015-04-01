@@ -72,8 +72,8 @@ import java.util.regex.Pattern;
  * from the <a href="https://cloud.google.com/bigquery/client-libraries">
  * BigQuery Java Client API</a>.
  * Tables can be referred to as Strings, with or without the {@code projectId}.
- * A helper function is provided ({@link BigQueryIO#parseTableSpec(String)}),
- * which parses the following string forms into a {@link TableReference}:
+ * A helper function is provided ({@link BigQueryIO#parseTableSpec(String)})
+ * that parses the following string forms into a {@link TableReference}:
  * <ul>
  *   <li>[{@code project_id}]:[{@code dataset_id}].[{@code table_id}]
  *   <li>[{@code dataset_id}].[{@code table_id}]
@@ -130,12 +130,12 @@ public class BigQueryIO {
   private static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]{4,61}[a-z0-9]";
 
   /**
-   * Regular expression which matches Dataset IDs.
+   * Regular expression that matches Dataset IDs.
    */
   private static final String DATASET_REGEXP = "[-\\w.]{1,1024}";
 
   /**
-   * Regular expression which matches Table IDs.
+   * Regular expression that matches Table IDs.
    */
   private static final String TABLE_REGEXP = "[-\\w$@]{1,1024}";
 
@@ -188,7 +188,7 @@ public class BigQueryIO {
    * {@code PCollection<TableRow>} containing each of the rows of the table.
    * <p>
    * Each TableRow record contains values indexed by column name.  Here is a
-   * sample processing function which processes a "line" column from rows:
+   * sample processing function that processes a "line" column from rows:
    * <pre><code>
    * static class ExtractWordsFn extends DoFn{@literal <TableRow, String>} {
    *   {@literal @}Override
@@ -227,7 +227,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Disables BigQuery table validation which is enabled by default.
+     * Disables BigQuery table validation, which is enabled by default.
      */
     public static Bound withoutValidation() {
       return new Bound().withoutValidation();
@@ -341,17 +341,17 @@ public class BigQueryIO {
    * <p>
    * By default, tables will be created if they do not exist, which
    * corresponds to a {@code CreateDisposition.CREATE_IF_NEEDED} disposition
-   * which matches the default of BigQuery's Jobs API.  A schema must be
+   * that matches the default of BigQuery's Jobs API.  A schema must be
    * provided (via {@link Write#withSchema}), or else the transform may fail
    * at runtime with an {@link java.lang.IllegalArgumentException}.
    * <p>
    * The dataset being written must already exist.
    * <p>
    * By default, writes require an empty table, which corresponds to
-   * a {@code WriteDisposition.WRITE_EMPTY} disposition which matches the
+   * a {@code WriteDisposition.WRITE_EMPTY} disposition that matches the
    * default of BigQuery's Jobs API.
    * <p>
-   * Here is a sample transform which produces TableRow values containing
+   * Here is a sample transform that produces TableRow values containing
    * "word" and "count" columns:
    * <pre><code>
    * static class FormatCountsFn extends DoFnP{@literal <KV<String, Long>, TableRow>} {
@@ -454,7 +454,7 @@ public class BigQueryIO {
     /**
      * Specifies a table schema to use in table creation.
      * <p>
-     * The schema is required only if writing to a table which does not already
+     * The schema is required only if writing to a table that does not already
      * exist, and {@link BigQueryIO.Write.CreateDisposition} is set to
      * {@code CREATE_IF_NEEDED}.
      */
@@ -473,7 +473,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Disables BigQuery table validation which is enabled by default.
+     * Disables BigQuery table validation, which is enabled by default.
      */
     public static Bound withoutValidation() {
       return new Bound().withoutValidation();
@@ -812,7 +812,7 @@ public class BigQueryIO {
           in.apply(ParDo.of(new TagWithUniqueIds()));
 
       // To prevent having the same TableRow processed more than once with regenerated
-      // different unique ids, this implementation relies on "checkpointing" which is
+      // different unique ids, this implementation relies on "checkpointing", which is
       // achieved as a side effect of having StreamingWriteFn implement RequiresKeyedState.
       tagged.apply(ParDo.of(new StreamingWriteFn(tableReference, tableSchema)));
 

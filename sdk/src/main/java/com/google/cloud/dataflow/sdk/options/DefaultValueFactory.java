@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.options;
 
 /**
- * An interface used with {@link Default.InstanceFactory} annotation to specify the class which will
+ * An interface used with {@link Default.InstanceFactory} annotation to specify the class that will
  * be an instance factory to produce default values for a given getter on {@link PipelineOptions}.
  * When a property on a {@link PipelineOptions} is fetched, and is currently unset, the default
  * value factory will be instantiated and invoked.

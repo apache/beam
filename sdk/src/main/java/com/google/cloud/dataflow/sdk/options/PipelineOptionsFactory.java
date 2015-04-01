@@ -76,7 +76,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 /**
- * Constructs a {@link PipelineOptions} or any derived interface which is composable to any other
+ * Constructs a {@link PipelineOptions} or any derived interface that is composable to any other
  * derived interface of {@link PipelineOptions} via the {@link PipelineOptions#as} method. Being
  * able to compose one derived interface of {@link PipelineOptions} to another has the following
  * restrictions:
@@ -97,25 +97,25 @@ import java.util.TreeSet;
 public class PipelineOptionsFactory {
 
   /**
-   * Creates and returns an object which implements {@link PipelineOptions}.
+   * Creates and returns an object that implements {@link PipelineOptions}.
    * This sets the {@link ApplicationNameOptions#getAppName() "appName"} to the calling
    * {@link Class#getSimpleName() classes simple name}.
    *
-   * @return An object which implements {@link PipelineOptions}.
+   * @return An object that implements {@link PipelineOptions}.
    */
   public static PipelineOptions create() {
     return new Builder().as(PipelineOptions.class);
   }
 
   /**
-   * Creates and returns an object which implements {@code <T>}.
+   * Creates and returns an object that implements {@code <T>}.
    * This sets the {@link ApplicationNameOptions#getAppName() "appName"} to the calling
    * {@link Class#getSimpleName() classes simple name}.
    *
    * <p> Note that {@code <T>} must be composable with every registered interface with this factory.
    * See {@link PipelineOptionsFactory#validateWellFormed(Class, Set)} for more details.
    *
-   * @return An object which implements {@code <T>}.
+   * @return An object that implements {@code <T>}.
    */
   public static <T extends PipelineOptions> T as(Class<T> klass) {
     return new Builder().as(klass);
@@ -243,23 +243,23 @@ public class PipelineOptionsFactory {
     }
 
     /**
-     * Creates and returns an object which implements {@link PipelineOptions} using the values
+     * Creates and returns an object that implements {@link PipelineOptions} using the values
      * configured on this builder during construction.
      *
-     * @return An object which implements {@link PipelineOptions}.
+     * @return An object that implements {@link PipelineOptions}.
      */
     public PipelineOptions create() {
       return as(PipelineOptions.class);
     }
 
     /**
-     * Creates and returns an object which implements {@code <T>} using the values configured on
+     * Creates and returns an object that implements {@code <T>} using the values configured on
      * this builder during construction.
      * <p>
      * Note that {@code <T>} must be composable with every registered interface with this factory.
      * See {@link PipelineOptionsFactory#validateWellFormed(Class, Set)} for more details.
      *
-     * @return An object which implements {@code <T>}.
+     * @return An object that implements {@code <T>}.
      */
     public <T extends PipelineOptions> T as(Class<T> klass) {
       Map<String, Object> initialOptions = Maps.newHashMap();
@@ -369,7 +369,7 @@ public class PipelineOptionsFactory {
         break;
       }
     }
-    // Then find the first instance after which is not the PipelineOptionsFactory/Builder class.
+    // Then find the first instance after that is not the PipelineOptionsFactory/Builder class.
     while (elements.hasNext()) {
       StackTraceElement next = elements.next();
       if (!PIPELINE_OPTIONS_FACTORY_CLASSES.contains(next.getClassName())) {
@@ -414,15 +414,15 @@ public class PipelineOptionsFactory {
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final Map<String, Class<? extends PipelineRunner<?>>> SUPPORTED_PIPELINE_RUNNERS;
 
-  /** Classes which are used as the boundary in the stack trace to find the callers class name. */
+  /** Classes that are used as the boundary in the stack trace to find the callers class name. */
   private static final Set<String> PIPELINE_OPTIONS_FACTORY_CLASSES = ImmutableSet.of(
       PipelineOptionsFactory.class.getName(),
       Builder.class.getName());
 
-  /** Methods which are ignored when validating the proxy class. */
+  /** Methods that are ignored when validating the proxy class. */
   private static final Set<Method> IGNORED_METHODS;
 
-  /** The set of options which have been registered and visible to the user. */
+  /** The set of options that have been registered and visible to the user. */
   private static final Set<Class<? extends PipelineOptions>> REGISTERED_OPTIONS =
       Sets.newConcurrentHashSet();
 
@@ -438,9 +438,10 @@ public class PipelineOptionsFactory {
   private static final int TERMINAL_WIDTH = 80;
 
   /**
-   * Finds the appropriate {@code ClassLoader} to be used by the {@link ServiceLoader#load} call,
-   * which by default would use the context {@code ClassLoader} which can be null. The fallback is
-   * as follow: context ClassLoader, class ClassLoader and finaly the system ClassLoader.
+   * Finds the appropriate {@code ClassLoader} to be used by the
+   * {@link ServiceLoader#load} call, which by default would use the context
+   * {@code ClassLoader}, which can be null. The fallback is as follow: context
+   * ClassLoader, class ClassLoader and finaly the system ClassLoader.
    */
   static ClassLoader findClassLoader() {
     ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
@@ -637,13 +638,13 @@ public class PipelineOptionsFactory {
     Iterable<Method> methods = getClosureOfMethodsOnInterface(iface);
     ListMultimap<Class<?>, Method> ifaceToMethods = ArrayListMultimap.create();
     for (Method method : methods) {
-      // Process only methods which are not marked as hidden.
+      // Process only methods that are not marked as hidden.
       if (method.getAnnotation(Hidden.class) == null) {
         ifaceToMethods.put(method.getDeclaringClass(), method);
       }
     }
     SortedSet<Class<?>> ifaces = new TreeSet<>(ClassNameComparator.INSTANCE);
-    // Keep interfaces which are not marked as hidden.
+    // Keep interfaces that are not marked as hidden.
     ifaces.addAll(Collections2.filter(ifaceToMethods.keySet(), new Predicate<Class<?>>() {
       @Override
       public boolean apply(Class<?> input) {
@@ -830,7 +831,7 @@ public class PipelineOptionsFactory {
    * Returns all the methods visible from the provided interfaces.
    *
    * @param interfaces The interfaces to use when searching for all their methods.
-   * @return An iterable of {@link Method}s which interfaces expose.
+   * @return An iterable of {@link Method}s that interfaces expose.
    */
   static Iterable<Method> getClosureOfMethodsOnInterfaces(
       Iterable<Class<? extends PipelineOptions>> interfaces) {
@@ -847,7 +848,7 @@ public class PipelineOptionsFactory {
    * Returns all the methods visible from {@code iface}.
    *
    * @param iface The interface to use when searching for all its methods.
-   * @return An iterable of {@link Method}s which {@code iface} exposes.
+   * @return An iterable of {@link Method}s that {@code iface} exposes.
    */
   static Iterable<Method> getClosureOfMethodsOnInterface(Class<? extends PipelineOptions> iface) {
     Preconditions.checkNotNull(iface);
@@ -1060,7 +1061,7 @@ public class PipelineOptionsFactory {
         iface.getName());
   }
 
-  /** A {@link Comparator} which uses the classes name to compare them. */
+  /** A {@link Comparator} that uses the classes name to compare them. */
   private static class ClassNameComparator implements Comparator<Class<?>> {
     static final ClassNameComparator INSTANCE = new ClassNameComparator();
     @Override
@@ -1069,7 +1070,7 @@ public class PipelineOptionsFactory {
     }
   }
 
-  /** A {@link Comparator} which uses the object's classes canonical name to compare them. */
+  /** A {@link Comparator} that uses the object's classes canonical name to compare them. */
   private static class ObjectsClassComparator implements Comparator<Object> {
     static final ObjectsClassComparator INSTANCE = new ObjectsClassComparator();
     @Override
@@ -1078,7 +1079,7 @@ public class PipelineOptionsFactory {
     }
   }
 
-  /** A {@link Comparator} which uses the generic method signature to sort them. */
+  /** A {@link Comparator} that uses the generic method signature to sort them. */
   private static class MethodComparator implements Comparator<Method> {
     static final MethodComparator INSTANCE = new MethodComparator();
     @Override
@@ -1087,7 +1088,7 @@ public class PipelineOptionsFactory {
     }
   }
 
-  /** A {@link Function} which gets the methods return type. */
+  /** A {@link Function} that gets the method's return type. */
   private static class ReturnTypeFetchingFunction implements Function<Method, Class<?>> {
     static final ReturnTypeFetchingFunction INSTANCE = new ReturnTypeFetchingFunction();
     @Override
@@ -1105,7 +1106,7 @@ public class PipelineOptionsFactory {
     }
   }
 
-  /** An {@link Equivalence} which considers two methods equivalent if they share the same name. */
+  /** An {@link Equivalence} that considers two methods equivalent if they share the same name. */
   private static class MethodNameEquivalence extends Equivalence<Method> {
     static final MethodNameEquivalence INSTANCE = new MethodNameEquivalence();
     @Override
@@ -1120,7 +1121,7 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * A {@link Predicate} which returns true if the method is annotated with
+   * A {@link Predicate} that returns true if the method is annotated with
    * {@link JsonIgnore @JsonIgnore}.
    */
   static class JsonIgnorePredicate implements Predicate<Method> {
@@ -1187,7 +1188,7 @@ public class PipelineOptionsFactory {
 
   /**
    * Using the parsed string arguments, we convert the strings to the expected
-   * return type of the methods which are found on the passed in class.
+   * return type of the methods that are found on the passed-in class.
    * <p>
    * For any return type that is expected to be an array or a collection, we further
    * split up each string on ','.
@@ -1195,7 +1196,7 @@ public class PipelineOptionsFactory {
    * We special case the "runner" option. It is mapped to the class of the {@link PipelineRunner}
    * based off of the {@link PipelineRunner}s simple class name.
    * <p>
-   * If strict parsing is enabled, unknown options or options which can not be converted to
+   * If strict parsing is enabled, unknown options or options that cannot be converted to
    * the expected java type using an {@link ObjectMapper} will be ignored.
    */
   private static <T extends PipelineOptions> Map<String, Object> parseObjects(

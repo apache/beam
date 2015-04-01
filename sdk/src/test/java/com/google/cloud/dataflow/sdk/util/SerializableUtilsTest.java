@@ -43,7 +43,7 @@ import java.util.List;
 public class SerializableUtilsTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
-  /** A class which is serializable by Java. */
+  /** A class that is serializable by Java. */
   private static class SerializableByJava implements Serializable {
     private static final long serialVersionUID = 0;
 
@@ -77,7 +77,7 @@ public class SerializableUtilsTest {
         "a bogus string");
   }
 
-  /** A class which is not serializable by Java. */
+  /** A class that is not serializable by Java. */
   private static class UnserializableByJava implements Serializable {
     private static final long serialVersionUID = 0;
 
@@ -92,7 +92,7 @@ public class SerializableUtilsTest {
     SerializableUtils.serializeToByteArray(new UnserializableByJava());
   }
 
-  /** A {@link Coder} which is not serializable by Java. */
+  /** A {@link Coder} that is not serializable by Java. */
   private static class UnserializableCoderByJava extends StandardCoder<Object> {
     private static final long serialVersionUID = 0;
 
@@ -127,7 +127,7 @@ public class SerializableUtilsTest {
     SerializableUtils.ensureSerializable(new UnserializableCoderByJava());
   }
 
-  /** A {@link Coder} which is not serializable by Jackson. */
+  /** A {@link Coder} that is not serializable by Jackson. */
   private static class UnserializableCoderByJackson extends StandardCoder<Object> {
     private static final long serialVersionUID = 0;
 

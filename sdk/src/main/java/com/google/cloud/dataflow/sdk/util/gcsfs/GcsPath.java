@@ -48,7 +48,7 @@ import javax.annotation.Nullable;
  *   <li> A trailing slash always indicates a directory, which is compliant
  *        with POSIX.1-2008.
  *   <li> Slashes separate components of a path.  Empty components are allowed,
- *        which is represented as repeated slashes.  An empty component always
+ *        these are represented as repeated slashes.  An empty component always
  *        refers to a directory, and always ends in a slash.
  *   <li> {@link #getParent()}} always returns a path ending in a slash, as the
  *        parent of a GcsPath is always a directory.
@@ -97,7 +97,7 @@ public class GcsPath implements Path {
   }
 
   /**
-   * Pattern which is used to parse a GCS URL.
+   * Pattern that is used to parse a GCS URL.
    *
    * <p> This is used to separate the components.  Verification is handled
    * separately.
@@ -121,7 +121,7 @@ public class GcsPath implements Path {
   }
 
   /**
-   * Pattern which is used to parse a GCS resource name.
+   * Pattern that is used to parse a GCS resource name.
    */
   private static final Pattern GCS_RESOURCE_NAME =
       Pattern.compile("storage.googleapis.com/(?<BUCKET>[^/]+)(/(?<OBJECT>.*))?");
@@ -148,7 +148,7 @@ public class GcsPath implements Path {
    *
    * <p> A GcsPath without a bucket name is treated as a relative path, which
    * is a path component with no linkage to the root element.  This is similar
-   * to a Unix path which does not begin with the root marker (a slash).
+   * to a Unix path that does not begin with the root marker (a slash).
    * GCS has different naming constraints and APIs for working with buckets and
    * objects, so these two concepts are kept separate to avoid accidental
    * attempts to treat objects as buckets, or vice versa, as much as possible.
@@ -250,7 +250,7 @@ public class GcsPath implements Path {
     return fs;
   }
 
-  // Absolute paths are those which have a bucket and the root path.
+  // Absolute paths are those that have a bucket and the root path.
   @Override
   public boolean isAbsolute() {
     return !bucket.isEmpty() || object.isEmpty();
@@ -270,7 +270,7 @@ public class GcsPath implements Path {
    * Returns the <em>parent path</em>, or {@code null} if this path does not
    * have a parent.
    *
-   * <p> Returns a path which ends in '/', as the parent path always refers to
+   * <p> Returns a path that ends in '/', as the parent path always refers to
    * a directory.
    */
   @Override

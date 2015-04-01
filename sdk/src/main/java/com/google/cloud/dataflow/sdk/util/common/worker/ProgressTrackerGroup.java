@@ -18,16 +18,16 @@ package com.google.cloud.dataflow.sdk.util.common.worker;
 
 /**
  * Implements a group of linked
- * {@link ProgressTracker ProgressTrackers} which
+ * {@link ProgressTracker ProgressTrackers} that
  * collectively track how far a processing loop has gotten through the elements
  * it's processing.  Individual {@code ProgressTracker} instances may be copied,
  * capturing an independent view of the progress of the system; this turns out
  * to be useful for some non-trivial processing loops.  The furthest point
  * reached by any {@code ProgressTracker} is the one reported.
  *
- * <p>This class is abstract.  Its single extension point is {@link #report},
- * which should be overriden to provide a function which handles the reporting
- * of the supplied element, as appropriate.
+ * <p>This class is abstract.  Its single extension point is
+ * {@link #report}, which should be overriden to provide a function that
+ * handles the reporting of the supplied element, as appropriate.
  *
  * @param <T> the type of elements being tracked
  */

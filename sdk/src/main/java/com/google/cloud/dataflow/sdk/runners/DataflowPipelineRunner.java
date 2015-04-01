@@ -85,7 +85,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   /**
    * Construct a runner from the provided options.
    *
-   * @param options Properties which configure the runner.
+   * @param options Properties that configure the runner.
    * @return The newly created runner.
    */
   public static DataflowPipelineRunner fromOptions(PipelineOptions options) {
@@ -186,7 +186,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     Map<String, Object> environmentVersion = new HashMap<>();
     environmentVersion.put(PropertyNames.ENVIRONMENT_VERSION_MAJOR_KEY, ENVIRONMENT_MAJOR_VERSION);
     newJob.getEnvironment().setVersion(environmentVersion);
-    // Default jobType is DATA_PARALLEL which is for java batch.
+    // Default jobType is DATA_PARALLEL, which is for java batch.
     String jobType = "DATA_PARALLEL";
 
     if (options.isStreaming()) {

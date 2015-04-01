@@ -35,7 +35,7 @@ public class ReflectHelpers {
 
   private static final Joiner COMMA_SEPARATOR = Joiner.on(", ");
 
-  /** A {@link Function} which turns a method into a simple method signature. */
+  /** A {@link Function} that turns a method into a simple method signature. */
   public static final Function<Method, String> METHOD_FORMATTER = new Function<Method, String>() {
     @Override
     public String apply(Method input) {
@@ -48,7 +48,7 @@ public class ReflectHelpers {
     }
   };
 
-  /** A {@link Function} which turns a method into the declaring class + method signature. */
+  /** A {@link Function} that turns a method into the declaring class + method signature. */
   public static final Function<Method, String> CLASS_AND_METHOD_FORMATTER =
       new Function<Method, String>() {
     @Override
@@ -77,7 +77,7 @@ public class ReflectHelpers {
     }
   };
 
-  /** A {@link Function} which formats types. */
+  /** A {@link Function} that formats types. */
   public static final Function<Type, String> TYPE_SIMPLE_DESCRIPTION =
       new Function<Type, String>() {
     @Override

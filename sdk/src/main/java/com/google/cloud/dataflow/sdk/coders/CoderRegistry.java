@@ -340,7 +340,7 @@ public class CoderRegistry {
    * {@code Map<String, Integer>} then this will return the registered Coders
    * to use for String and Integer as a {"K": stringCoder, "V": intCoder} Map.
    * The knownCoders parameter can be used to provide known coders for any of
-   * the parameters which will be used to infer the others.
+   * the parameters that will be used to infer the others.
    *
    * @param subClass the concrete type whose specializations are being inferred
    * @param baseClass the base type, a parameterized class
@@ -373,7 +373,7 @@ public class CoderRegistry {
    * <P> For example, if baseClass is Map.class and subClass extends
    * {@code Map<String, Integer>} then this will return the registered Coders
    * to use for String and Integer in that order.  The knownCoders parameter
-   * can be used to provide known coders for any of the parameters which will
+   * can be used to provide known coders for any of the parameters that will
    * be used to infer the others.
    *
    * <P> If a type cannot be inferred, null is returned.

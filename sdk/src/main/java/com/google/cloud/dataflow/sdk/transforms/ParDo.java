@@ -394,7 +394,7 @@ import java.util.Map;
  * together into a single ParDo operation and run in a single pass;
  * this is "producer-consumer fusion".  Similarly, if
  * two or more ParDo operations have the same PCollection main input,
- * they will be fused into a single ParDo which makes just one pass
+ * they will be fused into a single ParDo that makes just one pass
  * over the input PCollection; this is "sibling fusion".
  *
  * <p> If after fusion there are no more unfused references to a
@@ -596,8 +596,8 @@ public class ParDo {
 
     /**
      * Returns a new {@code ParDo} {@code PTransform} that's like this
-     * transform but which will invoke the given {@link DoFn}
-     * function, and which has its input and output types bound.  Does
+     * transform but that will invoke the given {@link DoFn}
+     * function, and that has its input and output types bound.  Does
      * not modify this transform.  The resulting {@code PTransform} is
      * sufficiently specified to be applied, but more properties can
      * still be specified.
@@ -790,8 +790,8 @@ public class ParDo {
 
     /**
      * Returns a new multi-output {@code ParDo} {@code PTransform}
-     * that's like this transform but which will invoke the given
-     * {@link DoFn} function, and which has its input type bound.
+     * that's like this transform but that will invoke the given
+     * {@link DoFn} function, and that has its input type bound.
      * Does not modify this transform.  The resulting
      * {@code PTransform} is sufficiently specified to be applied, but
      * more properties can still be specified.

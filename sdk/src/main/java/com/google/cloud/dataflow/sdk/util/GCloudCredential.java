@@ -28,7 +28,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 
 /**
- * A credential object which uses the GCloud command line tool to get
+ * A credential object that uses the GCloud command line tool to get
  * an access token.
  */
 public class GCloudCredential extends Credential {

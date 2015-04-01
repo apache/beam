@@ -171,7 +171,7 @@ public class DataflowWorkProgressUpdaterTest {
 
   // TODO: Remove sleeps from this test by using a mock sleeper.  This
   // requires a redesign of the WorkProgressUpdater to use a Sleeper and
-  // not use a ScheduledThreadExecutor which relies on real time passing.
+  // not use a ScheduledThreadExecutor that relies on real time passing.
   @Test(timeout = 1000)
   public void workProgressUpdaterUpdates() throws Exception {
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))

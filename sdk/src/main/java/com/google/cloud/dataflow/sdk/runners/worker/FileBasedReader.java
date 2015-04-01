@@ -225,7 +225,7 @@ public abstract class FileBasedReader<T> extends Reader<T> {
         return null;
       }
       if (splitOffset <= offset) {
-        LOG.info("Already progressed to offset {} which is after the requested split offset {}",
+        LOG.info("Already progressed to offset {}, which is after the requested split offset {}",
             offset, splitOffset);
         return null;
       }

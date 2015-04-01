@@ -151,7 +151,7 @@ public class Window {
 
     /**
      * Returns a new {@code Window} {@code PTransform} that's like this
-     * transform but which will use the given {@link WindowFn}, and which has
+     * transform but that will use the given {@link WindowFn}, and that has
      * its input and output types bound.  Does not modify this transform.  The
      * resulting {@code PTransform} is sufficiently specified to be applied,
      * but more properties can still be specified.

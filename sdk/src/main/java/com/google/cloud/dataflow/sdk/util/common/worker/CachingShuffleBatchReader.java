@@ -64,7 +64,7 @@ public final class CachingShuffleBatchReader implements ShuffleBatchReader {
   // @VisibleForTesting
   final HashMap<BatchRange, RangeReadReference> cache = new HashMap<>();
 
-  // The queue of references which have been collected by the garbage collector.
+  // The queue of references that have been collected by the garbage collector.
   // This queue should only be used with references of class RangeReadReference.
   private final ReferenceQueue<AsyncReadResult> refQueue = new ReferenceQueue<>();
 

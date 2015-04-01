@@ -24,7 +24,7 @@ import java.util.Collections;
 
 /**
  * {@code PBegin} is used as the "input" to a root
- * {@link com.google.cloud.dataflow.sdk.transforms.PTransform} which
+ * {@link com.google.cloud.dataflow.sdk.transforms.PTransform} that
  * is the first operation in a {@link Pipeline}, such as
  * {@link com.google.cloud.dataflow.sdk.io.TextIO.Read} or
  * {@link com.google.cloud.dataflow.sdk.transforms.Create}.

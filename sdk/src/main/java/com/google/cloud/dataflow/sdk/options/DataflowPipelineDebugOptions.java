@@ -103,13 +103,13 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
 
   /**
    * The path validator instance that should be created and used to validate paths.
-   * If no path validator has been set explicitly, the default is to use the instance factory which
+   * If no path validator has been set explicitly, the default is to use the instance factory that
    * constructs a path validator based upon the currently set pathValidatorClass.
    */
   @JsonIgnore
   @Description("The path validator instance that should be created and used to validate paths. "
       + "If no path validator has been set explicitly, the default is to use the instance factory "
-      + "which constructs a path validator based upon the currently set pathValidatorClass.")
+      + "that constructs a path validator based upon the currently set pathValidatorClass.")
   @Default.InstanceFactory(PathValidatorFactory.class)
   PathValidator getPathValidator();
   void setPathValidator(PathValidator validator);
@@ -128,12 +128,12 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   /**
    * The resource stager instance that should be created and used to stage resources.
    * If no stager has been set explicitly, the default is to use the instance factory
-   * which constructs a resource stager based upon the currently set stagerClass.
+   * that constructs a resource stager based upon the currently set stagerClass.
    */
   @JsonIgnore
   @Description("The resource stager instance that should be created and used to stage resources. "
       + "If no stager has been set explicitly, the default is to use the instance factory "
-      + "which constructs a resource stager based upon the currently set stagerClass.")
+      + "that constructs a resource stager based upon the currently set stagerClass.")
   @Default.InstanceFactory(StagerFactory.class)
   Stager getStager();
   void setStager(Stager stager);

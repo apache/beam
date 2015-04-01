@@ -109,7 +109,7 @@ public final class CoderUtils {
   }
 
   /**
-   * A {@link com.fasterxml.jackson.databind.module.Module} which adds the type
+   * A {@link com.fasterxml.jackson.databind.module.Module} that adds the type
    * resolver needed for Coder definitions created by the Dataflow service.
    */
   @SuppressWarnings("serial")

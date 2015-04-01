@@ -83,7 +83,7 @@ public class DataflowPipelineTranslatorTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  // A Custom Mockito matcher for an initial Job which checks that all
+  // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
   private static class IsValidCreateRequest extends ArgumentMatcher<Job> {
     public boolean matches(Object o) {
@@ -354,7 +354,7 @@ public class DataflowPipelineTranslatorTest {
   }
 
   /**
-   * A composite transform which returns an output that is unrelated to
+   * A composite transform that returns an output that is unrelated to
    * the input.
    */
   private static class UnrelatedOutputCreator
@@ -376,7 +376,7 @@ public class DataflowPipelineTranslatorTest {
   }
 
   /**
-   * A composite transform which returns an output which is unbound.
+   * A composite transform that returns an output that is unbound.
    */
   private static class UnboundOutputCreator
       extends PTransform<PCollection<Integer>, PDone> {
@@ -396,7 +396,7 @@ public class DataflowPipelineTranslatorTest {
   }
 
   /**
-   * A composite transform which returns a partially bound output.
+   * A composite transform that returns a partially bound output.
    *
    * <p> This is not allowed and will result in a failure.
    */

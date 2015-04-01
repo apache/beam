@@ -20,14 +20,14 @@
  * {@link com.google.cloud.dataflow.sdk.io.BigQueryIO}, and
  * {@link com.google.cloud.dataflow.sdk.io.TextIO}.
  *
- * <p>The classes in this package provide {@code Read} transforms which create PCollections
+ * <p>The classes in this package provide {@code Read} transforms that create PCollections
  * from existing storage:
  * <pre>{@code
  * PCollection<TableRow> inputData = pipeline.apply(
  *     BigQueryIO.Read.named("Read")
  *                    .from("clouddataflow-readonly:samples.weather_stations");
  * }</pre>
- * and {@code Write} transforms which persist PCollections to external storage:
+ * and {@code Write} transforms that persist PCollections to external storage:
  * <pre> {@code
  * PCollection<Integer> numbers = ...;
  * numbers.apply(TextIO.Write.named("WriteNumbers")

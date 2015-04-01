@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.PrintStream;
 
 /**
- * Options which are used to configure the {@link BlockingDataflowPipelineRunner}.
+ * Options that are used to configure the {@link BlockingDataflowPipelineRunner}.
  */
 @Description("Configure options on the BlockingDataflowPipelineRunner.")
 public interface BlockingDataflowPipelineOptions extends DataflowPipelineOptions {

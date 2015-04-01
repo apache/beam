@@ -84,7 +84,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   // progress; each time at least one byte is successfully read, the counter of attempted retries
   // is reset.
   // TODO: Wire this setting out to GHFS; it should correspond to adding the wiring for
-  // setting the equivalent value inside HttpRequest.java which determines the low-level retries
+  // setting the equivalent value inside HttpRequest.java that determines the low-level retries
   // during "execute()" calls. The default in HttpRequest.java is also 10.
   private int maxRetries = 10;
 
@@ -525,7 +525,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       throws IOException {
     validatePosition(newPosition);
     Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
-    // Set the range on the existing request headers which may have been initialized with things
+    // Set the range on the existing request headers that may have been initialized with things
     // like user-agent already.
     clientRequestHelper.getRequestHeaders(getObject)
         .setRange(String.format("bytes=%d-", newPosition));

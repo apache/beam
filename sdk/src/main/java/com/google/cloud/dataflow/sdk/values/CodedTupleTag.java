@@ -30,7 +30,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 @SuppressWarnings("serial")
 public class CodedTupleTag<T> extends TupleTag<T> {
   /**
-   * Returns a {@code CodedTupleTag} with the given id which uses the
+   * Returns a {@code CodedTupleTag} with the given id that uses the
    * given {@code Coder} whenever a value associated with the tag
    * needs to be serialized.
    *

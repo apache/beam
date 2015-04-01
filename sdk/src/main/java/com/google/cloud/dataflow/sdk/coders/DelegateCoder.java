@@ -29,7 +29,7 @@ import java.io.Serializable;
  *
  * <p> The conversions from {@code T} to {@code DT} and vice versa
  * must be supplied as {@link CodingFunction}, a serializable
- * function which may throw any {@code Exception}. If a thrown
+ * function that may throw any {@code Exception}. If a thrown
  * exception is an instance of {@link CoderException} or
  * {@link IOException}, it will be re-thrown, otherwise it will be wrapped as
  * a {@link CoderException}.

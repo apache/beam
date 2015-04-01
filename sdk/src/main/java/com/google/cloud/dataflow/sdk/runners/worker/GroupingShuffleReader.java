@@ -116,14 +116,14 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
    * <p>A key limitation of this implementation is that all iterator accesses
    * must by externally synchronized (the iterator objects are not individually
    * thread-safe, and the iterators derived from a single original iterator
-   * access shared state which is not thread-safe).
+   * access shared state that is not thread-safe).
    *
    * <p>To access the current position, the iterator must advance
    * on-demand and cache the next batch of key grouped shuffle
    * entries. The iterator does not advance a second time in @next()
    * to avoid asking the underlying iterator to advance to the next
    * key before the caller/user iterates over the values corresponding
-   * to the current key -- which would introduce a performance
+   * to the current key, which would introduce a performance
    * penalty.
    */
   private final class GroupingShuffleReaderIterator
@@ -244,8 +244,8 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
       ByteArrayShufflePosition newStopPosition =
           ByteArrayShufflePosition.fromBase64(splitShufflePosition);
       if (newStopPosition.compareTo(promisedPosition) <= 0) {
-        LOG.info("Already progressed to promised shuffle position {} "
-            + "which is after the requested split shuffle position {}",
+        LOG.info("Already progressed to promised shuffle position {}, which is "
+            + "after the requested split shuffle position {}",
             promisedPosition.encodeBase64(), splitShufflePosition);
         return null;
       }

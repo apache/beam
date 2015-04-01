@@ -76,7 +76,7 @@ public class Top {
    * {@code Comparable} elements using their natural ordering.
    *
    * <p> See also {@link #perKey}, {@link #smallestPerKey}, and
-   * {@link #largestPerKey} which take a {@code PCollection} of
+   * {@link #largestPerKey}, which take a {@code PCollection} of
    * {@code KV}s and return the top values associated with each key.
    */
   public static <T, C extends Comparator<T> & Serializable>
@@ -116,7 +116,7 @@ public class Top {
    * {@code Comparator} function.
    *
    * <p> See also {@link #perKey}, {@link #smallestPerKey}, and
-   * {@link #largestPerKey} which take a {@code PCollection} of
+   * {@link #largestPerKey}, which take a {@code PCollection} of
    * {@code KV}s and return the top values associated with each key.
    */
   public static <T extends Comparable<T>>
@@ -156,7 +156,7 @@ public class Top {
    * {@code Comparator} function.
    *
    * <p> See also {@link #perKey}, {@link #smallestPerKey}, and
-   * {@link #largestPerKey} which take a {@code PCollection} of
+   * {@link #largestPerKey}, which take a {@code PCollection} of
    * {@code KV}s and return the top values associated with each key.
    */
   public static <T extends Comparable<T>>
@@ -199,12 +199,12 @@ public class Top {
    * output {@code PCollection} is a {@code ListCoder} of the
    * {@code Coder} of the values of the input {@code PCollection}.
    *
-   * <p> See also {@link #smallestPerKey} and {@link #largestPerKey},
-   * which sort {@code Comparable<V>} values using their natural
+   * <p> See also {@link #smallestPerKey} and {@link #largestPerKey}, which
+   * sort {@code Comparable<V>} values using their natural
    * ordering.
    *
-   * <p> See also {@link #of}, {@link #smallest}, and {@link #largest}
-   * which take a {@code PCollection} and return the top elements.
+   * <p> See also {@link #of}, {@link #smallest}, and {@link #largest}, which
+   * take a {@code PCollection} and return the top elements.
    */
   public static <K, V, C extends Comparator<V> & Serializable>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
@@ -251,8 +251,8 @@ public class Top {
    * <p> See also {@link #perKey}, which sorts values using a user-specified
    * {@code Comparator} function.
    *
-   * <p> See also {@link #of}, {@link #smallest}, and {@link #largest}
-   * which take a {@code PCollection} and return the top elements.
+   * <p> See also {@link #of}, {@link #smallest}, and {@link #largest}, which
+   * take a {@code PCollection} and return the top elements.
    */
   public static <K, V extends Comparable<V>>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
@@ -299,8 +299,8 @@ public class Top {
    * <p> See also {@link #perKey}, which sorts values using a user-specified
    * {@code Comparator} function.
    *
-   * <p> See also {@link #of}, {@link #smallest}, and {@link #largest}
-   * which take a {@code PCollection} and return the top elements.
+   * <p> See also {@link #of}, {@link #smallest}, and {@link #largest}, which
+   * take a {@code PCollection} and return the top elements.
    */
   public static <K, V extends Comparable<V>>
       PerKey<K, V, List<V>>

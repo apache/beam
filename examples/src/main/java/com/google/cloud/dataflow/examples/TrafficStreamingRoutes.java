@@ -67,8 +67,8 @@ import java.util.Map;
  *
  * <p> This pipeline expects input from
  * <a href="https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher">
- * this script</a>,
- * which publishes traffic sensor data to a PubSub topic. After you've started this pipeline, start
+ * this script</a>, which publishes traffic sensor data to a PubSub topic.
+ * After you've started this pipeline, start
  * up the input generation script as per its instructions. The default SlidingWindow parameters
  * assume that you're running this script without the {@literal --replay} flag, so that there are
  * no simulated pauses in the sensor data publication.
@@ -373,4 +373,3 @@ public class TrafficStreamingRoutes {
   }
 
 }
-

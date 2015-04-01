@@ -155,7 +155,7 @@ public class DatastoreIO {
   }
 
   /**
-   * Returns a {@code PTransform} which reads Datastore entities from the query
+   * Returns a {@code PTransform} that reads Datastore entities from the query
    * against the given dataset.
    */
   public static ReadSource.Bound<Entity> readFrom(String datasetId, Query query) {
@@ -163,7 +163,7 @@ public class DatastoreIO {
   }
 
   /**
-   * Returns a {@code PTransform} which reads Datastore entities from the query
+   * Returns a {@code PTransform} that reads Datastore entities from the query
    * against the given dataset and host.
    */
   public static ReadSource.Bound<Entity> readFrom(String host, String datasetId, Query query) {

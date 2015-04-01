@@ -25,13 +25,13 @@ import java.util.List;
 
 /**
  * A source that uses byte offsets to define starting and ending positions. Extend this class to
- * implement your own byte offset based custom source. {@link FileBasedSource} which is a subclass
- * of this adds additional functionality useful for custom sources that are based on files. If
+ * implement your own byte offset based custom source. {@link FileBasedSource}, which is a subclass
+ * of this, adds additional functionality useful for custom sources that are based on files. If
  * possible implementors should start from {@code FileBasedSource} instead of
  * {@code ByteOffsetBasedSource}.
  *
  * <p>This is a common base class for all sources that use a byte offset range. It stores the range
- * and implements splitting into bundles. This should be used for sources which can be cheaply read
+ * and implements splitting into bundles. This should be used for sources that can be cheaply read
  * starting at any given byte offset.
  *
  * <p>The byte offset range of the source is between {@code startOffset} (inclusive) and endOffset
@@ -40,7 +40,7 @@ import java.util.List;
  * past the range. The source does not include any record at offsets before this range even if it
  * extend into this range because the previous range will include this record. A source may choose
  * to include records at offsets after this range. For example, a source may choose to set offset
- * boundaries based on blocks of records in which case certain records may start after
+ * boundaries based on blocks of records, in which case certain records may start after
  * {@code endOffset}. But for any given source type the combined set of data read by two sources for
  * ranges [A, B) and [B, C) must be the same as the records read by a single source of the same type
  * for the range [A, C).
@@ -229,7 +229,7 @@ public abstract class ByteOffsetBasedSource<T> extends BoundedSource<T> {
       }
       // Note: we intentionally ignore minBundleSize here.
       // It is useful to respect it during initial splitting so we don't produce work items
-      // which are likely to turn out too small - but once dynamic work rebalancing kicks in,
+      // that are likely to turn out too small - but once dynamic work rebalancing kicks in,
       // its estimates are far more precise and should take priority. If it says split into
       // tiny single-record bundles, we should do that.
       ByteOffsetBasedSource<T> primary = source.createSourceForSubrange(start, splitOffset);

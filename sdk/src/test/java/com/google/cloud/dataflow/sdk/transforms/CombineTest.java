@@ -275,7 +275,7 @@ public class CombineTest implements Serializable {
     runTestAccumulatingCombine(EMPTY_TABLE, 0.0, new KV[] { });
   }
 
-  // Checks that Min, Max, Mean, Sum (operations which pass-through to Combine),
+  // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine),
   // provide their own top-level name.
   @Test
   public void testCombinerNames() {

@@ -107,8 +107,8 @@ public abstract class StandardCoder<T> implements Coder<T> {
 
   /**
    * StandardCoder requires elements to be fully encoded and copied
-   * into a byte stream to determine the byte size of the element,
-   * which is considered expensive.
+   * into a byte stream to determine the byte size of the element, which is
+   * considered expensive.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(T value, Context context) {

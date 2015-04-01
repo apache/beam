@@ -154,7 +154,7 @@ public class DatastoreWordCount {
   }
 
   /**
-   * An example which creates a pipeline to populate DatastoreIO from a
+   * An example that creates a pipeline to populate DatastoreIO from a
    * text input.  Forces use of DirectPipelineRunner for local execution mode.
    */
   public static void writeDataToDatastore(Options options) {
@@ -178,7 +178,7 @@ public class DatastoreWordCount {
   }
 
   /**
-   * An example which creates a pipeline to do DatastoreIO.Read from Datastore.
+   * An example that creates a pipeline to do DatastoreIO.Read from Datastore.
    */
   public static void readDataFromDatastore(Options options) {
     // Build a query: read all entities of the specified kind.

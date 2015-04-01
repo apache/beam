@@ -46,7 +46,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
- * Tests for {@link View}. See also {@link ParDoTest} which
+ * Tests for {@link View}. See also {@link ParDoTest}, which
  * provides additional coverage since views can only be
  * observed via {@link ParDo}.
  */

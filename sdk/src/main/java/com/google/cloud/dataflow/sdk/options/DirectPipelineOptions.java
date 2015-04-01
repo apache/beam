@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.options;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
 
 /**
- * Options which can be used to configure the {@link DirectPipeline}.
+ * Options that can be used to configure the {@link DirectPipeline}.
  */
 public interface DirectPipelineOptions extends
     ApplicationNameOptions, BigQueryOptions, GcsOptions, GcpOptions,

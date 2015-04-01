@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Provides a simple PipelineVisitor which records the transformation tree.
+ * Provides a simple PipelineVisitor that records the transformation tree.
  *
  * <p> Provided for internal unit tests.
  */

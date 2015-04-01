@@ -115,7 +115,7 @@ public class BlockingDataflowPipelineRunner extends
       return new DataflowPipelineJobState(result);
     }
 
-    // TODO: introduce an exception which can wrap a JobState,
+    // TODO: introduce an exception that can wrap a JobState,
     // so that detailed error information can be retrieved.
     throw new RuntimeException("Job failed with state " + result);
   }

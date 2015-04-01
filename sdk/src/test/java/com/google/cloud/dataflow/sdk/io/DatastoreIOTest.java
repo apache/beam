@@ -56,8 +56,8 @@ public class DatastoreIOTest {
   private Query query;
 
   /**
-   * Sets the default dataset ID as "shakespearedataset",
-   * which contains two kinds of records: "food" and "shakespeare".
+   * Sets the default dataset ID as "shakespearedataset", which
+   * contains two kinds of records: "food" and "shakespeare".
    * The "food" table contains 10 manually constructed entities,
    * The "shakespeare" table contains 172948 entities,
    * where each entity represents one line in one play in

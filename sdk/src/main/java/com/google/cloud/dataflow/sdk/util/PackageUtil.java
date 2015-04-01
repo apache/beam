@@ -227,7 +227,7 @@ public class PackageUtil {
   }
 
   /**
-   * Computes a message digest of the file/directory contents, returning a base64 string which is
+   * Computes a message digest of the file/directory contents, returning a base64 string that is
    * suitable for use in URLs.
    */
   private static String computeContentHash(File classpathElement) throws IOException {
@@ -351,7 +351,7 @@ public class PackageUtil {
   private static String relativize(File file, File root) {
     if (AppEngineEnvironment.IS_APP_ENGINE) {
       // AppEngine doesn't allow for java.nio.file.Path to be used so we rely on
-      // using URIs, but URIs are broken for UNC paths which AppEngine doesn't
+      // using URIs, but URIs are broken for UNC paths, which AppEngine doesn't
       // use. See for more details: http://wiki.eclipse.org/Eclipse/UNC_Paths
       return root.toURI().relativize(file.toURI()).getPath();
     }

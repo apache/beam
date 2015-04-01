@@ -37,7 +37,7 @@ public abstract class WorkExecutor implements AutoCloseable {
 
   /**
    * OperatingSystemMXBean for reporting CPU usage.
-   *
+   * <p>
    * Uses com.sun.management.OperatingSystemMXBean instead of
    * java.lang.management.OperatingSystemMXBean because the former supports
    * getProcessCpuLoad().
@@ -84,7 +84,7 @@ public abstract class WorkExecutor implements AutoCloseable {
 
   /**
    * See {@link Reader.ReaderIterator#requestDynamicSplit}.
-   * Makes sense only for tasks which read input.
+   * Makes sense only for tasks that read input.
    */
   public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest)
       throws Exception {

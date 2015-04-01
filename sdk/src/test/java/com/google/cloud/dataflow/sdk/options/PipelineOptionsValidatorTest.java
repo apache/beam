@@ -66,7 +66,7 @@ public class PipelineOptionsValidatorTest {
     PipelineOptionsValidator.validate(Required.class, required);
   }
 
-  /** A test interface which overrides the parents method. */
+  /** A test interface that overrides the parent's method. */
   public static interface SubClassValidation extends Required {
     @Override
     public String getObject();

@@ -23,10 +23,10 @@ public interface ApplicationNameOptions extends PipelineOptions {
   /**
    * Name of application, for display purposes.
    * <p>
-   * Defaults to the name of the class which constructs the {@link PipelineOptions}
+   * Defaults to the name of the class that constructs the {@link PipelineOptions}
    * via the {@link PipelineOptionsFactory}.
    */
-  @Description("Name of application for display purposes. Defaults to the name of the class which "
+  @Description("Name of application for display purposes. Defaults to the name of the class that "
       + "constructs the PipelineOptions via the PipelineOptionsFactory.")
   String getAppName();
   void setAppName(String value);

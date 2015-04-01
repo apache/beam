@@ -163,12 +163,12 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /**
    * The credential instance that should be used to authenticate against GCP services.
    * If no credential has been set explicitly, the default is to use the instance factory
-   * which constructs a credential based upon the currently set credentialFactoryClass.
+   * that constructs a credential based upon the currently set credentialFactoryClass.
    */
   @JsonIgnore
   @Description("The credential instance that should be used to authenticate against GCP services. "
       + "If no credential has been set explicitly, the default is to use the instance factory "
-      + "which constructs a credential based upon the currently set credentialFactoryClass.")
+      + "that constructs a credential based upon the currently set credentialFactoryClass.")
   @Default.InstanceFactory(GcpUserCredentialsFactory.class)
   @Hidden
   Credential getGcpCredential();

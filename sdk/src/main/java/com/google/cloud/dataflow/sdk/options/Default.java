@@ -22,7 +22,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * {@link Default} represents a set of annotations which can be used to annotate getter properties
+ * {@link Default} represents a set of annotations that can be used to annotate getter properties
  * on {@link PipelineOptions} with information representing the default value to be returned
  * if no value is specified.
  */

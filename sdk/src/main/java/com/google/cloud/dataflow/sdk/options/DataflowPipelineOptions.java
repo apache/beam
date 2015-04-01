@@ -25,9 +25,9 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 /**
- * Options which can be used to configure the {@link DataflowPipeline}.
+ * Options that can be used to configure the {@link DataflowPipeline}.
  */
-@Description("Options which configure the Dataflow pipeline.")
+@Description("Options that configure the Dataflow pipeline.")
 public interface DataflowPipelineOptions extends
     PipelineOptions, GcpOptions, ApplicationNameOptions, DataflowPipelineDebugOptions,
     DataflowPipelineWorkerPoolOptions, BigQueryOptions,
@@ -67,11 +67,11 @@ public interface DataflowPipelineOptions extends
 
   /**
    * The Dataflow job name is used as an idempotence key within the Dataflow service.
-   * If there is an existing job which is currently active, another active job with the same
+   * If there is an existing job that is currently active, another active job with the same
    * name will not be able to be created. Defaults to using the ApplicationName-UserName-Date.
    */
   @Description("The Dataflow job name is used as an idempotence key within the Dataflow service. "
-      + "If there is an existing job which is currently active, another active job with the same "
+      + "If there is an existing job that is currently active, another active job with the same "
       + "name will not be able to be created. Defaults to using the ApplicationName-UserName-Date.")
   @Default.InstanceFactory(JobNameFactory.class)
   String getJobName();

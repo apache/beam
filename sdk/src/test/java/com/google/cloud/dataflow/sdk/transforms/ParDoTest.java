@@ -288,7 +288,7 @@ public class ParDoTest implements Serializable {
   }
 
   /**
-   * Output the keys which have appeared at least three times.
+   * Output the keys that have appeared at least three times.
    */
   static class TestKeyedStateCountAtLeastThreeDoFn
       extends DoFn<KV<String, Integer>, String> implements DoFn.RequiresKeyedState{
@@ -1027,7 +1027,7 @@ public class ParDoTest implements Serializable {
     );
 
     // Before fix, tuple.get(mainOutputTag).apply(...) would indirectly trigger
-    // tuple.get(sideOutputTag).finishSpecifyingOutput() which would crash
+    // tuple.get(sideOutputTag).finishSpecifyingOutput(), which would crash
     // on a missing coder.
     PCollection<Integer> foo = tuple
         .get(mainOutputTag)

@@ -43,7 +43,7 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 public class ExpectedLogs extends ExternalResource {
   /**
-   * Returns a {@link TestRule} which captures logs for the given class.
+   * Returns a {@link TestRule} that captures logs for the given class.
    *
    * @param klass The class to capture logs for.
    * @return A {@link ExpectedLogs} test rule.
@@ -220,7 +220,7 @@ public class ExpectedLogs extends ExternalResource {
   }
 
   /**
-   * A JUL logging {@link Handler} that records all logging events which are passed to it.
+   * A JUL logging {@link Handler} that records all logging events that are passed to it.
    */
   @ThreadSafe
   private static class LogSaver extends Handler {

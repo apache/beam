@@ -197,10 +197,10 @@ public class GcsUtil {
   /**
    * Opens an object in GCS.
    *
-   * <p> Returns a SeekableByteChannel which provides access to data in the bucket.
+   * <p> Returns a SeekableByteChannel that provides access to data in the bucket.
    *
    * @param path the GCS filename to read from
-   * @return a SeekableByteChannel which can read the object data
+   * @return a SeekableByteChannel that can read the object data
    * @throws IOException
    */
   public SeekableByteChannel open(GcsPath path)
@@ -212,12 +212,12 @@ public class GcsUtil {
   /**
    * Creates an object in GCS.
    *
-   * <p> Returns a WritableByteChannel which can be used to write data to the
+   * <p> Returns a WritableByteChannel that can be used to write data to the
    * object.
    *
    * @param path the GCS file to write to
    * @param type the type of object, eg "text/plain".
-   * @return a Callable object which encloses the operation.
+   * @return a Callable object that encloses the operation.
    * @throws IOException
    */
   public WritableByteChannel create(GcsPath path,

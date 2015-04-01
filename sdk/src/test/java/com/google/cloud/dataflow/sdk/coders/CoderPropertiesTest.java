@@ -42,7 +42,7 @@ public class CoderPropertiesTest {
     CoderProperties.coderDeterministic(StringUtf8Coder.of(), "TestData", "TestData");
   }
 
-  /** A coder which says it is not deterministic but actually is. */
+  /** A coder that says it is not deterministic but actually is. */
   private static class NonDeterministicCoder extends CustomCoder<String> {
     private static final long serialVersionUID = 0;
 
@@ -81,7 +81,7 @@ public class CoderPropertiesTest {
     }
   }
 
-  /** A coder which is non-deterministic because it adds a string to the value. */
+  /** A coder that is non-deterministic because it adds a string to the value. */
   private static class BadDeterminsticCoder extends CustomCoder<String> {
     private static final long serialVersionUID = 0;
 

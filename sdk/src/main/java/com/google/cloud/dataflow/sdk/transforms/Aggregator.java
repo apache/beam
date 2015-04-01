@@ -26,7 +26,7 @@ package com.google.cloud.dataflow.sdk.transforms;
  * <p> Aggregators are visible in the monitoring UI, when the pipeline is run
  * using DataflowPipelineRunner or BlockingDataflowPipelineRunner, along with
  * their current value. Aggregators may not become visible until the system
- * begins executing the ParDo transform which created them and/or their initial
+ * begins executing the ParDo transform that created them and/or their initial
  * value is changed.
  *
  * <p> Example:

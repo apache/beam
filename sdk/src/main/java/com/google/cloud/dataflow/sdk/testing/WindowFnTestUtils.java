@@ -127,7 +127,7 @@ public class WindowFnTestUtils {
   }
 
   /**
-   * A WindowSet useful for testing WindowFns which simply
+   * A WindowSet useful for testing WindowFns that simply
    * collects the placed elements into multisets.
    */
   private static class TestWindowSet<W extends BoundedWindow, V> {

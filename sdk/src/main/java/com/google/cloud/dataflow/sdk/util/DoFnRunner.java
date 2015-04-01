@@ -55,7 +55,7 @@ import java.util.Map;
  *
  * @param <I> the type of the DoFn's (main) input elements
  * @param <O> the type of the DoFn's (main) output elements
- * @param <R> the type of object which receives outputs
+ * @param <R> the type of object that receives outputs
  */
 public class DoFnRunner<I, O, R> {
 
@@ -198,7 +198,7 @@ public class DoFnRunner<I, O, R> {
    *
    * @param <I> the type of the DoFn's (main) input elements
    * @param <O> the type of the DoFn's (main) output elements
-   * @param <R> the type of object which receives outputs
+   * @param <R> the type of object that receives outputs
    */
   private static class DoFnContext<I, O, R> extends DoFn<I, O>.Context {
     private static final int MAX_SIDE_OUTPUTS = 1000;

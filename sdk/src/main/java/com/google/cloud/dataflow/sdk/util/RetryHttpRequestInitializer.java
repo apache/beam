@@ -40,9 +40,9 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
- * Implements a request initializer which adds retry handlers to all
+ * Implements a request initializer that adds retry handlers to all
  * HttpRequests.
- *
+ * <p>
  * This allows chaining through to another HttpRequestInitializer, since
  * clients have exactly one HttpRequestInitializer, and Credential is also
  * a required HttpRequestInitializer.
@@ -139,7 +139,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
   /**
    * @param chained a downstream HttpRequestInitializer, which will also be
    *                applied to HttpRequest initialization.  May be null.
-   * @param additionalIgnoredResponseCodes a list of HTTP status codes which should not be logged.
+   * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
    */
   public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained,
       Collection<Integer> additionalIgnoredResponseCodes) {
@@ -153,7 +153,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
    *                applied to HttpRequest initialization.  May be null.
    * @param nanoClock used as a timing source for knowing how much time has elapsed.
    * @param sleeper used to sleep between retries.
-   * @param additionalIgnoredResponseCodes a list of HTTP status codes which should not be logged.
+   * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
    */
   RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained,
       NanoClock nanoClock, Sleeper sleeper, Collection<Integer> additionalIgnoredResponseCodes) {

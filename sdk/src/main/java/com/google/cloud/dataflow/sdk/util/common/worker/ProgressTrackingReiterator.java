@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.util.common.ForwardingReiterator;
 import com.google.cloud.dataflow.sdk.util.common.Reiterator;
 
 /**
- * Implements a {@link Reiterator} which uses a
+ * Implements a {@link Reiterator} that uses a
  * {@link ProgressTrackerGroup.Tracker ProgressTracker} to track how far
  * it's gotten through some base {@code Reiterator}.
  * {@link ProgressTrackingReiterator#copy} copies the {@code ProgressTracker},

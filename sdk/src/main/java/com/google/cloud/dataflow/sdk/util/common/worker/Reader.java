@@ -102,7 +102,7 @@ public abstract class Reader<T> extends Observable {
      * This method is not required to be thread-safe, and it will not be
      * called concurrently to any other methods.
      * <p>
-     * This call should not affect the range of input represented by the {@link Reader} which
+     * This call should not affect the range of input represented by the {@link Reader} that
      * produced this {@link ReaderIterator}.
      *
      * @return {@code null} if the {@link Reader.DynamicSplitRequest} cannot be honored
@@ -169,7 +169,7 @@ public abstract class Reader<T> extends Observable {
   public interface DynamicSplitResult {}
 
   /**
-   * A {@link Reader.DynamicSplitResult} which specifies the boundary between the primary and
+   * A {@link Reader.DynamicSplitResult} that specifies the boundary between the primary and
    * residual parts of the input using a {@link Position}.
    */
   public static final class DynamicSplitResultWithPosition implements DynamicSplitResult {

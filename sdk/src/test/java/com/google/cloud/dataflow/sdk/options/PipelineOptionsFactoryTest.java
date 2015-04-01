@@ -165,7 +165,7 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.as(CombinedObject.class);
   }
 
-  /** A test interface which contains a non-bean style method. */
+  /** A test interface that contains a non-bean style method. */
   public static interface ExtraneousMethod extends PipelineOptions {
     public String extraneousMethod(int value, String otherValue);
   }
@@ -181,7 +181,7 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.as(ExtraneousMethod.class);
   }
 
-  /** A test interface which has a conflicting return type with its parent. */
+  /** A test interface that has a conflicting return type with its parent. */
   public static interface ReturnTypeConflict extends CombinedObject {
     @Override
     String getObject();
@@ -629,7 +629,7 @@ public class PipelineOptionsFactoryTest {
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: DirectPipelineRunner"));
     assertThat(output,
-        containsString("The pipeline runner which will be used to execute the pipeline."));
+        containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
   @Test
@@ -644,7 +644,7 @@ public class PipelineOptionsFactoryTest {
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: DirectPipelineRunner"));
     assertThat(output,
-        containsString("The pipeline runner which will be used to execute the pipeline."));
+        containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
   @Test
@@ -659,7 +659,7 @@ public class PipelineOptionsFactoryTest {
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: DirectPipelineRunner"));
     assertThat(output,
-        containsString("The pipeline runner which will be used to execute the pipeline."));
+        containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
   /** Used for a name collision test with the other DataflowPipelineOptions. */
@@ -740,7 +740,7 @@ public class PipelineOptionsFactoryTest {
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: DirectPipelineRunner"));
     assertThat(output,
-        containsString("The pipeline runner which will be used to execute the pipeline."));
+        containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
   @Test

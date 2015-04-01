@@ -148,13 +148,13 @@ public abstract class GroupingShuffleEntryIterator
       this.valueKeyBytes = checkNotNull(valueKeyBytes);
       this.valueShuffleIterator = shuffleIterator.copy();
       // N.B. The ProgressTrackerGroup captures the reference to the original
-      // ValuesIterator for a given values iteration.  Which happens to be
+      // ValuesIterator for a given values iteration, which happens to be
       // exactly what we want, since this is also the ValuesIterator whose
       // base Observable has the references to all of the Observers watching
       // the iteration.  Copied ValuesIterator instances do *not* have these
       // Observers, but that's fine, since the derived ProgressTracker
-      // instances reference the ProgressTrackerGroup which references the
-      // original ValuesIterator which does have them.
+      // instances reference the ProgressTrackerGroup, which references the
+      // original ValuesIterator, which does have them.
       this.tracker = new ProgressTrackerGroup<ShuffleEntry>() {
         @Override
         protected void report(ShuffleEntry entry) {

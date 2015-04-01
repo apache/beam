@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
 
 /**
  * Descriptions are used to generate human readable output when the --help
- * command is specified. Description annotations placed on interfaces which extend
+ * command is specified. Description annotations placed on interfaces that extend
  * {@link PipelineOptions} to describe groups of related options. Description annotations
  * placed on getter methods will be used to provide human readable information
  * for the specific option.

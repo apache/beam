@@ -95,7 +95,7 @@ public abstract class Counter<T> {
    * {@link AggregationKind#MAX}, {@link AggregationKind#MEAN}, and
    * {@link AggregationKind#SET}. This is a convenience wrapper over a
    * {@link Counter} implementation that aggregates {@link Long} values. This is
-   * useful when the application handles (boxed) {@link Integer} values which
+   * useful when the application handles (boxed) {@link Integer} values that
    * are not readily convertible to the (boxed) {@link Long} values otherwise
    * expected by the {@link Counter} implementation aggregating {@link Long}
    * values.

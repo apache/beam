@@ -112,9 +112,9 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
    * Returns whether this window set contains the given window.
    *
    * <p> {@code AbstractWindowSet} subclasses may throw
-   * {@link UnsupportedOperationException} if they do not support querying for
-   * which windows are active.  If this is the case, callers must ensure they
-   * do not call {@link #finalValue} on non-existent windows.
+   * {@link UnsupportedOperationException} if they do not support querying
+   * for which windows are active.  If this is the case, callers must ensure
+   * they do not call {@link #finalValue} on non-existent windows.
    */
   protected abstract boolean contains(W window);
 

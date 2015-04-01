@@ -45,7 +45,7 @@ import javax.annotation.Nullable;
 @RunWith(JUnit4.class)
 public class ByteOffsetBasedSourceTest {
 
-  // A byte-offset based source which yields its own current offset
+  // A byte-offset based source that yields its own current offset
   // and rounds the start and end offset to the nearest multiple of a given number,
   // e.g. reading [13, 48) with granularity 10 gives records with values [20, 50).
   private static class CoarseByteRangeSource extends ByteOffsetBasedSource<Integer> {

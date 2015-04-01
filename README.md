@@ -6,8 +6,8 @@ and streaming parallel data processing pipelines.
 
 ## Status [![Build Status](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK.svg?branch=master)](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK)
 
-The Cloud Dataflow SDK is used to access the Google Cloud Dataflow service,
-which is currently in Alpha and restricted to whitelisted users.
+The Cloud Dataflow SDK is used to access the Google Cloud Dataflow
+service, which is currently in Alpha and restricted to whitelisted users.
 
 The SDK is publicly available and can be used for local execution by anyone.
 Note, however, that the SDK is also an Alpha release and may change
@@ -26,7 +26,7 @@ represents a collection of data, which could be bounded or unbounded in size.
 represents a computation that transforms input PCollections into output
 PCollections.
 * [`Pipeline`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/Pipeline.java):
-manages a directed acyclic graph of PTransforms and PCollections, which is ready
+manages a directed acyclic graph of PTransforms and PCollections that is ready
 for execution.
 * [`PipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/PipelineRunner.java):
 specifies where and how the pipeline should execute.

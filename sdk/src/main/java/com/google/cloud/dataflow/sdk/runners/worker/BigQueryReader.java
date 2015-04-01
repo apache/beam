@@ -31,7 +31,7 @@ import java.util.NoSuchElementException;
 /**
  * A source that reads a BigQuery table and yields TableRow objects.
  *
- * <p>The source is a wrapper over the {@code BigQueryTableRowIterator} class which issues a
+ * <p>The source is a wrapper over the {@code BigQueryTableRowIterator} class, which issues a
  * query for all rows of a table and then iterates over the result. There is no support for
  * progress reporting because the source is used only in situations where the entire table must be
  * read by each worker (i.e. the source is used as a side input).

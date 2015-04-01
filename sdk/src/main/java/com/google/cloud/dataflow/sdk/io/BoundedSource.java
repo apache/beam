@@ -24,7 +24,7 @@ import java.io.IOException;
 import javax.annotation.Nullable;
 
 /**
- * A {@code Source} which reads a bounded amount of input and, because of that, supports
+ * A {@code Source} that reads a bounded amount of input and, because of that, supports
  * some additional operations, e.g. size estimation, and its reader supports progress estimation.
  *
  * @param <T> Type of records read by the source.
@@ -53,7 +53,7 @@ public abstract class BoundedSource<T> extends Source<T> {
   }
 
   /**
-   * A {@code Reader} which reads a bounded amount of input and supports some additional
+   * A {@code Reader} that reads a bounded amount of input and supports some additional
    * operations, such as progress estimation and dynamic work rebalancing.
    *
    * <p>This API is experimental and subject to change.
@@ -99,12 +99,12 @@ public abstract class BoundedSource<T> extends Source<T> {
      *  <li> The amount of data read by "primary" should ideally represent approximately
      *  the given fraction of the amount of data read by "initial".
      * </ul>
-     * For example, a reader which reads a range of offsets <i>[A, B)</i> in a file might implement
+     * For example, a reader that reads a range of offsets <i>[A, B)</i> in a file might implement
      * this method by truncating the current range to <i>[A, A + fraction*(B-A))</i> and returning
      * a Source representing the range <i>[A + fraction*(B-A), B)</i>.
      * <p>
      * This method should return {@code null} if the split cannot be performed for this fraction
-     * while satisfying the semantics above. E.g. a reader which reads a range of offsets
+     * while satisfying the semantics above. E.g., a reader that reads a range of offsets
      * in a file should return {@code null} if it is already past the position in its range
      * corresponding to the given fraction. In this case, the method MUST have no effect
      * (the reader must behave as if the method hadn't been called at all).

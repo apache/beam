@@ -418,7 +418,7 @@ public class Combine {
 
     /**
      * Converts this {@code CombineFn} into an equivalent
-     * {@link KeyedCombineFn}, which ignores the keys passed to it and
+     * {@link KeyedCombineFn} that ignores the keys passed to it and
      * combines the values according to this {@code CombineFn}.
      *
      * @param <K> the type of the (ignored) keys
@@ -1103,8 +1103,8 @@ public class Combine {
    * {@code CombineFn<VI, VA, VO>}'s output type {@code VO}.
    *
    * <p> See also {@link #perKey}/{@link PerKey Combine.PerKey} and
-   * {@link #groupedValues}/{@link GroupedValues Combine.GroupedValues},
-   * which are useful for combining values associated with each key in
+   * {@link #groupedValues}/{@link GroupedValues Combine.GroupedValues}, which
+   * are useful for combining values associated with each key in
    * a {@code PCollection} of {@code KV}s.
    *
    * @param <VI> type of input values
@@ -1225,8 +1225,8 @@ public class Combine {
    * {@code CombineFn<VI, VA, VO>}'s output type {@code VO}.
    *
    * <p> See also {@link #perKey}/{@link PerKey Combine.PerKey} and
-   * {@link #groupedValues}/{@link GroupedValues Combine.GroupedValues},
-   * which are useful for combining values associated with each key in
+   * {@link #groupedValues}/{@link GroupedValues Combine.GroupedValues}, which
+   * are useful for combining values associated with each key in
    * a {@code PCollection} of {@code KV}s.
    *
    * @param <VI> type of input values
@@ -1604,8 +1604,8 @@ public class Combine {
    *         new Sum.SumIntegerFn()));
    * } </pre>
    *
-   * <p> See also {@link #perKey}/{@link PerKey Combine.PerKey}
-   * which captures the common pattern of "combining by key" in a
+   * <p> See also {@link #perKey}/{@link PerKey Combine.PerKey}, which
+   * captures the common pattern of "combining by key" in a
    * single easy-to-use {@code PTransform}.
    *
    * <p> Combining for different keys can happen in parallel.  Moreover,
@@ -1628,8 +1628,8 @@ public class Combine {
    * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
-   * <p> See also {@link #globally}/{@link Globally Combine.Globally},
-   * which combines all the values in a {@code PCollection} into a
+   * <p> See also {@link #globally}/{@link Globally Combine.Globally}, which
+   * combines all the values in a {@code PCollection} into a
    * single value in a {@code PCollection}.
    *
    * @param <K> type of input and output keys

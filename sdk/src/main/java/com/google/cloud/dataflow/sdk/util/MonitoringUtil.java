@@ -58,7 +58,7 @@ public final class MonitoringUtil {
   private Messages messagesClient;
 
   /**
-   * An interface which can be used for defining callbacks to receive a list
+   * An interface that can be used for defining callbacks to receive a list
    * of JobMessages containing monitoring information.
    */
   public interface JobMessagesHandler {
@@ -66,7 +66,7 @@ public final class MonitoringUtil {
     void process(List<JobMessage> messages);
   }
 
-  /** A handler which prints monitoring messages to a stream. */
+  /** A handler that prints monitoring messages to a stream. */
   public static class PrintHandler implements JobMessagesHandler {
     private PrintStream out;
 

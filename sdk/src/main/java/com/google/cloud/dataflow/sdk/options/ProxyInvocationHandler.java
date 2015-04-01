@@ -134,8 +134,8 @@ class ProxyInvocationHandler implements InvocationHandler {
   /**
    * Backing implementation for {@link PipelineOptions#as(Class)}.
    *
-   * @param iface The interface which the returned object needs to implement.
-   * @return An object which implements the interface <T>.
+   * @param iface The interface that the returned object needs to implement.
+   * @return An object that implements the interface <T>.
    */
   synchronized <T extends PipelineOptions> T as(Class<T> iface) {
     Preconditions.checkNotNull(iface);
@@ -209,7 +209,7 @@ class ProxyInvocationHandler implements InvocationHandler {
    * Uses a Jackson {@link ObjectMapper} to attempt type conversion.
    *
    * @param method The method whose return type you would like to return.
-   * @param propertyName The name of the property which is being returned.
+   * @param propertyName The name of the property that is being returned.
    * @return An object matching the return type of the method passed in.
    */
   private Object getValueFromJson(String propertyName, Method method) {
@@ -229,7 +229,7 @@ class ProxyInvocationHandler implements InvocationHandler {
    * per the Java Language Specification for the expected return type is returned.
    *
    * @param proxy The proxy object for which we are attempting to get the default.
-   * @param method The getter method which was invoked.
+   * @param method The getter method that was invoked.
    * @return The default value from an {@link Default} annotation if present, otherwise a default
    *         value as per the Java Language Specification.
    */
@@ -331,7 +331,7 @@ class ProxyInvocationHandler implements InvocationHandler {
      */
     private void removeIgnoredOptions(
         Set<Class<? extends PipelineOptions>> interfaces, Map<String, Object> options) {
-      // Find all the method names which are annotated with JSON ignore.
+      // Find all the method names that are annotated with JSON ignore.
       Set<String> jsonIgnoreMethodNames = FluentIterable.from(
           PipelineOptionsFactory.getClosureOfMethodsOnInterfaces(interfaces))
           .filter(JsonIgnorePredicate.INSTANCE).transform(new Function<Method, String>() {
@@ -341,7 +341,7 @@ class ProxyInvocationHandler implements InvocationHandler {
             }
           }).toSet();
 
-      // Remove all options which have the same method name as the descriptor.
+      // Remove all options that have the same method name as the descriptor.
       for (PropertyDescriptor descriptor
           : PipelineOptionsFactory.getPropertyDescriptors(interfaces)) {
         if (jsonIgnoreMethodNames.contains(descriptor.getReadMethod().getName())) {

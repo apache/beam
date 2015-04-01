@@ -31,7 +31,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
  * <p>
  * Serialization
  * <p>
- * For runners which execute their work remotely, every property available within PipelineOptions
+ * For runners that execute their work remotely, every property available within PipelineOptions
  * must either be serializable using Jackson's {@link ObjectMapper} or the getter method for the
  * property annotated with {@link JsonIgnore @JsonIgnore}.
  * <p>
@@ -56,7 +56,7 @@ public interface PipelineOptions {
   <T extends PipelineOptions> T as(Class<T> kls);
 
   @Validation.Required
-  @Description("The pipeline runner which will be used to execute the pipeline. "
+  @Description("The pipeline runner that will be used to execute the pipeline. "
       + "For registered runners, the class name can be specified, otherwise the fully"
       + "qualified name needs to be specified.")
   @Default.Class(DirectPipelineRunner.class)

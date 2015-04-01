@@ -107,7 +107,7 @@ public class ProxyInvocationHandlerTest {
     assertNull(proxy.getObject());
   }
 
-  /** A {@link DefaultValueFactory} which is used for testing. */
+  /** A {@link DefaultValueFactory} that is used for testing. */
   public static class TestOptionFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
@@ -279,7 +279,7 @@ public class ProxyInvocationHandlerTest {
     handler.invoke(handler, UnknownMethod.class.getMethod("unknownMethod"), null);
   }
 
-  /** A test interface which extends another interface. */
+  /** A test interface that extends another interface. */
   public static interface SubClass extends Simple {
     String getExtended();
     void setExtended(String value);
@@ -314,7 +314,7 @@ public class ProxyInvocationHandlerTest {
     assertEquals("subClassValue", extended2.getExtended());
   }
 
-  /** A test interface which is a sibling to {@link SubClass}. */
+  /** A test interface that is a sibling to {@link SubClass}. */
   public static interface Sibling extends Simple {
     String getSibling();
     void setSibling(String value);
@@ -330,7 +330,7 @@ public class ProxyInvocationHandlerTest {
     assertEquals("parentValue", sibling.getString());
   }
 
-  /** A test interface which has the same methods as the parent. */
+  /** A test interface that has the same methods as the parent. */
   public static interface MethodConflict extends Simple {
     @Override
     String getString();
@@ -348,7 +348,7 @@ public class ProxyInvocationHandlerTest {
     assertEquals("conflictValue", methodConflict.as(Simple.class).getString());
   }
 
-  /** A test interface which has the same methods as its parent and grandparent. */
+  /** A test interface that has the same methods as its parent and grandparent. */
   public static interface DeepMethodConflict extends MethodConflict {
     @Override
     String getString();
@@ -378,7 +378,7 @@ public class ProxyInvocationHandlerTest {
     assertEquals(5, deepMethodConflict.as(Simple.class).getPrimitive());
   }
 
-  /** A test interface which shares the same methods as {@link Sibling}. */
+  /** A test interface that shares the same methods as {@link Sibling}. */
   public static interface SimpleSibling extends PipelineOptions {
     String getString();
     void setString(String value);
@@ -393,7 +393,7 @@ public class ProxyInvocationHandlerTest {
     assertEquals("siblingValue", proxy.as(Simple.class).getString());
   }
 
-  /** A test interface which joins two sibling interfaces which have conflicting methods. */
+  /** A test interface that joins two sibling interfaces that have conflicting methods. */
   public static interface SiblingMethodConflict extends Simple, SimpleSibling {
   }
 
@@ -407,7 +407,7 @@ public class ProxyInvocationHandlerTest {
     assertEquals("siblingValue", siblingMethodConflict.as(SimpleSibling.class).getString());
   }
 
-  /** A test interface which has only the getter and only a setter overriden. */
+  /** A test interface that has only the getter and only a setter overriden. */
   public static interface PartialMethodConflict extends Simple {
     @Override
     String getString();
@@ -420,12 +420,12 @@ public class ProxyInvocationHandlerTest {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
     PartialMethodConflict partialMethodConflict = handler.as(PartialMethodConflict.class);
 
-    // Tests overriding a getter property which is only partially bound
+    // Tests overriding a getter property that is only partially bound
     partialMethodConflict.setString("conflictValue");
     assertEquals("conflictValue", partialMethodConflict.getString());
     assertEquals("conflictValue", partialMethodConflict.as(Simple.class).getString());
 
-    // Tests overriding a setter property which is only partially bound
+    // Tests overriding a setter property that is only partially bound
     partialMethodConflict.setPrimitive(5);
     assertEquals(5, partialMethodConflict.getPrimitive());
     assertEquals(5, partialMethodConflict.as(Simple.class).getPrimitive());
@@ -596,7 +596,7 @@ public class ProxyInvocationHandlerTest {
     assertNull(options2.getValue());
   }
 
-  /** Test class which is not serializable by Jackson. */
+  /** Test class that is not serializable by Jackson. */
   public static class NotSerializable {
     private String value;
     public NotSerializable(String value) {
@@ -608,7 +608,7 @@ public class ProxyInvocationHandlerTest {
     }
   }
 
-  /** Test interface containing a class which is not serializable by Jackson. */
+  /** Test interface containing a class that is not serializable by Jackson. */
   private static interface NotSerializableProperty extends PipelineOptions {
     NotSerializable getValue();
     void setValue(NotSerializable value);
@@ -623,7 +623,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /**
-   * Test interface which has {@link JsonIgnore @JsonIgnore} on a property that Jackson
+   * Test interface that has {@link JsonIgnore @JsonIgnore} on a property that Jackson
    * can't serialize.
    */
   private static interface IgnoredNotSerializableProperty extends PipelineOptions {
@@ -643,7 +643,7 @@ public class ProxyInvocationHandlerTest {
     assertNull(options2.getValue());
   }
 
-  /** Test class which is only serializable by Jackson with the added metadata. */
+  /** Test class that is only serializable by Jackson with the added metadata. */
   public static class SerializableWithMetadata {
     private String value;
     public SerializableWithMetadata(@JsonProperty("value") String value) {
@@ -657,7 +657,7 @@ public class ProxyInvocationHandlerTest {
   }
 
   /**
-   * Test interface containing a property which is only serializable by Jackson with
+   * Test interface containing a property that is serializable by Jackson only with
    * the additional metadata.
    */
   private static interface SerializableWithMetadataProperty extends PipelineOptions {

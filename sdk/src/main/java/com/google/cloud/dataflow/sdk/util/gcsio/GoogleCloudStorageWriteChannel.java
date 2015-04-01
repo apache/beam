@@ -80,7 +80,7 @@ public class GoogleCloudStorageWriteChannel
   // size = UPLOAD_CHUNK_SIZE_DEFAULT (64 MB)
 
   // A pipe that connects write channel used by caller to the input stream used by GCS uploader.
-  // The uploader reads from input stream which blocks till a caller writes some data to the
+  // The uploader reads from input stream, which blocks till a caller writes some data to the
   // write channel (pipeSinkChannel below). The pipe is formed by connecting pipeSink to pipeSource.
   private PipedOutputStream pipeSink;
   private PipedInputStream pipeSource;
@@ -217,8 +217,8 @@ public class GoogleCloudStorageWriteChannel
 
   /**
    * Writes contents of the given buffer to this channel.
-   *
-   * Note: The data that one writes gets written to a pipe which may not block
+   * <p>
+   * Note: The data that one writes gets written to a pipe that must not block
    * if the pipe has sufficient buffer space. A success code returned from this method
    * does not mean that the specific data was successfully written to the underlying
    * storage. It simply means that there is no error at present. The data upload
@@ -253,7 +253,7 @@ public class GoogleCloudStorageWriteChannel
 
   /**
    * Closes this channel.
-   *
+   * <p>
    * Note:
    * The method returns only after all data has been successfully written to GCS
    * or if there is a non-retry-able error.
@@ -291,7 +291,7 @@ public class GoogleCloudStorageWriteChannel
 
   /**
    * Enables or disables hard limit of 250GB on size of uploaded files.
-   *
+   * <p>
    * If enabled, we get very high write throughput but writing files larger than UPLOAD_MAX_SIZE
    * will not succeed. Set it to false to allow larger files at lower throughput.
    */

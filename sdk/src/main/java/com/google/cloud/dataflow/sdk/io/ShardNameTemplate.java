@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.io;
 /**
  * Standard shard naming templates.
  *
- * <p> Shard naming templates are strings which may contain placeholders for
+ * <p> Shard naming templates are strings that may contain placeholders for
  * the shard number and shard count.  When constructing a filename for a
  * particular shard number, the upper-case letters 'S' and 'N' are replaced
  * with the 0-padded shard number and shard count respectively.
@@ -37,7 +37,7 @@ package com.google.cloud.dataflow.sdk.io;
  * 1000-way sharded output.
  *
  * <p> A shard name template is typically provided along with a name prefix
- * and suffix, which allows constructing complex paths which have embedded
+ * and suffix, which allows constructing complex paths that have embedded
  * shard information.  For example, outputs in the form
  * "gs://bucket/path-01-of-99.txt" could be constructed by providing the
  * individual components:

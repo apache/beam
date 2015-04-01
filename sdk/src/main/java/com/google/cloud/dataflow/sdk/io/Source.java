@@ -89,7 +89,7 @@ public abstract class Source<T> implements Serializable {
   public abstract Coder<T> getDefaultOutputCoder();
 
   /**
-   * The interface which readers of custom input sources must implement.
+   * The interface that readers of custom input sources must implement.
    * <p>
    * This interface is deliberately distinct from {@link java.util.Iterator} because
    * the current model tends to be easier to program and more efficient in practice
@@ -125,7 +125,7 @@ public abstract class Source<T> implements Serializable {
     public boolean advance() throws IOException;
 
     /**
-     * Returns the value of the data item which was read by the last {@link #start} or
+     * Returns the value of the data item that was read by the last {@link #start} or
      * {@link #advance} call.
      *
      * @throws java.util.NoSuchElementException if the reader is at the beginning of the input and

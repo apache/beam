@@ -44,16 +44,16 @@ public class IOChannelUtils {
   private static final Map<String, IOChannelFactory> FACTORY_MAP =
       Collections.synchronizedMap(new HashMap<String, IOChannelFactory>());
 
-  // Pattern which matches shard placeholders within a shard template.
+  // Pattern that matches shard placeholders within a shard template.
   private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+)");
 
   /**
    * Associates a scheme with an {@link IOChannelFactory}.
    *
-   * The given factory is used to construct read and write channels when
+   * <p> The given factory is used to construct read and write channels when
    * a URI is provided with the given scheme.
    *
-   * For example, when reading from "gs://bucket/path", the scheme "gs" is
+   * <p> For example, when reading from "gs://bucket/path", the scheme "gs" is
    * used to lookup the appropriate factory.
    */
   public static void setIOFactory(String scheme, IOChannelFactory factory) {
@@ -62,7 +62,7 @@ public class IOChannelUtils {
 
   /**
    * Registers standard factories globally. This requires {@link PipelineOptions}
-   * to provide e.g. credentials for GCS.
+   * to provide, e.g., credentials for GCS.
    */
   public static void registerStandardIOFactories(PipelineOptions options) {
     setIOFactory("gs", new GcsIOChannelFactory(options.as(GcsOptions.class)));

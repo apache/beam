@@ -49,28 +49,28 @@ public interface GoogleApiDebugOptions extends PipelineOptions {
   void setGoogleApiTrace(GoogleApiTracer... commands);
 
   /**
-   * A {@link GoogleClientRequestInitializer} which adds the 'trace' token to Google API calls.
+   * A {@link GoogleClientRequestInitializer} that adds the 'trace' token to Google API calls.
    */
   public static class GoogleApiTracer implements GoogleClientRequestInitializer {
     private static final Pattern COMMAND_LINE_PATTERN = Pattern.compile("([^#]*)#(.*)");
     /**
-     * Creates a {@link GoogleApiTracer} which sets the trace {@code token} on all
-     * calls which match the given client type.
+     * Creates a {@link GoogleApiTracer} that sets the trace {@code token} on all
+     * calls that match the given client type.
      */
     public static GoogleApiTracer create(AbstractGoogleClient client, String token) {
       return new GoogleApiTracer(client.getClass().getCanonicalName(), token);
     }
 
     /**
-     * Creates a {@link GoogleApiTracer} which sets the trace {@code token} on all
-     * calls which match for the given request type.
+     * Creates a {@link GoogleApiTracer} that sets the trace {@code token} on all
+     * calls that match for the given request type.
      */
     public static GoogleApiTracer create(AbstractGoogleClientRequest<?> request, String token) {
       return new GoogleApiTracer(request.getClass().getCanonicalName(), token);
     }
 
     /**
-     * Creates a {@link GoogleClientRequestInitializer} which adds the trace token
+     * Creates a {@link GoogleClientRequestInitializer} that adds the trace token
      * based upon the passed in value.
      * <p>
      * The {@code value} represents a string containing {@code ApiName#TracingToken}.

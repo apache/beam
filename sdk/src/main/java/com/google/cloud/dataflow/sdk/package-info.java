@@ -20,7 +20,7 @@
  * {@link com.google.cloud.dataflow.sdk.Pipeline}s.
  *
  * <p> To use the Google Cloud Dataflow SDK, you build a
- * {@link com.google.cloud.dataflow.sdk.Pipeline} which manages a graph of
+ * {@link com.google.cloud.dataflow.sdk.Pipeline}, which manages a graph of
  * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s
  * and the {@link com.google.cloud.dataflow.sdk.values.PCollection}s that
  * the PTransforms consume and produce.
@@ -31,5 +31,3 @@
  *
  */
 package com.google.cloud.dataflow.sdk;
-
-

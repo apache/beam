@@ -142,7 +142,7 @@ public class InMemoryReader<T> extends Reader<T> {
         return null;
       }
       if (splitIndex <= index) {
-        LOG.info("Already progressed to index {} which is after the requested split index {}",
+        LOG.info("Already progressed to index {}, which is after the requested split index {}",
             index, splitIndex);
         return null;
       }

@@ -30,7 +30,7 @@ import javax.annotation.Nullable;
  * workers.
  * <p>
  * Typically, an object to be written by the SDK to the Dataflow service will
- * implement a method (typically called {@code asCloudObject()}) which returns a
+ * implement a method (typically called {@code asCloudObject()}) that returns a
  * {@code CloudObject} to represent the object in the protocol.  Once the
  * {@code CloudObject} is constructed, the method should explicitly add
  * additional properties to be presented during deserialization, representing
@@ -38,8 +38,8 @@ import javax.annotation.Nullable;
  */
 public final class CloudObject extends GenericJson {
   /**
-   * Constructs a {@code CloudObject} by copying the supplied serialized object spec,
-   * which must represent an SDK object serialized for transport via the
+   * Constructs a {@code CloudObject} by copying the supplied serialized object
+   * spec, which must represent an SDK object serialized for transport via the
    * Dataflow API.
    * <p>
    * The most common use of this method is during deserialization on the worker,
@@ -152,8 +152,8 @@ public final class CloudObject extends GenericJson {
    * Constructs a {@code CloudObject} representing the given value of a
    * well-known cloud object type.
    * @param value the scalar value to represent.
-   * @throw RuntimeException if the value does not have a {@link CloudKnownType}
-   * mapping
+   * @throws RuntimeException if the value does not have a
+   * {@link CloudKnownType} mapping
    */
   public static CloudObject forKnownType(Object value) {
     @Nullable CloudKnownType ty = CloudKnownType.forClass(value.getClass());
@@ -171,7 +171,7 @@ public final class CloudObject extends GenericJson {
   private CloudObject() {}
 
   /**
-   * Gets the name of the Java class which this CloudObject represents.
+   * Gets the name of the Java class that this CloudObject represents.
    */
   public String getClassName() {
     return className;

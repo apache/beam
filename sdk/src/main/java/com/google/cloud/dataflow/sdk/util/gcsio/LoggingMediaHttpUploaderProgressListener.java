@@ -43,7 +43,7 @@ class LoggingMediaHttpUploaderProgressListener implements MediaHttpUploaderProgr
   private long prevUploadedBytes;
 
   /**
-   * Creates a upload progress listener which emits relevant statistics about the
+   * Creates a upload progress listener that emits relevant statistics about the
    * progress of the upload.
    * @param name The name of the resource being uploaded.
    * @param minLoggingInterval The minimum amount of time (millis) between logging upload progress.

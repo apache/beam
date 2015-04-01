@@ -126,7 +126,7 @@ public class DataflowPipelineTranslator {
   /**
    * Constructs a translator from the provided options.
    *
-   * @param options Properties which configure the translator.
+   * @param options Properties that configure the translator.
    *
    * @return The newly created translator.
    */
@@ -245,12 +245,12 @@ public class DataflowPipelineTranslator {
     public void addInput(String name, PInput value);
 
     /**
-     * Adds an input which is a dictionary of strings to objects.
+     * Adds an input that is a dictionary of strings to objects.
      */
     public void addInput(String name, Map<String, Object> elements);
 
     /**
-     * Adds an input which is a list of objects.
+     * Adds an input that is a list of objects.
      */
     public void addInput(String name, List<? extends Map<String, Object>> elements);
 

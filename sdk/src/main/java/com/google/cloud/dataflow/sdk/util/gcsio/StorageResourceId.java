@@ -42,7 +42,7 @@ public class StorageResourceId {
   private final String readableString;
 
   /**
-   * Constructor for a StorageResourceId which refers to the GCS root (gs://). Private because
+   * Constructor for a StorageResourceId that refers to the GCS root (gs://). Private because
    * all external users should just use the singleton StorageResourceId.ROOT.
    */
   private StorageResourceId() {
@@ -53,7 +53,7 @@ public class StorageResourceId {
 
   /**
    * Constructor for a StorageResourceId representing a Bucket; {@code getObjectName()} will return
-   * null for a StorageResourceId which represents a Bucket.
+   * null for a StorageResourceId that represents a Bucket.
    *
    * @param bucketName The bucket name of the resource. Must be non-empty and non-null.
    */
@@ -146,12 +146,12 @@ public class StorageResourceId {
   }
 
   /**
-   * Helper for standardizing the way various human-readable messages in logs/exceptions which refer
+   * Helper for standardizing the way various human-readable messages in logs/exceptions refer
    * to a bucket/object pair.
    */
   public static String createReadableString(String bucketName, String objectName) {
     if (bucketName == null && objectName == null) {
-      // TODO: Unify this method with other methods which convert bucketName/objectName
+      // TODO: Unify this method with other methods that convert bucketName/objectName
       // to a URI; maybe use the single slash for compatibility.
       return "gs://";
     } else if (bucketName != null && objectName == null) {

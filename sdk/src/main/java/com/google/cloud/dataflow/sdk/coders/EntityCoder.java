@@ -73,8 +73,8 @@ public class EntityCoder extends AtomicCoder<Entity> {
   }
 
   /**
-   * A datastore kind can hold arbitrary Object instances,
-   * which makes the encoding non-deterministic.
+   * A datastore kind can hold arbitrary Object instances, which
+   * makes the encoding non-deterministic.
    */
   @Override
   @Deprecated

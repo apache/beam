@@ -35,7 +35,7 @@ import java.io.IOException;
 import java.util.Iterator;
 
 /**
- * A creator of test pipelines which can be used inside of tests that can be
+ * A creator of test pipelines that can be used inside of tests that can be
  * configured to run locally or against the live service.
  *
  * <p> It is recommended to tag hand-selected tests for this purpose using the
@@ -144,7 +144,7 @@ public class TestPipeline extends Pipeline {
         break;
       }
     }
-    // Then find the first instance after which is not the TestPipeline
+    // Then find the first instance after that is not the TestPipeline
     while (elements.hasNext()) {
       StackTraceElement next = elements.next();
       if (!TestPipeline.class.getName().equals(next.getClassName())) {

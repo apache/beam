@@ -67,7 +67,7 @@ public class DoubleCoder extends AtomicCoder<Double> {
   /**
    * Floating-point operations are not guaranteed to be deterministic, even
    * if the storage format might be, so floating point representations are not
-   * recommended for use in operations which require deterministic inputs.
+   * recommended for use in operations that require deterministic inputs.
    */
   @Override
   @Deprecated

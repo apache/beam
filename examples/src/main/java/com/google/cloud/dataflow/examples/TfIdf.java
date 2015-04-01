@@ -359,7 +359,7 @@ public class TfIdf {
       // Compute a mapping from each word to a (URI, TF-IDF) score
       // for each URI. There are a variety of definitions of TF-IDF
       // ("term frequency - inverse document frequency") score;
-      // here we use a basic version which is the term frequency
+      // here we use a basic version that is the term frequency
       // divided by the log of the document frequency.
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = wordToUriAndTfAndDf
           .apply(ParDo.of(new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {

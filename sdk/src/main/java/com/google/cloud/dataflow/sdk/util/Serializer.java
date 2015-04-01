@@ -38,7 +38,7 @@ public final class Serializer {
     static final ObjectMapper TREE_MAPPER = createTreeMapper();
 
     /**
-     * Creates the object mapper which will be used for serializing Google API
+     * Creates the object mapper that will be used for serializing Google API
      * client maps into Jackson trees.
      */
     private static ObjectMapper createTreeMapper() {
@@ -46,12 +46,12 @@ public final class Serializer {
     }
 
     /**
-     * Creates the object mapper which will be used for deserializing Jackson
+     * Creates the object mapper that will be used for deserializing Jackson
      * trees into objects.
      */
     private static ObjectMapper createObjectMapper() {
       ObjectMapper m = new ObjectMapper();
-      // Ignore properties which are not used by the object.
+      // Ignore properties that are not used by the object.
       m.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
       // For parameters of type Object, use the @type property to determine the

@@ -171,7 +171,7 @@ public class DataflowAssert {
       } else {
         throw new IllegalStateException(
             "Attempting to access the coder of an IterableAssert"
-            + " which has not been set yet.");
+            + " that has not been set yet.");
       }
     }
 
@@ -269,7 +269,7 @@ public class DataflowAssert {
       } else {
         throw new IllegalStateException(
             "Attempting to access the coder of a SingletonAssert"
-            + " which has not been set yet.");
+            + " that has not been set yet.");
       }
     }
 

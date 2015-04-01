@@ -73,7 +73,7 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * } </pre>
    *
    * <p> See also {@link #lessThanEq}, {@link #greaterThanEq},
-   * {@link #greaterThan} which return elements satisfying various
+   * and {@link #greaterThan}, which return elements satisfying various
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *
@@ -106,7 +106,7 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * } </pre>
    *
    * <p> See also {@link #greaterThanEq}, {@link #lessThan},
-   * {@link #lessThanEq} which return elements satisfying various
+   * and {@link #lessThanEq}, which return elements satisfying various
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *
@@ -139,7 +139,7 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * } </pre>
    *
    * <p> See also {@link #lessThan}, {@link #greaterThanEq},
-   * {@link #greaterThan} which return elements satisfying various
+   * and {@link #greaterThan}, which return elements satisfying various
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *
@@ -172,7 +172,7 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * } </pre>
    *
    * <p> See also {@link #greaterThan}, {@link #lessThan},
-   * {@link #lessThanEq} which return elements satisfying various
+   * and {@link #lessThanEq}, which return elements satisfying various
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *

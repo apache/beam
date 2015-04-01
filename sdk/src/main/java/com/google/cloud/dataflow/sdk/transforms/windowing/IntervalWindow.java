@@ -129,8 +129,8 @@ public class IntervalWindow extends BoundedWindow
 
   @Override
   public int hashCode() {
-    // The end values are themselves likely to be arithmetic sequence,
-    // which is a poor distribution to use for a hashtable, so we
+    // The end values are themselves likely to be arithmetic sequence, which
+    // is a poor distribution to use for a hashtable, so we
     // add a highly non-linear transformation.
     return (int)
         (start.getMillis() + modInverse((int) (end.getMillis() << 1) + 1));

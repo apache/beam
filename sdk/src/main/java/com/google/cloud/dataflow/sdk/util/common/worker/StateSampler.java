@@ -52,7 +52,7 @@ public class StateSampler extends TimerTask implements AutoCloseable {
   /** The current state. */
   private final AtomicInteger currentState;
 
-  /** Special value of {@code currentState} which we do not sample. */
+  /** Special value of {@code currentState} that means we do not sample. */
   private static final int DO_NOT_SAMPLE = -1;
 
   /**

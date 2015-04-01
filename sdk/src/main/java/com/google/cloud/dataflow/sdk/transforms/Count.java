@@ -52,7 +52,7 @@ public class Count {
 
   /**
    * {@code Count.Globally<T>} takes a {@code PCollection<T>} and returns a
-   * {@code PCollection<Long>} containing a single element which is the total
+   * {@code PCollection<Long>} containing a single element that is the total
    * number of elements in the {@code PCollection}.
    *
    * <p> Example of use:

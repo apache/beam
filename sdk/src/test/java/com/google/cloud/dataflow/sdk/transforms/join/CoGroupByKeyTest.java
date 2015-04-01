@@ -191,8 +191,8 @@ public class CoGroupByKeyTest implements Serializable {
 
   /**
    * Returns a PCollection<KV<Integer, CoGbkResult>> containing the
-   * results of the CoGbk over 3 PCollection<KV<Integer, String>>, each of
-   * which correlates a customer id to purchases, addresses, or names,
+   * results of the CoGbk over 3 PCollection<KV<Integer, String>>,
+   * each of which correlates a customer id to purchases, addresses, or names,
    * respectively.
    */
   private PCollection<KV<Integer, CoGbkResult>> buildPurchasesCoGbk(
@@ -249,8 +249,8 @@ public class CoGroupByKeyTest implements Serializable {
 
   /**
    * Returns a PCollection<KV<Integer, CoGbkResult>> containing the
-   * results of the CoGbk over 2 PCollection<KV<Integer, String>>, each of
-   * which correlates a customer id to clicks, purchases, respectively.
+   * results of the CoGbk over 2 PCollection<KV<Integer, String>>,
+   * each of which correlates a customer id to clicks, purchases, respectively.
    */
   private PCollection<KV<Integer, CoGbkResult>> buildPurchasesCoGbkWithWindowing(
       Pipeline p,

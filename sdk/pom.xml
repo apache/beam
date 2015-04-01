@@ -215,7 +215,7 @@
       <artifactId>google-api-services-dataflow</artifactId>
       <version>v1beta3-rev9-1.19.1</version>
       <exclusions>
-        <!-- Exclude an old version of guava which is being pulled
+        <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -247,7 +247,7 @@
       <artifactId>google-api-services-bigquery</artifactId>
       <version>v2-rev187-1.19.1</version>
       <exclusions>
-        <!-- Exclude an old version of guava which is being pulled
+        <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -261,7 +261,7 @@
       <artifactId>google-api-services-compute</artifactId>
       <version>v1-rev46-1.19.1</version>
       <exclusions>
-        <!-- Exclude an old version of guava which is being pulled
+        <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -275,7 +275,7 @@
       <artifactId>google-api-services-pubsub</artifactId>
       <version>v1beta1-rev18-1.19.1</version>
       <exclusions>
-        <!-- Exclude an old version of guava which is being pulled
+        <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -289,7 +289,7 @@
       <artifactId>google-api-services-storage</artifactId>
       <version>v1-rev25-1.19.1</version>
       <exclusions>
-        <!-- Exclude an old version of guava which is being pulled
+        <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -303,7 +303,7 @@
       <artifactId>google-http-client-jackson2</artifactId>
       <version>1.19.0</version>
       <exclusions>
-        <!-- Exclude an old version of guava which is being pulled
+        <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -323,7 +323,7 @@
       <artifactId>google-oauth-client-java6</artifactId>
       <version>1.19.0</version>
       <exclusions>
-        <!-- Exclude an old version of guava which is being pulled
+        <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -337,7 +337,7 @@
       <artifactId>google-api-services-datastore-protobuf</artifactId>
       <version>v1beta2-rev1-2.1.2</version>
       <exclusions>
-        <!-- Exclude an old version of guava which is being pulled
+        <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
         <exclusion>
           <groupId>com.google.guava</groupId>

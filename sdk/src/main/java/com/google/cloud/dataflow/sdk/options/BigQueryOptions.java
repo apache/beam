@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.options;
 /**
  * Properties needed when using BigQuery with the Dataflow SDK.
  */
-@Description("Options which are used to configure BigQuery. See "
+@Description("Options that are used to configure BigQuery. See "
     + "https://cloud.google.com/bigquery/what-is-bigquery for details on BigQuery.")
 public interface BigQueryOptions extends ApplicationNameOptions, GcpOptions,
     PipelineOptions, StreamingOptions {

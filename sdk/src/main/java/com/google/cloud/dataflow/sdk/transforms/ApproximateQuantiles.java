@@ -255,7 +255,7 @@ public class ApproximateQuantiles {
      *
      * <p> The {@code Comparator} must be {@code Serializable}.
      *
-     * <p> The default error bound is {@code 1 / numQuantiles} which
+     * <p> The default error bound is {@code 1 / numQuantiles}, which
      * holds as long as the number of elements is less than
      * {@link #DEFAULT_MAX_NUM_ELEMENTS}.
      */
@@ -309,7 +309,7 @@ public class ApproximateQuantiles {
      *
      * <p> The {@code Comparator} must be {@code Serializable}.
      *
-     * <p> The default error bound is {@code epsilon} which is holds as long
+     * <p> The default error bound is {@code epsilon}, which holds as long
      * as the number of elements is less than {@code maxNumElements}.
      * Specifically, if one considers the input as a sorted list x_1, ..., x_N,
      * then the distance between the each exact quantile x_c and its
@@ -492,7 +492,7 @@ public class ApproximateQuantiles {
       /**
        * Outputs numQuantiles elements consisting of the minimum, maximum, and
        * numQuantiles - 2 evenly spaced intermediate elements.
-       *
+       * <p>
        * Returns the empty list if no elements have been added.
        */
       @Override

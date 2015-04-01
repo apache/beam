@@ -123,8 +123,8 @@ public interface Coder<T> extends Serializable {
    * <p> In order for a {@code Coder} to be considered deterministic,
    * the following must be true:
    * <ul>
-   *   <li>two values which compare as equal (via {@code Object.equals()}
-   *       or {@code Comparable.compareTo()}, if supported), have the same
+   *   <li>two values that compare as equal (via {@code Object.equals()}
+   *       or {@code Comparable.compareTo()}, if supported) have the same
    *       encoding.
    *   <li>the {@code Coder} always produces a canonical encoding, which is the
    *       same for an instance of an object even if produced on different
@@ -143,8 +143,8 @@ public interface Coder<T> extends Serializable {
    * <p> In order for a {@code Coder} to be considered deterministic,
    * the following must be true:
    * <ul>
-   *   <li>two values which compare as equal (via {@code Object.equals()}
-   *       or {@code Comparable.compareTo()}, if supported), have the same
+   *   <li>two values that compare as equal (via {@code Object.equals()}
+   *       or {@code Comparable.compareTo()}, if supported) have the same
    *       encoding.
    *   <li>the {@code Coder} always produces a canonical encoding, which is the
    *       same for an instance of an object even if produced on different

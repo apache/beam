@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.util.common;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
- * A {@link Reiterator} which forwards to another {@code Reiterator}, useful for
+ * A {@link Reiterator} that forwards to another {@code Reiterator}, useful for
  * implementing {@code Reiterator} wrappers.
  *
  * @param <T> the type of elements returned by this iterator

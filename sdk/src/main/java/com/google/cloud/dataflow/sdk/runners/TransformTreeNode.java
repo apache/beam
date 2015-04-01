@@ -64,8 +64,8 @@ public class TransformTreeNode {
   /**
    * Creates a new TransformTreeNode with the given parent and transform.
    *
-   * <p> EnclosingNode and transform may both be null for a root-level node
-   * which holds all other nodes.
+   * <p> EnclosingNode and transform may both be null for
+   * a root-level node, which holds all other nodes.
    *
    * @param enclosingNode the composite node containing this node
    * @param transform the PTransform tracked by this node

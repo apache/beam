@@ -22,7 +22,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 
 /**
- * Implements a WritableByteChannel which may contain multiple output shards.
+ * Implements a WritableByteChannel that may contain multiple output shards.
  *
  * <p> This provides {@link #writeToShard}, which takes a shard number for
  * writing to a particular shard.
@@ -33,7 +33,7 @@ import java.util.ArrayList;
 public class ShardingWritableByteChannel implements WritableByteChannel {
 
   /**
-   * Special shard number which causes a write to all shards.
+   * Special shard number that causes a write to all shards.
    */
   public static final int ALL_SHARDS = -2;
 
