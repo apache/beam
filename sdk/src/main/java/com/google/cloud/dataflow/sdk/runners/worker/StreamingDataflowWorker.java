@@ -34,6 +34,7 @@ import com.google.cloud.dataflow.sdk.util.Values;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
+import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
 import com.google.common.base.Preconditions;
 
 import org.eclipse.jetty.server.Request;
@@ -331,6 +332,10 @@ public class StreamingDataflowWorker {
       if (workerAndContext == null) {
         context = new StreamingModeExecutionContext(computation, stateFetcher);
         worker = MapTaskExecutorFactory.create(options, mapTask, context);
+        ReadOperation readOperation = worker.getReadOperation();
+        // Disable progress updates since its results are unused for streaming
+        // and involves starting a thread.
+        readOperation.setProgressUpdatePeriodMs(0);
         Preconditions.checkState(worker.supportsRestart(),
             "Streaming runner requires all operations support restart.");
       } else {

@@ -90,7 +90,7 @@ public class MapTaskExecutor extends WorkExecutor {
     return getReadOperation().requestDynamicSplit(splitRequest);
   }
 
-  ReadOperation getReadOperation() throws Exception {
+  public ReadOperation getReadOperation() throws Exception {
     if (operations == null || operations.isEmpty()) {
       throw new IllegalStateException("Map task has no operation.");
     }

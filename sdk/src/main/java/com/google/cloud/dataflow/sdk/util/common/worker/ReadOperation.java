@@ -97,10 +97,11 @@ public class ReadOperation extends Operation {
   }
 
   /**
-   * Invoked by tests. A value of 0 means "update progress on each iteration".
+   * Controls the frequency at which progress is updated. A value of zero means
+   * "update progress on each iteration". A value of less than zero means never
+   * update progress. Ignored after starting.
    */
-  void setProgressUpdatePeriodMs(long millis) {
-    Preconditions.checkArgument(millis >= 0, "Progress update period must be non-negative");
+  public void setProgressUpdatePeriodMs(long millis) {
     progressUpdatePeriodMs = millis;
   }
 
@@ -141,7 +142,7 @@ public class ReadOperation extends Operation {
 
       // TODO: Consider using the ExecutorService from PipelineOptions instead.
       Thread updateRequester = null;
-      if (progressUpdatePeriodMs != 0) {
+      if (progressUpdatePeriodMs > 0) {
         updateRequester = new Thread() {
           @Override
           public void run() {
