@@ -81,7 +81,7 @@ public class CounterTest {
     cc = flush(c2);
     assertEquals("c2", cc.getName().getName());
     assertEquals("MAX", cc.getKind());
-    assertEquals(Double.MIN_VALUE, asDouble(cc.getScalar()), EPSILON);
+    assertEquals(Double.NEGATIVE_INFINITY, asDouble(cc.getScalar()), EPSILON);
     c2.resetToValue(0.0).addValue(Math.PI).addValue(Math.E);
     cc = flush(c2);
     assertEquals(Math.PI, asDouble(cc.getScalar()), EPSILON);
@@ -288,11 +288,11 @@ public class CounterTest {
   @Test
   public void testMaxDouble() {
     Counter<Double> c = Counter.doubles("max-double", MAX);
-    double expectedTotal = Double.MIN_VALUE;
-    double expectedDelta = Double.MIN_VALUE;
+    double expectedTotal = Double.NEGATIVE_INFINITY;
+    double expectedDelta = Double.NEGATIVE_INFINITY;
     assertOK(expectedTotal, expectedDelta, c);
 
-    c.addValue(Math.E).addValue(Math.PI).addValue(Double.MIN_VALUE);
+    c.addValue(Math.E).addValue(Math.PI).addValue(Double.NEGATIVE_INFINITY);
     expectedTotal = expectedDelta = Math.PI;
     assertOK(expectedTotal, expectedDelta, c);
 
@@ -301,7 +301,7 @@ public class CounterTest {
     assertOK(expectedTotal, expectedDelta, c);
 
     flush(c);
-    expectedDelta = Double.MIN_VALUE;
+    expectedDelta = Double.NEGATIVE_INFINITY;
     assertOK(expectedTotal, expectedDelta, c);
 
     c.addValue(7 * Math.PI).addValue(5 * Math.E);
@@ -347,11 +347,11 @@ public class CounterTest {
   @Test
   public void testMinDouble() {
     Counter<Double> c = Counter.doubles("min-double", MIN);
-    double expectedTotal = Double.MAX_VALUE;
-    double expectedDelta = Double.MAX_VALUE;
+    double expectedTotal = Double.POSITIVE_INFINITY;
+    double expectedDelta = Double.POSITIVE_INFINITY;
     assertOK(expectedTotal, expectedDelta, c);
 
-    c.addValue(Math.E).addValue(Math.PI).addValue(Double.MAX_VALUE);
+    c.addValue(Math.E).addValue(Math.PI).addValue(Double.POSITIVE_INFINITY);
     expectedTotal = expectedDelta = Math.E;
     assertOK(expectedTotal, expectedDelta, c);
 
@@ -360,7 +360,7 @@ public class CounterTest {
     assertOK(expectedTotal, expectedDelta, c);
 
     flush(c);
-    expectedDelta = Double.MAX_VALUE;
+    expectedDelta = Double.POSITIVE_INFINITY;
     assertOK(expectedTotal, expectedDelta, c);
 
     c.addValue(7 * Math.PI).addValue(5 * Math.E);

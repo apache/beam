@@ -92,7 +92,7 @@ public class Mean {
    * {@code N}, useful as an argument to {@link Combine#globally} or
    * {@link Combine#perKey}.
    *
-   * <p> Returns {@code 0} if combining zero elements.
+   * <p> Returns {@code Double.NaN} if combining zero elements.
    *
    * @param <N> the type of the {@code Number}s being combined
    */
@@ -138,7 +138,7 @@ public class Mean {
 
       @Override
       public Double extractOutput() {
-        return count == 0 ? 0.0 : sum / count;
+        return count == 0 ? Double.NaN : sum / count;
       }
     }
 

@@ -103,7 +103,7 @@ public class Min {
    * {@code PCollection<Double>} and returns a
    * {@code PCollection<Double>} whose contents is the minimum of the
    * input {@code PCollection}'s elements, or
-   * {@code Double.MAX_VALUE} if there are no elements.
+   * {@code Double.POSITIVE_INFINITY} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
     Combine.Globally<Double, Double> combine = Combine
@@ -197,6 +197,6 @@ public class Min {
   public static class MinDoubleFn extends MinFn<Double> {
     private static final long serialVersionUID = 0;
 
-    public MinDoubleFn() { super(Double.MAX_VALUE); }
+    public MinDoubleFn() { super(Double.POSITIVE_INFINITY); }
   }
 }

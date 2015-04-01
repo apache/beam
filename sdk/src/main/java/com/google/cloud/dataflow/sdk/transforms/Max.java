@@ -103,7 +103,7 @@ public class Max {
    * {@code PCollection<Double>} and returns a
    * {@code PCollection<Double>} whose contents is the maximum of the
    * input {@code PCollection}'s elements, or
-   * {@code Double.MIN_VALUE} if there are no elements.
+   * {@code Double.NEGATIVE_INFINITY} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
     Combine.Globally<Double, Double> combine = Combine
@@ -194,6 +194,6 @@ public class Max {
    */
   @SuppressWarnings("serial")
   public static class MaxDoubleFn extends MaxFn<Double> {
-    public MaxDoubleFn() { super(Double.MIN_VALUE); }
+    public MaxDoubleFn() { super(Double.NEGATIVE_INFINITY); }
   }
 }

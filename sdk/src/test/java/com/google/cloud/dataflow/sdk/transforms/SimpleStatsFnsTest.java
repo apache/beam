@@ -55,7 +55,7 @@ public class SimpleStatsFnsTest {
       this.max = max;
       this.sum = sum;
       this.mean =
-          values.length == 0 ? 0.0 : sum.doubleValue() / values.length;
+          values.length == 0 ? Double.NaN : sum.doubleValue() / values.length;
     }
   }
 
@@ -64,7 +64,7 @@ public class SimpleStatsFnsTest {
           -312.31, 29.13, 112.158, 6312.31, -312.158, -312.158, 112.158,
           -312.31, 6312.31, 0.0),
       new TestCase<>(3.14, 3.14, 3.14, 3.14),
-      new TestCase<>(Double.MAX_VALUE, Double.MIN_NORMAL, 0.0));
+      new TestCase<>(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, 0.0));
 
   static final List<TestCase<Long>> LONG_CASES = Arrays.asList(
       new TestCase<>(-50000000000000000L,
@@ -125,8 +125,7 @@ public class SimpleStatsFnsTest {
         .apply(Create.of(KV.of(1L, 1.5), KV.of(2L, 7.3)))
         .setCoder(KvCoder.of(VarLongCoder.of(), DoubleCoder.of()));
 
-    PCollection<KV<Long, Double>> meanPerKey =
-        input.apply(Mean.<Long, Double>perKey());
+    input.apply(Mean.<Long, Double>perKey());
 
     p.run();
   }

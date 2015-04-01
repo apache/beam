@@ -478,10 +478,10 @@ public abstract class Counter<T> {
           aggregate = deltaAggregate = 0.0;
           break;
         case MAX:
-          aggregate = deltaAggregate = Double.MIN_VALUE;
+          aggregate = deltaAggregate = Double.NEGATIVE_INFINITY;
           break;
         case MIN:
-          aggregate = deltaAggregate = Double.MAX_VALUE;
+          aggregate = deltaAggregate = Double.POSITIVE_INFINITY;
           break;
         case SET:
           break;
@@ -532,10 +532,10 @@ public abstract class Counter<T> {
           deltaCount = 0;
           break;
         case MAX:
-          deltaAggregate = Double.MIN_VALUE;
+          deltaAggregate = Double.NEGATIVE_INFINITY;
           break;
         case MIN:
-          deltaAggregate = Double.MAX_VALUE;
+          deltaAggregate = Double.POSITIVE_INFINITY;
           break;
         case SET:
           deltaSet = new HashSet<>();
