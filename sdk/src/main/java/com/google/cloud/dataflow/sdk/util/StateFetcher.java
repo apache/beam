@@ -231,8 +231,8 @@ public class StateFetcher {
           return (T) sideInputCache.get(id, fetchCallable).value;
         } else if (!entry.isReady()) {
           // Invalidate the existing not-ready entry.  This must be done atomically
-          // so that another thread doesn't replace the entry with a ready entry which
-          // will then be deleted here.
+          // so that another thread doesn't replace the entry with a ready entry, which
+          // would then be deleted here.
           synchronized (entry) {
             SideInputCacheEntry newEntry = sideInputCache.getIfPresent(id);
             if (newEntry != null && !newEntry.isReady()) {

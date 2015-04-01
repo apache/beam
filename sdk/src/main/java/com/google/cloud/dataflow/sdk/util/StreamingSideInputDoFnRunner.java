@@ -44,7 +44,7 @@ import java.util.Set;
  *
  * @param <I> the type of the DoFn's (main) input elements
  * @param <O> the type of the DoFn's (main) output elements
- * @param <R> the type of object which receives outputs
+ * @param <R> the type of object that receives outputs
  * @param <W> the type of the windows of the main input
  */
 public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>

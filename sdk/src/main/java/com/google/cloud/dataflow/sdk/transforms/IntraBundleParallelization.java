@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * elements from within a bundle is limited by blocking calls.
  *
  * <p> CPU intensive or IO intensive tasks are in general a poor fit for parallelization.
- * This is because a limited resource which is already maximally utilized, does not
+ * This is because a limited resource that is already maximally utilized does not
  * benefit from sub-division of work. The parallelization will increase the amount of time
  * to process each element yet the throughput for processing will remain relatively the same.
  * For example, if the local disk (an IO resource) has a maximum write rate of 10 MiB/s,
@@ -66,7 +66,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class IntraBundleParallelization {
   /**
    * Creates a {@link IntraBundleParallelization} {@link PTransform} for the given
-   * {@link DoFn} which processes elements using multiple threads.
+   * {@link DoFn} that processes elements using multiple threads.
    *
    * <p> Note that the specified {@code doFn} needs to be thread safe.
    */

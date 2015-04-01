@@ -726,8 +726,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     private final List<QueueRequestCallback> pendingBatchEntries;
     private final BatchRequest batch;
 
-    // Number of requests which can be queued into a single actual HTTP request before a sub-batch
-    // is sent.
+    // Number of requests that can be queued into a single actual HTTP request
+    // before a sub-batch is sent.
     private final long maxRequestsPerBatch;
 
     // Flag that indicates whether there is an in-progress flush.
