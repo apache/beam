@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.Trigger.TriggerContext;
+import com.google.cloud.dataflow.sdk.util.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
@@ -99,7 +100,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements Trig
 
       WindowStatus status = windowSet.put(w, value.getValue(), value.getTimestamp());
 
-      trigger.onElement(this, value.getValue(), w, status);
+      handleResult(w, trigger.onElement(this, value.getValue(), w, status));
     }
   }
 
@@ -115,39 +116,12 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements Trig
     // The WindowSet used with PartitioningWindowFn doesn't support contains, but it will never
     // merge windows in a way that causes the timer to no longer be applicable.
     if ((windowFn instanceof PartitioningWindowFn) || windowSet.contains(window)) {
-      trigger.onTimer(this, window);
+      handleResult(window, trigger.onTimer(this, window));
     }
   }
 
-  @Override
-  public void emitWindow(W window) throws Exception {
-    // Emit the (current) final values for the window
-    KV<K, VO> value = KV.of(windowSet.getKey(), windowSet.finalValue(window));
-
-    // Remove the window from management (assume it is "done")
-    windowSet.remove(window);
-
-    // Output the windowed value.
-    windowingInternals.outputWindowedValue(value, window.maxTimestamp(), Arrays.asList(window));
-  }
-
-  private class MergeContext extends WindowFn<Object, W>.MergeContext {
-
-    @SuppressWarnings("cast")
-    public MergeContext() {
-      ((WindowFn<Object, W>) windowFn).super();
-    }
-
-    @Override
-    public Collection<W> windows() {
-      return windowSet.windows();
-    }
-
-    @Override
-    public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
-      windowSet.merge(toBeMerged, mergeResult);
-      trigger.onMerge(TriggerExecutor.this, toBeMerged, mergeResult);
-    }
+  private void onMerge(Collection<W> toBeMerged, W mergeResult) throws Exception {
+    handleResult(mergeResult, trigger.onMerge(TriggerExecutor.this, toBeMerged, mergeResult));
   }
 
   @Override
@@ -205,5 +179,41 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements Trig
   @Override
   public Instant currentProcessingTime() {
     return timerManager.currentProcessingTime();
+  }
+
+  private void handleResult(W window, TriggerResult result) throws Exception {
+    if (result.isFire()) {
+      emitWindow(window);
+    }
+  }
+
+  private void emitWindow(W window) throws Exception {
+    // Emit the (current) final values for the window
+    KV<K, VO> value = KV.of(windowSet.getKey(), windowSet.finalValue(window));
+
+    // Remove the window from management (assume it is "done")
+    windowSet.remove(window);
+
+    // Output the windowed value.
+    windowingInternals.outputWindowedValue(value, window.maxTimestamp(), Arrays.asList(window));
+  }
+
+  private class MergeContext extends WindowFn<Object, W>.MergeContext {
+
+    @SuppressWarnings("cast")
+    public MergeContext() {
+      ((WindowFn<Object, W>) windowFn).super();
+    }
+
+    @Override
+    public Collection<W> windows() {
+      return windowSet.windows();
+    }
+
+    @Override
+    public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
+      windowSet.merge(toBeMerged, mergeResult);
+      onMerge(toBeMerged, mergeResult);
+    }
   }
 }

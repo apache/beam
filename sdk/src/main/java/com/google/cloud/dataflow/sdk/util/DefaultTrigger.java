@@ -21,29 +21,30 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 /**
  * A trigger that fires repeatedly when the watermark passes the end of the window.
  *
- * TODO: Split this up as we build the final trigger API.
- *
  * @param <W> The type of windows being triggered/encoded.
  */
 public class DefaultTrigger<W extends BoundedWindow> implements Trigger<W>{
 
   @Override
-  public void onElement(
+  public TriggerResult onElement(
       TriggerContext<W> c, Object value, W window, WindowStatus status) throws Exception {
     c.setTimer(window, window.maxTimestamp(), TimeDomain.EVENT_TIME);
+    return TriggerResult.CONTINUE;
   }
 
   @Override
-  public void onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception {
+  public TriggerResult onMerge(
+      TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception {
     for (W oldWindow : oldWindows) {
       c.deleteTimer(oldWindow, TimeDomain.EVENT_TIME);
     }
 
     c.setTimer(newWindow, newWindow.maxTimestamp(), TimeDomain.EVENT_TIME);
+    return TriggerResult.CONTINUE;
   }
 
   @Override
-  public void onTimer(TriggerContext<W> c, W window) throws Exception {
-    c.emitWindow(window);
+  public TriggerResult onTimer(TriggerContext<W> c, W window) throws Exception {
+    return TriggerResult.FIRE;
   }
 }

@@ -50,7 +50,7 @@ public class DelayAfterFirstInPane<W extends BoundedWindow> implements Trigger<W
   }
 
   @Override
-  public void onElement(TriggerContext<W> c, Object value, W window, WindowStatus status)
+  public TriggerResult onElement(TriggerContext<W> c, Object value, W window, WindowStatus status)
       throws Exception {
     Instant delayUntil = c.lookup(delayedUntilTag, window);
     if (delayUntil == null) {
@@ -58,10 +58,13 @@ public class DelayAfterFirstInPane<W extends BoundedWindow> implements Trigger<W
       c.setTimer(window, delayUntil, TimeDomain.PROCESSING_TIME);
       c.store(delayedUntilTag, window, delayUntil);
     }
+
+    return TriggerResult.CONTINUE;
   }
 
   @Override
-  public void onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception {
+  public TriggerResult onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow)
+      throws Exception {
     // We want to fire after the minimum delayed-until in the window. If that means we've already
     // fired, we should stop.
     Instant delayedUntil = null;
@@ -83,11 +86,13 @@ public class DelayAfterFirstInPane<W extends BoundedWindow> implements Trigger<W
       c.setTimer(newWindow, delayedUntil, TimeDomain.PROCESSING_TIME);
     }
     c.store(delayedUntilTag, newWindow, delayedUntil);
+
+    return TriggerResult.CONTINUE;
   }
 
   @Override
-  public void onTimer(TriggerContext<W> c, W window) throws Exception {
+  public TriggerResult onTimer(TriggerContext<W> c, W window) throws Exception {
     c.store(delayedUntilTag, window, ALREADY_FIRED);
-    c.emitWindow(window);
+    return TriggerResult.FIRE_AND_FINISH;
   }
 }

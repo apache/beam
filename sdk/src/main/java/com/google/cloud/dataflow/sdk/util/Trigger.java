@@ -62,9 +62,33 @@ public interface Trigger<W extends BoundedWindow> {
   }
 
   /**
+   * Enumeration of the possible results for a trigger.
+   */
+  public enum TriggerResult {
+    FIRE(true, false),
+    CONTINUE(false, false),
+    FIRE_AND_FINISH(true, true),
+    FINISH(false, true);
+
+    private boolean finish;
+    private boolean fire;
+
+    private TriggerResult(boolean fire, boolean finish) {
+      this.fire = fire;
+      this.finish = finish;
+    }
+
+    public boolean isFire() {
+      return fire;
+    }
+
+    public boolean isFinish() {
+      return finish;
+    }
+  }
+
+  /**
    * Information is that is made available to triggers, eg., setting timers.
-   *
-   * TODO: Add support for processing time timers.
    */
   public interface TriggerContext<W extends BoundedWindow>  {
 
@@ -85,13 +109,6 @@ public interface Trigger<W extends BoundedWindow> {
      * The current processing time.
      */
     Instant currentProcessingTime();
-
-    /**
-     * Emit the given window.
-     * @param window
-     * @throws Exception
-     */
-    void emitWindow(W window) throws Exception;
 
     /**
      * Updates the value stored in keyed state for the given window.
@@ -122,7 +139,8 @@ public interface Trigger<W extends BoundedWindow> {
    * @param value the element that was incorporated
    * @param window the window the element was assigned to
    */
-  void onElement(TriggerContext<W> c, Object value, W window, WindowStatus status) throws Exception;
+  TriggerResult onElement(
+      TriggerContext<W> c, Object value, W window, WindowStatus status) throws Exception;
 
   /**
    * Called immediately after windows have been merged.
@@ -131,7 +149,7 @@ public interface Trigger<W extends BoundedWindow> {
    * @param oldWindows the windows that were merged
    * @param newWindow the window that resulted from merging
    */
-  void onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception;
+  TriggerResult onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception;
 
   /**
    * Called after a timer fires.
@@ -139,5 +157,5 @@ public interface Trigger<W extends BoundedWindow> {
    * @param c the context to interact with
    * @param window the timer is being fired for
    */
-  void onTimer(TriggerContext<W> c, W window) throws Exception;
+  TriggerResult onTimer(TriggerContext<W> c, W window) throws Exception;
 }
