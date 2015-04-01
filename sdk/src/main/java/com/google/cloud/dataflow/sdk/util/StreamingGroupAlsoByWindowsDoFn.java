@@ -89,6 +89,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
             windowFn,
             new StreamingTimerManager(context),
             new DefaultTrigger<W>(),
+            context.keyedState(),
             context.windowingInternals(),
             windowSet);
 
@@ -105,6 +106,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
             windowFn,
             new StreamingTimerManager(context),
             new DefaultTrigger<W>(),
+            context.keyedState(),
             context.windowingInternals(),
             windowSet);
 
@@ -136,6 +138,11 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
       Preconditions.checkArgument(Trigger.TimeDomain.EVENT_TIME.equals(domain),
           "Streaming currently only supports Watermark based timers.");
       context.windowingInternals().deleteTimer(timer);
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      throw new UnsupportedOperationException("Streaming doesn't yet support processing time.");
     }
   }
 }

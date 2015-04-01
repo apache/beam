@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 
 import org.joda.time.Instant;
 
@@ -71,12 +72,17 @@ public interface Trigger<T, W extends BoundedWindow> {
      * TODO: Support processing time
      * TODO: Support per-trigger timers.
      */
-    public void setTimer(W window, Instant timestamp, TimeDomain timeDomain) throws IOException;
+    void setTimer(W window, Instant timestamp, TimeDomain timeDomain) throws IOException;
 
     /**
      * Delete a timer that has been set for the specified window.
      */
-    public void deleteTimer(W window, TimeDomain timeDomain) throws IOException;
+    void deleteTimer(W window, TimeDomain timeDomain) throws IOException;
+
+    /**
+     * The current processing time.
+     */
+    Instant currentProcessingTime();
 
     /**
      * Emit the given window.
@@ -84,6 +90,27 @@ public interface Trigger<T, W extends BoundedWindow> {
      * @throws Exception
      */
     void emitWindow(W window) throws Exception;
+
+    /**
+     * Updates the value stored in keyed state for the given window.
+     */
+    <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException;
+
+    /**
+     * Removes the data associated with the given tag from {@code KeyedState}.
+     * @throws IOException
+     */
+    <T> void remove(CodedTupleTag<T> tag, W window) throws IOException;
+
+    /**
+     * Lookup the value stored in keyed state.
+     */
+    <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException;
+
+    /**
+     * Lookup the value stored in a bunch of windows.
+     */
+    <T> Iterable<T> lookup(CodedTupleTag<T> tag, Iterable<W> windows) throws IOException;
   }
 
   /**

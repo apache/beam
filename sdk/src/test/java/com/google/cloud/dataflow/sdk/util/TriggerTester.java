@@ -66,10 +66,10 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
 
   private static final Logger LOGGER = Logger.getLogger(TriggerTester.class.getName());
 
-  private BatchTimerManager timerManager = new LoggingBatchTimerManager();
-
   private Instant watermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+  private BatchTimerManager timerManager = new LoggingBatchTimerManager(processingTime);
+
   private TriggerExecutor<String, VI, VO, W> triggerExecutor;
 
   private WindowFn<Object, W> windowFn;
@@ -108,7 +108,7 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     this.windowFn = windowFn;
     this.stubContexts = stubContexts;
     this.triggerExecutor = new TriggerExecutor<>(
-        windowFn, timerManager, trigger, stubContexts, windowSet);
+        windowFn, timerManager, trigger, stubContexts, stubContexts, windowSet);
   }
 
   public void logInteractions(boolean logInteractions) {
@@ -137,7 +137,11 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     assertNextOutput(outputTimestamp, element, null);
   }
 
-  public void assertNextOutput(Instant outputTimestamp, Matcher<? super VO> element,
+  public void assertNextOutput(Matcher<? super VO> element, BoundedWindow window) {
+    assertNextOutput(window.maxTimestamp(), element, window);
+  }
+
+  private void assertNextOutput(Instant outputTimestamp, Matcher<? super VO> element,
       BoundedWindow window) {
     assertThat(stubContexts.outputs.size(), Matchers.greaterThan(0));
     WindowedValue<KV<String, VO>> first = stubContexts.outputs.remove(0);
@@ -252,6 +256,11 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
   }
 
   private class LoggingBatchTimerManager extends BatchTimerManager {
+
+    public LoggingBatchTimerManager(Instant processingTime) {
+      super(processingTime);
+    }
+
     @Override
     public void setTimer(String tag, Instant timestamp, TimeDomain domain) {
       logInteraction("Setting timer '%s' for time %d in domain %s",

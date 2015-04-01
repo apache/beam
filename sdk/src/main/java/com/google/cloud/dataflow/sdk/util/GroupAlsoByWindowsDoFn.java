@@ -93,11 +93,11 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
       AbstractWindowSet<K, VI, VO, W> windowSet = windowSetFactory.create(
           key, windowFn.windowCoder(), c.keyedState(), c.windowingInternals());
 
-      BatchTimerManager timerManager = new BatchTimerManager();
+      BatchTimerManager timerManager = new BatchTimerManager(Instant.now());
       TriggerExecutor<K, VI, VO, W> triggerExecutor = new TriggerExecutor<>(
           windowFn, timerManager,
           new DefaultTrigger<W>(),
-          c.windowingInternals(), windowSet);
+          c.keyedState(), c.windowingInternals(), windowSet);
 
       for (WindowedValue<VI> e : c.element().getValue()) {
         // First, handle anything that needs to happen for this element
@@ -106,10 +106,16 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
         // Then, since elements are sorted by their timestamp, advance the watermark and fire any
         // timers that need to be fired.
         timerManager.advanceWatermark(triggerExecutor, e.getTimestamp());
+
+        // Also, fire any processing timers that need to fire
+        timerManager.advanceProcessingTime(triggerExecutor, Instant.now());
       }
 
-      // Finish any pending windows by advance the watermark to infinity.
+      // Finish any pending windows by advancing the watermark to infinity.
       timerManager.advanceWatermark(triggerExecutor, new Instant(Long.MAX_VALUE));
+
+      // Finally, advance the processing time
+      timerManager.advanceProcessingTime(triggerExecutor, Instant.now());
 
       windowSet.persist();
     }

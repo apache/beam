@@ -37,6 +37,8 @@ public class BatchTimerManager implements TimerManager {
   private PriorityQueue<BatchTimerManager.BatchTimer> processingTimers = new PriorityQueue<>(11);
   private Map<String, BatchTimerManager.BatchTimer> processingTagToTimer = new HashMap<>();
 
+  private Instant processingTime;
+
   private PriorityQueue<BatchTimerManager.BatchTimer> queue(Trigger.TimeDomain domain) {
     return Trigger.TimeDomain.EVENT_TIME.equals(domain) ? watermarkTimers : processingTimers;
   }
@@ -44,6 +46,10 @@ public class BatchTimerManager implements TimerManager {
   private Map<String, BatchTimer> map(Trigger.TimeDomain domain) {
     return Trigger.TimeDomain.EVENT_TIME.equals(domain)
         ? watermarkTagToTimer : processingTagToTimer;
+  }
+
+  public BatchTimerManager(Instant processingTime) {
+    this.processingTime = processingTime;
   }
 
   @Override
@@ -60,6 +66,11 @@ public class BatchTimerManager implements TimerManager {
   @Override
   public void deleteTimer(String tag, Trigger.TimeDomain domain) {
     queue(domain).remove(map(domain).get(tag));
+  }
+
+  @Override
+  public Instant currentProcessingTime() {
+    return processingTime;
   }
 
   @Override
@@ -83,6 +94,7 @@ public class BatchTimerManager implements TimerManager {
   public void advanceProcessingTime(
       TriggerExecutor<?, ?, ?, ?> triggerExecutor, Instant newProcessingTime) throws Exception {
     advance(triggerExecutor, newProcessingTime, TimeDomain.PROCESSING_TIME);
+    this.processingTime = newProcessingTime;
   }
 
   /**
@@ -104,7 +116,8 @@ public class BatchTimerManager implements TimerManager {
 
     do {
       BatchTimer timer = timers.peek();
-      shouldFire = timer != null && newTime.isAfter(timer.time);
+      // Timers fire if the new time is >= the timer
+      shouldFire = timer != null && !newTime.isBefore(timer.time);
       if (shouldFire) {
         // Remove before firing, so that if the trigger adds another identical
         // timer we don't remove it.
@@ -153,5 +166,6 @@ public class BatchTimerManager implements TimerManager {
       }
       return false;
     }
+
   }
 }

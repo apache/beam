@@ -16,19 +16,24 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
+import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import org.joda.time.Instant;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Manages the execution of a trigger.
@@ -46,6 +51,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements Trig
   private final AbstractWindowSet<K, VI, VO, W> windowSet;
   private final TimerManager timerManager;
   private final MergeContext mergeContext;
+  private KeyedState keyedState;
 
   /**
    * Methods that the system must provide in order for us to implement triggers.
@@ -63,16 +69,23 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements Trig
      * Deletes the given timer.
      */
     void deleteTimer(String timer, Trigger.TimeDomain domain);
+
+    /**
+     * @return the current timestamp in the {@link Trigger.TimeDomain#PROCESSING_TIME}.
+     */
+    Instant currentProcessingTime();
   }
 
   public TriggerExecutor(
       WindowFn<Object, W> windowFn,
       TimerManager timerManager,
       Trigger<Object, W> trigger,
+      KeyedState keyedState,
       WindowingInternals<?, KV<K, VO>> windowingInternals,
       AbstractWindowSet<K, VI, VO, W> windowSet) {
     this.windowFn = windowFn;
     this.trigger = trigger;
+    this.keyedState = keyedState;
     this.windowingInternals = windowingInternals;
     this.windowSet = windowSet;
     this.timerManager = timerManager;
@@ -150,5 +163,47 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements Trig
     timerManager.deleteTimer(
         WindowUtils.windowToString(window, windowFn.windowCoder()),
         domain);
+  }
+
+  private <T> CodedTupleTag<T> perWindowTag(CodedTupleTag<T> tag, W window) throws IOException {
+    return CodedTupleTag.of(
+        tag.getId() + WindowUtils.windowToString(window, windowFn.windowCoder()),
+        tag.getCoder());
+  }
+
+  @Override
+  public <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException {
+    keyedState.store(perWindowTag(tag, window), value);
+  }
+
+  @Override
+  public <T> void remove(CodedTupleTag<T> tag, W window) throws IOException {
+    keyedState.remove(perWindowTag(tag, window));
+  }
+
+  @Override
+  public <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException {
+    return keyedState.lookup(perWindowTag(tag, window));
+  }
+
+
+  @Override
+  public <T> Iterable<T> lookup(CodedTupleTag<T> tag, Iterable<W> windows) throws IOException {
+    List<CodedTupleTag<T>> tags = new ArrayList<>();
+    for (W window : windows) {
+      tags.add(perWindowTag(tag, window));
+    }
+    CodedTupleTagMap tagMap = keyedState.lookup(tags);
+
+    List<T> result = new ArrayList<>();
+    for (CodedTupleTag<T> windowTag : tags) {
+      result.add(tagMap.get(windowTag));
+    }
+    return result;
+  }
+
+  @Override
+  public Instant currentProcessingTime() {
+    return timerManager.currentProcessingTime();
   }
 }

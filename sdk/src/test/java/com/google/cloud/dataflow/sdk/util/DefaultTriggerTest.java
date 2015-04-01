@@ -52,11 +52,11 @@ public class DefaultTriggerTest {
     tester.assertNoMoreOutput();
 
     // Advance the watermark almost to the end of the first window.
-    tester.advanceWatermark(new Instant(9));
+    tester.advanceWatermark(new Instant(8));
     tester.assertNoMoreOutput();
 
-    // Advance the watermark past the first window
-    tester.advanceWatermark(new Instant(12));
+    // Advance the watermark to the end of the first window
+    tester.advanceWatermark(new Instant(9));
     tester.assertNextOutput(new Instant(9), Matchers.containsInAnyOrder(1, 2));
     tester.assertNoMoreOutput();
 
