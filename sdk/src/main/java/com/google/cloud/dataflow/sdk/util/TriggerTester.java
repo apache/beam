@@ -16,9 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -31,10 +28,10 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
-import org.hamcrest.Matcher;
-import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -115,43 +112,38 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     this.logInteractions = logInteractions;
   }
 
-  public void advanceWatermark(Instant newWatermark) throws Exception {
+  private Iterable<WindowedValue<VO>> extractOutput() {
+    ImmutableList<WindowedValue<VO>> result = FluentIterable.from(stubContexts.outputs)
+        .transform(new Function<WindowedValue<KV<String, VO>>, WindowedValue<VO>>() {
+          @Override
+          @Nullable
+          public WindowedValue<VO> apply(@Nullable WindowedValue<KV<String, VO>> input) {
+            return WindowedValue.of(
+                input.getValue().getValue(), input.getTimestamp(), input.getWindows());
+          }
+        })
+        .toList();
+    stubContexts.outputs.clear();
+    return result;
+  }
+
+  public Iterable<WindowedValue<VO>> advanceWatermark(Instant newWatermark) throws Exception {
     Preconditions.checkState(!newWatermark.isBefore(watermark));
     logInteraction("Advancing watermark to %d", newWatermark.getMillis());
     watermark = newWatermark;
     timerManager.advanceWatermark(triggerExecutor, newWatermark);
+
+    return extractOutput();
   }
 
-  public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
+  public Iterable<WindowedValue<VO>> advanceProcessingTime(
+      Instant newProcessingTime) throws Exception {
     Preconditions.checkState(!newProcessingTime.isBefore(processingTime));
     logInteraction("Advancing processing time to %d", newProcessingTime.getMillis());
     processingTime = newProcessingTime;
     timerManager.advanceProcessingTime(triggerExecutor, newProcessingTime);
-  }
 
-  public void assertNoMoreOutput() {
-    assertThat(stubContexts.outputs, Matchers.empty());
-  }
-
-  public void assertNextOutput(Instant outputTimestamp, Matcher<? super VO> element) {
-    assertNextOutput(outputTimestamp, element, null);
-  }
-
-  public void assertNextOutput(Matcher<? super VO> element, BoundedWindow window) {
-    assertNextOutput(window.maxTimestamp(), element, window);
-  }
-
-  private void assertNextOutput(Instant outputTimestamp, Matcher<? super VO> element,
-      BoundedWindow window) {
-    assertThat(stubContexts.outputs.size(), Matchers.greaterThan(0));
-    WindowedValue<KV<String, VO>> first = stubContexts.outputs.remove(0);
-    assertEquals(outputTimestamp, first.getTimestamp());
-    assertEquals(first.getValue().getKey(), KEY);
-    assertThat(first.getValue().getValue(), element);
-
-    if (window != null) {
-      assertThat(first.getWindows(), Matchers.contains(window));
-    }
+    return extractOutput();
   }
 
   public void injectElement(VI value, Instant timestamp) throws Exception {

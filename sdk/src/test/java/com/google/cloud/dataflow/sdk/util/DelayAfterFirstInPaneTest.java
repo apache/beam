@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.junit.Assert.assertThat;
+
+import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
@@ -48,32 +51,24 @@ public class DelayAfterFirstInPaneTest {
         }),
         BufferingWindowSet.<String, Integer, IntervalWindow>factory(VarIntCoder.of()));
 
-    tester.advanceProcessingTime(new Instant(10));
+    assertThat(tester.advanceProcessingTime(new Instant(10)), Matchers.emptyIterable());
+
     tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 15
-    tester.advanceProcessingTime(new Instant(11));
+    assertThat(tester.advanceProcessingTime(new Instant(11)), Matchers.emptyIterable());
     tester.injectElement(2, new Instant(9));
 
-    tester.advanceProcessingTime(new Instant(12));
-    tester.assertNoMoreOutput();
+    assertThat(tester.advanceProcessingTime(new Instant(12)), Matchers.emptyIterable());
 
     tester.injectElement(3, new Instant(8));
-    tester.injectElement(4, new Instant(19)); // timer set for 17
-    tester.advanceProcessingTime(new Instant(13));
-    tester.injectElement(5, new Instant(30)); // timer set for 18
+    tester.injectElement(4, new Instant(19));
+    tester.injectElement(5, new Instant(30));
 
-    tester.advanceProcessingTime(new Instant(16));
+    assertThat(tester.advanceProcessingTime(new Instant(16)), Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 0, 10)));
 
-    tester.assertNextOutput(
-        Matchers.containsInAnyOrder(1, 2, 3),
-        new IntervalWindow(new Instant(0), windowDuration));
-    tester.assertNoMoreOutput();
-
-    tester.advanceProcessingTime(new Instant(19));
-    tester.assertNextOutput(Matchers.containsInAnyOrder(4),
-        new IntervalWindow(new Instant(10), windowDuration));
-    tester.assertNextOutput(Matchers.containsInAnyOrder(5),
-        new IntervalWindow(new Instant(30), windowDuration));
-    tester.assertNoMoreOutput();
+    assertThat(tester.advanceProcessingTime(new Instant(19)), Matchers.containsInAnyOrder(
+        WindowMatchers.isSingleWindowedValue(Matchers.contains(4), 10, 20),
+        WindowMatchers.isSingleWindowedValue(Matchers.contains(5), 30, 40)));
   }
 
   @Test
@@ -90,19 +85,16 @@ public class DelayAfterFirstInPaneTest {
         }),
         BufferingWindowSet.<String, Integer, IntervalWindow>factory(VarIntCoder.of()));
 
-    tester.advanceProcessingTime(new Instant(10));
+    assertThat(tester.advanceProcessingTime(new Instant(10)), Matchers.emptyIterable());
+
     tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
-    tester.advanceProcessingTime(new Instant(16));
-    tester.assertNextOutput(
-        Matchers.containsInAnyOrder(1), new IntervalWindow(new Instant(1), new Instant(11)));
-    tester.assertNoMoreOutput();
+    assertThat(tester.advanceProcessingTime(new Instant(16)), Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 11)));
 
     // Because we discarded the previous window, we don't have it around to merge with.
     tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 21
-    tester.advanceProcessingTime(new Instant(100));
 
-    tester.assertNextOutput(
-        Matchers.containsInAnyOrder(2), new IntervalWindow(new Instant(2), new Instant(12)));
-    tester.assertNoMoreOutput();
+    assertThat(tester.advanceProcessingTime(new Instant(100)), Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 2, 12)));
   }
 }

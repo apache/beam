@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
+import static org.junit.Assert.assertThat;
+
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
@@ -47,23 +50,21 @@ public class DefaultTriggerTest {
     tester.injectElement(4, new Instant(19));
     tester.injectElement(5, new Instant(30));
 
-    // We're processing the data after it arrived.
-    tester.advanceProcessingTime(new Instant(500));
-    tester.assertNoMoreOutput();
+    assertThat(tester.advanceProcessingTime(new Instant(500)), Matchers.emptyIterable());
 
-    // Advance the watermark almost to the end of the first window.
-    tester.advanceWatermark(new Instant(8));
-    tester.assertNoMoreOutput();
+    //    // Advance the watermark almost to the end of the first window.
+    assertThat(tester.advanceWatermark(new Instant(8)), Matchers.emptyIterable());
 
-    // Advance the watermark to the end of the first window
-    tester.advanceWatermark(new Instant(9));
-    tester.assertNextOutput(new Instant(9), Matchers.containsInAnyOrder(1, 2));
-    tester.assertNoMoreOutput();
+    // Advance watermark to 9 (the exact end of the window), which causes the first fixed window to
+    // be emitted
+    assertThat(tester.advanceWatermark(new Instant(9)), Matchers.contains(
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 0, 10)));
 
-    // Advance the watermark to the end
-    tester.advanceWatermark(new Instant(100));
-    tester.assertNextOutput(new Instant(19), Matchers.containsInAnyOrder(3, 4));
-    tester.assertNextOutput(new Instant(39), Matchers.contains(5));
+    // Advance watermark to 100, which causes the remaining two windows to be emitted.
+    // Since their timers were at different timestamps, they should fire in order.
+    assertThat(tester.advanceWatermark(new Instant(100)), Matchers.contains(
+        isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 10, 20),
+        isSingleWindowedValue(Matchers.contains(5), 30, 40)));
   }
 
   @Test
@@ -76,15 +77,14 @@ public class DefaultTriggerTest {
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));
 
-    tester.advanceWatermark(new Instant(10));
-    tester.assertNoMoreOutput(); // no output, because we merge 1 into the [9-19) session
+    // no output, because we merged into the [9-19) session
+    assertThat(tester.advanceWatermark(new Instant(10)), Matchers.emptyIterable());
 
     tester.injectElement(3, new Instant(15));
     tester.injectElement(4, new Instant(30));
 
-    // Advance the watermark to the end
-    tester.advanceWatermark(new Instant(100));
-    tester.assertNextOutput(new Instant(24), Matchers.containsInAnyOrder(1, 2, 3));
-    tester.assertNextOutput(new Instant(39), Matchers.contains(4));
+    assertThat(tester.advanceWatermark(new Instant(100)), Matchers.contains(
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 25),
+        isSingleWindowedValue(Matchers.contains(4), 30, 40)));
   }
 }
