@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -285,7 +286,7 @@ public class MapTaskExecutorFactory {
   public static class WindowingCoderGroupingKeyCreator
       implements GroupingKeyCreator {
 
-    private static final Instant ignored = new Instant(0);
+    private static final Instant ignored = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
     private final Coder coder;
 

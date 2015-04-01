@@ -284,8 +284,8 @@ public abstract class WindowedValue<V> {
       if (o instanceof TimestampedValueInGlobalWindow) {
         TimestampedValueInGlobalWindow<?> that =
             (TimestampedValueInGlobalWindow) o;
-        return Objects.equals(that.value, this.value)
-            && that.timestamp.isEqual(this.timestamp);
+        return this.timestamp.getMillis() == that.timestamp.getMillis()
+            && Objects.equals(that.value, this.value);
       } else {
         return false;
       }
@@ -293,7 +293,7 @@ public abstract class WindowedValue<V> {
 
     @Override
     public int hashCode() {
-      return Objects.hash(value, timestamp);
+      return Objects.hash(value) ^ ((int) timestamp.getMillis());
     }
 
     @Override
