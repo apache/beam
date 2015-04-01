@@ -20,7 +20,6 @@ import static com.google.cloud.dataflow.sdk.util.WindowUtils.bufferTag;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.WindowingInternals;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;

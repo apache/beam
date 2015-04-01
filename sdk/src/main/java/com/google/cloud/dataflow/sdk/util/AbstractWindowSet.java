@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.WindowingInternals;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 

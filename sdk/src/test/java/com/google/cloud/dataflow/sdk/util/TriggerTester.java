@@ -158,8 +158,7 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     triggerExecutor.onElement(WindowedValue.of(value, timestamp, windows));
   }
 
-  private class StubContexts
-      implements DoFn.WindowingInternals<VI, KV<String, VO>>, DoFn.KeyedState {
+  private class StubContexts implements WindowingInternals<VI, KV<String, VO>>, DoFn.KeyedState {
 
     private Map<CodedTupleTag<?>, List<?>> tagListValues = new HashMap<>();
     private Map<CodedTupleTag<?>, Object> tagValues = new HashMap<>();

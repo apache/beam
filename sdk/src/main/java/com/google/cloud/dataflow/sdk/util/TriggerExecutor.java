@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.transforms.DoFn.WindowingInternals;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
