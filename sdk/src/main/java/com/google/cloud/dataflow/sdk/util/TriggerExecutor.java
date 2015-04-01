@@ -46,7 +46,7 @@ import java.util.List;
 public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements TriggerContext<W> {
 
   private final WindowFn<Object, W> windowFn;
-  private final Trigger<Object, W> trigger;
+  private final Trigger<W> trigger;
   private final WindowingInternals<?, KV<K, VO>> windowingInternals;
   private final AbstractWindowSet<K, VI, VO, W> windowSet;
   private final TimerManager timerManager;
@@ -79,7 +79,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements Trig
   public TriggerExecutor(
       WindowFn<Object, W> windowFn,
       TimerManager timerManager,
-      Trigger<Object, W> trigger,
+      Trigger<W> trigger,
       KeyedState keyedState,
       WindowingInternals<?, KV<K, VO>> windowingInternals,
       AbstractWindowSet<K, VI, VO, W> windowSet) {

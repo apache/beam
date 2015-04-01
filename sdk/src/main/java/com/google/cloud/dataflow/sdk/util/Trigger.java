@@ -26,12 +26,11 @@ import java.io.IOException;
 /**
  * Interface to use for controlling when output for a specific key and window is triggered.
  *
- * TODO: Generalize this after extracting the current default trigger.
+ * <p> This functionality is experimental and likely to change.
  *
- * @param <T> the element type that this trigger applies to
  * @param <W> the window that this trigger applies to
  */
-public interface Trigger<T, W extends BoundedWindow> {
+public interface Trigger<W extends BoundedWindow> {
 
   /**
    * Types of timers that are supported.
@@ -54,9 +53,12 @@ public interface Trigger<T, W extends BoundedWindow> {
    * Status of the element in the window.
    */
   public enum WindowStatus {
-    NEW,       // This element caused us to start actively managing the given window
-    EXISTING,  // This window was already under active management
-    UNKNOWN;   // The WindowSet doesn't track the windows actively being managed
+    /** This element caused us to start actively managing the given window. */
+    NEW,
+    /** This window was already under active management before the arrival of this element. */
+    EXISTING,
+    /** The WindowSet doesn't track the windows actively being managed. */
+    UNKNOWN;
   }
 
   /**
@@ -120,7 +122,7 @@ public interface Trigger<T, W extends BoundedWindow> {
    * @param value the element that was incorporated
    * @param window the window the element was assigned to
    */
-  void onElement(TriggerContext<W> c, T value, W window, WindowStatus status) throws Exception;
+  void onElement(TriggerContext<W> c, Object value, W window, WindowStatus status) throws Exception;
 
   /**
    * Called immediately after windows have been merged.

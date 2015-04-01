@@ -84,26 +84,22 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
 
   public static <VI, VO, W extends BoundedWindow> TriggerTester<VI, VO, W> of(
       WindowFn<?, W> windowFn,
-      Trigger<?, W> trigger,
+      Trigger<W> trigger,
       AbstractWindowSet.Factory<String, VI, VO, W> windowSetFactory) throws Exception {
     @SuppressWarnings("unchecked")
     WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
-    @SuppressWarnings("unchecked")
-    Trigger<Object, W> objectTrigger = (Trigger<Object, W>) trigger;
 
-    return new TriggerTester<VI, VO, W>(objectWindowFn, objectTrigger, windowSetFactory);
+    return new TriggerTester<VI, VO, W>(objectWindowFn, trigger, windowSetFactory);
   }
 
   private TriggerTester(
       WindowFn<Object, W> windowFn,
-      Trigger<Object, W> trigger,
+      Trigger<W> trigger,
       AbstractWindowSet.Factory<String, VI, VO, W> windowSetFactory) throws Exception {
-    StubContexts stubContexts = new StubContexts();
+    this.windowFn = windowFn;
+    this.stubContexts = new StubContexts();
     AbstractWindowSet<String, VI, VO, W> windowSet = windowSetFactory.create(
         KEY, windowFn.windowCoder(), stubContexts, stubContexts);
-
-    this.windowFn = windowFn;
-    this.stubContexts = stubContexts;
     this.triggerExecutor = new TriggerExecutor<>(
         windowFn, timerManager, trigger, stubContexts, stubContexts, windowSet);
   }

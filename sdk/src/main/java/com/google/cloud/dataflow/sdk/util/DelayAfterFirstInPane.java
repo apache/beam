@@ -30,7 +30,7 @@ import org.joda.time.Instant;
  *
  * @param <W> The type of windows being triggered/encoded.
  */
-public class DelayAfterFirstInPane<W extends BoundedWindow> implements Trigger<Object, W> {
+public class DelayAfterFirstInPane<W extends BoundedWindow> implements Trigger<W> {
 
   private static final Instant ALREADY_FIRED = BoundedWindow.TIMESTAMP_MAX_VALUE;
 

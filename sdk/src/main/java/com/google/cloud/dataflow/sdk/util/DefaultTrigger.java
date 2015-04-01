@@ -25,7 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
  *
  * @param <W> The type of windows being triggered/encoded.
  */
-public class DefaultTrigger<W extends BoundedWindow> implements Trigger<Object, W>{
+public class DefaultTrigger<W extends BoundedWindow> implements Trigger<W>{
 
   @Override
   public void onElement(
