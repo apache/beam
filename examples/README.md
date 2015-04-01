@@ -264,7 +264,7 @@ or [`TrafficStreamingMaxLaneFlow.java`](https://github.com/GoogleCloudPlatform/D
     earlier version of Pub/Sub, which uses a different topic name
     syntax than the latest Cloud Pub/Sub version.
 
-   * You specify the BigQuery dataset and table that you pipeline will write
+   * You specify the BigQuery dataset and table that your pipeline will write
    output to with the `--dataset` and `--table pipeline` options:
 
         `--dataset=<dataset-name> --table=<table-name>`
