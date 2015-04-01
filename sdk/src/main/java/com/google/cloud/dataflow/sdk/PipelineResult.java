@@ -21,7 +21,46 @@ package com.google.cloud.dataflow.sdk;
  */
 public interface PipelineResult {
 
-  // TODO: method to ask if pipeline is running / finished.
+  /**
+   * Retrieves the current state of the pipeline execution.
+   *
+   * @return the {@link State} representing the state of this pipeline.
+   */
+  State getState();
   // TODO: method to retrieve error messages.
+
+
+  /** Named constants for common values for the job state. */
+  public enum State {
+    /** The job state could not be obtained or was not specified. */
+    UNKNOWN(false),
+    /** The job has been paused, or has not yet started. */
+    STOPPED(false),
+    /** The job is currently running. */
+    RUNNING(false),
+    /** The job has successfully completed. */
+    DONE(true),
+    /** The job has failed. */
+    FAILED(true),
+    /** The job has been explicitly cancelled. */
+    CANCELLED(true);
+
+    private final boolean terminal;
+
+    private State(boolean terminal) {
+      this.terminal = terminal;
+    }
+
+    /**
+     * Returns if the job state can no longer complete work.
+     *
+     * @return if this JobState represents a terminal state.
+     */
+    public final boolean isTerminal() {
+      return terminal;
+    }
+
+  }
+
 
 }

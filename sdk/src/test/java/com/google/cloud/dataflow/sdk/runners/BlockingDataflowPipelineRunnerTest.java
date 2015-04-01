@@ -24,9 +24,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult.State;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
-import com.google.cloud.dataflow.sdk.util.MonitoringUtil.JobState;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,16 +49,18 @@ public class BlockingDataflowPipelineRunnerTest {
   // This class mocks a call to DataflowPipelineJob.waitToFinish():
   //    it blocks the thread to simulate waiting,
   //    and releases the blocking once signaled
-  static class MockWaitToFinish implements Answer<JobState> {
+  static class MockWaitToFinish implements Answer<State> {
     NotificationHelper jobCompleted = new NotificationHelper();
 
-    public JobState answer(InvocationOnMock invocation) throws InterruptedException {
+    @Override
+    public State answer(
+        InvocationOnMock invocation) throws InterruptedException {
       System.out.println("MockWaitToFinish.answer(): Wait for signaling job completion.");
       assertTrue("Test did not receive mock job completion signal",
           jobCompleted.waitTillSet(10000));
 
       System.out.println("MockWaitToFinish.answer(): job completed.");
-      return JobState.DONE;
+      return State.DONE;
     }
 
     public void signalJobComplete() {
@@ -114,6 +116,7 @@ public class BlockingDataflowPipelineRunnerTest {
     final NotificationHelper jobCompleted = new NotificationHelper();
 
     new Thread() {
+      @Override
       public void run() {
         executionStarted.set();
 

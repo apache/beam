@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.ListJobMessagesResponse;
+import com.google.cloud.dataflow.sdk.PipelineResult.State;
 
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -86,5 +87,32 @@ public class MonitoringUtilTest {
     verify(secondRequest).setPageToken(pageToken);
 
     assertEquals(150, messages.size());
+  }
+
+  @Test
+  public void testToStateCreatesState() {
+    String stateName = "JOB_STATE_DONE";
+
+    State result = MonitoringUtil.toState(stateName);
+
+    assertEquals(State.DONE, result);
+  }
+
+  @Test
+  public void testToStateWithNullReturnsUnknown() {
+    String stateName = null;
+
+    State result = MonitoringUtil.toState(stateName);
+
+    assertEquals(State.UNKNOWN, result);
+  }
+
+  @Test
+  public void testToStateWithOtherValueReturnsUnknown() {
+    String stateName = "FOO_BAR_BAZ";
+
+    State result = MonitoringUtil.toState(stateName);
+
+    assertEquals(State.UNKNOWN, result);
   }
 }

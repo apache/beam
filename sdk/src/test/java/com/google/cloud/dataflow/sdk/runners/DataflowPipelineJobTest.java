@@ -22,11 +22,14 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
-import com.google.cloud.dataflow.sdk.util.MonitoringUtil.JobState;
+import com.google.cloud.dataflow.sdk.PipelineResult.State;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -39,20 +42,31 @@ public class DataflowPipelineJobTest {
   private static final String PROJECT_ID = "someProject";
   private static final String JOB_ID = "1234";
 
-  @Test
-  public void testWaitToFinish() throws IOException, InterruptedException {
-    Dataflow mockWorkflowClient = mock(Dataflow.class);
-    Dataflow.V1b3 mockV1b3 = mock(Dataflow.V1b3.class);
-    Dataflow.V1b3.Projects mockProjects = mock(Dataflow.V1b3.Projects.class);
-    Dataflow.V1b3.Projects.Jobs mockJobs = mock(Dataflow.V1b3.Projects.Jobs.class);
-    Dataflow.V1b3.Projects.Jobs.Get statusRequest = mock(Dataflow.V1b3.Projects.Jobs.Get.class);
+  @Mock
+  private Dataflow mockWorkflowClient;
+  @Mock
+  private Dataflow.V1b3 mockV1b3;
+  @Mock
+  private Dataflow.V1b3.Projects mockProjects;
+  @Mock
+  private Dataflow.V1b3.Projects.Jobs mockJobs;
 
-    Job statusResponse = new Job();
-    statusResponse.setCurrentState(JobState.DONE.getStateName());
+  @Before
+  public void setup() {
+    MockitoAnnotations.initMocks(this);
 
     when(mockWorkflowClient.v1b3()).thenReturn(mockV1b3);
     when(mockV1b3.projects()).thenReturn(mockProjects);
     when(mockProjects.jobs()).thenReturn(mockJobs);
+  }
+
+  @Test
+  public void testWaitToFinish() throws IOException, InterruptedException {
+    Dataflow.V1b3.Projects.Jobs.Get statusRequest = mock(Dataflow.V1b3.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_" + State.DONE.name());
+
     when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID)))
         .thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
@@ -60,7 +74,39 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job = new DataflowPipelineJob(
         PROJECT_ID, JOB_ID, mockWorkflowClient);
 
-    JobState state = job.waitToFinish(1, TimeUnit.MINUTES, null);
-    assertEquals(JobState.DONE, state);
+    State state = job.waitToFinish(1, TimeUnit.MINUTES, null);
+    assertEquals(State.DONE, state);
+  }
+
+  @Test
+  public void testGetStateReturnsServiceState() throws IOException {
+    Dataflow.V1b3.Projects.Jobs.Get statusRequest =
+        mock(Dataflow.V1b3.Projects.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_" + State.RUNNING.name());
+
+    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(PROJECT_ID, JOB_ID, mockWorkflowClient);
+
+    assertEquals(State.RUNNING, job.getState());
+  }
+
+  @Test
+  public void testGetStateWithExceptionReturnsUnknown() throws IOException {
+    Dataflow.V1b3.Projects.Jobs.Get statusRequest =
+        mock(Dataflow.V1b3.Projects.Jobs.Get.class);
+
+    when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenThrow(IOException.class);
+
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(PROJECT_ID, JOB_ID, mockWorkflowClient);
+
+    assertEquals(State.UNKNOWN, job.getState());
+
   }
 }

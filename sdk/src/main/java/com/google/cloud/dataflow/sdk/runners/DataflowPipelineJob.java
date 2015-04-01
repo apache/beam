@@ -23,7 +23,6 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
-import com.google.cloud.dataflow.sdk.util.MonitoringUtil.JobState;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,7 +98,7 @@ public class DataflowPipelineJob implements PipelineResult {
    * @throws InterruptedException
    */
   @Nullable
-  public JobState waitToFinish(
+  public State waitToFinish(
       long timeToWait,
       TimeUnit timeUnit,
       MonitoringUtil.JobMessagesHandler messageHandler)
@@ -116,21 +115,10 @@ public class DataflowPipelineJob implements PipelineResult {
 
     long lastTimestamp = 0;
     int errorGettingMessages = 0;
-    int errorGettingJobStatus = 0;
     while (true) {
       // Get the state of the job before listing messages. This ensures we always fetch job
       // messages after the job finishes to ensure we have all them.
-      Job job = null;
-      try {
-        job = dataflowClient.v1b3().projects().jobs().get(project, jobId).execute();
-      } catch (GoogleJsonResponseException | SocketTimeoutException e) {
-        if (++errorGettingJobStatus > 5) {
-          // We want to continue to wait for the job to finish so
-          // we ignore this error, but warn occasionally if it keeps happening.
-          LOG.warn("There were problems getting job status: ", e);
-          errorGettingJobStatus = 0;
-        }
-      }
+      State state = getState();
 
       if (messageHandler != null) {
         // Process all the job messages that have accumulated so far.
@@ -154,11 +142,8 @@ public class DataflowPipelineJob implements PipelineResult {
       }
 
       // Check if the job is done.
-      if (job != null) {
-        JobState state = JobState.toState(job.getCurrentState());
-        if (state.isTerminal()) {
-          return state;
-        }
+      if (state.isTerminal()) {
+        return state;
       }
 
       if (System.currentTimeMillis() >= endTime) {
@@ -171,5 +156,24 @@ public class DataflowPipelineJob implements PipelineResult {
           endTime - System.currentTimeMillis(), interval);
       TimeUnit.MILLISECONDS.sleep(sleepTime);
     }
+  }
+
+  @Override
+  public State getState() {
+    Job job = null;
+    for (int retryAttempts = 5; retryAttempts > 0; retryAttempts--) {
+      try {
+        job = dataflowClient
+            .v1b3()
+            .projects()
+            .jobs()
+            .get(project, jobId)
+            .execute();
+        return MonitoringUtil.toState(job.getCurrentState());
+      } catch (IOException e) {
+        LOG.warn("There were problems getting current job status: ", e);
+      }
+    }
+    return State.UNKNOWN;
   }
 }

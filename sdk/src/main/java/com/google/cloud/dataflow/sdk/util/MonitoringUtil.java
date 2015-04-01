@@ -21,6 +21,9 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.Dataflow.V1b3.Projects.Jobs.Messages;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.ListJobMessagesResponse;
+import com.google.cloud.dataflow.sdk.PipelineResult.State;
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Instant;
 
@@ -31,7 +34,6 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,53 +43,19 @@ import javax.annotation.Nullable;
  * A helper class for monitoring jobs submitted to the service.
  */
 public final class MonitoringUtil {
+  private static final Map<String, State> DATAFLOW_STATE_TO_JOB_STATE =
+      ImmutableMap
+          .<String, State>builder()
+          .put("JOB_STATE_UNKNOWN", State.UNKNOWN)
+          .put("JOB_STATE_STOPPED", State.STOPPED)
+          .put("JOB_STATE_RUNNING", State.RUNNING)
+          .put("JOB_STATE_DONE", State.DONE)
+          .put("JOB_STATE_FAILED", State.FAILED)
+          .put("JOB_STATE_CANCELLED", State.CANCELLED)
+          .build();
+
   private String projectId;
   private Messages messagesClient;
-
-  /** Named constants for common values for the job state. */
-  public static enum JobState {
-    UNKNOWN  ("JOB_STATE_UNKNOWN",   false),
-    STOPPED  ("JOB_STATE_STOPPED",   false),
-    RUNNING  ("JOB_STATE_RUNNING",   false),
-    DONE     ("JOB_STATE_DONE",      true),
-    FAILED   ("JOB_STATE_FAILED",    true),
-    CANCELLED("JOB_STATE_CANCELLED", true);
-
-    private final String stateName;
-    private final boolean terminal;
-
-    private JobState(String stateName, boolean terminal) {
-      this.stateName = stateName;
-      this.terminal = terminal;
-    }
-
-    public final String getStateName() {
-      return stateName;
-    }
-
-    public final boolean isTerminal() {
-      return terminal;
-    }
-
-    private static final Map<String, JobState> statesByName =
-        Collections.unmodifiableMap(buildStatesByName());
-
-    private static Map<String, JobState> buildStatesByName() {
-      Map<String, JobState> result = new HashMap<>();
-      for (JobState state : JobState.values()) {
-        result.put(state.getStateName(), state);
-      }
-      return result;
-    }
-
-    public static JobState toState(String stateName) {
-      @Nullable JobState state = statesByName.get(stateName);
-      if (state == null) {
-        state = UNKNOWN;
-      }
-      return state;
-    }
-  }
 
   /**
    * An interface which can be used for defining callbacks to receive a list
@@ -227,4 +195,11 @@ public final class MonitoringUtil {
       throw new AssertionError("UTF-8 encoding is not supported by the environment", e);
     }
   }
+
+  public static State toState(String stateName) {
+    return MoreObjects.firstNonNull(DATAFLOW_STATE_TO_JOB_STATE.get(stateName),
+        State.UNKNOWN);
+  }
+
 }
+

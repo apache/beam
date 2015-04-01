@@ -18,12 +18,12 @@ package com.google.cloud.dataflow.sdk.runners;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
+import com.google.cloud.dataflow.sdk.PipelineResult.State;
 import com.google.cloud.dataflow.sdk.options.BlockingDataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
-import com.google.cloud.dataflow.sdk.util.MonitoringUtil.JobState;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 
@@ -45,20 +45,21 @@ import javax.annotation.Nullable;
  * fails or cannot be monitored.
  */
 public class BlockingDataflowPipelineRunner extends
-    PipelineRunner<BlockingDataflowPipelineRunner.PipelineJobState> {
+    PipelineRunner<BlockingDataflowPipelineRunner.DataflowPipelineJobState> {
   private static final Logger LOG = LoggerFactory.getLogger(BlockingDataflowPipelineRunner.class);
 
   /**
    * Holds the status of a run request.
    */
-  public static class PipelineJobState implements PipelineResult {
-    private final JobState state;
+  public static class DataflowPipelineJobState implements PipelineResult {
+    private final State state;
 
-    public PipelineJobState(JobState state) {
+    public DataflowPipelineJobState(State state) {
       this.state = state;
     }
 
-    public JobState getJobState() {
+    @Override
+    public State getState() {
       return state;
     }
   }
@@ -92,10 +93,11 @@ public class BlockingDataflowPipelineRunner extends
   }
 
   @Override
-  public PipelineJobState run(Pipeline p) {
+  public DataflowPipelineJobState run(Pipeline p) {
     DataflowPipelineJob job = dataflowPipelineRunner.run(p);
 
-    @Nullable JobState result;
+    @Nullable
+    State result;
     try {
       result = job.waitToFinish(
           BUILTIN_JOB_TIMEOUT_SEC, TimeUnit.SECONDS, jobMessagesHandler);
@@ -110,7 +112,7 @@ public class BlockingDataflowPipelineRunner extends
 
     LOG.info("Job finished with status {}", result);
     if (result.isTerminal()) {
-      return new PipelineJobState(result);
+      return new DataflowPipelineJobState(result);
     }
 
     // TODO: introduce an exception which can wrap a JobState,

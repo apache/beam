@@ -847,6 +847,16 @@ public class DirectPipelineRunner
     public CounterSet getCounters() {
       return counters;
     }
+
+    /**
+     * Returns JobState.DONE in all situations. The Evaluator is not returned
+     * until the pipeline has been traversed, so it will either be returned
+     * after a successful run or the run call will terminate abnormally.
+     */
+    @Override
+    public State getState() {
+      return State.DONE;
+    }
   }
 
 
