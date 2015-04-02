@@ -85,6 +85,10 @@ You can speed up the build and install process by using the following options:
 
         mvn -T 4 install
 
+If you are using [Eclipse](https://eclipse.org/) integrated development
+environment (IDE), please additionally review our
+[Eclipse integration instructions](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/eclipse/README.md).
+
 ## Running the Examples
 
 After building and installing, you can execute the `WordCount` and other example
