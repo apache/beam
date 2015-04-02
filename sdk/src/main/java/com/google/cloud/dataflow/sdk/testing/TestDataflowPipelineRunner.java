@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.testing;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineJob;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
 
@@ -36,8 +37,8 @@ public class TestDataflowPipelineRunner extends BlockingDataflowPipelineRunner {
   }
 
   @Override
-  public DataflowPipelineJobState run(Pipeline pipeline) {
-    DataflowPipelineJobState state = super.run(pipeline);
+  public DataflowPipelineJob run(Pipeline pipeline) {
+    DataflowPipelineJob state = super.run(pipeline);
     if (state.getState() != State.DONE) {
       throw new AssertionError("The dataflow failed.");
     }

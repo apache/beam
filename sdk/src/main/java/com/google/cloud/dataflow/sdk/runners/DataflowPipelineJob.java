@@ -58,6 +58,11 @@ public class DataflowPipelineJob implements PipelineResult {
   private Dataflow dataflowClient;
 
   /**
+   * The state the job terminated in.
+   */
+  private State terminalState;
+
+  /**
    * Construct the job.
    *
    * @param projectId the project id
@@ -160,6 +165,9 @@ public class DataflowPipelineJob implements PipelineResult {
 
   @Override
   public State getState() {
+    if (terminalState != null) {
+      return terminalState;
+    }
     Job job = null;
     for (int retryAttempts = 5; retryAttempts > 0; retryAttempts--) {
       try {
@@ -169,7 +177,11 @@ public class DataflowPipelineJob implements PipelineResult {
             .jobs()
             .get(project, jobId)
             .execute();
-        return MonitoringUtil.toState(job.getCurrentState());
+        State currentState = MonitoringUtil.toState(job.getCurrentState());
+        if (currentState.isTerminal()) {
+          terminalState = currentState;
+        }
+        return currentState;
       } catch (IOException e) {
         LOG.warn("There were problems getting current job status: ", e);
       }

@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.runners;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
 import com.google.cloud.dataflow.sdk.options.BlockingDataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -45,24 +44,8 @@ import javax.annotation.Nullable;
  * fails or cannot be monitored.
  */
 public class BlockingDataflowPipelineRunner extends
-    PipelineRunner<BlockingDataflowPipelineRunner.DataflowPipelineJobState> {
+    PipelineRunner<DataflowPipelineJob> {
   private static final Logger LOG = LoggerFactory.getLogger(BlockingDataflowPipelineRunner.class);
-
-  /**
-   * Holds the status of a run request.
-   */
-  public static class DataflowPipelineJobState implements PipelineResult {
-    private final State state;
-
-    public DataflowPipelineJobState(State state) {
-      this.state = state;
-    }
-
-    @Override
-    public State getState() {
-      return state;
-    }
-  }
 
   // Defaults to an infinite wait period.
   // TODO: make this configurable after removal of option map.
@@ -93,7 +76,7 @@ public class BlockingDataflowPipelineRunner extends
   }
 
   @Override
-  public DataflowPipelineJobState run(Pipeline p) {
+  public DataflowPipelineJob run(Pipeline p) {
     DataflowPipelineJob job = dataflowPipelineRunner.run(p);
 
     @Nullable
@@ -112,12 +95,13 @@ public class BlockingDataflowPipelineRunner extends
 
     LOG.info("Job finished with status {}", result);
     if (result.isTerminal()) {
-      return new DataflowPipelineJobState(result);
+      return job;
     }
 
     // TODO: introduce an exception that can wrap a JobState,
     // so that detailed error information can be retrieved.
-    throw new RuntimeException("Job failed with state " + result);
+    throw new RuntimeException(
+        "Failed to wait for the job to finish. Returned result: " + result);
   }
 
   @Override
