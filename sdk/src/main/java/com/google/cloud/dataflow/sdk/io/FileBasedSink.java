@@ -252,7 +252,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * {@link Sink.WriteOperation#createWriter}. Namely, it must not mutate the state of the object.
      */
     @Override
-    public abstract FileBasedWriter<T> createWriter() throws Exception;
+    public abstract FileBasedWriter<T> createWriter(PipelineOptions options) throws Exception;
 
     /**
      * Initialization of the sink. Default implementation is a no-op. May be overridden by subclass

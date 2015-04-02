@@ -185,7 +185,7 @@ public abstract class Sink<T> implements Serializable {
      *
      * <p>Must not mutate the state of the WriteOperation.
      */
-    public abstract Writer<T, WR> createWriter() throws Exception;
+    public abstract Writer<T, WR> createWriter(PipelineOptions options) throws Exception;
 
     /**
      * Returns the Sink that this write operation writes to.

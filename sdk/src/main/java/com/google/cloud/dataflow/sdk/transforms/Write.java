@@ -149,7 +149,7 @@ public class Write {
           // Lazily initialize the Writer
           if (writer == null) {
             WriteOperation<T, WR> writeOperation = c.sideInput(writeOperationView);
-            writer = writeOperation.createWriter();
+            writer = writeOperation.createWriter(c.getPipelineOptions());
             writer.open(UUID.randomUUID().toString());
           }
           try {

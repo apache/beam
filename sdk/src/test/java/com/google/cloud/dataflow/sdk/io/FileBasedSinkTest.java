@@ -416,7 +416,7 @@ public class FileBasedSinkTest {
       }
 
       @Override
-      public SimpleWriter createWriter() throws Exception {
+      public SimpleWriter createWriter(PipelineOptions options) throws Exception {
         return new SimpleWriter(this);
       }
     }

@@ -180,7 +180,7 @@ public class WriteTest {
     }
 
     @Override
-    public Writer<String, TestWriterResult> createWriter() {
+    public Writer<String, TestWriterResult> createWriter(PipelineOptions options) {
       return new TestSinkWriter(this);
     }
 

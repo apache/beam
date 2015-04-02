@@ -239,7 +239,7 @@ public class XmlFileBasedSink {
      * Creates a XmlWriter with a marshaller for the type it will write.
      */
     @Override
-    public XmlWriter<T> createWriter() throws Exception {
+    public XmlWriter<T> createWriter(PipelineOptions options) throws Exception {
       JAXBContext context;
       Marshaller marshaller;
       context = JAXBContext.newInstance(getSink().classToBind);

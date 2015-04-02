@@ -69,7 +69,7 @@ public class XmlFileBasedSinkTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     XmlWriteOperation<Bird> writeOp =
         XmlFileBasedSink.writeOf(Bird.class, "birds", testFilePrefix).createWriteOperation(options);
-    XmlWriter<Bird> writer = writeOp.createWriter();
+    XmlWriter<Bird> writer = writeOp.createWriter(options);
 
     List<Bird> bundle =
         Lists.newArrayList(new Bird("bemused", "robin"), new Bird("evasive", "goose"));
@@ -155,7 +155,7 @@ public class XmlFileBasedSinkTest {
     XmlWriteOperation<Bird> writeOp =
         XmlFileBasedSink.writeOf(testClass, testRootElement, testFilePrefix)
             .createWriteOperation(options);
-    XmlWriter<Bird> writer = writeOp.createWriter();
+    XmlWriter<Bird> writer = writeOp.createWriter(options);
     assertEquals(testFilePrefix, writer.getWriteOperation().baseTemporaryFilename);
     assertEquals(testRootElement, writer.getWriteOperation().getSink().rootElementName);
     assertNotNull(writer.marshaller);
