@@ -208,9 +208,8 @@ public class StreamingSideInputDoFnRunnerTest {
   private StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> createRunner(
       List<PCollectionView<String>> views) throws Exception {
     DoFnInfo doFnInfo = new DoFnInfo<String, String>(
-        new SideInputFn(views), FixedWindows.of(Duration.millis(10)))
-        .setSideInputViews((Iterable) views)
-        .setInputCoder(StringUtf8Coder.of());
+        new SideInputFn(views), FixedWindows.of(Duration.millis(10)),
+        (Iterable) views, StringUtf8Coder.of());
 
     PTuple sideInputs = PTuple.empty();
     for (PCollectionView<String> view : views) {

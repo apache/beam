@@ -968,9 +968,7 @@ public class DataflowPipelineTranslator {
     context.addInput(
         PropertyNames.SERIALIZED_FN,
         byteArrayToJsonString(serializeToByteArray(
-            new DoFnInfo(fn, windowFn)
-            .setSideInputViews(sideInputs)
-            .setInputCoder(inputCoder))));
+            new DoFnInfo(fn, windowFn, sideInputs, inputCoder))));
     if (fn instanceof DoFn.RequiresKeyedState
         // Adjust requires keyed state property for the Dataflow Service.
         // TODO: Remove when this is performed by the service.

@@ -31,14 +31,24 @@ import java.io.Serializable;
  */
 public class DoFnInfo<I, O> implements Serializable {
   private static final long serialVersionUID = 0;
-  private DoFn<I, O> doFn;
-  private WindowFn<?, ?> windowFn;
-  private Iterable<PCollectionView<?>> sideInputViews;
-  private Coder<I> inputCoder;
+  private final DoFn<I, O> doFn;
+  private final WindowFn<?, ?> windowFn;
+  private final Iterable<PCollectionView<?>> sideInputViews;
+  private final Coder<I> inputCoder;
 
   public DoFnInfo(DoFn<I, O> doFn, WindowFn<?, ?> windowFn) {
     this.doFn = doFn;
     this.windowFn = windowFn;
+    this.sideInputViews = null;
+    this.inputCoder = null;
+  }
+
+  public DoFnInfo(DoFn<I, O> doFn, WindowFn<?, ?> windowFn,
+                  Iterable<PCollectionView<?>> sideInputViews, Coder<I> inputCoder) {
+    this.doFn = doFn;
+    this.windowFn = windowFn;
+    this.sideInputViews = sideInputViews;
+    this.inputCoder = inputCoder;
   }
 
   public DoFn<I, O> getDoFn() {
@@ -49,18 +59,8 @@ public class DoFnInfo<I, O> implements Serializable {
     return windowFn;
   }
 
-  public DoFnInfo<I, O> setSideInputViews(Iterable<PCollectionView<?>> sideInputViews) {
-    this.sideInputViews = sideInputViews;
-    return this;
-  }
-
   public Iterable<PCollectionView<?>> getSideInputViews() {
     return sideInputViews;
-  }
-
-  public DoFnInfo<I, O> setInputCoder(Coder<I> inputCoder) {
-    this.inputCoder = inputCoder;
-    return this;
   }
 
   public Coder<I> getInputCoder() {

@@ -20,8 +20,11 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
 
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
@@ -73,25 +76,20 @@ public class NormalParDoFn extends ParDoFn {
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler /* ignored */)
       throws Exception {
-    DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
-        @Override
-        public DoFnInfo createDoFnInfo() throws Exception {
-          Object deserializedFn =
-              SerializableUtils.deserializeFromByteArray(
-                  getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
-                  "serialized user fn");
-          if (!(deserializedFn instanceof DoFnInfo)) {
-            throw new Exception(
-                "unexpected kind of DoFnInfo: " + deserializedFn.getClass().getName());
-          }
-          return (DoFnInfo) deserializedFn;
-        }
-      };
+    Object deserializedFnInfo =
+        SerializableUtils.deserializeFromByteArray(
+            getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
+            "serialized fn info");
+    if (!(deserializedFnInfo instanceof DoFnInfo)) {
+      throw new Exception(
+          "unexpected kind of DoFnInfo: " + deserializedFnInfo.getClass().getName());
+    }
+    DoFnInfo doFnInfo = (DoFnInfo) deserializedFnInfo;
 
     // If the side input data has already been computed, it will be in sideInputInfo.  Otherwise,
     // we need to look it up dynamically from the Views.
     PTuple sideInputValues = PTuple.empty();
-    Iterable<PCollectionView<?>> sideInputViews = fnFactory.createDoFnInfo().getSideInputViews();
+    final Iterable<PCollectionView<?>> sideInputViews = doFnInfo.getSideInputViews();
     if (sideInputInfos != null) {
       for (SideInputInfo sideInputInfo : sideInputInfos) {
         Object sideInputValue = SideInputUtils.readSideInput(
@@ -121,6 +119,23 @@ public class NormalParDoFn extends ParDoFn {
           "unexpected number of outputTags for DoFn");
     }
 
+    final byte[] serializedDoFn = SerializableUtils.serializeToByteArray(
+        doFnInfo.getDoFn());
+    final WindowFn windowFn = doFnInfo.getWindowFn();
+    final Coder inputCoder = doFnInfo.getInputCoder();
+    DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
+        @Override public DoFnInfo createDoFnInfo() throws Exception {
+          // We guarantee the user a fresh DoFn object every call.  However we
+          // can avoid reparsing the other auxillary information.
+          Object deserializedDoFn = SerializableUtils.deserializeFromByteArray(
+              serializedDoFn, "serialized user fun");
+          if (!(deserializedDoFn instanceof DoFn)) {
+            throw new Exception(
+                "unexpected kind of DoFn: " + deserializedDoFn.getClass().getName());
+          }
+          return new DoFnInfo((DoFn) deserializedDoFn, windowFn, sideInputViews, inputCoder);
+        }
+      };
     return new NormalParDoFn(options, fnFactory, sideInputValues, outputTags,
                              stepName, executionContext, addCounterMutator);
   }
