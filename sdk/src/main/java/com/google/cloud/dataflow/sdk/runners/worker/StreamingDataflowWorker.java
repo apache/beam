@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.api.services.dataflow.model.MapTask;
-import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
@@ -25,12 +24,10 @@ import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggin
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.util.BoundedQueueExecutor;
-import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
 import com.google.cloud.dataflow.sdk.util.StateFetcher;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
-import com.google.cloud.dataflow.sdk.util.Values;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
@@ -466,59 +463,48 @@ public class StreamingDataflowWorker {
 
   private void buildCounters(CounterSet counterSet,
                              Windmill.WorkItemCommitRequest.Builder builder) {
-    for (MetricUpdate metricUpdate :
-             CloudCounterUtils.extractCounters(counterSet, true /* delta */)) {
+    for (Counter counter : counterSet) {
+      Windmill.Counter.Builder counterBuilder = Windmill.Counter.newBuilder();
       Windmill.Counter.Kind kind;
-      String cloudKind = metricUpdate.getKind();
-      if (cloudKind.equals(Counter.AggregationKind.SUM.name())) {
-        kind = Windmill.Counter.Kind.SUM;
-      } else if (cloudKind.equals(Counter.AggregationKind.MEAN.name())) {
-        kind = Windmill.Counter.Kind.MEAN;
-      } else if (cloudKind.equals(Counter.AggregationKind.MAX.name())) {
-        kind = Windmill.Counter.Kind.MAX;
-      } else if (cloudKind.equals(Counter.AggregationKind.MIN.name())) {
-        kind = Windmill.Counter.Kind.MIN;
+      switch (counter.getKind()) {
+        case SUM: kind = Windmill.Counter.Kind.SUM; break;
+        case MAX: kind = Windmill.Counter.Kind.MAX; break;
+        case MIN: kind = Windmill.Counter.Kind.MIN; break;
+        case MEAN:
+          kind = Windmill.Counter.Kind.MEAN;
+          long count = counter.getCount(true /* delta */);
+          if (count <= 0) {
+            continue;
+          }
+          counterBuilder.setMeanCount(count);
+          break;
+        default:
+          LOG.debug("Unhandled counter type: {}", counter.getKind());
+          continue;
+      }
+      Object aggregateObj = counter.getAggregate(true /* delta */);
+      counter.resetDelta();
+      if (aggregateObj instanceof Double) {
+        double aggregate = (Double) aggregateObj;
+        if (aggregate != 0) {
+          counterBuilder.setDoubleScalar(aggregate);
+        }
+      } else if (aggregateObj instanceof Long) {
+        long aggregate = (Long) aggregateObj;
+        if (aggregate != 0) {
+          counterBuilder.setIntScalar(aggregate);
+        }
+      } else if (aggregateObj instanceof Integer) {
+        long aggregate = ((Integer) aggregateObj).longValue();
+        if (aggregate != 0) {
+          counterBuilder.setIntScalar(aggregate);
+        }
       } else {
-        LOG.debug("Unhandled counter type: {}", metricUpdate.getKind());
-        return;
+        LOG.debug("Unhandled aggregate class: {}", aggregateObj.getClass());
+        continue;
       }
-      Windmill.Counter.Builder counterBuilder = builder.addCounterUpdatesBuilder();
-      counterBuilder.setName(metricUpdate.getName().getName()).setKind(kind);
-      Object element = null;
-      if (kind == Windmill.Counter.Kind.MEAN) {
-        Object meanCount = metricUpdate.getMeanCount();
-        if (meanCount != null) {
-          try {
-            Long longValue = Values.asLong(meanCount);
-            if (longValue != 0) {
-              counterBuilder.setMeanCount(longValue);
-            }
-          } catch (ClassCastException e) {
-            // Nothing to do.
-          }
-        }
-        element = metricUpdate.getMeanSum();
-      } else {
-        element = metricUpdate.getScalar();
-      }
-      if (element != null) {
-        try {
-          Double doubleValue = Values.asDouble(element);
-          if (doubleValue != 0) {
-            counterBuilder.setDoubleScalar(doubleValue);
-          }
-        } catch (ClassCastException e) {
-          // Nothing to do.
-        }
-        try {
-          Long longValue = Values.asLong(element);
-          if (longValue != 0) {
-            counterBuilder.setIntScalar(longValue);
-          }
-        } catch (ClassCastException e) {
-          // Nothing to do.
-        }
-      }
+      counterBuilder.setName(counter.getName()).setKind(kind);
+      builder.addCounterUpdates(counterBuilder);
     }
   }
 
