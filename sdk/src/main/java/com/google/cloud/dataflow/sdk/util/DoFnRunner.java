@@ -357,11 +357,13 @@ public class DoFnRunner<I, O, R> {
 
     @Override
     public <T> void sideOutput(TupleTag<T> tag, T output) {
+      Preconditions.checkNotNull(tag, "TupleTag passed to sideOutput cannot be null");
       sideOutputWindowedValue(tag, output, null, null);
     }
 
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      Preconditions.checkNotNull(tag, "TupleTag passed to sideOutputWithTimestamp cannot be null");
       sideOutputWindowedValue(tag, output, timestamp, null);
     }
 
@@ -372,6 +374,7 @@ public class DoFnRunner<I, O, R> {
     @Override
     public <AI, AA, AO> Aggregator<AI> createAggregator(
         String name, Combine.CombineFn<? super AI, AA, AO> combiner) {
+      Preconditions.checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
       return new AggregatorImpl<>(
           generateInternalAggregatorName(name), combiner, addCounterMutator);
     }
@@ -379,6 +382,7 @@ public class DoFnRunner<I, O, R> {
     @Override
     public <AI, AO> Aggregator<AI> createAggregator(
         String name, SerializableFunction<Iterable<AI>, AO> combiner) {
+      Preconditions.checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
       return new AggregatorImpl<AI, Iterable<AI>, AO>(
           generateInternalAggregatorName(name), combiner, addCounterMutator);
     }
@@ -426,6 +430,7 @@ public class DoFnRunner<I, O, R> {
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
+      Preconditions.checkNotNull(view, "View passed to sideInput cannot be null");
       Iterator<? extends BoundedWindow> windowIter = windows().iterator();
       BoundedWindow window;
       if (!windowIter.hasNext()) {
@@ -459,7 +464,6 @@ public class DoFnRunner<I, O, R> {
       return context.stepContext;
     }
 
-
     @Override
     public BoundedWindow window() {
       if (!(fn instanceof RequiresWindowAccess)) {
@@ -489,6 +493,7 @@ public class DoFnRunner<I, O, R> {
 
     @Override
     public <T> void sideOutput(TupleTag<T> tag, T output) {
+      Preconditions.checkNotNull(tag, "Tag passed to sideOutput cannot be null");
       context.sideOutputWindowedValue(tag,
                                       output,
                                       windowedValue.getTimestamp(),
@@ -497,6 +502,7 @@ public class DoFnRunner<I, O, R> {
 
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      Preconditions.checkNotNull(tag, "Tag passed to sideOutputWithTimestamp cannot be null");
       checkTimestamp(timestamp);
       context.sideOutputWindowedValue(tag, output, timestamp, windowedValue.getWindows());
     }
@@ -504,12 +510,14 @@ public class DoFnRunner<I, O, R> {
     @Override
     public <AI, AA, AO> Aggregator<AI> createAggregator(
         String name, Combine.CombineFn<? super AI, AA, AO> combiner) {
+      Preconditions.checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
       return context.createAggregator(name, combiner);
     }
 
     @Override
     public <AI, AO> Aggregator<AI> createAggregator(
         String name, SerializableFunction<Iterable<AI>, AO> combiner) {
+      Preconditions.checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
       return context.createAggregator(name, combiner);
     }
 
