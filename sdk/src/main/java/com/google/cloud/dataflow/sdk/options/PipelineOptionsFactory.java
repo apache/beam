@@ -958,6 +958,7 @@ public class PipelineOptionsFactory {
       methods.add(klass.getMethod("hashCode"));
       methods.add(klass.getMethod("toString"));
       methods.add(klass.getMethod("as", Class.class));
+      methods.add(klass.getMethod("cloneAs", Class.class));
     } catch (NoSuchMethodException | SecurityException e) {
       throw Throwables.propagate(e);
     }

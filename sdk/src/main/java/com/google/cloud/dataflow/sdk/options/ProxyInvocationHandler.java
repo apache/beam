@@ -109,6 +109,10 @@ class ProxyInvocationHandler implements InvocationHandler {
       @SuppressWarnings("unchecked")
       Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
       return as(clazz);
+    } else if (args != null && "cloneAs".equals(method.getName()) && args[0] instanceof Class) {
+      @SuppressWarnings("unchecked")
+      Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
+      return cloneAs(proxy, clazz);
     }
     String methodName = method.getName();
     synchronized (this) {
@@ -157,6 +161,18 @@ class ProxyInvocationHandler implements InvocationHandler {
     return interfaceToProxyCache.getInstance(iface);
   }
 
+  /**
+   * Backing implementation for {@link PipelineOptions#cloneAs(Class)}.
+   *
+   * @return A copy of the PipelineOptions.
+   */
+  synchronized <T extends PipelineOptions> T cloneAs(Object proxy, Class<T> iface) {
+    try {
+      return MAPPER.readValue(MAPPER.writeValueAsBytes(proxy), PipelineOptions.class).as(iface);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to serialize the pipeline options to JSON.", e);
+    }
+  }
 
   /**
    * Returns true if the other object is a ProxyInvocationHandler or is a Proxy object and has the

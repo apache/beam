@@ -55,6 +55,14 @@ public interface PipelineOptions {
    */
   <T extends PipelineOptions> T as(Class<T> kls);
 
+  /**
+   * Makes a deep clone of this object, and transforms the cloned object into the specified
+   * type {@code kls}. {@see #as} for more information about the conversion.
+   * <p>
+   * Properties which are marked with {@code @JsonIgnore} will not be cloned.
+   */
+  <T extends PipelineOptions> T cloneAs(Class<T> kls);
+
   @Validation.Required
   @Description("The pipeline runner that will be used to execute the pipeline. "
       + "For registered runners, the class name can be specified, otherwise the fully"
