@@ -57,6 +57,7 @@ public class CoGbkResultTest {
     assertThat(result.getAll(new TupleTag<Integer>("tag3")), contains(3, 5, 6));
     assertThat(result.getAll(new TupleTag<Integer>("tag2")), emptyIterable());
     assertThat(result.getOnly(new TupleTag<Integer>("tag1")), equalTo(1));
+    assertThat(result.getAll(new TupleTag<Integer>("tag0")), contains(0, 2, 4));
   }
 
   private CoGbkResultSchema createSchema(int size) {

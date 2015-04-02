@@ -408,7 +408,8 @@ public class CoGbkResult {
       if (unions.hasNext()) {
         return true;
       } else {
-        // We can now resolve all the "unknown" null values.
+        // Now that we've iterated over all the values, we can resolve all the "unknown" null
+        // values to false.
         for (int i = 0; i < containsTag.length; i++) {
           if (containsTag[i] == null) {
             containsTag[i] = false;
@@ -426,9 +427,12 @@ public class CoGbkResult {
     }
 
     private void advance() {
-      int curTag;
-      while (unions.hasNext() && (curTag = unions.peek().getUnionTag()) != tag) {
+      while (unions.hasNext()) {
+        int curTag = unions.peek().getUnionTag();
         containsTag[curTag] = true;
+        if (curTag == tag) {
+          break;
+        }
         unions.next();
       }
     }
