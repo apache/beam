@@ -89,6 +89,7 @@ message TagList {
 message GlobalDataId {
   required string tag = 1;
   required bytes version = 2;
+  optional int64 existence_watermark_deadline = 3 [default=0x7FFFFFFFFFFFFFFF];
 }
 
 message GlobalData {
