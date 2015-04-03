@@ -712,12 +712,12 @@ public class TextIO {
         new TextReader<>(transform.filepattern, true, null, null, transform.coder,
             transform.getCompressionType());
     List<T> elems = ReaderUtils.readElemsFromReader(reader);
-    context.setPCollection(transform.getOutput(), elems);
+    context.setPCollection(context.getOutput(transform), elems);
   }
 
   private static <T> void evaluateWriteHelper(
       Write.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
-    List<T> elems = context.getPCollection(transform.getInput());
+    List<T> elems = context.getPCollection(context.getInput(transform));
     int numShards = transform.numShards;
     if (numShards < 1) {
       // System gets to choose.  For direct mode, choose 1.

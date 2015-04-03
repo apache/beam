@@ -27,6 +27,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addLong;
 import static com.google.cloud.dataflow.sdk.util.Structs.addObject;
 import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.AutoscalingSettings;
@@ -58,6 +59,7 @@ import com.google.cloud.dataflow.sdk.runners.dataflow.DatastoreIOTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.PubsubIOTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.ReadSourceTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.TextIOTranslator;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -66,6 +68,7 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
@@ -199,6 +202,16 @@ public class DataflowPipelineTranslator {
     DataflowPipelineOptions getPipelineOptions();
 
     /**
+     * Returns the input of the currently being translated transform.
+     */
+    <Input extends PInput> Input getInput(PTransform<Input, ?> transform);
+
+    /**
+     * Returns the output of the currently being translated transform.
+     */
+    <Output extends POutput> Output getOutput(PTransform<?, Output> transform);
+
+    /**
      * Adds a step to the Dataflow workflow for the given transform, with
      * the given Dataflow step type.
      * This step becomes "current" for the purpose of {@link #addInput} and
@@ -324,6 +337,11 @@ public class DataflowPipelineTranslator {
     private final Map<POutput, Coder<?>> outputCoders = new HashMap<>();
 
     /**
+     * The transform currently being applied.
+     */
+    private AppliedPTransform<?, ?, ?> currentTransform;
+
+    /**
      * Constructs a Translator that will translate the specified
      * Pipeline into Dataflow objects.
      */
@@ -440,6 +458,20 @@ public class DataflowPipelineTranslator {
     }
 
     @Override
+    public <Input extends PInput> Input getInput(PTransform<Input, ?> transform) {
+      checkArgument(currentTransform != null && currentTransform.transform == transform,
+          "can only be called with current transform");
+      return (Input) currentTransform.input;
+    }
+
+    @Override
+    public <Output extends POutput> Output getOutput(PTransform<?, Output> transform) {
+      checkArgument(currentTransform != null && currentTransform.transform == transform,
+          "can only be called with current transform");
+      return (Output) currentTransform.output;
+    }
+
+    @Override
     public void enterCompositeTransform(TransformTreeNode node) {
     }
 
@@ -458,7 +490,10 @@ public class DataflowPipelineTranslator {
             "no translator registered for " + transform);
       }
       LOG.debug("Translating {}", transform);
+      currentTransform = AppliedPTransform.of(
+          node.getInput(), node.getOutput(), (PTransform) transform);
       translator.translate(transform, this);
+      currentTransform = null;
     }
 
     @Override
@@ -746,11 +781,11 @@ public class DataflowPipelineTranslator {
               View.CreatePCollectionView<R, T> transform,
               TranslationContext context) {
             context.addStep(transform, "CollectionToSingleton");
-            context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
+            context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
             context.addCollectionToSingletonOutput(
                 PropertyNames.OUTPUT,
-                transform.getInput(),
-                transform.getOutput());
+                context.getInput(transform),
+                context.getOutput(transform));
           }
         });
 
@@ -769,12 +804,14 @@ public class DataflowPipelineTranslator {
               final Combine.GroupedValues<K, VI, VO> transform,
               DataflowPipelineTranslator.TranslationContext context) {
             context.addStep(transform, "CombineValues");
-            context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
+            context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
             context.addInput(
                 PropertyNames.SERIALIZED_FN,
                 byteArrayToJsonString(serializeToByteArray(transform.getFn())));
-            context.addEncodingInput(transform.getAccumulatorCoder());
-            context.addOutput(PropertyNames.OUTPUT, transform.getOutput());
+            context.addEncodingInput(transform.getAccumulatorCoder(
+                context.getInput(transform).getPipeline().getCoderRegistry(),
+                context.getInput(transform)));
+            context.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
           }
         });
 
@@ -793,7 +830,7 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             context.addStep(transform, "CreateCollection");
 
-            Coder<T> coder = transform.getOutput().getCoder();
+            Coder<T> coder = context.getOutput(transform).getCoder();
             List<CloudObject> elements = new LinkedList<>();
             for (T elem : transform.getElements()) {
               byte[] encodedBytes;
@@ -813,7 +850,7 @@ public class DataflowPipelineTranslator {
               elements.add(CloudObject.forString(encodedJson));
             }
             context.addInput(PropertyNames.ELEMENT, elements);
-            context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
+            context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
           }
         });
 
@@ -833,11 +870,11 @@ public class DataflowPipelineTranslator {
             context.addStep(transform, "Flatten");
 
             List<OutputReference> inputs = new LinkedList<>();
-            for (PCollection<T> input : transform.getInput().getAll()) {
+            for (PCollection<T> input : context.getInput(transform).getAll()) {
               inputs.add(context.asOutputReference(input));
             }
             context.addInput(PropertyNames.INPUTS, inputs);
-            context.addOutput(PropertyNames.OUTPUT, transform.getOutput());
+            context.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
           }
         });
 
@@ -855,8 +892,8 @@ public class DataflowPipelineTranslator {
               GroupByKeyOnly<K, V> transform,
               TranslationContext context) {
             context.addStep(transform, "GroupByKey");
-            context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
-            context.addOutput(PropertyNames.OUTPUT, transform.getOutput());
+            context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+            context.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
             context.addInput(
                 PropertyNames.DISALLOW_COMBINER_LIFTING, transform.disallowCombinerLifting());
             // TODO: sortsValues
@@ -877,10 +914,10 @@ public class DataflowPipelineTranslator {
               ParDo.BoundMulti<I, O> transform,
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
-            translateInputs(transform.getInput(), transform.getSideInputs(), context);
-            translateFn(transform.getFn(), transform.getInput().getWindowFn(),
-                transform.getSideInputs(), transform.getInput().getCoder(), context);
-            translateOutputs(transform.getOutput(), context);
+            translateInputs(context.getInput(transform), transform.getSideInputs(), context);
+            translateFn(transform.getFn(), context.getInput(transform).getWindowFn(),
+                transform.getSideInputs(), context.getInput(transform).getCoder(), context);
+            translateOutputs(context.getOutput(transform), context);
           }
         });
 
@@ -898,10 +935,34 @@ public class DataflowPipelineTranslator {
               ParDo.Bound<I, O> transform,
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
-            translateInputs(transform.getInput(), transform.getSideInputs(), context);
-            translateFn(transform.getFn(), transform.getInput().getWindowFn(),
-                transform.getSideInputs(), transform.getInput().getCoder(), context);
-            context.addOutput("out", transform.getOutput());
+            translateInputs(context.getInput(transform), transform.getSideInputs(), context);
+            translateFn(transform.getFn(), context.getInput(transform).getWindowFn(),
+                transform.getSideInputs(), context.getInput(transform).getCoder(), context);
+            context.addOutput("out", context.getOutput(transform));
+          }
+        });
+
+
+    registerTransformTranslator(
+        Window.Bound.class,
+        new DataflowPipelineTranslator.TransformTranslator<Window.Bound>() {
+          @Override
+          public void translate(
+              Window.Bound transform, TranslationContext context) {
+            translateHelper(transform, context);
+          }
+
+          private <T> void translateHelper(
+              Window.Bound<T> transform, TranslationContext context) {
+            context.addStep(transform, "Bucket");
+            context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+            context.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+
+            byte[] serializedBytes = serializeToByteArray(transform.getWindowFn());
+            String serializedJson = byteArrayToJsonString(serializedBytes);
+            assert Arrays.equals(serializedBytes,
+                                 jsonStringToByteArray(serializedJson));
+            context.addInput(PropertyNames.SERIALIZED_FN, serializedJson);
           }
         });
 

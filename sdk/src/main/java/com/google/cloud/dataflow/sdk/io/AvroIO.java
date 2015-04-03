@@ -705,12 +705,13 @@ public class AvroIO {
     for (WindowedValue<T> elem : elems) {
       output.add(ValueWithMetadata.of(elem));
     }
-    context.setPCollectionValuesWithMetadata(transform.getOutput(), output);
+    context.setPCollectionValuesWithMetadata(context.getOutput(transform), output);
   }
 
   private static <T> void evaluateWriteHelper(
       Write.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
-    List<WindowedValue<T>> elems = context.getPCollectionWindowedValues(transform.getInput());
+    List<WindowedValue<T>> elems =
+        context.getPCollectionWindowedValues(context.getInput(transform));
     int numShards = transform.numShards;
     if (numShards < 1) {
       // System gets to choose.  For direct mode, choose 1.

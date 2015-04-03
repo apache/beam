@@ -1657,7 +1657,7 @@ public class Combine {
     @Override
     public PCollection<KV<K, VO>> apply(
         PCollection<? extends KV<K, ? extends Iterable<VI>>> input) {
-      Coder<KV<K, VO>> outputCoder = getDefaultOutputCoder();
+      Coder<KV<K, VO>> outputCoder = getDefaultOutputCoder(input);
       return input.apply(ParDo.of(
           new DoFn<KV<K, ? extends Iterable<VI>>, KV<K, VO>>() {
             @Override
@@ -1668,9 +1668,12 @@ public class Combine {
           })).setCoder(outputCoder);
     }
 
-    private KvCoder<K, VI> getKvCoder() {
+    private KvCoder<K, VI> getKvCoder(
+        Coder<? extends KV<K, ? extends Iterable<VI>>> inputCoder) {
+      /*
       Coder<? extends KV<K, ? extends Iterable<VI>>> inputCoder =
           getInput().getCoder();
+          */
       if (!(inputCoder instanceof KvCoder)) {
         throw new IllegalStateException(
             "Combine.GroupedValues requires its input to use KvCoder");
@@ -1691,19 +1694,23 @@ public class Combine {
     }
 
     @SuppressWarnings("unchecked")
-    public Coder<?> getAccumulatorCoder() {
-      KvCoder<K, VI> kvCoder = getKvCoder();
+    public Coder<?> getAccumulatorCoder(
+        CoderRegistry coderRegistry,
+        PCollection<? extends KV<K, ? extends Iterable<VI>>> input) {
+      KvCoder<K, VI> kvCoder = getKvCoder(input.getCoder());
       return ((KeyedCombineFn<K, VI, ?, VO>) fn).getAccumulatorCoder(
-          getCoderRegistry(), kvCoder.getKeyCoder(), kvCoder.getValueCoder());
+          coderRegistry, kvCoder.getKeyCoder(), kvCoder.getValueCoder());
     }
 
     @Override
-    public Coder<KV<K, VO>> getDefaultOutputCoder() {
-      KvCoder<K, VI> kvCoder = getKvCoder();
+    public Coder<KV<K, VO>> getDefaultOutputCoder(
+        PCollection<? extends KV<K, ? extends Iterable<VI>>> input) {
+      KvCoder<K, VI> kvCoder = getKvCoder(input.getCoder());
       @SuppressWarnings("unchecked")
       Coder<VO> outputValueCoder = ((KeyedCombineFn<K, VI, ?, VO>) fn)
           .getDefaultOutputCoder(
-              getCoderRegistry(), kvCoder.getKeyCoder(), kvCoder.getValueCoder());
+              input.getPipeline().getCoderRegistry(),
+              kvCoder.getKeyCoder(), kvCoder.getValueCoder());
       return KvCoder.of(kvCoder.getKeyCoder(), outputValueCoder);
     }
   }

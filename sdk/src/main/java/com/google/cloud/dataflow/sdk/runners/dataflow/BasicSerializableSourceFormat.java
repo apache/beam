@@ -266,7 +266,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
         output.add(DirectPipelineRunner.ValueWithMetadata.of(
             WindowedValue.valueInGlobalWindow(elem)));
       }
-      context.setPCollectionValuesWithMetadata(transform.getOutput(), output);
+      context.setPCollectionValuesWithMetadata(context.getOutput(transform), output);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -281,7 +281,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
           PropertyNames.SOURCE_STEP_INPUT,
           cloudSourceToDictionary(
               serializeToCloudSource(transform.getSource(), context.getPipelineOptions())));
-      context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
+      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

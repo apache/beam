@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.PipelineResult;
@@ -25,6 +27,7 @@ import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -217,8 +220,8 @@ public class DirectPipelineRunner
   private <K, VI, VA, VO> PCollection<KV<K, VO>> applyTestCombine(
       Combine.GroupedValues<K, VI, VO> transform,
       PCollection<KV<K, Iterable<VI>>> input) {
-    return input.apply(ParDo.of(TestCombineDoFn.create(transform, testSerializability)))
-                .setCoder(transform.getDefaultOutputCoder());
+    return input.apply(ParDo.of(TestCombineDoFn.create(transform, input, testSerializability)))
+                .setCoder(transform.getDefaultOutputCoder(input));
   }
 
   /**
@@ -243,9 +246,13 @@ public class DirectPipelineRunner
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static <K, VI, VA, VO> TestCombineDoFn<K, VI, VA, VO> create(
         Combine.GroupedValues<K, VI, VO> transform,
+        PCollection<KV<K, Iterable<VI>>> input,
         boolean testSerializability) {
       return new TestCombineDoFn(
-          transform.getFn(), transform.getAccumulatorCoder(), testSerializability);
+          transform.getFn(),
+          transform.getAccumulatorCoder(
+              input.getPipeline().getCoderRegistry(), input),
+          testSerializability);
     }
 
     public TestCombineDoFn(
@@ -481,6 +488,16 @@ public class DirectPipelineRunner
     DirectPipelineOptions getPipelineOptions();
 
     /**
+     * Returns the input of the currently being processed transform.
+     */
+    <Input extends PInput> Input getInput(PTransform<Input, ?> transform);
+
+    /**
+     * Returns the output of the currently being processed transform.
+     */
+    <Output extends POutput> Output getOutput(PTransform<?, Output> transform);
+
+    /**
      * Sets the value of the given PCollection, where each element also has a timestamp
      * and collection of windows.
      * Throws an exception if the PCollection's value has already been set.
@@ -579,6 +596,7 @@ public class DirectPipelineRunner
     private final Map<PTransform, String> stepNames = new HashMap<>();
     private final Map<PValue, Object> store = new HashMap<>();
     private final CounterSet counters = new CounterSet();
+    private AppliedPTransform<?, ?, ?> currentTransform;
 
     // Use a random number generator with a fixed seed, so execution
     // using this evaluator is deterministic.  (If the user-defined
@@ -594,6 +612,20 @@ public class DirectPipelineRunner
     @Override
     public DirectPipelineOptions getPipelineOptions() {
       return options;
+    }
+
+    @Override
+    public <Input extends PInput> Input getInput(PTransform<Input, ?> transform) {
+      checkArgument(currentTransform != null && currentTransform.transform == transform,
+          "can only be called with current transform");
+      return (Input) currentTransform.input;
+    }
+
+    @Override
+    public <Output extends POutput> Output getOutput(PTransform<?, Output> transform) {
+      checkArgument(currentTransform != null && currentTransform.transform == transform,
+          "can only be called with current transform");
+      return (Output) currentTransform.output;
     }
 
     @Override
@@ -615,7 +647,10 @@ public class DirectPipelineRunner
             "no evaluator registered for " + transform);
       }
       LOG.debug("Evaluating {}", transform);
+      currentTransform = AppliedPTransform.of(
+          node.getInput(), node.getOutput(), (PTransform) transform);
       evaluator.evaluate(transform, this);
+      currentTransform = null;
     }
 
     @Override

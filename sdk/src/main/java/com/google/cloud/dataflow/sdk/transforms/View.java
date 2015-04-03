@@ -345,8 +345,8 @@ public class View {
                 CreatePCollectionView<R, T> transform,
                 DirectPipelineRunner.EvaluationContext context) {
               List<WindowedValue<R>> elems =
-                  context.getPCollectionWindowedValues(transform.getInput());
-              context.setPCollectionView(transform.getOutput(), elems);
+                  context.getPCollectionWindowedValues(context.getInput(transform));
+              context.setPCollectionView(context.getOutput(transform), elems);
             }
           });
     }

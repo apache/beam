@@ -66,7 +66,7 @@ public class PubsubIOTranslator {
       if (transform.getIdLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_ID_LABEL, transform.getIdLabel());
       }
-      context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
+      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
   }
 
@@ -98,8 +98,8 @@ public class PubsubIOTranslator {
         context.addInput(PropertyNames.PUBSUB_ID_LABEL, transform.getIdLabel());
       }
       context.addEncodingInput(
-          WindowedValue.getValueOnlyCoder(transform.getInput().getCoder()));
-      context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
+          WindowedValue.getValueOnlyCoder(context.getInput(transform).getCoder()));
+      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }
 }

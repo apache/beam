@@ -105,7 +105,7 @@ public class CoGroupByKey<K> extends
         KvCoder.of(keyCoder, unionCoder);
 
     PCollectionList<KV<K, RawUnionValue>> unionTables =
-        PCollectionList.empty(getPipeline());
+        PCollectionList.empty(input.getPipeline());
 
     // TODO: Use the schema to order the indices rather than depending
     // on the fact that the schema ordering is identical to the ordering from

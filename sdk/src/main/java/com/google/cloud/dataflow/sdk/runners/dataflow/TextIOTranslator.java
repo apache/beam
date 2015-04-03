@@ -57,7 +57,7 @@ public class TextIOTranslator {
       // format-specific properties?
       context.addInput(PropertyNames.FORMAT, "text");
       context.addInput(PropertyNames.FILEPATTERN, filepattern);
-      context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
+      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
       context.addInput(PropertyNames.VALIDATE_SOURCE, transform.needsValidation());
       context.addInput(PropertyNames.COMPRESSION_TYPE, transform.getCompressionType().toString());
     }
@@ -87,7 +87,7 @@ public class TextIOTranslator {
           transform.getFilenamePrefix());
 
       context.addStep(transform, "ParallelWrite");
-      context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
+      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
 
       // TODO: drop this check when server supports alternative templates.
       switch (transform.getShardTemplate()) {

@@ -68,7 +68,7 @@ public class BigQueryIOTranslator {
       if (table.getProjectId() != null) {
         context.addInput(PropertyNames.BIGQUERY_PROJECT, table.getProjectId());
       }
-      context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
+      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
   }
 
@@ -133,7 +133,7 @@ public class BigQueryIOTranslator {
       // Set sink encoding to TableRowJsonCoder.
       context.addEncodingInput(
           WindowedValue.getValueOnlyCoder(TableRowJsonCoder.of()));
-      context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
+      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }
 

@@ -182,11 +182,11 @@ public class GroupByKey<K, V>
     public PCollection<KV<K, WindowedValue<V>>> apply(
         PCollection<KV<K, V>> input) {
       @SuppressWarnings("unchecked")
-      KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) getInput().getCoder();
+      KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) input.getCoder();
       Coder<K> keyCoder = inputKvCoder.getKeyCoder();
       Coder<V> inputValueCoder = inputKvCoder.getValueCoder();
       Coder<WindowedValue<V>> outputValueCoder = FullWindowedValueCoder.of(
-          inputValueCoder, getInput().getWindowFn().windowCoder());
+          inputValueCoder, input.getWindowFn().windowCoder());
       Coder<KV<K, WindowedValue<V>>> outputKvCoder =
           KvCoder.of(keyCoder, outputValueCoder);
       return input.apply(ParDo.of(new ReifyTimestampAndWindowsDoFn<K, V>()))
@@ -228,7 +228,7 @@ public class GroupByKey<K, V>
                 });
               c.output(KV.<K, Iterable<WindowedValue<V>>>of(key, sortedValues));
             }}))
-          .setCoder(getInput().getCoder());
+          .setCoder(input.getCoder());
     }
   }
 
@@ -257,7 +257,7 @@ public class GroupByKey<K, V>
         PCollection<KV<K, Iterable<WindowedValue<V>>>> input) {
       @SuppressWarnings("unchecked")
       KvCoder<K, Iterable<WindowedValue<V>>> inputKvCoder =
-          (KvCoder<K, Iterable<WindowedValue<V>>>) getInput().getCoder();
+          (KvCoder<K, Iterable<WindowedValue<V>>>) input.getCoder();
       Coder<K> keyCoder = inputKvCoder.getKeyCoder();
       Coder<Iterable<WindowedValue<V>>> inputValueCoder =
           inputKvCoder.getValueCoder();
@@ -297,10 +297,23 @@ public class GroupByKey<K, V>
       this.disallowCombinerLifting = disallowCombinerLifting;
     }
 
+    @Override
+    public void validate(PCollection<KV<K, V>> input) {
+      // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
+      // the key coder is deterministic.
+      Coder<K> keyCoder = getKeyCoder(input.getCoder());
+      try {
+        keyCoder.verifyDeterministic();
+      } catch (NonDeterministicException e) {
+        throw new IllegalStateException(
+            "the keyCoder of a GroupByKey must be deterministic", e);
+      }
+    }
+
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     public PCollection<KV<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
-      WindowFn windowFn = getInput().getWindowFn();
+      WindowFn windowFn = input.getWindowFn();
       if (!(windowFn instanceof NonMergingWindowFn)) {
         // Prevent merging windows again, without explicit user
         // involvement, e.g., by Window.into() or Window.remerge().
@@ -312,27 +325,12 @@ public class GroupByKey<K, V>
           windowFn);
     }
 
-    @Override
-    public void finishSpecifying() {
-      // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
-      // the key coder is deterministic.
-      Coder<K> keyCoder = getKeyCoder();
-      try {
-        keyCoder.verifyDeterministic();
-      } catch (NonDeterministicException e) {
-        throw new IllegalStateException(
-            "the keyCoder of a GroupByKey must be deterministic", e);
-      }
-      super.finishSpecifying();
-    }
-
     /**
      * Returns the {@code Coder} of the input to this transform, which
      * should be a {@code KvCoder}.
      */
     @SuppressWarnings("unchecked")
-    KvCoder<K, V> getInputKvCoder() {
-      Coder<KV<K, V>> inputCoder = getInput().getCoder();
+    KvCoder<K, V> getInputKvCoder(Coder<KV<K, V>> inputCoder) {
       if (!(inputCoder instanceof KvCoder)) {
         throw new IllegalStateException(
             "GroupByKey requires its input to use KvCoder");
@@ -345,35 +343,35 @@ public class GroupByKey<K, V>
      * transform, which is also used as the {@code Coder} of the keys of
      * the output of this transform.
      */
-    Coder<K> getKeyCoder() {
-      return getInputKvCoder().getKeyCoder();
+    Coder<K> getKeyCoder(Coder<KV<K, V>> inputCoder) {
+      return getInputKvCoder(inputCoder).getKeyCoder();
     }
 
     /**
      * Returns the {@code Coder} of the values of the input to this transform.
      */
-    Coder<V> getInputValueCoder() {
-      return getInputKvCoder().getValueCoder();
+    Coder<V> getInputValueCoder(Coder<KV<K, V>> inputCoder) {
+      return getInputKvCoder(inputCoder).getValueCoder();
     }
 
     /**
      * Returns the {@code Coder} of the {@code Iterable} values of the
      * output of this transform.
      */
-    Coder<Iterable<V>> getOutputValueCoder() {
-      return IterableCoder.of(getInputValueCoder());
+    Coder<Iterable<V>> getOutputValueCoder(Coder<KV<K, V>> inputCoder) {
+      return IterableCoder.of(getInputValueCoder(inputCoder));
     }
 
     /**
      * Returns the {@code Coder} of the output of this transform.
      */
-    KvCoder<K, Iterable<V>> getOutputKvCoder() {
-      return KvCoder.of(getKeyCoder(), getOutputValueCoder());
+    KvCoder<K, Iterable<V>> getOutputKvCoder(Coder<KV<K, V>> inputCoder) {
+      return KvCoder.of(getKeyCoder(inputCoder), getOutputValueCoder(inputCoder));
     }
 
     @Override
-    protected Coder<KV<K, Iterable<V>>> getDefaultOutputCoder() {
-      return getOutputKvCoder();
+    protected Coder<KV<K, Iterable<V>>> getDefaultOutputCoder(PCollection<KV<K, V>> input) {
+      return getOutputKvCoder(input.getCoder());
     }
 
     /**
@@ -408,12 +406,12 @@ public class GroupByKey<K, V>
   private static <K, V> void evaluateHelper(
       GroupByKeyOnly<K, V> transform,
       DirectPipelineRunner.EvaluationContext context) {
-    PCollection<KV<K, V>> input = transform.getInput();
+    PCollection<KV<K, V>> input = context.getInput(transform);
 
     List<ValueWithMetadata<KV<K, V>>> inputElems =
         context.getPCollectionValuesWithMetadata(input);
 
-    Coder<K> keyCoder = transform.getKeyCoder();
+    Coder<K> keyCoder = transform.getKeyCoder(input.getCoder());
 
     Map<GroupingKey<K>, List<V>> groupingMap = new HashMap<>();
 
@@ -452,13 +450,13 @@ public class GroupByKey<K, V>
                       .withKey(key));
     }
 
-    context.setPCollectionValuesWithMetadata(transform.getOutput(),
+    context.setPCollectionValuesWithMetadata(context.getOutput(transform),
                                              outputElems);
   }
 
   public PCollection<KV<K, Iterable<V>>> applyHelper(
       PCollection<KV<K, V>> input, boolean isStreaming, boolean runnerSortsByTimestamp) {
-    Coder<KV<K, V>> inputCoder = getInput().getCoder();
+    Coder<KV<K, V>> inputCoder = input.getCoder();
     if (!(inputCoder instanceof KvCoder)) {
       throw new IllegalStateException(
           "GroupByKey requires its input to use KvCoder");
@@ -467,7 +465,7 @@ public class GroupByKey<K, V>
     // merging windows as needed, using the windows assigned to the
     // key/value input elements and the window merge operation of the
     // window function associated with the input PCollection.
-    WindowFn<?, ?> windowFn = getInput().getWindowFn();
+    WindowFn<?, ?> windowFn = input.getWindowFn();
     if (windowFn instanceof InvalidWindows) {
       String cause = ((InvalidWindows<?>) windowFn).getCause();
       throw new IllegalStateException(

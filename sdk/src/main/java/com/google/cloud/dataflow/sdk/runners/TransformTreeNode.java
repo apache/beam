@@ -227,7 +227,7 @@ public class TransformTreeNode {
     }
 
     if (transform != null) {
-      transform.finishSpecifying();
+      transform.finishSpecifyingInternal();
     }
 
     if (output != null) {

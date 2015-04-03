@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
@@ -194,6 +193,15 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
   }
 
   /**
+   * Called before invoking apply (which may be intercepted by the runner) to
+   * verify this transform is fully specified and applicable to the specified
+   * input.
+   *
+   * <p> By default, does nothing.
+   */
+  public void validate(Input input) { }
+
+  /**
    * Sets the base name of this {@code PTransform}.
    */
   public void setName(String name) {
@@ -227,7 +235,7 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
    * set yet
    */
   @Deprecated
-  public Pipeline getPipeline() {
+  private Pipeline getPipeline() {
     if (pipeline == null) {
       throw new IllegalStateException("owning pipeline not set");
     }
@@ -235,38 +243,15 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
   }
 
   /**
-   * Returns the input of this transform.
-   *
-   * @throws IllegalStateException if this PTransform hasn't been applied yet
-   */
-  public Input getInput() {
-    @SuppressWarnings("unchecked")
-    Input input = (Input) getPipeline().getInput(this);
-    return input;
-  }
-
-  /**
    * Returns the output of this transform.
    *
    * @throws IllegalStateException if this PTransform hasn't been applied yet
    */
-  public Output getOutput() {
+  @Deprecated
+  private Output getOutput() {
     @SuppressWarnings("unchecked")
     Output output = (Output) getPipeline().getOutput(this);
     return output;
-  }
-
-  /**
-   * Returns the {@link CoderRegistry}, useful for inferring
-   * {@link com.google.cloud.dataflow.sdk.coders.Coder}s.
-   *
-   * @throws IllegalStateException if the owning {@link Pipeline} hasn't been
-   * set yet
-   * @deprecated use pipeline.getCoderRegistry()
-   */
-  @Deprecated
-  protected CoderRegistry getCoderRegistry() {
-    return getPipeline().getCoderRegistry();
   }
 
 
@@ -361,7 +346,7 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
    *
    * <p> Not normally called by user code.
    */
-  public void finishSpecifying() {
+  public void finishSpecifyingInternal() {
     getOutput().finishSpecifyingOutput();
   }
 
@@ -377,16 +362,27 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
   }
 
   /**
+   * Returns the default {@code Coder} to use for the output of this
+   * single-output {@code PTransform}, or {@code null} if
+   * none can be inferred.
+   *
+   * <p> By default, returns {@code null}.
+   */
+  protected Coder<?> getDefaultOutputCoder(Input input) {
+    return getDefaultOutputCoder();
+  }
+
+  /**
    * Returns the default {@code Coder} to use for the given output of
    * this single-output {@code PTransform}, or {@code null}
    * if none can be inferred.
    */
-  public <T> Coder<T> getDefaultOutputCoder(TypedPValue<T> output) {
+  public <T> Coder<T> getDefaultOutputCoder(Input input, TypedPValue<T> output) {
     if (output != getOutput()) {
       return null;
     } else {
       @SuppressWarnings("unchecked")
-      Coder<T> defaultOutputCoder = (Coder<T>) getDefaultOutputCoder();
+      Coder<T> defaultOutputCoder = (Coder<T>) getDefaultOutputCoder(input);
       return defaultOutputCoder;
     }
   }

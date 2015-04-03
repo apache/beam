@@ -16,12 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static com.google.cloud.dataflow.sdk.util.SerializableUtils.serializeToByteArray;
-import static com.google.cloud.dataflow.sdk.util.StringUtils.byteArrayToJsonString;
-import static com.google.cloud.dataflow.sdk.util.StringUtils.jsonStringToByteArray;
-
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -30,13 +25,11 @@ import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.PTuple;
-import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -202,8 +195,8 @@ public class Window {
     }
 
     @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return getInput().getCoder();
+    protected Coder<?> getDefaultOutputCoder(PCollection<T> input) {
+      return input.getCoder();
     }
 
     @Override
@@ -233,7 +226,7 @@ public class Window {
   public static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
-      WindowFn<?, ?> windowFn = getInput().getWindowFn();
+      WindowFn<?, ?> windowFn = input.getWindowFn();
       WindowFn<?, ?> outputWindowFn =
           (windowFn instanceof InvalidWindows)
           ? ((InvalidWindows<?>) windowFn).getOriginalWindowFn()
@@ -266,7 +259,7 @@ public class Window {
   private static <T> void evaluateHelper(
       Bound<T> transform,
       DirectPipelineRunner.EvaluationContext context) {
-    PCollection<T> input = transform.getInput();
+    PCollection<T> input = context.getInput(transform);
 
     DirectModeExecutionContext executionContext = new DirectModeExecutionContext();
 
@@ -295,37 +288,7 @@ public class Window {
     addWindowsRunner.finishBundle();
 
     context.setPCollectionValuesWithMetadata(
-        transform.getOutput(),
+        context.getOutput(transform),
         executionContext.getOutput(outputTag));
-  }
-
-
-  /////////////////////////////////////////////////////////////////////////////
-
-  static {
-    DataflowPipelineTranslator.registerTransformTranslator(
-        Bound.class,
-        new DataflowPipelineTranslator.TransformTranslator<Bound>() {
-          @Override
-          public void translate(
-              Bound transform,
-              DataflowPipelineTranslator.TranslationContext context) {
-            translateHelper(transform, context);
-          }
-        });
-  }
-
-  private static <T> void translateHelper(
-      Bound<T> transform,
-      DataflowPipelineTranslator.TranslationContext context) {
-    context.addStep(transform, "Bucket");
-    context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
-    context.addOutput(PropertyNames.OUTPUT, transform.getOutput());
-
-    byte[] serializedBytes = serializeToByteArray(transform.fn);
-    String serializedJson = byteArrayToJsonString(serializedBytes);
-    assert Arrays.equals(serializedBytes,
-                         jsonStringToByteArray(serializedJson));
-    context.addInput(PropertyNames.SERIALIZED_FN, serializedJson);
   }
 }

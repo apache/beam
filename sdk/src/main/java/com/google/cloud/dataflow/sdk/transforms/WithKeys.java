@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -94,10 +95,11 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
   @Override
   public PCollection<KV<K, V>> apply(PCollection<V> in) {
     Coder<K> keyCoder;
+    CoderRegistry coderRegistry = in.getPipeline().getCoderRegistry();
     if (keyClass == null) {
-      keyCoder = getCoderRegistry().getDefaultOutputCoder(fn, in.getCoder());
+      keyCoder = coderRegistry.getDefaultOutputCoder(fn, in.getCoder());
     } else {
-      keyCoder = getCoderRegistry().getDefaultCoder(TypeToken.of(keyClass));
+      keyCoder = coderRegistry.getDefaultCoder(TypeToken.of(keyClass));
     }
     PCollection<KV<K, V>> result =
         in.apply(ParDo.named("AddKeys")

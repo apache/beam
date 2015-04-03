@@ -266,6 +266,7 @@ public class Pipeline {
     LOG.debug("Adding {} to {}", transform, this);
     try {
       transforms.pushNode(child);
+      transform.validate(input);
       Output output = runner.apply(transform, input);
       transforms.setOutput(child, output);
 
@@ -332,6 +333,7 @@ public class Pipeline {
    *
    * @throws IllegalStateException if the transform has not been applied to the pipeline.
    */
+  @Deprecated
   public POutput getOutput(PTransform<?, ?> transform) {
     TransformTreeNode node = transforms.getNode(transform);
     Preconditions.checkState(node != null,
@@ -344,6 +346,7 @@ public class Pipeline {
    *
    * @throws IllegalStateException if the transform has not been applied to the pipeline.
    */
+  @Deprecated
   public PInput getInput(PTransform<?, ?> transform) {
     TransformTreeNode node = transforms.getNode(transform);
     Preconditions.checkState(node != null,

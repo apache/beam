@@ -167,7 +167,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
 
   @Override
   public void finishSpecifying() {
-    getProducingTransformInternal().finishSpecifying();
+    getProducingTransformInternal().finishSpecifyingInternal();
     finishedSpecifying = true;
   }
 

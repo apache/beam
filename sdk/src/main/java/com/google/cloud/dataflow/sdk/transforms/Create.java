@@ -20,6 +20,7 @@ import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
@@ -197,7 +198,8 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
 
   public PCollection<T> applyHelper(PInput input, boolean isStreaming) {
     if (isStreaming) {
-      Coder<T> elemCoder = (Coder<T>) getElementCoder();
+      @SuppressWarnings("unchecked")
+      Coder<T> elemCoder = (Coder<T>) getElementCoder(input.getPipeline().getCoderRegistry());
       return Pipeline.applyTransform(
           input, PubsubIO.Read.named("StartingSignal").subscription("_starting_signal/"))
           .apply(ParDo.of(new DoFn<String, KV<Void, Void>>() {
@@ -266,7 +268,7 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
     return elems;
   }
 
-  private Coder<?> getElementCoder() {
+  private Coder<?> getElementCoder(CoderRegistry coderRegistry) {
     // First try to deduce a coder using the types of the elements.
     Class<?> elementType = null;
     for (T elem : elems) {
@@ -283,7 +285,7 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
       return null;
     }
     if (elementType.getTypeParameters().length == 0) {
-      Coder<?> candidate = getCoderRegistry().getDefaultCoder(TypeToken.of(elementType));
+      Coder<?> candidate = coderRegistry.getDefaultCoder(TypeToken.of(elementType));
       if (candidate != null) {
         return candidate;
       }
@@ -292,7 +294,7 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
     // If that fails, try to deduce a coder using the elements themselves
     Coder<?> coder = null;
     for (T elem : elems) {
-      Coder<?> c = getCoderRegistry().getDefaultCoder(elem);
+      Coder<?> c = coderRegistry.getDefaultCoder(elem);
       if (coder == null) {
         coder = c;
       } else if (!Objects.equals(c, coder)) {
@@ -304,10 +306,10 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
   }
 
   @Override
-  protected Coder<?> getDefaultOutputCoder() {
-    Coder<?> elemCoder = getElementCoder();
+  protected Coder<?> getDefaultOutputCoder(PInput input) {
+    Coder<?> elemCoder = getElementCoder(input.getPipeline().getCoderRegistry());
     if (elemCoder == null) {
-      return super.getDefaultOutputCoder();
+      return super.getDefaultOutputCoder(input);
     } else {
       return elemCoder;
     }
@@ -382,8 +384,8 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
     }
     for (T elem : transform.elems) {
       listElems.add(
-          context.ensureElementEncodable(transform.getOutput(), elem));
+          context.ensureElementEncodable(context.getOutput(transform), elem));
     }
-    context.setPCollection(transform.getOutput(), listElems);
+    context.setPCollection(context.getOutput(transform), listElems);
   }
 }

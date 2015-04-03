@@ -134,19 +134,19 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
    * based upon the known {@code TypeToken<T>}. By default, this is null,
    * but can and should be improved by subclasses.
    */
+  @SuppressWarnings({"unchecked", "rawtypes"})
   private void inferCoderOrFail() {
     if (coder == null) {
       TypeToken<T> token = getTypeToken();
-      CoderRegistry registry = getProducingTransformInternal()
-          .getPipeline()
-          .getCoderRegistry();
+      CoderRegistry registry = getPipeline().getCoderRegistry();
 
       if (token != null) {
         coder = registry.getDefaultCoder(token);
       }
 
       if (coder == null) {
-        coder = getProducingTransformInternal().getDefaultOutputCoder(this);
+        coder = ((PTransform) getProducingTransformInternal()).getDefaultOutputCoder(
+            getPipeline().getInput(getProducingTransformInternal()), this);
       }
 
       if (coder == null) {

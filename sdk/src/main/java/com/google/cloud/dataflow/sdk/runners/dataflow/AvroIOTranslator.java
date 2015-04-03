@@ -56,7 +56,7 @@ public class AvroIOTranslator {
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, "avro");
       context.addInput(PropertyNames.FILEPATTERN, filepattern);
-      context.addValueOnlyOutput(PropertyNames.OUTPUT, transform.getOutput());
+      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
       context.addInput(PropertyNames.VALIDATE_SOURCE, transform.needsValidation());
     }
   }
@@ -81,7 +81,7 @@ public class AvroIOTranslator {
       String filenamePrefix = validator.validateOutputFilePrefixSupported(
           transform.getFilenamePrefix());
       context.addStep(transform, "ParallelWrite");
-      context.addInput(PropertyNames.PARALLEL_INPUT, transform.getInput());
+      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
 
       // TODO: drop this check when server supports alternative templates.
       switch (transform.getShardTemplate()) {

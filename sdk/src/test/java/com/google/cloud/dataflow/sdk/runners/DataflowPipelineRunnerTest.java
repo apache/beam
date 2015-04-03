@@ -442,8 +442,8 @@ public class DataflowPipelineRunnerTest {
     }
 
     @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return getInput().getCoder();
+    protected Coder<?> getDefaultOutputCoder(PCollection<Integer> input) {
+      return input.getCoder();
     }
   }
 
@@ -494,7 +494,7 @@ public class DataflowPipelineRunnerTest {
             // Note: This is about the minimum needed to fake out a
             // translation. This obviously isn't a real translation.
             context.addStep(transform, "TestTranslate");
-            context.addOutput("output", transform.getOutput());
+            context.addOutput("output", context.getOutput(transform));
           }
         });
 

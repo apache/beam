@@ -689,16 +689,17 @@ public class ParDo {
       if (sideInputs == null) {
         sideInputs = Collections.emptyList();
       }
-      return PCollection.<O>createPrimitiveOutputInternal(getInput().getWindowFn())
+      return PCollection.<O>createPrimitiveOutputInternal(input.getWindowFn())
           .setTypeTokenInternal(fn.getOutputTypeToken());
     }
 
     @Override
-    protected Coder<O> getDefaultOutputCoder() {
-      return getPipeline().getCoderRegistry().getDefaultCoder(
+    @SuppressWarnings("unchecked")
+    protected Coder<O> getDefaultOutputCoder(PCollection<? extends I> input) {
+      return input.getPipeline().getCoderRegistry().getDefaultCoder(
           fn.getOutputTypeToken(),
           fn.getInputTypeToken(),
-          ((PCollection<I>) getInput()).getCoder());
+          ((PCollection<I>) input).getCoder());
     }
 
     @Override
@@ -881,7 +882,7 @@ public class ParDo {
     public PCollectionTuple apply(PCollection<? extends I> input) {
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
-          getInput().getWindowFn());
+          input.getWindowFn());
 
       // The fn will likely be an instance of an anonymous subclass
       // such as DoFn<Integer, String> { }, thus will have a high-fidelity
@@ -943,12 +944,12 @@ public class ParDo {
 
     DoFnRunner<I, O, List> fnRunner =
         evaluateHelper(transform.fn, context.getStepName(transform),
-            transform.getInput(), transform.sideInputs,
+            context.getInput(transform), transform.sideInputs,
             mainOutputTag, new ArrayList<TupleTag<?>>(),
             context, executionContext);
 
     context.setPCollectionValuesWithMetadata(
-        transform.getOutput(),
+        context.getOutput(transform),
         executionContext.getOutput(mainOutputTag));
   }
 
@@ -975,12 +976,12 @@ public class ParDo {
 
     DoFnRunner<I, O, List> fnRunner =
         evaluateHelper(transform.fn, context.getStepName(transform),
-                       transform.getInput(), transform.sideInputs,
+                       context.getInput(transform), transform.sideInputs,
                        transform.mainOutputTag, transform.sideOutputTags.getAll(),
                        context, executionContext);
 
     for (Map.Entry<TupleTag<?>, PCollection<?>> entry
-        : transform.getOutput().getAll().entrySet()) {
+        : context.getOutput(transform).getAll().entrySet()) {
       TupleTag<Object> tag = (TupleTag<Object>) entry.getKey();
       @SuppressWarnings("unchecked")
       PCollection<Object> pc = (PCollection<Object>) entry.getValue();

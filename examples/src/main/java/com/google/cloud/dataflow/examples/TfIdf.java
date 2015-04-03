@@ -162,7 +162,7 @@ public class TfIdf {
 
     @Override
     public PCollection<KV<URI, String>> apply(PInput input) {
-      Pipeline pipeline = getPipeline();
+      Pipeline pipeline = input.getPipeline();
 
       // Create one TextIO.Read transform for each document
       // and add its output to a PCollectionList

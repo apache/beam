@@ -581,7 +581,7 @@ public class BigQueryIO {
         }
 
         // In streaming, BigQuery write is taken care of by StreamWithDeDup transform.
-        BigQueryOptions options = getPipeline().getOptions().as(BigQueryOptions.class);
+        BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
         if (options.isStreaming()) {
           return input.apply(new StreamWithDeDup(table, schema));
         }
@@ -846,7 +846,7 @@ public class BigQueryIO {
     List<WindowedValue<TableRow>> elems =
         ReaderUtils.readElemsFromReader(new BigQueryReader(client, ref));
     LOG.info("Number of records read from BigQuery: {}", elems.size());
-    context.setPCollectionWindowedValue(transform.getOutput(), elems);
+    context.setPCollectionWindowedValue(context.getOutput(transform), elems);
   }
 
   /**
@@ -872,7 +872,7 @@ public class BigQueryIO {
       inserter.getOrCreateTable(
           transform.writeDisposition, transform.createDisposition, transform.schema);
 
-      List<TableRow> tableRows = context.getPCollection(transform.getInput());
+      List<TableRow> tableRows = context.getPCollection(context.getInput(transform));
       inserter.insertAll(tableRows);
     } catch (IOException e) {
       throw new RuntimeException(e);

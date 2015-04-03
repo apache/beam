@@ -114,9 +114,9 @@ public class Flatten {
     @Override
     public PCollection<T> apply(PCollectionList<T> inputs) {
       WindowFn<?, ?> windowFn;
-      if (!getInput().getAll().isEmpty()) {
-        windowFn = getInput().get(0).getWindowFn();
-        for (PCollection<?> input : getInput().getAll()) {
+      if (!inputs.getAll().isEmpty()) {
+        windowFn = inputs.get(0).getWindowFn();
+        for (PCollection<?> input : inputs.getAll()) {
           if (!windowFn.isCompatible(input.getWindowFn())) {
             throw new IllegalStateException(
                 "Inputs to Flatten had incompatible window windowFns: "
@@ -131,8 +131,8 @@ public class Flatten {
     }
 
     @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      List<PCollection<T>> inputs = getInput().getAll();
+    protected Coder<?> getDefaultOutputCoder(PCollectionList<T> input) {
+      List<PCollection<T>> inputs = input.getAll();
       if (inputs.isEmpty()) {
         // Cannot infer a Coder from an empty list of input PCollections.
         return null;
@@ -197,12 +197,12 @@ public class Flatten {
       FlattenPCollectionList<T> transform,
       DirectPipelineRunner.EvaluationContext context) {
     List<DirectPipelineRunner.ValueWithMetadata<T>> outputElems = new ArrayList<>();
-    PCollectionList<T> inputs = transform.getInput();
+    PCollectionList<T> inputs = context.getInput(transform);
 
     for (PCollection<T> input : inputs.getAll()) {
       outputElems.addAll(context.getPCollectionValuesWithMetadata(input));
     }
 
-    context.setPCollectionValuesWithMetadata(transform.getOutput(), outputElems);
+    context.setPCollectionValuesWithMetadata(context.getOutput(transform), outputElems);
   }
 }

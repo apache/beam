@@ -348,7 +348,7 @@ public class DataflowPipelineTranslatorTest {
       implements DataflowPipelineTranslator.TransformTranslator<EmbeddedTransform> {
     @Override public void translate(EmbeddedTransform transform, TranslationContext context) {
       addObject(transform.step.getProperties(), PropertyNames.PARALLEL_INPUT,
-          context.asOutputReference(transform.getInput()));
+          context.asOutputReference(context.getInput(transform)));
       context.addStep(transform, transform.step);
     }
   }

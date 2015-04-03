@@ -486,7 +486,7 @@ public class DatastoreIO {
             .initializer(new RetryHttpRequestInitializer(null))
             .build());
 
-    List<Entity> entityList = context.getPCollection(transform.getInput());
+    List<Entity> entityList = context.getPCollection(context.getInput(transform));
 
     // Create a map to put entities with same ancestor for writing in a batch.
     HashMap<String, List<Entity>> map = new HashMap<>();
