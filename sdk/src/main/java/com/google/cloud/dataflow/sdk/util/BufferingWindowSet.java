@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.joda.time.Instant;
 
@@ -150,12 +151,13 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   }
 
   @Override
-  protected Iterable<V> finalValue(W window) throws Exception {
+  protected TimestampedValue<Iterable<V>> finalValue(W window) throws Exception {
     if (!contains(window)) {
       throw new IllegalStateException("finalValue called for non-existent window");
     }
 
     List<V> toEmit = new ArrayList<>();
+    Instant minTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
     // This is the set of windows that we're currently emitting.
     Set<W> curWindows = new HashSet<>();
     curWindows.add(window);
@@ -171,14 +173,17 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
     }
 
     for (W curWindow : curWindows) {
-      Iterable<V> items = windowingInternals.readTagList(
+      Iterable<TimestampedValue<V>> items = windowingInternals.readTagList(
           bufferTag(curWindow, windowCoder, inputCoder));
-      for (V item : items) {
-        toEmit.add(item);
+      for (TimestampedValue<V> item : items) {
+        toEmit.add(item.getValue());
+        if (item.getTimestamp().isBefore(minTimestamp)) {
+          minTimestamp = item.getTimestamp();
+        }
       }
     }
 
-    return toEmit;
+    return TimestampedValue.of((Iterable<V>) toEmit, minTimestamp);
   }
 
   @Override

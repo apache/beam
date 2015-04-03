@@ -24,11 +24,14 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.Weigher;
 import com.google.protobuf.ByteString;
+
+import org.joda.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Class responsible for fetching state from the windmill server.
@@ -126,7 +130,7 @@ public class StateFetcher {
     return resultMap;
   }
 
-  public <T> List<T> fetchList(
+  public <T> List<TimestampedValue<T>> fetchList(
       String computation, ByteString key, long workToken, String prefix, CodedTupleTag<T> tag)
       throws IOException {
 
@@ -166,9 +170,11 @@ public class StateFetcher {
       throw new IOException("Expected single list for tag " + tagString);
     }
     Windmill.TagList tagList = keyResponse.getLists(0);
-    List<T> result = new ArrayList<>();
+    List<TimestampedValue<T>> result = new ArrayList<>();
     for (Windmill.Value value : tagList.getValuesList()) {
-      result.add(tag.getCoder().decode(value.getData().newInput(), Coder.Context.OUTER));
+      result.add(TimestampedValue.of(
+          tag.getCoder().decode(value.getData().newInput(), Coder.Context.OUTER),
+          new Instant(TimeUnit.MICROSECONDS.toMillis(value.getTimestamp()))));
     }
 
     return result;

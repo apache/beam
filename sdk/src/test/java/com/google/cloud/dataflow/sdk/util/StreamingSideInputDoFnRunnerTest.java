@@ -37,6 +37,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.protobuf.ByteString;
 
@@ -148,7 +149,7 @@ public class StreamingSideInputDoFnRunnerTest {
     when(execContext.getSideInput(eq(view), eq(window), any(PTuple.class)))
         .thenReturn("data");
     when(stepContext.readTagList(any(CodedTupleTag.class))).thenReturn(
-        Arrays.asList(createDatum("e", 0)));
+        Arrays.asList(TimestampedValue.of(createDatum("e", 0), new Instant(0))));
 
     StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> runner =
         createRunner(Arrays.asList(view));
@@ -188,7 +189,7 @@ public class StreamingSideInputDoFnRunnerTest {
     when(execContext.getSideInput(eq(view2), eq(window), any(PTuple.class)))
         .thenReturn("data2");
     when(stepContext.readTagList(any(CodedTupleTag.class))).thenReturn(
-        Arrays.asList(createDatum("e1", 0)));
+        Arrays.asList(TimestampedValue.of(createDatum("e1", 0), new Instant(0))));
 
     StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> runner =
         createRunner(Arrays.asList(view1, view2));

@@ -58,13 +58,13 @@ public class DefaultTriggerTest {
     // Advance watermark to 9 (the exact end of the window), which causes the first fixed window to
     // be emitted
     assertThat(tester.advanceWatermark(new Instant(9)), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 0, 10)));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
 
     // Advance watermark to 100, which causes the remaining two windows to be emitted.
     // Since their timers were at different timestamps, they should fire in order.
     assertThat(tester.advanceWatermark(new Instant(100)), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 10, 20),
-        isSingleWindowedValue(Matchers.contains(5), 30, 40)));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 15, 10, 20),
+        isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
   }
 
   @Test
@@ -84,7 +84,7 @@ public class DefaultTriggerTest {
     tester.injectElement(4, new Instant(30));
 
     assertThat(tester.advanceWatermark(new Instant(100)), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 25),
-        isSingleWindowedValue(Matchers.contains(4), 30, 40)));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 1, 25),
+        isSingleWindowedValue(Matchers.contains(4), 30, 30, 40)));
   }
 }

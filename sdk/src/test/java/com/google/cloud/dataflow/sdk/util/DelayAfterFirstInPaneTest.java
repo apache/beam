@@ -64,11 +64,11 @@ public class DelayAfterFirstInPaneTest {
     tester.injectElement(5, new Instant(30));
 
     assertThat(tester.advanceProcessingTime(new Instant(16)), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 0, 10)));
+        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10)));
 
     assertThat(tester.advanceProcessingTime(new Instant(19)), Matchers.containsInAnyOrder(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(4), 10, 20),
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(5), 30, 40)));
+        WindowMatchers.isSingleWindowedValue(Matchers.contains(4), 19, 10, 20),
+        WindowMatchers.isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
   }
 
   @Test
@@ -89,12 +89,12 @@ public class DelayAfterFirstInPaneTest {
 
     tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
     assertThat(tester.advanceProcessingTime(new Instant(16)), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 11)));
+        WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 1, 11)));
 
     // Because we discarded the previous window, we don't have it around to merge with.
     tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 21
 
     assertThat(tester.advanceProcessingTime(new Instant(100)), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 2, 12)));
+        WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 2, 2, 12)));
   }
 }

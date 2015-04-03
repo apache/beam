@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * {@link ExecutionContext} for use in batch mode.
@@ -139,7 +141,8 @@ public class BatchModeExecutionContext extends ExecutionContext {
    */
   class StepContext extends ExecutionContext.StepContext {
     private Map<Object, Map<CodedTupleTag<?>, Object>> state = new HashMap<>();
-    private Map<Object, Map<CodedTupleTag<?>, List<Object>>> tagLists = new HashMap<>();
+    private Map<Object, Map<CodedTupleTag<?>, Map<Instant, List<TimestampedValue>>>> tagLists =
+        new HashMap<>();
 
     StepContext(String stepName) {
       super(stepName);
@@ -177,22 +180,29 @@ public class BatchModeExecutionContext extends ExecutionContext {
 
     @Override
     public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp) {
-      Map<CodedTupleTag<?>, List<Object>> perKeyTagLists = tagLists.get(getKey());
+      Map<CodedTupleTag<?>, Map<Instant, List<TimestampedValue>>> perKeyTagLists =
+          tagLists.get(getKey());
       if (perKeyTagLists == null) {
         perKeyTagLists = new HashMap<>();
         tagLists.put(getKey(), perKeyTagLists);
       }
-      List<Object> tagList = perKeyTagLists.get(tag);
+      Map<Instant, List<TimestampedValue>> tagList = perKeyTagLists.get(tag);
       if (tagList == null) {
-        tagList = new ArrayList<>();
+        tagList = new TreeMap<>();
         perKeyTagLists.put(tag, tagList);
       }
-      tagList.add(value);
+      List<TimestampedValue> timestampList = tagList.get(timestamp);
+      if (timestampList == null) {
+        timestampList = new ArrayList<>();
+        tagList.put(timestamp, timestampList);
+      }
+      timestampList.add(TimestampedValue.of(value, timestamp));
     }
 
     @Override
     public <T> void deleteTagList(CodedTupleTag<T> tag) {
-      Map<CodedTupleTag<?>, List<Object>> perKeyTagLists = tagLists.get(getKey());
+      Map<CodedTupleTag<?>, Map<Instant, List<TimestampedValue>>> perKeyTagLists =
+          tagLists.get(getKey());
       if (perKeyTagLists != null) {
         perKeyTagLists.remove(tag);
       }
@@ -200,16 +210,13 @@ public class BatchModeExecutionContext extends ExecutionContext {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) {
-      Map<CodedTupleTag<?>, List<Object>> perKeyTagLists = tagLists.get(getKey());
+    public <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag) {
+      Map<CodedTupleTag<?>, Map<Instant, List<TimestampedValue>>> perKeyTagLists =
+          tagLists.get(getKey());
       if (perKeyTagLists == null || perKeyTagLists.get(tag) == null) {
-        return new ArrayList<T>();
+        return new ArrayList<TimestampedValue<T>>();
       }
-      List<T> result = new ArrayList<T>();
-      for (Object element : perKeyTagLists.get(tag)) {
-        result.add((T) element);
-      }
-      return result;
+      return Iterables.concat((Iterable) perKeyTagLists.get(tag).values());
     }
   }
 }

@@ -45,18 +45,18 @@ public class WindowMatchers {
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
-      T value, long windowStart, long windowEnd) {
+      T value, long timestamp, long windowStart, long windowEnd) {
     return WindowMatchers.<T>isSingleWindowedValue(
-        Matchers.equalTo(value), windowStart, windowEnd);
+        Matchers.equalTo(value), timestamp, windowStart, windowEnd);
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
-      Matcher<T> valueMatcher, long windowStart, long windowEnd) {
+      Matcher<T> valueMatcher, long timestamp, long windowStart, long windowEnd) {
     IntervalWindow intervalWindow =
         new IntervalWindow(new Instant(windowStart), new Instant(windowEnd));
     return WindowMatchers.<T>isSingleWindowedValue(
         valueMatcher,
-        Matchers.equalTo(intervalWindow.maxTimestamp()),
+        Matchers.equalTo(new Instant(timestamp)),
         Matchers.<BoundedWindow>equalTo(intervalWindow));
   }
 

@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.util.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -39,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -152,7 +154,7 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
 
   private class StubContexts implements WindowingInternals<VI, KV<String, VO>>, DoFn.KeyedState {
 
-    private Map<CodedTupleTag<?>, List<?>> tagListValues = new HashMap<>();
+    private Map<CodedTupleTag<?>, List<TimestampedValue<?>>> tagListValues = new HashMap<>();
     private Map<CodedTupleTag<?>, Object> tagValues = new HashMap<>();
     private List<WindowedValue<KV<String, VO>>> outputs = new ArrayList<>();
 
@@ -168,12 +170,12 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
         throws IOException {
       @SuppressWarnings("unchecked")
-      List<T> values = (List<T>) tagListValues.get(tag);
+      List<TimestampedValue<?>> values = tagListValues.get(tag);
       if (values == null) {
         values = new ArrayList<>();
         tagListValues.put(tag, values);
       }
-      values.add(value);
+      values.add(TimestampedValue.of(value, timestamp));
     }
 
     @Override
@@ -182,10 +184,20 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     }
 
     @Override
-    public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) throws IOException {
+    public <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag) throws IOException {
       @SuppressWarnings("unchecked")
-      List<T> values = (List<T>) tagListValues.get(tag);
-      return values == null ? Collections.<T>emptyList() : values;
+      List<TimestampedValue<T>> values = (List) tagListValues.get(tag);
+      if (values == null) {
+        return Collections.<TimestampedValue<T>>emptyList();
+      } else {
+        Collections.sort(values, new Comparator<TimestampedValue<T>>() {
+              @Override
+              public int compare(TimestampedValue<T> v1, TimestampedValue<T> v2) {
+                return v1.getTimestamp().compareTo(v2.getTimestamp());
+              }
+            });
+        return values;
+      }
     }
 
     @Override

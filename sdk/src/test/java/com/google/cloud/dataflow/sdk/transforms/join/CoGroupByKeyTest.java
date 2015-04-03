@@ -566,16 +566,16 @@ public class CoGroupByKeyTest implements Serializable {
             new ClickOfPurchaseFn(clicksTag, purchasesTag)));
     DataflowAssert.that(clickOfPurchase)
         .containsInAnyOrder(
-            KV.of("Click t0:Boat t1", "3:3"),
-            KV.of("Click t0:Shoesi t2", "3:3"),
-            KV.of("Click t0:Pens t3", "3:3"),
-            KV.of("Click t4:Car t6", "7:7"),
-            KV.of("Click t4:Book t7", "7:7"),
-            KV.of("Click t6:Car t6", "7:7"),
-            KV.of("Click t6:Book t7", "7:7"),
-            KV.of("Click t8:House t8", "11:11"),
-            KV.of("Click t8:Shoes t9", "11:11"),
-            KV.of("Click t8:House t10", "11:11"));
+            KV.of("Click t0:Boat t1", "0:3"),
+            KV.of("Click t0:Shoesi t2", "0:3"),
+            KV.of("Click t0:Pens t3", "0:3"),
+            KV.of("Click t4:Car t6", "4:7"),
+            KV.of("Click t4:Book t7", "4:7"),
+            KV.of("Click t6:Car t6", "4:7"),
+            KV.of("Click t6:Book t7", "4:7"),
+            KV.of("Click t8:House t8", "8:11"),
+            KV.of("Click t8:Shoes t9", "8:11"),
+            KV.of("Click t8:House t10", "8:11"));
     p.run();
   }
 }

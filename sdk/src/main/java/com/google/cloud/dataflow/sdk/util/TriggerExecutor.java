@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.joda.time.Instant;
 
@@ -188,14 +189,16 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> implements Trig
   }
 
   private void emitWindow(W window) throws Exception {
+    TimestampedValue<VO> finalValue = windowSet.finalValue(window);
+
     // Emit the (current) final values for the window
-    KV<K, VO> value = KV.of(windowSet.getKey(), windowSet.finalValue(window));
+    KV<K, VO> value = KV.of(windowSet.getKey(), finalValue.getValue());
 
     // Remove the window from management (assume it is "done")
     windowSet.remove(window);
 
     // Output the windowed value.
-    windowingInternals.outputWindowedValue(value, window.maxTimestamp(), Arrays.asList(window));
+    windowingInternals.outputWindowedValue(value, finalValue.getTimestamp(), Arrays.asList(window));
   }
 
   private class MergeContext extends WindowFn<Object, W>.MergeContext {

@@ -26,7 +26,6 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
-import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
@@ -125,13 +124,13 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
     assertEquals("k", item0.getValue().getKey());
     assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1", "v2"));
-    assertEquals(new Instant(9), item0.getTimestamp());
+    assertEquals(new Instant(0), item0.getTimestamp());
     assertThat(item0.getWindows(), Matchers.contains(window(0, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v3"));
-    assertEquals(new Instant(19), item1.getTimestamp());
+    assertEquals(new Instant(13), item1.getTimestamp());
     assertThat(item1.getWindows(), Matchers.contains(window(10, 20)));
   }
 
@@ -185,19 +184,19 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
     assertEquals("k", item0.getValue().getKey());
     assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1"));
-    assertEquals(new Instant(9), item0.getTimestamp());
+    assertEquals(new Instant(2), item0.getTimestamp());
     assertThat(item0.getWindows(), Matchers.contains(window(-10, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1", "v2"));
-    assertEquals(new Instant(19), item1.getTimestamp());
+    assertEquals(new Instant(2), item1.getTimestamp());
     assertThat(item1.getWindows(), Matchers.contains(window(0, 20)));
 
     WindowedValue<KV<String, Iterable<String>>> item2 = result.get(2);
     assertEquals("k", item2.getValue().getKey());
     assertThat(item2.getValue().getValue(), Matchers.containsInAnyOrder("v2"));
-    assertEquals(new Instant(29), item2.getTimestamp());
+    assertEquals(new Instant(5), item2.getTimestamp());
     assertThat(item2.getWindows(), Matchers.contains(window(10, 30)));
   }
 
@@ -256,18 +255,50 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
     assertEquals("k", item0.getValue().getKey());
     assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1", "v2"));
-    assertEquals(new Instant(14), item0.getTimestamp());
+    assertEquals(new Instant(0), item0.getTimestamp());
     assertThat(item0.getWindows(), Matchers.contains(window(0, 15)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v3"));
-    assertEquals(new Instant(24), item1.getTimestamp());
+    assertEquals(new Instant(15), item1.getTimestamp());
     assertThat(item1.getWindows(), Matchers.contains(window(15, 25)));
   }
 
+  /**
+   * A custom combine fn that doesn't take any performace shortcuts
+   * to ensure that we are using the CombineFn API properly.
+   */
+  private static class SumLongs extends CombineFn<Long, Long, Long> {
+    private static final long serialVersionUID = 0L;
+
+    @Override
+    public Long createAccumulator() {
+      return 0L;
+    }
+
+    @Override
+    public Long addInput(Long accumulator, Long input) {
+      return accumulator + input;
+    }
+
+    @Override
+    public Long mergeAccumulators(Iterable<Long> accumulators) {
+      Long sum = 0L;
+      for (Long value : accumulators) {
+        sum += value;
+      }
+      return sum;
+    }
+
+    @Override
+    public Long extractOutput(Long accumulator) {
+      return new Long(accumulator);
+    }
+  }
+
   @Test public void testSessionsCombine() throws Exception {
-    CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
+    CombineFn<Long, ?, Long> combineFn = new SumLongs();
     DoFnRunner<TimerOrElement<KV<String, Long>>,
         KV<String, Long>, List> runner =
         makeRunner(Sessions.withGapDuration(Duration.millis(10)),
@@ -325,13 +356,13 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     WindowedValue<KV<String, Long>> item0 = result.get(0);
     assertEquals("k", item0.getValue().getKey());
     assertEquals((Long) 7L, item0.getValue().getValue());
-    assertEquals(new Instant(14), item0.getTimestamp());
+    assertEquals(new Instant(0), item0.getTimestamp());
     assertThat(item0.getWindows(), Matchers.contains(window(0, 15)));
 
     WindowedValue<KV<String, Long>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
     assertEquals((Long) 3L, item1.getValue().getValue());
-    assertEquals(new Instant(24), item1.getTimestamp());
+    assertEquals(new Instant(15), item1.getTimestamp());
     assertThat(item1.getWindows(), Matchers.contains(window(15, 25)));
   }
 

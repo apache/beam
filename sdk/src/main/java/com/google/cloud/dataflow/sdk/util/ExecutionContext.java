@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import org.joda.time.Instant;
@@ -182,7 +183,7 @@ public abstract class ExecutionContext {
      *
      * @throws IOException if decoding any of the requested values fails
      */
-    public abstract <T> Iterable<T> readTagList(CodedTupleTag<T> tag)
+    public abstract <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag)
         throws IOException;
   }
 }

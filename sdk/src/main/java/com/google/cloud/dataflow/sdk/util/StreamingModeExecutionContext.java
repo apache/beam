@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.protobuf.ByteString;
 
@@ -250,7 +251,7 @@ public class StreamingModeExecutionContext extends ExecutionContext {
     }
 
     @Override
-    public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) throws IOException {
+    public <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag) throws IOException {
       return stateFetcher.fetchList(
           computation, getSerializedKey(), getWorkToken(), mangledPrefix, tag);
     }

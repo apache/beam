@@ -923,8 +923,8 @@ public class StreamingDataflowWorkerTest {
         "  bundles {" +
         "    key: \"key\"" +
         "    messages {" +
-        "      timestamp: 999000" +
-        "      data: \"\000\000\000\001\005data0\"" +
+        "      timestamp: 0" +
+        "      data: \"\\377\\377\\377\\377\001\005data0\000\"" +
         "    }" +
         "  }" +
         "} " +

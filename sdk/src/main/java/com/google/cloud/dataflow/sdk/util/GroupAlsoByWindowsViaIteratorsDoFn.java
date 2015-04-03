@@ -72,7 +72,7 @@ class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
           windows.put(window.maxTimestamp(), window);
           c.windowingInternals().outputWindowedValue(
               KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
-              window.maxTimestamp(),
+              e.getTimestamp(),
               Arrays.asList(window));
         }
       }

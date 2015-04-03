@@ -104,10 +104,10 @@ public class WindowingTest implements Serializable {
         .apply(new WindowedCount(FixedWindows.of(new Duration(10))));
 
     DataflowAssert.that(output).containsInAnyOrder(
-        output("a", 1, 9, 0, 10),
-        output("b", 2, 9, 0, 10),
-        output("c", 1, 19, 10, 20),
-        output("d", 1, 19, 10, 20));
+        output("a", 1, 1, 0, 10),
+        output("b", 2, 2, 0, 10),
+        output("c", 1, 11, 10, 20),
+        output("d", 1, 11, 10, 20));
 
     p.run();
   }
@@ -129,11 +129,11 @@ public class WindowingTest implements Serializable {
             SlidingWindows.<String>of(new Duration(10)).every(new Duration(5))));
 
     DataflowAssert.that(output).containsInAnyOrder(
-        output("a", 1, 4, -5, 5),
-        output("a", 2, 9, 0, 10),
-        output("a", 1, 14, 5, 15),
-        output("b", 1, 9, 0, 10),
-        output("b", 1, 14, 5, 15));
+        output("a", 1, 1, -5, 5),
+        output("a", 2, 1, 0, 10),
+        output("a", 1, 7, 5, 15),
+        output("b", 1, 8, 0, 10),
+        output("b", 1, 8, 5, 15));
 
     p.run();
   }
@@ -154,8 +154,8 @@ public class WindowingTest implements Serializable {
         .apply(new WindowedCount(Sessions.<String>withGapDuration(new Duration(10))));
 
     DataflowAssert.that(output).containsInAnyOrder(
-        output("a", 2, 14, 1, 15),
-        output("a", 1, 29, 20, 30));
+        output("a", 2, 1, 1, 15),
+        output("a", 1, 20, 20, 30));
 
     p.run();
   }
@@ -182,8 +182,8 @@ public class WindowingTest implements Serializable {
         .apply(new WindowedCount(FixedWindows.<String>of(new Duration(5))));
 
     DataflowAssert.that(output).containsInAnyOrder(
-        output("a", 2, 4, 0, 5),
-        output("b", 2, 4, 0, 5));
+        output("a", 2, 1, 0, 5),
+        output("b", 2, 2, 0, 5));
 
     p.run();
   }
@@ -260,10 +260,10 @@ public class WindowingTest implements Serializable {
         .apply(new WindowedCount(FixedWindows.<String>of(Duration.millis(10))));
 
     DataflowAssert.that(output).containsInAnyOrder(
-        output("a", 1, 9, 0, 10),
-        output("b", 2, 9, 0, 10),
-        output("c", 1, 19, 10, 20),
-        output("d", 1, 19, 10, 20));
+        output("a", 1, 1, 0, 10),
+        output("b", 2, 2, 0, 10),
+        output("c", 1, 11, 10, 20),
+        output("d", 1, 11, 10, 20));
 
     p.run();
   }

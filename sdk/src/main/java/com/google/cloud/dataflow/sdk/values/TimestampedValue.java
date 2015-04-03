@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * An immutable (value, timestamp) pair.
@@ -58,6 +59,25 @@ public class TimestampedValue<V> {
 
   public Instant getTimestamp() {
     return timestamp;
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof TimestampedValue)) {
+      return false;
+    }
+    TimestampedValue that = (TimestampedValue) other;
+    return Objects.equals(value, that.value) && Objects.equals(timestamp, that.timestamp);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(value, timestamp);
+  }
+
+  @Override
+  public String toString() {
+    return "TimetampedValue(" + value + ", " + timestamp + ")";
   }
 
   /////////////////////////////////////////////////////////////////////////////

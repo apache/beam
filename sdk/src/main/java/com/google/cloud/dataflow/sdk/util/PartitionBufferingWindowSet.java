@@ -23,6 +23,9 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
@@ -95,12 +98,20 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
   }
 
   @Override
-  protected Iterable<V> finalValue(W window) throws Exception {
+  protected TimestampedValue<Iterable<V>> finalValue(W window) throws Exception {
     CodedTupleTag<V> tag = bufferTag(window, windowCoder, inputCoder);
-    Iterable<V> result = windowingInternals.readTagList(tag);
+    Iterable<TimestampedValue<V>> result = windowingInternals.readTagList(tag);
+    Instant timestamp = result.iterator().next().getTimestamp();
     if (result == null) {
       throw new IllegalStateException("finalValue called for non-existent window");
     }
-    return result;
+    return TimestampedValue.of(
+        Iterables.transform(result, new Function<TimestampedValue<V>, V>() {
+              @Override
+              public V apply(TimestampedValue<V> input) {
+                return input.getValue();
+              }
+            }),
+        timestamp);
   }
 }

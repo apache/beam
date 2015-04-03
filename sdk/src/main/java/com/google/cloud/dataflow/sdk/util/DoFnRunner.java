@@ -36,6 +36,7 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
@@ -568,7 +569,8 @@ public class DoFnRunner<I, O, R> {
         }
 
         @Override
-        public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) throws IOException {
+        public <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag)
+            throws IOException {
           return context.stepContext.readTagList(tag);
         }
 

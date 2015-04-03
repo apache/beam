@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import org.joda.time.Instant;
@@ -62,7 +63,7 @@ public interface WindowingInternals<I, O> {
    *
    * @throws IOException if decoding any of the requested values fails
    */
-  <T> Iterable<T> readTagList(CodedTupleTag<T> tag) throws IOException;
+  <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag) throws IOException;
 
   /**
    * Writes out a timer to be fired when the watermark reaches the given

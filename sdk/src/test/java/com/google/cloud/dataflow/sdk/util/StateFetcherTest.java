@@ -37,10 +37,12 @@ import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.protobuf.ByteString;
 
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -138,7 +140,7 @@ public class StateFetcherTest {
                         .setData(ByteString.copyFromUtf8("data1"))
                         .build())
                     .addValues(Windmill.Value.newBuilder()
-                        .setTimestamp(1)
+                        .setTimestamp(1000)
                         .setData(ByteString.copyFromUtf8("data2"))
                         .build())
                     .build())
@@ -146,7 +148,7 @@ public class StateFetcherTest {
             .build())
         .build());
 
-    List<String> data =
+    List<TimestampedValue<String>> data =
         fetcher.fetchList("computation", ByteString.copyFromUtf8("key"), 17L, "p:",
             CodedTupleTag.of("tag1", StringUtf8Coder.of()));
 
@@ -165,7 +167,9 @@ public class StateFetcherTest {
             .build())
         .build());
 
-    assertThat(data, contains("data1", "data2"));
+    assertThat(data, contains(
+        TimestampedValue.of("data1", new Instant(0)),
+        TimestampedValue.of("data2", new Instant(1))));
   }
 
   @Test

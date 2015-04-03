@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
@@ -114,8 +115,8 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
 
       try {
         CodedTupleTag<WindowedValue<I>> elementTag = getElemListTag((W) window);
-        for (WindowedValue<I> elem : stepContext.readTagList(elementTag)) {
-          fn.processElement(createProcessContext(elem));
+        for (TimestampedValue<WindowedValue<I>> elem : stepContext.readTagList(elementTag)) {
+          fn.processElement(createProcessContext(elem.getValue()));
         }
         stepContext.deleteTagList(elementTag);
       } catch (Throwable t) {
