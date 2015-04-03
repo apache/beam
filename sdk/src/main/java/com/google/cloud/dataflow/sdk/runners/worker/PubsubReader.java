@@ -31,7 +31,6 @@ import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -87,7 +86,7 @@ class PubsubReader<T> extends Reader<WindowedValue<T>> {
       T value = (T) coder.getValueCoder().decode(data, Coder.Context.OUTER);
       return WindowedValue.of(value,
                               new Instant(timestampMillis),
-                              Arrays.asList(GlobalWindow.INSTANCE));
+                              GlobalWindow.INSTANCE);
     }
   }
 

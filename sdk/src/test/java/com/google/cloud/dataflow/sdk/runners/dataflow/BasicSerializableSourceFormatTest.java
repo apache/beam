@@ -29,6 +29,7 @@ import static com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -55,7 +56,13 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
+import com.google.cloud.dataflow.sdk.transforms.Sample;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -63,8 +70,11 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
+import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
 
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -90,7 +100,7 @@ public class BasicSerializableSourceFormatTest {
 
   static class TestIO {
     public static Read fromRange(int from, int to) {
-      return new Read(from, to);
+      return new Read(from, to, false);
     }
 
     static class Read extends BoundedSource<Integer> {
@@ -98,10 +108,16 @@ public class BasicSerializableSourceFormatTest {
 
       final int from;
       final int to;
+      final boolean produceTimestamps;
 
-      Read(int from, int to) {
+      Read(int from, int to, boolean produceTimestamps) {
         this.from = from;
         this.to = to;
+        this.produceTimestamps = produceTimestamps;
+      }
+
+      public Read withTimestampsMillis() {
+        return new Read(from, to, true);
       }
 
       @Override
@@ -111,7 +127,9 @@ public class BasicSerializableSourceFormatTest {
         DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
         float step = 1.0f * (to - from) / dataflowOptions.getNumWorkers();
         for (int i = 0; i < dataflowOptions.getNumWorkers(); ++i) {
-          res.add(new Read(Math.round(from + i * step), Math.round(from + (i + 1) * step)));
+          res.add(new Read(
+              Math.round(from + i * step), Math.round(from + (i + 1) * step),
+              produceTimestamps));
         }
         return res;
       }
@@ -145,7 +163,7 @@ public class BasicSerializableSourceFormatTest {
         return BigEndianIntegerCoder.of();
       }
 
-      private static class RangeReader implements BoundedReader<Integer> {
+      private static class RangeReader extends AbstractBoundedReader<Integer> {
         // To verify that BasicSerializableSourceFormat calls our methods according to protocol.
         enum State {
           UNSTARTED,
@@ -186,6 +204,12 @@ public class BasicSerializableSourceFormatTest {
         }
 
         @Override
+        public Instant getCurrentTimestamp() {
+          return source.produceTimestamps
+              ? new Instant(current /* as millis */) : BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+
+        @Override
         public void close() throws IOException {
           Preconditions.checkState(state == State.STARTED || state == State.FINISHED);
           state = State.FINISHED;
@@ -202,8 +226,8 @@ public class BasicSerializableSourceFormatTest {
           if (proposedIndex <= current) {
             return null;
           }
-          Read primary = new Read(source.from, proposedIndex);
-          Read residual = new Read(proposedIndex, source.to);
+          Read primary = new Read(source.from, proposedIndex, source.produceTimestamps);
+          Read residual = new Read(proposedIndex, source.to, source.produceTimestamps);
           this.source = primary;
           return residual;
         }
@@ -243,6 +267,34 @@ public class BasicSerializableSourceFormatTest {
       List<WindowedValue<Integer>> xs = CloudSourceUtils.readElemsFromSource(options, bundleSource);
       assertThat(xs, contains(valueInGlobalWindow(10 + 2 * i), valueInGlobalWindow(11 + 2 * i)));
     }
+  }
+
+  @Test
+  public void testDirectPipelineWithoutTimestamps() throws Exception {
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    DirectPipelineRunner runner = DirectPipelineRunner.fromOptions(options);
+    Pipeline p = Pipeline.create(options);
+    PCollection<Integer> sum = p.apply(ReadSource.from(TestIO.fromRange(10, 20)))
+        .apply(Sum.integersGlobally())
+        .apply(Sample.<Integer>any(1));
+    DirectPipelineRunner.EvaluationResults results = runner.run(p);
+    assertThat(results.getPCollection(sum), contains(145));
+  }
+
+  @Test
+  public void testDirectPipelineWithTimestamps() throws Exception {
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    DirectPipelineRunner runner = DirectPipelineRunner.fromOptions(options);
+    Pipeline p = Pipeline.create(options);
+    PCollection<Integer> sums =
+        p.apply(ReadSource.from(TestIO.fromRange(10, 20).withTimestampsMillis()))
+         .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(3))))
+         .apply(Sum.integersGlobally().withoutDefaults());
+    DirectPipelineRunner.EvaluationResults results = runner.run(p);
+    // Should group into [10 11] [12 13 14] [15 16 17] [18 19].
+    assertThat(results.getPCollection(sums), containsInAnyOrder(21, 37, 39, 48));
   }
 
   @Test
@@ -426,6 +478,11 @@ public class BasicSerializableSourceFormatTest {
 
     @Override
     public Integer getCurrent() throws NoSuchElementException {
+      throw new IllegalStateException("Should have failed in start()");
+    }
+
+    @Override
+    public Instant getCurrentTimestamp() throws NoSuchElementException {
       throw new IllegalStateException("Should have failed in start()");
     }
 

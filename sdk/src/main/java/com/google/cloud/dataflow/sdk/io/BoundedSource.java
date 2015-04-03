@@ -114,4 +114,25 @@ public abstract class BoundedSource<T> extends Source<T> {
      */
     BoundedSource<T> splitAtFraction(double fraction);
   }
+
+  /**
+   * A base class implementing some optional methods of {@link BoundedReader} in a default way:
+   * <ul>
+   *   <li>Progress estimation ({@link #getFractionConsumed}) is not supported.
+   *   <li>Dynamic splitting ({@link #splitAtFraction}) is not supported.
+   * </ul>
+   * @param <T>
+   */
+  public abstract static class AbstractBoundedReader<T>
+      extends AbstractReader<T> implements BoundedReader<T> {
+    @Override
+    public Double getFractionConsumed() {
+      return null;
+    }
+
+    @Override
+    public BoundedSource<T> splitAtFraction(double fraction) {
+      return null;
+    }
+  }
 }

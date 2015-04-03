@@ -538,8 +538,11 @@ public class DatastoreIO {
 
   /**
    * A reader over the records from a query of the datastore.
+   * <p>
+   * Timestamped records are currently not supported. All records implicitly have the timestamp
+   * of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
    */
-  public static class DatastoreReader implements BoundedSource.BoundedReader<Entity> {
+  public static class DatastoreReader extends BoundedSource.AbstractBoundedReader<Entity> {
     private final Source source;
 
     /**

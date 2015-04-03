@@ -18,7 +18,10 @@ package com.google.cloud.dataflow.sdk.io;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+
+import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -135,6 +138,16 @@ public abstract class Source<T> implements Serializable {
     public T getCurrent() throws NoSuchElementException;
 
     /**
+     * Returns the timestamp associated with the current data item.
+     * <p>
+     * If the source does not support timestamps, this should return
+     * {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
+     *
+     * @throws NoSuchElementException
+     */
+    public Instant getCurrentTimestamp() throws NoSuchElementException;
+
+    /**
      * Closes the reader. The reader cannot be used after this method is called.
      */
     @Override
@@ -148,5 +161,19 @@ public abstract class Source<T> implements Serializable {
      * return the same data items as the current reader.
      */
     public Source<T> getCurrentSource();
+  }
+
+  /**
+   * A base class implementing optional methods of {@link Reader} in a default way:
+   * <ul>
+   *   <li>All values have the timestamp of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
+   * </ul>
+   * @param <T>
+   */
+  public abstract static class AbstractReader<T> implements Reader<T> {
+    @Override
+    public Instant getCurrentTimestamp() throws NoSuchElementException {
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
   }
 }

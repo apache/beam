@@ -223,6 +223,9 @@ public class XMLSource<T> extends FileBasedSource<T> {
   /**
    * A {@link Source.Reader} for reading JAXB annotated Java objects from an XML file. The XML
    * file should be of the form defined at {@link XMLSource}.
+   * <p>
+   * Timestamped values are currently unsupported - all values implicitly have the timestamp
+   * of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
    *
    * @param <T> Type of objects that will be read by the reader.
    */

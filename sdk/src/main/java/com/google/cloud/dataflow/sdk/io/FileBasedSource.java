@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.common.collect.ImmutableList;
 
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -504,7 +505,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   }
 
   // An internal Reader implementation that concatenates a sequence of FileBasedReaders.
-  private class FilePatternReader implements BoundedReader<T> {
+  private class FilePatternReader extends AbstractBoundedReader<T> {
     private final FileBasedSource<T> source;
     private final List<FileBasedReader<T>> fileReaders;
     final ListIterator<FileBasedReader<T>> fileReadersIterator;
@@ -546,6 +547,13 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
       // A NoSuchElement will be thrown by the last FileBasedReader if getCurrent() is called after
       // advance() returns false.
       return currentReader.getCurrent();
+    }
+
+    @Override
+    public Instant getCurrentTimestamp() throws NoSuchElementException {
+      // A NoSuchElement will be thrown by the last FileBasedReader if getCurrentTimestamp()
+      // is called after advance() returns false.
+      return currentReader.getCurrentTimestamp();
     }
 
     @Override

@@ -45,6 +45,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -253,18 +254,14 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   public static <T> void evaluateReadHelper(
       ReadSource.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
     try {
-      List<T> elems = new ArrayList<>();
-      Source<T> source = transform.getSource();
-      try (Source.Reader<T> reader = source.createReader(
-          context.getPipelineOptions(), null)) {
-        for (boolean available = reader.start(); available; available = reader.advance()) {
-          elems.add(reader.getCurrent());
-        }
-      }
       List<DirectPipelineRunner.ValueWithMetadata<T>> output = new ArrayList<>();
-      for (T elem : elems) {
-        output.add(DirectPipelineRunner.ValueWithMetadata.of(
-            WindowedValue.valueInGlobalWindow(elem)));
+      Source<T> source = transform.getSource();
+      try (Source.Reader<T> reader = source.createReader(context.getPipelineOptions(), null)) {
+        for (boolean available = reader.start(); available; available = reader.advance()) {
+          output.add(DirectPipelineRunner.ValueWithMetadata.of(
+              WindowedValue.of(
+                  reader.getCurrent(), reader.getCurrentTimestamp(), GlobalWindow.INSTANCE)));
+        }
       }
       context.setPCollectionValuesWithMetadata(context.getOutput(transform), output);
     } catch (Exception e) {
@@ -344,7 +341,8 @@ public class BasicSerializableSourceFormat implements SourceFormat {
         throw new NoSuchElementException();
       }
       state = NextState.UNKNOWN_BEFORE_ADVANCE;
-      return WindowedValue.valueInGlobalWindow(reader.getCurrent());
+      return WindowedValue.of(
+          reader.getCurrent(), reader.getCurrentTimestamp(), GlobalWindow.INSTANCE);
     }
 
     @Override
