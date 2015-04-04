@@ -111,6 +111,7 @@ public class SequenceOfTriggerTest {
     injectElement(5, null, TriggerResult.FINISH);
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
     assertTrue(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @Test
@@ -119,7 +120,10 @@ public class SequenceOfTriggerTest {
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.FIRE);
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    assertTrue(!tester.isDone(firstWindow));
+    assertFalse(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+        // Buffering element 1; Ignored the trigger for T2 since we aren't there yet.
+        tester.bufferTag(firstWindow)));
   }
 
   @Test
@@ -132,6 +136,7 @@ public class SequenceOfTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @Test
@@ -143,6 +148,7 @@ public class SequenceOfTriggerTest {
     injectElement(2, null, TriggerResult.FINISH);
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
     assertTrue(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @SuppressWarnings("unchecked")
@@ -160,6 +166,7 @@ public class SequenceOfTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
     assertFalse("Should still be waiting for the second trigger.", tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 
   @SuppressWarnings("unchecked")
@@ -180,6 +187,7 @@ public class SequenceOfTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @Test
@@ -203,6 +211,8 @@ public class SequenceOfTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     assertTrue(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+        tester.rootFinished(new IntervalWindow(new Instant(1), new Instant(22)))));
 
     verify(mockTrigger1, Mockito.never())
         .onMerge(

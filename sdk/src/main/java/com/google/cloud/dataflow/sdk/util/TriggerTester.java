@@ -18,12 +18,14 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.Trigger.TriggerId;
+import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TriggerIdCoder;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -78,6 +80,8 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
 
   private boolean logInteractions = false;
 
+  private TriggerIdCoder<W> triggerIdCoder;
+
   private void logInteraction(String fmt, Object... args) {
     if (logInteractions) {
       LOGGER.warning("Trigger Interaction: " + String.format(fmt, args));
@@ -104,6 +108,7 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
         KEY, windowFn.windowCoder(), stubContexts, stubContexts);
     this.triggerExecutor = new TriggerExecutor<>(
         windowFn, timerManager, trigger, stubContexts, stubContexts, windowSet);
+    this.triggerIdCoder = new TriggerIdCoder<W>(windowFn.windowCoder());
   }
 
   public void logInteractions(boolean logInteractions) {
@@ -114,6 +119,35 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     return triggerExecutor.isRootFinished(window);
   }
 
+  /**
+   * Retrieve the tags of keyed state that is currently stored.
+   */
+  public Iterable<String> getKeyedStateInUse() {
+    return stubContexts.getKeyedStateInUse();
+  }
+
+  // TODO: Share the tag-mangling code with the TriggerExecutor.
+  public String rootFinished(W window) throws CoderException {
+    return "finished-root-"
+        + CoderUtils.encodeToBase64(triggerIdCoder,
+            new TriggerId<W>(window, Collections.<Integer>emptyList()));
+  }
+
+  public String subFinished(W window, Integer... path) throws CoderException {
+    List<Integer> pathList = new ArrayList<Integer>();
+    Collections.addAll(pathList, path);
+    return "finished-"
+        + CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<W>(window, pathList));
+  }
+
+  public String bufferTag(W window) throws IOException {
+    // We only care about the resulting tag ID, so we don't care about getting the type right.
+    return WindowUtils.bufferTag(window, windowFn.windowCoder(), VoidCoder.of()).getId();
+  }
+
+  /**
+   * Retrieve the values that have been output to this time, and clear out the output accumulator.
+   */
   public Iterable<WindowedValue<VO>> extractOutput() {
     ImmutableList<WindowedValue<VO>> result = FluentIterable.from(stubContexts.outputs)
         .transform(new Function<WindowedValue<KV<String, VO>>, WindowedValue<VO>>() {
@@ -129,6 +163,7 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     return result;
   }
 
+  /** Advance the watermark to the specified time, firing any timers that should fire. */
   public void advanceWatermark(Instant newWatermark) throws Exception {
     Preconditions.checkState(!newWatermark.isBefore(watermark));
     logInteraction("Advancing watermark to %d", newWatermark.getMillis());
@@ -136,6 +171,7 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     timerManager.advanceWatermark(triggerExecutor, newWatermark);
   }
 
+  /** Advance the processing time to the specified time, firing any timers that should fire. */
   public void advanceProcessingTime(
       Instant newProcessingTime) throws Exception {
     Preconditions.checkState(!newProcessingTime.isBefore(processingTime));
@@ -170,6 +206,20 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
       WindowedValue<KV<String, VO>> value = WindowedValue.of(output, timestamp, windows);
       logInteraction("Outputting: %s", value);
       outputs.add(value);
+    }
+
+    public Iterable<String> getKeyedStateInUse() {
+      return FluentIterable
+          .from(tagListValues.keySet())
+          .append(tagValues.keySet())
+          .transform(new Function<CodedTupleTag<?>, String>() {
+            @Override
+            @Nullable
+            public String apply(CodedTupleTag<?> input) {
+              return input.getId();
+            }
+          })
+          .toSet();
     }
 
     @Override

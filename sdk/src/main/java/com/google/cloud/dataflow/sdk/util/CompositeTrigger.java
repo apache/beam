@@ -85,7 +85,7 @@ public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<
       return isFinished.nextClearBit(0);
     }
 
-    private TriggerResult handleResult(
+    private TriggerResult handleChildResult(
         TriggerContext<W> childContext, int index, TriggerResult result) throws Exception {
       if (result.isFinish()) {
         markFinishedInChild(childContext, index);
@@ -103,14 +103,14 @@ public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<
 
       TriggerContext<W> childContext = compositeContext.forChild(index);
       Trigger<W> subTrigger = subTriggers.get(index);
-      return handleResult(
+      return handleChildResult(
           childContext, index, subTrigger.onElement(childContext, value, window, status));
     }
 
     public TriggerResult onTimer(
         TriggerContext<W> compositeContext, int index, TriggerId<W> triggerId) throws Exception {
       TriggerContext<W> childContext = compositeContext.forChild(index);
-      return handleResult(
+      return handleChildResult(
           childContext, index, subTriggers.get(index).onTimer(childContext, triggerId));
     }
 
@@ -118,7 +118,7 @@ public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<
         TriggerContext<W> compositeContext, int index, Iterable<W> oldWindows, W newWindow)
         throws Exception {
       TriggerContext<W> childContext = compositeContext.forChild(index);
-      return handleResult(
+      return handleChildResult(
           childContext, index, subTriggers.get(index).onMerge(childContext, oldWindows, newWindow));
     }
 
@@ -211,6 +211,7 @@ public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<
     for (Trigger<W> subTrigger : subTriggers) {
       subTrigger.clear(c, window);
     }
+    c.remove(SUBTRIGGERS_FINISHED_SET_TAG, window);
   }
 
   @Override

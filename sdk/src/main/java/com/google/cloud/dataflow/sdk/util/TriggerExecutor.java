@@ -236,6 +236,11 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
       emitWindow(window);
     }
 
+    if (result.isFire() || result.isFinish()) {
+      // Remove the window from management (assume it is "done")
+      windowSet.remove(window);
+    }
+
     // If the trigger is finished, we can clear out its state as long as we keep the
     // IS_ROOT_FINISHED bit.
     if (result.isFinish()) {
@@ -252,9 +257,6 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
 
     // Emit the (current) final values for the window
     KV<K, VO> value = KV.of(windowSet.getKey(), finalValue.getValue());
-
-    // Remove the window from management (assume it is "done")
-    windowSet.remove(window);
 
     // Output the windowed value.
     windowingInternals.outputWindowedValue(value, finalValue.getTimestamp(), Arrays.asList(window));

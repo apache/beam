@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
@@ -67,6 +68,8 @@ public class DefaultTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 15, 10, 20),
         isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
+    assertFalse(tester.isDone(new IntervalWindow(new Instant(30), new Instant(40))));
+    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 
   @Test
@@ -90,5 +93,8 @@ public class DefaultTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 1, 25),
         isSingleWindowedValue(Matchers.contains(4), 30, 30, 40)));
+    assertFalse(tester.isDone(new IntervalWindow(new Instant(1), new Instant(25))));
+    assertFalse(tester.isDone(new IntervalWindow(new Instant(30), new Instant(40))));
+    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 }

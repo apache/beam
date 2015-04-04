@@ -116,6 +116,10 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   @Override
   public void remove(W window) throws Exception {
     Set<W> subWindows = mergeTree.get(window);
+    if (subWindows == null) {
+      return;
+    }
+
     for (W w : subWindows) {
       windowingInternals.deleteTagList(bufferTag(w, windowCoder, inputCoder));
     }

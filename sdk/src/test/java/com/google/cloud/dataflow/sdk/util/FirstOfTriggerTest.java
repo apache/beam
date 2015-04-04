@@ -99,6 +99,7 @@ public class FirstOfTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @Test
@@ -111,6 +112,7 @@ public class FirstOfTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @Test
@@ -123,6 +125,7 @@ public class FirstOfTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @Test
@@ -135,6 +138,7 @@ public class FirstOfTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @Test
@@ -146,6 +150,7 @@ public class FirstOfTriggerTest {
     injectElement(2, TriggerResult.FINISH, null);
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
     assertTrue(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @SuppressWarnings("unchecked")
@@ -163,6 +168,7 @@ public class FirstOfTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @SuppressWarnings("unchecked")
@@ -183,6 +189,7 @@ public class FirstOfTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @Test
@@ -206,6 +213,8 @@ public class FirstOfTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     assertTrue(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+        tester.rootFinished(new IntervalWindow(new Instant(1), new Instant(22)))));
 
     verify(mockTrigger1, Mockito.never())
         .onMerge(
