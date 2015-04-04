@@ -23,7 +23,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
  *
  * @param <W> The type of windows being triggered/encoded.
  */
-public class DefaultTrigger<W extends BoundedWindow> implements Trigger<W>{
+public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
 
   @Override
   public TriggerResult onElement(
@@ -44,7 +44,12 @@ public class DefaultTrigger<W extends BoundedWindow> implements Trigger<W>{
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext<W> c, W window) throws Exception {
+  public TriggerResult onTimer(TriggerContext<W> c, TriggerId<W> triggerId) throws Exception {
     return TriggerResult.FIRE;
+  }
+
+  @Override
+  public void clear(TriggerContext<W> c, W window) throws Exception {
+    c.deleteTimer(window, TimeDomain.EVENT_TIME);
   }
 }

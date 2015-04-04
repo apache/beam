@@ -872,7 +872,7 @@ public class StreamingDataflowWorkerTest {
         "key: \"key\" " +
         "work_token: 0 " +
         "output_timers {" +
-        "  tag: \"gAAAAAAAAAA=\"" +
+        "  tag: \"gAAAAAAAAAAAAAAA\"" +
         "  timestamp: 999000" +
         "} " +
         "list_updates {" +
@@ -892,7 +892,7 @@ public class StreamingDataflowWorkerTest {
         "    work_token: 1" +
         "    timers {" +
         "      timers {" +
-        "        tag: \"gAAAAAAAAAA=\"" +
+        "        tag: \"gAAAAAAAAAAAAAAA\"" +
         "        timestamp: 999000" +
         "      }" +
         "    }" +

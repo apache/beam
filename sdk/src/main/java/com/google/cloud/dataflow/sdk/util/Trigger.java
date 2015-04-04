@@ -22,6 +22,8 @@ import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import org.joda.time.Instant;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Interface to use for controlling when output for a specific key and window is triggered.
@@ -30,7 +32,7 @@ import java.io.IOException;
  *
  * @param <W> the window that this trigger applies to
  */
-public interface Trigger<W extends BoundedWindow> {
+public abstract class Trigger<W extends BoundedWindow> {
 
   /**
    * Types of timers that are supported.
@@ -85,6 +87,18 @@ public interface Trigger<W extends BoundedWindow> {
     public boolean isFinish() {
       return finish;
     }
+
+    public static TriggerResult valueOf(boolean fire, boolean finish) {
+      if (fire && finish) {
+        return FIRE_AND_FINISH;
+      } else if (fire) {
+        return FIRE;
+      } else if (finish) {
+        return FINISH;
+      } else {
+        return CONTINUE;
+      }
+    }
   }
 
   /**
@@ -129,7 +143,12 @@ public interface Trigger<W extends BoundedWindow> {
     /**
      * Lookup the value stored in a bunch of windows.
      */
-    <T> Iterable<T> lookup(CodedTupleTag<T> tag, Iterable<W> windows) throws IOException;
+    <T> Map<W, T> lookup(CodedTupleTag<T> tag, Iterable<W> windows) throws IOException;
+
+    /**
+     * Create a {@code TriggerContext} for executing in the given child.
+     */
+    TriggerContext<W> forChild(int childIndex);
   }
 
   /**
@@ -139,23 +158,88 @@ public interface Trigger<W extends BoundedWindow> {
    * @param value the element that was incorporated
    * @param window the window the element was assigned to
    */
-  TriggerResult onElement(
+  public abstract TriggerResult onElement(
       TriggerContext<W> c, Object value, W window, WindowStatus status) throws Exception;
 
   /**
    * Called immediately after windows have been merged.
    *
+   * <p>This will only be called if the trigger hasn't finished in any of the {@code oldWindows}.
+   * If it had finished, we assume that it is also finished in the resulting window.
+   *
+   * <p>The implementation does not need to clear out any state associated with the old windows.
+   * That will automatically be done by the trigger execution layer.
+   *
    * @param c the context to interact with
    * @param oldWindows the windows that were merged
    * @param newWindow the window that resulted from merging
    */
-  TriggerResult onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception;
+  public abstract TriggerResult onMerge(
+      TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception;
 
   /**
    * Called after a timer fires.
    *
    * @param c the context to interact with
-   * @param window the timer is being fired for
+   * @param triggerId identifier for the trigger that the timer is for.
    */
-  TriggerResult onTimer(TriggerContext<W> c, W window) throws Exception;
+  public abstract TriggerResult onTimer(
+      TriggerContext<W> c, TriggerId<W> triggerId) throws Exception;
+
+  /**
+   * Clear any state associated with this trigger in the given window.
+   *
+   * <p>This is called after a trigger has indicated it will never fire again. The trigger system
+   * keeps enough information to know that the trigger is finished, so this trigger should clear all
+   * of its state.
+   *
+   * @param c the context to interact with
+   * @param window the window that is being cleared
+   */
+  public abstract void clear(TriggerContext<W> c, W window) throws Exception;
+
+  /**
+   * Identifies a unique trigger instance, by the window it is in and the path through the trigger
+   * tree.
+   *
+   * @param <W> The type of windows the trigger operates in.
+   */
+  public static class TriggerId<W extends BoundedWindow> {
+    private final W window;
+    private final List<Integer> subTriggers;
+
+    TriggerId(W window, List<Integer> subTriggers) {
+      this.window = window;
+      this.subTriggers = subTriggers;
+    }
+
+    /**
+     * Return a trigger ID that is applicable for the specific child.
+     */
+    public TriggerId<W> forChildTrigger() {
+      return new TriggerId<>(window, subTriggers.subList(1, subTriggers.size()));
+    }
+
+    public W getWindow() {
+      return window;
+    }
+
+    /**
+     * Return true if this trigger ID corresponds to a child of the current trigger.
+     */
+    public boolean isForChild() {
+      return subTriggers.size() > 0;
+    }
+
+    /**
+     * Return the index of the child this trigger ID is for.
+     */
+    public int getChildIndex() {
+      return subTriggers.get(0);
+    }
+
+    public Iterable<Integer> getPath() {
+      return subTriggers;
+    }
+  }
 }

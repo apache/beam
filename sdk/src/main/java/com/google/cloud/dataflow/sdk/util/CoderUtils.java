@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.addList;
 
+import com.google.api.client.util.Base64;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
@@ -95,6 +96,36 @@ public final class CoderUtils {
       }
     } catch (IOException exn) {
       throw new RuntimeException("unexpected IOException", exn);
+    }
+  }
+
+  /**
+   * Encodes the given value using the specified Coder, and returns the Base64 encoding of the
+   * encoded bytes.
+   *
+   * @throws CoderException if there are errors during encoding.
+   */
+  public static <T> String encodeToBase64(Coder<T> coder, T value) throws CoderException {
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    try {
+      coder.encode(value, stream, Coder.Context.OUTER);
+    } catch (IOException e) {
+      throw new RuntimeException("unexpected IOException", e);
+    }
+    byte[] rawValue = stream.toByteArray();
+    return Base64.encodeBase64String(rawValue);
+  }
+
+  /**
+   * Parses a window from a base64-encoded String using the given coder.
+   */
+  public static <T> T decodeFromBase64(Coder<T> coder, String encodedValue) {
+    try {
+      return coder.decode(
+          new ByteArrayInputStream(Base64.decodeBase64(encodedValue)),
+          Coder.Context.OUTER);
+    } catch (IOException e) {
+      throw new RuntimeException("unexpected IOException", e);
     }
   }
 

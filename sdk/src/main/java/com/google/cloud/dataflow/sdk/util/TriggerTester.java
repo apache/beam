@@ -17,11 +17,13 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.Trigger.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -31,7 +33,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 
 import org.joda.time.Instant;
 
@@ -42,10 +43,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -110,7 +110,11 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     this.logInteractions = logInteractions;
   }
 
-  private Iterable<WindowedValue<VO>> extractOutput() {
+  public boolean isDone(W window) throws IOException {
+    return triggerExecutor.isRootFinished(window);
+  }
+
+  public Iterable<WindowedValue<VO>> extractOutput() {
     ImmutableList<WindowedValue<VO>> result = FluentIterable.from(stubContexts.outputs)
         .transform(new Function<WindowedValue<KV<String, VO>>, WindowedValue<VO>>() {
           @Override
@@ -125,23 +129,19 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     return result;
   }
 
-  public Iterable<WindowedValue<VO>> advanceWatermark(Instant newWatermark) throws Exception {
+  public void advanceWatermark(Instant newWatermark) throws Exception {
     Preconditions.checkState(!newWatermark.isBefore(watermark));
     logInteraction("Advancing watermark to %d", newWatermark.getMillis());
     watermark = newWatermark;
     timerManager.advanceWatermark(triggerExecutor, newWatermark);
-
-    return extractOutput();
   }
 
-  public Iterable<WindowedValue<VO>> advanceProcessingTime(
+  public void advanceProcessingTime(
       Instant newProcessingTime) throws Exception {
     Preconditions.checkState(!newProcessingTime.isBefore(processingTime));
     logInteraction("Advancing processing time to %d", newProcessingTime.getMillis());
     processingTime = newProcessingTime;
     timerManager.advanceProcessingTime(triggerExecutor, newProcessingTime);
-
-    return extractOutput();
   }
 
   public void injectElement(VI value, Instant timestamp) throws Exception {
@@ -150,6 +150,12 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     logInteraction("Element %s at time %d put in windows %s",
         value, timestamp.getMillis(), windows);
     triggerExecutor.onElement(WindowedValue.of(value, timestamp, windows));
+  }
+
+  public void setTimer(
+      W window, Instant timestamp, TimeDomain domain, List<Integer> subTriggerPath)
+          throws CoderException {
+    triggerExecutor.setTimer(new TriggerId<W>(window, subTriggerPath), timestamp, domain);
   }
 
   private class StubContexts implements WindowingInternals<VI, KV<String, VO>>, DoFn.KeyedState {
@@ -235,16 +241,14 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
       return value;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public CodedTupleTagMap lookup(List<? extends CodedTupleTag<?>> tags) throws IOException {
-      Set<CodedTupleTag<?>> tagSet = new LinkedHashSet<>(tags);
-      return CodedTupleTagMap.of(Maps.asMap(tagSet, new Function<CodedTupleTag<?>, Object>() {
-        @Override
-        @Nullable
-        public Object apply(@Nullable CodedTupleTag<?> tag) {
-          return tagValues.get(tag);
-        }
-      }));
+      LinkedHashMap<CodedTupleTag<?>, Object> result = new LinkedHashMap<>();
+      for (CodedTupleTag<?> tag : tags) {
+        result.put(tag, tagValues.get(tag));
+      }
+      return CodedTupleTagMap.of(result);
     }
 
     @Override

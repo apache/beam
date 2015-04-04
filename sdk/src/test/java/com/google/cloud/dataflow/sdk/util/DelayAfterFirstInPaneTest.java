@@ -38,7 +38,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DelayAfterFirstInPaneTest {
   @Test
-  public void testDefaultTriggerWithFixedWindow() throws Exception {
+  public void testDelayAfterFirstInPaneWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.of(
         FixedWindows.of(windowDuration),
@@ -51,28 +51,35 @@ public class DelayAfterFirstInPaneTest {
         }),
         BufferingWindowSet.<String, Integer, IntervalWindow>factory(VarIntCoder.of()));
 
-    assertThat(tester.advanceProcessingTime(new Instant(10)), Matchers.emptyIterable());
+    tester.advanceProcessingTime(new Instant(10));
 
     tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 15
-    assertThat(tester.advanceProcessingTime(new Instant(11)), Matchers.emptyIterable());
+    tester.advanceProcessingTime(new Instant(11));
     tester.injectElement(2, new Instant(9));
 
-    assertThat(tester.advanceProcessingTime(new Instant(12)), Matchers.emptyIterable());
+    tester.advanceProcessingTime(new Instant(12));
+    assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     tester.injectElement(3, new Instant(8));
     tester.injectElement(4, new Instant(19));
     tester.injectElement(5, new Instant(30));
 
-    assertThat(tester.advanceProcessingTime(new Instant(16)), Matchers.contains(
+    tester.advanceProcessingTime(new Instant(16));
+    assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10)));
 
-    assertThat(tester.advanceProcessingTime(new Instant(19)), Matchers.containsInAnyOrder(
+    // This element belongs in the window that has already fired. It should not be re-output because
+    // that trigger (which was one-time) has already gone off.
+    tester.injectElement(6, new Instant(2));
+
+    tester.advanceProcessingTime(new Instant(19));
+    assertThat(tester.extractOutput(), Matchers.containsInAnyOrder(
         WindowMatchers.isSingleWindowedValue(Matchers.contains(4), 19, 10, 20),
         WindowMatchers.isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
   }
 
   @Test
-  public void testDefaultTriggerWithMergingWindowAlreadyFired() throws Exception {
+  public void testDelayAfterFirstInPaneWithMergingWindowAlreadyFired() throws Exception {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.of(
         Sessions.withGapDuration(windowDuration),
@@ -85,16 +92,21 @@ public class DelayAfterFirstInPaneTest {
         }),
         BufferingWindowSet.<String, Integer, IntervalWindow>factory(VarIntCoder.of()));
 
-    assertThat(tester.advanceProcessingTime(new Instant(10)), Matchers.emptyIterable());
+    tester.advanceProcessingTime(new Instant(10));
+    assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
-    assertThat(tester.advanceProcessingTime(new Instant(16)), Matchers.contains(
+
+    tester.advanceProcessingTime(new Instant(16));
+    assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 1, 11)));
 
     // Because we discarded the previous window, we don't have it around to merge with.
     tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 21
 
-    assertThat(tester.advanceProcessingTime(new Instant(100)), Matchers.contains(
+
+    tester.advanceProcessingTime(new Instant(100));
+    assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 2, 2, 12)));
   }
 }

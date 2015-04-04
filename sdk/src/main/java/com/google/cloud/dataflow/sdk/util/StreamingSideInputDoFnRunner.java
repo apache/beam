@@ -183,7 +183,7 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
 
   private CodedTupleTag<WindowedValue<I>> getElemListTag(W window) throws IOException {
     return CodedTupleTag.<WindowedValue<I>>of(
-        "e:" + WindowUtils.windowToString(window, windowFn.windowCoder()),
+        "e:" + CoderUtils.encodeToBase64(windowFn.windowCoder(), window),
         WindowedValue.getFullCoder(elemCoder, windowFn.windowCoder()));
   }
 }

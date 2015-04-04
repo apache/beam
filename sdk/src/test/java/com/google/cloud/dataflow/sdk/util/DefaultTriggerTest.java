@@ -50,19 +50,21 @@ public class DefaultTriggerTest {
     tester.injectElement(4, new Instant(19));
     tester.injectElement(5, new Instant(30));
 
-    assertThat(tester.advanceProcessingTime(new Instant(500)), Matchers.emptyIterable());
-
-    //    // Advance the watermark almost to the end of the first window.
-    assertThat(tester.advanceWatermark(new Instant(8)), Matchers.emptyIterable());
+    // Advance the watermark almost to the end of the first window.
+    tester.advanceProcessingTime(new Instant(500));
+    tester.advanceWatermark(new Instant(8));
+    assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     // Advance watermark to 9 (the exact end of the window), which causes the first fixed window to
     // be emitted
-    assertThat(tester.advanceWatermark(new Instant(9)), Matchers.contains(
+    tester.advanceWatermark(new Instant(9));
+    assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
 
     // Advance watermark to 100, which causes the remaining two windows to be emitted.
     // Since their timers were at different timestamps, they should fire in order.
-    assertThat(tester.advanceWatermark(new Instant(100)), Matchers.contains(
+    tester.advanceWatermark(new Instant(100));
+    assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 15, 10, 20),
         isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
   }
@@ -78,12 +80,14 @@ public class DefaultTriggerTest {
     tester.injectElement(2, new Instant(9));
 
     // no output, because we merged into the [9-19) session
-    assertThat(tester.advanceWatermark(new Instant(10)), Matchers.emptyIterable());
+    tester.advanceWatermark(new Instant(10));
+    assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     tester.injectElement(3, new Instant(15));
     tester.injectElement(4, new Instant(30));
 
-    assertThat(tester.advanceWatermark(new Instant(100)), Matchers.contains(
+    tester.advanceWatermark(new Instant(100));
+    assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 1, 25),
         isSingleWindowedValue(Matchers.contains(4), 30, 30, 40)));
   }

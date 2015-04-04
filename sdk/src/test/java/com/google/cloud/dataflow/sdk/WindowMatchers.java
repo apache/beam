@@ -67,6 +67,16 @@ public class WindowMatchers {
         valueMatcher, timestampMatcher, Matchers.contains(windowMatcher));
   }
 
+  public static Matcher<IntervalWindow> intervalWindow(long start, long end) {
+    return Matchers.equalTo(new IntervalWindow(new Instant(start), new Instant(end)));
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  @SafeVarargs
+  public static final <W extends BoundedWindow> Matcher<Iterable<W>> ofWindows(
+      Matcher<W>... windows) {
+    return (Matcher) Matchers.<W>containsInAnyOrder(windows);
+  }
 
   private WindowMatchers() {}
 
