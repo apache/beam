@@ -52,4 +52,9 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   public void clear(TriggerContext<W> c, W window) throws Exception {
     c.deleteTimer(window, TimeDomain.EVENT_TIME);
   }
+
+  @Override
+  public boolean willNeverFinish() {
+    return true;
+  }
 }

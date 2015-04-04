@@ -199,6 +199,13 @@ public abstract class Trigger<W extends BoundedWindow> {
   public abstract void clear(TriggerContext<W> c, W window) throws Exception;
 
   /**
+   * Return true if the trigger is guaranteed to never finish.
+   */
+  public boolean willNeverFinish() {
+    return false;
+  }
+
+  /**
    * Identifies a unique trigger instance, by the window it is in and the path through the trigger
    * tree.
    *

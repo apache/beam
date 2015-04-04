@@ -77,6 +77,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
   private final MergeContext mergeContext;
   private final TriggerContextImpl triggerContext;
   private final Coder<TriggerId<W>> triggerIdCoder;
+  private final boolean willNeverFinish;
 
   /**
    * Methods that the system must provide in order for us to implement triggers.
@@ -117,26 +118,23 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
     this.mergeContext = new MergeContext();
     this.triggerContext = new TriggerContextImpl();
     this.triggerIdCoder = new TriggerIdCoder<>(windowFn.windowCoder());
-  }
 
-  /** Return true if the trigger is guaranteed to never finish. */
-  private boolean willNeverFinish() {
-    // TODO: Generalize willNeverFinish to other triggers.
-    return trigger instanceof DefaultTrigger;
+    this.willNeverFinish = trigger.willNeverFinish();
   }
 
   /**
    * Determine if the root trigger is finished in the given window.
    */
   @VisibleForTesting boolean isRootFinished(W window) throws IOException {
-    return !willNeverFinish() && FINISHED.equals(triggerContext.lookup(IS_ROOT_FINISHED, window));
+    return !willNeverFinish
+        && FINISHED.equals(triggerContext.lookup(IS_ROOT_FINISHED, window));
   }
 
   /**
    * The root is finished in a merged window if it was finished in any of the windows being merged.
    */
   private boolean isRootFinished(Iterable<W> windows) throws IOException {
-    if (willNeverFinish()) {
+    if (willNeverFinish) {
       return false;
     }
 
@@ -152,7 +150,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
    * The root is finished in a merged window if it was finished in any of the windows being merged.
    */
   private Map<W, Boolean> isRootFinishedInEachWindow(Iterable<W> windows) throws IOException {
-    if (willNeverFinish()) {
+    if (willNeverFinish) {
       return FluentIterable.from(windows).toMap(Functions.constant(false));
     }
 
@@ -219,12 +217,15 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
       // handle the result appropriately.
       handleResult(trigger, mergeResult,
           trigger.onMerge(triggerContext, toBeMerged, mergeResult));
+    } else {
+      // Otherwise, act like we were just told to finish in the resulting window.
+      handleResult(trigger, mergeResult, TriggerResult.FINISH);
     }
 
     // Before we finish, we can clean up the state associated with the trigger in the old windows
     for (W window : toBeMerged) {
       trigger.clear(triggerContext, window);
-      if (!willNeverFinish()) {
+      if (!willNeverFinish) {
         triggerContext.remove(IS_ROOT_FINISHED, window);
       }
     }
@@ -238,7 +239,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
     // If the trigger is finished, we can clear out its state as long as we keep the
     // IS_ROOT_FINISHED bit.
     if (result.isFinish()) {
-      if (willNeverFinish()) {
+      if (willNeverFinish) {
         throw new RuntimeException("Trigger that shouldn't finish finished: " + trigger);
       }
       triggerContext.store(IS_ROOT_FINISHED, window, FINISHED);

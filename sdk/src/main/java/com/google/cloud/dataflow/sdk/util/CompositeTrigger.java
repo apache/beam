@@ -127,6 +127,24 @@ public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<
       subTriggers.get(index).clear(compositeContext.forChild(index), window);
     }
 
+    /**
+     * Mark the sub-trigger at {@code index} as never-started. If the sub-trigger wasn't finished,
+     * clears any associated state.
+     *
+     * @param compositeContext the context that the parent trigger was executing in.
+     * @param index the index of the sub-trigger to affect.
+     * @param window the window that the trigger is operating in.
+     */
+    public void reset(TriggerContext<W> compositeContext, int index, W window) throws Exception {
+      // If it wasn't finished, the trigger may have state associated with it. Clear that up.
+      if (!isFinished.get(index)) {
+        subTriggers.get(index).clear(compositeContext.forChild(index), window);
+      }
+
+      isFinished.clear(index);
+      flush();
+    }
+
     public boolean isFinished(int index) {
       return isFinished.get(index);
     }
