@@ -116,15 +116,14 @@ public class CoGbkResult {
       LOG.info("CoGbkResult has more than " + inMemoryElementCount + " elements,"
                + "reiteration (which may be slow) is required.");
       final Reiterator<RawUnionValue> tail = (Reiterator<RawUnionValue>) taggedIter;
+      // This is a trinary-state array recording whether a given tag is present in the tail. The
+      // inital value is null (unknown) for all tags, and the first iteration through the entire
+      // list will set these values to true or false to avoid needlessly iterating if filtering
+      // against a given tag would not match anything.
+      final Boolean[] containsTag = new Boolean[schema.size()];
       for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
         final int unionTag0 = unionTag;
         final Iterable<?> head = valueMap.get(unionTag);
-        // This is a trinary-state array recording whether a given tag is
-        // present in the tail.  The inital value is null (unknown) for all
-        // tags, and the first iteration through the entire list will set
-        // these values to true or false to avoid needlessly iterating if
-        // filtering against a given tag would not match anything.
-        final Boolean[] containsTag = new Boolean[schema.size()];
         valueMap.set(
             unionTag,
             new Iterable() {
