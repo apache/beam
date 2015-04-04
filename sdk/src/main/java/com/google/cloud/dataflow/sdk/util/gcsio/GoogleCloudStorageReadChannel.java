@@ -392,9 +392,13 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
    * @throws IOException on IO error
    */
   @Override
-  public void close()
-      throws IOException {
-    throwIfNotOpen();
+  public void close() throws IOException {
+    if (!channelIsOpen) {
+      LOG.warn(
+          "Channel for {} is not open.",
+          StorageResourceId.createReadableString(bucketName, objectName));
+      return;
+    }
     channelIsOpen = false;
     if (readChannel != null) {
       readChannel.close();

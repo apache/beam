@@ -32,6 +32,7 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
+import com.google.cloud.dataflow.sdk.util.gcsio.GoogleCloudStorageReadChannel;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
@@ -42,6 +43,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -252,5 +254,13 @@ public class GcsUtilTest {
 
       assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
     }
+  }
+
+  @Test
+  public void testGCSChannelCloseIdempotent() throws IOException {
+    SeekableByteChannel channel =
+        new GoogleCloudStorageReadChannel(null, "dummybucket", "dummyobject", null);
+    channel.close();
+    channel.close();
   }
 }
