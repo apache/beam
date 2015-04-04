@@ -22,15 +22,22 @@ import com.google.common.base.Preconditions;
 import java.util.List;
 
 /**
- * Create a {@link CompositeTrigger} that fires once the first time any of its sub-triggers fire.
+ * Creates a trigger that executes each trigger in sequence. Any time the current trigger fires, the
+ * sequence will fire. It moves on to the next trigger in the sequence after the current trigger
+ * finishes.
  *
  * @param <W> The type of windows this trigger operates on.
  */
-public class FirstOfTrigger<W extends BoundedWindow> extends CompositeTrigger<W> {
+public class SequenceOfTrigger<W extends BoundedWindow> extends CompositeTrigger<W> {
 
-  public FirstOfTrigger(List<Trigger<W>> subTriggers) {
+  public SequenceOfTrigger(List<Trigger<W>> subTriggers) {
     super(subTriggers);
     Preconditions.checkArgument(subTriggers.size() > 1);
+  }
+
+  private TriggerResult result(TriggerResult subResult, SubTriggerExecutor subexecutor)
+      throws Exception {
+    return TriggerResult.valueOf(subResult.isFire(), subexecutor.allFinished());
   }
 
   @Override
@@ -39,47 +46,31 @@ public class FirstOfTrigger<W extends BoundedWindow> extends CompositeTrigger<W>
     // If all the sub-triggers have finished, we should have already finished, so we know there is
     // at least one unfinished trigger.
 
-    SubTriggerExecutor subStates = subExecutor(c, window);
-    for (int i : subStates.getUnfinishedTriggers()) {
-      if (subStates.onElement(c, i, value, window, status).isFire()) {
-        return TriggerResult.FIRE_AND_FINISH;
-      }
-    }
+    SubTriggerExecutor subexecutor = subExecutor(c, window);
 
-    return subStates.allFinished() ? TriggerResult.FINISH : TriggerResult.CONTINUE;
+    // There must be at least one unfinished, because otherwise we would have finished the root.
+    int current = subexecutor.firstUnfinished();
+    return result(subexecutor.onElement(c, current, value, window, status), subexecutor);
   }
 
   @Override
   public TriggerResult onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow)
       throws Exception {
-    SubTriggerExecutor subStates = subExecutor(c, oldWindows, newWindow);
-    if (subStates.allFinished()) {
-      return TriggerResult.FINISH;
-    }
+    SubTriggerExecutor subexecutor = subExecutor(c, oldWindows, newWindow);
 
-    for (int i : subStates.getUnfinishedTriggers()) {
-      if (subStates.onMerge(c, i, oldWindows, newWindow).isFire()) {
-        return TriggerResult.FIRE_AND_FINISH;
-      }
-    }
-
-    return subStates.allFinished() ? TriggerResult.FINISH : TriggerResult.CONTINUE;
+    // There must be at least one unfinished, because otherwise we would have finished the root.
+    int current = subexecutor.firstUnfinished();
+    return result(subexecutor.onMerge(c, current, oldWindows, newWindow), subexecutor);
   }
 
   @Override
   public TriggerResult afterChildTimer(
       TriggerContext<W> c, W window, int childIdx, TriggerResult result) throws Exception {
-    if (result.isFire()) {
-      return TriggerResult.FIRE_AND_FINISH;
-    } else if (result.isFinish()) {
-      // If the given child finished, we may need to mark final completion if there are no more
-      // unfinished children.
-      SubTriggerExecutor subStates = subExecutor(c, window);
-      if (subStates.allFinished()) {
-        return TriggerResult.FINISH;
-      }
+    SubTriggerExecutor subExecutor = subExecutor(c, window);
+    if (childIdx != subExecutor.firstUnfinished()) {
+      return TriggerResult.CONTINUE;
     }
 
-    return TriggerResult.CONTINUE;
+    return result(result, subExecutor);
   }
 }
