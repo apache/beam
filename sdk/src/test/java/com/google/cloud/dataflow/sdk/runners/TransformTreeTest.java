@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.Sample;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
@@ -75,7 +75,7 @@ public class TransformTreeTest {
       // from within a composite transform.
       return PCollectionList.of(
           Arrays.asList(result, PCollection.<String>createPrimitiveOutputInternal(
-              new GlobalWindows())));
+              WindowingStrategy.globalDefault())));
     }
   }
 

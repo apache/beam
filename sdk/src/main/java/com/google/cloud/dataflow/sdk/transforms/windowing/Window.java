@@ -22,10 +22,13 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
+import com.google.cloud.dataflow.sdk.util.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
+import com.google.cloud.dataflow.sdk.util.Trigger;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
@@ -150,8 +153,18 @@ public class Window {
      * but more properties can still be specified.
      */
     public <T> Bound<T> into(WindowFn<? super T, ?> fn) {
-      return new Bound<>(name, fn);
+      return new Bound<>(name,
+          (WindowingStrategy<? super T, ?>) createWindowingStrategy(fn, new DefaultTrigger<>()));
     }
+  }
+
+  private static <T, W extends BoundedWindow> WindowingStrategy<? super T, ?>
+    createWindowingStrategy(WindowFn<? super T, ?> fn, Trigger<?> trigger) {
+    @SuppressWarnings("unchecked")
+    WindowFn<? super T, W> typedFn = (WindowFn<? super T, W>) fn;
+    @SuppressWarnings("unchecked")
+    Trigger<W> typedTrigger = (Trigger<W>) trigger;
+    return WindowingStrategy.of(typedFn, typedTrigger);
   }
 
   /**
@@ -162,11 +175,12 @@ public class Window {
    */
   @SuppressWarnings("serial")
   public static class Bound<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    WindowFn<? super T, ?> fn;
 
-    Bound(String name, WindowFn<? super T, ?> fn) {
+    WindowingStrategy<? super T, ?> windowingStrategy;
+
+    Bound(String name, WindowingStrategy<? super T, ?> windowingStrategy) {
       this.name = name;
-      this.fn = fn;
+      this.windowingStrategy = windowingStrategy;
     }
 
     /**
@@ -179,19 +193,12 @@ public class Window {
      * explanation.
      */
     public Bound<T> named(String name) {
-      return new Bound<>(name, fn);
-    }
-
-    /**
-     * Returns the user-specified {@code WindowFn}.
-     */
-    public WindowFn<? super T, ?> getWindowFn() {
-      return fn;
+      return new Bound<>(name, windowingStrategy);
     }
 
     @Override
     public PCollection<T> apply(PCollection<T> input) {
-      return PCollection.<T>createPrimitiveOutputInternal(fn);
+      return PCollection.<T>createPrimitiveOutputInternal(windowingStrategy);
     }
 
     @Override
@@ -199,9 +206,18 @@ public class Window {
       return input.getCoder();
     }
 
+    public WindowingStrategy<? super T, ?> getWindowingStrategy() {
+      return windowingStrategy;
+    }
+
     @Override
     protected String getKindString() {
-      return "Window.Into(" + StringUtils.approximateSimpleName(fn.getClass()) + ")";
+      return "Window.Into("
+          + StringUtils.approximateSimpleName(windowingStrategy.getWindowFn().getClass())
+          + ", "
+          // TODO: Add support for describing triggers.
+          + StringUtils.approximateSimpleName(windowingStrategy.getTrigger().getClass())
+          + ")";
     }
   }
 
@@ -226,20 +242,28 @@ public class Window {
   public static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
-      WindowFn<?, ?> windowFn = input.getWindowFn();
-      WindowFn<?, ?> outputWindowFn =
-          (windowFn instanceof InvalidWindows)
-          ? ((InvalidWindows<?>) windowFn).getOriginalWindowFn()
-          : windowFn;
+      WindowingStrategy<?, ?> outputWindowingStrategy = getOutputWindowing(
+          input.getWindowingStrategy());
 
       return input.apply(ParDo.named("Identity").of(new DoFn<T, T>() {
                 @Override public void processElement(ProcessContext c) {
                   c.output(c.element());
                 }
-              })).setWindowFnInternal(outputWindowFn);
+              })).setWindowingStrategyInternal(outputWindowingStrategy);
+    }
+
+    private <W extends BoundedWindow> WindowingStrategy<?, W> getOutputWindowing(
+        WindowingStrategy<?, W> inputStrategy) {
+      if (inputStrategy.getWindowFn() instanceof InvalidWindows) {
+        @SuppressWarnings("unchecked")
+        InvalidWindows<W> invalidWindows = (InvalidWindows<W>) inputStrategy.getWindowFn();
+        return WindowingStrategy.of(
+            invalidWindows.getOriginalWindowFn(), inputStrategy.getTrigger());
+      } else {
+        return inputStrategy;
+      }
     }
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -264,7 +288,7 @@ public class Window {
     DirectModeExecutionContext executionContext = new DirectModeExecutionContext();
 
     TupleTag<T> outputTag = new TupleTag<>();
-    DoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(transform.fn);
+    DoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(transform.windowingStrategy.getWindowFn());
     DoFnRunner<T, T, List> addWindowsRunner =
         DoFnRunner.createWithListOutputs(
             context.getPipelineOptions(),
@@ -274,7 +298,7 @@ public class Window {
             new ArrayList<TupleTag<?>>(),
             executionContext.getStepContext(context.getStepName(transform)),
             context.getAddCounterMutator(),
-            transform.fn);
+            transform.windowingStrategy);
 
     addWindowsRunner.startBundle();
 

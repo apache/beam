@@ -25,10 +25,10 @@ import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.StreamingPCollectionViewWriterFn;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -116,7 +116,7 @@ public class View {
         return input.apply(
             new CreatePCollectionView<T, Iterable<T>>(
                 new IterablePCollectionView<T>(
-                    input.getPipeline(), input.getWindowFn(), input.getCoder())));
+                    input.getPipeline(), input.getWindowingStrategy(), input.getCoder())));
       }
     }
   }
@@ -153,7 +153,8 @@ public class View {
     @Override
     public PCollectionView<T> apply(PCollection<T> input) {
       SingletonPCollectionView<T> view = new SingletonPCollectionView<T>(
-          input.getPipeline(), input.getWindowFn(), hasDefault, defaultValue, input.getCoder());
+          input.getPipeline(), input.getWindowingStrategy(), hasDefault, defaultValue,
+          input.getCoder());
 
       CreatePCollectionView<T, T> createView = new CreatePCollectionView<>(view);
 
@@ -207,7 +208,7 @@ public class View {
     @Override
     public PCollectionView<Map<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
       MultimapPCollectionView<K, V> view = new MultimapPCollectionView<K, V>(
-          input.getPipeline(), input.getWindowFn(), input.getCoder());
+          input.getPipeline(), input.getWindowingStrategy(), input.getCoder());
 
       CreatePCollectionView<KV<K, V>, Map<K, Iterable<V>>> createView =
           new CreatePCollectionView<>(view);
@@ -249,7 +250,7 @@ public class View {
         : input.apply(Combine.perKey(combineFn.<K>asKeyedFn()));
 
       MapPCollectionView<K, VO> view = new MapPCollectionView<K, VO>(
-          input.getPipeline(), combined.getWindowFn(), combined.getCoder());
+          input.getPipeline(), combined.getWindowingStrategy(), combined.getCoder());
 
       CreatePCollectionView<KV<K, VO>, Map<K, VO>> createView = new CreatePCollectionView<>(view);
 
@@ -360,9 +361,9 @@ public class View {
     private Coder<T> valueCoder;
 
     public SingletonPCollectionView(
-        Pipeline pipeline, WindowFn<?, ?> windowFn,
+        Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy,
         boolean hasDefault, T defaultValue, Coder<T> valueCoder) {
-      super(windowFn, valueCoder);
+      super(windowingStrategy, valueCoder);
       setPipelineInternal(pipeline);
       this.defaultValue = defaultValue;
       this.valueCoder = valueCoder;
@@ -407,8 +408,8 @@ public class View {
     private static final long serialVersionUID = 0;
 
     public IterablePCollectionView(
-        Pipeline pipeline, WindowFn<?, ?> windowFn, Coder<T> valueCoder) {
-      super(windowFn, valueCoder);
+        Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy, Coder<T> valueCoder) {
+      super(windowingStrategy, valueCoder);
       setPipelineInternal(pipeline);
     }
 
@@ -429,8 +430,8 @@ public class View {
     private static final long serialVersionUID = 0;
 
     public MultimapPCollectionView(
-        Pipeline pipeline, WindowFn<?, ?> windowFn, Coder<KV<K, V>> valueCoder) {
-      super(windowFn, valueCoder);
+        Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy, Coder<KV<K, V>> valueCoder) {
+      super(windowingStrategy, valueCoder);
       setPipelineInternal(pipeline);
     }
 
@@ -452,8 +453,8 @@ public class View {
     private static final long serialVersionUID = 0;
 
     public MapPCollectionView(
-        Pipeline pipeline, WindowFn<?, ?> windowFn, Coder<KV<K, V>> valueCoder) {
-      super(windowFn, valueCoder);
+        Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy, Coder<KV<K, V>> valueCoder) {
+      super(windowingStrategy, valueCoder);
       setPipelineInternal(pipeline);
     }
 
@@ -476,13 +477,14 @@ public class View {
       implements PCollectionView<T> {
     private static final long serialVersionUID = 0;
 
-    PCollectionViewBase(WindowFn<?, ?> windowFn, Coder<?> valueCoder) {
-      if (windowFn instanceof InvalidWindows) {
+    PCollectionViewBase(WindowingStrategy<?, ?> windowingStrategy, Coder<?> valueCoder) {
+      if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
         throw new IllegalArgumentException("WindowFn of PCollectionView cannot be InvalidWindows");
       }
-      this.windowFn = windowFn;
+      this.windowingStrategy = windowingStrategy;
       this.coder = (Coder)
-          IterableCoder.of(WindowedValue.getFullCoder(valueCoder, windowFn.windowCoder()));
+          IterableCoder.of(WindowedValue.getFullCoder(
+              valueCoder, windowingStrategy.getWindowFn().windowCoder()));
     }
 
     @Override
@@ -491,8 +493,8 @@ public class View {
     }
 
     @Override
-    public WindowFn getWindowFnInternal() {
-      return windowFn;
+    public WindowingStrategy<?, ?> getWindowingStrategyInternal() {
+      return windowingStrategy;
     }
 
     @Override
@@ -501,7 +503,7 @@ public class View {
     }
 
     private TupleTag<Iterable<WindowedValue<?>>> tag = new TupleTag<>();
-    private WindowFn<?, ?> windowFn;
+    private WindowingStrategy<?, ?> windowingStrategy;
     private Coder<Iterable<WindowedValue<?>>> coder;
   }
 }

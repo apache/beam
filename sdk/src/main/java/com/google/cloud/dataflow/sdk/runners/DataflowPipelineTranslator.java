@@ -69,7 +69,6 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
@@ -77,6 +76,7 @@ import com.google.cloud.dataflow.sdk.util.OutputReference;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -628,7 +628,7 @@ public class DataflowPipelineTranslator {
           // Wrap the PCollection element Coder inside a WindowedValueCoder.
           coder = WindowedValue.getFullCoder(
               coder,
-              ((PCollection<?>) value).getWindowFn().windowCoder());
+              ((PCollection<?>) value).getWindowingStrategy().getWindowFn().windowCoder());
         }
       } else {
         // No output coder to encode.
@@ -915,7 +915,7 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(context.getInput(transform), transform.getSideInputs(), context);
-            translateFn(transform.getFn(), context.getInput(transform).getWindowFn(),
+            translateFn(transform.getFn(), context.getInput(transform).getWindowingStrategy(),
                 transform.getSideInputs(), context.getInput(transform).getCoder(), context);
             translateOutputs(context.getOutput(transform), context);
           }
@@ -936,7 +936,9 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(context.getInput(transform), transform.getSideInputs(), context);
-            translateFn(transform.getFn(), context.getInput(transform).getWindowFn(),
+            translateFn(
+                transform.getFn(),
+                context.getInput(transform).getWindowingStrategy(),
                 transform.getSideInputs(), context.getInput(transform).getCoder(), context);
             context.addOutput("out", context.getOutput(transform));
           }
@@ -958,7 +960,7 @@ public class DataflowPipelineTranslator {
             context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
             context.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
 
-            byte[] serializedBytes = serializeToByteArray(transform.getWindowFn());
+            byte[] serializedBytes = serializeToByteArray(transform.getWindowingStrategy());
             String serializedJson = byteArrayToJsonString(serializedBytes);
             assert Arrays.equals(serializedBytes,
                                  jsonStringToByteArray(serializedJson));
@@ -1021,7 +1023,7 @@ public class DataflowPipelineTranslator {
 
   private static void translateFn(
       DoFn fn,
-      WindowFn windowFn,
+      WindowingStrategy windowingStrategy,
       Iterable<PCollectionView<?>> sideInputs,
       Coder inputCoder,
       TranslationContext context) {
@@ -1029,7 +1031,7 @@ public class DataflowPipelineTranslator {
     context.addInput(
         PropertyNames.SERIALIZED_FN,
         byteArrayToJsonString(serializeToByteArray(
-            new DoFnInfo(fn, windowFn, sideInputs, inputCoder))));
+            new DoFnInfo(fn, windowingStrategy, sideInputs, inputCoder))));
     if (fn instanceof DoFn.RequiresKeyedState
         // Adjust requires keyed state property for the Dataflow Service.
         // TODO: Remove when this is performed by the service.

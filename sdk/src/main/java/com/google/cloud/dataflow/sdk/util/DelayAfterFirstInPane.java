@@ -32,6 +32,8 @@ import org.joda.time.Instant;
  */
 public class DelayAfterFirstInPane<W extends BoundedWindow> extends Trigger<W> {
 
+  private static final long serialVersionUID = 0L;
+
   private static final CodedTupleTag<Instant> DELAYED_UNTIL_TAG =
       CodedTupleTag.of("delayed-until", InstantCoder.of());
 

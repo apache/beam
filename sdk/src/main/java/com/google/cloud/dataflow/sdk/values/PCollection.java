@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.common.reflect.TypeToken;
 
 /**
@@ -128,23 +129,22 @@ public class PCollection<T> extends TypedPValue<T> {
   }
 
   /**
-   * Returns the {@link WindowFn} of this {@code PCollection}.
+   * Returns the {@link WindowingStrategy} of this {@code PCollection}.
    */
-  public WindowFn<?, ?> getWindowFn() {
-    return windowFn;
+  public WindowingStrategy<?, ?> getWindowingStrategy() {
+    return windowingStrategy;
   }
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal details below here.
 
   /**
-   * {@link WindowFn} that will be used to merge windows in
-   * this {@code PCollection} and subsequent {@code PCollection}s produced
-   * from this one.
+   * {@link WindowingStrategy} that will be used for merging windows and triggering output in this
+   * {@code PCollection} and subsequence {@code PCollection}s produced from this one.
    *
    * <p> By default, no merging is performed.
    */
-  private WindowFn<?, ?> windowFn;
+  private WindowingStrategy<?, ?> windowingStrategy;
 
   private PCollection() {}
 
@@ -161,12 +161,12 @@ public class PCollection<T> extends TypedPValue<T> {
   }
 
   /**
-   * Sets the {@link WindowFn} of this {@code PCollection}.
+   * Sets the {@link WindowingStrategy} of this {@code PCollection}.
    *
    * <p> For use by primitive transformations only.
    */
-  public PCollection<T> setWindowFnInternal(WindowFn<?, ?> windowFn) {
-     this.windowFn = windowFn;
+  public PCollection<T> setWindowingStrategyInternal(WindowingStrategy<?, ?> windowingStrategy) {
+     this.windowingStrategy = windowingStrategy;
      return this;
   }
 
@@ -187,7 +187,7 @@ public class PCollection<T> extends TypedPValue<T> {
    * <p> For use by primitive transformations only.
    */
   public static <T> PCollection<T> createPrimitiveOutputInternal(
-      WindowFn<?, ?> windowFn) {
-    return new PCollection<T>().setWindowFnInternal(windowFn);
+      WindowingStrategy<?, ?> windowingStrategy) {
+    return new PCollection<T>().setWindowingStrategyInternal(windowingStrategy);
   }
 }

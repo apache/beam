@@ -29,11 +29,13 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.ReifyTimestampAndWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
@@ -186,7 +188,7 @@ public class GroupByKey<K, V>
       Coder<K> keyCoder = inputKvCoder.getKeyCoder();
       Coder<V> inputValueCoder = inputKvCoder.getValueCoder();
       Coder<WindowedValue<V>> outputValueCoder = FullWindowedValueCoder.of(
-          inputValueCoder, input.getWindowFn().windowCoder());
+          inputValueCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
       Coder<KV<K, WindowedValue<V>>> outputKvCoder =
           KvCoder.of(keyCoder, outputValueCoder);
       return input.apply(ParDo.of(new ReifyTimestampAndWindowsDoFn<K, V>()))
@@ -245,10 +247,10 @@ public class GroupByKey<K, V>
   public static class GroupAlsoByWindow<K, V>
       extends PTransform<PCollection<KV<K, Iterable<WindowedValue<V>>>>,
                          PCollection<KV<K, Iterable<V>>>> {
-    private final WindowFn<?, ?> windowFn;
+    private final WindowingStrategy<?, ?> windowingStrategy;
 
-    public GroupAlsoByWindow(WindowFn<?, ?> windowFn) {
-      this.windowFn = windowFn;
+    public GroupAlsoByWindow(WindowingStrategy<?, ?> windowingStrategy) {
+      this.windowingStrategy = windowingStrategy;
     }
 
     @Override
@@ -275,7 +277,8 @@ public class GroupByKey<K, V>
           KvCoder.of(keyCoder, outputValueCoder);
 
       GroupAlsoByWindowsDoFn<K, V, Iterable<V>, ?> fn =
-          GroupAlsoByWindowsDoFn.createForIterable(windowFn, inputIterableElementValueCoder);
+          GroupAlsoByWindowsDoFn.createForIterable(
+              windowingStrategy, inputIterableElementValueCoder);
 
       return input.apply(ParDo.of(fn)).setCoder(outputKvCoder);
     }
@@ -313,16 +316,18 @@ public class GroupByKey<K, V>
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     public PCollection<KV<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
-      WindowFn windowFn = input.getWindowFn();
-      if (!(windowFn instanceof NonMergingWindowFn)) {
+      WindowingStrategy<?, ?> oldWindowingStrategy = input.getWindowingStrategy();
+      WindowFn<?, ?> newWindowFn = oldWindowingStrategy.getWindowFn();
+      if (!(newWindowFn instanceof NonMergingWindowFn)) {
         // Prevent merging windows again, without explicit user
         // involvement, e.g., by Window.into() or Window.remerge().
-        windowFn = new InvalidWindows(
-            "WindowFn has already been consumed by previous GroupByKey",
-            windowFn);
+        newWindowFn = new InvalidWindows(
+            "WindowFn has already been consumed by previous GroupByKey", newWindowFn);
       }
-      return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
-          windowFn);
+
+      // We also return to the default trigger.
+      WindowingStrategy<?, ?> newWindowingStrategy = WindowingStrategy.of(newWindowFn);
+      return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(newWindowingStrategy);
     }
 
     /**
@@ -465,17 +470,21 @@ public class GroupByKey<K, V>
     // merging windows as needed, using the windows assigned to the
     // key/value input elements and the window merge operation of the
     // window function associated with the input PCollection.
-    WindowFn<?, ?> windowFn = input.getWindowFn();
-    if (windowFn instanceof InvalidWindows) {
-      String cause = ((InvalidWindows<?>) windowFn).getCause();
+    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+    if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
+      String cause = ((InvalidWindows<?>) windowingStrategy.getWindowFn()).getCause();
       throw new IllegalStateException(
           "GroupByKey must have a valid Window merge function.  "
           + "Invalid because: " + cause);
     }
-    boolean disallowCombinerLifting = !(windowFn instanceof NonMergingWindowFn)
-        || (isStreaming && !fewKeys);
+    boolean disallowCombinerLifting =
+        !(windowingStrategy.getWindowFn() instanceof NonMergingWindowFn)
+        || (isStreaming && !fewKeys)
+        // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
+        || !(windowingStrategy.getTrigger() instanceof DefaultTrigger);
 
-    if (windowFn.isCompatible(new GlobalWindows())) {
+    if (windowingStrategy.getWindowFn().isCompatible(new GlobalWindows())
+        && windowingStrategy.getTrigger() instanceof DefaultTrigger) {
       // The input PCollection is using the degenerate default
       // window function, which uses a single global window for all
       // elements.  We can implement this using a more-primitive
@@ -507,7 +516,7 @@ public class GroupByKey<K, V>
 
       return gbkOutput
           // Group each key's values by window, merging windows as needed.
-          .apply(new GroupAlsoByWindow<K, V>(windowFn));
+          .apply(new GroupAlsoByWindow<K, V>(windowingStrategy));
     }
   }
 

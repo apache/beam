@@ -144,7 +144,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     if (transform instanceof Combine.GroupedValues) {
       // TODO: Redundant with translator registration?
       return (Output) PCollection.createPrimitiveOutputInternal(
-          ((PCollection<?>) input).getWindowFn());
+          ((PCollection<?>) input).getWindowingStrategy());
     } else if (transform instanceof GroupByKey) {
       // The DataflowPipelineRunner implementation of GroupByKey will sort values by timestamp,
       // so no need for an explicit sort transform.

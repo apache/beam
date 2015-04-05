@@ -19,8 +19,8 @@ package com.google.cloud.dataflow.sdk.transforms;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 
@@ -113,21 +113,28 @@ public class Flatten {
 
     @Override
     public PCollection<T> apply(PCollectionList<T> inputs) {
-      WindowFn<?, ?> windowFn;
+      WindowingStrategy<?, ?> windowingStrategy;
       if (!inputs.getAll().isEmpty()) {
-        windowFn = inputs.get(0).getWindowFn();
+        windowingStrategy = inputs.get(0).getWindowingStrategy();
         for (PCollection<?> input : inputs.getAll()) {
-          if (!windowFn.isCompatible(input.getWindowFn())) {
+          WindowingStrategy<?, ?> other = input.getWindowingStrategy();
+          if (!windowingStrategy.getWindowFn().isCompatible(other.getWindowFn())) {
             throw new IllegalStateException(
                 "Inputs to Flatten had incompatible window windowFns: "
-                + windowFn + ", " + input.getWindowFn());
+                + windowingStrategy.getWindowFn() + ", " + other.getWindowFn());
+          }
+
+          if (!windowingStrategy.getTrigger().equals(other.getTrigger())) {
+            throw new IllegalStateException(
+                "Inputs to Flatten had incompatible triggers: "
+                + windowingStrategy.getTrigger() + ", " + other.getTrigger());
           }
         }
       } else {
-        windowFn = new GlobalWindows();
+        windowingStrategy = WindowingStrategy.globalDefault();
       }
 
-      return PCollection.<T>createPrimitiveOutputInternal(windowFn);
+      return PCollection.<T>createPrimitiveOutputInternal(windowingStrategy);
     }
 
     @Override

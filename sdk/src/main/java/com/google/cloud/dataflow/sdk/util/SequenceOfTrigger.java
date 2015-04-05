@@ -30,6 +30,8 @@ import java.util.List;
  */
 public class SequenceOfTrigger<W extends BoundedWindow> extends CompositeTrigger<W> {
 
+  private static final long serialVersionUID = 0L;
+
   public SequenceOfTrigger(List<Trigger<W>> subTriggers) {
     super(subTriggers);
     Preconditions.checkArgument(subTriggers.size() > 1);

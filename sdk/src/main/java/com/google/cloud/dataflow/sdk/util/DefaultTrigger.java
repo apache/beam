@@ -25,6 +25,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
  */
 public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
 
+  private static final long serialVersionUID = 0L;
+
   @Override
   public TriggerResult onElement(
       TriggerContext<W> c, Object value, W window, WindowStatus status) throws Exception {
@@ -56,5 +58,11 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   @Override
   public boolean willNeverFinish() {
     return true;
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    // Semantically, all default triggers are identical
+    return other instanceof DefaultTrigger;
   }
 }

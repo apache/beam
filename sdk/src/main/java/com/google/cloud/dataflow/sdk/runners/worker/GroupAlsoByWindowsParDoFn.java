@@ -27,8 +27,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -39,6 +37,7 @@ import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.cloud.dataflow.sdk.util.StreamingGroupAlsoByWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.common.collect.Iterables;
@@ -67,19 +66,20 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler sampler /* unused */)
       throws Exception {
-    Object windowFnObj;
-    byte[] encodedWindowFn = getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN);
-    if (encodedWindowFn.length == 0) {
-      windowFnObj = new GlobalWindows();
+    Object windowingStrategyObj;
+    byte[] encodedWindowingStrategy = getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN);
+    if (encodedWindowingStrategy.length == 0) {
+      windowingStrategyObj = WindowingStrategy.globalDefault();
     } else {
-      windowFnObj =
-        SerializableUtils.deserializeFromByteArray(encodedWindowFn, "serialized window fn");
-      if (!(windowFnObj instanceof WindowFn)) {
+      windowingStrategyObj =
+        SerializableUtils.deserializeFromByteArray(
+            encodedWindowingStrategy, "serialized windowing strategy");
+      if (!(windowingStrategyObj instanceof WindowingStrategy)) {
         throw new Exception(
-            "unexpected kind of WindowFn: " + windowFnObj.getClass().getName());
+            "unexpected kind of WindowingStrategy: " + windowingStrategyObj.getClass().getName());
       }
     }
-    WindowFn windowFn = (WindowFn) windowFnObj;
+    WindowingStrategy windowingStrategy = (WindowingStrategy) windowingStrategyObj;
 
     byte[] serializedCombineFn = getBytes(cloudUserFn, PropertyNames.COMBINE_FN, null);
     KeyedCombineFn combineFn;
@@ -125,7 +125,7 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
 
     DoFnInfoFactory fnFactory;
     final DoFn groupAlsoByWindowsDoFn = getGroupAlsoByWindowsDoFn(
-        isStreamingPipeline, windowFn, kvCoder, maybeMergingCombineFn);
+        isStreamingPipeline, windowingStrategy, kvCoder, maybeMergingCombineFn);
 
     fnFactory = new DoFnInfoFactory() {
       @Override
@@ -140,24 +140,26 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
   @SuppressWarnings({"rawtypes", "unchecked"})
   private static DoFn getGroupAlsoByWindowsDoFn(
       boolean isStreamingPipeline,
-      WindowFn windowFn,
+      WindowingStrategy windowingStrategy,
       KvCoder kvCoder,
       KeyedCombineFn maybeMergingCombineFn) {
     if (isStreamingPipeline) {
       if (maybeMergingCombineFn == null) {
         return StreamingGroupAlsoByWindowsDoFn.createForIterable(
-            windowFn, kvCoder.getValueCoder());
+            windowingStrategy, kvCoder.getValueCoder());
       } else {
         return StreamingGroupAlsoByWindowsDoFn.create(
-            windowFn, maybeMergingCombineFn, kvCoder.getKeyCoder(), kvCoder.getValueCoder());
+            windowingStrategy, maybeMergingCombineFn,
+            kvCoder.getKeyCoder(), kvCoder.getValueCoder());
       }
     } else {
       if (maybeMergingCombineFn == null) {
         return GroupAlsoByWindowsDoFn.createForIterable(
-            windowFn, kvCoder.getValueCoder());
+            windowingStrategy, kvCoder.getValueCoder());
       } else {
         return GroupAlsoByWindowsDoFn.create(
-            windowFn, maybeMergingCombineFn, kvCoder.getKeyCoder(), kvCoder.getValueCoder());
+            windowingStrategy, maybeMergingCombineFn,
+            kvCoder.getKeyCoder(), kvCoder.getValueCoder());
       }
     }
   }

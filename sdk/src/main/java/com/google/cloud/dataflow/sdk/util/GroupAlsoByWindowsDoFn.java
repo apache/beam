@@ -46,15 +46,17 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
    * Create a {@link GroupAlsoByWindowsDoFn} without a combine function. Depending on the
    * {@code windowFn} this will either use iterators or window sets to implement the grouping.
    *
-   * @param windowFn The window function to use for grouping
+   * @param windowingStrategy The window function and trigger to use for grouping
    * @param inputCoder the input coder to use
    */
   public static <K, V, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W>
-  createForIterable(WindowFn<?, W> windowFn, Coder<V> inputCoder) {
-    if (windowFn instanceof NonMergingWindowFn) {
+  createForIterable(WindowingStrategy<?, W> windowingStrategy, Coder<V> inputCoder) {
+    if (windowingStrategy.getWindowFn() instanceof NonMergingWindowFn
+        && windowingStrategy.getTrigger() instanceof DefaultTrigger) {
       return new GroupAlsoByWindowsViaIteratorsDoFn<K, V, W>();
     } else {
-      return new GABWViaWindowSetDoFn<>(windowFn, BufferingWindowSet.<K, V, W>factory(inputCoder));
+      return new GABWViaWindowSetDoFn<>(
+          windowingStrategy, BufferingWindowSet.<K, V, W>factory(inputCoder));
     }
   }
 
@@ -63,13 +65,14 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
    */
   public static <K, VI, VA, VO, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, VI, VO, W>
   create(
-      final WindowFn<?, W> windowFn,
+      final WindowingStrategy<?, W> windowingStrategy,
       final KeyedCombineFn<K, VI, VA, VO> combineFn,
       final Coder<K> keyCoder,
       final Coder<VI> inputCoder) {
     Preconditions.checkNotNull(combineFn);
     return new GABWViaWindowSetDoFn<>(
-        windowFn, CombiningWindowSet.<K, VI, VA, VO, W>factory(combineFn, keyCoder, inputCoder));
+        windowingStrategy, CombiningWindowSet.<K, VI, VA, VO, W>factory(
+            combineFn, keyCoder, inputCoder));
   }
 
   private static class GABWViaWindowSetDoFn<K, VI, VO, W extends BoundedWindow>
@@ -77,12 +80,14 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
 
     private WindowFn<Object, W> windowFn;
     private AbstractWindowSet.Factory<K, VI, VO, W> windowSetFactory;
+    private Trigger<W> trigger;
 
-    public GABWViaWindowSetDoFn(WindowFn<?, W> windowFn,
+    public GABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
         AbstractWindowSet.Factory<K, VI, VO, W> factory) {
       @SuppressWarnings("unchecked")
-      WindowFn<Object, W> noWildcard = (WindowFn<Object, W>) windowFn;
-      this.windowFn = noWildcard;
+      WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
+      this.windowFn = noWildcard.getWindowFn();
+      this.trigger = noWildcard.getTrigger();
       this.windowSetFactory = factory;
     }
 
@@ -95,8 +100,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
 
       BatchTimerManager timerManager = new BatchTimerManager(Instant.now());
       TriggerExecutor<K, VI, VO, W> triggerExecutor = new TriggerExecutor<>(
-          windowFn, timerManager,
-          new DefaultTrigger<W>(),
+          windowFn, timerManager, trigger,
           c.keyedState(), c.windowingInternals(), windowSet);
 
       for (WindowedValue<VI> e : c.element().getValue()) {

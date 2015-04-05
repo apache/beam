@@ -40,11 +40,11 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
 import com.google.cloud.dataflow.sdk.util.GcsUtil;
 import com.google.cloud.dataflow.sdk.util.PackageUtil;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.ImmutableList;
@@ -438,7 +438,7 @@ public class DataflowPipelineRunnerTest {
 
     @Override
     public PCollection<Integer> apply(PCollection<Integer> input) {
-      return PCollection.<Integer>createPrimitiveOutputInternal(new GlobalWindows());
+      return PCollection.<Integer>createPrimitiveOutputInternal(WindowingStrategy.globalDefault());
     }
 
     @Override

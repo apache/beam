@@ -36,6 +36,8 @@ import java.util.Arrays;
  */
 public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
 
+  private static final long serialVersionUID = 0L;
+
   private Trigger<W> repeated;
 
   /**
@@ -102,6 +104,8 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
    * Repeats the given trigger forever, until the "until" trigger fires.
    */
   public static class RepeatedlyUntil<W extends BoundedWindow> extends CompositeTrigger<W> {
+
+    private static final long serialVersionUID = 0L;
 
     private RepeatedlyUntil(Trigger<W> repeat, Trigger<W> until) {
       super(Arrays.asList(repeat, until));

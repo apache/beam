@@ -86,11 +86,11 @@ public class DoFnRunner<I, O, R> {
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
       CounterSet.AddCounterMutator addCounterMutator,
-      WindowFn windowFn) {
+      WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
-    this.context = new DoFnContext<>(options, fn, sideInputs, outputManager,
-                                     mainOutputTag, sideOutputTags, stepContext,
-                                     addCounterMutator, windowFn);
+    this.context = new DoFnContext<>(
+        options, fn, sideInputs, outputManager, mainOutputTag, sideOutputTags, stepContext,
+        addCounterMutator, windowingStrategy == null ? null : windowingStrategy.getWindowFn());
   }
 
   public static <I, O, R> DoFnRunner<I, O, R> create(
@@ -102,10 +102,10 @@ public class DoFnRunner<I, O, R> {
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
       CounterSet.AddCounterMutator addCounterMutator,
-      WindowFn windowFn) {
+      WindowingStrategy<?, ?> windowingStrategy) {
     return new DoFnRunner<>(
         options, fn, sideInputs, outputManager,
-        mainOutputTag, sideOutputTags, stepContext, addCounterMutator, windowFn);
+        mainOutputTag, sideOutputTags, stepContext, addCounterMutator, windowingStrategy);
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
@@ -117,7 +117,7 @@ public class DoFnRunner<I, O, R> {
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
       CounterSet.AddCounterMutator addCounterMutator,
-      WindowFn windowFn) {
+      WindowingStrategy<?, ?> windowingStrategy) {
     return create(
         options, fn, sideInputs,
         new OutputManager<List>() {
@@ -130,7 +130,7 @@ public class DoFnRunner<I, O, R> {
             list.add(output);
           }
         },
-        mainOutputTag, sideOutputTags, stepContext, addCounterMutator, windowFn);
+        mainOutputTag, sideOutputTags, stepContext, addCounterMutator, windowingStrategy);
   }
 
   /** Calls {@link DoFn#startBundle}. */

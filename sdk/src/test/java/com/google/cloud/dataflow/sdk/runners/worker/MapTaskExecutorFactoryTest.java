@@ -42,7 +42,6 @@ import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactoryTest.TestReader
 import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSink;
 import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSinkFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -52,6 +51,7 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestOperation;
@@ -294,7 +294,8 @@ public class MapTaskExecutorFactoryTest {
 
     String serializedFn =
         StringUtils.byteArrayToJsonString(
-            SerializableUtils.serializeToByteArray(new DoFnInfo(fn, new GlobalWindows())));
+            SerializableUtils.serializeToByteArray(
+                new DoFnInfo(fn, WindowingStrategy.globalDefault())));
 
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);

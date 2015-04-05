@@ -200,7 +200,8 @@ public class StateFetcher {
     Callable<SideInputCacheEntry> fetchCallable = new Callable<SideInputCacheEntry>() {
       @Override
       public SideInputCacheEntry call() throws Exception {
-        Coder<BoundedWindow> windowCoder = view.getWindowFnInternal().windowCoder();
+        Coder<BoundedWindow> windowCoder =
+            view.getWindowingStrategyInternal().getWindowFn().windowCoder();
 
         ByteString.Output windowStream = ByteString.newOutput();
         windowCoder.encode(window, windowStream, Coder.Context.OUTER);

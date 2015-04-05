@@ -101,14 +101,14 @@ public class BatchModeExecutionContext extends ExecutionContext {
     }
 
     final BoundedWindow sideInputWindow =
-        view.getWindowFnInternal().getSideInputWindow(mainInputWindow);
+        view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
 
     // tagCache stores values in a type-safe way based on the TupleTag.
     T result = (T) tagCache.get(sideInputWindow);
 
     // TODO: Consider partial prefetching like in CoGBK to reduce iteration cost.
     if (result == null) {
-      if (view.getWindowFnInternal() instanceof GlobalWindows) {
+      if (view.getWindowingStrategyInternal().getWindowFn() instanceof GlobalWindows) {
         result = view.fromIterableInternal(sideInputs.get(tag));
       } else {
         result = view.fromIterableInternal(

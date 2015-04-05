@@ -25,9 +25,9 @@ import com.google.cloud.dataflow.sdk.runners.worker.FileBasedReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextSink;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
@@ -278,7 +278,8 @@ public class TextIO {
         // Force the output's Coder to be what the read is using, and
         // unchangeable later, to ensure that we read the input in the
         // format specified by the Read transform.
-        return PCollection.<T>createPrimitiveOutputInternal(new GlobalWindows()).setCoder(coder);
+        return PCollection.<T>createPrimitiveOutputInternal(WindowingStrategy.globalDefault())
+            .setCoder(coder);
       }
 
       @Override

@@ -24,7 +24,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
@@ -36,6 +35,7 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.StreamingSideInputDoFnRunner;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.OutputReceiver;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
@@ -121,7 +121,7 @@ public class NormalParDoFn extends ParDoFn {
 
     final byte[] serializedDoFn = SerializableUtils.serializeToByteArray(
         doFnInfo.getDoFn());
-    final WindowFn windowFn = doFnInfo.getWindowFn();
+    final WindowingStrategy windowingStrategy = doFnInfo.getWindowingStrategy();
     final Coder inputCoder = doFnInfo.getInputCoder();
     DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
         @Override public DoFnInfo createDoFnInfo() throws Exception {
@@ -133,7 +133,8 @@ public class NormalParDoFn extends ParDoFn {
             throw new Exception(
                 "unexpected kind of DoFn: " + deserializedDoFn.getClass().getName());
           }
-          return new DoFnInfo((DoFn) deserializedDoFn, windowFn, sideInputViews, inputCoder);
+          return new DoFnInfo(
+              (DoFn) deserializedDoFn, windowingStrategy, sideInputViews, inputCoder);
         }
       };
     return new NormalParDoFn(options, fnFactory, sideInputValues, outputTags,
@@ -249,7 +250,7 @@ public class NormalParDoFn extends ParDoFn {
           sideOutputTags,
           stepContext,
           addCounterMutator,
-          doFnInfo.getWindowFn());
+          doFnInfo.getWindowingStrategy());
     }
 
     fnRunner.startBundle();

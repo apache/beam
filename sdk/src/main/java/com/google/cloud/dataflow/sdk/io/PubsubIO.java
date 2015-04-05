@@ -20,7 +20,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
@@ -339,8 +339,7 @@ public class PubsubIO {
               "Can't set both the topic and the subscription for a "
               + "PubsubIO.Read transform");
         }
-        return PCollection.<String>createPrimitiveOutputInternal(
-            new GlobalWindows());
+        return PCollection.<String>createPrimitiveOutputInternal(WindowingStrategy.globalDefault());
       }
 
       @Override

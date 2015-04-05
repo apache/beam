@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
 import java.io.Serializable;
@@ -32,21 +31,21 @@ import java.io.Serializable;
 public class DoFnInfo<I, O> implements Serializable {
   private static final long serialVersionUID = 0;
   private final DoFn<I, O> doFn;
-  private final WindowFn<?, ?> windowFn;
+  private final WindowingStrategy<?, ?> windowingStrategy;
   private final Iterable<PCollectionView<?>> sideInputViews;
   private final Coder<I> inputCoder;
 
-  public DoFnInfo(DoFn<I, O> doFn, WindowFn<?, ?> windowFn) {
+  public DoFnInfo(DoFn<I, O> doFn, WindowingStrategy<?, ?> windowingStrategy) {
     this.doFn = doFn;
-    this.windowFn = windowFn;
+    this.windowingStrategy = windowingStrategy;
     this.sideInputViews = null;
     this.inputCoder = null;
   }
 
-  public DoFnInfo(DoFn<I, O> doFn, WindowFn<?, ?> windowFn,
+  public DoFnInfo(DoFn<I, O> doFn, WindowingStrategy<?, ?> windowingStrategy,
                   Iterable<PCollectionView<?>> sideInputViews, Coder<I> inputCoder) {
     this.doFn = doFn;
-    this.windowFn = windowFn;
+    this.windowingStrategy = windowingStrategy;
     this.sideInputViews = sideInputViews;
     this.inputCoder = inputCoder;
   }
@@ -55,8 +54,8 @@ public class DoFnInfo<I, O> implements Serializable {
     return doFn;
   }
 
-  public WindowFn<?, ?> getWindowFn() {
-    return windowFn;
+  public WindowingStrategy<?, ?> getWindowingStrategy() {
+    return windowingStrategy;
   }
 
   public Iterable<PCollectionView<?>> getSideInputViews() {

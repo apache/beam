@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.coders.SetCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
@@ -52,7 +51,7 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
     extends DoFnRunner<I, O, R> {
   private StepContext stepContext;
   private StreamingModeExecutionContext execContext;
-  private WindowFn<?, W> windowFn;
+  private WindowingStrategy<?, W> windowingStrategy;
   private Map<String, PCollectionView<?>> sideInputViews;
   private CodedTupleTag<Map<W, Set<Windmill.GlobalDataId>>> blockedMapTag;
   private Map<W, Set<Windmill.GlobalDataId>> blockedMap;
@@ -69,9 +68,9 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
       CounterSet.AddCounterMutator addCounterMutator) throws Exception {
     super(options, doFnInfo.getDoFn(), sideInputs, outputManager,
         mainOutputTag, sideOutputTags, stepContext,
-        addCounterMutator, doFnInfo.getWindowFn());
+        addCounterMutator, doFnInfo.getWindowingStrategy());
     this.stepContext = stepContext;
-    this.windowFn = (WindowFn) doFnInfo.getWindowFn();
+    this.windowingStrategy = (WindowingStrategy) doFnInfo.getWindowingStrategy();
     this.elemCoder = doFnInfo.getInputCoder();
 
     this.sideInputViews = new HashMap<>();
@@ -81,7 +80,7 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
     this.execContext =
         (StreamingModeExecutionContext) stepContext.getExecutionContext();
     this.blockedMapTag = CodedTupleTag.of("blockedMap:", MapCoder.of(
-        windowFn.windowCoder(),
+        windowingStrategy.getWindowFn().windowCoder(),
         SetCoder.of(Proto2Coder.of(Windmill.GlobalDataId.class))));
     this.blockedMap = stepContext.lookup(blockedMapTag);
     if (this.blockedMap == null) {
@@ -141,11 +140,12 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
               blocked = new HashSet<>();
               blockedMap.put(window, blocked);
             }
-            Coder<BoundedWindow> sideInputWindowCoder = view.getWindowFnInternal().windowCoder();
+            Coder<BoundedWindow> sideInputWindowCoder =
+                view.getWindowingStrategyInternal().getWindowFn().windowCoder();
 
             ByteString.Output windowStream = ByteString.newOutput();
             sideInputWindowCoder.encode(
-                view.getWindowFnInternal().getSideInputWindow(window),
+                view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(window),
                 windowStream, Coder.Context.OUTER);
 
             blocked.add(Windmill.GlobalDataId.newBuilder()
@@ -183,7 +183,7 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
 
   private CodedTupleTag<WindowedValue<I>> getElemListTag(W window) throws IOException {
     return CodedTupleTag.<WindowedValue<I>>of(
-        "e:" + CoderUtils.encodeToBase64(windowFn.windowCoder(), window),
-        WindowedValue.getFullCoder(elemCoder, windowFn.windowCoder()));
+        "e:" + CoderUtils.encodeToBase64(windowingStrategy.getWindowFn().windowCoder(), window),
+        WindowedValue.getFullCoder(elemCoder, windowingStrategy.getWindowFn().windowCoder()));
   }
 }

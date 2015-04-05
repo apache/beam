@@ -38,6 +38,8 @@ import java.util.Map;
  */
 public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<W> {
 
+  private static final long serialVersionUID = 0L;
+
   private static final CodedTupleTag<BitSet> SUBTRIGGERS_FINISHED_SET_TAG =
       CodedTupleTag.of("finished", new BitSetCoder());
 

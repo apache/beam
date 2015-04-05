@@ -17,8 +17,8 @@
 package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 
 import java.io.Serializable;
 
@@ -49,7 +49,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
   /**
    * For internal use only.
    */
-  public WindowFn getWindowFnInternal();
+  public WindowingStrategy getWindowingStrategyInternal();
 
   /**
    * For internal use only.

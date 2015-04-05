@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
 
@@ -183,7 +183,7 @@ public class PCollectionTuple implements PInput, POutput {
    * <p> For use by primitive transformations only.
    */
   public static PCollectionTuple ofPrimitiveOutputsInternal(
-      TupleTagList outputTags, WindowFn<?, ?> windowFn) {
+      TupleTagList outputTags, WindowingStrategy<?, ?> windowingStrategy) {
     Map<TupleTag<?>, PCollection<?>> pcollectionMap = new LinkedHashMap<>();
     for (TupleTag<?> outputTag : outputTags.tupleTags) {
       if (pcollectionMap.containsKey(outputTag)) {
@@ -200,7 +200,7 @@ public class PCollectionTuple implements PInput, POutput {
       @SuppressWarnings("unchecked")
       TypeToken<Object> token = (TypeToken<Object>) outputTag.getTypeToken();
       PCollection<Object> outputCollection = PCollection
-          .createPrimitiveOutputInternal(windowFn)
+          .createPrimitiveOutputInternal(windowingStrategy)
           .setTypeTokenInternal(token);
 
       pcollectionMap.put(outputTag, outputCollection);

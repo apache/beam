@@ -43,7 +43,6 @@ import com.google.protobuf.ByteString;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -209,7 +208,8 @@ public class StreamingSideInputDoFnRunnerTest {
   private StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> createRunner(
       List<PCollectionView<String>> views) throws Exception {
     DoFnInfo doFnInfo = new DoFnInfo<String, String>(
-        new SideInputFn(views), FixedWindows.of(Duration.millis(10)),
+        new SideInputFn(views),
+        WindowingStrategy.of(FixedWindows.of(Duration.millis(10))),
         (Iterable) views, StringUtf8Coder.of());
 
     PTuple sideInputs = PTuple.empty();

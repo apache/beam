@@ -30,7 +30,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TriggerIdCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -66,7 +65,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
   @Test public void testEmpty() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>, List> runner =
-        makeRunner(FixedWindows.of(Duration.millis(10)));
+        makeRunner(WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
     runner.startBundle();
 
@@ -80,7 +79,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testFixedWindows() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>,
         KV<String, Iterable<String>>, List> runner =
-        makeRunner(FixedWindows.of(Duration.millis(10)));
+        makeRunner(WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
     Coder<IntervalWindow> windowCoder = FixedWindows.of(Duration.millis(10)).windowCoder();
     Coder<TriggerId<IntervalWindow>> triggerIdCoder =
@@ -143,7 +142,8 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testSlidingWindows() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>,
         KV<String, Iterable<String>>, List> runner =
-        makeRunner(SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)));
+        makeRunner(WindowingStrategy.of(
+            SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10))));
 
     Coder<IntervalWindow> windowCoder =
         SlidingWindows.of(Duration.millis(10)).every(Duration.millis(10)).windowCoder();
@@ -214,7 +214,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testSessions() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>,
         KV<String, Iterable<String>>, List> runner =
-        makeRunner(Sessions.withGapDuration(Duration.millis(10)));
+        makeRunner(WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))));
 
     Coder<IntervalWindow> windowCoder =
         Sessions.withGapDuration(Duration.millis(10)).windowCoder();
@@ -317,7 +317,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     CombineFn<Long, ?, Long> combineFn = new SumLongs();
     DoFnRunner<TimerOrElement<KV<String, Long>>,
         KV<String, Long>, List> runner =
-        makeRunner(Sessions.withGapDuration(Duration.millis(10)),
+        makeRunner(WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))),
                    combineFn.<String>asKeyedFn());
 
     Coder<IntervalWindow> windowCoder =
@@ -388,24 +388,24 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   }
 
   private DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>, List>
-      makeRunner(WindowFn<? super String, IntervalWindow> windowFn) {
+      makeRunner(WindowingStrategy<? super String, IntervalWindow> windowingStrategy) {
     StreamingGroupAlsoByWindowsDoFn<String, String, Iterable<String>, IntervalWindow> fn =
-        StreamingGroupAlsoByWindowsDoFn.createForIterable(windowFn, StringUtf8Coder.of());
-    return makeRunner(windowFn, fn);
+        StreamingGroupAlsoByWindowsDoFn.createForIterable(windowingStrategy, StringUtf8Coder.of());
+    return makeRunner(windowingStrategy, fn);
   }
 
   private DoFnRunner<TimerOrElement<KV<String, Long>>, KV<String, Long>, List> makeRunner(
-        WindowFn<? super String, IntervalWindow> windowFn,
+        WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
         KeyedCombineFn<String, Long, ?, Long> combineFn) {
     StreamingGroupAlsoByWindowsDoFn<String, Long, Long, IntervalWindow> fn =
         StreamingGroupAlsoByWindowsDoFn.create(
-            windowFn, combineFn, StringUtf8Coder.of(), BigEndianLongCoder.of());
+            windowingStrategy, combineFn, StringUtf8Coder.of(), BigEndianLongCoder.of());
 
-    return makeRunner(windowFn, fn);
+    return makeRunner(windowingStrategy, fn);
   }
 
   private <VI, VO> DoFnRunner<TimerOrElement<KV<String, VI>>, KV<String, VO>, List> makeRunner(
-      WindowFn<? super String, IntervalWindow> windowFn,
+      WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
       StreamingGroupAlsoByWindowsDoFn<String, VI, VO, IntervalWindow> fn) {
     return
         DoFnRunner.createWithListOutputs(
@@ -416,7 +416,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
             new ArrayList<TupleTag<?>>(),
             execContext.createStepContext("merge"),
             counters.getAddCounterMutator(),
-            windowFn);
+            windowingStrategy);
   }
 
   private BoundedWindow window(long start, long end) {

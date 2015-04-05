@@ -16,19 +16,18 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import static com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
-
 import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
 import com.google.cloud.dataflow.sdk.runners.worker.AvroReader;
 import com.google.cloud.dataflow.sdk.runners.worker.AvroSink;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
@@ -291,7 +290,7 @@ public class AvroIO {
         // Force the output's Coder to be what the read is using, and
         // unchangeable later, to ensure that we read the input in the
         // format specified by the Read transform.
-        return PCollection.<T>createPrimitiveOutputInternal(new GlobalWindows())
+        return PCollection.<T>createPrimitiveOutputInternal(WindowingStrategy.globalDefault())
             .setCoder(getDefaultOutputCoder());
       }
 

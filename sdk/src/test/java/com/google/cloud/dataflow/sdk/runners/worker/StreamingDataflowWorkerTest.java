@@ -51,6 +51,7 @@ import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.TimerOrElement.TimerOrElementCoder;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -742,7 +743,8 @@ public class StreamingDataflowWorkerTest {
     CloudObject spec = CloudObject.forClassName("AssignWindowsDoFn");
     addString(spec, PropertyNames.SERIALIZED_FN,
         StringUtils.byteArrayToJsonString(
-            SerializableUtils.serializeToByteArray(FixedWindows.of(gapDuration))));
+            SerializableUtils.serializeToByteArray(
+                WindowingStrategy.of(FixedWindows.of(gapDuration)))));
 
     ParallelInstruction addWindowsInstruction =
         new ParallelInstruction()
@@ -822,7 +824,8 @@ public class StreamingDataflowWorkerTest {
     CloudObject spec = CloudObject.forClassName("MergeWindowsDoFn");
     addString(spec, PropertyNames.SERIALIZED_FN,
         StringUtils.byteArrayToJsonString(
-            SerializableUtils.serializeToByteArray(FixedWindows.of(Duration.standardSeconds(1)))));
+            SerializableUtils.serializeToByteArray(
+                WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1))))));
     addObject(spec, PropertyNames.INPUT_CODER, windowedKvCoder.asCloudObject());
 
     ParallelInstruction mergeWindowsInstruction =

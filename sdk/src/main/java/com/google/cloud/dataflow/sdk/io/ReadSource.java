@@ -20,7 +20,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.base.Preconditions;
@@ -99,7 +99,7 @@ public class ReadSource {
     public final PCollection<T> apply(PInput input) {
       Preconditions.checkNotNull(source, "source must be set");
       source.validate();
-      return PCollection.<T>createPrimitiveOutputInternal(new GlobalWindows())
+      return PCollection.<T>createPrimitiveOutputInternal(WindowingStrategy.globalDefault())
           .setCoder(getDefaultOutputCoder());
     }
 

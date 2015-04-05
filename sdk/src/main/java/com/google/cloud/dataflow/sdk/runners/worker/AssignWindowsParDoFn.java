@@ -21,7 +21,6 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
@@ -29,6 +28,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 
@@ -54,16 +54,17 @@ class AssignWindowsParDoFn extends NormalParDoFn {
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler sampler /* unused */)
       throws Exception {
-    final Object windowFn =
+    final Object windowingStrategy =
         SerializableUtils.deserializeFromByteArray(
             getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
-            "serialized window fn");
-    if (!(windowFn instanceof WindowFn)) {
+            "serialized windowing strategy");
+    if (!(windowingStrategy instanceof WindowingStrategy)) {
       throw new Exception(
-          "unexpected kind of WindowFn: " + windowFn.getClass().getName());
+          "unexpected kind of WindowingStrategy: " + windowingStrategy.getClass().getName());
     }
 
-    final AssignWindowsDoFn assignFn = new AssignWindowsDoFn((WindowFn) windowFn);
+    final AssignWindowsDoFn assignFn = new AssignWindowsDoFn(
+        ((WindowingStrategy) windowingStrategy).getWindowFn());
 
     DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
         @Override

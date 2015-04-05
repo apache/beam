@@ -28,6 +28,8 @@ import java.util.List;
  */
 public class FirstOfTrigger<W extends BoundedWindow> extends CompositeTrigger<W> {
 
+  private static final long serialVersionUID = 0L;
+
   public FirstOfTrigger(List<Trigger<W>> subTriggers) {
     super(subTriggers);
     Preconditions.checkArgument(subTriggers.size() > 1);

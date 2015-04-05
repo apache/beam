@@ -43,23 +43,27 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
 
   public static <K, VI, VA, VO, W extends BoundedWindow>
       StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W> create(
-          final WindowFn<?, W> windowFn,
+          final WindowingStrategy<?, W> windowingStrategy,
           final KeyedCombineFn<K, VI, VA, VO> combineFn,
           final Coder<K> keyCoder,
           final Coder<VI> inputValueCoder) {
     Preconditions.checkNotNull(combineFn);
-    return new StreamingGABWViaWindowSetDoFn<>(windowFn,
+    return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
         CombiningWindowSet.<K, VI, VA, VO, W>factory(combineFn, keyCoder, inputValueCoder));
   }
 
   public static <K, VI, W extends BoundedWindow>
-  StreamingGroupAlsoByWindowsDoFn<K, VI, Iterable<VI>, W>
-  createForIterable(final WindowFn<?, W> windowFn, final Coder<VI> inputValueCoder) {
-    if (windowFn instanceof PartitioningWindowFn) {
-      return new StreamingGABWViaWindowSetDoFn<>(windowFn,
+  StreamingGroupAlsoByWindowsDoFn<K, VI, Iterable<VI>, W> createForIterable(
+      final WindowingStrategy<?, W> windowingStrategy,
+      final Coder<VI> inputValueCoder) {
+    if (windowingStrategy.getWindowFn() instanceof PartitioningWindowFn
+        // TODO: Characterize the other kinds of triggers that work with the
+        // PartitioningBufferingWindowSet
+        && windowingStrategy.getTrigger() instanceof DefaultTrigger) {
+      return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
           PartitionBufferingWindowSet.<K, VI, W>factory(inputValueCoder));
     } else {
-      return new StreamingGABWViaWindowSetDoFn<>(windowFn,
+      return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
           BufferingWindowSet.<K, VI, W>factory(inputValueCoder));
     }
   }
@@ -68,13 +72,15 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
   extends StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W> {
     private final WindowFn<Object, W> windowFn;
     private Factory<K, VI, VO, W> windowSetFactory;
+    private Trigger<W> trigger;
 
-    public StreamingGABWViaWindowSetDoFn(WindowFn<?, W> windowFn,
+    public StreamingGABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
         AbstractWindowSet.Factory<K, VI, VO, W> windowSetFactory) {
       this.windowSetFactory = windowSetFactory;
       @SuppressWarnings("unchecked")
-      WindowFn<Object, W> noWildcard = (WindowFn<Object, W>) windowFn;
-      this.windowFn = noWildcard;
+      WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
+      this.windowFn = noWildcard.getWindowFn();
+      this.trigger = noWildcard.getTrigger();
     }
 
     @Override
@@ -88,7 +94,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
         TriggerExecutor<K, VI, VO, W> executor = new TriggerExecutor<>(
             windowFn,
             new StreamingTimerManager(context),
-            new DefaultTrigger<W>(),
+            trigger,
             context.keyedState(),
             context.windowingInternals(),
             windowSet);

@@ -26,8 +26,8 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
@@ -213,7 +213,7 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
           }))
           .apply(ParDo.of(new OutputOnceDoFn<>(elems, elemCoder)));
     } else {
-      return PCollection.<T>createPrimitiveOutputInternal(new GlobalWindows());
+      return PCollection.<T>createPrimitiveOutputInternal(WindowingStrategy.globalDefault());
     }
   }
 

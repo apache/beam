@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import org.joda.time.Instant;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +33,9 @@ import java.util.Map;
  *
  * @param <W> the window that this trigger applies to
  */
-public abstract class Trigger<W extends BoundedWindow> {
+public abstract class Trigger<W extends BoundedWindow> implements Serializable {
+
+  private static final long serialVersionUID = 0L;
 
   /**
    * Types of timers that are supported.

@@ -17,8 +17,6 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.Coder.Context;
-import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.CustomCoder;
@@ -28,6 +26,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -1155,7 +1154,7 @@ public class Combine {
           .apply(Values.<VO>create());
 
       if (insertDefault) {
-        if (!output.getWindowFn().isCompatible(new GlobalWindows())) {
+        if (!output.getWindowingStrategy().getWindowFn().isCompatible(new GlobalWindows())) {
           throw new IllegalStateException(
               "Attempted to add default value to PCollection not windowed by GlobalWindows. "
               + "Instead, use Combine.globally().withoutDefaults() or "

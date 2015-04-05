@@ -16,12 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import static com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
-
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -108,7 +107,8 @@ public class StreamingModeExecutionContext extends ExecutionContext {
    */
   private <T> T fetchSideInput(
       PCollectionView<?> view, BoundedWindow mainInputWindow, SideInputState state) {
-    BoundedWindow sideInputWindow = view.getWindowFnInternal().getSideInputWindow(mainInputWindow);
+    BoundedWindow sideInputWindow =
+        view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
 
     Map<BoundedWindow, Object> tagCache = sideInputCache.get(view.getTagInternal());
     if (tagCache == null) {

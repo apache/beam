@@ -689,7 +689,7 @@ public class ParDo {
       if (sideInputs == null) {
         sideInputs = Collections.emptyList();
       }
-      return PCollection.<O>createPrimitiveOutputInternal(input.getWindowFn())
+      return PCollection.<O>createPrimitiveOutputInternal(input.getWindowingStrategy())
           .setTypeTokenInternal(fn.getOutputTypeToken());
     }
 
@@ -882,7 +882,7 @@ public class ParDo {
     public PCollectionTuple apply(PCollection<? extends I> input) {
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
-          input.getWindowFn());
+          input.getWindowingStrategy());
 
       // The fn will likely be an instance of an anonymous subclass
       // such as DoFn<Integer, String> { }, thus will have a high-fidelity
@@ -1022,7 +1022,7 @@ public class ParDo {
             sideOutputTags,
             executionContext.getStepContext(name),
             context.getAddCounterMutator(),
-            input.getWindowFn());
+            input.getWindowingStrategy());
 
     fnRunner.startBundle();
 
