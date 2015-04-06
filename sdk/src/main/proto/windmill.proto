@@ -89,7 +89,6 @@ message TagList {
 message GlobalDataId {
   required string tag = 1;
   required bytes version = 2;
-  optional int64 existence_watermark_deadline = 3 [default=0x7FFFFFFFFFFFFFFF];
 }
 
 message GlobalData {
@@ -142,6 +141,9 @@ message ComputationGetDataRequest {
 
 message GetDataRequest {
   repeated ComputationGetDataRequest requests = 1;
+  repeated GlobalDataRequest global_data_fetch_requests = 3;
+
+  // DEPRECATED
   repeated GlobalDataId global_data_to_fetch = 2;
 }
 
@@ -184,7 +186,12 @@ message Counter {
   optional int64 mean_count = 6;
 }
 
-// next id: 11
+message GlobalDataRequest {
+  required GlobalDataId data_id = 1;
+  optional int64 existence_watermark_deadline = 2 [default=0x7FFFFFFFFFFFFFFF];
+}
+
+// next id: 12
 message WorkItemCommitRequest {
   required bytes key = 1;
   required fixed64 work_token = 2;
@@ -194,8 +201,11 @@ message WorkItemCommitRequest {
   repeated TagValue value_updates = 5;
   repeated TagList list_updates = 6;
   repeated Counter counter_updates = 8;
-  repeated GlobalDataId global_data_id_requests = 9;
+  repeated GlobalDataRequest global_data_requests = 11;
   repeated GlobalData global_data_updates = 10;
+
+  // DEPRECATED
+  repeated GlobalDataId global_data_id_requests = 9;
 }
 
 message ComputationCommitWorkRequest {
