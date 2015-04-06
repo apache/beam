@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
+
+import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
@@ -27,6 +30,9 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.SeekableInput;
 import org.apache.avro.io.DatumReader;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -45,13 +51,15 @@ import javax.annotation.Nullable;
  * @param <T> the type of the elements read from the source
  */
 public class AvroReader<T> extends Reader<WindowedValue<T>> {
-  private static final int BUF_SIZE = 200;
+  private static final Logger LOG = LoggerFactory.getLogger(InMemoryReader.class);
+
   final String filename;
   @Nullable
   final Long startPosition;
   @Nullable
   final Long endPosition;
   final AvroCoder<T> avroCoder;
+  @SuppressWarnings("unchecked")
   private final Schema schema;
 
   public AvroReader(String filename, @Nullable Long startPosition, @Nullable Long endPosition,
@@ -144,10 +152,32 @@ public class AvroReader<T> extends Reader<WindowedValue<T>> {
       }
       T next = fileReader.next();
       // DataFileReader doesn't seem to support getting the current position.
-      // The difference between tell() calls seems to be zero. Use the coder
-      // instead.
+      // Calls to tell() return how much has been read from the underlying Channel, which is a bad
+      // length approximation due to buffering. Use the coder instead.
+      // TODO: Avoid reencoding the record to get its length.
       notifyElementRead(CoderUtils.encodeToByteArray(avroCoder, next).length);
       return WindowedValue.valueInGlobalWindow(next);
+    }
+
+    @Override
+    public Progress getProgress() {
+      com.google.api.services.dataflow.model.Position currentPosition =
+          new com.google.api.services.dataflow.model.Position();
+      ApproximateProgress progress = new ApproximateProgress();
+      // The fileReader.tell() result is computed from the underlying SeekableByteChannelInput, so
+      // its value is an overestimation of the current position. This is however enough to get a
+      // progress estimation, but would not be precise enough for dynamic splitting.
+      // TODO: Make the progress estimation more precise.
+      try {
+        currentPosition.setByteOffset(fileReader.tell());
+        progress.setPosition(currentPosition);
+      } catch (IOException e) {
+        // If fileReader.tell() throws an exception, we do not set the position.
+        LOG.warn("Avro source file {} failed to report current progress.", filename);
+      }
+      // We do not compute progress percentage, as the endOffset is not necessarily a correct block
+      // boundary.
+      return cloudProgressToReaderProgress(progress);
     }
 
     @Override

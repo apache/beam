@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -127,13 +130,18 @@ public class AvroReaderTest {
       @Nullable Long endOffset, Coder<T> coder, List<Integer> actualSizes) throws Exception {
     AvroReader<T> avroReader =
         new AvroReader<>(filename, startOffset, endOffset, WindowedValue.getValueOnlyCoder(coder));
-    ExecutorTestUtils.TestReaderObserver observer =
-        new ExecutorTestUtils.TestReaderObserver(avroReader, actualSizes);
+    new ExecutorTestUtils.TestReaderObserver(avroReader, actualSizes);
 
+    long offsetReported = 0;
     List<T> actualElems = new ArrayList<>();
     try (Reader.ReaderIterator<WindowedValue<T>> iterator = avroReader.iterator()) {
       while (iterator.hasNext()) {
         actualElems.add(iterator.next().getValue());
+        long progress =
+            readerProgressToCloudProgress(iterator.getProgress()).getPosition().getByteOffset();
+        // Make sure that the reported progress is monotonous.
+        Assert.assertThat(progress, greaterThanOrEqualTo(offsetReported));
+        offsetReported = progress;
       }
     }
     return actualElems;
