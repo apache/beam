@@ -117,6 +117,8 @@ import java.io.Serializable;
  * @param <T> the type that will be written to the Sink.
  */
 public abstract class Sink<T> implements Serializable {
+  private static final long serialVersionUID = 0;
+
   /**
    * Ensures that the sink is valid and can be written to before the write operation begins. One
    * should use {@link com.google.common.base.Preconditions} to implement this method.
@@ -149,6 +151,8 @@ public abstract class Sink<T> implements Serializable {
    * @param <WR> The result of a per-bundle write
    */
   public abstract static class WriteOperation<T, WR> implements Serializable {
+    private static final long serialVersionUID = 0;
+
     /**
      * Performs initialization before writing to the sink. Called before writing begins.
      */
