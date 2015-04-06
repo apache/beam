@@ -32,7 +32,6 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 
@@ -109,7 +108,6 @@ public class XMLSource<T> extends FileBasedSource<T> {
   private final String rootElement;
   private final String recordElement;
   private final Class<T> recordClass;
-  private final Charset charset = StandardCharsets.UTF_8;
 
   /**
    * Creates an XMLSource for a single XML file or a set of XML files defined by a Java "glob" file
@@ -315,7 +313,7 @@ public class XMLSource<T> extends FileBasedSource<T> {
 
       byte[] dummyStartDocumentBytes =
           ("<?xml version=\"" + XML_VERSION + "\" encoding=\"UTF-8\" ?>"
-              + "<" + getCurrentSource().rootElement + ">").getBytes(getCurrentSource().charset);
+              + "<" + getCurrentSource().rootElement + ">").getBytes(StandardCharsets.UTF_8);
       preambleByteBuffer.write(dummyStartDocumentBytes);
       // Gets the byte offset (in the input file) of the first record in ReadableByteChannel. This
       // method returns the offset and stores any bytes that should be used when creating the XML
@@ -363,7 +361,7 @@ public class XMLSource<T> extends FileBasedSource<T> {
 
       ByteBuffer buf = ByteBuffer.allocate(BUF_SIZE);
       byte[] recordStartBytes =
-          ("<" + getCurrentSource().recordElement).getBytes(getCurrentSource().charset);
+          ("<" + getCurrentSource().recordElement).getBytes(StandardCharsets.UTF_8);
 
       outer: while (channel.read(buf) > 0) {
         buf.flip();
@@ -381,7 +379,7 @@ public class XMLSource<T> extends FileBasedSource<T> {
               CharBuffer charBuf = CharBuffer.allocate(1);
               InputStream charBufStream = new ByteArrayInputStream(charBytes);
               java.io.Reader reader =
-                  new InputStreamReader(charBufStream, getCurrentSource().charset);
+                  new InputStreamReader(charBufStream, StandardCharsets.UTF_8);
               int read = reader.read();
               if (read <= 0) {
                 return -1;
