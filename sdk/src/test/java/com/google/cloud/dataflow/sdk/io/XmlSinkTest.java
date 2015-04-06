@@ -19,8 +19,8 @@ package com.google.cloud.dataflow.sdk.io;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import com.google.cloud.dataflow.sdk.io.XmlFileBasedSink.XmlWriteOperation;
-import com.google.cloud.dataflow.sdk.io.XmlFileBasedSink.XmlWriter;
+import com.google.cloud.dataflow.sdk.io.XmlSink.XmlWriteOperation;
+import com.google.cloud.dataflow.sdk.io.XmlSink.XmlWriter;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.common.collect.Lists;
@@ -47,10 +47,10 @@ import javax.xml.bind.annotation.XmlType;
 
 
 /**
- * Tests for XmlFileBasedSink.
+ * Tests for XmlSink.
  */
 @RunWith(JUnit4.class)
-public class XmlFileBasedSinkTest {
+public class XmlSinkTest {
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -68,7 +68,7 @@ public class XmlFileBasedSinkTest {
   public void testXmlWriter() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     XmlWriteOperation<Bird> writeOp =
-        XmlFileBasedSink.writeOf(Bird.class, "birds", testFilePrefix).createWriteOperation(options);
+        XmlSink.writeOf(Bird.class, "birds", testFilePrefix).createWriteOperation(options);
     XmlWriter<Bird> writer = writeOp.createWriter(options);
 
     List<Bird> bundle =
@@ -84,8 +84,8 @@ public class XmlFileBasedSinkTest {
    */
   @Test
   public void testBuildXmlSink() {
-    XmlFileBasedSink.Bound<Bird> sink =
-        XmlFileBasedSink.write()
+    XmlSink.Bound<Bird> sink =
+        XmlSink.write()
             .toFilenamePrefix(testFilePrefix)
             .ofRecordClass(testClass)
             .withRootElement(testRootElement);
@@ -99,8 +99,8 @@ public class XmlFileBasedSinkTest {
    */
   @Test
   public void testBuildXmlSinkDirect() {
-    XmlFileBasedSink.Bound<Bird> sink =
-        XmlFileBasedSink.writeOf(Bird.class, testRootElement, testFilePrefix);
+    XmlSink.Bound<Bird> sink =
+        XmlSink.writeOf(Bird.class, testRootElement, testFilePrefix);
     assertEquals(testClass, sink.classToBind);
     assertEquals(testRootElement, sink.rootElementName);
     assertEquals(testFilePrefix, sink.baseOutputFilename);
@@ -111,12 +111,12 @@ public class XmlFileBasedSinkTest {
    */
   @Test
   public void testValidateXmlSinkMissingFields() {
-    XmlFileBasedSink.Bound<Bird> sink;
-    sink = XmlFileBasedSink.writeOf(null, testRootElement, testFilePrefix);
+    XmlSink.Bound<Bird> sink;
+    sink = XmlSink.writeOf(null, testRootElement, testFilePrefix);
     validateAndFailIfSucceeds(sink, NullPointerException.class);
-    sink = XmlFileBasedSink.writeOf(testClass, null, testFilePrefix);
+    sink = XmlSink.writeOf(testClass, null, testFilePrefix);
     validateAndFailIfSucceeds(sink, NullPointerException.class);
-    sink = XmlFileBasedSink.writeOf(testClass, testRootElement, null);
+    sink = XmlSink.writeOf(testClass, testRootElement, null);
     validateAndFailIfSucceeds(sink, NullPointerException.class);
   }
 
@@ -124,7 +124,7 @@ public class XmlFileBasedSinkTest {
    * Call validate and fail if validation does not throw the expected exception.
    */
   private <T> void validateAndFailIfSucceeds(
-      XmlFileBasedSink.Bound<T> sink, Class<? extends Exception> expected) {
+      XmlSink.Bound<T> sink, Class<? extends Exception> expected) {
     thrown.expect(expected);
     PipelineOptions options = PipelineOptionsFactory.create();
     sink.validate(options);
@@ -136,13 +136,13 @@ public class XmlFileBasedSinkTest {
   @Test
   public void testCreateWriteOperations() {
     PipelineOptions options = PipelineOptionsFactory.create();
-    XmlFileBasedSink.Bound<Bird> sink =
-        XmlFileBasedSink.writeOf(testClass, testRootElement, testFilePrefix);
+    XmlSink.Bound<Bird> sink =
+        XmlSink.writeOf(testClass, testRootElement, testFilePrefix);
     XmlWriteOperation<Bird> writeOp = sink.createWriteOperation(options);
     assertEquals(testClass, writeOp.getSink().classToBind);
     assertEquals(testFilePrefix, writeOp.getSink().baseOutputFilename);
     assertEquals(testRootElement, writeOp.getSink().rootElementName);
-    assertEquals(XmlFileBasedSink.XML_EXTENSION, writeOp.getSink().extension);
+    assertEquals(XmlSink.XML_EXTENSION, writeOp.getSink().extension);
     assertEquals(testFilePrefix, writeOp.baseTemporaryFilename);
   }
 
@@ -153,7 +153,7 @@ public class XmlFileBasedSinkTest {
   public void testCreateWriter() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     XmlWriteOperation<Bird> writeOp =
-        XmlFileBasedSink.writeOf(testClass, testRootElement, testFilePrefix)
+        XmlSink.writeOf(testClass, testRootElement, testFilePrefix)
             .createWriteOperation(options);
     XmlWriter<Bird> writer = writeOp.createWriter(options);
     assertEquals(testFilePrefix, writer.getWriteOperation().baseTemporaryFilename);

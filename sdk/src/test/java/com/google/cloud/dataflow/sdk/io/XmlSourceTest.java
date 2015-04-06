@@ -53,10 +53,10 @@ import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlRootElement;
 
 /**
- * Tests XMLSource.
+ * Tests XmlSource.
  */
 @RunWith(JUnit4.class)
-public class XMLSourceTest {
+public class XmlSourceTest {
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -260,8 +260,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLTiny");
     Files.write(file.toPath(), tinyXML.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -283,8 +283,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLTiny");
     Files.write(file.toPath(), xmlWithMultiByteChars.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -306,8 +306,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLTiny");
     Files.write(file.toPath(), xmlWithMultiByteElementName.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("දුම්රියන්")
             .withRecordElement("දුම්රිය")
             .withRecordClass(Train.class)
@@ -329,8 +329,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLTiny");
     Files.write(file.toPath(), tinyXML.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -366,8 +366,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -389,8 +389,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRecordElement("train")
             .withRecordClass(Train.class);
 
@@ -405,8 +405,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordClass(Train.class);
 
@@ -421,8 +421,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train");
 
@@ -437,8 +437,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("something")
             .withRecordElement("train")
             .withRecordClass(Train.class);
@@ -452,8 +452,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("something")
             .withRecordClass(Train.class);
@@ -471,8 +471,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<WrongTrainType> source =
-        XMLSource.<WrongTrainType>from(file.toPath().toString())
+    XmlSource<WrongTrainType> source =
+        XmlSource.<WrongTrainType>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(WrongTrainType.class);
@@ -494,8 +494,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class);
@@ -517,8 +517,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXMLWithEmptyTags.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -546,8 +546,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -572,8 +572,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXMLWithAttributes.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -595,8 +595,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXMLWithSpaces.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -619,8 +619,8 @@ public class XMLSourceTest {
     List<Train> trains = generateRandomTrainList(100);
     File file = createRandomTrainXML(fileName, trains);
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -639,8 +639,8 @@ public class XMLSourceTest {
     File file = createRandomTrainXML(fileName, trains);
 
     DirectPipeline p = DirectPipeline.createForTest();
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -659,8 +659,8 @@ public class XMLSourceTest {
     List<Train> trains = generateRandomTrainList(10);
     File file = createRandomTrainXML(fileName, trains);
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -683,8 +683,8 @@ public class XMLSourceTest {
     List<Train> trains = generateRandomTrainList(100);
     File file = createRandomTrainXML(fileName, trains);
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -707,8 +707,8 @@ public class XMLSourceTest {
     List<Train> trains = generateRandomTrainList(100);
     File file = createRandomTrainXML(fileName, trains);
 
-    XMLSource<Train> fileSource =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> fileSource =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -734,8 +734,8 @@ public class XMLSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXMLWithAllFeatures.getBytes(StandardCharsets.UTF_8));
 
-    XMLSource<Train> source =
-        XMLSource.<Train>from(file.toPath().toString())
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
@@ -767,7 +767,7 @@ public class XMLSourceTest {
 
     DirectPipeline p = DirectPipeline.createForTest();
 
-    XMLSource<Train> source = XMLSource.<Train>from(file.getParent() + "/"
+    XmlSource<Train> source = XmlSource.<Train>from(file.getParent() + "/"
                                            + "temp*.xml")
                                   .withRootElement("trains")
                                   .withRecordElement("train")

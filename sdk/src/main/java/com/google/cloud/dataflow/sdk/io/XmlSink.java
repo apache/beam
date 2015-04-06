@@ -50,7 +50,7 @@ import javax.xml.bind.Marshaller;
  *
  * <pre>
  * p.apply(Write.to(
- *      XmlFileBasedSink.ofRecordClass(Type.class)
+ *      XmlSink.ofRecordClass(Type.class)
  *          .withRootElementName(root_element)
  *          .toFilenamePrefix(output_filename)));
  * </pre>
@@ -95,7 +95,7 @@ import javax.xml.bind.Marshaller;
  * <p>
  * <pre>
  * p.apply(Write.to(
- *  XmlFileBasedSink.ofRecordClass(WordFrequency.class)
+ *  XmlSink.ofRecordClass(WordFrequency.class)
  *      .withRootElement("words")
  *      .toFilenamePrefix(output_file)));
  * </pre>
@@ -131,11 +131,11 @@ import javax.xml.bind.Marshaller;
  * }
  * </pre>
  */
-public class XmlFileBasedSink {
+public class XmlSink {
   protected static final String XML_EXTENSION = "xml";
 
   /**
-   * Returns a builder for an XmlFileBasedSink. You'll need to configure the class to bind, the root
+   * Returns a builder for an XmlSink. You'll need to configure the class to bind, the root
    * element name, and the output file prefix with {@link Bound#ofRecordClass}, {@link
    * Bound#withRootElement}, and {@link Bound#toFilenamePrefix}, respectively.
    */
@@ -144,7 +144,7 @@ public class XmlFileBasedSink {
   }
 
   /**
-   * Returns an XmlFileBasedSink that writes objects as XML entities.
+   * Returns an XmlSink that writes objects as XML entities.
    *
    * <p>Output files will have the name {@literal {baseOutputFilename}-0000i-of-0000n.xml} where n
    * is the number of output bundles that the Dataflow service divides the output into.
@@ -174,7 +174,7 @@ public class XmlFileBasedSink {
     }
 
     /**
-     * Returns an XmlFileBasedSink that writes objects of the class specified as XML elements.
+     * Returns an XmlSink that writes objects of the class specified as XML elements.
      *
      * <p>The specified class must be able to be used to create a JAXB context.
      */
@@ -183,7 +183,7 @@ public class XmlFileBasedSink {
     }
 
     /**
-     * Returns an XmlFileBasedSink that writes to files with the given prefix.
+     * Returns an XmlSink that writes to files with the given prefix.
      *
      * <p>Output files will have the name {@literal {filenamePrefix}-0000i-of-0000n.xml} where n is
      * the number of output bundles that the Dataflow service divides the output into.
@@ -193,7 +193,7 @@ public class XmlFileBasedSink {
     }
 
     /**
-     * Returns an XmlFileBasedSink that writes XML files with an enclosing root element of the
+     * Returns an XmlSink that writes XML files with an enclosing root element of the
      * supplied name.
      */
     public Bound<T> withRootElement(String rootElementName) {
@@ -231,7 +231,7 @@ public class XmlFileBasedSink {
   protected static final class XmlWriteOperation<T> extends FileBasedWriteOperation<T> {
     private static final long serialVersionUID = 0;
 
-    public XmlWriteOperation(XmlFileBasedSink.Bound<T> sink) {
+    public XmlWriteOperation(XmlSink.Bound<T> sink) {
       super(sink);
     }
 
@@ -251,11 +251,11 @@ public class XmlFileBasedSink {
     }
 
     /**
-     * Return the XmlFileBasedSink.Bound for this write operation.
+     * Return the XmlSink.Bound for this write operation.
      */
     @Override
-    public XmlFileBasedSink.Bound<T> getSink() {
-      return (XmlFileBasedSink.Bound<T>) super.getSink();
+    public XmlSink.Bound<T> getSink() {
+      return (XmlSink.Bound<T>) super.getSink();
     }
   }
 

@@ -50,7 +50,7 @@ import java.util.NoSuchElementException;
  * <p>In addition to the methods left abstract from {@code Source}, subclasses must implement
  * methods to create a sub-source and a reader for a range of a single file -
  * {@link #createForSubrangeOfFile} and {@link #createSingleFileReader}. Please refer to
- * {@link XMLSource} for an example implementation of {@code FilebasedSource}.
+ * {@link XmlSource} for an example implementation of {@code FilebasedSource}.
  *
  * @param <T> Type of records represented by the source.
  */
