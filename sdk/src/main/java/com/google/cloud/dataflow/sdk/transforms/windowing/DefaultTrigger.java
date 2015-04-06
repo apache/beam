@@ -71,7 +71,7 @@ public class DefaultTrigger<W extends BoundedWindow> implements Trigger<W>{
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean isCompatible(Trigger<?> other) {
     // Semantically, all default triggers are identical
     return other instanceof DefaultTrigger;
   }

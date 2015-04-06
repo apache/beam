@@ -101,4 +101,14 @@ public class AfterPane<W extends BoundedWindow> implements AtMostOnceTrigger<W>{
   public boolean willNeverFinish() {
     return false;
   }
+
+  @Override
+  public boolean isCompatible(Trigger<?> other) {
+    if (!(other instanceof AfterPane)) {
+      return false;
+    }
+
+    AfterPane<?> that = (AfterPane<?>) other;
+    return countElems == that.countElems;
+  }
 }

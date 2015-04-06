@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
 
@@ -34,8 +35,8 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
   private static final long serialVersionUID = 0L;
 
-  protected AfterWatermark(SerializableFunction<Instant, Instant> composed) {
-    super(composed);
+  protected AfterWatermark(ImmutableList<SerializableFunction<Instant, Instant>> transforms) {
+    super(transforms);
   }
 
   /**
@@ -60,7 +61,8 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     private static final CodedTupleTag<Instant> DELAYED_UNTIL_TAG =
         CodedTupleTag.of("delayed-until", InstantCoder.of());
 
-    private FromFirstElementInPane(SerializableFunction<Instant, Instant> delayFunction) {
+    private FromFirstElementInPane(
+        ImmutableList<SerializableFunction<Instant, Instant>> delayFunction) {
       super(delayFunction);
     }
 
@@ -114,8 +116,9 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    protected AfterWatermark<W> newWith(SerializableFunction<Instant, Instant> transform) {
-      return new FromFirstElementInPane<W>(transform);
+    protected AfterWatermark<W> newWith(
+        ImmutableList<SerializableFunction<Instant, Instant>> transforms) {
+      return new FromFirstElementInPane<W>(transforms);
     }
   }
 
@@ -123,7 +126,8 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     private static final long serialVersionUID = 0L;
 
-    private FromEndOfWindow(SerializableFunction<Instant, Instant> composed) {
+    private FromEndOfWindow(
+        ImmutableList<SerializableFunction<Instant, Instant>> composed) {
       super(composed);
     }
 
@@ -162,8 +166,9 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    protected AfterWatermark<W> newWith(SerializableFunction<Instant, Instant> transform) {
-      return new FromEndOfWindow<>(transform);
+    protected AfterWatermark<W> newWith(
+        ImmutableList<SerializableFunction<Instant, Instant>> transforms) {
+      return new FromEndOfWindow<>(transforms);
     }
   }
 }

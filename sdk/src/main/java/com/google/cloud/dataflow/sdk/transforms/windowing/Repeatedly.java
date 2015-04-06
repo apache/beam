@@ -105,6 +105,16 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
     return true;
   }
 
+  @Override
+  public boolean isCompatible(Trigger<?> other) {
+    if (!(other instanceof Repeatedly)) {
+      return false;
+    }
+
+    Repeatedly<?> that = (Repeatedly<?>) other;
+    return repeated.isCompatible(that.repeated);
+  }
+
   /**
    * Repeats the given trigger forever, until the "until" trigger fires.
    */

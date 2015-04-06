@@ -261,6 +261,26 @@ public abstract class CompositeTrigger<W extends BoundedWindow> implements Trigg
       TriggerContext<W> c, W window, int childIdx, TriggerResult result)
       throws Exception;
 
+  @Override
+  public boolean isCompatible(Trigger<?> other) {
+    if (!getClass().equals(other.getClass())) {
+      return false;
+    }
+
+    CompositeTrigger<?> that = (CompositeTrigger<?>) other;
+    if (subTriggers.size() != that.subTriggers.size()) {
+      return false;
+    }
+
+    for (int i = 0; i < subTriggers.size(); i++) {
+      if (!subTriggers.get(i).isCompatible(that.subTriggers.get(i))) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   /**
    * Coder for the BitSet used to track child-trigger finished states.
    */

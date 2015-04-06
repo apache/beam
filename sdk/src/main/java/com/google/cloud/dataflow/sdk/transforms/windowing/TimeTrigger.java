@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -32,25 +33,22 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
 
   private static final long serialVersionUID = 0L;
 
-  protected static final SerializableFunction<Instant, Instant> IDENTITY =
-      new SerializableFunction<Instant, Instant>() {
+  protected static final ImmutableList<SerializableFunction<Instant, Instant>> IDENTITY =
+      ImmutableList.<SerializableFunction<Instant, Instant>>of();
 
-    private static final long serialVersionUID = 0L;
+  private final ImmutableList<SerializableFunction<Instant, Instant>> timestampMappers;
 
-    @Override
-    public Instant apply(Instant input) {
-      return input;
-    }
-  };
-
-  private SerializableFunction<Instant, Instant> composedTimestampMapper;
-
-  protected TimeTrigger(SerializableFunction<Instant, Instant> composedTimestampMapper) {
-    this.composedTimestampMapper = composedTimestampMapper;
+  protected TimeTrigger(
+      ImmutableList<SerializableFunction<Instant, Instant>> timestampMappers) {
+    this.timestampMappers = timestampMappers;
   }
 
   protected Instant computeTargetTimestamp(Instant time) {
-    return composedTimestampMapper.apply(time);
+    Instant result = time;
+    for (SerializableFunction<Instant, Instant> timestampMapper : timestampMappers) {
+      result = timestampMapper.apply(result);
+    }
+    return result;
   }
 
   /**
@@ -60,7 +58,7 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * @return An updated time trigger which will wait the additional time before firing.
    */
   public T plusDelay(final Duration delay) {
-    return mappedTo(new SerializableFunction<Instant, Instant>() {
+    return newWith(new SerializableFunction<Instant, Instant>() {
       private static final long serialVersionUID = 0L;
 
       @Override
@@ -84,16 +82,25 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * @param timestampMapper Function that will be invoked on the proposed trigger time to determine
    *        the time at which the trigger should actually fire.
    */
-  public T mappedTo(final SerializableFunction<Instant, Instant> timestampMapper) {
-    return newWith(new SerializableFunction<Instant, Instant>() {
+  public T mappedTo(SerializableFunction<Instant, Instant> timestampMapper) {
+    return newWith(timestampMapper);
+  }
 
-      private static final long serialVersionUID = 0L;
+  @Override
+  public boolean isCompatible(Trigger<?> other) {
+    if (!getClass().equals(other.getClass())) {
+      return false;
+    }
 
-      @Override
-      public Instant apply(Instant input) {
-        return timestampMapper.apply(composedTimestampMapper.apply(input));
-      }
-    });
+    TimeTrigger<?, ?> that = (TimeTrigger<?, ?>) other;
+    return this.timestampMappers.equals(that.timestampMappers);
+  }
+
+  private T newWith(SerializableFunction<Instant, Instant> timestampMapper) {
+    return newWith(ImmutableList.<SerializableFunction<Instant, Instant>>builder()
+        .addAll(timestampMappers)
+        .add(timestampMapper)
+        .build());
   }
 
   /**
@@ -103,5 +110,5 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * @param transform The new transform to apply to target times.
    * @return a new {@code TimeTrigger}.
    */
-  protected abstract T newWith(SerializableFunction<Instant, Instant> transform);
+  protected abstract T newWith(ImmutableList<SerializableFunction<Instant, Instant>> transform);
 }

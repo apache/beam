@@ -124,7 +124,7 @@ public class Flatten {
                 + windowingStrategy.getWindowFn() + ", " + other.getWindowFn());
           }
 
-          if (!windowingStrategy.getTrigger().equals(other.getTrigger())) {
+          if (!windowingStrategy.getTrigger().isCompatible(other.getTrigger())) {
             throw new IllegalStateException(
                 "Inputs to Flatten had incompatible triggers: "
                 + windowingStrategy.getTrigger() + ", " + other.getTrigger());
@@ -147,7 +147,6 @@ public class Flatten {
       // Use the Coder of the first input.
       return inputs.get(0).getCoder();
     }
-
   }
 
   /**

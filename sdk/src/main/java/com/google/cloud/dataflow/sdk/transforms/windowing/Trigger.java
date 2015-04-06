@@ -276,6 +276,11 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
   boolean willNeverFinish();
 
   /**
+   * Returns whether this performs the same triggering as the given {@code Trigger}.
+   */
+  boolean isCompatible(Trigger<?> other);
+
+  /**
    * Identifies a unique trigger instance, by the window it is in and the path through the trigger
    * tree.
    *
