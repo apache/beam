@@ -34,7 +34,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -455,8 +454,7 @@ public class DoFnRunner<I, O, R> {
 
     @Override
     public KeyedState keyedState() {
-      if (!(fn instanceof RequiresKeyedState)
-          || !equivalentToKV(element())) {
+      if (!(fn instanceof RequiresKeyedState)) {
         throw new UnsupportedOperationException(
             "Keyed state is only available in the context of a keyed DoFn "
             + "marked as requiring state");
@@ -483,13 +481,6 @@ public class DoFnRunner<I, O, R> {
     public void outputWithTimestamp(O output, Instant timestamp) {
       checkTimestamp(timestamp);
       context.outputWindowedValue(output, timestamp, windowedValue.getWindows());
-    }
-
-    void outputWindowedValue(
-        O output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows) {
-      context.outputWindowedValue(output, timestamp, windows);
     }
 
     @Override
@@ -533,19 +524,8 @@ public class DoFnRunner<I, O, R> {
 
     private void checkTimestamp(Instant timestamp) {
       Preconditions.checkArgument(
-          !timestamp.isBefore(windowedValue.getTimestamp().minus(fn.getAllowedTimestampSkew())));
-    }
-
-    private boolean equivalentToKV(I input) {
-      if (input == null) {
-        return true;
-      } else if (input instanceof KV) {
-        return true;
-      } else if (input instanceof TimerOrElement) {
-        return ((TimerOrElement) input).isTimer()
-            || ((TimerOrElement) input).element() instanceof KV;
-      }
-      return false;
+          !timestamp.isBefore(windowedValue.getTimestamp().minus(fn.getAllowedTimestampSkew())),
+          "Timestamp %s exceeds allowed maximum skew.", timestamp);
     }
 
     @Override

@@ -17,12 +17,15 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresKeyedState;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
+import com.google.cloud.dataflow.sdk.util.TimerOrElement.TimerOrElementCoder;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -523,6 +526,22 @@ public class ParDo {
     return new Unbound().of(fn);
   }
 
+  private static <I> void validateCoder(
+      DoFn<I, ?> fn, PCollection<? extends I> input) {
+    if (RequiresKeyedState.class.isAssignableFrom(fn.getClass())
+      && !isKvEquivalentCoder(input.getCoder())) {
+      throw new UnsupportedOperationException(
+          "KeyedState is only available in DoFn's with keyed inputs, but input coder "
+          + input.getCoder() + " is not keyed.");
+    }
+  }
+
+  private static boolean isKvEquivalentCoder(Coder<?> coder) {
+    return (coder instanceof KvCoder)
+        || (coder instanceof TimerOrElementCoder
+            && ((TimerOrElementCoder<?>) coder).getElementCoder() instanceof KvCoder);
+  }
+
   /**
    * An incomplete {@code ParDo} transform, with unbound input/output types.
    *
@@ -716,6 +735,12 @@ public class ParDo {
 
     public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
+    }
+
+    @Override
+    public void validate(PCollection<? extends I> input) {
+      super.validate(input);
+      ParDo.validateCoder(fn, input);
     }
   }
 
@@ -916,6 +941,12 @@ public class ParDo {
 
     public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
+    }
+
+    @Override
+    public void validate(PCollection<? extends I> input) {
+      super.validate(input);
+      ParDo.validateCoder(fn, input);
     }
   }
 

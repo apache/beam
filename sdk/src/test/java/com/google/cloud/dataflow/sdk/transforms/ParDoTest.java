@@ -727,14 +727,14 @@ public class ParDoTest implements Serializable {
 
     PCollection<Integer> input = createInts(p, inputs);
 
-    input
-        .apply(ParDo.of(new TestKeyedStateDoFnWithNonKvInput()));
     try {
-      p.run();
+      input.apply(ParDo.of(new TestKeyedStateDoFnWithNonKvInput()))
+          .finishSpecifying();
       fail("should have failed");
     } catch (RuntimeException exn) {
-      assertThat(exn.toString(),
-                 containsString("'RequiresKeyedState' but input elements were not of type KV"));
+      assertThat(exn.toString(), containsString(
+          "KeyedState is only available in DoFn's with keyed inputs, but "
+          + "input coder BigEndianIntegerCoder is not keyed."));
     }
   }
 
