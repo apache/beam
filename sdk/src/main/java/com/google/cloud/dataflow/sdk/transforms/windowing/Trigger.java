@@ -222,16 +222,90 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
   }
 
   /**
+   * Details about an invocation of {@link Trigger#onElement}.
+   *
+   * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
+   *            {@code OnElementEvent}
+   */
+  public static class OnElementEvent<W> {
+    private Object value;
+    private Instant timestamp;
+    private W window;
+    private WindowStatus status;
+
+    public OnElementEvent(Object value, Instant timestamp, W window, WindowStatus status) {
+      this.value = value;
+      this.timestamp = timestamp;
+      this.window = window;
+      this.status = status;
+    }
+
+    /**
+     * The element being handled by this call to {@link Trigger#onElement}.
+     */
+    public Object element() {
+      return value;
+    }
+
+    /**
+     * The event timestamp of the element being processed.
+     */
+    public Instant eventTimestamp() {
+      return timestamp;
+    }
+
+    /**
+     * The window into which the element was assigned.
+     */
+    public W window() {
+      return window;
+    }
+
+    /**
+     * The status of the window to which the element was assigned.
+     */
+    public WindowStatus windowStatus() {
+      return status;
+    }
+  }
+
+  /**
    * Called immediately after an element is first incorporated into a window.
    *
    * @param c the context to interact with
-   * @param value the element that was incorporated
-   * @param timestamp the event time that the element arrived at
-   * @param window the window the element was assigned to
+   * @param e an event describing the cause of this callback being executed
    */
-  TriggerResult onElement(
-      TriggerContext<W> c, Object value, Instant timestamp, W
-      window, WindowStatus status) throws Exception;
+  TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception;
+
+  /**
+   * Details about an invocation of {@link Trigger#onMerge}.
+   *
+   * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
+   *            {@code OnMergeEvent}
+   */
+  public static class OnMergeEvent<W> {
+    private Iterable<W> oldWindows;
+    private W newWindow;
+
+    public OnMergeEvent(Iterable<W> oldWindows, W newWindow) {
+      this.oldWindows = oldWindows;
+      this.newWindow = newWindow;
+    }
+
+    /**
+     * The old windows which were merged.
+     */
+    public Iterable<W> oldWindows() {
+      return oldWindows;
+    }
+
+    /**
+     * The new window produced by merging the {@link #oldWindows()}.
+     */
+    public W newWindow() {
+      return newWindow;
+    }
+  }
 
   /**
    * Called immediately after windows have been merged.
@@ -243,11 +317,54 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
    * That will automatically be done by the trigger execution layer.
    *
    * @param c the context to interact with
-   * @param oldWindows the windows that were merged
-   * @param newWindow the window that resulted from merging
+   * @param e an event describnig the cause of this callback being executed
    */
-  TriggerResult onMerge(
-      TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception;
+  TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception;
+
+  /**
+   * Details about an invocation of {@link Trigger#onTimer}.
+   *
+   * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
+   *            {@code OnTimerEvent}
+   */
+  public static class OnTimerEvent<W extends BoundedWindow> {
+
+    private TriggerId<W> triggerId;
+
+    public OnTimerEvent(TriggerId<W> triggerId) {
+      this.triggerId = triggerId;
+    }
+
+    public W window() {
+      return triggerId.window;
+    }
+
+    public TriggerId<W> triggerId() {
+      return triggerId;
+    }
+
+    /**
+     * Remove the outer layer from the path to the desired timer. This produces an
+     * {@code OnTimerEvent} suitable for passing to a subtrigger.
+     */
+    public OnTimerEvent<W> withoutOuterTrigger() {
+      return new OnTimerEvent<W>(triggerId.withoutOuterTrigger());
+    }
+
+    /**
+     * Return the index of the child this trigger ID is for.
+     */
+    public int getChildIndex() {
+      return triggerId.getPath().iterator().next();
+    }
+
+    /**
+     * Return true if the timer event is for the current layer.
+     */
+    public boolean isForCurrentLayer() {
+      return !triggerId.getPath().iterator().hasNext();
+    }
+  }
 
   /**
    * Called when a timer has fired for the trigger or one of it’s sub-triggers.
@@ -255,8 +372,7 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
    * @param c the context to interact with
    * @param triggerId identifier for the trigger that the timer is for.
    */
-  TriggerResult onTimer(
-      TriggerContext<W> c, TriggerId<W> triggerId) throws Exception;
+  TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> triggerId) throws Exception;
 
   /**
    * Clear any state associated with this trigger in the given window.
@@ -285,7 +401,7 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
    * tree.
    *
    * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
-   *            {@code TriggerContext}
+   *            {@code TriggerId}
    */
   public static class TriggerId<W extends BoundedWindow> {
     private final W window;
@@ -299,26 +415,12 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
     /**
      * Return a trigger ID that is applicable for the sub-trigger.
      */
-    public TriggerId<W> forChildTrigger() {
+    public TriggerId<W> withoutOuterTrigger() {
       return new TriggerId<>(window, subTriggers.subList(1, subTriggers.size()));
     }
 
-    public W getWindow() {
+    public W window() {
       return window;
-    }
-
-    /**
-     * Return true if this trigger ID corresponds to a child of the current trigger.
-     */
-    public boolean isForChild() {
-      return subTriggers.size() > 0;
-    }
-
-    /**
-     * Return the index of the child this trigger ID is for.
-     */
-    public int getChildIndex() {
-      return subTriggers.get(0);
     }
 
     public Iterable<Integer> getPath() {

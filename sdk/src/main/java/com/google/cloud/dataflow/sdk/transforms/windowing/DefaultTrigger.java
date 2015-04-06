@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import org.joda.time.Instant;
-
 /**
  * A trigger that fires repeatedly when the watermark passes the end of the window.
  *
@@ -37,26 +35,23 @@ public class DefaultTrigger<W extends BoundedWindow> implements Trigger<W>{
   }
 
   @Override
-  public TriggerResult onElement(
-      TriggerContext<W> c, Object value, Instant timestamp, W window,
-      WindowStatus status) throws Exception {
-    c.setTimer(window, window.maxTimestamp(), TimeDomain.EVENT_TIME);
+  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+    c.setTimer(e.window(), e.window().maxTimestamp(), TimeDomain.EVENT_TIME);
     return TriggerResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult onMerge(
-      TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception {
-    for (W oldWindow : oldWindows) {
+  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    for (W oldWindow : e.oldWindows()) {
       c.deleteTimer(oldWindow, TimeDomain.EVENT_TIME);
     }
 
-    c.setTimer(newWindow, newWindow.maxTimestamp(), TimeDomain.EVENT_TIME);
+    c.setTimer(e.newWindow(), e.newWindow().maxTimestamp(), TimeDomain.EVENT_TIME);
     return TriggerResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext<W> c, TriggerId<W> triggerId) throws Exception {
+  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
     return TriggerResult.FIRE;
   }
 

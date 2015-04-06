@@ -23,8 +23,6 @@ import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.common.collect.ImmutableList;
 
-import org.joda.time.Instant;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -109,9 +107,7 @@ public abstract class CompositeTrigger<W extends BoundedWindow> implements Trigg
     }
 
     public TriggerResult onElement(
-        TriggerContext<W> compositeContext, int index, Object value,
-        Instant timestamp, W window, WindowStatus status)
-        throws Exception {
+        TriggerContext<W> compositeContext, int index, OnElementEvent<W> e) throws Exception {
       if (isFinished.get(index)) {
         return TriggerResult.FINISH;
       }
@@ -120,22 +116,22 @@ public abstract class CompositeTrigger<W extends BoundedWindow> implements Trigg
       Trigger<W> subTrigger = subTriggers.get(index);
       return handleChildResult(
           childContext, index,
-          subTrigger.onElement(childContext, value, timestamp, window, status));
+          subTrigger.onElement(childContext, e));
     }
 
     public TriggerResult onTimer(
-        TriggerContext<W> compositeContext, int index, TriggerId<W> triggerId) throws Exception {
+        TriggerContext<W> compositeContext, int index, OnTimerEvent<W> e) throws Exception {
       TriggerContext<W> childContext = compositeContext.forChild(index);
       return handleChildResult(
-          childContext, index, subTriggers.get(index).onTimer(childContext, triggerId));
+          childContext, index, subTriggers.get(index).onTimer(childContext, e));
     }
 
     public TriggerResult onMerge(
-        TriggerContext<W> compositeContext, int index, Iterable<W> oldWindows, W newWindow)
+        TriggerContext<W> compositeContext, int index, OnMergeEvent<W> e)
         throws Exception {
       TriggerContext<W> childContext = compositeContext.forChild(index);
       return handleChildResult(
-          childContext, index, subTriggers.get(index).onMerge(childContext, oldWindows, newWindow));
+          childContext, index, subTriggers.get(index).onMerge(childContext, e));
     }
 
     public void clear(TriggerContext<W> compositeContext, int index, W window)
@@ -200,21 +196,19 @@ public abstract class CompositeTrigger<W extends BoundedWindow> implements Trigg
    * in the merged window.
    *
    * @param c The context of the composite trigger
-   * @param windows the windows that are being merged
-   * @param outputWindow the window that the results should be written to
+   * @param e The on merge event that is being processed.o
    */
-  protected SubTriggerExecutor subExecutor(
-      TriggerContext<W> c, Iterable<W> windows, W outputWindow)
+  protected SubTriggerExecutor subExecutor(TriggerContext<W> c, OnMergeEvent<W> e)
       throws Exception {
     BitSet result = new BitSet(subTriggers.size());
-    Map<W, BitSet> lookup = c.lookup(SUBTRIGGERS_FINISHED_SET_TAG, windows);
+    Map<W, BitSet> lookup = c.lookup(SUBTRIGGERS_FINISHED_SET_TAG, e.oldWindows());
     for (BitSet stateInWindow : lookup.values()) {
       if (stateInWindow != null) {
         result.or(stateInWindow);
       }
     }
 
-    SubTriggerExecutor subTriggerStates = new SubTriggerExecutor(c, outputWindow, result);
+    SubTriggerExecutor subTriggerStates = new SubTriggerExecutor(c, e.newWindow(), result);
 
     // Preemptively flush this since we just constructed it from the sub-windows.
     subTriggerStates.flush();
@@ -231,22 +225,22 @@ public abstract class CompositeTrigger<W extends BoundedWindow> implements Trigg
   }
 
   @Override
-  public final TriggerResult onTimer(TriggerContext<W> c, TriggerId<W> triggerId) throws Exception {
-    if (!triggerId.isForChild()) {
+  public final TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+    if (e.isForCurrentLayer()) {
       // TODO: Modify the composite trigger interface to enforce this.
       throw new UnsupportedOperationException("Composite triggers should not set timers.");
     }
 
-    int childIndex = triggerId.getChildIndex();
-    SubTriggerExecutor subTriggerStates = subExecutor(c, triggerId.getWindow());
+    int childIndex = e.getChildIndex();
+    SubTriggerExecutor subTriggerStates = subExecutor(c, e.window());
     if (subTriggerStates.isFinished(childIndex)) {
       // The child was already finished, so this timer doesn't do anything. There has been no change
       // which might cause the composite to fire or change its state, so we just continue.
       return TriggerResult.CONTINUE;
     }
 
-    TriggerResult result = subTriggerStates.onTimer(c, childIndex, triggerId.forChildTrigger());
-    return afterChildTimer(c, triggerId.getWindow(), childIndex, result);
+    TriggerResult result = subTriggerStates.onTimer(c, childIndex, e.withoutOuterTrigger());
+    return afterChildTimer(c, e.window(), childIndex, result);
   }
 
   /**

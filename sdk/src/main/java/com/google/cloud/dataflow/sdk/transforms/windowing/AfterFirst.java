@@ -19,8 +19,6 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
 import com.google.common.base.Preconditions;
 
-import org.joda.time.Instant;
-
 import java.util.Arrays;
 import java.util.List;
 
@@ -49,15 +47,13 @@ public class AfterFirst<W extends BoundedWindow>
   }
 
   @Override
-  public TriggerResult onElement(
-      TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
-      throws Exception {
+  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
     // If all the sub-triggers have finished, we should have already finished, so we know there is
     // at least one unfinished trigger.
 
-    SubTriggerExecutor subStates = subExecutor(c, window);
+    SubTriggerExecutor subStates = subExecutor(c, e.window());
     for (int i : subStates.getUnfinishedTriggers()) {
-      if (subStates.onElement(c, i, value, timestamp, window, status).isFire()) {
+      if (subStates.onElement(c, i, e).isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
       }
     }
@@ -66,15 +62,14 @@ public class AfterFirst<W extends BoundedWindow>
   }
 
   @Override
-  public TriggerResult onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow)
-      throws Exception {
-    SubTriggerExecutor subStates = subExecutor(c, oldWindows, newWindow);
+  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    SubTriggerExecutor subStates = subExecutor(c, e);
     if (subStates.allFinished()) {
       return TriggerResult.FINISH;
     }
 
     for (int i : subStates.getUnfinishedTriggers()) {
-      if (subStates.onMerge(c, i, oldWindows, newWindow).isFire()) {
+      if (subStates.onMerge(c, i, e).isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
       }
     }

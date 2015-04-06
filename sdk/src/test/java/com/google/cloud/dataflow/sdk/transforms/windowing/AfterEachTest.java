@@ -23,12 +23,12 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.WindowMatchers;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.common.collect.ImmutableList;
 
@@ -68,16 +68,12 @@ public class AfterEachTest {
       throws Exception {
     if (result1 != null) {
       when(mockTrigger1.onElement(
-          isTriggerContext(), Mockito.eq(element),
-          Mockito.any(Instant.class), Mockito.any(IntervalWindow.class),
-          Mockito.any(WindowStatus.class)))
+          isTriggerContext(), Mockito.<OnElementEvent<IntervalWindow>>any()))
           .thenReturn(result1);
     }
     if (result2 != null) {
       when(mockTrigger2.onElement(
-          isTriggerContext(), Mockito.eq(element),
-          Mockito.any(Instant.class), Mockito.any(IntervalWindow.class),
-          Mockito.any(WindowStatus.class)))
+          isTriggerContext(), Mockito.<OnElementEvent<IntervalWindow>>any()))
           .thenReturn(result2);
     }
     tester.injectElement(element, new Instant(element));
@@ -152,7 +148,7 @@ public class AfterEachTest {
     injectElement(1, TriggerResult.CONTINUE, null);
 
     tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, ImmutableList.of(0));
-    when(mockTrigger1.onTimer(isTriggerContext(), Mockito.isA(TriggerId.class)))
+    when(mockTrigger1.onTimer(isTriggerContext(), Mockito.isA(OnTimerEvent.class)))
         .thenReturn(TriggerResult.FIRE);
     tester.advanceWatermark(new Instant(12));
 
@@ -170,7 +166,7 @@ public class AfterEachTest {
     injectElement(1, TriggerResult.CONTINUE, null);
 
     tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, ImmutableList.of(0));
-    when(mockTrigger1.onTimer(isTriggerContext(), Mockito.isA(TriggerId.class)))
+    when(mockTrigger1.onTimer(isTriggerContext(), Mockito.isA(OnTimerEvent.class)))
         .thenReturn(TriggerResult.FINISH);
 
     tester.advanceWatermark(new Instant(12));
@@ -192,11 +188,7 @@ public class AfterEachTest {
 
     when(mockTrigger2.onMerge(
         isTriggerContext(),
-        Mockito.argThat(WindowMatchers.ofWindows(
-            WindowMatchers.intervalWindow(1, 11),
-            WindowMatchers.intervalWindow(12, 22),
-            WindowMatchers.intervalWindow(5, 15))),
-        Mockito.isA(IntervalWindow.class))).thenReturn(TriggerResult.FIRE_AND_FINISH);
+        Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.FIRE_AND_FINISH);
 
     // The arrival of this element should trigger merging.
     injectElement(5, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
@@ -210,7 +202,6 @@ public class AfterEachTest {
     verify(mockTrigger1, Mockito.never())
         .onMerge(
             Mockito.<TriggerContext<IntervalWindow>>any(),
-            Mockito.<Iterable<IntervalWindow>>any(),
-            Mockito.<IntervalWindow>any());
+            Mockito.<OnMergeEvent<IntervalWindow>>any());
   }
 }

@@ -20,8 +20,6 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 
-import org.joda.time.Instant;
-
 import java.util.Map.Entry;
 
 /**
@@ -51,10 +49,8 @@ public class AfterPane<W extends BoundedWindow> implements AtMostOnceTrigger<W>{
   }
 
   @Override
-  public TriggerResult onElement(
-      TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
-      throws Exception {
-    Integer count = c.lookup(ELEMENTS_IN_PANE_TAG, window);
+  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+    Integer count = c.lookup(ELEMENTS_IN_PANE_TAG, e.window());
     if (count == null) {
       count = 0;
     }
@@ -64,15 +60,14 @@ public class AfterPane<W extends BoundedWindow> implements AtMostOnceTrigger<W>{
       return TriggerResult.FIRE_AND_FINISH;
     }
 
-    c.store(ELEMENTS_IN_PANE_TAG, window, count);
+    c.store(ELEMENTS_IN_PANE_TAG, e.window(), count);
     return TriggerResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult onMerge(
-      TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception {
+  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
     int count = 0;
-    for (Entry<W, Integer> old : c.lookup(ELEMENTS_IN_PANE_TAG, oldWindows).entrySet()) {
+    for (Entry<W, Integer> old : c.lookup(ELEMENTS_IN_PANE_TAG, e.oldWindows()).entrySet()) {
       if (old.getValue() != null) {
         count += old.getValue();
         c.remove(ELEMENTS_IN_PANE_TAG, old.getKey());
@@ -83,12 +78,12 @@ public class AfterPane<W extends BoundedWindow> implements AtMostOnceTrigger<W>{
     if (count >= countElems) {
       return TriggerResult.FIRE_AND_FINISH;
     }
-    c.store(ELEMENTS_IN_PANE_TAG, newWindow, count);
+    c.store(ELEMENTS_IN_PANE_TAG, e.newWindow(), count);
     return TriggerResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext<W> c, TriggerId<W> triggerId) {
+  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) {
     return TriggerResult.CONTINUE;
   }
 

@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import org.joda.time.Instant;
-
 import java.util.Arrays;
 
 /**
@@ -78,21 +76,19 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
   }
 
   @Override
-  public TriggerResult onElement(
-      TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
+  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e)
       throws Exception {
-    return wrap(c, window, repeated.onElement(c, value, timestamp, window, status));
+    return wrap(c, e.window(), repeated.onElement(c, e));
   }
 
   @Override
-  public TriggerResult onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow)
-      throws Exception {
-    return wrap(c, newWindow, repeated.onMerge(c, oldWindows, newWindow));
+  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    return wrap(c, e.newWindow(), repeated.onMerge(c, e));
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext<W> c, TriggerId<W> triggerId) throws Exception {
-    return wrap(c, triggerId.getWindow(), repeated.onTimer(c, triggerId));
+  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+    return wrap(c, e.window(), repeated.onTimer(c, e));
   }
 
   @Override
@@ -137,31 +133,27 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
     }
 
     @Override
-    public TriggerResult onElement(
-        TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
-        throws Exception {
-      SubTriggerExecutor subExecutor = subExecutor(c, window);
+    public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+      SubTriggerExecutor subExecutor = subExecutor(c, e.window());
 
       TriggerResult until = subExecutor.isFinished(1)
           ? TriggerResult.CONTINUE // if we already finished the until, treat it like Never Stop
-          : subExecutor.onElement(c, 1, value, timestamp, window, status);
-      return handleResult(c, subExecutor, window,
-          subExecutor.onElement(c, 0, value, timestamp, window, status), until);
+          : subExecutor.onElement(c, 1, e);
+      return handleResult(c, subExecutor, e.window(),
+          subExecutor.onElement(c, 0, e), until);
     }
 
     @Override
-    public TriggerResult onMerge(
-        TriggerContext<W> c, Iterable<W> oldWindows, W newWindow) throws Exception {
-      SubTriggerExecutor subExecutor = subExecutor(c, oldWindows, newWindow);
+    public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+      SubTriggerExecutor subExecutor = subExecutor(c, e);
 
       TriggerResult until = subExecutor.isFinished(1)
           ? TriggerResult.CONTINUE // if we already finished the until, treat it like Never Stop
-          : subExecutor.onMerge(c, 1, oldWindows, newWindow);
+          : subExecutor.onMerge(c, 1, e);
 
       // Even if the merged until says fire, we should still evaluate (and maybe fire) from the
       // merging of the repeated trigger.
-      return handleResult(c, subExecutor, newWindow,
-          subExecutor.onMerge(c, 0, oldWindows, newWindow), until);
+      return handleResult(c, subExecutor, e.newWindow(), subExecutor.onMerge(c, 0, e), until);
     }
 
     @Override

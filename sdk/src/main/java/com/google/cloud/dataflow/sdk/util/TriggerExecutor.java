@@ -25,6 +25,9 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
@@ -175,7 +178,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
 
       handleResult(trigger, window,
           trigger.onElement(triggerContext,
-              value.getValue(), value.getTimestamp(), window, status));
+              new OnElementEvent<W>(value.getValue(), value.getTimestamp(), window, status)));
 
       if (WindowStatus.NEW.equals(status)) {
         // Attempt to merge windows before continuing
@@ -186,7 +189,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
 
   public void onTimer(String timerTag) throws Exception {
     TriggerId<W> triggerId = CoderUtils.decodeFromBase64(triggerIdCoder, timerTag);
-    W window = triggerId.getWindow();
+    W window = triggerId.window();
 
     // If we receive a timer for an already finished trigger tree, we can ignore it. Once the
     // trigger is finished, it has reached a terminal state, and the trigger shouldn't be allowed
@@ -203,7 +206,8 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
     // merge windows in a way that causes the timer to no longer be applicable. Otherwise, we
     // confirm that the window is still in the windowSet.
     if ((windowFn instanceof PartitioningWindowFn) || windowSet.contains(window)) {
-      handleResult(trigger, window, trigger.onTimer(triggerContext, triggerId));
+      handleResult(trigger, window,
+          trigger.onTimer(triggerContext, new OnTimerEvent<W>(triggerId)));
     }
   }
 
@@ -218,7 +222,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
       // If the root wasn't finished in any of the windows, then call the underlying merge and
       // handle the result appropriately.
       handleResult(trigger, mergeResult,
-          trigger.onMerge(triggerContext, toBeMerged, mergeResult));
+          trigger.onMerge(triggerContext, new OnMergeEvent<W>(toBeMerged, mergeResult)));
     } else {
       // Otherwise, act like we were just told to finish in the resulting window.
       handleResult(trigger, mergeResult, TriggerResult.FINISH);
@@ -389,7 +393,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
     @Override
     public void encode(TriggerId<W> triggerId, OutputStream outStream, Context context)
         throws CoderException, IOException {
-      windowCoder.encode(triggerId.getWindow(), outStream, context);
+      windowCoder.encode(triggerId.window(), outStream, context);
       pathCoder.encode(triggerId.getPath(), outStream, context);
     }
 

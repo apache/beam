@@ -18,8 +18,6 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.common.base.Preconditions;
 
-import org.joda.time.Instant;
-
 import java.util.Arrays;
 import java.util.List;
 
@@ -61,29 +59,24 @@ public class AfterEach<W extends BoundedWindow> extends CompositeTrigger<W> {
   }
 
   @Override
-  public TriggerResult onElement(
-      TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
-      throws Exception {
+  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
     // If all the sub-triggers have finished, we should have already finished, so we know there is
     // at least one unfinished trigger.
 
-    SubTriggerExecutor subexecutor = subExecutor(c, window);
+    SubTriggerExecutor subexecutor = subExecutor(c, e.window());
 
     // There must be at least one unfinished, because otherwise we would have finished the root.
     int current = subexecutor.firstUnfinished();
-    return result(
-        subexecutor.onElement(c, current, value, timestamp, window, status),
-        subexecutor);
+    return result(subexecutor.onElement(c, current, e), subexecutor);
   }
 
   @Override
-  public TriggerResult onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow)
-      throws Exception {
-    SubTriggerExecutor subexecutor = subExecutor(c, oldWindows, newWindow);
+  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    SubTriggerExecutor subexecutor = subExecutor(c, e);
 
     // There must be at least one unfinished, because otherwise we would have finished the root.
     int current = subexecutor.firstUnfinished();
-    return result(subexecutor.onMerge(c, current, oldWindows, newWindow), subexecutor);
+    return result(subexecutor.onMerge(c, current, e), subexecutor);
   }
 
   @Override

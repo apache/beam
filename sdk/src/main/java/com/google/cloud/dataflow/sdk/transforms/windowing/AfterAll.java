@@ -20,8 +20,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrig
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.common.base.Preconditions;
 
-import org.joda.time.Instant;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -75,22 +73,20 @@ public class AfterAll<W extends BoundedWindow>
   }
 
   @Override
-  public TriggerResult onElement(
-      TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
-      throws Exception {
-    BitSet firedSet = c.lookup(SUBTRIGGERS_FIRED_SET_TAG, window);
+  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+    BitSet firedSet = c.lookup(SUBTRIGGERS_FIRED_SET_TAG, e.window());
     if (firedSet == null) {
       firedSet = new BitSet(subTriggers.size());
     }
 
-    SubTriggerExecutor subExecutor = subExecutor(c, window);
+    SubTriggerExecutor subExecutor = subExecutor(c, e.window());
     for (int i : subExecutor.getUnfinishedTriggers()) {
-      if (subExecutor.onElement(c, i, value, timestamp, window, status).isFire()) {
+      if (subExecutor.onElement(c, i, e).isFire()) {
         firedSet.set(i);
       }
     }
 
-    return wrapResult(c, window, firedSet, subExecutor);
+    return wrapResult(c, e.window(), firedSet, subExecutor);
   }
 
   @Override
@@ -100,31 +96,30 @@ public class AfterAll<W extends BoundedWindow>
   }
 
   @Override
-  public TriggerResult onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow)
-      throws Exception {
+  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
     // First check to see if we've fired in the set of merged triggers
     BitSet newFiredSet = new BitSet(subTriggers.size());
-    for (BitSet oldFiredSet : c.lookup(SUBTRIGGERS_FIRED_SET_TAG, oldWindows).values()) {
+    for (BitSet oldFiredSet : c.lookup(SUBTRIGGERS_FIRED_SET_TAG, e.oldWindows()).values()) {
       if (oldFiredSet != null) {
         newFiredSet.or(oldFiredSet);
       }
     }
 
-    SubTriggerExecutor subExecutor = subExecutor(c, oldWindows, newWindow);
+    SubTriggerExecutor subExecutor = subExecutor(c, e);
 
     // Before evaluating the merge of the underlying trigger, see if we can finish early.
-    TriggerResult earlyResult = wrapResult(c, newWindow, newFiredSet, subExecutor);
+    TriggerResult earlyResult = wrapResult(c, e.newWindow(), newFiredSet, subExecutor);
     if (earlyResult.isFinish()) {
       return earlyResult;
     }
 
     for (int i : subExecutor.getUnfinishedTriggers()) {
-      if (subExecutor.onMerge(c, i, oldWindows, newWindow).isFire()) {
+      if (subExecutor.onMerge(c, i, e).isFire()) {
         newFiredSet.set(i);
       }
     }
 
-    return wrapResult(c, newWindow, newFiredSet, subExecutor);
+    return wrapResult(c, e.newWindow(), newFiredSet, subExecutor);
   }
 
   @Override

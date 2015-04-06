@@ -57,40 +57,38 @@ public class AfterProcessingTime<W extends BoundedWindow>
   }
 
   @Override
-  public TriggerResult onElement(
-      TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
+  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e)
       throws Exception {
-    Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, window);
+    Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, e.window());
     if (delayUntil == null) {
       delayUntil = computeTargetTimestamp(c.currentProcessingTime());
-      c.setTimer(window, delayUntil, TimeDomain.PROCESSING_TIME);
-      c.store(DELAYED_UNTIL_TAG, window, delayUntil);
+      c.setTimer(e.window(), delayUntil, TimeDomain.PROCESSING_TIME);
+      c.store(DELAYED_UNTIL_TAG, e.window(), delayUntil);
     }
 
     return TriggerResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow)
-      throws Exception {
+  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
     // To have gotten here, we must not have fired in any of the oldWindows.
     Instant earliestTimer = BoundedWindow.TIMESTAMP_MAX_VALUE;
-    for (Instant delayedUntil : c.lookup(DELAYED_UNTIL_TAG, oldWindows).values()) {
+    for (Instant delayedUntil : c.lookup(DELAYED_UNTIL_TAG, e.oldWindows()).values()) {
       if (delayedUntil != null && delayedUntil.isBefore(earliestTimer)) {
         earliestTimer = delayedUntil;
       }
     }
 
     if (earliestTimer != null) {
-      c.store(DELAYED_UNTIL_TAG, newWindow, earliestTimer);
-      c.setTimer(newWindow, earliestTimer, TimeDomain.PROCESSING_TIME);
+      c.store(DELAYED_UNTIL_TAG, e.newWindow(), earliestTimer);
+      c.setTimer(e.newWindow(), earliestTimer, TimeDomain.PROCESSING_TIME);
     }
 
     return TriggerResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext<W> c, TriggerId<W> triggerId) throws Exception {
+  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
     return TriggerResult.FIRE_AND_FINISH;
   }
 
