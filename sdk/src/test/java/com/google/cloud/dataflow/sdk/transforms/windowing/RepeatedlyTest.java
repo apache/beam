@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.util;
+package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
 import static org.junit.Assert.assertFalse;
@@ -23,16 +23,13 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
-import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
-import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.util.Trigger.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.Trigger.TriggerContext;
-import com.google.cloud.dataflow.sdk.util.Trigger.TriggerId;
-import com.google.cloud.dataflow.sdk.util.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
+import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;
@@ -51,7 +48,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class RepeatedlyTest {
   @Mock private Trigger<IntervalWindow> mockTrigger1;
-  @Mock private Trigger<IntervalWindow> mockTrigger2;
+  @Mock private AtMostOnceTrigger<IntervalWindow> mockTrigger2;
   private TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester;
   private IntervalWindow firstWindow;
 
@@ -61,9 +58,8 @@ public class RepeatedlyTest {
         ? Repeatedly.forever(mockTrigger1).until(mockTrigger2)
         : Repeatedly.forever(mockTrigger1);
 
-        tester = TriggerTester.of(windowFn, underTest,
-            BufferingWindowSet.<String, Integer, IntervalWindow>factory(VarIntCoder.of()));
-        firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
+    tester = TriggerTester.buffering(windowFn, underTest);
+    firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
 
   @SuppressWarnings("unchecked")
@@ -76,13 +72,15 @@ public class RepeatedlyTest {
     if (result1 != null) {
       when(mockTrigger1.onElement(
           isTriggerContext(), Mockito.eq(element),
-          Mockito.any(IntervalWindow.class), Mockito.any(WindowStatus.class)))
+          Mockito.any(Instant.class), Mockito.any(IntervalWindow.class),
+          Mockito.any(WindowStatus.class)))
           .thenReturn(result1);
     }
     if (result2 != null) {
       when(mockTrigger2.onElement(
           isTriggerContext(), Mockito.eq(element),
-          Mockito.any(IntervalWindow.class), Mockito.any(WindowStatus.class)))
+          Mockito.any(Instant.class), Mockito.any(IntervalWindow.class),
+          Mockito.any(WindowStatus.class)))
           .thenReturn(result2);
     }
     tester.injectElement(element, new Instant(element));

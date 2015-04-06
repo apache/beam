@@ -14,22 +14,32 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.util;
+package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import org.joda.time.Instant;
 
 /**
  * A trigger that fires repeatedly when the watermark passes the end of the window.
  *
  * @param <W> The type of windows being triggered/encoded.
  */
-public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
+public class DefaultTrigger<W extends BoundedWindow> implements Trigger<W>{
 
   private static final long serialVersionUID = 0L;
 
+  private DefaultTrigger() {}
+
+  /**
+   * Returns the default trigger.
+   */
+  public static <W extends BoundedWindow> DefaultTrigger<W> of() {
+    return new DefaultTrigger<W>();
+  }
+
   @Override
   public TriggerResult onElement(
-      TriggerContext<W> c, Object value, W window, WindowStatus status) throws Exception {
+      TriggerContext<W> c, Object value, Instant timestamp, W window,
+      WindowStatus status) throws Exception {
     c.setTimer(window, window.maxTimestamp(), TimeDomain.EVENT_TIME);
     return TriggerResult.CONTINUE;
   }

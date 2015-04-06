@@ -18,13 +18,15 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.util.Trigger.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TriggerIdCoder;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
@@ -88,14 +90,16 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     }
   }
 
-  public static <VI, VO, W extends BoundedWindow> TriggerTester<VI, VO, W> of(
-      WindowFn<?, W> windowFn,
-      Trigger<W> trigger,
-      AbstractWindowSet.Factory<String, VI, VO, W> windowSetFactory) throws Exception {
+  public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> buffering(
+      WindowFn<?, W> windowFn, Trigger<W> trigger) throws Exception {
     @SuppressWarnings("unchecked")
     WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
 
-    return new TriggerTester<VI, VO, W>(objectWindowFn, trigger, windowSetFactory);
+    AbstractWindowSet.Factory<String, Integer, Iterable<Integer>, W> windowSetFactory =
+        BufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
+
+    return new TriggerTester<Integer, Iterable<Integer>, W>(
+        objectWindowFn, trigger, windowSetFactory);
   }
 
   private TriggerTester(

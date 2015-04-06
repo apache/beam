@@ -14,16 +14,13 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.util;
+package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
-import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
+import com.google.cloud.dataflow.sdk.util.TriggerTester;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -40,10 +37,9 @@ public class DefaultTriggerTest {
 
   @Test
   public void testDefaultTriggerWithFixedWindow() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.of(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         FixedWindows.of(Duration.millis(10)),
-        new DefaultTrigger<IntervalWindow>(),
-        BufferingWindowSet.<String, Integer, IntervalWindow>factory(VarIntCoder.of()));
+        DefaultTrigger.<IntervalWindow>of());
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));
@@ -74,10 +70,9 @@ public class DefaultTriggerTest {
 
   @Test
   public void testDefaultTriggerWithSessionWindow() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.of(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         Sessions.withGapDuration(Duration.millis(10)),
-        new DefaultTrigger<IntervalWindow>(),
-        BufferingWindowSet.<String, Integer, IntervalWindow>factory(VarIntCoder.of()));
+        DefaultTrigger.<IntervalWindow>of());
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));

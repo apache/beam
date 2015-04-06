@@ -14,49 +14,53 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.util;
+package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 
 import org.joda.time.Instant;
 
 /**
- * A trigger that fires after a given amount of delay from the first element arriving.
+ * {@code AfterProcessingTime} triggers fire based on the current processing time. They operate in
+ * the real-time domain.
  *
- * <p>TODO: Generalize this as appropriate, and add support to hook it up.
- *
- * @param <W> The type of windows being triggered/encoded.
+ * @param <W> {@link BoundedWindow} subclass used to represent the windows used
  */
-public class DelayAfterFirstInPane<W extends BoundedWindow> extends Trigger<W> {
+public class AfterProcessingTime<W extends BoundedWindow>
+    extends TimeTrigger<W, AfterProcessingTime<W>> implements AtMostOnceTrigger<W>{
 
   private static final long serialVersionUID = 0L;
 
   private static final CodedTupleTag<Instant> DELAYED_UNTIL_TAG =
       CodedTupleTag.of("delayed-until", InstantCoder.of());
 
-  private SerializableFunction<Instant, Instant> delayFunction;
+  private AfterProcessingTime(SerializableFunction<Instant, Instant> delayFunction) {
+    super(delayFunction);
+  }
 
   /**
-   * Delay after the first element in the window arrives.
-   *
-   * @param delayFunction Transformation to apply the current processing time to compute the delay.
-   *     It should be deterministic: a = b => delayFunction(a) = delayFunction(b)
-   *     It should only move values forward: delayFunction(now) >= now
-   *     It should be monotonically increasing: If a < b, then delayFunction(a) <= delayFunction(b)
+   * Creates a trigger that fires when the current processing time passes the processing time at
+   * which this trigger saw the first element in a pane.
    */
-  public DelayAfterFirstInPane(SerializableFunction<Instant, Instant> delayFunction) {
-    this.delayFunction = delayFunction;
+  public static <W extends BoundedWindow> AfterProcessingTime<W> pastFirstElementInPane() {
+    return new AfterProcessingTime<W>(IDENTITY);
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext<W> c, Object value, W window, WindowStatus status)
+  protected AfterProcessingTime<W> newWith(SerializableFunction<Instant, Instant> transform) {
+    return new AfterProcessingTime<W>(transform);
+  }
+
+  @Override
+  public TriggerResult onElement(
+      TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
       throws Exception {
     Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, window);
     if (delayUntil == null) {
-      delayUntil = delayFunction.apply(c.currentProcessingTime());
+      delayUntil = computeTargetTimestamp(c.currentProcessingTime());
       c.setTimer(window, delayUntil, TimeDomain.PROCESSING_TIME);
       c.store(DELAYED_UNTIL_TAG, window, delayUntil);
     }
@@ -92,5 +96,10 @@ public class DelayAfterFirstInPane<W extends BoundedWindow> extends Trigger<W> {
   public void clear(TriggerContext<W> c, W window) throws Exception {
     c.remove(DELAYED_UNTIL_TAG, window);
     c.deleteTimer(window, TimeDomain.PROCESSING_TIME);
+  }
+
+  @Override
+  public boolean willNeverFinish() {
+    return false;
   }
 }

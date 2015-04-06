@@ -14,16 +14,13 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.util;
+package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
-import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
+import com.google.cloud.dataflow.sdk.util.TriggerTester;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -33,23 +30,16 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests the {@link DelayAfterFirstInPane}.
+ * Tests the {@link AfterProcessingTime}.
  */
 @RunWith(JUnit4.class)
-public class DelayAfterFirstInPaneTest {
+public class AfterProcessingTimeTest {
   @Test
-  public void testDelayAfterFirstInPaneWithFixedWindow() throws Exception {
+  public void testAfterProcessingTimeWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.of(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         FixedWindows.of(windowDuration),
-        new DelayAfterFirstInPane<IntervalWindow>(new SerializableFunction<Instant, Instant>() {
-          private static final long serialVersionUID = 1L;
-          @Override
-          public Instant apply(Instant input) {
-            return input.plus(Duration.millis(5));
-          }
-        }),
-        BufferingWindowSet.<String, Integer, IntervalWindow>factory(VarIntCoder.of()));
+        AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelay(Duration.millis(5)));
 
     tester.advanceProcessingTime(new Instant(10));
 
@@ -76,21 +66,19 @@ public class DelayAfterFirstInPaneTest {
     assertThat(tester.extractOutput(), Matchers.containsInAnyOrder(
         WindowMatchers.isSingleWindowedValue(Matchers.contains(4), 19, 10, 20),
         WindowMatchers.isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
+    assertTrue(tester.isDone(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
+        tester.rootFinished(new IntervalWindow(new Instant(0), new Instant(10))),
+        tester.rootFinished(new IntervalWindow(new Instant(10), new Instant(20))),
+        tester.rootFinished(new IntervalWindow(new Instant(30), new Instant(40)))));
   }
 
   @Test
-  public void testDelayAfterFirstInPaneWithMergingWindowAlreadyFired() throws Exception {
+  public void testAfterProcessingTimeWithMergingWindowAlreadyFired() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.of(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         Sessions.withGapDuration(windowDuration),
-        new DelayAfterFirstInPane<IntervalWindow>(new SerializableFunction<Instant, Instant>() {
-          private static final long serialVersionUID = 1L;
-          @Override
-          public Instant apply(Instant input) {
-            return input.plus(Duration.millis(5));
-          }
-        }),
-        BufferingWindowSet.<String, Integer, IntervalWindow>factory(VarIntCoder.of()));
+        AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelay(Duration.millis(5)));
 
     tester.advanceProcessingTime(new Instant(10));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
@@ -108,5 +96,10 @@ public class DelayAfterFirstInPaneTest {
     tester.advanceProcessingTime(new Instant(100));
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 2, 2, 12)));
+
+    assertTrue(tester.isDone(new IntervalWindow(new Instant(2), new Instant(12))));
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
+        tester.rootFinished(new IntervalWindow(new Instant(1), new Instant(11))),
+        tester.rootFinished(new IntervalWindow(new Instant(2), new Instant(12)))));
   }
 }

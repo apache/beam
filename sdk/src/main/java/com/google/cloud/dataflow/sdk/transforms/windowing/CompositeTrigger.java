@@ -14,15 +14,16 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.util;
+package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.ByteArrayCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.common.collect.ImmutableList;
+
+import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,26 +33,33 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Base class for implementing composite triggers.
+ * {@code CompositeTrigger} performs much of the book-keeping necessary for implementing a trigger
+ * that has multiple sub-triggers. Specifically, it includes support for passing events to the
+ * sub-triggers, and tracking the finished-states of each sub-trigger.
  *
- * @param <W> The type of windows the trigger operates in.
+ * TODO: Document the methods on this and SubTriggerExecutor to support writing new composite
+ * triggers.
+ *
+ * <p> This functionality is experimental and likely to change.
+ *
+ * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
+ *            {@code CompositeTrigger}
  */
-public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<W> {
+public abstract class CompositeTrigger<W extends BoundedWindow> implements Trigger<W> {
 
   private static final long serialVersionUID = 0L;
 
   private static final CodedTupleTag<BitSet> SUBTRIGGERS_FINISHED_SET_TAG =
       CodedTupleTag.of("finished", new BitSetCoder());
 
-  private List<Trigger<W>> subTriggers;
+  protected List<Trigger<W>> subTriggers;
 
-  public CompositeTrigger(List<Trigger<W>> subTriggers) {
+  protected CompositeTrigger(List<Trigger<W>> subTriggers) {
     this.subTriggers = subTriggers;
   }
 
   /**
-   * Encapsulates the sub-trigger states that have been looked up for this composite trigger and
-   * allows invoking the various trigger methods on the sub-triggers.
+   * Helper that allows allows a {@code CompositeTrigger} to execute callbacks.
    */
   protected class SubTriggerExecutor {
 
@@ -87,6 +95,10 @@ public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<
       return isFinished.nextClearBit(0);
     }
 
+    public BitSet getFinishedSet() {
+      return (BitSet) isFinished.clone();
+    }
+
     private TriggerResult handleChildResult(
         TriggerContext<W> childContext, int index, TriggerResult result) throws Exception {
       if (result.isFinish()) {
@@ -97,7 +109,8 @@ public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<
     }
 
     public TriggerResult onElement(
-        TriggerContext<W> compositeContext, int index, Object value, W window, WindowStatus status)
+        TriggerContext<W> compositeContext, int index, Object value,
+        Instant timestamp, W window, WindowStatus status)
         throws Exception {
       if (isFinished.get(index)) {
         return TriggerResult.FINISH;
@@ -106,7 +119,8 @@ public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<
       TriggerContext<W> childContext = compositeContext.forChild(index);
       Trigger<W> subTrigger = subTriggers.get(index);
       return handleChildResult(
-          childContext, index, subTrigger.onElement(childContext, value, window, status));
+          childContext, index,
+          subTrigger.onElement(childContext, value, timestamp, window, status));
     }
 
     public TriggerResult onTimer(
@@ -157,8 +171,8 @@ public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<
       subTriggers.get(index).clear(childContext, window);
     }
 
-    public void markFinished(TriggerContext<W> childContext, int index) throws Exception {
-      markFinishedInChild(childContext.forChild(index), index);
+    public void markFinished(TriggerContext<W> compositeContext, int index) throws Exception {
+      markFinishedInChild(compositeContext.forChild(index), index);
     }
   }
 
@@ -250,7 +264,7 @@ public abstract class CompositeTrigger<W extends BoundedWindow> extends Trigger<
   /**
    * Coder for the BitSet used to track child-trigger finished states.
    */
-  private static class BitSetCoder extends AtomicCoder<BitSet> {
+  protected static class BitSetCoder extends AtomicCoder<BitSet> {
 
     private static final long serialVersionUID = 1L;
 

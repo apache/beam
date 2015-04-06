@@ -22,12 +22,10 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
-import com.google.cloud.dataflow.sdk.util.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
-import com.google.cloud.dataflow.sdk.util.Trigger;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -153,8 +151,7 @@ public class Window {
      * but more properties can still be specified.
      */
     public <T> Bound<T> into(WindowFn<? super T, ?> fn) {
-      return new Bound<>(name,
-          (WindowingStrategy<? super T, ?>) createWindowingStrategy(fn, new DefaultTrigger<>()));
+      return new Bound<>(name, createWindowingStrategy(fn, DefaultTrigger.of()));
     }
   }
 

@@ -20,7 +20,9 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.AbstractWindowSet.Factory;
 import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TimerManager;
@@ -111,7 +113,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
         TriggerExecutor<K, VI, VO, W> executor = new TriggerExecutor<>(
             windowFn,
             new StreamingTimerManager(context),
-            new DefaultTrigger<W>(),
+            trigger,
             context.keyedState(),
             context.windowingInternals(),
             windowSet);

@@ -24,12 +24,13 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.util.Trigger.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.Trigger.TriggerContext;
-import com.google.cloud.dataflow.sdk.util.Trigger.TriggerId;
-import com.google.cloud.dataflow.sdk.util.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.util.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -173,7 +174,8 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
       WindowStatus status = windowSet.put(window, value.getValue(), value.getTimestamp());
 
       handleResult(trigger, window,
-          trigger.onElement(triggerContext, value.getValue(), window, status));
+          trigger.onElement(triggerContext,
+              value.getValue(), value.getTimestamp(), window, status));
 
       if (WindowStatus.NEW.equals(status)) {
         // Attempt to merge windows before continuing

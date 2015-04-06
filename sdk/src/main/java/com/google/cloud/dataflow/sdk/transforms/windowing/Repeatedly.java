@@ -14,9 +14,9 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.util;
+package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import org.joda.time.Instant;
 
 import java.util.Arrays;
 
@@ -34,7 +34,7 @@ import java.util.Arrays;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
  * {@code Trigger}
  */
-public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
+public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
 
   private static final long serialVersionUID = 0L;
 
@@ -65,7 +65,7 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
    *
    * @param until the trigger that will fire when we should stop repeating.
    */
-  public RepeatedlyUntil<W> until(Trigger<W> until) {
+  public RepeatedlyUntil<W> until(AtMostOnceTrigger<W> until) {
     return new RepeatedlyUntil<W>(repeated, until);
   }
 
@@ -75,8 +75,9 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
 
   @Override
   public TriggerResult onElement(
-      TriggerContext<W> c, Object value, W window, Trigger.WindowStatus status) throws Exception {
-    return wrap(repeated.onElement(c, value, window, status));
+      TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
+      throws Exception {
+    return wrap(repeated.onElement(c, value, timestamp, window, status));
   }
 
   @Override
@@ -107,7 +108,7 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
 
     private static final long serialVersionUID = 0L;
 
-    private RepeatedlyUntil(Trigger<W> repeat, Trigger<W> until) {
+    private RepeatedlyUntil(Trigger<W> repeat, AtMostOnceTrigger<W> until) {
       super(Arrays.asList(repeat, until));
     }
 
@@ -122,15 +123,16 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
     }
 
     @Override
-    public TriggerResult onElement(TriggerContext<W> c, Object value, W window, WindowStatus status)
+    public TriggerResult onElement(
+        TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
         throws Exception {
       SubTriggerExecutor subExecutor = subExecutor(c, window);
 
       TriggerResult until = subExecutor.isFinished(1)
           ? TriggerResult.CONTINUE // if we already finished the until, treat it like Never Stop
-          : subExecutor.onElement(c, 1, value, window, status);
+          : subExecutor.onElement(c, 1, value, timestamp, window, status);
       return handleResult(c, subExecutor, window,
-          subExecutor.onElement(c, 0, value, window, status), until);
+          subExecutor.onElement(c, 0, value, timestamp, window, status), until);
     }
 
     @Override
@@ -160,6 +162,11 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
       } else {
         return result.isFire() ? TriggerResult.FINISH : TriggerResult.CONTINUE;
       }
+    }
+
+    @Override
+    public boolean willNeverFinish() {
+      return false;
     }
   }
 }

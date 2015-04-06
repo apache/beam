@@ -14,36 +14,50 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.util;
+package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
 import com.google.common.base.Preconditions;
 
+import org.joda.time.Instant;
+
+import java.util.Arrays;
 import java.util.List;
 
 /**
- * Create a {@link CompositeTrigger} that fires once the first time any of its sub-triggers fire.
+ * Create a {@link CompositeTrigger} that fires once after at least one of its sub-triggers have
+ * fired. If all of the sub-triggers finish without firing, the {@code AfterFirst.of(...)} will also
+ * finish without firing.
  *
- * @param <W> The type of windows this trigger operates on.
+ * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
+ *            {@code Trigger}
  */
-public class FirstOfTrigger<W extends BoundedWindow> extends CompositeTrigger<W> {
+public class AfterFirst<W extends BoundedWindow>
+    extends CompositeTrigger<W> implements AtMostOnceTrigger<W> {
 
   private static final long serialVersionUID = 0L;
 
-  public FirstOfTrigger(List<Trigger<W>> subTriggers) {
+  private AfterFirst(List<Trigger<W>> subTriggers) {
     super(subTriggers);
     Preconditions.checkArgument(subTriggers.size() > 1);
   }
 
+  @SafeVarargs
+  public static <W extends BoundedWindow> AtMostOnceTrigger<W> of(
+      AtMostOnceTrigger<W>... triggers) {
+    return new AfterFirst<W>(Arrays.<Trigger<W>>asList(triggers));
+  }
+
   @Override
-  public TriggerResult onElement(TriggerContext<W> c, Object value, W window, WindowStatus status)
+  public TriggerResult onElement(
+      TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
       throws Exception {
     // If all the sub-triggers have finished, we should have already finished, so we know there is
     // at least one unfinished trigger.
 
     SubTriggerExecutor subStates = subExecutor(c, window);
     for (int i : subStates.getUnfinishedTriggers()) {
-      if (subStates.onElement(c, i, value, window, status).isFire()) {
+      if (subStates.onElement(c, i, value, timestamp, window, status).isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
       }
     }
@@ -83,5 +97,11 @@ public class FirstOfTrigger<W extends BoundedWindow> extends CompositeTrigger<W>
     }
 
     return TriggerResult.CONTINUE;
+  }
+
+  @Override
+  public boolean willNeverFinish() {
+    // Even if all the subtriggers never finish, if any of them fire, the AfterAll will finish.
+    return false;
   }
 }
