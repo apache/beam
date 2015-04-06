@@ -877,6 +877,7 @@ public class StreamingDataflowWorkerTest {
         "output_timers {" +
         "  tag: \"gAAAAAAAAAAAAAAA\"" +
         "  timestamp: 999000" +
+        "  type: WATERMARK" +
         "} " +
         "list_updates {" +
         "  tag: \"12:MergeWindowsbuffer:gAAAAAAAAAA=\"" +

@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TriggerIdCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -58,7 +59,13 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   TupleTag<KV<String, Iterable<String>>> outputTag;
 
   @Before public void setUp() {
-    execContext = new DirectModeExecutionContext();
+    execContext = new DirectModeExecutionContext() {
+        @Override
+        public void setTimer(String tag, Instant timestamp, Trigger.TimeDomain domain) {}
+
+        @Override
+        public void deleteTimer(String tag, Trigger.TimeDomain domain) {}
+      };
     counters = new CounterSet();
     outputTag = new TupleTag<>();
   }

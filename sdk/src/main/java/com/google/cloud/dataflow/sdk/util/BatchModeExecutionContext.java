@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -39,7 +40,6 @@ import java.util.TreeMap;
  */
 public class BatchModeExecutionContext extends ExecutionContext {
   private Object key;
-  private Map<Object, Map<String, Instant>> timers = new HashMap<>();
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache = new HashMap<>();
 
   /**
@@ -67,21 +67,13 @@ public class BatchModeExecutionContext extends ExecutionContext {
   }
 
   @Override
-  public void setTimer(String timer, Instant timestamp) {
-    Map<String, Instant> keyTimers = timers.get(getKey());
-    if (keyTimers == null) {
-      keyTimers = new HashMap<>();
-      timers.put(getKey(), keyTimers);
-    }
-    keyTimers.put(timer, timestamp);
+  public void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain) {
+    throw new UnsupportedOperationException("setTimer is not supported in batch mode");
   }
 
   @Override
-  public void deleteTimer(String timer) {
-    Map<String, Instant> keyTimers = timers.get(getKey());
-    if (keyTimers != null) {
-      keyTimers.remove(timer);
-    }
+  public void deleteTimer(String timer, Trigger.TimeDomain domain) {
+    throw new UnsupportedOperationException("deleteTimer is not supported in batch mode");
   }
 
   @Override
@@ -123,16 +115,6 @@ public class BatchModeExecutionContext extends ExecutionContext {
       tagCache.put(sideInputWindow, result);
     }
 
-    return result;
-  }
-
-  public <E> List<TimerOrElement<E>> getAllTimers() {
-    List<TimerOrElement<E>> result = new ArrayList<>();
-    for (Map.Entry<Object, Map<String, Instant>> keyTimers : timers.entrySet()) {
-      for (Map.Entry<String, Instant> timer : keyTimers.getValue().entrySet()) {
-        result.add(TimerOrElement.<E>timer(timer.getKey(), timer.getValue(), keyTimers.getKey()));
-      }
-    }
     return result;
   }
 

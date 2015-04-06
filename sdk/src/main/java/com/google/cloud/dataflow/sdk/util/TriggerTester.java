@@ -273,13 +273,13 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     }
 
     @Override
-    public void setTimer(String timer, Instant timestamp) {
+    public void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain) {
       throw new UnsupportedOperationException(
           "Testing triggers should not use timers from WindowingInternals.");
     }
 
     @Override
-    public void deleteTimer(String timer) {
+    public void deleteTimer(String timer, Trigger.TimeDomain domain) {
       throw new UnsupportedOperationException(
           "Testing triggers should not use timers from WindowingInternals.");
     }

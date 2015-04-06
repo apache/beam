@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
@@ -70,12 +71,12 @@ public interface WindowingInternals<I, O> {
    * timestamp.  Timers are identified by their name, and can be moved
    * by calling {@code setTimer} again, or deleted with {@link #deleteTimer}.
    */
-  void setTimer(String timer, Instant timestamp);
+  void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain);
 
   /**
    * Deletes the given timer.
    */
-  void deleteTimer(String timer);
+  void deleteTimer(String timer, Trigger.TimeDomain domain);
 
   /**
    * Access the windows the element is being processed in without "exploding" it.

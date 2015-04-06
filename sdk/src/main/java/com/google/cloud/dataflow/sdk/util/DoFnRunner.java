@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -555,13 +556,13 @@ public class DoFnRunner<I, O, R> {
         }
 
         @Override
-        public void setTimer(String timer, Instant timestamp) {
-          context.stepContext.getExecutionContext().setTimer(timer, timestamp);
+        public void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain) {
+          context.stepContext.getExecutionContext().setTimer(timer, timestamp, domain);
         }
 
         @Override
-        public void deleteTimer(String timer) {
-          context.stepContext.getExecutionContext().deleteTimer(timer);
+        public void deleteTimer(String timer, Trigger.TimeDomain domain) {
+          context.stepContext.getExecutionContext().deleteTimer(timer, domain);
         }
 
         @Override

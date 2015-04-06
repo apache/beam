@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
@@ -65,19 +66,29 @@ public class StreamingModeExecutionContext extends ExecutionContext {
   }
 
   @Override
-  public void setTimer(String timer, Instant timestamp) {
+  public void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain) {
     long timestampMicros = TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis());
     outputBuilder.addOutputTimers(
         Windmill.Timer.newBuilder()
         .setTimestamp(timestampMicros)
         .setTag(ByteString.copyFromUtf8(timer))
+        .setType(timerType(domain))
         .build());
   }
 
   @Override
-  public void deleteTimer(String timer) {
+  public void deleteTimer(String timer, Trigger.TimeDomain domain) {
     outputBuilder.addOutputTimers(
-        Windmill.Timer.newBuilder().setTag(ByteString.copyFromUtf8(timer)).build());
+        Windmill.Timer.newBuilder()
+        .setTag(ByteString.copyFromUtf8(timer))
+        .setType(timerType(domain))
+        .build());
+  }
+
+  private Windmill.Timer.Type timerType(Trigger.TimeDomain domain) {
+    return domain == Trigger.TimeDomain.EVENT_TIME
+        ? Windmill.Timer.Type.WATERMARK
+        : Windmill.Timer.Type.REALTIME;
   }
 
   @Override

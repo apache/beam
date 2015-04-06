@@ -134,23 +134,17 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, VI, VO, W extends Bound
 
     @Override
     public void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain) {
-      // TODO: Hook up support for processing-time timers.
-      Preconditions.checkArgument(Trigger.TimeDomain.EVENT_TIME.equals(domain),
-          "Streaming currently only supports Watermark based timers.");
-      context.windowingInternals().setTimer(timer, timestamp);
+      context.windowingInternals().setTimer(timer, timestamp, domain);
     }
 
     @Override
     public void deleteTimer(String timer, Trigger.TimeDomain domain) {
-      // TODO: Hook up support for processing-time timers.
-      Preconditions.checkArgument(Trigger.TimeDomain.EVENT_TIME.equals(domain),
-          "Streaming currently only supports Watermark based timers.");
-      context.windowingInternals().deleteTimer(timer);
+      context.windowingInternals().deleteTimer(timer, domain);
     }
 
     @Override
     public Instant currentProcessingTime() {
-      throw new UnsupportedOperationException("Streaming doesn't yet support processing time.");
+      return Instant.now();
     }
   }
 }

@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -72,12 +73,12 @@ public abstract class ExecutionContext {
    * by calling {@code setTimer} again, or deleted with
    * {@link ExecutionContext#deleteTimer}.
    */
-  public abstract void setTimer(String timer, Instant timestamp);
+  public abstract void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain);
 
   /**
    * Deletes the given timer.
    */
-  public abstract void deleteTimer(String timer);
+  public abstract void deleteTimer(String timer, Trigger.TimeDomain domain);
 
   /**
    * Hook for subclasses to implement that will be called whenever
