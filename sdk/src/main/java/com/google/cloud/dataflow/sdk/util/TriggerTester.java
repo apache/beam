@@ -102,6 +102,18 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
         objectWindowFn, trigger, windowSetFactory);
   }
 
+  public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> combining(
+      WindowFn<?, W> windowFn, Trigger<W> trigger) throws Exception {
+    @SuppressWarnings("unchecked")
+    WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
+
+    AbstractWindowSet.Factory<String, Integer, Iterable<Integer>, W> windowSetFactory =
+        BufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
+
+    return new TriggerTester<Integer, Iterable<Integer>, W>(
+        objectWindowFn, trigger, windowSetFactory);
+  }
+
   private TriggerTester(
       WindowFn<Object, W> windowFn,
       Trigger<W> trigger,

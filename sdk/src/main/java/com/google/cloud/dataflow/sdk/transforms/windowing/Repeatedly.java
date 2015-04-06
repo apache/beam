@@ -69,7 +69,11 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
     return new RepeatedlyUntil<W>(repeated, until);
   }
 
-  private TriggerResult wrap(TriggerResult result) {
+
+  private TriggerResult wrap(TriggerContext<W> c, W window, TriggerResult result) throws Exception {
+    if (result.isFire() || result.isFinish()) {
+      repeated.clear(c, window);
+    }
     return result.isFire() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
   }
 
@@ -77,18 +81,18 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
   public TriggerResult onElement(
       TriggerContext<W> c, Object value, Instant timestamp, W window, WindowStatus status)
       throws Exception {
-    return wrap(repeated.onElement(c, value, timestamp, window, status));
+    return wrap(c, window, repeated.onElement(c, value, timestamp, window, status));
   }
 
   @Override
   public TriggerResult onMerge(TriggerContext<W> c, Iterable<W> oldWindows, W newWindow)
       throws Exception {
-    return wrap(repeated.onMerge(c, oldWindows, newWindow));
+    return wrap(c, newWindow, repeated.onMerge(c, oldWindows, newWindow));
   }
 
   @Override
   public TriggerResult onTimer(TriggerContext<W> c, TriggerId<W> triggerId) throws Exception {
-    return wrap(repeated.onTimer(c, triggerId));
+    return wrap(c, triggerId.getWindow(), repeated.onTimer(c, triggerId));
   }
 
   @Override

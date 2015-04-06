@@ -38,9 +38,9 @@ import java.util.List;
  * {@link PCollection} into finite windows according to a {@link WindowFn}.
  * The output of {@code Window} contains the same elements as input, but they
  * have been logically assigned to windows. The next
- * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}s, including one
- * within composite transforms, will group by the combination of keys and
- * windows.
+ * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey GroupByKeys},
+ * including one within composite transforms, will group by the combination of
+ * keys and windows.
 
  * <p> See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
  * for more information about how grouping with windows works.
@@ -73,7 +73,6 @@ import java.util.List;
  * the output will be
  * {(KV("foo", 2), 1m), (KV("bar", 1), 1m), (KV("foo", 1), 2m)}
  *
- *
  * <p> Several predefined {@link WindowFn}s are provided:
  * <ul>
  *  <li> {@link FixedWindows} partitions the timestamps into fixed-width intervals.
@@ -82,8 +81,14 @@ import java.util.List;
  *       is separated from the next by no more than a specified gap.
  * </ul>
  *
- * Additionally, custom {@link WindowFn}s can be created, by creating new
+ * <p>Additionally, custom {@link WindowFn}s can be created, by creating new
  * subclasses of {@link WindowFn}.
+ *
+ * <p> {@link Window.Bound#triggering(Trigger)} allows specifying a trigger to control when
+ * (in processing time) results for the given window can be produced. If unspecified, the default
+ * behavior is to trigger first when the watermark passes the end of the window, and then trigger
+ * again every time there is late arriving data. See {@link Trigger} for details on specifying other
+ * triggers.
  */
 public class Window {
   /**
@@ -193,6 +198,19 @@ public class Window {
       return new Bound<>(name, windowingStrategy);
     }
 
+    /**
+     * Sets a non-default trigger for this {@code Window} {@code PTransform}.
+     * Elements that are assigned to a specific window will be output when
+     * the trigger fires.
+     *
+     * <p> {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger}
+     * has more details on the available triggers.
+     */
+    public Triggering<T> triggering(Trigger<?> trigger) {
+      return new Triggering<T>(name,
+          createWindowingStrategy(windowingStrategy.getWindowFn(), trigger));
+    }
+
     @Override
     public PCollection<T> apply(PCollection<T> input) {
       return PCollection.<T>createPrimitiveOutputInternal(windowingStrategy);
@@ -218,6 +236,40 @@ public class Window {
     }
   }
 
+  /**
+   * An incomplete {@code Window} transform which has a trigger specified but has an unspecified
+   * accumulation mode.
+   *
+   * <p> The currently available accumulation modes are:
+   *
+   * <ul>
+   *   <li> {@link Window.Triggering#discardingFiredPanes} which causes the elements in a pane to
+   *   be discarded after the trigger fires and output is produced.
+   * </ul>
+   *
+   * <p> After specifying the accumulation mode the PTransform is complete and can be applied.
+   */
+  public static class Triggering<T> {
+
+    String name;
+    WindowingStrategy<? super T, ?> windowingStrategy;
+
+    Triggering(String name, WindowingStrategy<? super T, ?> windowingStrategy) {
+      this.name = name;
+      this.windowingStrategy = windowingStrategy;
+    }
+
+    /**
+     * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
+     * Triggering behavior, and which discards elements in a pane after they are triggered.
+     *
+     * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
+     * specified to be applied, but more properties can still be specified.
+     */
+    public Bound<T> discardingFiredPanes() {
+      return new Bound<>(name, windowingStrategy);
+    }
+  }
 
   /////////////////////////////////////////////////////////////////////////////
 

@@ -193,10 +193,44 @@ public class StreamingModeExecutionContext extends ExecutionContext {
     return stateFetcher.fetch(computation, getSerializedKey(), getWorkToken(), prefix, tags);
   }
 
+  private static class TagListUpdates<T> {
+    List<TimestampedValue<ByteString>> encodedValues = new ArrayList<>();
+    List<TimestampedValue<T>> values = new ArrayList<>();
+    boolean remove = false;
+
+    public void deleteTagList() {
+      encodedValues.clear();
+      values.clear();
+      remove = true;
+    }
+
+    public boolean isRemove() {
+      return remove;
+    }
+
+    public void add(Instant timestamp, ByteString encoded, T value) {
+      encodedValues.add(TimestampedValue.of(encoded, timestamp));
+      values.add(TimestampedValue.of(value, timestamp));
+    }
+  }
+
   class StepContext extends ExecutionContext.StepContext {
     private final String mangledPrefix;
+
+    // K = the value that was put, V = the encoded value
     private Map<CodedTupleTag<?>, KV<?, ByteString>> stateCache = new HashMap<>();
-    private Map<CodedTupleTag<?>, List<KV<ByteString, Instant>>> tagListUpdates = new HashMap<>();
+
+    private Map<CodedTupleTag<?>, TagListUpdates<?>> tagListUpdates = new HashMap<>();
+
+    private <T> TagListUpdates<T> getOrCreateListUpdates(CodedTupleTag<T> tag) {
+      @SuppressWarnings("unchecked")
+      TagListUpdates<T> updates = (TagListUpdates<T>) tagListUpdates.get(tag);
+      if (updates == null) {
+        updates = new TagListUpdates<T>();
+        tagListUpdates.put(tag, updates);
+      }
+      return updates;
+    }
 
     public StepContext(String stepName) {
       super(stepName);
@@ -240,24 +274,31 @@ public class StreamingModeExecutionContext extends ExecutionContext {
     @Override
     public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
         throws IOException {
-      List<KV<ByteString, Instant>> list = tagListUpdates.get(tag);
-      if (list == null) {
-        list = new ArrayList<>();
-        tagListUpdates.put(tag, list);
-      }
       ByteString.Output stream = ByteString.newOutput();
       tag.getCoder().encode(value, stream, Coder.Context.OUTER);
-      list.add(KV.of(stream.toByteString(), timestamp));
+      getOrCreateListUpdates(tag).add(timestamp, stream.toByteString(), value);
     }
 
     @Override
     public <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag) throws IOException {
-      return stateFetcher.fetchList(
-          computation, getSerializedKey(), getWorkToken(), mangledPrefix, tag);
+      TagListUpdates<T> listUpdates = getOrCreateListUpdates(tag);
+      ArrayList<TimestampedValue<T>> items = new ArrayList<>();
+      // If we've done a (not-yet-persisted) remove don't include the persisted items
+      if (!listUpdates.isRemove()) {
+        items.addAll(stateFetcher.fetchList(
+          computation, getSerializedKey(), getWorkToken(), mangledPrefix, tag));
+      }
+
+      // If we have pending (not-yet-persisted) additions, include them
+      items.addAll(listUpdates.values);
+      return items.isEmpty() ? null : items;
     }
 
     @Override
     public <T> void deleteTagList(CodedTupleTag<T> tag) {
+      getOrCreateListUpdates(tag).deleteTagList();
+
+      // And record the deletion
       outputBuilder.addListUpdates(
           Windmill.TagList.newBuilder()
           .setTag(serializeTag(tag))
@@ -280,22 +321,26 @@ public class StreamingModeExecutionContext extends ExecutionContext {
             .build());
       }
 
-      for (Map.Entry<CodedTupleTag<?>, List<KV<ByteString, Instant>>> entry :
-               tagListUpdates.entrySet()) {
+      for (Map.Entry<CodedTupleTag<?>, TagListUpdates<?>> entry : tagListUpdates.entrySet()) {
+        if (entry.getValue().encodedValues.isEmpty()) {
+          continue;
+        }
+
         CodedTupleTag<?> tag = entry.getKey();
         Windmill.TagList.Builder listBuilder =
             Windmill.TagList.newBuilder()
             .setTag(serializeTag(tag));
-        for (KV<ByteString, Instant> item : entry.getValue()) {
-          long timestampMicros = TimeUnit.MILLISECONDS.toMicros(item.getValue().getMillis());
+        for (TimestampedValue<ByteString> item : entry.getValue().encodedValues) {
+          long timestampMicros = TimeUnit.MILLISECONDS.toMicros(item.getTimestamp().getMillis());
           listBuilder.addValues(
               Windmill.Value.newBuilder()
-              .setData(item.getKey())
+              .setData(item.getValue())
               .setTimestamp(timestampMicros));
         }
         outputBuilder.addListUpdates(listBuilder.build());
       }
 
+      // Clear all of the not-yet-persisted information, since we're about to persist it.
       stateCache.clear();
       tagListUpdates.clear();
     }

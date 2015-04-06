@@ -325,12 +325,16 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
 
     @Override
     public <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException {
-      keyedState.store(codedTriggerIdTag(tag, window), value);
+      CodedTupleTag<T> codedTriggerIdTag = codedTriggerIdTag(tag, window);
+      keyedState.lookup(codedTriggerIdTag);
+      keyedState.store(codedTriggerIdTag, value);
     }
 
     @Override
     public <T> void remove(CodedTupleTag<T> tag, W window) throws IOException {
-      keyedState.remove(codedTriggerIdTag(tag, window));
+      CodedTupleTag<T> codedTriggerIdTag = codedTriggerIdTag(tag, window);
+      keyedState.lookup(codedTriggerIdTag);
+      keyedState.remove(codedTriggerIdTag);
     }
 
     @Override

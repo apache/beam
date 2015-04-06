@@ -36,6 +36,30 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class AfterPaneTest {
   @Test
+  public void testAfterPaneWithGlobalWindowsAndCombining() throws Exception {
+    Duration windowDuration = Duration.millis(10);
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.combining(
+        FixedWindows.of(windowDuration),
+        AfterPane.<IntervalWindow>elementCountAtLeast(2));
+
+    tester.injectElement(1, new Instant(1));
+    tester.injectElement(2, new Instant(9));
+
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
+
+    // This element should not be output because that trigger (which was one-time) has already
+    // gone off.
+    tester.injectElement(6, new Instant(2));
+    assertThat(tester.extractOutput(), Matchers.emptyIterable());
+
+    assertTrue(tester.isDone(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertFalse(tester.isDone(new IntervalWindow(new Instant(10), new Instant(20))));
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
+        tester.rootFinished(new IntervalWindow(new Instant(0), new Instant(10)))));
+  }
+
+  @Test
   public void testAfterPaneWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(

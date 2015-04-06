@@ -30,6 +30,8 @@ import org.joda.time.Instant;
 public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger<W, T>>
     implements Trigger<W> {
 
+  private static final long serialVersionUID = 0L;
+
   protected static final SerializableFunction<Instant, Instant> IDENTITY =
       new SerializableFunction<Instant, Instant>() {
 
