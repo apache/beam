@@ -162,7 +162,7 @@ public class TextSink<T> extends Sink<T> {
           "Expected WindowedValueCoder for inputCoder, got: "
           + coder.getClass().getName());
     }
-    Coder valueCoder = ((WindowedValueCoder) coder).getValueCoder();
+    Coder<?> valueCoder = ((WindowedValueCoder<?>) coder).getValueCoder();
     if (valueCoder.equals(StringUtf8Coder.of())) {
       mimeType = MimeTypes.TEXT;
     } else {
@@ -237,8 +237,11 @@ public class TextSink<T> extends Sink<T> {
 
     @Override
     public void close() throws IOException {
-      super.close();
-      outputChannel.close();
+      try {
+        super.close();
+      } finally {
+        outputChannel.close();
+      }
     }
 
     @Override
@@ -268,8 +271,11 @@ public class TextSink<T> extends Sink<T> {
 
     @Override
     public void close() throws IOException {
-      super.close();
-      outputChannel.close();
+      try {
+        super.close();
+      } finally {
+        outputChannel.close();
+      }
     }
 
     @Override

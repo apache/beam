@@ -16,11 +16,16 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.fail;
+
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.TextualIntegerCoder;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.cloud.dataflow.sdk.util.ShardingWritableByteChannel;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 
@@ -34,6 +39,8 @@ import org.junit.runners.JUnit4;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -73,16 +80,17 @@ public class TextSinkTest {
       expected.add(footer);
     }
 
-    BufferedReader reader = new BufferedReader(new FileReader(tmpFile));
     List<String> actual = new ArrayList<>();
     List<Integer> expectedSizes = new ArrayList<>();
-    for (;;) {
-      String line = reader.readLine();
-      if (line == null) {
-        break;
+    try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
+      for (;;) {
+        String line = reader.readLine();
+        if (line == null) {
+          break;
+        }
+        actual.add(line);
+        expectedSizes.add(line.length() + TextSink.NEWLINE.length);
       }
-      actual.add(line);
-      expectedSizes.add(line.length() + TextSink.NEWLINE.length);
     }
     if (header != null) {
       expectedSizes.remove(0);
@@ -138,7 +146,70 @@ public class TextSinkTest {
     runTestWriteFile(TestUtils.INTS, null, null, TextualIntegerCoder.of());
   }
 
+
+  private static class ThrowingWritableByteChannel extends ShardingWritableByteChannel {
+    IOException exception = null;
+    boolean open = true;
+    @Override
+    public boolean isOpen() {
+      return open;
+    }
+
+    @Override
+    public void close() throws IOException {
+      open = false;
+    }
+
+    @Override
+    public int write(ByteBuffer src) throws IOException {
+      if (exception != null) {
+        throw exception;
+      }
+      return src.remaining();
+    }
+
+    @Override
+    public int writeToShard(int shardNum, ByteBuffer src) throws IOException {
+      if (exception != null) {
+        throw exception;
+      }
+      return src.remaining();
+    }
+  }
+
+  @Test
+  public void testWriteFileWithFooterThatThrowsException() throws Exception {
+    ThrowingWritableByteChannel channel = new ThrowingWritableByteChannel();
+    TextSink<WindowedValue<String>> sink =
+        TextSink.createForTest("test-location", false, null, "test-footer", StringUtf8Coder.of());
+    TextSink<WindowedValue<String>>.TextFileWriter writer = sink.new TextFileWriter(channel);
+    channel.exception = new IOException("Test throwing exception during close");
+    try {
+      writer.close();
+      fail();
+    } catch (IOException e) {
+      assertSame(e, channel.exception);
+      assertFalse(channel.isOpen());
+    }
+  }
+
+  @Test
+  public void testWriteShardedFileWithFooterThatThrowsException() throws Exception {
+    ThrowingWritableByteChannel channel = new ThrowingWritableByteChannel();
+    TextSink<WindowedValue<String>> sink =
+        TextSink.createForTest("test-location", false, null, "test-footer", StringUtf8Coder.of());
+    TextSink<WindowedValue<String>>.ShardingTextFileWriter writer =
+        sink.new ShardingTextFileWriter(channel);
+    channel.exception = new IOException("Test throwing exception during close");
+    try {
+      writer.close();
+      fail();
+    } catch (IOException e) {
+      assertSame(e, channel.exception);
+      assertFalse(channel.isOpen());
+    }
+  }
+
   // TODO: sharded filenames
   // TODO: not appending newlines
-  // TODO: writing to GCS
 }
