@@ -499,11 +499,6 @@ public class DataflowPipelineTranslator {
     @Override
     public void visitValue(PValue value, TransformTreeNode producer) {
       LOG.debug("Checking translation of {}", value);
-      if (options.isStreaming()
-          && value instanceof PCollectionView) {
-        throw new UnsupportedOperationException(
-            "PCollectionViews are not supported in streaming Dataflow.");
-      }
       if (value.getProducingTransformInternal() == null) {
         throw new RuntimeException(
             "internal error: expecting a PValue "

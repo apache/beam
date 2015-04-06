@@ -90,7 +90,7 @@ public class NormalParDoFn extends ParDoFn {
     // we need to look it up dynamically from the Views.
     PTuple sideInputValues = PTuple.empty();
     final Iterable<PCollectionView<?>> sideInputViews = doFnInfo.getSideInputViews();
-    if (sideInputInfos != null) {
+    if (sideInputInfos != null && !sideInputInfos.isEmpty()) {
       for (SideInputInfo sideInputInfo : sideInputInfos) {
         Object sideInputValue = SideInputUtils.readSideInput(
             options, sideInputInfo, executionContext);
