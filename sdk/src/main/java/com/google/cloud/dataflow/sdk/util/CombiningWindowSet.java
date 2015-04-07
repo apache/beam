@@ -133,8 +133,10 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
 
   @Override
   protected void remove(W window) throws Exception {
-    keyedState.remove(accumulatorTag(window));
-    liveWindowsModified = liveWindows.remove(window);
+    if (contains(window)) {
+      windowingInternals.deleteTagList(accumulatorTag(window));
+      liveWindowsModified = liveWindows.remove(window);
+    }
   }
 
   @Override
@@ -162,6 +164,7 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
 
   private void storeAccumulator(W window, VA accumulator, Instant timestamp) throws Exception {
     CodedTupleTag<VA> tag = accumulatorTag(window);
+    windowingInternals.readTagList(tag);
     windowingInternals.deleteTagList(tag);
     windowingInternals.writeToTagList(tag, accumulator, timestamp);
     liveWindowsModified = liveWindows.add(window);
@@ -170,7 +173,7 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
   private TimestampedValue<VA> lookupAccumulator(W window) throws Exception {
     CodedTupleTag<VA> tag = accumulatorTag(window);
     Iterable<TimestampedValue<VA>> data = windowingInternals.readTagList(tag);
-    if (!data.iterator().hasNext()) {
+    if (data == null || !data.iterator().hasNext()) {
       return null;
     }
     return Iterables.getOnlyElement(data);
