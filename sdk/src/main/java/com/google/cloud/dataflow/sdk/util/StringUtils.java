@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -115,8 +116,13 @@ public class StringUtils {
    *   <li>{@code some.package.WordSummaryDoFn} -> "WordSummary"
    *   <li>{@code another.package.PairingFn} -> "Pairing"
    * </ul>
+   *
+   * @throws IllegalArgumentException if the class is anonymous
    */
   public static String approximateSimpleName(Class<?> clazz) {
+    Preconditions.checkArgument(!clazz.isAnonymousClass(),
+        "Attempted to get simple name of anonymous class");
+
     String fullName = clazz.getName();
     String shortName = fullName.substring(fullName.lastIndexOf('.') + 1);
 

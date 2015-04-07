@@ -324,7 +324,11 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
    * {@code PTransform}'s class.
    */
   protected String getKindString() {
-    return StringUtils.approximateSimpleName(getClass());
+    if (getClass().isAnonymousClass()) {
+      return "AnonymousTransform";
+    } else {
+      return StringUtils.approximateSimpleName(getClass());
+    }
   }
 
   private void writeObject(ObjectOutputStream oos) {

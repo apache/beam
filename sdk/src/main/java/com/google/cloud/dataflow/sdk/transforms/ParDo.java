@@ -723,7 +723,11 @@ public class ParDo {
 
     @Override
     protected String getDefaultName() {
-      return StringUtils.approximateSimpleName(fn.getClass());
+      if (fn.getClass().isAnonymousClass()) {
+        return "AnonymousParDo";
+      } else {
+        return StringUtils.approximateSimpleName(fn.getClass());
+      }
     }
 
     @Override
@@ -925,7 +929,11 @@ public class ParDo {
 
     @Override
     protected String getDefaultName() {
-      return StringUtils.approximateSimpleName(fn.getClass());
+      if (fn.getClass().isAnonymousClass()) {
+        return "AnonymousParDo";
+      } else {
+        return StringUtils.approximateSimpleName(fn.getClass());
+      }
     }
 
     @Override

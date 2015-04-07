@@ -256,8 +256,19 @@ public class Pipeline {
 
     TransformTreeNode parent = transforms.getCurrent();
     String namePrefix = parent.getFullName();
-    String fullName = uniquifyInternal(namePrefix, transform.getName());
-    TransformTreeNode child = new TransformTreeNode(parent, transform, fullName, input);
+
+    String name = transform.getName();
+    String fullName = uniquifyInternal(namePrefix, name);
+
+    boolean nameIsUnique = fullName.equals(buildName(namePrefix, name));
+
+    if (!nameIsUnique) {
+      LOG.warn("Transform {} does not have a stable unique name.  "
+          + "In the future, this will prevent reloading streaming pipelines", fullName);
+    }
+
+    TransformTreeNode child =
+        new TransformTreeNode(parent, transform, fullName, input);
     parent.addComposite(child);
 
     transforms.addInput(child, input);
@@ -376,13 +387,20 @@ public class Pipeline {
     String name = origName;
     int suffixNum = 2;
     while (true) {
-      String candidate = namePrefix.isEmpty() ? name : namePrefix + "/" + name;
+      String candidate = buildName(namePrefix, name);
       if (usedFullNames.add(candidate)) {
         return candidate;
       }
       // A duplicate!  Retry.
       name = origName + suffixNum++;
     }
+  }
+
+  /**
+   * Builds a name from a /-delimited prefix and a name.
+   */
+  private String buildName(String namePrefix, String name) {
+    return namePrefix.isEmpty() ? name : namePrefix + "/" + name;
   }
 
   /**

@@ -16,23 +16,23 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Tests for StringUtils.
  */
 @RunWith(JUnit4.class)
 public class StringUtilsTest {
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void testTranscodeEmptyByteArray() {
     byte[] bytes = { };
@@ -54,9 +54,11 @@ public class StringUtilsTest {
    * Inner class for simple name test.
    */
   private class EmbeddedDoFn {
-    // Returns an anonymous inner class.
+
+    private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
+
     private EmbeddedDoFn getEmbedded() {
-      return new EmbeddedDoFn(){};
+      return new DeeperEmbeddedDoFn();
     }
   }
 
@@ -67,22 +69,19 @@ public class StringUtilsTest {
   }
 
   @Test
-  public void testAnonSimpleName() {
+  public void testAnonSimpleName() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+
     EmbeddedDoFn anon = new EmbeddedDoFn(){};
 
-    Pattern p = Pattern.compile("StringUtilsTest\\$[0-9]+");
-    Matcher m = p.matcher(StringUtils.approximateSimpleName(anon.getClass()));
-    assertThat(m.matches(), is(true));
+    StringUtils.approximateSimpleName(anon.getClass());
   }
 
   @Test
   public void testNestedSimpleName() {
     EmbeddedDoFn fn = new EmbeddedDoFn();
-    EmbeddedDoFn anon = fn.getEmbedded();
+    EmbeddedDoFn inner = fn.getEmbedded();
 
-    // Expect to find "Embedded$1"
-    Pattern p = Pattern.compile("Embedded\\$[0-9]+");
-    Matcher m = p.matcher(StringUtils.approximateSimpleName(anon.getClass()));
-    assertThat(m.matches(), is(true));
+    assertEquals("DeeperEmbedded", StringUtils.approximateSimpleName(inner.getClass()));
   }
 }

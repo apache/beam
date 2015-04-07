@@ -184,6 +184,7 @@ public class FilterExamples {
       // We'll only output readings with temperatures below this mean.
       PCollection<TableRow> filteredRows = monthFilteredRows
           .apply(ParDo
+              .named("ParseAndFilter")
               .withSideInputs(globalMeanTemp)
               .of(new DoFn<TableRow, TableRow>() {
                 private static final long serialVersionUID = 0;

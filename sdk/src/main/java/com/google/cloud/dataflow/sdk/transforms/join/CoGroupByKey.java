@@ -161,7 +161,7 @@ public class CoGroupByKey<K> extends
       KvCoder<K, RawUnionValue> unionTableEncoder) {
 
     return pCollection.apply(ParDo.of(
-        new ConstructUnionTableFn<K, V>(index)).named("MakeUnionTable"))
+        new ConstructUnionTableFn<K, V>(index)).named("MakeUnionTable" + index))
                                                .setCoder(unionTableEncoder);
   }
 

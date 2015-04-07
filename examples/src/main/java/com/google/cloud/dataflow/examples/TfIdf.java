@@ -183,7 +183,7 @@ public class TfIdf {
         PCollection<KV<URI, String>> oneUriToLines = pipeline
             .apply(TextIO.Read.from(uriString)
                 .named("TextIO.Read(" + uriString + ")"))
-            .apply(WithKeys.<URI, String>of(uri));
+            .apply(WithKeys.<URI, String>of(uri).withName("WithKeys(" + uriString + ")"));
 
         urisToLines = urisToLines.and(oneUriToLines);
       }
@@ -213,8 +213,8 @@ public class TfIdf {
       // use as a side input.
       final PCollectionView<Long> totalDocuments =
           uriToContent
-          .apply(Keys.<URI>create())
-          .apply(RemoveDuplicates.<URI>create())
+          .apply(Keys.<URI>create().withName("GetURIs"))
+          .apply(RemoveDuplicates.<URI>create().withName("RemoveDuplicateDocs"))
           .apply(Count.<URI>globally())
           .apply(View.<Long>asSingleton());
 
@@ -245,38 +245,39 @@ public class TfIdf {
       // Compute a mapping from each word to the total
       // number of documents in which it appears.
       PCollection<KV<String, Long>> wordToDocCount = uriToWords
-          .apply(RemoveDuplicates.<KV<URI, String>>create())
+          .apply(RemoveDuplicates.<KV<URI, String>>create().withName("RemoveDuplicateWords"))
           .apply(Values.<String>create())
-          .apply(Count.<String>perElement());
+          .apply(Count.<String>perElement().withName("CountDocs"));
 
       // Compute a mapping from each URI to the total
       // number of words in the document associated with that URI.
       PCollection<KV<URI, Long>> uriToWordTotal = uriToWords
-          .apply(Keys.<URI>create())
-          .apply(Count.<URI>perElement());
+          .apply(Keys.<URI>create().withName("GetURIs2"))
+          .apply(Count.<URI>perElement().withName("CountWords"));
 
       // Count, for each (URI, word) pair, the number of
       // occurrences of that word in the document associated
       // with the URI.
       PCollection<KV<KV<URI, String>, Long>> uriAndWordToCount = uriToWords
-          .apply(Count.<KV<URI, String>>perElement());
+          .apply(Count.<KV<URI, String>>perElement().withName("CountWordDocPairs"));
 
       // Adjust the above collection to a mapping from
       // (URI, word) pairs to counts into an isomorphic mapping
       // from URI to (word, count) pairs, to prepare for a join
       // by the URI key.
       PCollection<KV<URI, KV<String, Long>>> uriToWordAndCount = uriAndWordToCount
-          .apply(ParDo.of(new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
-            private static final long serialVersionUID = 0;
+          .apply(ParDo.named("ShiftKeys").of(
+              new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
+                private static final long serialVersionUID = 0;
 
-            @Override
-            public void processElement(ProcessContext c) {
-              URI uri = c.element().getKey().getKey();
-              String word = c.element().getKey().getValue();
-              Long occurrences = c.element().getValue();
-              c.output(KV.of(uri, KV.of(word, occurrences)));
-            }
-          }));
+                @Override
+                public void processElement(ProcessContext c) {
+                  URI uri = c.element().getKey().getKey();
+                  String word = c.element().getKey().getValue();
+                  Long occurrences = c.element().getValue();
+                  c.output(KV.of(uri, KV.of(word, occurrences)));
+                }
+              }));
 
       // Prepare to join the mapping of URI to (word, count) pairs with
       // the mapping of URI to total word counts, by associating
@@ -306,22 +307,24 @@ public class TfIdf {
       // is simply the number of times that word occurs in the document
       // divided by the total number of words in the document.
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTf = uriToWordAndCountAndTotal
-          .apply(ParDo.of(new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-            private static final long serialVersionUID = 0;
+          .apply(ParDo.named("ComputeTermFrequencies").of(
+              new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
+                private static final long serialVersionUID = 0;
 
-            @Override
-            public void processElement(ProcessContext c) {
-              URI uri = c.element().getKey();
-              Long wordTotal = c.element().getValue().getOnly(wordTotalsTag);
+                @Override
+                public void processElement(ProcessContext c) {
+                  URI uri = c.element().getKey();
+                  Long wordTotal = c.element().getValue().getOnly(wordTotalsTag);
 
-              for (KV<String, Long> wordAndCount : c.element().getValue().getAll(wordCountsTag)) {
-                String word = wordAndCount.getKey();
-                Long wordCount = wordAndCount.getValue();
-                Double termFrequency = wordCount.doubleValue() / wordTotal.doubleValue();
-                c.output(KV.of(word, KV.of(uri, termFrequency)));
-              }
-            }
-          }));
+                  for (KV<String, Long> wordAndCount
+                           : c.element().getValue().getAll(wordCountsTag)) {
+                    String word = wordAndCount.getKey();
+                    Long wordCount = wordAndCount.getValue();
+                    Double termFrequency = wordCount.doubleValue() / wordTotal.doubleValue();
+                    c.output(KV.of(word, KV.of(uri, termFrequency)));
+                  }
+                }
+              }));
 
       // Compute a mapping from each word to its document frequency.
       // A word's document frequency in a corpus is the number of
@@ -331,6 +334,7 @@ public class TfIdf {
       // presented to each invocation of the DoFn.
       PCollection<KV<String, Double>> wordToDf = wordToDocCount
           .apply(ParDo
+              .named("ComputeDocFrequencies")
               .withSideInputs(totalDocuments)
               .of(new DoFn<KV<String, Long>, KV<String, Double>>() {
                 private static final long serialVersionUID = 0;
@@ -362,22 +366,23 @@ public class TfIdf {
       // here we use a basic version that is the term frequency
       // divided by the log of the document frequency.
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = wordToUriAndTfAndDf
-          .apply(ParDo.of(new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-            private static final long serialVersionUID = 0;
+          .apply(ParDo.named("ComputeTfIdf").of(
+              new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
+                private static final long serialVersionUID = 0;
 
-            @Override
-            public void processElement(ProcessContext c) {
-              String word = c.element().getKey();
-              Double df = c.element().getValue().getOnly(dfTag);
+                @Override
+                public void processElement(ProcessContext c) {
+                  String word = c.element().getKey();
+                  Double df = c.element().getValue().getOnly(dfTag);
 
-              for (KV<URI, Double> uriAndTf : c.element().getValue().getAll(tfTag)) {
-                URI uri = uriAndTf.getKey();
-                Double tf = uriAndTf.getValue();
-                Double tfIdf = tf * Math.log(1 / df);
-                c.output(KV.of(word, KV.of(uri, tfIdf)));
-              }
-            }
-          }));
+                  for (KV<URI, Double> uriAndTf : c.element().getValue().getAll(tfTag)) {
+                    URI uri = uriAndTf.getKey();
+                    Double tf = uriAndTf.getValue();
+                    Double tfIdf = tf * Math.log(1 / df);
+                    c.output(KV.of(word, KV.of(uri, tfIdf)));
+                  }
+                }
+              }));
 
       return wordToUriAndTfIdf;
     }
@@ -405,7 +410,7 @@ public class TfIdf {
     @Override
     public PDone apply(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
       return wordToUriAndTfIdf
-          .apply(ParDo.of(new DoFn<KV<String, KV<URI, Double>>, String>() {
+          .apply(ParDo.named("Format").of(new DoFn<KV<String, KV<URI, Double>>, String>() {
             private static final long serialVersionUID = 0;
 
             @Override

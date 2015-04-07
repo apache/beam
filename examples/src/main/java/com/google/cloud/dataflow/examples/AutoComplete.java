@@ -116,7 +116,7 @@ public class AutoComplete {
         .apply(new Count.PerElement<String>())
 
         // Map the KV outputs of Count into our own CompletionCandiate class.
-        .apply(ParDo.of(
+        .apply(ParDo.named("CreateCompletionCandidates").of(
             new DoFn<KV<String, Long>, CompletionCandidate>() {
               private static final long serialVersionUID = 0;
 
