@@ -38,12 +38,8 @@ public class PubsubIOTranslator {
       translateReadHelper(transform, context);
     }
 
-    /*
-  private static void translateReadHelper(
-     */
-
-    private void translateReadHelper(
-        PubsubIO.Read.Bound transform,
+    private <T> void translateReadHelper(
+        PubsubIO.Read.Bound<T> transform,
         TranslationContext context) {
       if (!context.getPipelineOptions().isStreaming()) {
         throw new IllegalArgumentException("PubsubIO can only be used in streaming mode.");
@@ -60,9 +56,7 @@ public class PubsubIOTranslator {
       if (transform.getTimestampLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL, transform.getTimestampLabel());
       }
-      if (transform.getDropLateDataExplicit()) {
-        context.addInput(PropertyNames.PUBSUB_DROP_LATE_DATA, transform.getDropLateData());
-      }
+      context.addInput(PropertyNames.PUBSUB_DROP_LATE_DATA, transform.getDropLateData());
       if (transform.getIdLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_ID_LABEL, transform.getIdLabel());
       }
@@ -81,8 +75,8 @@ public class PubsubIOTranslator {
       translateWriteHelper(transform, context);
     }
 
-    private void translateWriteHelper(
-        PubsubIO.Write.Bound transform,
+    private <T> void translateWriteHelper(
+        PubsubIO.Write.Bound<T> transform,
         TranslationContext context) {
       if (!context.getPipelineOptions().isStreaming()) {
         throw new IllegalArgumentException("PubsubIO can only be used in streaming mode.");
@@ -97,8 +91,7 @@ public class PubsubIOTranslator {
       if (transform.getIdLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_ID_LABEL, transform.getIdLabel());
       }
-      context.addEncodingInput(
-          WindowedValue.getValueOnlyCoder(context.getInput(transform).getCoder()));
+      context.addEncodingInput(WindowedValue.getValueOnlyCoder(transform.getCoder()));
       context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }

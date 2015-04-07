@@ -28,20 +28,20 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 /**
  * Read and Write transforms for Pub/Sub streams. These transforms create
  * and consume unbounded {@link com.google.cloud.dataflow.sdk.values.PCollection}s.
  *
- * <p> {@code PubsubIO} is experimental.  It is only usable
+ * <p> {@code PubsubIO}  is only usable
  * with the {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner}
  * and requires
  * {@link com.google.cloud.dataflow.sdk.options.StreamingOptions#setStreaming(boolean)}
  * to be enabled.
- *
- * <p> You should expect this class to change significantly in future versions of the SDK
- * or be removed entirely.
  */
 public class PubsubIO {
+  public static final Coder<String> DEFAULT_PUBSUB_CODER = StringUtf8Coder.of();
 
   /**
    * Project IDs must contain 6-63 lowercase letters, digits, or dashes.
@@ -133,10 +133,9 @@ public class PubsubIO {
    * returns a {@code PCollection<String>} containing the items from
    * the stream.
    */
-  // TODO: Support non-String encodings.
   public static class Read {
-    public static Bound named(String name) {
-      return new Bound().named(name);
+    public static Bound<String> named(String name) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).named(name);
     }
 
     /**
@@ -160,8 +159,8 @@ public class PubsubIO {
      * started. Any data published on the topic before the pipeline is started will not be read
      * by Dataflow.
      */
-    public static Bound topic(String topic) {
-      return new Bound().topic(topic);
+    public static Bound<String> topic(String topic) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).topic(topic);
     }
 
     /**
@@ -182,8 +181,8 @@ public class PubsubIO {
      * <li>Cannot begin with 'goog' prefix.</li>
      * </ul>
      */
-    public static Bound subscription(String subscription) {
-      return new Bound().subscription(subscription);
+    public static Bound<String> subscription(String subscription) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).subscription(subscription);
     }
 
     /**
@@ -202,8 +201,8 @@ public class PubsubIO {
      * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} for additional information on
      * late data and windowing.
      */
-    public static Bound timestampLabel(String timestampLabel) {
-      return new Bound().timestampLabel(timestampLabel);
+    public static Bound<String> timestampLabel(String timestampLabel) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).timestampLabel(timestampLabel);
     }
 
     /**
@@ -214,8 +213,8 @@ public class PubsubIO {
      * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
      * for additional information on late data and windowing.
      */
-    public static Bound dropLateData(boolean dropLateData) {
-      return new Bound().dropLateData(dropLateData);
+    public static Bound<String> dropLateData(boolean dropLateData) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).dropLateData(dropLateData);
     }
 
     /**
@@ -228,8 +227,22 @@ public class PubsubIO {
      * delivered on the PubSub stream. In this case,  deduplication of the stream will be
      * stricly best effort.
      */
-    public static Bound idLabel(String idLabel) {
-      return new Bound().idLabel(idLabel);
+    public static Bound<String> idLabel(String idLabel) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).idLabel(idLabel);
+    }
+
+   /**
+     * Creates and returns a PubsubIO.Read PTransform that uses the given
+     * {@code Coder<T>} to decode PubSub record into a value of type {@code T}.
+     *
+     * <p> By default, uses {@link StringUtf8Coder}, which just
+     * returns the text lines as Java strings.
+     *
+     * @param <T> the type of the decoded elements, and the elements
+     * of the resulting PCollection.
+     */
+    public static <T> Bound<T> withCoder(Coder<T> coder) {
+      return new Bound<>(coder);
     }
 
     /**
@@ -237,28 +250,28 @@ public class PubsubIO {
      * a unbounded PCollection containing the items from the stream.
      */
     @SuppressWarnings("serial")
-    public static class Bound
-        extends PTransform<PInput, PCollection<String>> {
+    public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
       /** The Pubsub topic to read from. */
       String topic;
       /** The Pubsub subscription to read from. */
       String subscription;
       /** The Pubsub label to read timestamps from. */
       String timestampLabel;
+      /** If true, late data will be dropped. */
       Boolean dropLateData;
-      /** This is set for backwards compatibility with old services. If dropLateData is not
-       * explicitly called, then we won't forward that parameter to the service. */
-      Boolean dropLateDataExplicit;
       /** The Pubsub label to read ids from. */
       String idLabel;
+      /** The coder used to decode each record. */
+      @Nullable
+      final Coder<T> coder;
 
-      Bound() {
+      Bound(Coder<T> coder) {
         this.dropLateData = true;
-        this.dropLateDataExplicit = false;
+        this.coder = coder;
       }
 
       Bound(String name, String subscription, String topic, String timestampLabel,
-          boolean dropLateData, boolean dropLateDataExplicit, String idLabel) {
+          boolean dropLateData, Coder<T> coder, String idLabel) {
         super(name);
         if (subscription != null) {
           Validator.validateSubscriptionName(subscription);
@@ -270,7 +283,7 @@ public class PubsubIO {
         this.topic = topic;
         this.timestampLabel = timestampLabel;
         this.dropLateData = dropLateData;
-        this.dropLateDataExplicit = dropLateDataExplicit;
+        this.coder = coder;
         this.idLabel = idLabel;
       }
 
@@ -278,57 +291,65 @@ public class PubsubIO {
        * Returns a new PubsubIO.Read PTransform that's like this one but with the given
        * step name. Does not modify the object.
        */
-      public Bound named(String name) {
-        return new Bound(name, subscription, topic, timestampLabel, dropLateData,
-            dropLateDataExplicit, idLabel);
+      public Bound<T> named(String name) {
+        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData,
+            coder, idLabel);
       }
 
       /**
        * Returns a new PubsubIO.Read PTransform that's like this one but reading from the
        * given subscription. Does not modify the object.
        */
-      public Bound subscription(String subscription) {
-        return new Bound(name, subscription, topic, timestampLabel, dropLateData,
-            dropLateDataExplicit, idLabel);
+      public Bound<T> subscription(String subscription) {
+        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
       }
 
       /**
        * Returns a new PubsubIO.Read PTransform that's like this one but reading from the
        * give topic. Does not modify the object.
        */
-      public Bound topic(String topic) {
-        return new Bound(name, subscription, topic, timestampLabel, dropLateData,
-            dropLateDataExplicit, idLabel);
+      public Bound<T> topic(String topic) {
+        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
       }
 
       /**
        * Returns a new PubsubIO.Read PTransform that's like this one but reading timestamps
        * from the given PubSub label. Does not modify the object.
        */
-      public Bound timestampLabel(String timestampLabel) {
-        return new Bound(name, subscription, topic, timestampLabel, dropLateData,
-            dropLateDataExplicit, idLabel);
+      public Bound<T> timestampLabel(String timestampLabel) {
+        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
       }
 
       /**
        * Returns a new PubsubIO.Read PTransform that's like this one but with the specified
        * setting for dropLateData. Does not modify the object.
        */
-      public Bound dropLateData(boolean dropLateData) {
-        return new Bound(name, subscription, topic, timestampLabel, dropLateData, true, idLabel);
+      public Bound<T> dropLateData(boolean dropLateData) {
+        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
       }
 
       /**
        * Returns a new PubsubIO.Read PTransform that's like this one but reading unique ids
        * from the given PubSub label. Does not modify the object.
        */
-      public Bound idLabel(String idLabel) {
-        return new Bound(name, subscription, topic, timestampLabel, dropLateData,
-            dropLateDataExplicit, idLabel);
+      public Bound<T> idLabel(String idLabel) {
+        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
+      }
+
+      /**
+       * Returns a new PubsubIO.Read PTransform that's like this one but that uses the given
+       * {@code Coder<T1>} to decode each record into a value of type {@code T1}.  Does not modify
+       * this object.
+       *
+       * @param <T1> the type of the decoded elements, and the
+       * elements of the resulting PCollection.
+       */
+      public <T1> Bound<T1> withCoder(Coder<T1> coder) {
+        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
       }
 
       @Override
-      public PCollection<String> apply(PInput input) {
+      public PCollection<T> apply(PInput input) {
         if (topic == null && subscription == null) {
           throw new IllegalStateException(
               "need to set either the topic or the subscription for "
@@ -339,12 +360,13 @@ public class PubsubIO {
               "Can't set both the topic and the subscription for a "
               + "PubsubIO.Read transform");
         }
-        return PCollection.<String>createPrimitiveOutputInternal(WindowingStrategy.globalDefault());
+        return PCollection.<T>createPrimitiveOutputInternal(WindowingStrategy.globalDefault())
+            .setCoder(coder);
       }
 
       @Override
-      protected Coder<String> getDefaultOutputCoder() {
-        return StringUtf8Coder.of();
+      protected Coder<T> getDefaultOutputCoder() {
+        return coder;
       }
 
       @Override
@@ -364,10 +386,6 @@ public class PubsubIO {
 
       public boolean getDropLateData() {
         return dropLateData;
-      }
-
-      public boolean getDropLateDataExplicit() {
-        return dropLateDataExplicit;
       }
 
       public String getIdLabel() {
@@ -390,16 +408,16 @@ public class PubsubIO {
    */
   // TODO: Support non-String encodings.
   public static class Write {
-    public static Bound named(String name) {
-      return new Bound().named(name);
+    public static Bound<String> named(String name) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).named(name);
     }
 
     /** The topic to publish to.
      * Cloud Pubsub topic names should be {@code /topics/<project>/<topic>},
      * where {@code <project>} is the name of the publishing project.
      */
-    public static Bound topic(String topic) {
-      return new Bound().topic(topic);
+    public static Bound<String> topic(String topic) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).topic(topic);
     }
 
     /**
@@ -411,8 +429,8 @@ public class PubsubIO {
      * source, then PubsubIO.Read.timestampLabel can be used to ensure that the other source reads
      * these timestamps from the appropriate label.
      */
-    public static Bound timestampLabel(String timestampLabel) {
-      return new Bound().timestampLabel(timestampLabel);
+    public static Bound<String> timestampLabel(String timestampLabel) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).timestampLabel(timestampLabel);
     }
 
     /**
@@ -422,8 +440,22 @@ public class PubsubIO {
      * by another Dataflow source, in which case PubsubIO.Read.idLabel can be used to ensure that
      * the other source reads these ids from the appropriate label.
      */
-    public static Bound idLabel(String idLabel) {
-      return new Bound().idLabel(idLabel);
+    public static Bound<String> idLabel(String idLabel) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).idLabel(idLabel);
+    }
+
+   /**
+     * Returns a TextIO.Write PTransform that uses the given
+     * {@code Coder<T>} to encode each of the elements of the input
+     * {@code PCollection<T>} into an output PubSub record.
+     *
+     * <p> By default, uses {@link StringUtf8Coder}, which writes input
+     * Java strings directly as records.
+     *
+     * @param <T> the type of the elements of the input PCollection
+     */
+    public static <T> Bound<T> withCoder(Coder<T> coder) {
+      return new Bound<>(coder);
     }
 
     /**
@@ -431,16 +463,18 @@ public class PubsubIO {
      * to a PubSub stream.
      */
     @SuppressWarnings("serial")
-    public static class Bound
-        extends PTransform<PCollection<String>, PDone> {
+    public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
       /** The Pubsub topic to publish to. */
       String topic;
       String timestampLabel;
       String idLabel;
+      final Coder<T> coder;
 
-      Bound() {}
+      Bound(Coder<T> coder) {
+        this.coder = coder;
+      }
 
-      Bound(String name, String topic, String timestampLabel, String idLabel) {
+      Bound(String name, String topic, String timestampLabel, String idLabel, Coder<T> coder) {
         super(name);
         if (topic != null) {
           Validator.validateTopicName(topic);
@@ -448,42 +482,55 @@ public class PubsubIO {
         }
         this.timestampLabel = timestampLabel;
         this.idLabel = idLabel;
+        this.coder = coder;
       }
 
       /**
        * Returns a new PubsubIO.Write PTransform that's like this one but with the given step
        * name. Does not modify the object.
        */
-      public Bound named(String name) {
-        return new Bound(name, topic, timestampLabel, idLabel);
+      public Bound<T> named(String name) {
+        return new Bound<>(name, topic, timestampLabel, idLabel, coder);
       }
 
       /**
        * Returns a new PubsubIO.Write PTransform that's like this one but writing to the given
        * topic. Does not modify the object.
        */
-      public Bound topic(String topic) {
-        return new Bound(name, topic, timestampLabel, idLabel);
+      public Bound<T> topic(String topic) {
+        return new Bound<>(name, topic, timestampLabel, idLabel, coder);
       }
 
       /**
        * Returns a new PubsubIO.Write PTransform that's like this one but publishing timestamps
        * to the given PubSub label. Does not modify the object.
        */
-      public Bound timestampLabel(String timestampLabel) {
-        return new Bound(name, topic, timestampLabel, idLabel);
+      public Bound<T> timestampLabel(String timestampLabel) {
+        return new Bound<>(name, topic, timestampLabel, idLabel, coder);
       }
 
       /**
        * Returns a new PubsubIO.Write PTransform that's like this one but publishing record ids
        * to the given PubSub label. Does not modify the object.
        */
-     public Bound idLabel(String idLabel) {
-        return new Bound(name, topic, timestampLabel, idLabel);
+     public Bound<T> idLabel(String idLabel) {
+       return new Bound<>(name, topic, timestampLabel, idLabel, coder);
+      }
+
+     /**
+       * Returns a new PubsubIO.Write PTransform that's like this one
+       * but that uses the given {@code Coder<T1>} to encode each of
+       * the elements of the input {@code PCollection<T1>} into an
+       * output record.  Does not modify this object.
+       *
+       * @param <T1> the type of the elements of the input PCollection
+       */
+      public <T1> Bound<T1> withCoder(Coder<T1> coder) {
+        return new Bound<>(name, topic, timestampLabel, idLabel, coder);
       }
 
       @Override
-      public PDone apply(PCollection<String> input) {
+      public PDone apply(PCollection<T> input) {
         if (topic == null) {
           throw new IllegalStateException(
               "need to set the topic of a PubsubIO.Write transform");
@@ -509,6 +556,10 @@ public class PubsubIO {
 
       public String getIdLabel() {
         return idLabel;
+      }
+
+      public Coder<T> getCoder() {
+        return coder;
       }
 
       static {

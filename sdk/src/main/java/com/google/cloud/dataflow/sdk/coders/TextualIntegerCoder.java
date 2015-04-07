@@ -35,7 +35,7 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private TextualIntegerCoder() {}
+  protected TextualIntegerCoder() {}
 
   @Override
   public void encode(Integer value, OutputStream outStream, Context context)
