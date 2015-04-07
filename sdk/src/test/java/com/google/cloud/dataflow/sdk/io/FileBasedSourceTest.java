@@ -786,7 +786,7 @@ public class FileBasedSourceTest {
   public void testSplitAtFraction() throws IOException {
     File file = createFileWithData("file", createStringDataset(3, 100));
 
-    TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 1, 0, 400, null);
+    TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 1, 0, file.length(), null);
     assertSplitAtFractionSucceedsAndConsistent(source, 0, 0.7);
     assertSplitAtFractionSucceedsAndConsistent(source, 1, 0.7);
     assertSplitAtFractionSucceedsAndConsistent(source, 30, 0.7);
