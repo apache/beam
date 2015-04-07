@@ -433,11 +433,11 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class CreatePCollectionViewTranslator<R, T, WT> implements FlinkPipelineTranslator.TransformTranslator<View.CreatePCollectionView<R,T,WT>> {
+	private static class CreatePCollectionViewTranslator<R, T> implements FlinkPipelineTranslator.TransformTranslator<View.CreatePCollectionView<R, T>> {
 		@Override
-		public void translateNode(View.CreatePCollectionView<R, T, WT> transform, TranslationContext context) {
+		public void translateNode(View.CreatePCollectionView<R, T> transform, TranslationContext context) {
 			DataSet<T> inputDataSet = context.getInputDataSet(transform.getInput());
-			PCollectionView<T, WT> input = transform.apply(null);
+			PCollectionView<T> input = transform.apply(null);
 			context.setSideInputDataSet(input, inputDataSet);
 		}
 	}
@@ -473,11 +473,11 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static void transformSideInputs(List<PCollectionView<?, ?>> sideInputs,
+	private static void transformSideInputs(List<PCollectionView<?>> sideInputs,
 	                                        MapPartitionOperator<?, ?> outputDataSet,
 	                                        TranslationContext context) {
 		// get corresponding Flink broadcast DataSets
-		for(PCollectionView<?, ?> input : sideInputs) {
+		for(PCollectionView<?> input : sideInputs) {
 			DataSet<?> broadcastSet = context.getSideInputDataSet(input);
 			outputDataSet.withBroadcastSet(broadcastSet, input.getTagInternal().getId());
 		}

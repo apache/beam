@@ -115,7 +115,7 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 		}
 
 		@Override
-		public <T> T sideInput(PCollectionView<T, ?> view) {
+		public <T> T sideInput(PCollectionView<T> view) {
 			List<T> sideInput = getRuntimeContext().getBroadcastVariable(view.getTagInternal().getId());
 			List<WindowedValue<?>> windowedValueList = new ArrayList<>(sideInput.size());
 			for (T input : sideInput) {

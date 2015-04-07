@@ -39,7 +39,7 @@ public class SideInputTest {
 
 		Pipeline p = Pipeline.create(options);
 
-		final PCollectionView<String, ?> totalDocuments = p
+		final PCollectionView<String> totalDocuments = p
 						.apply(Create.of("Hello!"))
 						.apply(View.<String>asSingleton());
 
