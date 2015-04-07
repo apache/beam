@@ -26,10 +26,10 @@ import static com.google.api.services.datastore.client.DatastoreHelper.makeValue
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.services.datastore.DatastoreV1;
-import com.google.api.services.datastore.DatastoreV1.BeginTransactionRequest;
-import com.google.api.services.datastore.DatastoreV1.BeginTransactionResponse;
 import com.google.api.services.datastore.DatastoreV1.CommitRequest;
 import com.google.api.services.datastore.DatastoreV1.Entity;
+import com.google.api.services.datastore.DatastoreV1.Key;
+import com.google.api.services.datastore.DatastoreV1.Key.PathElement;
 import com.google.api.services.datastore.DatastoreV1.Query;
 import com.google.api.services.datastore.client.Datastore;
 import com.google.api.services.datastore.client.DatastoreException;
@@ -39,16 +39,16 @@ import com.google.api.services.datastore.client.DatastoreOptions;
 import com.google.api.services.datastore.client.QuerySplitter;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.EntityCoder;
-import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
+import com.google.cloud.dataflow.sdk.io.Sink.WriteOperation;
+import com.google.cloud.dataflow.sdk.io.Sink.Writer;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.RetryHttpRequestInitializer;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 
@@ -56,8 +56,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -68,13 +68,11 @@ import java.util.NoSuchElementException;
  * entities.
  *
  * <p> The DatastoreIO class provides an experimental API to Read and Write a
- * {@link PCollection} of Datastore Entity.  Currently the class supports
- * read operations on both the DirectPipelineRunner and DataflowPipelineRunner,
- * and write operations on the DirectPipelineRunner.  This API is subject to
+ * {@link PCollection} of Datastore Entity.  This API is subject to
  * change, and currently requires an authentication workaround described below.
  *
  * <p> Datastore is a fully managed NoSQL data storage service.
- * An Entity is an object in Datastore, analogous to the a row in traditional
+ * An Entity is an object in Datastore, analogous to a row in traditional
  * database table.  DatastoreIO supports Read/Write from/to Datastore within
  * Dataflow SDK service.
  *
@@ -120,23 +118,33 @@ import java.util.NoSuchElementException;
  * p.run();
  * } </pre>
  *
- * <p> To write a {@link PCollection} to a datastore, use
- * {@link DatastoreIO.Sink}, specifying {@link DatastoreIO.Sink#to} to specify
- * the datastore to write to, and optionally {@link TextIO.Write#named} to specify
- * the name of the pipeline step.  For example:
+ * <p>To write a {@link PCollection} to a Datastore, use {@link DatastoreIO#writeTo},
+ * specifying the datastore to write to:
  *
  * <pre> {@code
- * // A simple Write to Datastore with DirectPipelineRunner (writing is not
- * // yet implemented for other runners):
  * PCollection<Entity> entities = ...;
- * lines.apply(DatastoreIO.Write.to("Write entities", datastore));
+ * entities.apply(DatastoreIO.writeTo(dataset));
  * p.run();
- *
  * } </pre>
+ *
+ * <p>To optionally change the host that is used to write to the Datastore, use {@link
+ * DatastoreIO#sink} to build a DatastoreIO {@link Sink} and write to it using the {@link Write}
+ * transform:
+ *
+ * <pre> {@code
+ * PCollection<Entity> entities = ...;
+ * entities.apply(Write.to(DatastoreIO.sink().withDataset(dataset).withHost(host)));
+ * p.run();
+ * } </pre>
+ *
+ * <p>Entities in the PCollection to be written must have complete keys.  Complete keys specify the
+ * name/id of the entity, where incomplete keys do not. Entities will be committed as upsert (update
+ * or insert) mutations. Please read
+ * <a href="https://cloud.google.com/datastore/docs/concepts/entities">Entities, Properties, and
+ * Keys</a> for more information about entity keys.
  */
 
 public class DatastoreIO {
-  private static final Logger LOG = LoggerFactory.getLogger(DatastoreIO.class);
   public static final String DEFAULT_HOST = "https://www.googleapis.com";
 
   /**
@@ -174,11 +182,13 @@ public class DatastoreIO {
    * A source that reads the result rows of a Datastore query as {@code Entity} objects.
    */
   public static class Source extends BoundedSource<Entity> {
-    private static final long serialVersionUID = -6078498627204891522L;
+    private static final Logger LOG = LoggerFactory.getLogger(Source.class);
+    private static final long serialVersionUID = 0;
 
     String host;
     String datasetId;
     Query query;
+
     /** For testing only. */
     private QuerySplitter mockSplitter;
     private Supplier<Long> mockEstimateSizeBytes;
@@ -258,8 +268,8 @@ public class DatastoreIO {
 
       long now = System.currentTimeMillis();
       DatastoreV1.RunQueryResponse response = datastore.runQuery(request);
-      LOG.info("Query for latest stats timestamp of dataset {} took {}ms",
-          datasetId, System.currentTimeMillis() - now);
+      LOG.info("Query for latest stats timestamp of dataset {} took {}ms", datasetId,
+          System.currentTimeMillis() - now);
       DatastoreV1.QueryResultBatch batch = response.getBatch();
       if (batch.getEntityResultCount() == 0) {
         throw new NoSuchElementException(
@@ -303,8 +313,7 @@ public class DatastoreIO {
 
     @Override
     public BoundedReader<Entity> createReader(
-        PipelineOptions pipelineOptions, ExecutionContext executionContext)
-        throws IOException {
+        PipelineOptions pipelineOptions, ExecutionContext executionContext) throws IOException {
       return new DatastoreReader(this, getDatastore(pipelineOptions));
     }
 
@@ -363,176 +372,274 @@ public class DatastoreIO {
 
   /**
    * Returns a new {@link DatastoreIO.Sink} builder using the default host.
-   * You need to further configure it using {@link DatastoreIO.Sink#named},
-   * {@link DatastoreIO.Sink#to}, and optionally {@link DatastoreIO.Sink#withHost}.
+   * You need to further configure it using {@link DatastoreIO.Sink#withDataset}, and optionally
+   * {@link DatastoreIO.Sink#withHost} before using it in a {@link Write} transform.
+   *
+   * <p>For example: {@code p.apply(Write.to(DatastoreIO.sink().withDataset(dataset)));}
    */
-  public static Sink write() {
-    return new Sink(DEFAULT_HOST);
+  public static Sink sink() {
+    return new Sink(DEFAULT_HOST, null);
   }
 
   /**
-   * Returns a new {@link DatastoreIO.Sink} builder using the default host and given dataset.
-   * You need to further configure it using {@link DatastoreIO.Sink#named},
-   * and optionally {@link DatastoreIO.Sink#withHost}.
+   * Returns a new {@link Write} transform that will write to a {@link Sink}.
+   *
+   * <p>For example: {@code p.apply(DatastoreIO.writeTo(dataset));}
    */
-  public static Sink writeTo(String datasetId) {
-    return write().to(datasetId);
+  public static Write.Bound<Entity> writeTo(String datasetId) {
+    return Write.to(sink().withDataset(datasetId));
   }
 
   /**
-   * A {@link PTransform} that writes a {@code PCollection<Entity>} containing
+   * A {@link Sink} that writes a {@code PCollection<Entity>} containing
    * entities to a Datastore kind.
    *
-   * <p> Current version only supports Write operation running on
-   * {@link DirectPipelineRunner}.  If Write is used on
-   * {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner},
-   * it throws {@link UnsupportedOperationException} and won't continue on the
-   * operation.
-   *
    */
-  @SuppressWarnings("serial")
-  public static class Sink extends PTransform<PCollection<Entity>, PDone> {
-    String host;
-    String datasetId;
+  public static class Sink extends com.google.cloud.dataflow.sdk.io.Sink<Entity> {
+    private static final long serialVersionUID = 0;
+
+    final String host;
+    final String datasetId;
 
     /**
-     * Returns a DatastoreIO.Write PTransform with given host.
+     * Returns a Sink that is like this one, but will write to the specified dataset.
      */
-    Sink(String host) {
-      this.host = host;
+    public Sink withDataset(String datasetId) {
+      return new Sink(host, datasetId);
     }
 
     /**
-     * Returns a DatastoreIO.Write.Bound object.
-     * Sets the name, datastore agent, and kind associated
-     * with this transformation.
+     * Returns a Sink that is like this one, but will use the given host.  If not specified,
+     * the {@link DatastoreIO#DEFAULT_HOST default host} will be used.
      */
-    Sink(String name, String host, String datasetId) {
-      super(name);
+    public Sink withHost(String host) {
+      return new Sink(host, datasetId);
+    }
+
+    /**
+     * Constructs a Sink with given host and dataset.
+     */
+    protected Sink(String host, String datasetId) {
       this.host = host;
       this.datasetId = datasetId;
     }
 
     /**
-     * Returns a DatastoreIO.Write PTransform with the name
-     * associated with this PTransform.
+     * Ensures the host and dataset are set.
      */
-    public Sink named(String name) {
-      return new Sink(name, host, datasetId);
-    }
-
-    /**
-     * Returns a DatastoreIO.Write PTransform with given datasetId.
-     */
-    public Sink to(String datasetId) {
-      return new Sink(name, host, datasetId);
-    }
-
-    /**
-     * Returns a new DatastoreIO.Write PTransform with specified host.
-     */
-    public Sink withHost(String host) {
-      return new Sink(name, host, datasetId);
+    @Override
+    public void validate(PipelineOptions options) {
+      Preconditions.checkNotNull(
+          host, "Host is a required parameter. Please use withHost to set the host.");
+      Preconditions.checkNotNull(
+          datasetId, "Dataset id is a required parameter. Please use to to set the datasetId.");
     }
 
     @Override
-    public PDone apply(PCollection<Entity> input) {
-      if (this.host == null || this.datasetId == null) {
-        throw new IllegalStateException("need to set Datastore host and datasetId"
-            + "of a DatastoreIO.Write transform");
-      }
-
-      return new PDone();
-    }
-
-    @Override
-    protected String getKindString() {
-      return "DatastoreIO.Write";
-    }
-
-    @Override
-    protected Coder<Void> getDefaultOutputCoder() {
-      return VoidCoder.of();
-    }
-
-    static {
-      DirectPipelineRunner.registerDefaultTransformEvaluator(
-          Sink.class, new DirectPipelineRunner.TransformEvaluator<Sink>() {
-            @Override
-            public void evaluate(
-                Sink transform, DirectPipelineRunner.EvaluationContext context) {
-              evaluateWriteHelper(transform, context);
-            }
-          });
+    public DatastoreWriteOperation createWriteOperation(PipelineOptions options) {
+      return new DatastoreWriteOperation(this);
     }
   }
 
-  ///////////////////////////////////////////////////////////////////
-
   /**
-   * Direct mode write evaluator.
-   * This writes the result to Datastore.
+   * A {@link WriteOperation} that will manage a parallel write to a Datastore sink.
    */
-  private static void evaluateWriteHelper(
-      Sink transform, DirectPipelineRunner.EvaluationContext context) {
-    LOG.info("Writing to Datastore");
-    GcpOptions options = context.getPipelineOptions();
-    Credential credential = options.getGcpCredential();
-    Datastore datastore = DatastoreFactory.get().create(
-        new DatastoreOptions.Builder()
-            .host(transform.host)
-            .dataset(transform.datasetId)
-            .credential(credential)
-            .initializer(new RetryHttpRequestInitializer(null))
-            .build());
+  private static class DatastoreWriteOperation
+      extends WriteOperation<Entity, DatastoreWriteResult> {
+    private static final long serialVersionUID = 0;
+    private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriteOperation.class);
 
-    List<Entity> entityList = context.getPCollection(context.getInput(transform));
+    private final DatastoreIO.Sink sink;
 
-    // Create a map to put entities with same ancestor for writing in a batch.
-    HashMap<String, List<Entity>> map = new HashMap<>();
-    for (Entity e : entityList) {
-      String keyOfAncestor =
-          e.getKey().getPathElement(0).getKind() + e.getKey().getPathElement(0).getName();
-      List<Entity> value = map.get(keyOfAncestor);
-      if (value == null) {
-        value = new ArrayList<>();
-      }
-      value.add(e);
-      map.put(keyOfAncestor, value);
+    public DatastoreWriteOperation(DatastoreIO.Sink sink) {
+      this.sink = sink;
     }
 
-    // Walk over the map, and write entities bucket by bucket.
-    int count = 0;
-    for (String k : map.keySet()) {
-      List<Entity> entitiesWithSameAncestor = map.get(k);
-      List<Entity> toInsert = new ArrayList<>();
-      for (Entity e : entitiesWithSameAncestor) {
-        toInsert.add(e);
-        if (toInsert.size() >= DATASTORE_BATCH_UPDATE_LIMIT) {
-          writeBatch(toInsert, datastore);
-          toInsert.clear();
+    @Override
+    public Coder<DatastoreWriteResult> getWriterResultCoder() {
+      return SerializableCoder.of(DatastoreWriteResult.class);
+    }
+
+    @Override
+    public void initialize(PipelineOptions options) throws Exception {}
+
+    /**
+     * Finalizes the write.  Logs the number of entities written to the Datastore.
+     */
+    @Override
+    public void finalize(Iterable<DatastoreWriteResult> writerResults, PipelineOptions options)
+        throws Exception {
+      long totalEntities = 0;
+      for (DatastoreWriteResult result : writerResults) {
+        totalEntities += result.entitiesWritten;
+      }
+      LOG.info("Wrote {} elements.", totalEntities);
+    }
+
+    @Override
+    public DatastoreWriter createWriter(PipelineOptions options) throws Exception {
+      DatastoreOptions.Builder builder =
+          new DatastoreOptions.Builder()
+              .host(sink.host)
+              .dataset(sink.datasetId)
+              .initializer(new RetryHttpRequestInitializer(null));
+      Credential credential = options.as(GcpOptions.class).getGcpCredential();
+      if (credential != null) {
+        builder.credential(credential);
+      }
+      Datastore datastore = DatastoreFactory.get().create(builder.build());
+
+      return new DatastoreWriter(this, datastore);
+    }
+
+    @Override
+    public DatastoreIO.Sink getSink() {
+      return sink;
+    }
+  }
+
+  /**
+   * {@link Writer} that writes entities to a Datastore Sink.  Entities are written in batches,
+   * where the maximum batch size is {@link DatastoreIO#DATASTORE_BATCH_UPDATE_LIMIT}.  Entities
+   * are committed as upsert mutations (either update if the key already exists, or insert if it is
+   * a new key).  If an entity does not have a complete key (i.e., it has no name or id), the bundle
+   * will fail.
+   *
+   * <p>See <a
+   * href="https://cloud.google.com/datastore/docs/concepts/entities#Datastore_Creating_an_entity">
+   * Datastore: Entities, Properties, and Keys</a> for information about entity keys and upsert
+   * mutations.
+   *
+   * <p>Commits are non-transactional.  If a commit fails because of a conflict over an entity
+   * group, the commit will be retried (up to {@link DatastoreIO#DATASTORE_BATCH_UPDATE_LIMIT}
+   * times).
+   *
+   * <p>Visible for testing purposes.
+   */
+  static class DatastoreWriter extends Writer<Entity, DatastoreWriteResult> {
+    private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriter.class);
+    private final DatastoreWriteOperation writeOp;
+    private final Datastore datastore;
+    private long totalWritten = 0;
+
+    // Visible for testing.
+    final List<Entity> entities = new ArrayList<>();
+
+    /**
+     * Since a bundle is written in batches, we should retry the commit of a batch in order to
+     * prevent transient errors from causing the bundle to fail.
+     */
+    private static final int DATASTORE_MAX_RETRIES = 5;
+
+    /**
+     * Returns true if a Datastore key is complete.  A key is complete if its last element
+     * has either an id or a name.
+     */
+    static boolean isValidKey(Key key) {
+      List<PathElement> elementList = key.getPathElementList();
+      if (elementList.isEmpty()) {
+        return false;
+      }
+      PathElement lastElement = elementList.get(elementList.size() - 1);
+      return (lastElement.hasId() || lastElement.hasName());
+    }
+
+    // Visible for testing
+    DatastoreWriter(DatastoreWriteOperation writeOp, Datastore datastore) {
+      this.writeOp = writeOp;
+      this.datastore = datastore;
+    }
+
+    @Override
+    public void open(String uId) throws Exception {}
+
+    /**
+     * Writes an entity to the Datastore.  Writes are batched, up to {@link
+     * DatastoreIO#DATASTORE_BATCH_UPDATE_LIMIT}. If an entity does not have a complete key, an
+     * {@link IllegalArgumentException} will be thrown.
+     */
+    @Override
+    public void write(Entity value) throws Exception {
+      // Verify that the entity to write has a complete key.
+      if (!isValidKey(value.getKey())) {
+        throw new IllegalArgumentException(
+            "Entities to be written to the Datastore must have complete keys");
+      }
+
+      entities.add(value);
+
+      if (entities.size() >= DatastoreIO.DATASTORE_BATCH_UPDATE_LIMIT) {
+        flushBatch();
+      }
+    }
+
+    /**
+     * Flushes any pending batch writes and returns a DatastoreWriteResult.
+     */
+    @Override
+    public DatastoreWriteResult close() throws Exception {
+      if (entities.size() > 0) {
+        flushBatch();
+      }
+      return new DatastoreWriteResult(totalWritten);
+    }
+
+    @Override
+    public DatastoreWriteOperation getWriteOperation() {
+      return writeOp;
+    }
+
+    /**
+     * Writes a batch of entities to the Datastore.
+     *
+     * <p>If a commit fails, it will be retried (up to {@link DatastoreWriter#DATASTORE_MAX_RETRIES}
+     * times).  All entities in the batch will be committed again, even if the commit was partially
+     * successful. If the retry limit is exceeded, the last exception from the Datastore will be
+     * thrown.
+     *
+     * @throws DatastoreException if the commit fails.
+     */
+    private void flushBatch() throws DatastoreException {
+      int retryCount = 0;
+      LOG.debug("Writing batch of {} entities", entities.size());
+
+      retryCount = 0;
+      while (true) {
+        // Batch upsert entities.
+        try {
+          CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
+          commitRequest.getMutationBuilder().addAllUpsert(entities);
+          commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
+          datastore.commit(commitRequest.build());
+
+          totalWritten += entities.size();
+          entities.clear();
+          // Break if the commit threw no exception.
+          LOG.debug("Successfully wrote {} entities", entities.size());
+          break;
+
+        } catch (DatastoreException exception) {
+          // Only log the code and message for potentially-transient errors. The entire exception
+          // will be propagated upon the last retry.
+          LOG.error("Error writing to the Datastore ({}): {}", exception.getCode(),
+              exception.getMessage());
+          retryCount += 1;
+          if (retryCount >= DATASTORE_MAX_RETRIES) {
+            throw exception;
+          }
+          LOG.error("Committing entities: attempt {} of {}", retryCount + 1, DATASTORE_MAX_RETRIES);
         }
       }
-      writeBatch(toInsert, datastore);
-      count += entitiesWithSameAncestor.size();
     }
-
-    LOG.info("Total number of entities written: {}", count);
   }
 
-  /**
-   * A function for batch writing to Datastore.
-   */
-  private static void writeBatch(List<Entity> listOfEntities, Datastore datastore) {
-    try {
-      BeginTransactionRequest.Builder treq = BeginTransactionRequest.newBuilder();
-      BeginTransactionResponse tres = datastore.beginTransaction(treq.build());
-      CommitRequest.Builder creq = CommitRequest.newBuilder();
-      creq.setTransaction(tres.getTransaction());
-      creq.getMutationBuilder().addAllInsertAutoId(listOfEntities);
-      datastore.commit(creq.build());
-    } catch (DatastoreException e) {
-      throw new RuntimeException("Datastore exception", e);
+  private static class DatastoreWriteResult implements Serializable {
+    private static final long serialVersionUID = 0;
+
+    final long entitiesWritten;
+
+    public DatastoreWriteResult(long recordsWritten) {
+      this.entitiesWritten = recordsWritten;
     }
   }
 

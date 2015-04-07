@@ -483,7 +483,7 @@ public class AutoComplete {
     if (options.getOutputDataset() != null) {
       toWrite
         .apply(ParDo.of(new FormatForDatastore(options.getKind())))
-        .apply(DatastoreIO.write().to(options.getOutputDataset()));
+        .apply(DatastoreIO.writeTo(options.getOutputDataset()));
     }
 
     // Run the pipeline.

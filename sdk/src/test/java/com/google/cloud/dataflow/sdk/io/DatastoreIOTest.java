@@ -16,7 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -24,26 +28,33 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.services.datastore.DatastoreV1;
 import com.google.api.services.datastore.DatastoreV1.Entity;
+import com.google.api.services.datastore.DatastoreV1.Key;
 import com.google.api.services.datastore.DatastoreV1.Query;
 import com.google.api.services.datastore.client.Datastore;
 import com.google.api.services.datastore.client.DatastoreHelper;
 import com.google.api.services.datastore.client.QuerySplitter;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.EntityCoder;
+import com.google.cloud.dataflow.sdk.io.DatastoreIO.DatastoreWriter;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.common.base.Supplier;
+import com.google.common.collect.Lists;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -54,6 +65,9 @@ public class DatastoreIOTest {
   private String host;
   private String datasetId;
   private Query query;
+
+  @Mock
+  Datastore mockDatastore;
 
   /**
    * Sets the default dataset ID as "shakespearedataset", which
@@ -78,6 +92,8 @@ public class DatastoreIOTest {
     Query.Builder q = Query.newBuilder();
     q.addKindBuilder().setName("shakespeare");
     this.query = q.build();
+
+    MockitoAnnotations.initMocks(this);
   }
 
   /**
@@ -116,8 +132,8 @@ public class DatastoreIOTest {
         DatastoreV1.KindExpression.newBuilder().setName("mykind").build();
     Query query = Query.newBuilder().addKind(mykind).build();
 
-    DataflowPipelineOptions options = PipelineOptionsFactory.create()
-        .as(DataflowPipelineOptions.class);
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     options.setGcpCredential(new TestCredential());
 
     List<Query> mockSplits = new ArrayList<>();
@@ -156,26 +172,117 @@ public class DatastoreIOTest {
     }
   }
 
+  /**
+   * Test building a Sink using builder methods.
+   */
   @Test
   public void testBuildWrite() throws Exception {
-    DatastoreIO.Sink sink = DatastoreIO.write().to(this.datasetId).withHost(this.host);
+    DatastoreIO.Sink sink = DatastoreIO.sink().withDataset(this.datasetId).withHost(this.host);
+    assertEquals(this.host, sink.host);
+    assertEquals(this.datasetId, sink.datasetId);
+
+    sink = DatastoreIO.sink().withHost(this.host).withDataset(this.datasetId);
+    assertEquals(this.host, sink.host);
+    assertEquals(this.datasetId, sink.datasetId);
+
+    sink = DatastoreIO.sink().withDataset(this.datasetId).withHost(this.host);
     assertEquals(this.host, sink.host);
     assertEquals(this.datasetId, sink.datasetId);
   }
 
+  /**
+   * Test building a sink using the default host.
+   */
   @Test
-  public void testBuildWriteAlt() throws Exception {
-    DatastoreIO.Sink sink = DatastoreIO.write().withHost(this.host).to(this.datasetId);
-    assertEquals(this.host, sink.host);
+  public void testBuildWriteDefaults() throws Exception {
+    DatastoreIO.Sink sink = DatastoreIO.sink().withDataset(this.datasetId);
+    assertEquals(DatastoreIO.DEFAULT_HOST, sink.host);
+    assertEquals(this.datasetId, sink.datasetId);
+
+    sink = DatastoreIO.sink().withDataset(this.datasetId);
+    assertEquals(DatastoreIO.DEFAULT_HOST, sink.host);
     assertEquals(this.datasetId, sink.datasetId);
   }
 
-  @Test(expected = IllegalStateException.class)
+  /**
+   * Test building an invalid sink.
+   */
+  @Test(expected = NullPointerException.class)
   public void testBuildWriteWithoutDatastoreToCatchException() throws Exception {
     // create pipeline and run the pipeline to get result
     Pipeline p = DirectPipeline.createForTest();
-    p.apply(Create.<Entity>of())
-        .setCoder(EntityCoder.of())
-        .apply(DatastoreIO.write().named("WriteDatastore"));
+    p.apply(Create.<Entity>of()).setCoder(EntityCoder.of()).apply(Write.to(DatastoreIO.sink()));
+  }
+
+  /**
+   * Test the detection of complete and incomplete keys.
+   */
+  @Test
+  public void testHasNameOrId() {
+    Key key;
+    // Complete with name, no ancestor
+    key = DatastoreHelper.makeKey("bird", "finch").build();
+    assertTrue(DatastoreWriter.isValidKey(key));
+
+    // Complete with id, no ancestor
+    key = DatastoreHelper.makeKey("bird", 123).build();
+    assertTrue(DatastoreWriter.isValidKey(key));
+
+    // Incomplete, no ancestor
+    key = DatastoreHelper.makeKey("bird").build();
+    assertFalse(DatastoreWriter.isValidKey(key));
+
+    // Complete with name and ancestor
+    key = DatastoreHelper.makeKey("bird", "owl").build();
+    key = DatastoreHelper.makeKey(key, "bird", "horned").build();
+    assertTrue(DatastoreWriter.isValidKey(key));
+
+    // Complete with id and ancestor
+    key = DatastoreHelper.makeKey("bird", "owl").build();
+    key = DatastoreHelper.makeKey(key, "bird", 123).build();
+    assertTrue(DatastoreWriter.isValidKey(key));
+
+    // Incomplete with ancestor
+    key = DatastoreHelper.makeKey("bird", "owl").build();
+    key = DatastoreHelper.makeKey(key, "bird").build();
+    assertFalse(DatastoreWriter.isValidKey(key));
+
+    key = DatastoreHelper.makeKey().build();
+    assertFalse(DatastoreWriter.isValidKey(key));
+  }
+
+  /**
+   * Test that entities with incomplete keys cannot be updated.
+   */
+  @Test(expected = IllegalArgumentException.class)
+  public void testAddEntitiesWithIncompleteKeys() throws Exception {
+    Key key = DatastoreHelper.makeKey("bird").build();
+    Entity entity = Entity.newBuilder().setKey(key).build();
+    DatastoreWriter writer = new DatastoreIO.DatastoreWriter(null, mockDatastore);
+    writer.write(entity);
+  }
+
+  /**
+   * Test that entities are added to the batch to update.
+   */
+  @Test
+  public void testAddingEntities() throws Exception {
+    List<Entity> expected = Lists.newArrayList(
+        Entity.newBuilder().setKey(DatastoreHelper.makeKey("bird", "jay").build()).build(),
+        Entity.newBuilder().setKey(DatastoreHelper.makeKey("bird", "condor").build()).build(),
+        Entity.newBuilder().setKey(DatastoreHelper.makeKey("bird", "robin").build()).build());
+
+    List<Entity> allEntities = new ArrayList<>();
+    allEntities.addAll(expected);
+    Collections.shuffle(allEntities);
+
+    DatastoreWriter writer = new DatastoreIO.DatastoreWriter(null, mockDatastore);
+    writer.open("test_id");
+    for (Entity entity : allEntities) {
+      writer.write(entity);
+    }
+
+    assertEquals(expected.size(), writer.entities.size());
+    assertThat(writer.entities, containsInAnyOrder(expected.toArray()));
   }
 }

@@ -29,10 +29,10 @@ import com.google.cloud.dataflow.sdk.values.PDone;
 import java.util.UUID;
 
 /**
- * A PTransform that writes to a sink. A write begins with a sequential global initialization of a
- * sink, followed by a parallel write, and ends with a sequential finalization of the write. The
- * output of a write is {@link PDone}.  In the case of an empty PCollection, only the global
- * initialization and finalization will be performed.
+ * A PTransform that writes to a {@link Sink}. A write begins with a sequential global
+ * initialization of a sink, followed by a parallel write, and ends with a sequential finalization
+ * of the write. The output of a write is {@link PDone}.  In the case of an empty PCollection, only
+ * the global initialization and finalization will be performed.
  *
  * <p>Currently, only batch workflows can contain Write transforms.
  *
@@ -43,11 +43,18 @@ import java.util.UUID;
  * <p>Disclaimer: This API is experimental and may change.
  */
 public class Write {
+  /**
+   * Creates a Write transform that writes to the given Sink.
+   */
   public static <T> Bound<T> to(Sink<T> sink) {
     return new Bound<>(sink);
   }
 
-  private static class Bound<T> extends PTransform<PCollection<T>, PDone> {
+  /**
+   * A PTransform that writes to a {@link Sink}. See {@link Write} and {@link Sink} for
+   * documentation about writing to Sinks.
+   */
+  public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
     private static final long serialVersionUID = 0;
 
     private Sink<T> sink;

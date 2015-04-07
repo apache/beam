@@ -31,12 +31,11 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * A WordCount example using DatastoreIO.
@@ -103,7 +102,7 @@ public class DatastoreWordCount {
       Entity.Builder entityBuilder = Entity.newBuilder();
       // Create entities with same ancestor Key.
       Key ancestorKey = DatastoreHelper.makeKey(kind, "root").build();
-      Key key = DatastoreHelper.makeKey(ancestorKey, kind).build();
+      Key key = DatastoreHelper.makeKey(ancestorKey, kind, UUID.randomUUID().toString()).build();
 
       entityBuilder.setKey(key);
       entityBuilder.addProperty(Property.newBuilder().setName("content")
@@ -158,23 +157,12 @@ public class DatastoreWordCount {
    * text input.  Forces use of DirectPipelineRunner for local execution mode.
    */
   public static void writeDataToDatastore(Options options) {
-    // Storing the user-specified runner.
-    Class<? extends PipelineRunner<?>> tempRunner = options.getRunner();
-
-    try {
-      // Runs locally via DirectPiplineRunner, as writing is not yet implemented
-      // for the other runners.
-      options.setRunner(DirectPipelineRunner.class);
       Pipeline p = Pipeline.create(options);
       p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
        .apply(ParDo.of(new CreateEntityFn(options.getKind())))
-       .apply(DatastoreIO.write().to(options.getDataset()));
+       .apply(DatastoreIO.writeTo(options.getDataset()));
 
       p.run();
-    } finally {
-      // Resetting the runner to the user specified class.
-      options.setRunner(tempRunner);
-    }
   }
 
   /**
