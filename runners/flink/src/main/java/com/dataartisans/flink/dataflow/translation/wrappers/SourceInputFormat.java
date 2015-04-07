@@ -117,7 +117,7 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
 		long desiredSizeBytes = 10000;
 		try {
 			desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
-			List<? extends Source<T>> shards = initialSource.splitIntoShards(desiredSizeBytes,
+			List<? extends Source<T>> shards = initialSource.splitIntoBundles(desiredSizeBytes,
 					options);
 			List<SourceInputSplit<T>> splits = Lists.newArrayList();
 			int splitCount = 0;

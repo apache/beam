@@ -89,7 +89,7 @@ class Read extends Source<Integer> {
 	}
 
 	@Override
-	public List<Read> splitIntoShards(long desiredShardSizeBytes, PipelineOptions options)
+	public List<Read> splitIntoBundles(long desiredShardSizeBytes, PipelineOptions options)
 			throws Exception {
 		List<Read> res = new ArrayList<>();
 		DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
@@ -129,6 +129,11 @@ class Read extends Source<Integer> {
 
 		public RangeReader(Read source) {
 			this.current = source.from - 1;
+		}
+
+		@Override
+		public boolean start() throws IOException {
+			return true;
 		}
 
 		@Override

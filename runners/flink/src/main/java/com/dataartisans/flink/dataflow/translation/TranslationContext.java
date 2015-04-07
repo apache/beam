@@ -36,7 +36,7 @@ import java.util.Map;
 public class TranslationContext {
 	
 	private final Map<PValue, DataSet<?>> dataSets;
-	private final Map<PCollectionView<?, ?>, DataSet<?>> broadcastDataSets;
+	private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;
 	
 	private final ExecutionEnvironment env;
 	private final PipelineOptions options;
@@ -72,11 +72,11 @@ public class TranslationContext {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> DataSet<T> getSideInputDataSet(PCollectionView<?,?> value) {
+	public <T> DataSet<T> getSideInputDataSet(PCollectionView<?> value) {
 		return (DataSet<T>) broadcastDataSets.get(value);
 	}
 
-	public void setSideInputDataSet(PCollectionView<?,?> value, DataSet<?> set) {
+	public void setSideInputDataSet(PCollectionView<?> value, DataSet<?> set) {
 		if (!broadcastDataSets.containsKey(value)) {
 			broadcastDataSets.put(value, set);
 		}
