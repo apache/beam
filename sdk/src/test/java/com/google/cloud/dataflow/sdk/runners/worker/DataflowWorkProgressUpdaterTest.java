@@ -28,7 +28,7 @@ import static com.google.cloud.dataflow.sdk.util.CloudMetricUtils.extractCloudMe
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudTime;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MAX;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SET;
+import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MIN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -122,10 +122,10 @@ public class DataflowWorkProgressUpdaterTest {
   private static final String WORKER_ID = "TEST_WORKER_ID";
   private static final Long WORK_ID = 1234567890L;
   private static final String COUNTER_NAME = "test-counter-";
-  private static final AggregationKind[] COUNTER_KINDS = {SUM, MAX, SET};
+  private static final AggregationKind[] COUNTER_KINDS = {SUM, MAX, MIN};
   private static final Long COUNTER_VALUE1 = 12345L;
   private static final Double COUNTER_VALUE2 = Math.PI;
-  private static final String COUNTER_VALUE3 = "value";
+  private static final Long COUNTER_VALUE3 = -389L;
 
   @Rule
   public final ExpectedException thrown = ExpectedException.none();
@@ -308,9 +308,9 @@ public class DataflowWorkProgressUpdaterTest {
           .addValue(COUNTER_VALUE2 + i)
           .addValue(COUNTER_VALUE2 + i * 3);
     } else {
-      return Counter.strings(COUNTER_NAME + i, COUNTER_KINDS[2])
+      return Counter.longs(COUNTER_NAME + i, COUNTER_KINDS[2])
           .addValue(COUNTER_VALUE3 + i)
-          .addValue(COUNTER_NAME + i * 5);
+          .addValue(COUNTER_VALUE3 + i * 5);
     }
   }
 

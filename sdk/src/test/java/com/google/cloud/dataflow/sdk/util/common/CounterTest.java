@@ -24,7 +24,6 @@ import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MIN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.OR;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SET;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -32,8 +31,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
-import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.common.collect.Sets;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,7 +57,7 @@ public class CounterTest {
   public void testNameKindAndCloudCounterRepresentation() {
     Counter<Long> c1 = Counter.longs("c1", SUM);
     Counter<Double> c2 = Counter.doubles("c2", MAX);
-    Counter<String> c3 = Counter.strings("c3", SET);
+    Counter<Double> c3 = Counter.doubles("c3", MIN);
     Counter<Double> c4 = Counter.doubles("c4", MEAN);
     Counter<Integer> c5 = Counter.ints("c5", MIN);
     Counter<Boolean> c6 = Counter.booleans("c6", AND);
@@ -87,19 +84,12 @@ public class CounterTest {
     assertEquals(Math.PI, asDouble(cc.getScalar()), EPSILON);
 
     assertEquals("c3", c3.getName());
-    assertEquals(SET, c3.getKind());
-    cc = flush(c3); // empty sets are not sent to the service
-    assertEquals(null, cc);
-    c3.addValue("abc").addValue("e").addValue("abc");
+    assertEquals(MIN, c3.getKind());
+    c3.addValue(Math.PI).addValue(-Math.PI).addValue(-Math.sqrt(2));
     cc = flush(c3);
     assertEquals("c3", cc.getName().getName());
-    assertEquals("SET", cc.getKind());
-    @SuppressWarnings("unchecked")
-    Set<String> s = (Set<String>) cc.getSet();
-    assertEquals(2, s.size());
-    assertTrue(s.containsAll(Arrays.asList(
-        CloudObject.forString("e"),
-        CloudObject.forString("abc"))));
+    assertEquals("MIN", cc.getKind());
+    assertEquals(-Math.PI, asDouble(cc.getScalar()), EPSILON);
 
     assertEquals("c4", c4.getName());
     assertEquals(MEAN, c4.getKind());
@@ -160,8 +150,6 @@ public class CounterTest {
         Counter.ints("c", SUM).isCompatibleWith(Counter.ints("c", SUM)));
     assertTrue(
         Counter.doubles("c", SUM).isCompatibleWith(Counter.doubles("c", SUM)));
-    assertTrue(
-        Counter.strings("c", SET).isCompatibleWith(Counter.strings("c", SET)));
     assertTrue(
         Counter.booleans("c", OR).isCompatibleWith(
             Counter.booleans("c", OR)));
@@ -467,104 +455,6 @@ public class CounterTest {
   }
 
 
-  // Tests for SET.
-
-  private <T> void assertSet(Set<T> total, Set<T> delta, Counter<T> c) {
-    assertTrue(total.containsAll(c.getTotalSet()));
-    assertTrue(c.getTotalSet().containsAll(total));
-    assertTrue(delta.containsAll(c.getDeltaSet()));
-    assertTrue(c.getDeltaSet().containsAll(delta));
-  }
-
-  @Test
-  public void testSetLong() {
-    Counter<Long> c = Counter.longs("set-long", SET);
-    HashSet<Long> expectedTotal = new HashSet<>();
-    HashSet<Long> expectedDelta = new HashSet<>();
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.addValue(13L).addValue(42L).addValue(13L);
-    expectedTotal = expectedDelta = Sets.newHashSet(13L, 42L);
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.resetToValue(120L).addValue(17L).addValue(37L);
-    expectedTotal = expectedDelta = Sets.newHashSet(120L, 17L, 37L);
-    assertSet(expectedTotal, expectedDelta, c);
-
-    flush(c);
-    expectedDelta = new HashSet<>();
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.addValue(42L).addValue(18L);
-    expectedTotal.addAll(Arrays.asList(42L, 18L));
-    expectedDelta = Sets.newHashSet(42L, 18L);
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.resetToValue(100L).addValue(171L).addValue(49L);
-    expectedTotal = expectedDelta = Sets.newHashSet(100L, 171L, 49L);
-    assertSet(expectedTotal, expectedDelta, c);
-  }
-
-  @Test
-  public void testSetDouble() {
-    Counter<Double> c = Counter.doubles("set-double", SET);
-    HashSet<Double> expectedTotal = new HashSet<>();
-    HashSet<Double> expectedDelta = new HashSet<>();
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.addValue(Math.E).addValue(Math.PI);
-    expectedTotal = expectedDelta = Sets.newHashSet(Math.E, Math.PI);
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.resetToValue(Math.sqrt(12345)).addValue(2 * Math.PI).addValue(3 * Math.E);
-    expectedTotal =
-        expectedDelta = Sets.newHashSet(Math.sqrt(12345), 2 * Math.PI, 3 * Math.E);
-    assertSet(expectedTotal, expectedDelta, c);
-
-    flush(c);
-    expectedDelta = new HashSet<>();
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.addValue(7 * Math.PI).addValue(5 * Math.E);
-    expectedTotal.addAll(Arrays.asList(7 * Math.PI, 5 * Math.E));
-    expectedDelta = Sets.newHashSet(7 * Math.PI, 5 * Math.E);
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.resetToValue(Math.sqrt(17)).addValue(171.0).addValue(0.0);
-    expectedTotal = expectedDelta = Sets.newHashSet(Math.sqrt(17), 171.0, 0.0);
-    assertSet(expectedTotal, expectedDelta, c);
-  }
-
-  @Test
-  public void testSetString() {
-    Counter<String> c = Counter.strings("set-string", SET);
-    HashSet<String> expectedTotal = new HashSet<>();
-    HashSet<String> expectedDelta = new HashSet<>();
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.addValue("a").addValue("b").addValue("a");
-    expectedTotal = expectedDelta = Sets.newHashSet("a", "b");
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.resetToValue("c").addValue("d").addValue("e");
-    expectedTotal = expectedDelta = Sets.newHashSet("c", "d", "e");
-    assertSet(expectedTotal, expectedDelta, c);
-
-    flush(c);
-    expectedDelta = new HashSet<>();
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.addValue("b").addValue("f");
-    expectedTotal.addAll(Arrays.asList("b", "f"));
-    expectedDelta = Sets.newHashSet("b", "f");
-    assertSet(expectedTotal, expectedDelta, c);
-
-    c.resetToValue("g").addValue("h").addValue("i");
-    expectedTotal = expectedDelta = Sets.newHashSet("g", "h", "i");
-    assertSet(expectedTotal, expectedDelta, c);
-  }
-
-
   // Test for AND and OR.
 
   private void assertBool(boolean total, boolean delta, Counter<Boolean> c) {
@@ -649,18 +539,8 @@ public class CounterTest {
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void testSumString() {
-    Counter.strings("counter", SUM);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
   public void testMinBool() {
     Counter.booleans("counter", MIN);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testMinString() {
-    Counter.strings("counter", MIN);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -669,23 +549,8 @@ public class CounterTest {
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void testMaxString() {
-    Counter.strings("counter", MAX);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
   public void testMeanBool() {
     Counter.booleans("counter", MEAN);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testMeanString() {
-    Counter.strings("counter", MEAN);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testSetBool() {
-    Counter.booleans("counter", SET);
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -699,11 +564,6 @@ public class CounterTest {
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void testAndString() {
-    Counter.strings("counter", AND);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
   public void testOrLong() {
     Counter.longs("counter", OR);
   }
@@ -713,16 +573,10 @@ public class CounterTest {
     Counter.doubles("counter", OR);
   }
 
-  @Test(expected = IllegalArgumentException.class)
-  public void testOrString() {
-    Counter.strings("counter", OR);
-  }
-
   @Test
   public void testExtraction() {
     Counter<?>[] counters = {Counter.longs("c1", SUM),
-                             Counter.doubles("c2", MAX),
-                             Counter.strings("c3", SET)};
+                             Counter.doubles("c2", MAX)};
     CounterSet set = new CounterSet();
     for (Counter<?> c : counters) {
       set.addCounter(c);
@@ -735,6 +589,6 @@ public class CounterTest {
         new HashSet<>(CounterTestUtils.extractCounterUpdates(Arrays.asList(counters), true));
 
     assertEquals(cloudCountersFromSet, cloudCountersFromArray);
-    assertEquals(2, cloudCountersFromSet.size()); // empty set was ignored
+    assertEquals(2, cloudCountersFromSet.size());
   }
 }

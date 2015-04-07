@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.util.common;
 
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MAX;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SET;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertFalse;
@@ -136,7 +135,7 @@ public class CounterSetTest {
   @Test
   public void testAddCounterMutatorIncompatibleTypesThrowsException() {
     Counter<?> c1 = Counter.longs("c1", SUM);
-    Counter<?> c1Incompatible = Counter.longs("c1", SET);
+    Counter<?> c1Incompatible = Counter.longs("c1", MAX);
 
     set.getAddCounterMutator().addCounter(c1);
 

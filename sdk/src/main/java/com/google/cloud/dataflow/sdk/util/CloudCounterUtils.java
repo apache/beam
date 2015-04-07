@@ -25,9 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Utilities for working with CloudCounters.
@@ -78,18 +76,6 @@ public class CloudCounterUtils {
           }
           metricUpdate.setMeanSum(CloudObject.forKnownType(counter.getAggregate(delta)));
           metricUpdate.setMeanCount(CloudObject.forKnownType(countUpdate));
-          break;
-        }
-        case SET: {
-          Set<?> values = counter.getSet(delta);
-          if (values.isEmpty()) {
-            return null;
-          }
-          Set<Object> encodedSet = new HashSet(values.size());
-          for (Object value : values) {
-            encodedSet.add(CloudObject.forKnownType(value));
-          }
-          metricUpdate.setSet(encodedSet);
           break;
         }
         default:

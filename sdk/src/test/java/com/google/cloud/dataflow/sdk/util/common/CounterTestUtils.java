@@ -28,7 +28,6 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Utilities for testing {@link Counter}s.
@@ -88,14 +87,6 @@ public class CounterTestUtils {
 
   public static <T> long getDeltaCount(Counter<T> counter) {
     return counter.getDeltaCount();
-  }
-
-  public static <T> Set<T> getTotalSet(Counter<T> counter) {
-    return counter.getTotalSet();
-  }
-
-  public static <T> Set<T> getDeltaSet(Counter<T> counter) {
-    return counter.getDeltaSet();
   }
 
   /**

@@ -19,13 +19,10 @@ package com.google.cloud.dataflow.sdk.util.common;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.AND;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.OR;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SET;
 
 import com.google.common.reflect.TypeToken;
 
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * A Counter enables the aggregation of a stream of values over time.  The
@@ -69,12 +66,6 @@ public abstract class Counter<T> {
     MEAN,
 
     /**
-     * Computes the set of all added values.  Applicable to {@link Integer},
-     * {@link Long}, {@link Double}, and {@link String} values.
-     */
-    SET,
-
-    /**
      * Computes boolean AND over all added values.
      * Applicable only to {@link Boolean} values.
      */
@@ -92,8 +83,8 @@ public abstract class Counter<T> {
    * Constructs a new {@link Counter} that aggregates {@link Integer}, values
    * according to the desired aggregation kind. The supported aggregation kinds
    * are {@link AggregationKind#SUM}, {@link AggregationKind#MIN},
-   * {@link AggregationKind#MAX}, {@link AggregationKind#MEAN}, and
-   * {@link AggregationKind#SET}. This is a convenience wrapper over a
+   * {@link AggregationKind#MAX}, and {@link AggregationKind#MEAN}.
+   * This is a convenience wrapper over a
    * {@link Counter} implementation that aggregates {@link Long} values. This is
    * useful when the application handles (boxed) {@link Integer} values that
    * are not readily convertible to the (boxed) {@link Long} values otherwise
@@ -113,8 +104,7 @@ public abstract class Counter<T> {
    * Constructs a new {@link Counter} that aggregates {@link Long} values
    * according to the desired aggregation kind. The supported aggregation kinds
    * are {@link AggregationKind#SUM}, {@link AggregationKind#MIN},
-   * {@link AggregationKind#MAX}, {@link AggregationKind#MEAN}, and
-   * {@link AggregationKind#SET}.
+   * {@link AggregationKind#MAX}, and {@link AggregationKind#MEAN}.
    *
    * @param name the name of the new counter
    * @param kind the new counter's aggregation kind
@@ -129,8 +119,7 @@ public abstract class Counter<T> {
    * Constructs a new {@link Counter} that aggregates {@link Double} values
    * according to the desired aggregation kind. The supported aggregation kinds
    * are {@link AggregationKind#SUM}, {@link AggregationKind#MIN},
-   * {@link AggregationKind#MAX}, {@link AggregationKind#MEAN}, and
-   * {@link AggregationKind#SET}.
+   * {@link AggregationKind#MAX}, and {@link AggregationKind#MEAN}.
    *
    * @param name the name of the new counter
    * @param kind the new counter's aggregation kind
@@ -158,14 +147,14 @@ public abstract class Counter<T> {
   /**
    * Constructs a new {@link Counter} that aggregates {@link String} values
    * according to the desired aggregation kind. The only supported aggregation
-   * kind is {@link AggregationKind#SET}.
+   * kind is {@link AggregationKind#MIN} and {@link AggregationKind#MAX}.
    *
    * @param name the name of the new counter
    * @param kind the new counter's aggregation kind
    * @return the newly constructed Counter
    * @throws IllegalArgumentException if the aggregation kind is not supported
    */
-  public static Counter<String> strings(String name, AggregationKind kind) {
+  private static Counter<String> strings(String name, AggregationKind kind) {
     return new StringCounter(name, kind);
   }
 
@@ -211,13 +200,6 @@ public abstract class Counter<T> {
       count = 0;
       deltaCount = 0;
     }
-
-    if (kind.equals(SET)) {
-      set.clear();
-      set.add(value);
-      deltaSet = new HashSet<>();
-      deltaSet.add(value);
-    }
     return this;
   }
 
@@ -249,8 +231,7 @@ public abstract class Counter<T> {
 
   /**
    * Returns the aggregated value, or the sum for MEAN aggregation, either
-   * total or, if delta, since the last update extraction or resetDelta,
-   * if not a SET aggregation.
+   * total or, if delta, since the last update extraction or resetDelta..
    */
   public T getAggregate(boolean delta) {
     return delta ? deltaAggregate : aggregate;
@@ -263,15 +244,6 @@ public abstract class Counter<T> {
    */
   public long getCount(boolean delta) {
     return delta ? deltaCount : count;
-  }
-
-  /**
-   * Returns the set of all aggregated values, either total or, if
-   * delta, since the last update extraction or resetDelta, if a SET
-   * aggregation.
-   */
-  public Set<T> getSet(boolean delta) {
-    return delta ? deltaSet : set;
   }
 
   /**
@@ -298,9 +270,6 @@ public abstract class Counter<T> {
         sb.append("/");
         sb.append(count);
         break;
-      case SET:
-        sb.append(set);
-        break;
       default:
         throw illegalArgumentException();
     }
@@ -319,8 +288,7 @@ public abstract class Counter<T> {
           && this.kind == that.kind
           && this.getClass().equals(that.getClass())
           && this.count == that.count
-          && Objects.equals(this.aggregate, that.aggregate)
-          && Objects.equals(this.set, that.set);
+          && Objects.equals(this.aggregate, that.aggregate);
     } else {
       return false;
     }
@@ -328,7 +296,7 @@ public abstract class Counter<T> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(getClass(), name, kind, aggregate, count, set);
+    return Objects.hash(getClass(), name, kind, aggregate, count);
   }
 
   /**
@@ -362,21 +330,11 @@ public abstract class Counter<T> {
   /** The number of aggregated values since the last update extraction. */
   protected long deltaCount;
 
-  /** Holds the set of all aggregated values. Used only for SET aggregation. */
-  protected Set<T> set;
-
-  /** Holds the set of aggregated values since the last update extraction. */
-  protected Set<T> deltaSet;
-
   protected Counter(String name, AggregationKind kind) {
     this.name = name;
     this.kind = kind;
     this.count = 0;
     this.deltaCount = 0;
-    if (kind.equals(SET)) {
-      set = new HashSet<>();
-      deltaSet = new HashSet<>();
-    }
   }
 
 
@@ -400,8 +358,6 @@ public abstract class Counter<T> {
           break;
         case MIN:
           aggregate = deltaAggregate = Long.MAX_VALUE;
-          break;
-        case SET:
           break;
         default:
           throw illegalArgumentException();
@@ -429,10 +385,6 @@ public abstract class Counter<T> {
           aggregate = Math.min(aggregate, value);
           deltaAggregate = Math.min(deltaAggregate, value);
           break;
-        case SET:
-          set.add(value);
-          deltaSet.add(value);
-          break;
         default:
           throw illegalArgumentException();
       }
@@ -454,9 +406,6 @@ public abstract class Counter<T> {
           break;
         case MIN:
           deltaAggregate = Long.MAX_VALUE;
-          break;
-        case SET:
-          deltaSet = new HashSet<>();
           break;
         default:
           throw illegalArgumentException();
@@ -482,8 +431,6 @@ public abstract class Counter<T> {
           break;
         case MIN:
           aggregate = deltaAggregate = Double.POSITIVE_INFINITY;
-          break;
-        case SET:
           break;
         default:
           throw illegalArgumentException();
@@ -511,10 +458,6 @@ public abstract class Counter<T> {
           aggregate = Math.min(aggregate, value);
           deltaAggregate = Math.min(deltaAggregate, value);
           break;
-        case SET:
-          set.add(value);
-          deltaSet.add(value);
-          break;
         default:
           throw illegalArgumentException();
       }
@@ -536,9 +479,6 @@ public abstract class Counter<T> {
           break;
         case MIN:
           deltaAggregate = Double.POSITIVE_INFINITY;
-          break;
-        case SET:
-          deltaSet = new HashSet<>();
           break;
         default:
           throw illegalArgumentException();
@@ -598,24 +538,21 @@ public abstract class Counter<T> {
     /** Initializes a new {@link Counter} for {@link String} values. */
     private StringCounter(String name, AggregationKind kind) {
       super(name, kind);
-      if (!kind.equals(SET)) {
-        throw illegalArgumentException();
-      }
+      // TODO: Support MIN, MAX of Strings.
+      throw illegalArgumentException();
     }
 
     @Override
     public synchronized StringCounter addValue(String value) {
-      set.add(value);
-      deltaSet.add(value);
-      return this;
+      switch (kind) {
+        default:
+          throw illegalArgumentException();
+      }
     }
 
     @Override
     public synchronized void resetDelta() {
       switch (kind) {
-        case SET:
-          deltaSet = new HashSet<>();
-          break;
         default:
           throw illegalArgumentException();
       }
@@ -640,8 +577,6 @@ public abstract class Counter<T> {
           break;
         case MIN:
           aggregate = deltaAggregate = Integer.MAX_VALUE;
-          break;
-        case SET:
           break;
         default:
           throw illegalArgumentException();
@@ -669,10 +604,6 @@ public abstract class Counter<T> {
           aggregate = Math.min(aggregate, value);
           deltaAggregate = Math.min(deltaAggregate, value);
           break;
-        case SET:
-          set.add(value);
-          deltaSet.add(value);
-          break;
         default:
           throw illegalArgumentException();
       }
@@ -694,9 +625,6 @@ public abstract class Counter<T> {
           break;
         case MIN:
           deltaAggregate = Integer.MAX_VALUE;
-          break;
-        case SET:
-          deltaSet = new HashSet<>();
           break;
         default:
           throw illegalArgumentException();
@@ -724,6 +652,4 @@ public abstract class Counter<T> {
   synchronized T getDeltaAggregate() { return deltaAggregate; }
   synchronized long getTotalCount() { return count; }
   synchronized long getDeltaCount() { return deltaCount; }
-  synchronized Set<T> getTotalSet() { return set; }
-  synchronized Set<T> getDeltaSet() { return deltaSet; }
 }
