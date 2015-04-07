@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
@@ -91,5 +92,13 @@ public class DefaultTriggerTest {
     assertFalse(tester.isDone(new IntervalWindow(new Instant(1), new Instant(25))));
     assertFalse(tester.isDone(new IntervalWindow(new Instant(30), new Instant(40))));
     assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
+  }
+
+  @Test
+  public void testFireDeadline() throws Exception {
+    assertEquals(new Instant(9), DefaultTrigger.of().getWatermarkCutoff(
+        new IntervalWindow(new Instant(0), new Instant(10))));
+    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+        DefaultTrigger.of().getWatermarkCutoff(GlobalWindow.INSTANCE));
   }
 }

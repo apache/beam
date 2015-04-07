@@ -102,4 +102,9 @@ public class AfterProcessingTime<W extends BoundedWindow>
   public boolean willNeverFinish() {
     return false;
   }
+
+  @Override
+  public Instant getWatermarkCutoff(W window) {
+    return BoundedWindow.TIMESTAMP_MAX_VALUE;
+  }
 }

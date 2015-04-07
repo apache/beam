@@ -392,6 +392,16 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
   boolean willNeverFinish();
 
   /**
+   * Returns a bound in watermark time by which this trigger would have fired at least once
+   * for a given window had there been input data.  This is a static property of a trigger
+   * that does not depend on its state.
+   *
+   * <p> For triggers that do not fire based on the watermark advancing, returns
+   * {@link BoundedWindow.TIMESTAMP_MAX_VALUE}.
+   */
+  Instant getWatermarkCutoff(W window);
+
+  /**
    * Returns whether this performs the same triggering as the given {@code Trigger}.
    */
   boolean isCompatible(Trigger<?> other);

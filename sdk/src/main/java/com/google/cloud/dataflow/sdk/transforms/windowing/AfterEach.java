@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.common.base.Preconditions;
 
+import org.joda.time.Instant;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -98,5 +100,12 @@ public class AfterEach<W extends BoundedWindow> extends CompositeTrigger<W> {
       }
     }
     return false;
+  }
+
+  @Override
+  public Instant getWatermarkCutoff(W window) {
+    // This trigger will fire at least once when the first trigger in the sequence
+    // fires at least once.
+    return subTriggers.get(0).getWatermarkCutoff(window);
   }
 }

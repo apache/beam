@@ -171,9 +171,10 @@ public class StreamingModeExecutionContext extends ExecutionContext {
     return work.getGlobalDataIdNotificationsList();
   }
 
-  public void setBlockingSideInputs(Iterable<Windmill.GlobalDataId> sideInputs) {
-    for (Windmill.GlobalDataId id : sideInputs) {
-      outputBuilder.addGlobalDataIdRequests(id);
+  public void setBlockingSideInputs(Iterable<Windmill.GlobalDataRequest> sideInputs) {
+    for (Windmill.GlobalDataRequest sideInput : sideInputs) {
+      outputBuilder.addGlobalDataRequests(sideInput);
+      outputBuilder.addGlobalDataIdRequests(sideInput.getDataId());
     }
   }
 

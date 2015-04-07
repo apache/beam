@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -335,5 +336,23 @@ public class RepeatedlyTest {
         tester.bufferTag(new IntervalWindow(new Instant(1), new Instant(11))),
         tester.rootFinished(new IntervalWindow(new Instant(5), new Instant(15))),
         tester.rootFinished(new IntervalWindow(new Instant(12), new Instant(22)))));
+  }
+
+  @Test
+  public void testFireDeadline() throws Exception {
+    BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+
+    assertEquals(new Instant(9),
+        Repeatedly.forever(AfterWatermark.pastEndOfWindow()).getWatermarkCutoff(window));
+    assertEquals(new Instant(9), Repeatedly.forever(AfterWatermark.pastEndOfWindow())
+        .until(AfterPane.elementCountAtLeast(1))
+        .getWatermarkCutoff(window));
+    assertEquals(new Instant(9), Repeatedly.forever(AfterPane.elementCountAtLeast(1))
+        .until(AfterWatermark.pastEndOfWindow())
+        .getWatermarkCutoff(window));
+    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+        Repeatedly.forever(AfterPane.elementCountAtLeast(1))
+        .until(AfterPane.elementCountAtLeast(10))
+        .getWatermarkCutoff(window));
   }
 }

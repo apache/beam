@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -101,5 +102,12 @@ public class AfterProcessingTimeTest {
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.rootFinished(new IntervalWindow(new Instant(1), new Instant(11))),
         tester.rootFinished(new IntervalWindow(new Instant(2), new Instant(12)))));
+  }
+
+  @Test
+  public void testFireDeadline() throws Exception {
+    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+        AfterProcessingTime.pastFirstElementInPane().getWatermarkCutoff(
+            new IntervalWindow(new Instant(0), new Instant(10))));
   }
 }

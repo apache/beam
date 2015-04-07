@@ -207,15 +207,24 @@ public class StateFetcher {
         ByteString.Output windowStream = ByteString.newOutput();
         windowCoder.encode(window, windowStream, Coder.Context.OUTER);
 
-        Windmill.GetDataRequest request = Windmill.GetDataRequest.newBuilder()
-            .addGlobalDataToFetch(
-                Windmill.GlobalDataId.newBuilder()
-                .setTag(view.getTagInternal().getId())
-                .setVersion(windowStream.toByteString())
-                .build())
-            .build();
+        Windmill.GlobalDataRequest request =
+            Windmill.GlobalDataRequest.newBuilder()
+                .setDataId(Windmill.GlobalDataId.newBuilder()
+                    .setTag(view.getTagInternal().getId())
+                    .setVersion(windowStream.toByteString())
+                    .build())
+                .setExistenceWatermarkDeadline(
+                     TimeUnit.MILLISECONDS.toMicros(view.getWindowingStrategyInternal()
+                         .getTrigger()
+                         .getWatermarkCutoff(window)
+                         .getMillis()))
+                .build();
 
-        Windmill.GetDataResponse response = server.getData(request);
+        Windmill.GetDataResponse response = server.getData(
+            Windmill.GetDataRequest.newBuilder()
+            .addGlobalDataFetchRequests(request)
+            .addGlobalDataToFetch(request.getDataId())
+            .build());
 
         Windmill.GlobalData data = response.getGlobalData(0);
 

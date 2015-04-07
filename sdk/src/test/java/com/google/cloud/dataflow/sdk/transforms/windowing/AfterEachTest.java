@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -203,5 +204,18 @@ public class AfterEachTest {
         .onMerge(
             Mockito.<TriggerContext<IntervalWindow>>any(),
             Mockito.<OnMergeEvent<IntervalWindow>>any());
+  }
+
+  @Test
+  public void testFireDeadline() throws Exception {
+    BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+
+    assertEquals(new Instant(9),
+        AfterEach.inOrder(AfterWatermark.pastEndOfWindow(),
+                      AfterWatermark.pastEndOfWindow().plusDelay(Duration.millis(10)))
+            .getWatermarkCutoff(window));
+    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+        AfterEach.inOrder(AfterPane.elementCountAtLeast(2), AfterWatermark.pastEndOfWindow())
+            .getWatermarkCutoff(window));
   }
 }

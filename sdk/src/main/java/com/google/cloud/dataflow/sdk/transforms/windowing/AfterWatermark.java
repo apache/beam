@@ -113,6 +113,11 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
+    public Instant getWatermarkCutoff(W window) {
+      return computeTargetTimestamp(window.maxTimestamp());
+    }
+
+    @Override
     protected AfterWatermark<W> newWith(
         ImmutableList<SerializableFunction<Instant, Instant>> transforms) {
       return new FromFirstElementInPane<W>(transforms);
@@ -158,6 +163,11 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     @Override
     public boolean willNeverFinish() {
       return false;
+    }
+
+    @Override
+    public Instant getWatermarkCutoff(W window) {
+      return computeTargetTimestamp(window.maxTimestamp());
     }
 
     @Override

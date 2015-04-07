@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import org.joda.time.Instant;
+
 import java.util.Arrays;
 
 /**
@@ -102,6 +104,12 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
   }
 
   @Override
+  public Instant getWatermarkCutoff(W window) {
+    // This trigger fires once the repeated trigger fires.
+    return repeated.getWatermarkCutoff(window);
+  }
+
+  @Override
   public boolean isCompatible(Trigger<?> other) {
     if (!(other instanceof Repeatedly)) {
       return false;
@@ -173,6 +181,14 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
     @Override
     public boolean willNeverFinish() {
       return false;
+    }
+
+    @Override
+    public Instant getWatermarkCutoff(W window) {
+      // This trigger fires once either the repeated trigger or the until trigger fires.
+      Instant repeatedDeadline = subTriggers.get(0).getWatermarkCutoff(window);
+      Instant untilDeadline = subTriggers.get(1).getWatermarkCutoff(window);
+      return repeatedDeadline.isBefore(untilDeadline) ? repeatedDeadline : untilDeadline;
     }
   }
 }

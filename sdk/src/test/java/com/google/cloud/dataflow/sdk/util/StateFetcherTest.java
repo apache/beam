@@ -34,6 +34,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.View;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -54,6 +55,7 @@ import org.mockito.MockitoAnnotations;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /** Unit tests for {@link StateFetcher}. */
 @RunWith(JUnit4.class)
@@ -281,12 +283,19 @@ public class StateFetcherTest {
         .addGlobalData(builder.build()).build();
   }
 
-  private Windmill.GetDataRequest buildGlobalDataRequest(String tag, ByteString version) {
+  private Windmill.GetDataRequest buildGlobalDataRequest(
+      String tag, ByteString version) {
+    Windmill.GlobalDataId id =
+        Windmill.GlobalDataId.newBuilder().setTag(tag).setVersion(version).build();
+
     return Windmill.GetDataRequest.newBuilder()
-        .addGlobalDataToFetch(Windmill.GlobalDataId.newBuilder()
-            .setTag(tag)
-            .setVersion(version)
-            .build())
+        .addGlobalDataFetchRequests(
+             Windmill.GlobalDataRequest.newBuilder()
+                 .setDataId(id)
+                 .setExistenceWatermarkDeadline(
+                      TimeUnit.MILLISECONDS.toMicros(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()))
+                 .build())
+        .addGlobalDataToFetch(id)
         .build();
   }
 }

@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import org.joda.time.Instant;
+
 /**
  * A trigger that fires repeatedly when the watermark passes the end of the window.
  *
@@ -63,6 +65,11 @@ public class DefaultTrigger<W extends BoundedWindow> implements Trigger<W>{
   @Override
   public boolean willNeverFinish() {
     return true;
+  }
+
+  @Override
+  public Instant getWatermarkCutoff(W window) {
+    return window.maxTimestamp();
   }
 
   @Override

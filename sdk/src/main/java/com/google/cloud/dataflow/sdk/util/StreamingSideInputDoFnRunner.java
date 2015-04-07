@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Runs a DoFn by constructing the appropriate contexts and passing them in.
@@ -53,8 +54,8 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
   private StreamingModeExecutionContext execContext;
   private WindowingStrategy<?, W> windowingStrategy;
   private Map<String, PCollectionView<?>> sideInputViews;
-  private CodedTupleTag<Map<W, Set<Windmill.GlobalDataId>>> blockedMapTag;
-  private Map<W, Set<Windmill.GlobalDataId>> blockedMap;
+  private CodedTupleTag<Map<W, Set<Windmill.GlobalDataRequest>>> blockedMapTag;
+  private Map<W, Set<Windmill.GlobalDataRequest>> blockedMap;
   private Coder<I> elemCoder;
 
   public StreamingSideInputDoFnRunner(
@@ -81,7 +82,7 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
         (StreamingModeExecutionContext) stepContext.getExecutionContext();
     this.blockedMapTag = CodedTupleTag.of("blockedMap:", MapCoder.of(
         windowingStrategy.getWindowFn().windowCoder(),
-        SetCoder.of(Proto2Coder.of(Windmill.GlobalDataId.class))));
+        SetCoder.of(Proto2Coder.of(Windmill.GlobalDataRequest.class))));
     this.blockedMap = stepContext.lookup(blockedMapTag);
     if (this.blockedMap == null) {
       this.blockedMap = new HashMap<>();
@@ -101,8 +102,14 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
         continue;
       }
 
-      for (Map.Entry<W, Set<Windmill.GlobalDataId>> entry : blockedMap.entrySet()) {
-        entry.getValue().remove(id);
+      for (Map.Entry<W, Set<Windmill.GlobalDataRequest>> entry : blockedMap.entrySet()) {
+        Set<Windmill.GlobalDataRequest> found = new HashSet<>();
+        for (Windmill.GlobalDataRequest request : entry.getValue()) {
+          if (id.equals(request.getDataId())) {
+            found.add(request);
+          }
+        }
+        entry.getValue().removeAll(found);
         if (entry.getValue().isEmpty()) {
           readyWindows.add(entry.getKey());
         }
@@ -132,7 +139,7 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
     try {
       W window = (W) elem.getWindows().iterator().next();
 
-      Set<Windmill.GlobalDataId> blocked = blockedMap.get(window);
+      Set<Windmill.GlobalDataRequest> blocked = blockedMap.get(window);
       if (blocked == null) {
         for (PCollectionView<?> view : sideInputViews.values()) {
           if (!execContext.issueSideInputFetch(view, window)) {
@@ -143,14 +150,22 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
             Coder<BoundedWindow> sideInputWindowCoder =
                 view.getWindowingStrategyInternal().getWindowFn().windowCoder();
 
-            ByteString.Output windowStream = ByteString.newOutput();
-            sideInputWindowCoder.encode(
-                view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(window),
-                windowStream, Coder.Context.OUTER);
+            BoundedWindow sideInputWindow =
+                view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(window);
 
-            blocked.add(Windmill.GlobalDataId.newBuilder()
-                .setTag(view.getTagInternal().getId())
-                .setVersion(windowStream.toByteString())
+            ByteString.Output windowStream = ByteString.newOutput();
+            sideInputWindowCoder.encode(sideInputWindow, windowStream, Coder.Context.OUTER);
+
+            blocked.add(Windmill.GlobalDataRequest.newBuilder()
+                .setDataId(Windmill.GlobalDataId.newBuilder()
+                    .setTag(view.getTagInternal().getId())
+                    .setVersion(windowStream.toByteString())
+                    .build())
+                .setExistenceWatermarkDeadline(
+                    TimeUnit.MILLISECONDS.toMicros(view.getWindowingStrategyInternal()
+                        .getTrigger()
+                        .getWatermarkCutoff(sideInputWindow)
+                        .getMillis()))
                 .build());
           }
         }

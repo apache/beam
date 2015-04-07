@@ -20,6 +20,8 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 
+import org.joda.time.Instant;
+
 import java.util.Map.Entry;
 
 /**
@@ -105,5 +107,10 @@ public class AfterPane<W extends BoundedWindow> implements AtMostOnceTrigger<W>{
 
     AfterPane<?> that = (AfterPane<?>) other;
     return countElems == that.countElems;
+  }
+
+  @Override
+  public Instant getWatermarkCutoff(W window) {
+    return BoundedWindow.TIMESTAMP_MAX_VALUE;
   }
 }

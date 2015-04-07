@@ -20,6 +20,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrig
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.common.base.Preconditions;
 
+import org.joda.time.Instant;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -142,5 +144,18 @@ public class AfterAll<W extends BoundedWindow>
   public boolean willNeverFinish() {
     // even if one of the triggers never finishes, the AfterAll could finish if it FIREs.
     return false;
+  }
+
+  @Override
+  public Instant getWatermarkCutoff(W window) {
+    // This trigger will fire after the latest of its sub-triggers.
+    Instant deadline = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    for (Trigger<W> subTrigger : subTriggers) {
+      Instant subDeadline = subTrigger.getWatermarkCutoff(window);
+      if (deadline.isBefore(subDeadline)) {
+        deadline = subDeadline;
+      }
+    }
+    return deadline;
   }
 }

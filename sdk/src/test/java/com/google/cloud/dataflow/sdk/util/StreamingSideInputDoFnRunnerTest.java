@@ -120,10 +120,13 @@ public class StreamingSideInputDoFnRunnerTest {
     verify(stepContext).store(any(CodedTupleTag.class), eq(
         Collections.singletonMap(
             window,
-            Collections.singleton(Windmill.GlobalDataId.newBuilder()
-                .setTag(view.getTagInternal().getId())
-                .setVersion(ByteString.copyFrom(CoderUtils.encodeToByteArray(
-                    IntervalWindow.getFixedSizeCoder(Duration.millis(10)), window)))
+            Collections.singleton(Windmill.GlobalDataRequest.newBuilder()
+                .setDataId(Windmill.GlobalDataId.newBuilder()
+                    .setTag(view.getTagInternal().getId())
+                    .setVersion(ByteString.copyFrom(CoderUtils.encodeToByteArray(
+                        IntervalWindow.getFixedSizeCoder(Duration.millis(10)), window)))
+                    .build())
+                .setExistenceWatermarkDeadline(9000)
                 .build()))));
   }
 
@@ -138,10 +141,10 @@ public class StreamingSideInputDoFnRunnerTest {
             IntervalWindow.getFixedSizeCoder(Duration.millis(10)), window)))
         .build();
 
-    Set<Windmill.GlobalDataId> idSet = new HashSet<>();
-    idSet.add(id);
-    Map<IntervalWindow, Set<Windmill.GlobalDataId>> blockedMap = new HashMap<>();
-    blockedMap.put(window, idSet);
+    Set<Windmill.GlobalDataRequest> requestSet = new HashSet<>();
+    requestSet.add(Windmill.GlobalDataRequest.newBuilder().setDataId(id).build());
+    Map<IntervalWindow, Set<Windmill.GlobalDataRequest>> blockedMap = new HashMap<>();
+    blockedMap.put(window, requestSet);
 
     when(stepContext.lookup(any(CodedTupleTag.class))).thenReturn(blockedMap);
     when(execContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
@@ -174,10 +177,10 @@ public class StreamingSideInputDoFnRunnerTest {
             IntervalWindow.getFixedSizeCoder(Duration.millis(10)), window)))
         .build();
 
-    Set<Windmill.GlobalDataId> idSet = new HashSet<>();
-    idSet.add(id);
-    Map<IntervalWindow, Set<Windmill.GlobalDataId>> blockedMap = new HashMap<>();
-    blockedMap.put(window, idSet);
+    Set<Windmill.GlobalDataRequest> requestSet = new HashSet<>();
+    requestSet.add(Windmill.GlobalDataRequest.newBuilder().setDataId(id).build());
+    Map<IntervalWindow, Set<Windmill.GlobalDataRequest>> blockedMap = new HashMap<>();
+    blockedMap.put(window, requestSet);
 
     when(stepContext.lookup(any(CodedTupleTag.class))).thenReturn(blockedMap);
     when(execContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
