@@ -18,13 +18,16 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
 import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
+import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
+import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
+import com.google.cloud.dataflow.sdk.runners.worker.CombineValuesFn.CombinePhase;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -115,12 +118,17 @@ class GroupAlsoByWindowsParDoFn extends NormalParDoFn {
       isStreamingPipeline = ((StreamingOptions) options).isStreaming();
     }
 
-    boolean isMergingOnly = true;
-    KeyedCombineFn maybeMergingCombineFn;
-    if (isMergingOnly && combineFn != null) {
-      maybeMergingCombineFn = new MergingKeyedCombineFn(combineFn);
-    } else {
-      maybeMergingCombineFn = combineFn;
+    KeyedCombineFn maybeMergingCombineFn = null;
+    if (combineFn != null) {
+      String phase = getString(cloudUserFn, PropertyNames.PHASE, CombinePhase.ALL);
+      Preconditions.checkArgument(
+          phase.equals(CombinePhase.ALL) || phase.equals(CombinePhase.MERGE),
+          "Unexpected phase: " + phase);
+      if (phase.equals(CombinePhase.MERGE)) {
+        maybeMergingCombineFn = new MergingKeyedCombineFn(combineFn);
+      } else {
+        maybeMergingCombineFn = combineFn;
+      }
     }
 
     DoFnInfoFactory fnFactory;
