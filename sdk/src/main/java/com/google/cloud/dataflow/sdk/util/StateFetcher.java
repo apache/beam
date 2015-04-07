@@ -58,6 +58,7 @@ public class StateFetcher {
     this(server, CacheBuilder
         .newBuilder()
         .maximumWeight(100000000 /* 100 MB */)
+        .expireAfterWrite(1, TimeUnit.MINUTES)
         .weigher(new Weigher<SideInputId, SideInputCacheEntry>() {
               @Override
               public int weigh(SideInputId id, SideInputCacheEntry entry) {
