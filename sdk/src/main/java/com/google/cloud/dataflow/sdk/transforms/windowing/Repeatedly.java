@@ -18,14 +18,12 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import org.joda.time.Instant;
 
-import java.util.Arrays;
-
 /**
  * Repeat a trigger, either until some condition is met or forever.
  *
  * <p>For example, to fire after the end of the window, and every time late data arrives:
  * <pre> {@code
- * Repeatedly.forever(WhenWatermark.isPastEndOfWindow());
+ *     Repeatedly.forever(AfterWatermark.isPastEndOfWindow());
  * } </pre>
  *
  * <p>{@code Repeatedly.forever(someTrigger)} behaves like the infinite
@@ -44,7 +42,7 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
    * Create a composite trigger that repeatedly executes the trigger {@code toRepeat}, firing each
    * time it fires and ignoring any indications to finish.
    *
-   * <p>Unless used with {@link #until} the composite trigger will never finish.
+   * <p>Unless used with {@link #finishing} the composite trigger will never finish.
    *
    * @param repeated the trigger to execute repeatedly.
    */
@@ -58,17 +56,13 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
 
   /**
    * Specify an ending condition for this {@code Repeated} trigger. When {@code until} fires the
-   * composite trigger will finish.
-   *
-   * <p>If {@code until} finishes before firing we stop executing it and the {@code Repeated}
-   * trigger will never finish.
+   * composite trigger will fire and finish.
    *
    * @param until the trigger that will fire when we should stop repeating.
    */
-  public RepeatedlyUntil<W> until(AtMostOnceTrigger<W> until) {
-    return new RepeatedlyUntil<W>(repeated, until);
+  public Trigger<W> finishing(AtMostOnceTrigger<W> until) {
+    return new Until<W>(this, until);
   }
-
 
   private TriggerResult wrap(TriggerContext<W> c, W window, TriggerResult result) throws Exception {
     if (result.isFire() || result.isFinish()) {
@@ -100,6 +94,7 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
 
   @Override
   public boolean willNeverFinish() {
+    // Repeatedly without an until will never finish.
     return true;
   }
 
@@ -121,61 +116,63 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
 
   /**
    * Repeats the given trigger forever, until the "until" trigger fires.
+   *
+   * <p> TODO: Move this to the top level.
    */
-  public static class RepeatedlyUntil<W extends BoundedWindow> extends CompositeTrigger<W> {
+  public static class Until<W extends BoundedWindow> implements Trigger<W> {
 
+    private static final int ACTUAL = 0;
+    private static final int UNTIL = 1;
     private static final long serialVersionUID = 0L;
 
-    private RepeatedlyUntil(Trigger<W> repeat, AtMostOnceTrigger<W> until) {
-      super(Arrays.asList(repeat, until));
-    }
+    private Trigger<W> actual;
+    private AtMostOnceTrigger<W> until;
 
-    private TriggerResult handleResult(
-        TriggerContext<W> c, SubTriggerExecutor subExecutor, W window,
-        TriggerResult repeated, TriggerResult until) throws Exception {
-      if (repeated.isFinish() && !until.isFire()) {
-        subExecutor.reset(c, 0, window);
-      }
-
-      return TriggerResult.valueOf(repeated.isFire(), until.isFire());
+    private Until(Trigger<W> actual, AtMostOnceTrigger<W> until) {
+      this.actual = actual;
+      this.until = until;
     }
 
     @Override
     public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
-      SubTriggerExecutor subExecutor = subExecutor(c, e.window());
+      TriggerResult untilResult = until.onElement(c.forChild(UNTIL), e);
+      if (untilResult != TriggerResult.CONTINUE) {
+        return TriggerResult.FIRE_AND_FINISH;
+      }
 
-      TriggerResult until = subExecutor.isFinished(1)
-          ? TriggerResult.CONTINUE // if we already finished the until, treat it like Never Stop
-          : subExecutor.onElement(c, 1, e);
-      return handleResult(c, subExecutor, e.window(),
-          subExecutor.onElement(c, 0, e), until);
+      return actual.onElement(c.forChild(ACTUAL), e);
     }
 
     @Override
     public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
-      SubTriggerExecutor subExecutor = subExecutor(c, e);
+      TriggerResult untilResult = until.onMerge(c.forChild(UNTIL), e);
+      if (untilResult != TriggerResult.CONTINUE) {
+        return TriggerResult.FIRE_AND_FINISH;
+      }
 
-      TriggerResult until = subExecutor.isFinished(1)
-          ? TriggerResult.CONTINUE // if we already finished the until, treat it like Never Stop
-          : subExecutor.onMerge(c, 1, e);
-
-      // Even if the merged until says fire, we should still evaluate (and maybe fire) from the
-      // merging of the repeated trigger.
-      return handleResult(c, subExecutor, e.newWindow(), subExecutor.onMerge(c, 0, e), until);
+      return actual.onMerge(c.forChild(ACTUAL), e);
     }
 
     @Override
-    public TriggerResult afterChildTimer(
-        TriggerContext<W> c, W window, int childIdx, TriggerResult result) throws Exception {
-      if (childIdx == 0) {
-        // If the first trigger finishes, we need to reset it
-        if (result.isFinish()) {
-          subExecutor(c, window).reset(c, 0, window);
-        }
-        return result.isFire() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
+    public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+
+      if (e.isForCurrentLayer()) {
+        throw new IllegalStateException("Until shouldn't receive any timers.");
+      } else if (e.getChildIndex() == ACTUAL) {
+        return actual.onTimer(c.forChild(ACTUAL), e.withoutOuterTrigger());
       } else {
-        return result.isFire() ? TriggerResult.FINISH : TriggerResult.CONTINUE;
+        if (until.onTimer(c.forChild(UNTIL), e.withoutOuterTrigger()) != TriggerResult.CONTINUE) {
+          return TriggerResult.FIRE_AND_FINISH;
+        }
       }
+
+      return TriggerResult.CONTINUE;
+    }
+
+    @Override
+    public void clear(TriggerContext<W> c, W window) throws Exception {
+      actual.clear(c.forChild(ACTUAL), window);
+      until.clear(c.forChild(UNTIL), window);
     }
 
     @Override
@@ -185,10 +182,21 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
 
     @Override
     public Instant getWatermarkCutoff(W window) {
-      // This trigger fires once either the repeated trigger or the until trigger fires.
-      Instant repeatedDeadline = subTriggers.get(0).getWatermarkCutoff(window);
-      Instant untilDeadline = subTriggers.get(1).getWatermarkCutoff(window);
-      return repeatedDeadline.isBefore(untilDeadline) ? repeatedDeadline : untilDeadline;
+      // This trigger fires once either the trigger or the until trigger fires.
+      Instant actualDeadline = actual.getWatermarkCutoff(window);
+      Instant untilDeadline = until.getWatermarkCutoff(window);
+      return actualDeadline.isBefore(untilDeadline) ? actualDeadline : untilDeadline;
+    }
+
+    @Override
+    public boolean isCompatible(Trigger<?> other) {
+      if (!(other instanceof Until)) {
+        return false;
+      }
+
+      Until<?> that = (Until<?>) other;
+      return actual.isCompatible(that.actual)
+          && until.isCompatible(that.until);
     }
   }
 }

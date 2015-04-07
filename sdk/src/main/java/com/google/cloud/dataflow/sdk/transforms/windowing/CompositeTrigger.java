@@ -109,7 +109,8 @@ public abstract class CompositeTrigger<W extends BoundedWindow> implements Trigg
     public TriggerResult onElement(
         TriggerContext<W> compositeContext, int index, OnElementEvent<W> e) throws Exception {
       if (isFinished.get(index)) {
-        return TriggerResult.FINISH;
+        throw new IllegalStateException(
+            "Cannot call onElement on already finished sub-trigger " + index);
       }
 
       TriggerContext<W> childContext = compositeContext.forChild(index);
@@ -121,6 +122,11 @@ public abstract class CompositeTrigger<W extends BoundedWindow> implements Trigg
 
     public TriggerResult onTimer(
         TriggerContext<W> compositeContext, int index, OnTimerEvent<W> e) throws Exception {
+      if (isFinished.get(index)) {
+        throw new IllegalStateException(
+            "Cannot call onTimer on already finished sub-trigger " + index);
+      }
+
       TriggerContext<W> childContext = compositeContext.forChild(index);
       return handleChildResult(
           childContext, index, subTriggers.get(index).onTimer(childContext, e));
@@ -129,6 +135,11 @@ public abstract class CompositeTrigger<W extends BoundedWindow> implements Trigg
     public TriggerResult onMerge(
         TriggerContext<W> compositeContext, int index, OnMergeEvent<W> e)
         throws Exception {
+      if (isFinished.get(index)) {
+        throw new IllegalStateException(
+            "Cannot call onMerge on already finished sub-trigger " + index);
+      }
+
       TriggerContext<W> childContext = compositeContext.forChild(index);
       return handleChildResult(
           childContext, index, subTriggers.get(index).onMerge(childContext, e));

@@ -48,16 +48,16 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class RepeatedlyTest {
-  @Mock private Trigger<IntervalWindow> mockTrigger1;
-  @Mock private AtMostOnceTrigger<IntervalWindow> mockTrigger2;
+  @Mock private Trigger<IntervalWindow> mockRepeated;
+  @Mock private AtMostOnceTrigger<IntervalWindow> mockUntil;
   private TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester;
   private IntervalWindow firstWindow;
 
   public void setUp(WindowFn<?, IntervalWindow> windowFn, boolean until) throws Exception {
     MockitoAnnotations.initMocks(this);
     Trigger<IntervalWindow> underTest = until
-        ? Repeatedly.forever(mockTrigger1).until(mockTrigger2)
-        : Repeatedly.forever(mockTrigger1);
+        ? Repeatedly.forever(mockRepeated).finishing(mockUntil)
+        : Repeatedly.forever(mockRepeated);
 
     tester = TriggerTester.buffering(windowFn, underTest);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
@@ -71,12 +71,12 @@ public class RepeatedlyTest {
   private void injectElement(int element, TriggerResult result1, TriggerResult result2)
       throws Exception {
     if (result1 != null) {
-      when(mockTrigger1.onElement(
+      when(mockRepeated.onElement(
           isTriggerContext(), Mockito.<OnElementEvent<IntervalWindow>>any()))
           .thenReturn(result1);
     }
     if (result2 != null) {
-      when(mockTrigger2.onElement(
+      when(mockUntil.onElement(
           isTriggerContext(), Mockito.<OnElementEvent<IntervalWindow>>any()))
           .thenReturn(result2);
     }
@@ -88,9 +88,9 @@ public class RepeatedlyTest {
     setUp(FixedWindows.of(Duration.millis(10)), false);
 
     injectElement(1, TriggerResult.CONTINUE, null);
-    injectElement(2, TriggerResult.FIRE_AND_FINISH, null);
+    injectElement(2, TriggerResult.FIRE, null);
     injectElement(3, TriggerResult.FIRE_AND_FINISH, null);
-    injectElement(4, TriggerResult.FINISH, null);
+    injectElement(4, TriggerResult.CONTINUE, null);
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
@@ -105,7 +105,7 @@ public class RepeatedlyTest {
     setUp(FixedWindows.of(Duration.millis(10)), true);
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(2, TriggerResult.FIRE_AND_FINISH, TriggerResult.FIRE);
+    injectElement(2, TriggerResult.CONTINUE, TriggerResult.FIRE);
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
@@ -116,22 +116,18 @@ public class RepeatedlyTest {
   }
 
   @Test
-  public void testOnElementUntilFinishes() throws Exception {
+  public void testOnElementUntilFiresAndFinishes() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)), true);
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(2, TriggerResult.FIRE_AND_FINISH, TriggerResult.FINISH);
-    injectElement(3, TriggerResult.FIRE,
-        // until is already finished, so this shouldn't be called, and shouldn't finish the repeat.
-        TriggerResult.FIRE);
+    injectElement(2, TriggerResult.CONTINUE, TriggerResult.FIRE_AND_FINISH);
 
     assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
-    assertFalse(tester.isDone(firstWindow));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
+    assertTrue(tester.isDone(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
-        // We're storing the sub-trigger state for the root trigger.
-        tester.subFinished(firstWindow)));
+        // We're storing that the root trigger has finished.
+        tester.rootFinished(firstWindow)));
   }
 
   @Test
@@ -141,28 +137,28 @@ public class RepeatedlyTest {
     injectElement(1, TriggerResult.CONTINUE, null);
 
     tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, ImmutableList.of(0));
-    when(mockTrigger1.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
+    when(mockRepeated.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.FIRE);
     tester.advanceWatermark(new Instant(12));
 
     injectElement(2, TriggerResult.CONTINUE, null);
 
     tester.setTimer(firstWindow, new Instant(12), TimeDomain.EVENT_TIME, ImmutableList.of(0));
-    when(mockTrigger1.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
+    when(mockRepeated.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
     tester.advanceWatermark(new Instant(13));
 
     injectElement(3, TriggerResult.CONTINUE, null);
 
     tester.setTimer(firstWindow, new Instant(13), TimeDomain.EVENT_TIME, ImmutableList.of(0));
-    when(mockTrigger1.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
-        .thenReturn(TriggerResult.FINISH);
+    when(mockRepeated.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
+        .thenReturn(TriggerResult.CONTINUE);
     tester.advanceWatermark(new Instant(14));
 
     injectElement(4, TriggerResult.CONTINUE, null);
 
     tester.setTimer(firstWindow, new Instant(14), TimeDomain.EVENT_TIME, ImmutableList.of(0));
-    when(mockTrigger1.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
+    when(mockRepeated.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.FIRE);
     tester.advanceWatermark(new Instant(15));
 
@@ -175,14 +171,14 @@ public class RepeatedlyTest {
   }
 
   @Test
-  public void testOnElementTimerFiresWithUntil() throws Exception {
+  public void testOnTimerFiresWithUntil() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)), true);
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
     // Timer fires for until, which says continue
     tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, ImmutableList.of(1));
-    when(mockTrigger2.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
+    when(mockUntil.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.CONTINUE);
     tester.advanceWatermark(new Instant(12));
 
@@ -190,7 +186,7 @@ public class RepeatedlyTest {
 
     // Timer fires for until, which says fire, so we stop repeating.
     tester.setTimer(firstWindow, new Instant(12), TimeDomain.EVENT_TIME, ImmutableList.of(1));
-    when(mockTrigger2.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
+    when(mockUntil.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.FIRE);
     tester.advanceWatermark(new Instant(13));
 
@@ -202,45 +198,40 @@ public class RepeatedlyTest {
   }
 
   @Test
-  public void testOnElementTimerFinishesUntil() throws Exception {
+  public void testOnTimerFinishesUntil() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)), true);
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
     // Timer fires for until, which says continue
     tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, ImmutableList.of(1));
-    when(mockTrigger2.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
-        .thenReturn(TriggerResult.FINISH);
+    when(mockUntil.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
+        .thenReturn(TriggerResult.CONTINUE);
     tester.advanceWatermark(new Instant(12));
 
     injectElement(2, TriggerResult.FIRE, TriggerResult.CONTINUE);
 
+    injectElement(3, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
+
     // Timer fires for until, which says finish, so we stop paying attention to it.
     tester.setTimer(firstWindow, new Instant(12), TimeDomain.EVENT_TIME, ImmutableList.of(1));
-    when(mockTrigger2.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
+    when(mockUntil.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.FIRE);
     tester.advanceWatermark(new Instant(13));
 
-    // This timer for the until shouldn't do anything
+    // These timers shouldn't do anything.
     tester.setTimer(firstWindow, new Instant(13), TimeDomain.EVENT_TIME, ImmutableList.of(1));
-    when(mockTrigger2.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
-        .thenReturn(TriggerResult.FINISH);
     tester.advanceWatermark(new Instant(14));
 
-    // But we should be able to fire trigger 1 still
-    injectElement(3, TriggerResult.CONTINUE, null);
     tester.setTimer(firstWindow, new Instant(14), TimeDomain.EVENT_TIME, ImmutableList.of(0));
-    when(mockTrigger1.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
-        .thenReturn(TriggerResult.FIRE);
     tester.advanceWatermark(new Instant(15));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
-    assertFalse(tester.isDone(firstWindow));
+    assertTrue(tester.isDone(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
-        // We're storing that the until sub-trigger has finished
-        tester.subFinished(firstWindow)));
+        tester.rootFinished(firstWindow)));
   }
 
   @Test
@@ -248,9 +239,9 @@ public class RepeatedlyTest {
     setUp(Sessions.withGapDuration(Duration.millis(10)), false);
 
     injectElement(1, TriggerResult.CONTINUE, null);
-    injectElement(12, TriggerResult.FINISH, null);
+    injectElement(12, TriggerResult.CONTINUE, null);
 
-    when(mockTrigger1.onMerge(
+    when(mockRepeated.onMerge(
         isTriggerContext(),
         Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.FIRE_AND_FINISH);
 
@@ -268,13 +259,13 @@ public class RepeatedlyTest {
     setUp(Sessions.withGapDuration(Duration.millis(10)), true);
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(12, TriggerResult.FINISH, TriggerResult.CONTINUE);
+    injectElement(12, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
-    when(mockTrigger1.onMerge(
+    when(mockRepeated.onMerge(
         isTriggerContext(),
-        Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.FIRE_AND_FINISH);
+        Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.CONTINUE);
 
-    when(mockTrigger2.onMerge(
+    when(mockUntil.onMerge(
         isTriggerContext(),
         Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.FIRE);
 
@@ -291,15 +282,19 @@ public class RepeatedlyTest {
   }
 
   @Test
-  public void testMergeRepeatUntilFinished() throws Exception {
+  public void testMergeRepeatUntilFiresAndFinishes() throws Exception {
     setUp(Sessions.withGapDuration(Duration.millis(10)), true);
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(12, TriggerResult.FINISH, TriggerResult.FINISH);
+    injectElement(12, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
     assertFalse(tester.isDone(new IntervalWindow(new Instant(1), new Instant(11))));
     assertFalse(tester.isDone(new IntervalWindow(new Instant(12), new Instant(22))));
 
-    when(mockTrigger1.onMerge(
+    when(mockUntil.onMerge(
+        isTriggerContext(),
+        Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.CONTINUE);
+
+    when(mockRepeated.onMerge(
         isTriggerContext(),
         Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.FIRE_AND_FINISH);
 
@@ -309,33 +304,7 @@ public class RepeatedlyTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     assertFalse(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
-        // Remembering that we finished the until clause in the 1-22 window.
-        tester.subFinished(new IntervalWindow(new Instant(1), new Instant(22)))));
-  }
-
-  @Test
-  public void testMergeRepeatUntilFired() throws Exception {
-    setUp(Sessions.withGapDuration(Duration.millis(10)), true);
-
-    injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(12, TriggerResult.CONTINUE, TriggerResult.FIRE);
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(1), new Instant(11))));
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(12), new Instant(22))));
-
-    // The arrival of this element would cause a merge (see above), but since we mark this finished
-    // in the window from [5, 15), when we merge, the TriggerExecutor finishes things for us.
-    injectElement(5, TriggerResult.CONTINUE, TriggerResult.FIRE);
-
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(12), new Instant(22))));
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(5), new Instant(15))));
-
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.bufferTag(new IntervalWindow(new Instant(1), new Instant(11))),
-        tester.rootFinished(new IntervalWindow(new Instant(5), new Instant(15))),
-        tester.rootFinished(new IntervalWindow(new Instant(12), new Instant(22)))));
+    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 
   @Test
@@ -345,14 +314,14 @@ public class RepeatedlyTest {
     assertEquals(new Instant(9),
         Repeatedly.forever(AfterWatermark.pastEndOfWindow()).getWatermarkCutoff(window));
     assertEquals(new Instant(9), Repeatedly.forever(AfterWatermark.pastEndOfWindow())
-        .until(AfterPane.elementCountAtLeast(1))
+        .finishing(AfterPane.elementCountAtLeast(1))
         .getWatermarkCutoff(window));
     assertEquals(new Instant(9), Repeatedly.forever(AfterPane.elementCountAtLeast(1))
-        .until(AfterWatermark.pastEndOfWindow())
+        .finishing(AfterWatermark.pastEndOfWindow())
         .getWatermarkCutoff(window));
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
         Repeatedly.forever(AfterPane.elementCountAtLeast(1))
-        .until(AfterPane.elementCountAtLeast(10))
+        .finishing(AfterPane.elementCountAtLeast(10))
         .getWatermarkCutoff(window));
   }
 }

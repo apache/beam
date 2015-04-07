@@ -20,7 +20,6 @@ import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
@@ -106,44 +105,6 @@ public class AfterFirstTest {
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
-  @Test
-  public void testOnElementT1Finishes() throws Exception {
-    setUp(FixedWindows.of(Duration.millis(10)));
-
-    injectElement(1, TriggerResult.FINISH, TriggerResult.CONTINUE);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    injectElement(2, null, TriggerResult.FIRE);
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
-  }
-
-  @Test
-  public void testOnElementT2Finishes() throws Exception {
-    setUp(FixedWindows.of(Duration.millis(10)));
-
-    injectElement(1, TriggerResult.CONTINUE, TriggerResult.FINISH);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    injectElement(2, TriggerResult.FIRE, null);
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
-  }
-
-  @Test
-  public void testOnElementBothFinish() throws Exception {
-    setUp(FixedWindows.of(Duration.millis(10)));
-
-    injectElement(1, TriggerResult.CONTINUE, TriggerResult.FINISH);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    injectElement(2, TriggerResult.FINISH, null);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
-  }
-
   @SuppressWarnings("unchecked")
   @Test
   public void testOnTimerFire() throws Exception {
@@ -171,14 +132,12 @@ public class AfterFirstTest {
 
     tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, ImmutableList.of(1));
     when(mockTrigger2.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
-        .thenReturn(TriggerResult.FINISH);
+        .thenReturn(TriggerResult.FIRE_AND_FINISH);
 
     tester.advanceWatermark(new Instant(12));
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-
-    injectElement(2, TriggerResult.FIRE, null);
     assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
+
     assertTrue(tester.isDone(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
@@ -188,7 +147,11 @@ public class AfterFirstTest {
     setUp(Sessions.withGapDuration(Duration.millis(10)));
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(12, TriggerResult.FINISH, TriggerResult.CONTINUE);
+    injectElement(12, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
+
+    when(mockTrigger1.onMerge(
+        isTriggerContext(),
+        Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.CONTINUE);
 
     when(mockTrigger2.onMerge(
         isTriggerContext(),
@@ -202,11 +165,6 @@ public class AfterFirstTest {
     assertTrue(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         tester.rootFinished(new IntervalWindow(new Instant(1), new Instant(22)))));
-
-    verify(mockTrigger1, Mockito.never())
-        .onMerge(
-            Mockito.<TriggerContext<IntervalWindow>>any(),
-            Mockito.<OnMergeEvent<IntervalWindow>>any());
   }
 
   @Test

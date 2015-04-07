@@ -257,7 +257,7 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
 
     @Override
     public <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag) throws IOException {
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings({"unchecked", "rawtypes"})
       List<TimestampedValue<T>> values = (List) tagListValues.get(tag);
       if (values == null) {
         return Collections.<TimestampedValue<T>>emptyList();

@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
@@ -106,40 +107,6 @@ public class AfterAllTest {
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
-  @Test
-  public void testOnElementT1Finishes() throws Exception {
-    setUp(FixedWindows.of(Duration.millis(10)));
-
-    injectElement(1, TriggerResult.FINISH, TriggerResult.CONTINUE);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
-  }
-
-  @Test
-  public void testOnElementT2Finishes() throws Exception {
-    setUp(FixedWindows.of(Duration.millis(10)));
-
-    injectElement(1, TriggerResult.CONTINUE, TriggerResult.FINISH);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    injectElement(2, null, null);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
-  }
-
-  @Test
-  public void testOnElementBothFinish() throws Exception {
-    setUp(FixedWindows.of(Duration.millis(10)));
-
-    injectElement(1, TriggerResult.CONTINUE, TriggerResult.FINISH);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    injectElement(2, TriggerResult.FINISH, null);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
-  }
-
   @SuppressWarnings("unchecked")
   @Test
   public void testOnTimerFire() throws Exception {
@@ -160,17 +127,23 @@ public class AfterAllTest {
 
   @SuppressWarnings("unchecked")
   @Test
-  public void testOnTimerFinish() throws Exception {
+  public void testOnTimerFireAndFinish() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
     tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, ImmutableList.of(1));
     when(mockTrigger2.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
-        .thenReturn(TriggerResult.FINISH);
+        .thenReturn(TriggerResult.FIRE_AND_FINISH);
 
     tester.advanceWatermark(new Instant(12));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
+    assertFalse(tester.isDone(firstWindow));
+
+    injectElement(2, TriggerResult.FIRE_AND_FINISH, null);
+    assertThat(tester.extractOutput(), Matchers.contains(
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
+
     assertTrue(tester.isDone(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }

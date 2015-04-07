@@ -101,10 +101,11 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
   protected TimestampedValue<Iterable<V>> finalValue(W window) throws Exception {
     CodedTupleTag<V> tag = bufferTag(window, windowCoder, inputCoder);
     Iterable<TimestampedValue<V>> result = windowingInternals.readTagList(tag);
-    Instant timestamp = result.iterator().next().getTimestamp();
     if (result == null) {
-      throw new IllegalStateException("finalValue called for non-existent window");
+      return null;
     }
+
+    Instant timestamp = result.iterator().next().getTimestamp();
     return TimestampedValue.of(
         Iterables.transform(result, new Function<TimestampedValue<V>, V>() {
               @Override

@@ -54,42 +54,24 @@ public class AfterFirst<W extends BoundedWindow>
     // at least one unfinished trigger.
 
     SubTriggerExecutor subStates = subExecutor(c, e.window());
-    for (int i : subStates.getUnfinishedTriggers()) {
+    for (int i = 0; i < subTriggers.size(); i++) {
       if (subStates.onElement(c, i, e).isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
       }
     }
 
-    return subStates.allFinished() ? TriggerResult.FINISH : TriggerResult.CONTINUE;
+    if (subStates.allFinished()) {
+      throw new IllegalStateException("AfterFirst should have fired earlier.");
+    }
+    return TriggerResult.CONTINUE;
   }
 
   @Override
   public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
     SubTriggerExecutor subStates = subExecutor(c, e);
-    if (subStates.allFinished()) {
-      return TriggerResult.FINISH;
-    }
-
-    for (int i : subStates.getUnfinishedTriggers()) {
+    for (int i = 0; i < subTriggers.size(); i++) {
       if (subStates.onMerge(c, i, e).isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
-      }
-    }
-
-    return subStates.allFinished() ? TriggerResult.FINISH : TriggerResult.CONTINUE;
-  }
-
-  @Override
-  public TriggerResult afterChildTimer(
-      TriggerContext<W> c, W window, int childIdx, TriggerResult result) throws Exception {
-    if (result.isFire()) {
-      return TriggerResult.FIRE_AND_FINISH;
-    } else if (result.isFinish()) {
-      // If the given child finished, we may need to mark final completion if there are no more
-      // unfinished children.
-      SubTriggerExecutor subStates = subExecutor(c, window);
-      if (subStates.allFinished()) {
-        return TriggerResult.FINISH;
       }
     }
 
@@ -97,8 +79,19 @@ public class AfterFirst<W extends BoundedWindow>
   }
 
   @Override
+  public TriggerResult afterChildTimer(
+      TriggerContext<W> c, W window, int childIdx, TriggerResult result) throws Exception {
+    if (result.isFire()) {
+      return TriggerResult.FIRE_AND_FINISH;
+    }
+
+    return TriggerResult.CONTINUE;
+  }
+
+  @Override
   public boolean willNeverFinish() {
-    // Even if all the subtriggers never finish, if any of them fire, the AfterAll will finish.
+    // The only case an AfterAll will never finish, is if some trigger never fires. But, we can't
+    // statically determine if (or when) a trigger might fire.
     return false;
   }
 

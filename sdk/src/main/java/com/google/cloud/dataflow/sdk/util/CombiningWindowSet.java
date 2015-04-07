@@ -106,8 +106,11 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
 
   @Override
   protected TimestampedValue<VO> finalValue(W window) throws Exception {
-    TimestampedValue<VA> timestampedAccumulator =
-        Preconditions.checkNotNull(lookupAccumulator(window));
+    TimestampedValue<VA> timestampedAccumulator = lookupAccumulator(window);
+
+    if (timestampedAccumulator == null) {
+      return null;
+    }
 
     return TimestampedValue.of(
         combineFn.extractOutput(key, timestampedAccumulator.getValue()),

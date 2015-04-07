@@ -33,7 +33,7 @@ import java.util.List;
  * <p> The following properties hold:
  * <ul>
  *   <li> {@code AfterEach.inOrder(AfterEach.inOrder(a, b), c)} behaves the same as
- *   {@code AfterEach.inOrer(a, b, c)}
+ *   {@code AfterEach.inOrder(a, b, c)}
  *   <li> {@code AfterEach.inOrder(Repeatedly.forever(a), b)} behaves the same as
  *   {@code Repeatedly.forever(a)}, since the repeated trigger never finishes.
  * </ul>
@@ -55,9 +55,15 @@ public class AfterEach<W extends BoundedWindow> extends CompositeTrigger<W> {
     return new AfterEach<W>(Arrays.<Trigger<W>>asList(triggers));
   }
 
-  private TriggerResult result(TriggerResult subResult, SubTriggerExecutor subexecutor)
+  private TriggerResult result(
+      TriggerResult subResult, SubTriggerExecutor subexecutor)
       throws Exception {
-    return TriggerResult.valueOf(subResult.isFire(), subexecutor.allFinished());
+
+    if (subResult.isFire()) {
+      return subexecutor.allFinished() ? TriggerResult.FIRE_AND_FINISH : TriggerResult.FIRE;
+    } else {
+      return TriggerResult.CONTINUE;
+    }
   }
 
   @Override
@@ -86,6 +92,8 @@ public class AfterEach<W extends BoundedWindow> extends CompositeTrigger<W> {
       TriggerContext<W> c, W window, int childIdx, TriggerResult result) throws Exception {
     SubTriggerExecutor subExecutor = subExecutor(c, window);
     if (childIdx != subExecutor.firstUnfinished()) {
+      // If we aren't currently executing the given sub-trigger, it shouldn't have been able to send
+      // a timer at all. We record its finishing, but ignore it otherwise.
       return TriggerResult.CONTINUE;
     }
 

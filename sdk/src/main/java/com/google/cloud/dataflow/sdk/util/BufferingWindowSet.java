@@ -157,7 +157,7 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   @Override
   protected TimestampedValue<Iterable<V>> finalValue(W window) throws Exception {
     if (!contains(window)) {
-      throw new IllegalStateException("finalValue called for non-existent window");
+      return null;
     }
 
     List<V> toEmit = new ArrayList<>();

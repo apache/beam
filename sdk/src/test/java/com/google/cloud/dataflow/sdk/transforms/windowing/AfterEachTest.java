@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
@@ -95,11 +94,9 @@ public class AfterEachTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
 
-    injectElement(4, null, TriggerResult.FIRE);
+    injectElement(4, null, TriggerResult.FIRE_AND_FINISH);
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(4), 4, 0, 10)));
-    injectElement(5, null, TriggerResult.FINISH);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
     assertTrue(tester.isDone(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
@@ -114,31 +111,6 @@ public class AfterEachTest {
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         // Buffering element 1; Ignored the trigger for T2 since we aren't there yet.
         tester.bufferTag(firstWindow)));
-  }
-
-  @Test
-  public void testOnElementT1Finishes() throws Exception {
-    setUp(FixedWindows.of(Duration.millis(10)));
-
-    injectElement(1, TriggerResult.FINISH, TriggerResult.CONTINUE);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    injectElement(2, null, TriggerResult.FIRE_AND_FINISH);
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
-  }
-
-  @Test
-  public void testOnElementBothFinish() throws Exception {
-    setUp(FixedWindows.of(Duration.millis(10)));
-
-    injectElement(1, TriggerResult.FINISH, null);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    injectElement(2, null, TriggerResult.FINISH);
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }
 
   @SuppressWarnings("unchecked")
@@ -168,7 +140,7 @@ public class AfterEachTest {
 
     tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, ImmutableList.of(0));
     when(mockTrigger1.onTimer(isTriggerContext(), Mockito.isA(OnTimerEvent.class)))
-        .thenReturn(TriggerResult.FINISH);
+        .thenReturn(TriggerResult.FIRE_AND_FINISH);
 
     tester.advanceWatermark(new Instant(12));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
@@ -185,9 +157,9 @@ public class AfterEachTest {
     setUp(Sessions.withGapDuration(Duration.millis(10)));
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(12, TriggerResult.FINISH, TriggerResult.CONTINUE);
+    injectElement(12, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
-    when(mockTrigger2.onMerge(
+    when(mockTrigger1.onMerge(
         isTriggerContext(),
         Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.FIRE_AND_FINISH);
 
@@ -196,14 +168,9 @@ public class AfterEachTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
+    assertFalse(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
-        tester.rootFinished(new IntervalWindow(new Instant(1), new Instant(22)))));
-
-    verify(mockTrigger1, Mockito.never())
-        .onMerge(
-            Mockito.<TriggerContext<IntervalWindow>>any(),
-            Mockito.<OnMergeEvent<IntervalWindow>>any());
+        tester.subFinished(new IntervalWindow(new Instant(1), new Instant(22)))));
   }
 
   @Test

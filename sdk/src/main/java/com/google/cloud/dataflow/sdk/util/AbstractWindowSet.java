@@ -71,7 +71,7 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
    * Returns the final value of the elements in the given window, as well
    * as the minimum timestamp of all the elements that were placed in the window.
    *
-   * <p> Illegal to call if the window does not exist in the set.
+   * <p> Returns null if the window does not exist in the set.
    */
   protected abstract TimestampedValue<VO> finalValue(W window) throws Exception;
 

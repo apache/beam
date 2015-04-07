@@ -225,7 +225,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
           trigger.onMerge(triggerContext, new OnMergeEvent<W>(toBeMerged, mergeResult)));
     } else {
       // Otherwise, act like we were just told to finish in the resulting window.
-      handleResult(trigger, mergeResult, TriggerResult.FINISH);
+      handleResult(trigger, mergeResult, TriggerResult.FIRE_AND_FINISH);
     }
 
     // Before we finish, we can clean up the state associated with the trigger in the old windows
@@ -261,11 +261,15 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
   private void emitWindow(W window) throws Exception {
     TimestampedValue<VO> finalValue = windowSet.finalValue(window);
 
-    // Emit the (current) final values for the window
-    KV<K, VO> value = KV.of(windowSet.getKey(), finalValue.getValue());
+    // If there were any contents to output in the window, do so.
+    if (finalValue != null) {
+      // Emit the (current) final values for the window
+      KV<K, VO> value = KV.of(windowSet.getKey(), finalValue.getValue());
 
-    // Output the windowed value.
-    windowingInternals.outputWindowedValue(value, finalValue.getTimestamp(), Arrays.asList(window));
+      // Output the windowed value.
+      windowingInternals.outputWindowedValue(
+          value, finalValue.getTimestamp(), Arrays.asList(window));
+    }
   }
 
   @VisibleForTesting void setTimer(TriggerId<W> triggerId, Instant timestamp, TimeDomain domain)

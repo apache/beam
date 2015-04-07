@@ -130,8 +130,7 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
   public enum TriggerResult {
     FIRE(true, false),
     CONTINUE(false, false),
-    FIRE_AND_FINISH(true, true),
-    FINISH(false, true);
+    FIRE_AND_FINISH(true, true);
 
     private boolean finish;
     private boolean fire;
@@ -147,18 +146,6 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
 
     public boolean isFinish() {
       return finish;
-    }
-
-    public static TriggerResult valueOf(boolean fire, boolean finish) {
-      if (fire && finish) {
-        return FIRE_AND_FINISH;
-      } else if (fire) {
-        return FIRE;
-      } else if (finish) {
-        return FINISH;
-      } else {
-        return CONTINUE;
-      }
     }
   }
 
