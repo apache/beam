@@ -22,7 +22,7 @@ import javax.annotation.concurrent.ThreadSafe;
 /**
  * ApplianceShuffleWriter writes chunks of data to a shuffle dataset.
  *
- * It is a JNI wrapper of an equivalent C++ class.
+ * <p> It is a JNI wrapper of an equivalent C++ class.
  */
 @ThreadSafe
 public final class ApplianceShuffleWriter implements ShuffleWriter {

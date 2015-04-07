@@ -33,7 +33,7 @@ import java.util.Map;
 /**
  * Creates a ParDoFn from a CloudObject spec.
  *
- * A ParDoFnFactory concrete "subclass" should define a method with
+ * <p> A ParDoFnFactory concrete "subclass" should define a method with
  * the following signature:
  * <pre> {@code
  * static SomeParDoFnSubclass create(

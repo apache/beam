@@ -25,13 +25,13 @@ import java.util.NoSuchElementException;
 /**
  * Implements a ReaderIterator over a collection of inputs.
  *
- * The sources are used sequentially, each consumed entirely before moving
+ * <p> The sources are used sequentially, each consumed entirely before moving
  * to the next source.
  *
- * The input is lazily constructed by using the abstract method {@code open} to
- * create a source iterator for inputs on demand.  This allows the resources to
- * be produced lazily, as an open source iterator may consume process resources
- * such as file descriptors.
+ * <p> The input is lazily constructed by using the abstract method {@code open}
+ * to create a source iterator for inputs on demand.  This allows the resources
+ * to be produced lazily, as an open source iterator may consume process
+ * resources such as file descriptors.
  */
 abstract class LazyMultiReaderIterator<T> extends Reader.AbstractReaderIterator<T> {
   private final Iterator<String> inputs;

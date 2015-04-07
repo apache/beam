@@ -84,7 +84,7 @@ public class DataflowWorker {
    * Gets WorkItem and performs it; returns true if work was
    * successfully completed.
    *
-   * getAndPerformWork may throw if there is a failure of the
+   * <p> getAndPerformWork may throw if there is a failure of the
    * WorkUnitClient.
    */
   public boolean getAndPerformWork() throws IOException {
