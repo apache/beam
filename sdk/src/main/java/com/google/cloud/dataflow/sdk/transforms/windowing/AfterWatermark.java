@@ -24,8 +24,29 @@ import com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 
 /**
- * {@code AfterWatermarkTime} triggers fire based on the system watermark. They operate in event
- * time.
+ * <p>{@code AfterWatermark} triggers fire based on progress of the system watermark. This time is a
+ * lower-bound, sometimes heuristically established, on event times that have been fully processed
+ * by the pipeline.
+ *
+ * <p>For sources that provide non-heuristic watermarks (e.g.
+ * {@link com.google.cloud.dataflow.sdk.io.PubsubIO} when using arrival times as event times), the
+ * watermark is a strict guarantee that no data with an event time earlier than
+ * that watermark will ever be observed in the pipeline. In this case, it's safe to assume that any
+ * pane triggered by an {@code AfterWatermark} trigger with a reference point at or beyond the end
+ * of the window will be the last pane ever for that window.
+ *
+ * <p>For sources that provide heuristic watermarks (e.g.
+ * {@link com.google.cloud.dataflow.sdk.io.PubsubIO} when using user-supplied event times), the
+ * watermark itself becomes an <i>estimate</i> that no data with an event time earlier than that
+ * watermark (i.e. "late data) will ever be observed in the pipeline. These heuristics can
+ * often be quite accurate, but the chance of seeing late data for any given window is non-zero.
+ * Thus, if absolute correctness over time is important to your use case, you may want to consider
+ * using a trigger that accounts for late data. The default trigger,
+ * {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}, which fires
+ * once when the watermark passes the end of the window and then immediately therafter when any
+ * late data arrive, is one such example.
+ *
+ * <p> The watermark is the clock that defines {@link TimeDomain.EVENT_TIME}.
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used.
  */

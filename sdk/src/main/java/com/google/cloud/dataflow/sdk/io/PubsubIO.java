@@ -194,12 +194,19 @@ public class PubsubIO {
      *
      * <p> If {@code <timestampLabel>} is not provided, the system will generate record timestamps
      * the first time it sees each record. All windowing will be done relative to these timestamps.
-     * Windows are closed based on an estimate of when this source has finished producing data for
-     * a timestamp range, which means that late data can arrive after a window has been closed. The
-     * {#dropLateData} field allows you to control what to do with late data.  The relaxes the
-     * semantics of {@code GroupByKey}; see
+     *
+     * <p> By default windows are emitted based on an estimate of when this source is likely
+     * done producing data for a given timestamp (referred to as the Watermark; see
+     * {@link AfterWatermark} for more details). Any late data will be handled by the trigger
+     * specified with the windowing strategy -- by default it will be output immediately.
+     *
+     * <p> The {#dropLateData} field allows you to control what to do with late data. This relaxes
+     * the semantics of {@code GroupByKey}; see
      * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} for additional information on
      * late data and windowing.
+     *
+     * <p> Note that the system can guarantee that no late data will ever be seen when it assigns
+     * timestamps by arrival time (i.e. {@code timestampLabel} is not provided).
      */
     public static Bound<String> timestampLabel(String timestampLabel) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).timestampLabel(timestampLabel);
@@ -209,7 +216,7 @@ public class PubsubIO {
      * If true, then late-arriving data from this source will be dropped.
      *
      * <p> If late data is not dropped, data for a window can arrive after that window has already
-     * been closed.  The relaxes the semantics of {@code GroupByKey}; see
+     * been closed.  This relaxes the semantics of {@code GroupByKey}; see
      * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
      * for additional information on late data and windowing.
      */

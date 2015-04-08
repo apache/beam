@@ -19,7 +19,8 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import org.joda.time.Instant;
 
 /**
- * A trigger that fires repeatedly when the watermark passes the end of the window.
+ * A trigger that is equivalent to {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.
+ * See {@link Repeatedly#forever} and {@link AfterWatermark#pastEndOfWindow} for more details.
  *
  * @param <W> The type of windows being triggered/encoded.
  */

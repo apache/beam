@@ -33,6 +33,9 @@ import java.util.Map;
  * then passed to the associated {@code Trigger} to determine if the {@code Window}s contents should
  * be output.
  *
+ * <p> See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} and {@link Window}
+ * for more information about how grouping with windows works.
+ *
  * <p>The elements that are assigned to a window since the last time it was fired (or since the
  * window was created) are placed into a pane. Triggers are evaluated against the elements in the
  * current pane, and when fired, will output those elements. Depending on the trigger, this will
@@ -56,11 +59,9 @@ import java.util.Map;
  *   <li> {@link AfterEach#inOrder} to execute each trigger in sequence, firing each (and every)
  *   time that a trigger fires, and advancing to the next trigger in the sequence when it finishes.
  *   <li> {@link AfterFirst#of} to create a trigger that fires after at least one of its arguments
- *   fires. An {@link AfterFirst} trigger finishes after it fires once, or when all of its arguments
- *   have finished without firing.
+ *   fires. An {@link AfterFirst} trigger finishes after it fires once.
  *   <li> {@link AfterAll#of} to create a trigger that fires after all least one of its arguments
- *   have fired at least once. An {@link AfterFirst} trigger finishes after it fires once, or when
- *   any of its arguments have finished without firing.
+ *   have fired at least once. An {@link AfterFirst} trigger finishes after it fires once.
  * </ul>
  *
  * <p>Each trigger tree is instantiated per-key and per-window. Every trigger in the tree is in one
@@ -78,6 +79,10 @@ import java.util.Map;
  *
  * <p>Once finished, a trigger cannot return itself back to an earlier state, however a composite
  * trigger could reset its sub-triggers.
+ *
+ * <p> Triggers should not build up any state internally since they may be recreated
+ * between invocations of the callbacks. All important values should be persisted to
+ * {@link KeyedState} before the callback returns.
  *
  * <p> This functionality is experimental and likely to change.
  *

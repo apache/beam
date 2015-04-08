@@ -100,12 +100,15 @@ import java.util.Map;
  * {@code GroupByKey} followed by {@link Combine.GroupedValues}.
  *
  * <p> When grouping, windows that can be merged according to the {@link WindowFn}
- * of the input {@code PCollection} will be merged together, and a group
- * corresponding to the new, merged window will be emitted.
- * The timestamp for each group is the upper bound of its window, e.g., the most
- * recent timestamp that can be assigned into the window, and the group will be
- * in the window that it corresponds to.  The output {@code PCollection} will
- * have the same {@link WindowFn} as the input.
+ * of the input {@code PCollection} will be merged together, and a window pane
+ * corresponding to the new, merged window will be created. The items in this pane
+ * will be emitted when a trigger fires. By default this will be when the input
+ * sources estimate there will be no more data for the window. See
+ * {@link AfterWatermark} for details on the estimation.
+ *
+ * <p>The timestamp for each emitted pane is the earliest event time among all elements in
+ * the pane. The output {@code PCollection} will have the same {@link WindowFn}
+ * as the input.
  *
  * <p> If the input {@code PCollection} contains late data (see
  * {@link com.google.cloud.dataflow.sdk.io.PubsubIO.Read.Bound#timestampLabel}

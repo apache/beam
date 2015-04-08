@@ -45,14 +45,14 @@ import java.util.List;
  * <p> See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
  * for more information about how grouping with windows works.
  *
- * <p> Windowing a {@code PCollection} allows chunks of it to be processed
- * individually, before the entire {@code PCollection} is available.  This is
- * especially important for {@code PCollection}s with unbounded size,
- * since the full {@code PCollection} is
- * never available at once, since more data is continually arriving.
- * For {@code PCollection}s with a bounded size (aka. conventional batch mode),
- * by default, all data is implicitly in a single window, unless
- * {@code Window} is applied.
+ * <h2> Windowing </h2>
+ *
+ * <p> Windowing a {@code PCollection} divides the elements into windows based
+ * on the associated event time for each element. This is especially useful
+ * for {@code PCollection}s with unbounded size, since it allows operating on
+ * a sub-group of the elements placed into a related window. For {@code PCollection}s
+ * with a bounded size (aka. conventional batch mode), by default, all data is
+ * implicitly in a single window, unless {@code Window} is applied.
  *
  * <p> For example, a simple form of windowing divides up the data into
  * fixed-width time intervals, using {@link FixedWindows}.
@@ -84,11 +84,55 @@ import java.util.List;
  * <p>Additionally, custom {@link WindowFn}s can be created, by creating new
  * subclasses of {@link WindowFn}.
  *
+ * <h2> Triggers </h2>
+ *
  * <p> {@link Window.Bound#triggering(Trigger)} allows specifying a trigger to control when
  * (in processing time) results for the given window can be produced. If unspecified, the default
  * behavior is to trigger first when the watermark passes the end of the window, and then trigger
- * again every time there is late arriving data. See {@link Trigger} for details on specifying other
- * triggers.
+ * again every time there is late arriving data.
+ *
+ * <p> All of the elements in a window since the last time a trigger fired are
+ * part of the current pane. When a trigger fires, new output is produced
+ * based on the elements in the current pane.
+ *
+ * <p>Depending on the trigger, this can be used both to output partial results
+ * early during the processing of the whole window, and to deal with late
+ * arriving in batches.
+ *
+ * <p> Continuing the earlier example, if we wanted to emit the values that were available
+ * when the watermark passed the end of the window, and then output any late arriving
+ * elements once-per (actual hour) hour until we have finished processing the next 24-hours of data.
+ * (The use of watermark time to stop processing tends to be more robust if the data source is slow
+ * for a few days, etc.)
+ *
+ * <pre> {@code
+ * PCollection<String> items = ...;
+ * PCollection<String> windowed_items = item.apply(
+ *   Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES)
+ *      .triggering(AfterEach.inOrder(
+ *          AfterWatermark.pastEndOfWindow(),
+ *          Repeatedly
+ *              .forever(AfterProcessingTime
+ *                  .pastFirstElementInPane().plusDelay(Duration.standardMinutes(1)))
+ *              .until(AfterWatermark
+ *                  .pastEndOfWindow().plusDelay(Duration.standardDays(1)))));
+ * PCollection<KV<String, Long>> windowed_counts = windowed_items.apply(
+ *   Count.<String>perElement());
+ * } </pre>
+ *
+ * <p> On the other hand, if we wanted to get early results every minute of processing
+ * time (for which there were new elements in the given window) we could do the following:
+ *
+ * <pre> {@code
+ * PCollection<String> windowed_items = item.apply(
+ *   Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES)
+ *      .triggering(Repeatedly
+ *              .forever(AfterProcessingTime
+ *                  .pastFirstElementInPane().plusDelay(Duration.standardMinutes(1)))
+ *              .until(AfterWatermark.pastEndOfWindow())));
+ * } </pre>
+ *
+ * <p> See {@link Trigger} for details on the available triggers.
  */
 public class Window {
   /**
