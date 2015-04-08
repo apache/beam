@@ -80,7 +80,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   private DataflowPipelineRunnerHooks hooks;
 
   // Environment version information
-  private static final String ENVIRONMENT_MAJOR_VERSION = "3";
+  private static final String ENVIRONMENT_MAJOR_VERSION = "2";
 
   /**
    * Construct a runner from the provided options.
@@ -141,10 +141,16 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   @SuppressWarnings("unchecked")
   public <Output extends POutput, Input extends PInput> Output apply(
       PTransform<Input, Output> transform, Input input) {
-    if (transform instanceof Combine.GroupedValues || transform instanceof GroupByKey) {
+    if (transform instanceof Combine.GroupedValues) {
       // TODO: Redundant with translator registration?
       return (Output) PCollection.createPrimitiveOutputInternal(
           ((PCollection<?>) input).getWindowingStrategy());
+    } else if (transform instanceof GroupByKey) {
+      // The DataflowPipelineRunner implementation of GroupByKey will sort values by timestamp,
+      // so no need for an explicit sort transform.
+      boolean runnerSortsByTimestamp = true;
+      return (Output) ((GroupByKey) transform).applyHelper(
+          (PCollection<?>) input, options.isStreaming(), runnerSortsByTimestamp);
     } else if (transform instanceof Create) {
       return (Output) ((Create) transform).applyHelper(input, options.isStreaming());
     } else {

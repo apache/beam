@@ -25,6 +25,8 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
+import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
@@ -163,99 +165,14 @@ public class GroupByKey<K, V>
     return new GroupByKey<>(fewKeys);
   }
 
-  /**
-   * Returns whether it groups just few keys.
-   */
-  public boolean fewKeys() {
-    return fewKeys;
-  }
 
   /////////////////////////////////////////////////////////////////////////////
 
   @Override
   public PCollection<KV<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
-    // This operation groups by the combination of key and window,
-    // merging windows as needed, using the windows assigned to the
-    // key/value input elements and the window merge operation of the
-    // window function associated with the input PCollection.
-    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-    if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
-      String cause = ((InvalidWindows<?>) windowingStrategy.getWindowFn()).getCause();
-      throw new IllegalStateException(
-          "GroupByKey must have a valid Window merge function.  "
-          + "Invalid because: " + cause);
-    }
-    // By default, implement GroupByKey[AndWindow] via a series of lower-level
-    // operations.
-    return input
-        // Make each input element's timestamp and assigned windows
-        // explicit, in the value part.
-        .apply(new ReifyTimestampsAndWindows<K, V>())
-
-        // Group by just the key.
-        // Combiner lifting will not happen regardless of the disallowCombinerLifting value.
-        // There will be no combiners right after the GroupByKeyOnly because of the two ParDos
-        // introduced in here.
-        .apply(new GroupByKeyOnly<K, WindowedValue<V>>())
-
-        // Sort each key's values by timestamp. GroupAlsoByWindow requires
-        // its input to be sorted by timestamp.
-        .apply(new SortValuesByTimestamp<K, V>())
-
-        // Group each key's values by window, merging windows as needed.
-        .apply(new GroupAlsoByWindow<K, V>(windowingStrategy));
+    return applyHelper(input, false, false);
   }
 
-  @Override
-  protected Coder<KV<K, Iterable<V>>> getDefaultOutputCoder(PCollection<KV<K, V>> input) {
-    return getOutputKvCoder(input.getCoder());
-  }
-
-  /**
-   * Returns the {@code Coder} of the input to this transform, which
-   * should be a {@code KvCoder}.
-   */
-  @SuppressWarnings("unchecked")
-  static <K, V> KvCoder<K, V> getInputKvCoder(Coder<KV<K, V>> inputCoder) {
-    if (!(inputCoder instanceof KvCoder)) {
-      throw new IllegalStateException(
-          "GroupByKey requires its input to use KvCoder");
-    }
-    return (KvCoder<K, V>) inputCoder;
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * Returns the {@code Coder} of the keys of the input to this
-   * transform, which is also used as the {@code Coder} of the keys of
-   * the output of this transform.
-   */
-  static <K, V> Coder<K> getKeyCoder(Coder<KV<K, V>> inputCoder) {
-    return getInputKvCoder(inputCoder).getKeyCoder();
-  }
-
-  /**
-   * Returns the {@code Coder} of the values of the input to this transform.
-   */
-  static <K, V> Coder<V> getInputValueCoder(Coder<KV<K, V>> inputCoder) {
-    return getInputKvCoder(inputCoder).getValueCoder();
-  }
-
-  /**
-   * Returns the {@code Coder} of the {@code Iterable} values of the
-   * output of this transform.
-   */
-  static <K, V> Coder<Iterable<V>> getOutputValueCoder(Coder<KV<K, V>> inputCoder) {
-    return IterableCoder.of(getInputValueCoder(inputCoder));
-  }
-
-  /**
-   * Returns the {@code Coder} of the output of this transform.
-   */
-  static <K, V> KvCoder<K, Iterable<V>> getOutputKvCoder(Coder<KV<K, V>> inputCoder) {
-    return KvCoder.of(getKeyCoder(inputCoder), getOutputValueCoder(inputCoder));
-  }
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -380,6 +297,12 @@ public class GroupByKey<K, V>
   public static class GroupByKeyOnly<K, V>
       extends PTransform<PCollection<KV<K, V>>,
                          PCollection<KV<K, Iterable<V>>>> {
+    final boolean disallowCombinerLifting;
+
+    public GroupByKeyOnly(boolean disallowCombinerLifting) {
+      this.disallowCombinerLifting = disallowCombinerLifting;
+    }
+
     @Override
     public void validate(PCollection<KV<K, V>> input) {
       // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
@@ -423,9 +346,47 @@ public class GroupByKey<K, V>
       return (KvCoder<K, V>) inputCoder;
     }
 
+    /**
+     * Returns the {@code Coder} of the keys of the input to this
+     * transform, which is also used as the {@code Coder} of the keys of
+     * the output of this transform.
+     */
+    Coder<K> getKeyCoder(Coder<KV<K, V>> inputCoder) {
+      return getInputKvCoder(inputCoder).getKeyCoder();
+    }
+
+    /**
+     * Returns the {@code Coder} of the values of the input to this transform.
+     */
+    Coder<V> getInputValueCoder(Coder<KV<K, V>> inputCoder) {
+      return getInputKvCoder(inputCoder).getValueCoder();
+    }
+
+    /**
+     * Returns the {@code Coder} of the {@code Iterable} values of the
+     * output of this transform.
+     */
+    Coder<Iterable<V>> getOutputValueCoder(Coder<KV<K, V>> inputCoder) {
+      return IterableCoder.of(getInputValueCoder(inputCoder));
+    }
+
+    /**
+     * Returns the {@code Coder} of the output of this transform.
+     */
+    KvCoder<K, Iterable<V>> getOutputKvCoder(Coder<KV<K, V>> inputCoder) {
+      return KvCoder.of(getKeyCoder(inputCoder), getOutputValueCoder(inputCoder));
+    }
+
     @Override
     protected Coder<KV<K, Iterable<V>>> getDefaultOutputCoder(PCollection<KV<K, V>> input) {
-      return GroupByKey.getOutputKvCoder(input.getCoder());
+      return getOutputKvCoder(input.getCoder());
+    }
+
+    /**
+     * Returns whether this GBK allows lifting combiner through.
+     */
+    public boolean disallowCombinerLifting() {
+      return disallowCombinerLifting;
     }
   }
 
@@ -458,7 +419,7 @@ public class GroupByKey<K, V>
     List<ValueWithMetadata<KV<K, V>>> inputElems =
         context.getPCollectionValuesWithMetadata(input);
 
-    Coder<K> keyCoder = GroupByKey.getKeyCoder(input.getCoder());
+    Coder<K> keyCoder = transform.getKeyCoder(input.getCoder());
 
     Map<GroupingKey<K>, List<V>> groupingMap = new HashMap<>();
 
@@ -499,6 +460,67 @@ public class GroupByKey<K, V>
 
     context.setPCollectionValuesWithMetadata(context.getOutput(transform),
                                              outputElems);
+  }
+
+  public PCollection<KV<K, Iterable<V>>> applyHelper(
+      PCollection<KV<K, V>> input, boolean isStreaming, boolean runnerSortsByTimestamp) {
+    Coder<KV<K, V>> inputCoder = input.getCoder();
+    if (!(inputCoder instanceof KvCoder)) {
+      throw new IllegalStateException(
+          "GroupByKey requires its input to use KvCoder");
+    }
+    // This operation groups by the combination of key and window,
+    // merging windows as needed, using the windows assigned to the
+    // key/value input elements and the window merge operation of the
+    // window function associated with the input PCollection.
+    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+    if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
+      String cause = ((InvalidWindows<?>) windowingStrategy.getWindowFn()).getCause();
+      throw new IllegalStateException(
+          "GroupByKey must have a valid Window merge function.  "
+          + "Invalid because: " + cause);
+    }
+    boolean disallowCombinerLifting =
+        !(windowingStrategy.getWindowFn() instanceof NonMergingWindowFn)
+        || (isStreaming && !fewKeys)
+        // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
+        || !(windowingStrategy.getTrigger() instanceof DefaultTrigger);
+
+    if (windowingStrategy.getWindowFn().isCompatible(new GlobalWindows())
+        && windowingStrategy.getTrigger() instanceof DefaultTrigger) {
+      // The input PCollection is using the degenerate default
+      // window function, which uses a single global window for all
+      // elements.  We can implement this using a more-primitive
+      // non-window-aware GBK transform.
+      return input.apply(new GroupByKeyOnly<K, V>(disallowCombinerLifting));
+
+    } else if (isStreaming) {
+      // If using the streaming runner, the service will do the insertion of
+      // the GroupAlsoByWindow step.
+      // TODO: Remove this case once the Dataflow Runner handles GBK directly
+      return input.apply(new GroupByKeyOnly<K, V>(disallowCombinerLifting));
+
+    } else {
+      // By default, implement GroupByKey[AndWindow] via a series of lower-level
+      // operations.
+      PCollection<KV<K, Iterable<WindowedValue<V>>>> gbkOutput = input
+          // Make each input element's timestamp and assigned windows
+          // explicit, in the value part.
+          .apply(new ReifyTimestampsAndWindows<K, V>())
+
+          // Group by just the key.
+          .apply(new GroupByKeyOnly<K, WindowedValue<V>>(disallowCombinerLifting));
+
+      if (!runnerSortsByTimestamp) {
+        // Sort each key's values by timestamp. GroupAlsoByWindow requires
+        // its input to be sorted by timestamp.
+        gbkOutput = gbkOutput.apply(new SortValuesByTimestamp<K, V>());
+      }
+
+      return gbkOutput
+          // Group each key's values by window, merging windows as needed.
+          .apply(new GroupAlsoByWindow<K, V>(windowingStrategy));
+    }
   }
 
   private static class GroupingKey<K> {
