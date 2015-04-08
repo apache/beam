@@ -20,18 +20,22 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.dataflow.examples.common.DataflowExampleOptions;
+import com.google.cloud.dataflow.examples.common.DataflowExampleUtils;
+import com.google.cloud.dataflow.examples.common.ExampleBigQueryTableOptions;
+import com.google.cloud.dataflow.examples.common.ExamplePubsubTopicOptions;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.options.Validation;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -45,6 +49,9 @@ import com.google.common.base.MoreObjects;
 
 import org.apache.avro.reflect.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -52,40 +59,42 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
-
 /**
- * A streaming Dataflow Example using BigQuery output, in the 'traffic sensor' domain.
+ * A Dataflow Example that runs in both batch and streaming modes with traffic sensor data.
+ * You can configure the running mode by setting {@literal --streaming} to true or false.
  *
- * <p>Concepts: The streaming runner, GroupByKey, keyed state, sliding windows, and
- * PubSub topic ingestion.
+ * <p>Concepts: The batch and streaming runners, GroupByKey, keyed state, sliding windows, and
+ * Google Cloud Pub/Sub topic injection.
  *
- * <p> This pipeline takes as input traffic sensor data from a PubSub topic, and analyzes it using
- * SlidingWindows. For each window, it calculates the average speed over the window for some small
- * set of predefined 'routes', and looks for 'slowdowns' in those routes. It uses keyed state to
- * track slowdown information across successive sliding windows. It writes its results to a
- * BigQuery table.
+ * <p> This example analyzes traffic sensor data using SlidingWindows. For each window,
+ * it calculates the average speed over the window for some small set of predefined 'routes',
+ * and looks for 'slowdowns' in those routes. It uses keyed state to track slowdown information
+ * across successive sliding windows. It writes its results to a BigQuery table.
  *
- * <p> This pipeline expects input from
- * <a href="https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher">
- * this script</a>, which publishes traffic sensor data to a PubSub topic.
- * After you've started this pipeline, start
- * up the input generation script as per its instructions. The default SlidingWindow parameters
- * assume that you're running this script without the {@literal --replay} flag, so that there are
- * no simulated pauses in the sensor data publication.
+ * <p> In batch mode, the pipeline reads traffic sensor data from {@literal --inputFile}.
  *
- * <p> To run this example using the Dataflow service, you must provide an input
- * PubSub topic and an output BigQuery table, using the {@literal --inputTopic},
- * {@literal --dataset}, and {@literal --table} options. Since this is a streaming
- * pipeline that never completes, select the non-blocking pipeline runner by specifying
- * {@literal --runner=DataflowPipelineRunner}.
+ * <p> In streaming mode, the pipeline reads the data from a Pub/Sub topic.
+ * By default, the example will run a separate pipeline to inject the data from the default
+ * {@literal --inputFile} to the Pub/Sub {@literal --inputTopic}. It will make it available for
+ * the streaming pipeline to process. You may override the default {@literal --inputFile} with the
+ * file of your choosing. You may also set {@literal --inputTopic} to an empty string, which will
+ * disable the automatic Pub/Sub injection, and allow you to use separate tool to control the input
+ * to this example. An example code, which publishes traffic sensor data to a Pub/Sub topic,
+ * is provided in
+ * <a href="https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher"></a>.
  *
- * <p> When you are done running the example, cancel your pipeline so that you do not continue to
- * be charged for its instances. You can do this by visiting
- * https://console.developers.google.com/project/your-project-name/dataflow/job-id
- * in the Developers Console. You should also terminate the generator script so that you do not
- * use unnecessary PubSub quota.
+ * <p> The example is configured to use the default Pub/Sub topic and the default BigQuery table
+ * from the example common package (there is no defaults for a general Dataflow pipeline).
+ * You can override them by using the {@literal --inputTopic}, {@literal --bigQueryDataset}, and
+ * {@literal --bigQueryTable} options. If the Pub/Sub topic or the BigQuery table do not exist,
+ * the example will try to create them.
+ *
+ * <p> The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
+ * and then exits.
  */
-public class TrafficStreamingRoutes {
+
+public class TrafficRoutes {
+
   // Instantiate some small predefined San Diego routes to analyze
   static Map<String, String> sdStations = buildStationInfo();
   static final int WINDOW_DURATION = 3;  // Default sliding window duration in minutes
@@ -149,26 +158,42 @@ public class TrafficStreamingRoutes {
    */
   static class ExtractStationSpeedFn extends DoFn<String, KV<String, StationSpeed>> {
     private static final long serialVersionUID = 0;
+    private static final DateTimeFormatter dateTimeFormat =
+        DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
+
+    private final boolean outputTimestamp;
+
+    public ExtractStationSpeedFn(boolean outputTimestamp) {
+      this.outputTimestamp = outputTimestamp;
+    }
+
 
     @Override
     public void processElement(ProcessContext c) {
       String[] items = c.element().split(",");
-      String stationId = items[1];
-      String stationType = items[4];
-      Double avgSpeed = tryDoubleParse(items[9]);
+      String stationType = tryParseStationType(items);
       // For this analysis, use only 'main line' station types
-      if (stationType.equals("ML")) {
+      if (stationType != null && stationType.equals("ML")) {
+        Double avgSpeed = tryParseAvgSpeed(items);
+        String stationId = tryParseStationId(items);
         // For this simple example, filter out everything but some hardwired routes.
-        if (sdStations.containsKey(stationId)) {
+        if (avgSpeed != null && stationId != null && sdStations.containsKey(stationId)) {
           StationSpeed stationSpeed = new StationSpeed(stationId, avgSpeed);
           // The tuple key is the 'route' name stored in the 'sdStations' hash.
-          c.output(KV.of(sdStations.get(stationId), stationSpeed));
+          KV<String, StationSpeed> outputValue = KV.of(sdStations.get(stationId), stationSpeed);
+          if (outputTimestamp) {
+            String timestamp = tryParseTimestamp(items);
+            c.outputWithTimestamp(outputValue,
+                                  new Instant(dateTimeFormat.parseMillis(timestamp)));
+          } else {
+            c.output(outputValue);
+          }
         }
       }
     }
   }
 
-  /*
+  /**
    * For a given route, track average speed for the window. Calculate whether traffic is currently
    * slowing down, via a predefined threshold. Use keyed state to keep a count of the speed drops,
    * with at least 3 in a row constituting a 'slowdown'.
@@ -244,7 +269,9 @@ public class TrafficStreamingRoutes {
       c.output(row);
     }
 
-    /** Defines the BigQuery schema used for the output. */
+    /**
+     * Defines the BigQuery schema used for the output.
+     */
     static TableSchema getSchema() {
       List<TableFieldSchema> fields = new ArrayList<>();
       fields.add(new TableFieldSchema().setName("route").setType("STRING"));
@@ -261,18 +288,15 @@ public class TrafficStreamingRoutes {
    * It groups the readings by 'route' and analyzes traffic slowdown for that route, using keyed
    * state to retain previous slowdown information. Then, it formats the results for BigQuery.
    */
-  static class TrackSpeed extends PTransform<PCollection<String>, PCollection<TableRow>> {
+  static class TrackSpeed extends
+      PTransform<PCollection<KV<String, StationSpeed>>, PCollection<TableRow>> {
     private static final long serialVersionUID = 0;
 
     @Override
-    public PCollection<TableRow> apply(PCollection<String> rows) {
-      // row... => <station route, station speed> ...
-      PCollection<KV<String, StationSpeed>> flowInfo = rows.apply(
-          ParDo.of(new ExtractStationSpeedFn()));
-
+    public PCollection<TableRow> apply(PCollection<KV<String, StationSpeed>> stationSpeed) {
       // Apply a GroupByKey transform to collect a list of all station
       // readings for a given route.
-      PCollection<KV<String, Iterable<StationSpeed>>> timeGroup = flowInfo.apply(
+      PCollection<KV<String, Iterable<StationSpeed>>> timeGroup = stationSpeed.apply(
         GroupByKey.<String, StationSpeed>create());
 
       // Analyze 'slowdown' over the route readings.
@@ -288,25 +312,17 @@ public class TrafficStreamingRoutes {
 
 
   /**
-  * Options supported by {@link TrafficStreamingRoutes}.
-  * <p>
-  * Inherits standard configuration options.
+  * Options supported by {@link TrafficRoutes}.
+  *
+  * <p> Inherits standard configuration options.
   */
-  private interface TrafficStreamingRoutesOptions extends PipelineOptions {
-    @Description("Input PubSub topic")
-    @Validation.Required
-    String getInputTopic();
-    void setInputTopic(String value);
-
-    @Description("BigQuery dataset name")
-    @Validation.Required
-    String getDataset();
-    void setDataset(String value);
-
-    @Description("BigQuery table name")
-    @Validation.Required
-    String getTable();
-    void setTable(String value);
+  private interface TrafficRoutesOptions
+      extends DataflowExampleOptions, ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
+    @Description("Input file to inject to Pub/Sub topic")
+    @Default.String("gs://dataflow-samples/traffic_sensor/"
+        + "Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv")
+    String getInputFile();
+    void setInputFile(String value);
 
     @Description("Numeric value of sliding window duration, in minutes")
     @Default.Integer(WINDOW_DURATION)
@@ -321,49 +337,92 @@ public class TrafficStreamingRoutes {
 
   /**
    * Sets up and starts streaming pipeline.
+   *
+   * @throws IOException if there is a problem setting up resources
    */
-  public static void main(String[] args) {
-    TrafficStreamingRoutesOptions options = PipelineOptionsFactory.fromArgs(args)
+  public static void main(String[] args) throws IOException {
+    TrafficRoutesOptions options = PipelineOptionsFactory.fromArgs(args)
         .withValidation()
-        .as(TrafficStreamingRoutesOptions.class);
-    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-    dataflowOptions.setStreaming(true);
+        .as(TrafficRoutesOptions.class);
+
+    if (options.isStreaming()) {
+      // In order to cancel the pipelines automatically,
+      // {@literal DataflowPipelineRunner} is forced to be used.
+      options.setRunner(DataflowPipelineRunner.class);
+    }
+    options.setBigQuerySchema(FormatStatsFn.getSchema());
+    // Using DataflowExampleUtils to set up required resources.
+    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
+    dataflowUtils.setup();
 
     Pipeline pipeline = Pipeline.create(options);
     TableReference tableRef = new TableReference();
-    tableRef.setProjectId(dataflowOptions.getProject());
-    tableRef.setDatasetId(options.getDataset());
-    tableRef.setTableId(options.getTable());
-    pipeline
-        .apply(PubsubIO.Read.topic(options.getInputTopic()))
-        /* map the incoming data stream into sliding windows.
-           The default window duration values work well if you're running the accompanying PubSub
-           generator script without the --replay flag, so that there are no simulated pauses in
-           the sensor data publication. You may want to adjust the values otherwise. */
-        .apply(Window.<String>into(SlidingWindows.of(
+    tableRef.setProjectId(options.getProject());
+    tableRef.setDatasetId(options.getBigQueryDataset());
+    tableRef.setTableId(options.getBigQueryTable());
+
+    PCollection<KV<String, StationSpeed>> input;
+    if (options.isStreaming()) {
+      input = pipeline
+          .apply(PubsubIO.Read.topic(options.getPubsubTopic()))
+          // row... => <station route, station speed> ...
+          .apply(ParDo.of(new ExtractStationSpeedFn(false /* outputTimestamp */)));
+    } else {
+      input = pipeline
+          .apply(TextIO.Read.from(options.getInputFile()))
+          .apply(ParDo.of(new ExtractStationSpeedFn(true /* outputTimestamp */)));
+    }
+
+    // map the incoming data stream into sliding windows.
+    // The default window duration values work well if you're running the accompanying Pub/Sub
+    // generator script without the --replay flag, so that there are no simulated pauses in
+    // the sensor data publication. You may want to adjust the values otherwise.
+    input.apply(Window.<KV<String, StationSpeed>>into(SlidingWindows.of(
             Duration.standardMinutes(options.getWindowDuration())).
             every(Duration.standardMinutes(options.getWindowSlideEvery()))))
         .apply(new TrackSpeed())
         .apply(BigQueryIO.Write.to(tableRef)
             .withSchema(FormatStatsFn.getSchema()));
 
-    /* When you are done running the example, cancel your pipeline so that you do not continue to
-       be charged for its instances. You can do this by visiting
-       https://console.developers.google.com/project/your-project-name/dataflow/job-id
-       in the Developers Console. You should also terminate the generator script so that you do not
-       use unnecessary PubSub quota. */
-    pipeline.run();
+    PipelineResult result = pipeline.run();
+    if (options.isStreaming() && !options.getInputFile().isEmpty()) {
+      // Inject the data into the Pub/Sub topic with a Dataflow batch pipeline.
+      dataflowUtils.runInjectorPipeline(options.getInputFile(), options.getPubsubTopic());
+    }
+
+    // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
+    dataflowUtils.waitToFinish(result);
   }
 
-  private static Double tryDoubleParse(String number) {
+  private static Double tryParseAvgSpeed(String[] inputItems) {
     try {
-      return Double.parseDouble(number);
+      return Double.parseDouble(tryParseString(inputItems, 9));
     } catch (NumberFormatException e) {
+      return null;
+    } catch (NullPointerException e) {
       return null;
     }
   }
 
-  /** Define some small hard-wired San Diego 'routes' to track based on sensor station ID. */
+  private static String tryParseStationType(String[] inputItems) {
+    return tryParseString(inputItems, 4);
+  }
+
+  private static String tryParseStationId(String[] inputItems) {
+    return tryParseString(inputItems, 1);
+  }
+
+  private static String tryParseTimestamp(String[] inputItems) {
+    return tryParseString(inputItems, 0);
+  }
+
+  private static String tryParseString(String[] inputItems, int index) {
+    return inputItems.length >= index ? inputItems[index] : null;
+  }
+
+  /**
+   * Define some small hard-wired San Diego 'routes' to track based on sensor station ID.
+   */
   private static Map<String, String> buildStationInfo() {
     Map<String, String> stations = new Hashtable<String, String>();
       stations.put("1108413", "SDRoute1"); // from freeway 805 S
@@ -371,5 +430,4 @@ public class TrafficStreamingRoutes {
       stations.put("1108702", "SDRoute2");
     return stations;
   }
-
 }

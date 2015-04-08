@@ -63,7 +63,7 @@ public class DataflowPipelineJob implements PipelineResult {
   private State terminalState;
 
   /**
-   * Construct the job.
+   * Constructs the job.
    *
    * @param projectId the project id
    * @param jobId the job id
@@ -89,7 +89,7 @@ public class DataflowPipelineJob implements PipelineResult {
   }
 
   /**
-   * Wait for the job to finish and return the final status.
+   * Waits for the job to finish and return the final status.
    *
    * @param timeToWait The time to wait in units timeUnit for the job to finish.
    * @param timeUnit The unit of time for timeToWait.
@@ -161,6 +161,20 @@ public class DataflowPipelineJob implements PipelineResult {
           endTime - System.currentTimeMillis(), interval);
       TimeUnit.MILLISECONDS.sleep(sleepTime);
     }
+  }
+
+  /**
+   * Cancels the job.
+   * @throws IOException if there is a problem executing the cancel request.
+   */
+  public void cancel() throws IOException {
+    Job content = new Job();
+    content.setProjectId(project);
+    content.setId(jobId);
+    content.setRequestedState("JOB_STATE_CANCELLED");
+    dataflowClient.v1b3().projects().jobs()
+        .update(project, jobId, content)
+        .execute();
   }
 
   @Override

@@ -20,17 +20,21 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.dataflow.examples.common.DataflowExampleOptions;
+import com.google.cloud.dataflow.examples.common.DataflowExampleUtils;
+import com.google.cloud.dataflow.examples.common.ExampleBigQueryTableOptions;
+import com.google.cloud.dataflow.examples.common.ExamplePubsubTopicOptions;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.options.Validation;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -43,41 +47,47 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import org.apache.avro.reflect.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A streaming Dataflow Example using BigQuery output, in the 'traffic sensor' domain.
+ * A Dataflow Example that runs in both batch and streaming modes with traffic sensor data.
+ * You can configure the running mode by setting {@literal --streaming} to true or false.
  *
- * <p>Concepts: The streaming runner, sliding windows, PubSub topic ingestion, use of the AvroCoder
- * to encode a custom class, and custom Combine transforms.
+ * <p>Concepts: The batch and streaming runners, sliding windows, Google Cloud Pub/Sub
+ * topic injection, use of the AvroCoder to encode a custom class, and custom Combine transforms.
  *
- * <p> This pipeline takes as input traffic sensor data from a PubSub topic, and analyzes it using
- * SlidingWindows. For each window, it finds the lane that had the highest flow recorded, for each
- * sensor station. It writes those max values along with auxiliary info to a BigQuery table.
+ * <p> This example analyzes traffic sensor data using SlidingWindows. For each window,
+ * it finds the lane that had the highest flow recorded, for each sensor station. It writes
+ * those max values along with auxiliary info to a BigQuery table.
  *
- * <p> This pipeline expects input from
- * <a href="https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher">
- * this script</a>, which publishes traffic sensor data to a PubSub topic.
- * After you've started this pipeline, start
- * up the input generation script as per its instructions. The default SlidingWindow parameters
- * assume that you're running this script with the {@literal --replay} flag, which simulates pauses
- * in the sensor data publication.
+ * <p> In batch mode, the pipeline reads traffic sensor data from {@literal --inputFile}.
  *
- * <p> To run this example using the Dataflow service, you must provide an input
- * PubSub topic and an output BigQuery table, using the {@literal --inputTopic},
- * {@literal --dataset}, and {@literal --table} options. Since this is a streaming
- * pipeline that never completes, select the non-blocking pipeline runner by specifying
- * {@literal --runner=DataflowPipelineRunner}.
+ * <p> In streaming mode, the pipeline reads the data from a Pub/Sub topic.
+ * By default, the example will run a separate pipeline to inject the data from the default
+ * {@literal --inputFile} to the Pub/Sub {@literal --inputTopic}. It will make it available for
+ * the streaming pipeline to process. You may override the default {@literal --inputFile} with the
+ * file of your choosing. You may also set {@literal --inputTopic} to an empty string, which will
+ * disable the automatic Pub/Sub injection, and allow you to use separate tool to control the input
+ * to this example. An example code, which publishes traffic sensor data to a Pub/Sub topic,
+ * is provided in
+ * <a href="https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher"></a>.
  *
- * <p> When you are done running the example, cancel your pipeline so that you do not continue to
- * be charged for its instances. You can do this by visiting
- * https://console.developers.google.com/project/your-project-name/dataflow/job-id
- * in the Developers Console. You should also terminate the generator script so that you do not
- * use unnecessary PubSub quota.
+ * <p> The example is configured to use the default Pub/Sub topic and the default BigQuery table
+ * from the example common package (there is no defaults for a general Dataflow pipeline).
+ * You can override them by using the {@literal --inputTopic}, {@literal --bigQueryDataset}, and
+ * {@literal --bigQueryTable} options. If the Pub/Sub topic or the BigQuery table do not exist,
+ * the example will try to create them.
+ *
+ * <p> The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
+ * and then exits.
  */
-public class TrafficStreamingMaxLaneFlow {
+public class TrafficMaxLaneFlow {
 
   static final int WINDOW_DURATION = 60;  // Default sliding window duration in minutes
   static final int WINDOW_SLIDE_EVERY = 5;  // Default window 'slide every' setting in minutes
@@ -152,74 +162,48 @@ public class TrafficStreamingMaxLaneFlow {
    */
   static class ExtractFlowInfoFn extends DoFn<String, KV<String, LaneInfo>> {
     private static final long serialVersionUID = 0;
+    private static final DateTimeFormatter dateTimeFormat =
+        DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
+
+    private final boolean outputTimestamp;
+
+    public ExtractFlowInfoFn(boolean outputTimestamp) {
+      this.outputTimestamp = outputTimestamp;
+    }
 
     @Override
     public void processElement(ProcessContext c) {
       String[] items = c.element().split(",");
+      if (items.length < 48) {
+        // Skip the invalid input.
+        return;
+      }
       // extract the sensor information for the lanes from the input string fields.
       String timestamp = items[0];
       String stationId = items[1];
       String freeway = items[2];
       String direction = items[3];
       Integer totalFlow = tryIntParse(items[7]);
-      // lane 1
-      Integer lane1Flow = tryIntParse(items[11]);
-      Double lane1AO = tryDoubleParse(items[12]);
-      Double lane1AS = tryDoubleParse(items[13]);
-      // lane2
-      Integer lane2Flow = tryIntParse(items[16]);
-      Double lane2AO = tryDoubleParse(items[17]);
-      Double lane2AS = tryDoubleParse(items[18]);
-      // lane3
-      Integer lane3Flow = tryIntParse(items[21]);
-      Double lane3AO = tryDoubleParse(items[22]);
-      Double lane3AS = tryDoubleParse(items[23]);
-      // lane4
-      Integer lane4Flow = tryIntParse(items[26]);
-      Double lane4AO = tryDoubleParse(items[27]);
-      Double lane4AS = tryDoubleParse(items[28]);
-      // lane5
-      Integer lane5Flow = tryIntParse(items[31]);
-      Double lane5AO = tryDoubleParse(items[32]);
-      Double lane5AS = tryDoubleParse(items[33]);
-      // lane6
-      Integer lane6Flow = tryIntParse(items[36]);
-      Double lane6AO = tryDoubleParse(items[37]);
-      Double lane6AS = tryDoubleParse(items[38]);
-      // lane7
-      Integer lane7Flow = tryIntParse(items[41]);
-      Double lane7AO = tryDoubleParse(items[42]);
-      Double lane7AS = tryDoubleParse(items[43]);
-      // lane8
-      Integer lane8Flow = tryIntParse(items[46]);
-      Double lane8AO = tryDoubleParse(items[47]);
-      Double lane8AS = tryDoubleParse(items[48]);
-
-      // For each lane in the reading, output LaneInfo keyed to its station.
-      LaneInfo laneInfo1 = new LaneInfo(stationId, "lane1", direction, freeway, timestamp,
-          lane1Flow, lane1AO, lane1AS, totalFlow);
-      c.output(KV.of(stationId, laneInfo1));
-      LaneInfo laneInfo2 = new LaneInfo(stationId, "lane2", direction, freeway, timestamp,
-          lane2Flow, lane2AO, lane2AS, totalFlow);
-      c.output(KV.of(stationId, laneInfo2));
-      LaneInfo laneInfo3 = new LaneInfo(stationId, "lane3", direction, freeway, timestamp,
-          lane3Flow, lane3AO, lane3AS, totalFlow);
-      c.output(KV.of(stationId, laneInfo3));
-      LaneInfo laneInfo4 = new LaneInfo(stationId, "lane4", direction, freeway, timestamp,
-          lane4Flow, lane4AO, lane4AS, totalFlow);
-      c.output(KV.of(stationId, laneInfo4));
-      LaneInfo laneInfo5 = new LaneInfo(stationId, "lane5", direction, freeway, timestamp,
-          lane5Flow, lane5AO, lane5AS, totalFlow);
-      c.output(KV.of(stationId, laneInfo5));
-      LaneInfo laneInfo6 = new LaneInfo(stationId, "lane6", direction, freeway, timestamp,
-          lane6Flow, lane6AO, lane6AS, totalFlow);
-      c.output(KV.of(stationId, laneInfo6));
-      LaneInfo laneInfo7 = new LaneInfo(stationId, "lane7", direction, freeway, timestamp,
-          lane7Flow, lane7AO, lane7AS, totalFlow);
-      c.output(KV.of(stationId, laneInfo7));
-      LaneInfo laneInfo8 = new LaneInfo(stationId, "lane8", direction, freeway, timestamp,
-          lane8Flow, lane8AO, lane8AS, totalFlow);
-      c.output(KV.of(stationId, laneInfo8));
+      for (int i = 1; i <= 8; ++i) {
+        Integer laneFlow = tryIntParse(items[6 + 5 * i]);
+        Double laneAvgOccupancy = tryDoubleParse(items[7 + 5 * i]);
+        Double laneAvgSpeed = tryDoubleParse(items[8 + 5 * i]);
+        if (laneFlow == null || laneAvgOccupancy == null || laneAvgSpeed == null) {
+          return;
+        }
+        LaneInfo laneInfo = new LaneInfo(stationId, "lane" + i, direction, freeway, timestamp,
+            laneFlow, laneAvgOccupancy, laneAvgSpeed, totalFlow);
+        if (outputTimestamp) {
+          try {
+            c.outputWithTimestamp(KV.of(stationId, laneInfo),
+                                  new Instant(dateTimeFormat.parseMillis(timestamp)));
+          } catch (IllegalArgumentException e) {
+            // Skip the invalid input.
+          }
+        } else {
+          c.output(KV.of(stationId, laneInfo));
+        }
+      }
     }
   }
 
@@ -258,7 +242,7 @@ public class TrafficStreamingMaxLaneFlow {
     @Override
     public void processElement(ProcessContext c) {
 
-      LaneInfo laneInfo = (LaneInfo) c.element().getValue();
+      LaneInfo laneInfo = c.element().getValue();
       TableRow row = new TableRow()
           .set("station_id", c.element().getKey())
           .set("direction", laneInfo.getDirection())
@@ -296,15 +280,11 @@ public class TrafficStreamingMaxLaneFlow {
    * the current Window) using a custom 'combiner', and formats the results for BigQuery.
    */
   static class MaxLaneFlow
-      extends PTransform<PCollection<String>, PCollection<TableRow>> {
+      extends PTransform<PCollection<KV<String, LaneInfo>>, PCollection<TableRow>> {
     private static final long serialVersionUID = 0;
 
     @Override
-    public PCollection<TableRow> apply(PCollection<String> rows) {
-      // row... => <stationId, LaneInfo> ...
-      PCollection<KV<String, LaneInfo>> flowInfo = rows.apply(
-          ParDo.of(new ExtractFlowInfoFn()));
-
+    public PCollection<TableRow> apply(PCollection<KV<String, LaneInfo>> flowInfo) {
       // stationId, LaneInfo => stationId + max lane flow info
       PCollection<KV<String, LaneInfo>> flowMaxes =
           flowInfo.apply(Combine.<String, LaneInfo>perKey(
@@ -319,25 +299,17 @@ public class TrafficStreamingMaxLaneFlow {
   }
 
   /**
-    * Options supported by {@link TrafficStreamingMaxLaneFlow}.
+    * Options supported by {@link TrafficMaxLaneFlow}.
     * <p>
     * Inherits standard configuration options.
     */
-  private interface TrafficStreamingMaxLaneFlowOptions extends PipelineOptions {
-    @Description("Input PubSub topic")
-    @Validation.Required
-    String getInputTopic();
-    void setInputTopic(String value);
-
-    @Description("BigQuery dataset name")
-    @Validation.Required
-    String getDataset();
-    void setDataset(String value);
-
-    @Description("BigQuery table name")
-    @Validation.Required
-    String getTable();
-    void setTable(String value);
+  private interface TrafficMaxLaneFlowOptions
+      extends DataflowExampleOptions, ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
+        @Description("Input file to inject to Pub/Sub topic")
+    @Default.String("gs://dataflow-samples/traffic_sensor/"
+        + "Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv")
+    String getInputFile();
+    void setInputFile(String value);
 
     @Description("Numeric value of sliding window duration, in minutes")
     @Default.Integer(WINDOW_DURATION)
@@ -352,38 +324,60 @@ public class TrafficStreamingMaxLaneFlow {
 
   /**
    * Sets up and starts streaming pipeline.
+   *
+   * @throws IOException if there is a problem setting up resources
    */
-  public static void main(String[] args) {
-    TrafficStreamingMaxLaneFlowOptions options = PipelineOptionsFactory.fromArgs(args)
+  public static void main(String[] args) throws IOException {
+    TrafficMaxLaneFlowOptions options = PipelineOptionsFactory.fromArgs(args)
         .withValidation()
-        .as(TrafficStreamingMaxLaneFlowOptions.class);
-    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-    dataflowOptions.setStreaming(true);
+        .as(TrafficMaxLaneFlowOptions.class);
+    if (options.isStreaming()) {
+      // In order to cancel the pipelines automatically,
+      // {@literal DataflowPipelineRunner} is forced to be used.
+      options.setRunner(DataflowPipelineRunner.class);
+    }
+    options.setBigQuerySchema(FormatMaxesFn.getSchema());
+    // Using DataflowExampleUtils to set up required resources.
+    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
+    dataflowUtils.setup();
 
     Pipeline pipeline = Pipeline.create(options);
     TableReference tableRef = new TableReference();
-    tableRef.setProjectId(dataflowOptions.getProject());
-    tableRef.setDatasetId(options.getDataset());
-    tableRef.setTableId(options.getTable());
-    pipeline
-        .apply(PubsubIO.Read.topic(options.getInputTopic()))
-        /* map the incoming data stream into sliding windows. The default window duration values
-           work well if you're running the accompanying PubSub generator script with the
-           --replay flag, which simulates pauses in the sensor data publication. You may want to
-           adjust them otherwise. */
-        .apply(Window.<String>into(SlidingWindows.of(
+    tableRef.setProjectId(options.getProject());
+    tableRef.setDatasetId(options.getBigQueryDataset());
+    tableRef.setTableId(options.getBigQueryTable());
+
+    PCollection<KV<String, LaneInfo>> input;
+    if (options.isStreaming()) {
+      input = pipeline
+          .apply(PubsubIO.Read.topic(options.getPubsubTopic()))
+          // row... => <stationId, LaneInfo> ...
+          .apply(ParDo.of(new ExtractFlowInfoFn(false /* outputTimestamp */)));
+    } else {
+      input = pipeline
+          .apply(TextIO.Read.from(options.getInputFile()))
+          // row... => <stationId, LaneInfo> ...
+          .apply(ParDo.of(new ExtractFlowInfoFn(true /* outputTimestamp */)));
+    }
+    // map the incoming data stream into sliding windows. The default window duration values
+    // work well if you're running the accompanying Pub/Sub generator script with the
+    // --replay flag, which simulates pauses in the sensor data publication. You may want to
+    // adjust them otherwise.
+    input.apply(Window.<KV<String, LaneInfo>>into(SlidingWindows.of(
             Duration.standardMinutes(options.getWindowDuration())).
             every(Duration.standardMinutes(options.getWindowSlideEvery()))))
         .apply(new MaxLaneFlow())
         .apply(BigQueryIO.Write.to(tableRef)
             .withSchema(FormatMaxesFn.getSchema()));
 
-    /* When you are done running the example, cancel your pipeline so that you do not continue to
-       be charged for its instances. You can do this by visiting
-       https://console.developers.google.com/project/your-project-name/dataflow/job-id
-       in the Developers Console. You should also terminate the generator script so that you do not
-       use unnecessary PubSub quota. */
-    pipeline.run();
+    PipelineResult result = pipeline.run();
+    if (options.isStreaming() && !options.getInputFile().isEmpty()) {
+      // Inject the data into the Pub/Sub topic with a Dataflow batch pipeline.
+      dataflowUtils.runInjectorPipeline(options.getInputFile(), options.getPubsubTopic());
+    }
+
+    // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
+    dataflowUtils.waitToFinish(result);
   }
 
   private static Integer tryIntParse(String number) {
