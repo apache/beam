@@ -75,7 +75,7 @@ public class Credentials {
   /**
    * Initializes OAuth2 credentials.
    *
-   * This can use 4 different mechanisms for obtaining a credential:
+   * <p> This can use 4 different mechanisms for obtaining a credential:
    * <ol>
    *   <li>
    *     It can fetch the

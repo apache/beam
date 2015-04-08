@@ -107,7 +107,7 @@ import java.util.NoSuchElementException;
  * p.run();
  * } </pre>
  *
- * or:
+ * <p> or:
  *
  * <pre> {@code
  * // Read a query from Datastore

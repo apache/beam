@@ -23,7 +23,7 @@ import com.google.api.services.dataflow.model.Environment;
  * DataflowPipeline runner to add user defined hooks to be
  * invoked at various times during pipeline execution.
  *
- * Important: DataflowPipelineRunnerHooks is experimental. Please consult with
+ * <p> Important: DataflowPipelineRunnerHooks is experimental. Please consult with
  * the Dataflow team before using it. You should expect this class to change significantly
  * in future versions of the SDK or be removed entirely.
  *

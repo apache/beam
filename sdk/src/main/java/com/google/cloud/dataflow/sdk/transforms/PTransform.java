@@ -139,7 +139,7 @@ import java.io.Serializable;
  *
  * <h3>Note on Serialization</h3>
  *
- * {@code PTransform} doesn't actually support serialization, despite
+ * <p> {@code PTransform} doesn't actually support serialization, despite
  * implementing {@code Serializable}.
  *
  * <p> {@code PTransform} is marked {@code Serializable} solely

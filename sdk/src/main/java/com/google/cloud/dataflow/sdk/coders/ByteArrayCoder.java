@@ -29,7 +29,7 @@ import java.io.OutputStream;
 /**
  * A ByteArrayCoder encodes byte[] objects.
  *
- * If in a nested context, prefixes the encoded array with a VarInt encoding
+ * <p> If in a nested context, prefixes the encoded array with a VarInt encoding
  * of the length.
  */
 @SuppressWarnings("serial")

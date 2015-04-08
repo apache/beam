@@ -155,9 +155,9 @@ public class PubsubIO {
      * <li>Cannot begin with 'goog' prefix.</li>
      * </ul>
      *
-     * Dataflow will start reading data published on this topic from the time the pipeline is
-     * started. Any data published on the topic before the pipeline is started will not be read
-     * by Dataflow.
+     * <p> Dataflow will start reading data published on this topic from the time the pipeline is
+     * started. Any data published on the topic before the pipeline is started will not be read by
+     * Dataflow.
      */
     public static Bound<String> topic(String topic) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).topic(topic);

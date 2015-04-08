@@ -920,7 +920,7 @@ public class Combine {
    *
    * </ol>
    *
-   * All of these operations are passed the {@code K} key that the
+   * <p> All of these operations are passed the {@code K} key that the
    * values being combined are associated with.
    *
    * <p> For example:

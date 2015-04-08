@@ -384,7 +384,7 @@ public class AvroIO {
      * Returns an AvroIO.Write PTransform that uses the given shard name
      * template.
      *
-     * See {@link ShardNameTemplate} for a description of shard templates.
+     * <p> See {@link ShardNameTemplate} for a description of shard templates.
      */
     public static Bound<GenericRecord> withShardNameTemplate(String shardTemplate) {
       return new Bound<>(GenericRecord.class).withShardNameTemplate(shardTemplate);

@@ -24,7 +24,7 @@ import java.io.OutputStream;
 /**
  * Variable-length encoding for integers.
  *
- * Handles, in a common encoding format, signed bytes, shorts, ints, and longs.
+ * <p> Handles, in a common encoding format, signed bytes, shorts, ints, and longs.
  * Takes between 1 and 10 bytes.
  * Less efficient than BigEndian{Int,Long} coder for negative or large numbers.
  * All negative ints are encoded using 5 bytes, longs take 10 bytes.

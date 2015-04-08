@@ -94,7 +94,7 @@ public class ApiErrorExtractor {
   /**
    * Returns HTTP status code from the given exception.
    *
-   * Note: GoogleJsonResponseException.getStatusCode() method is marked final therefore
+   * <p> Note: GoogleJsonResponseException.getStatusCode() method is marked final therefore
    * it cannot be mocked using Mockito. We use this helper so that we can override it in tests.
    */
   @VisibleForTesting

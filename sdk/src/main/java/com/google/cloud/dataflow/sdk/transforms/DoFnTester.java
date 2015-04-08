@@ -214,7 +214,7 @@ public class DoFnTester<I, O> {
    * @see #takeOutputElements
    * @see #clearOutputElements
    *
-   * TODO: provide accessors that take and return {@code WindowedValue}s
+   * <p> TODO: provide accessors that take and return {@code WindowedValue}s
    * in order to test timestamp- and window-sensitive DoFns.
    */
   public List<O> peekOutputElements() {

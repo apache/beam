@@ -266,7 +266,7 @@ public abstract class DoFn<I, O> implements Serializable {
    * duration that timestamps can be shifted backward in
    * {@link DoFn.Context#outputWithTimestamp}.
    *
-   * The default value is {@code Duration.ZERO}, in which case
+   * <p> The default value is {@code Duration.ZERO}, in which case
    * timestamps can only be shifted forward to future.  For infinite
    * skew, return {@code Duration.millis(Long.MAX_VALUE)}.
    */

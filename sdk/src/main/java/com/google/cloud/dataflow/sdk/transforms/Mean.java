@@ -72,7 +72,7 @@ public class Mean {
    * {@code PCollection} to the mean of the values associated with
    * that key in the input {@code PCollection}.
    *
-   * See {@link Combine.PerKey} for how this affects timestamps and bucketing.
+   * <p> See {@link Combine.PerKey} for how this affects timestamps and bucketing.
    *
    * @param <K> the type of the keys
    * @param <N> the type of the {@code Number}s being combined

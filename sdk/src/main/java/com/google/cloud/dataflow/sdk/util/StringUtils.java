@@ -31,7 +31,7 @@ public class StringUtils {
   /**
    * Converts the given array of bytes into a legal JSON string.
    *
-   * Uses a simple strategy of converting each byte to a single char,
+   * <p> Uses a simple strategy of converting each byte to a single char,
    * except for non-printable chars, non-ASCII chars, and '%', '\',
    * and '"', which are encoded as three chars in '%xx' format, where
    * 'xx' is the hexadecimal encoding of the byte.

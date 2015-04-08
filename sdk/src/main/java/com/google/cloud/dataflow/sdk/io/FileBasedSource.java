@@ -363,8 +363,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    *
    * <h2>Thread Safety</h2>
    *
-   * Since this class implements {@link Source.Reader} it guarantees thread safety. Abstract methods
-   * defined here will not be accessed by more than one thread concurrently.
+   * <p> Since this class implements {@link Source.Reader} it guarantees thread safety. Abstract
+   * methods defined here will not be accessed by more than one thread concurrently.
    */
   public abstract static class FileBasedReader<T> extends ByteOffsetBasedReader<T> {
     private ReadableByteChannel channel = null;

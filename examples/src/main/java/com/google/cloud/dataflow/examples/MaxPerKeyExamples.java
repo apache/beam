@@ -40,7 +40,7 @@ import java.util.List;
  * An example that reads the public samples of weather data from BigQuery, and finds
  * the maximum temperature ('mean_temp') for each month.
  *
- * Concepts: The 'Max' statistical combination function, and how to find the max per
+ * <p> Concepts: The 'Max' statistical combination function, and how to find the max per
  * key group.
  *
  * <p> Note: Before running this example, you must create a BigQuery dataset to contain your output

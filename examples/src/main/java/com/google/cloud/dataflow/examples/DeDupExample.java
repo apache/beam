@@ -31,7 +31,7 @@ import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
  * This example uses as input Shakespeare's plays as plaintext files, and will remove any
  * duplicate lines across all the files. (The output does not preserve any input order).
  *
- * Concepts: the RemoveDuplicates transform, and how to wire transforms together.
+ * <p> Concepts: the RemoveDuplicates transform, and how to wire transforms together.
  * Demonstrates TextIO.Read/RemoveDuplicates/TextIO.Write.
  *
  * <p> To execute this pipeline locally, specify general pipeline configuration:

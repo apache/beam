@@ -25,7 +25,7 @@ import java.util.NoSuchElementException;
  * Provides a view a of re-iterable of tagged values, with monotonically
  * increasing tags, as a list of tagged re-iterables.
  *
- * This class, and the returned iterators, are not threadsafe.
+ * <p> This class, and the returned iterators, are not threadsafe.
  */
 public class TaggedReiteratorList extends AbstractList<Reiterator<Object>> {
 

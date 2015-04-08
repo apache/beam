@@ -218,7 +218,7 @@ import java.util.Map;
  *
  * <h2>Properties May Be Specified In Any Order</h2>
  *
- * Several properties can be specified for a {@code ParDo}
+ * <p> Several properties can be specified for a {@code ParDo}
  * {@code PTransform}, including name, side inputs, side output tags,
  * and {@code DoFn} to invoke.  Only the {@code DoFn} is required; the
  * name is encouraged but not required, and side inputs and side
@@ -307,7 +307,7 @@ import java.util.Map;
  *
  * </ul>
  *
- * Both these approaches ensure that there is no implicit enclosing
+ * <p> Both these approaches ensure that there is no implicit enclosing
  * class instance serialized along with the {@code DoFn} instance.
  *
  * <p> Prior to Java 8, any local variables of the enclosing
