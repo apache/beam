@@ -76,8 +76,8 @@ public class DefaultCoderTest {
 
   @Test
   public void testUnknown() throws Exception {
-    CoderRegistry registery = new CoderRegistry();
-    Coder<?> coderType = registery.getDefaultCoder(Unknown.class);
+    CoderRegistry registry = new CoderRegistry();
+    Coder<?> coderType = registry.getDefaultCoder(Unknown.class);
     Assert.assertNull(coderType);
   }
 

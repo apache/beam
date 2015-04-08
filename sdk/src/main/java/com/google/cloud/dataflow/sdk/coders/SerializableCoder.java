@@ -17,6 +17,8 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.common.base.Optional;
+import com.google.common.reflect.TypeToken;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -31,7 +33,7 @@ import java.io.Serializable;
 /**
  * An encoder of {@link java.io.Serializable} objects.
  *
- * To use, specify the coder type on a PCollection.
+ * <p> To use, specify the coder type on a PCollection:
  * <pre>
  * {@code
  *   PCollection<MyRecord> records =
@@ -48,12 +50,23 @@ import java.io.Serializable;
 @SuppressWarnings("serial")
 public class SerializableCoder<T extends Serializable>
     extends AtomicCoder<T> {
+
   /**
-   * Returns a {@code SerializableCoder} instance for the provided element type.
+   * Returns a {@code SerializableCoder} instance for the provided element class.
    * @param <T> the element type
    */
-  public static <T extends Serializable> SerializableCoder<T> of(Class<T> type) {
-    return new SerializableCoder<>(type);
+  public static <T extends Serializable> SerializableCoder<T> of(Class<T> clazz) {
+    return new SerializableCoder<>(clazz);
+  }
+
+  /**
+   * Returns a {@code SerializableCoder} instance for the provided element type token.
+   * @param <T> the element type
+   */
+  public static <T extends Serializable> SerializableCoder<T> of(TypeToken<T> typeToken) {
+    @SuppressWarnings("unchecked")
+    Class<T> clazz = (Class<T>) typeToken.getRawType();
+    return SerializableCoder.of(clazz);
   }
 
   @JsonCreator
@@ -67,6 +80,28 @@ public class SerializableCoder<T extends Serializable>
     }
     return of((Class<? extends Serializable>) clazz);
   }
+
+  /**
+   * A {@link CoderProvider} that constructs a {@link SerializableCoder}
+   * for any class that implements serializable.
+   */
+  public static final CoderProvider PROVIDER = new CoderProvider() {
+    @Override
+    public <T> Optional<Coder<T>> getCoder(TypeToken<T> typeToken) {
+      Class<?> clazz = typeToken.getRawType();
+      if (Serializable.class.isAssignableFrom(clazz)) {
+        @SuppressWarnings("unchecked")
+        Class<? extends Serializable> serializableClazz =
+            (Class<? extends Serializable>) clazz;
+        @SuppressWarnings("unchecked")
+        Coder<T> coderOrNull = (Coder<T>) SerializableCoder.of(serializableClazz);
+        return Optional.fromNullable(coderOrNull);
+      } else {
+        return Optional.<Coder<T>>absent();
+      }
+    }
+  };
+
 
   private final Class<T> type;
 
@@ -126,6 +161,11 @@ public class SerializableCoder<T extends Serializable>
       return false;
     }
     return type == ((SerializableCoder) other).type;
+  }
+
+  @Override
+  public int hashCode() {
+    return type.hashCode();
   }
 
   // This coder inherits isRegisterByteSizeObserverCheap,

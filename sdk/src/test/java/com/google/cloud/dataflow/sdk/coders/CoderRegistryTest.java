@@ -26,13 +26,16 @@ import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.reflect.TypeToken;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -46,10 +49,38 @@ import java.util.Map;
 @SuppressWarnings("serial")
 public class CoderRegistryTest {
 
+  @Rule
+  public transient ExpectedException thrown = ExpectedException.none();
+
   public static CoderRegistry getStandardRegistry() {
     CoderRegistry registry = new CoderRegistry();
     registry.registerStandardCoders();
     return registry;
+  }
+
+  private static class SerializableClass implements Serializable {
+  }
+
+  private static class NotSerializableClass { }
+
+  private static class NotACoderProvider { }
+
+  @Test
+  public void testSerializableFallbackCoderProvider() {
+    CoderRegistry registry = getStandardRegistry();
+    registry.setFallbackCoderProvider(SerializableCoder.PROVIDER);
+    Coder<?> serializableCoder = registry.getDefaultCoder(SerializableClass.class);
+
+    assertEquals(serializableCoder, SerializableCoder.of(SerializableClass.class));
+  }
+
+  @Test
+  public void testAvroFallbackCoderProvider() {
+    CoderRegistry registry = getStandardRegistry();
+    registry.setFallbackCoderProvider(AvroCoder.PROVIDER);
+    Coder<?> avroCoder = registry.getDefaultCoder(NotSerializableClass.class);
+
+    assertEquals(avroCoder, AvroCoder.of(NotSerializableClass.class));
   }
 
   @Test

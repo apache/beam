@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.common.base.Optional;
 import com.google.common.reflect.TypeToken;
 
 import org.joda.time.Instant;
@@ -59,28 +60,11 @@ import java.util.Map;
  *        {@code Coder} of {@link SerializableCoder}.
  * </ul>
  */
-public class CoderRegistry {
+public class CoderRegistry implements CoderProvider {
   private static final Logger LOG = LoggerFactory.getLogger(CoderRegistry.class);
 
-  /** A factory for default Coders for values of a particular class. */
-  public abstract static class CoderFactory {
-    /**
-     * Returns the default Coder to use for values of a particular type,
-     * given the Coders for each of the type's generic parameter types.
-     * May return null if no default Coder can be created.
-     */
-    public abstract Coder<?> create(
-        List<? extends Coder<?>> typeArgumentCoders);
-
-    /**
-     * Returns a list of objects contained in {@code value}, one per
-     * type argument, or {@code null} if none can be determined.
-     */
-    public abstract List<Object> getInstanceComponents(Object value);
-  }
-
   /** A factory that always returns the coder with which it is instantiated. */
-  public class ConstantCoderFactory extends CoderFactory {
+  public class ConstantCoderFactory implements CoderFactory {
     private Coder<?> coder;
 
     public ConstantCoderFactory(Coder<?> coder) {
@@ -98,7 +82,9 @@ public class CoderRegistry {
     }
   }
 
-  public CoderRegistry() {}
+  public CoderRegistry() {
+    setFallbackCoderProvider(SerializableCoder.PROVIDER);
+  }
 
   /**
    * Registers standard Coders with this CoderRegistry.
@@ -228,6 +214,14 @@ public class CoderRegistry {
    */
   public <T> Coder<T> getDefaultCoder(TypeToken<T> typeToken) {
     return getDefaultCoder(typeToken, Collections.<Type, Coder<?>>emptyMap());
+  }
+
+  /**
+   * See {@link #getDefaultCoder(TypeToken)}.
+   */
+  @Override
+  public <T> Optional<Coder<T>> getCoder(TypeToken<T> typeToken) {
+    return Optional.fromNullable(getDefaultCoder(typeToken));
   }
 
   /**
@@ -477,6 +471,11 @@ public class CoderRegistry {
    */
   Map<Class<?>, CoderFactory> coderFactoryMap = new HashMap<>();
 
+   /**
+    * A provider of coders for types where no coder is registered.
+    */
+   private CoderProvider fallbackCoderProvider;
+
   /**
    * Returns a CoderFactory that invokes the given static factory method
    * to create the Coder.
@@ -589,7 +588,15 @@ public class CoderRegistry {
 
   /**
    * Returns the Coder to use by default for values of the given
-   * class, or null if there is no default Coder.
+   * class, or null if there is no default Coder. The following
+   * possibilities are tried, in this order:
+   *
+   * <ol>
+   * <li>A {@link Coder} class registered explicitly via
+   * a call to {@link #registerCoder},
+   * <li>A {@link DefaultCoder} annotation on the class,
+   * <li>This registry's fallback {@link CoderProvider}, which
+   * may be able to generate a coder for an arbitrary class.
    */
   Coder<?> getDefaultCoder(Class<?> clazz) {
     CoderFactory coderFactory = getDefaultCoderFactory(clazz);
@@ -609,17 +616,26 @@ public class CoderRegistry {
           .build();
     }
 
-    // Interface-based defaults.
-    if (Serializable.class.isAssignableFrom(clazz)) {
+    if (getFallbackCoderProvider() != null) {
       @SuppressWarnings("unchecked")
-      Class<? extends Serializable> serializableClazz =
-          (Class<? extends Serializable>) clazz;
-      LOG.debug("Default Coder for {}: SerializableCoder", serializableClazz);
-      return SerializableCoder.of(serializableClazz);
+      Optional<Coder<?>> coder =
+          (Optional<Coder<?>>) getFallbackCoderProvider()
+          .getCoder(TypeToken.of(clazz));
+      if (coder.isPresent()) {
+        return coder.get();
+      }
     }
 
     LOG.debug("No default Coder for {}", clazz);
     return null;
+  }
+
+  public void setFallbackCoderProvider(CoderProvider coderProvider) {
+    fallbackCoderProvider = coderProvider;
+  }
+
+  public CoderProvider getFallbackCoderProvider() {
+    return fallbackCoderProvider;
   }
 
   /**

@@ -20,6 +20,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.common.base.Optional;
 import com.google.common.reflect.TypeToken;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -110,11 +111,21 @@ import javax.annotation.Nullable;
 public class AvroCoder<T> extends StandardCoder<T> {
 
   /**
-   * Returns an {@code AvroCoder} instance for the provided element type.
+   * Returns an {@code AvroCoder} instance for the provided element class.
    * @param <T> the element type
    */
-  public static <T> AvroCoder<T> of(Class<T> type) {
-    return new AvroCoder<>(type, ReflectData.get().getSchema(type));
+  public static <T> AvroCoder<T> of(Class<T> clazz) {
+    return new AvroCoder<>(clazz, ReflectData.get().getSchema(clazz));
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the provided element type token.
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(TypeToken<T> typeToken) {
+    @SuppressWarnings("unchecked")
+    Class<T> clazz = (Class<T>) typeToken.getRawType();
+    return AvroCoder.of(clazz);
   }
 
   /**
@@ -146,6 +157,14 @@ public class AvroCoder<T> extends StandardCoder<T> {
     Schema.Parser parser = new Schema.Parser();
     return new AvroCoder(Class.forName(classType), parser.parse(schema));
   }
+
+  public static final CoderProvider PROVIDER = new CoderProvider() {
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> Optional<Coder<T>> getCoder(TypeToken<T> typeToken) {
+      return Optional.<Coder<T>>fromNullable(AvroCoder.of(typeToken));
+    }
+  };
 
   private final Class<T> type;
   private final Schema schema;
