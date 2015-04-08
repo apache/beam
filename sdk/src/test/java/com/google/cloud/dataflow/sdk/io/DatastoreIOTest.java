@@ -122,7 +122,7 @@ public class DatastoreIOTest {
   public void testBuildReadWithoutDatastoreSettingToCatchException() throws Exception {
     // create pipeline and run the pipeline to get result
     Pipeline p = DirectPipeline.createForTest();
-    p.apply(ReadSource.from(DatastoreIO.read().withHost(null)));
+    p.apply(Read.from(DatastoreIO.read().withHost(null)));
   }
 
   @Test

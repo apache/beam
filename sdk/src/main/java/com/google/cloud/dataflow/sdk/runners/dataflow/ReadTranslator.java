@@ -16,17 +16,17 @@
 
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 
-import com.google.cloud.dataflow.sdk.io.ReadSource;
+import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 
 /**
- * Translator for the {@code ReadSource} {@code PTransform} for the Dataflow back-end.
+ * Translator for the {@code Read} {@code PTransform} for the Dataflow back-end.
  */
-public class ReadSourceTranslator
-    implements DataflowPipelineTranslator.TransformTranslator<ReadSource.Bound> {
+public class ReadTranslator
+    implements DataflowPipelineTranslator.TransformTranslator<Read.Bound> {
   @Override
   public void translate(
-      ReadSource.Bound transform, DataflowPipelineTranslator.TranslationContext context) {
+      Read.Bound transform, DataflowPipelineTranslator.TranslationContext context) {
     BasicSerializableSourceFormat.translateReadHelper(transform, context);
   }
 }

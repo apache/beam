@@ -553,7 +553,7 @@ public class XmlSourceTest {
             .withRecordClass(Train.class)
             .withMinBundleSize(1024);
 
-    PCollection<Train> output = p.apply(ReadSource.from(source).named("ReadFileData"));
+    PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
 
     EvaluationResults results = p.run();
     List<Train> readData = results.getPCollection(output);
@@ -645,7 +645,7 @@ public class XmlSourceTest {
             .withRecordElement("train")
             .withRecordClass(Train.class)
             .withMinBundleSize(1024);
-    PCollection<Train> output = p.apply(ReadSource.from(source).named("ReadFileData"));
+    PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
 
     EvaluationResults results = p.run();
     List<Train> readData = results.getPCollection(output);
@@ -773,7 +773,7 @@ public class XmlSourceTest {
                                   .withRecordElement("train")
                                   .withRecordClass(Train.class)
                                   .withMinBundleSize(1024);
-    PCollection<Train> output = p.apply(ReadSource.from(source).named("ReadFileData"));
+    PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
 
     EvaluationResults results = p.run();
     List<Train> readData = results.getPCollection(output);

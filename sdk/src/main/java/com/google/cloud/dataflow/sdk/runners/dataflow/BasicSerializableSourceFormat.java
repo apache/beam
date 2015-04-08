@@ -39,7 +39,7 @@ import com.google.api.services.dataflow.model.SourceSplitRequest;
 import com.google.api.services.dataflow.model.SourceSplitResponse;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
-import com.google.cloud.dataflow.sdk.io.ReadSource;
+import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
@@ -252,7 +252,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   public static <T> void evaluateReadHelper(
-      ReadSource.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
+      Read.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
     try {
       List<DirectPipelineRunner.ValueWithMetadata<T>> output = new ArrayList<>();
       Source<T> source = transform.getSource();
@@ -270,7 +270,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   public static <T> void translateReadHelper(
-      ReadSource.Bound<T> transform, DataflowPipelineTranslator.TranslationContext context) {
+      Read.Bound<T> transform, DataflowPipelineTranslator.TranslationContext context) {
     try {
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);

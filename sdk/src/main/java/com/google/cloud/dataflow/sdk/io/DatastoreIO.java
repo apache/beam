@@ -100,7 +100,7 @@ import java.util.NoSuchElementException;
  *     PipelineOptionsFactory.fromArgs(args).create();
  * Pipeline p = Pipeline.create(options);
  * PCollection<Entity> entities = p.apply(
- *     ReadSource.from(DatastoreIO.read()
+ *     Read.from(DatastoreIO.read()
  *         .withDataset(datasetId)
  *         .withQuery(query)
  *         .withHost(host)));
@@ -166,16 +166,16 @@ public class DatastoreIO {
    * Returns a {@code PTransform} that reads Datastore entities from the query
    * against the given dataset.
    */
-  public static ReadSource.Bound<Entity> readFrom(String datasetId, Query query) {
-    return ReadSource.from(new Source(DEFAULT_HOST, datasetId, query));
+  public static Read.Bound<Entity> readFrom(String datasetId, Query query) {
+    return Read.from(new Source(DEFAULT_HOST, datasetId, query));
   }
 
   /**
    * Returns a {@code PTransform} that reads Datastore entities from the query
    * against the given dataset and host.
    */
-  public static ReadSource.Bound<Entity> readFrom(String host, String datasetId, Query query) {
-    return ReadSource.from(new Source(host, datasetId, query));
+  public static Read.Bound<Entity> readFrom(String host, String datasetId, Query query) {
+    return Read.from(new Source(host, datasetId, query));
   }
 
   /**

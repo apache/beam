@@ -50,7 +50,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
-import com.google.cloud.dataflow.sdk.io.ReadSource;
+import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -275,7 +275,7 @@ public class BasicSerializableSourceFormatTest {
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     DirectPipelineRunner runner = DirectPipelineRunner.fromOptions(options);
     Pipeline p = Pipeline.create(options);
-    PCollection<Integer> sum = p.apply(ReadSource.from(TestIO.fromRange(10, 20)))
+    PCollection<Integer> sum = p.apply(Read.from(TestIO.fromRange(10, 20)))
         .apply(Sum.integersGlobally())
         .apply(Sample.<Integer>any(1));
     DirectPipelineRunner.EvaluationResults results = runner.run(p);
@@ -289,7 +289,7 @@ public class BasicSerializableSourceFormatTest {
     DirectPipelineRunner runner = DirectPipelineRunner.fromOptions(options);
     Pipeline p = Pipeline.create(options);
     PCollection<Integer> sums =
-        p.apply(ReadSource.from(TestIO.fromRange(10, 20).withTimestampsMillis()))
+        p.apply(Read.from(TestIO.fromRange(10, 20).withTimestampsMillis()))
          .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(3))))
          .apply(Sum.integersGlobally().withoutDefaults());
     DirectPipelineRunner.EvaluationResults results = runner.run(p);
@@ -530,7 +530,7 @@ public class BasicSerializableSourceFormatTest {
       Source<?> io, DataflowPipelineOptions options) throws Exception {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline p = Pipeline.create(options);
-    p.begin().apply(ReadSource.from(io));
+    p.begin().apply(Read.from(io));
 
     Job workflow = translator.translate(p, new ArrayList<DataflowPackage>());
     Step step = workflow.getSteps().get(0);

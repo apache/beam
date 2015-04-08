@@ -658,7 +658,7 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 64, null);
 
-    PCollection<String> output = p.apply(ReadSource.from(source).named("ReadFileData"));
+    PCollection<String> output = p.apply(Read.from(source).named("ReadFileData"));
 
     EvaluationResults results = p.run();
     List<String> readData = results.getPCollection(output);
@@ -694,7 +694,7 @@ public class FileBasedSourceTest {
     TestFileBasedSource source =
         new TestFileBasedSource(new File(file1.getParent(), "file*").getPath(), 64, null);
 
-    PCollection<String> output = p.apply(ReadSource.from(source).named("ReadFileData"));
+    PCollection<String> output = p.apply(Read.from(source).named("ReadFileData"));
 
     EvaluationResults pipelineResults = p.run();
     List<String> results = pipelineResults.getPCollection(output);

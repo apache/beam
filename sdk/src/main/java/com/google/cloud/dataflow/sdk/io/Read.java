@@ -33,13 +33,13 @@ import javax.annotation.Nullable;
  * Usage example:
  * <pre>
  * Pipeline p = Pipeline.create();
- * p.apply(ReadSource.from(new MySource().withFoo("foo").withBar("bar"))
- *                   .named("foobar"));
+ * p.apply(Read.from(new MySource().withFoo("foo").withBar("bar"))
+ *             .named("foobar"));
  * </pre>
  */
-public class ReadSource {
+public class Read {
   /**
-   * Returns a new {@code ReadSource.Bound} {@code PTransform} with the given name.
+   * Returns a new {@code Read.Bound} {@code PTransform} with the given name.
    */
   @SuppressWarnings("unchecked")
   public static Bound<?> named(String name) {
@@ -47,7 +47,7 @@ public class ReadSource {
   }
 
   /**
-   * Returns a new unnamed {@code ReadSource.Bound} {@code PTransform} reading from the given
+   * Returns a new unnamed {@code Read.Bound} {@code PTransform} reading from the given
    * {@code Source}.
    */
   public static <T> Bound<T> from(Source<T> source) {
@@ -55,7 +55,7 @@ public class ReadSource {
   }
 
   /**
-   * Implementation of the {@code ReadSource} {@code PTransform} builder.
+   * Implementation of the {@code Read} {@code PTransform} builder.
    */
   public static class Bound<T>
       extends PTransform<PInput, PCollection<T>> {
@@ -70,7 +70,7 @@ public class ReadSource {
     }
 
     /**
-     * Returns a new {@code ReadSource} {@code PTransform} that's like this one but
+     * Returns a new {@code Read} {@code PTransform} that's like this one but
      * reads from the given {@code Source}.
      *
      * <p> Does not modify this object.
@@ -80,7 +80,7 @@ public class ReadSource {
     }
 
     /**
-     * Returns a new {@code ReadSource} {@code PTransform} that's like this one but
+     * Returns a new {@code Read} {@code PTransform} that's like this one but
      * has the given name.
      *
      * <p> Does not modify this object.
@@ -104,7 +104,7 @@ public class ReadSource {
     }
 
     /**
-     * Returns the {@code Source} used to create this {@code ReadSource} {@code PTransform}.
+     * Returns the {@code Source} used to create this {@code Read} {@code PTransform}.
      */
     @Nullable
     public Source<T> getSource() {

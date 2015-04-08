@@ -50,7 +50,7 @@ import javax.xml.stream.XMLStreamReader;
 /**
  * A source that can be used to read XML files. This source reads one or more
  * XML files and creates a {@code PCollection} of a given type. An Dataflow read transform can be
- * created by passing an {@code XmlSource} object to {@code ReadSource.from()}. Please note the
+ * created by passing an {@code XmlSource} object to {@code Read.from()}. Please note the
  * example given below.
  *
  * <p> The XML file must be of the following form where root and record are XML element names that
@@ -83,7 +83,7 @@ import javax.xml.stream.XMLStreamReader;
  * XmlSource<String> source = XmlSource.<String>from(file.toPath().toString())
  * .withRootElement("root").withRecordElement("record")
  * .withRecordClass(Record.class).withMinBundleSize(128);
- * PCollection<String> output = p.apply(ReadSource.from(source);
+ * PCollection<String> output = p.apply(Read.from(source);
  * }
  * </pre>
  *
