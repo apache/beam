@@ -81,6 +81,11 @@ public class DoubleCoder extends AtomicCoder<Double> {
         "Floating point encodings are not guaranteed to be deterministic.");
   }
 
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
   /**
    * Returns true since registerByteSizeObserver() runs in constant time.
    */

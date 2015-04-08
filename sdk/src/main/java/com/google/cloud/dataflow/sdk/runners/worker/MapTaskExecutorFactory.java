@@ -300,8 +300,7 @@ public class MapTaskExecutorFactory {
       // Ignore timestamp for grouping purposes.
       // The PGBK output will inherit the timestamp of one of its inputs.
       return WindowedValue.of(
-          new PartialGroupByKeyOperation.StructuralByteArray(
-              CoderUtils.encodeToByteArray(coder, windowedKey.getValue())),
+          coder.structuralValue(windowedKey.getValue()),
           ignored,
           windowedKey.getWindows());
     }

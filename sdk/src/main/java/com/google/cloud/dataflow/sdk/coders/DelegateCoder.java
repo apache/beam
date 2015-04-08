@@ -78,6 +78,11 @@ public class DelegateCoder<T, DT> extends CustomCoder<T> {
   }
 
   @Override
+  public Object structuralValue(T value) throws Exception {
+    return coder.structuralValue(toFn.apply(value));
+  }
+
+  @Override
   public String toString() {
     return "DelegateCoder(" + coder + ")";
   }

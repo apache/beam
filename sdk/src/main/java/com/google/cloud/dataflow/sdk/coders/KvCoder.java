@@ -114,6 +114,21 @@ public class KvCoder<K, V> extends KvCoderBase<KV<K, V>> {
   }
 
   @Override
+  public boolean consistentWithEquals() {
+    return keyCoder.consistentWithEquals() && valueCoder.consistentWithEquals();
+  }
+
+  @Override
+  public Object structuralValue(KV<K, V> kv) throws Exception {
+    if (consistentWithEquals()) {
+      return kv;
+    } else {
+      return KV.of(getKeyCoder().structuralValue(kv.getKey()),
+                   getValueCoder().structuralValue(kv.getValue()));
+    }
+  }
+
+  @Override
   public CloudObject asCloudObject() {
     CloudObject result = super.asCloudObject();
     addBoolean(result, PropertyNames.IS_PAIR_LIKE, true);

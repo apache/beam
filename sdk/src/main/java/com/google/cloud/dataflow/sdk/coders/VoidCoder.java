@@ -58,6 +58,11 @@ public class VoidCoder extends AtomicCoder<Void> {
   @Override
   public void verifyDeterministic() { }
 
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
   /**
    * Returns true since registerByteSizeObserver() runs in constant time.
    */

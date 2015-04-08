@@ -76,6 +76,11 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   @Override
   public void verifyDeterministic() { }
 
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
   /**
    * Returns true since registerByteSizeObserver() runs in constant time.
    */

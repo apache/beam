@@ -63,4 +63,9 @@ public class InstantCoder extends AtomicCoder<Instant> {
 
   @Override
   public void verifyDeterministic() { }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
 }

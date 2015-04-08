@@ -21,9 +21,11 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addList;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.StructuralByteArray;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -166,5 +168,26 @@ public abstract class StandardCoder<T> implements Coder<T> {
   protected void verifyDeterministic(String message, Coder<?>... coders)
       throws NonDeterministicException {
     verifyDeterministic(message, Arrays.asList(coders));
+  }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return false;
+  }
+
+  @Override
+  public Object structuralValue(T value) throws Exception {
+    if (value == null || consistentWithEquals()) {
+      return value;
+    } else {
+      try {
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        encode(value, os, Context.OUTER);
+        return new StructuralByteArray(os.toByteArray());
+      } catch (Exception exn) {
+        throw new IllegalArgumentException(
+            "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
+      }
+    }
   }
 }

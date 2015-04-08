@@ -156,6 +156,35 @@ public interface Coder<T> extends Serializable {
   public void verifyDeterministic() throws Coder.NonDeterministicException;
 
   /**
+   * Returns true if the encoded bytes of two objects are
+   * equal only when they are also equal according to {@code Object.equals()}.
+   * (and also implements a compatible {@code Object.hasCode()})
+   *
+   * <p> This most notably false for arrays. It will generally
+   * be false when {@code Object.equals()} compares object identity,
+   * rather than performing a semantic/structural comparison.
+   */
+  public boolean consistentWithEquals();
+
+  /**
+   * Returns an object with an {@code Object.equals()} method
+   * that represents structural equality on the argument.
+   * (and also implements a compatible {@code Object.hashCode()}).
+   *
+   * <p> For any two objects of type T, if their encoded bytes
+   * are the same, then their structural values are equal
+   * according to {@code Object.equals()}.
+   *
+   * <p> Most notably, the structural value for an array coder
+   * should perform a structural comparison of the contents of
+   * the arrays, rather than the default behavior of
+   * comparing according to object identity.
+   *
+   * <p> See also {@link #consistentWithEquals()}.
+   */
+  public Object structuralValue(T value) throws Exception;
+
+  /**
    * Returns whether {@link #registerByteSizeObserver} cheap enough to
    * call for every element, that is, if this {@code Coder} can
    * calculate the byte size of the element to be coded in roughly

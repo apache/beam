@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -174,6 +175,45 @@ public class CoderProperties {
 
   public static <T> void coderSerializable(Coder<T> coder) {
     SerializableUtils.ensureSerializable(coder);
+  }
+
+  public static <T> void coderConsistentWithEquals(
+      Coder<T> coder, T value1, T value2)
+      throws Exception {
+
+    for (Coder.Context context : ALL_CONTEXTS) {
+      CoderProperties.<T>coderConsistentWithEqualsInContext(coder, context, value1, value2);
+    }
+  }
+
+  public static <T> void coderConsistentWithEqualsInContext(
+      Coder<T> coder, Coder.Context context, T value1, T value2) throws Exception {
+
+    assertEquals(
+        value1.equals(value2),
+        Arrays.equals(
+            encode(coder, context, value1),
+            encode(coder, context, value2)));
+  }
+
+  public static <T> void structuralValueConsistentWithEquals(
+      Coder<T> coder, T value1, T value2)
+      throws Exception {
+
+    for (Coder.Context context : ALL_CONTEXTS) {
+      CoderProperties.<T>structuralValueConsistentWithEqualsInContext(
+          coder, context, value1, value2);
+    }
+  }
+
+  public static <T> void structuralValueConsistentWithEqualsInContext(
+      Coder<T> coder, Coder.Context context, T value1, T value2) throws Exception {
+
+    assertEquals(
+        coder.structuralValue(value1).equals(coder.structuralValue(value2)),
+        Arrays.equals(
+            encode(coder, context, value1),
+            encode(coder, context, value2)));
   }
 
   //////////////////////////////////////////////////////////////////////////

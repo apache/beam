@@ -113,6 +113,11 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   @Override
   public void verifyDeterministic() { }
 
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
   protected long getEncodedElementByteSize(String value, Context context)
       throws Exception {
     if (value == null) {

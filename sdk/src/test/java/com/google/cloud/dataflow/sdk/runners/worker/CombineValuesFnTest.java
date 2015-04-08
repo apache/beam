@@ -26,6 +26,7 @@ import static org.junit.Assert.assertEquals;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
+import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
@@ -126,7 +127,7 @@ public class CombineValuesFnTest {
   /**
    * An example "cheap" accumulator coder.
    */
-  public static class CountSumCoder implements Coder<MeanInts.CountSum> {
+  public static class CountSumCoder extends StandardCoder<MeanInts.CountSum> {
     public CountSumCoder() { }
 
     @Override

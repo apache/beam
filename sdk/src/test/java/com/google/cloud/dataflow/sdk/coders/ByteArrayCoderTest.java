@@ -29,7 +29,7 @@ import org.junit.runners.JUnit4;
 public class ByteArrayCoderTest {
 
   private static final byte[][] TEST_VALUES = {
-    {0xa, 0xb, 0xc}, {}, {}, {0xd, 0xe}, {}};
+    {0xa, 0xb, 0xc}, {}, {}, {0xd, 0xe}, {0xd, 0xe}, {}};
 
   @Test
   public void testDecodeEncodeEquals() throws Exception {
@@ -46,5 +46,17 @@ public class ByteArrayCoderTest {
 
     CounterTestUtils.testByteCount(ByteArrayCoder.of(), Coder.Context.NESTED,
                                    new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
+  }
+
+  @Test
+  public void testStructuralValueConsistentWithEquals() throws Exception {
+    ByteArrayCoder coder = ByteArrayCoder.of();
+    // We know that byte array coders are NOT compatible with equals
+    // (aka injective w.r.t. Object.equals)
+    for (byte[] value1 : TEST_VALUES) {
+      for (byte[] value2 : TEST_VALUES) {
+        CoderProperties.structuralValueConsistentWithEquals(coder, value1, value2);
+      }
+    }
   }
 }

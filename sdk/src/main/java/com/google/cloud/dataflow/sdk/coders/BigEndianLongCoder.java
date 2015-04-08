@@ -69,6 +69,11 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
     return true;
   }
 
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
   /**
    * Returns true since registerByteSizeObserver() runs in constant time.
    */

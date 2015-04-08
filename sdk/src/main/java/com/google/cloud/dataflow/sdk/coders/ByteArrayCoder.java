@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.util.VarInt;
+import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.StructuralByteArray;
 import com.google.common.io.ByteStreams;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -79,6 +80,11 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   @Override
   public boolean isDeterministic() {
     return true;
+  }
+
+  @Override
+  public Object structuralValue(byte[] value) {
+    return new StructuralByteArray(value);
   }
 
   /**
