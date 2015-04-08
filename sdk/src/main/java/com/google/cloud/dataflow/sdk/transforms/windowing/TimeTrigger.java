@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
@@ -58,7 +59,7 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * @param delay the delay to add
    * @return An updated time trigger which will wait the additional time before firing.
    */
-  public T plusDelay(final Duration delay) {
+  public T plusDelayOf(final Duration delay) {
     return newWith(new SerializableFunction<Instant, Instant>() {
       private static final long serialVersionUID = 0L;
 
@@ -67,6 +68,37 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
         return input.plus(delay);
       }
     });
+  }
+
+  /**
+   * Aligns timestamps to the smallest multiple of {@code size} since the {@code offset} greater
+   * than the timestamp.
+   *
+   * <p> TODO: Consider sharing this with FixedWindows, and bring over the equivalent of
+   * CalendarWindows.
+   */
+  public T alignedTo(final Duration size, final Instant offset) {
+    return newWith(new SerializableFunction<Instant, Instant>() {
+      private static final long serialVersionUID = 0L;
+
+      @Override
+      public Instant apply(Instant point) {
+        return alignedTo(point, size, offset);
+      }
+    });
+  }
+
+  /**
+   * Aligns the time to be the smallest multiple of {@code size} greater than the timestamp
+   * since the epoch.
+   */
+  public T alignedTo(final Duration size) {
+    return alignedTo(size, new Instant(0));
+  }
+
+  @VisibleForTesting static Instant alignedTo(Instant point, Duration size, Instant offset) {
+    long millisSinceStart = new Duration(offset, point).getMillis() % size.getMillis();
+    return millisSinceStart == 0 ? point : point.plus(size).minus(millisSinceStart);
   }
 
   /**

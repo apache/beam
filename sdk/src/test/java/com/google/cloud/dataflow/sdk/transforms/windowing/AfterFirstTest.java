@@ -173,7 +173,7 @@ public class AfterFirstTest {
 
     assertEquals(new Instant(9),
         AfterFirst.of(AfterWatermark.pastEndOfWindow(),
-                       AfterWatermark.pastEndOfWindow().plusDelay(Duration.millis(10)))
+                       AfterWatermark.pastEndOfWindow().plusDelayOf(Duration.millis(10)))
             .getWatermarkCutoff(window));
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterFirst.of(AfterPane.elementCountAtLeast(2), AfterPane.elementCountAtLeast(1))

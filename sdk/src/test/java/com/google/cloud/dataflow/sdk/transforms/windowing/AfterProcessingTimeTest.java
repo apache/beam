@@ -40,7 +40,9 @@ public class AfterProcessingTimeTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         FixedWindows.of(windowDuration),
-        AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelay(Duration.millis(5)));
+        AfterProcessingTime
+            .<IntervalWindow>pastFirstElementInPane()
+            .plusDelayOf(Duration.millis(5)));
 
     tester.advanceProcessingTime(new Instant(10));
 
@@ -79,7 +81,9 @@ public class AfterProcessingTimeTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         Sessions.withGapDuration(windowDuration),
-        AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelay(Duration.millis(5)));
+        AfterProcessingTime
+            .<IntervalWindow>pastFirstElementInPane()
+            .plusDelayOf(Duration.millis(5)));
 
     tester.advanceProcessingTime(new Instant(10));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());

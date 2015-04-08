@@ -42,7 +42,7 @@ public class AfterWatermarkTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         FixedWindows.of(windowDuration),
-        AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelay(Duration.millis(5)));
+        AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)));
 
     tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 6
     tester.advanceWatermark(new Instant(5));
@@ -69,7 +69,7 @@ public class AfterWatermarkTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         Sessions.withGapDuration(windowDuration),
-        AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelay(Duration.millis(5)));
+        AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)));
 
     tester.advanceWatermark(new Instant(1));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
@@ -97,7 +97,7 @@ public class AfterWatermarkTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         FixedWindows.of(windowDuration),
-        AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelay(Duration.millis(5)));
+        AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)));
 
     tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 15
     tester.advanceWatermark(new Instant(11));
@@ -124,7 +124,7 @@ public class AfterWatermarkTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         Sessions.withGapDuration(windowDuration),
-        AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelay(Duration.millis(5)));
+        AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)));
 
     tester.advanceWatermark(new Instant(1));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
@@ -155,6 +155,8 @@ public class AfterWatermarkTest {
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterWatermark.pastEndOfWindow().getWatermarkCutoff(GlobalWindow.INSTANCE));
     assertEquals(new Instant(19),
-        AfterWatermark.pastEndOfWindow().plusDelay(Duration.millis(10)).getWatermarkCutoff(window));
+        AfterWatermark
+            .pastEndOfWindow()
+            .plusDelayOf(Duration.millis(10)).getWatermarkCutoff(window));
   }
 }
