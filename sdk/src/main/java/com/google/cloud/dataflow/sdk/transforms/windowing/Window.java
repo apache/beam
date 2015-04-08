@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -250,6 +251,7 @@ public class Window {
      * <p> {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger}
      * has more details on the available triggers.
      */
+    @Experimental(Experimental.Kind.TRIGGER)
     public Triggering<T> triggering(Trigger<?> trigger) {
       return new Triggering<T>(name,
           createWindowingStrategy(windowingStrategy.getWindowFn(), trigger));

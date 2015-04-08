@@ -16,13 +16,16 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Options for controlling Cloud Debugger. These options are experimental and subject to change.
+ * Options for controlling Cloud Debugger.
  */
 @Description("[Experimental] Used to configure the Cloud Debugger")
+@Experimental
 public interface CloudDebuggerOptions {
 
   /**

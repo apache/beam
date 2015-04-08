@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.common.base.Preconditions;
 
@@ -31,6 +32,7 @@ import java.util.List;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
  *            {@code Trigger}
  */
+@Experimental(Experimental.Kind.TRIGGER)
 public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
 
   private static final long serialVersionUID = 0L;

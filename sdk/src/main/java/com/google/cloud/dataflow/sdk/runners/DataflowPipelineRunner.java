@@ -22,6 +22,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
@@ -243,10 +244,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Sets callbacks to invoke during execution see {@code DataflowPipelineRunnerHooks}.
-   * Important: setHooks is experimental. Please consult with the Dataflow team before using it.
-   * You should expect this class to change significantly in future versions of the SDK or be
-   * removed entirely.
    */
+  @Experimental
   public void setHooks(DataflowPipelineRunnerHooks hooks) {
     this.hooks = hooks;
   }

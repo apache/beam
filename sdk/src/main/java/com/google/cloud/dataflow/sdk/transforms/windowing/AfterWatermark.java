@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
@@ -50,6 +51,7 @@ import org.joda.time.Instant;
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used.
  */
+@Experimental(Experimental.Kind.TRIGGER)
 public abstract class AfterWatermark<W extends BoundedWindow>
     extends TimeTrigger<W, AfterWatermark<W>> {
 

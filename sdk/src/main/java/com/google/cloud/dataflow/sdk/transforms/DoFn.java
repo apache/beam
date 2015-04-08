@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -167,6 +168,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * supported as aggregator's combiner, or if the given name collides
      * with another aggregator or system-provided counter.
      */
+    @Experimental(Experimental.Kind.AGGREGATOR)
     public abstract <AI, AA, AO> Aggregator<AI> createAggregator(
         String name, Combine.CombineFn<? super AI, AA, AO> combiner);
 
@@ -185,6 +187,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * not supported as aggregator's combiner, or if the given name collides
      * with another aggregator or system-provided counter.
      */
+    @Experimental(Experimental.Kind.AGGREGATOR)
     public abstract <AI, AO> Aggregator<AI> createAggregator(
         String name, SerializableFunction<Iterable<AI>, AO> combiner);
   }
@@ -254,10 +257,8 @@ public abstract class DoFn<I, O> implements Serializable {
 
     /**
      * Returns the process context to use for implementing windowing.
-     *
-     * <p>This interface is experimental and likely to change. It shouldn't be necessary to use it
-     * from general user code.
      */
+    @Experimental
     public abstract WindowingInternals<I, O> windowingInternals();
   }
 
@@ -278,24 +279,21 @@ public abstract class DoFn<I, O> implements Serializable {
    * Interface for signaling that a {@link DoFn} needs to maintain
    * per-key state, accessed via
    * {@link DoFn.ProcessContext#keyedState}.
-   *
-   * <p> This functionality is experimental and likely to change.
    */
+  @Experimental
   public interface RequiresKeyedState {}
 
   /**
    * Interface for signaling that a {@link DoFn} needs to access the window the
    * element is being processed in, via {@link DoFn.ProcessContext#window}.
-   *
-   * <p> This functionality is experimental and likely to change.
    */
+  @Experimental
   public interface RequiresWindowAccess {}
 
   /**
    * Interface for interacting with keyed state.
-   *
-   * <p> This functionality is experimental and likely to change.
    */
+  @Experimental
   public interface KeyedState {
     /**
      * Updates this {@code KeyedState} in place so that the given tag

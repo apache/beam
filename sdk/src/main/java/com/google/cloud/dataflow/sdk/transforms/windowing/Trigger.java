@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.common.annotations.VisibleForTesting;
@@ -84,11 +85,10 @@ import java.util.Map;
  * between invocations of the callbacks. All important values should be persisted to
  * {@link KeyedState} before the callback returns.
  *
- * <p> This functionality is experimental and likely to change.
- *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
  *            {@code Trigger}
  */
+@Experimental(Experimental.Kind.TRIGGER)
 public abstract class Trigger<W extends BoundedWindow> implements Serializable {
 
   private static final long serialVersionUID = 0L;

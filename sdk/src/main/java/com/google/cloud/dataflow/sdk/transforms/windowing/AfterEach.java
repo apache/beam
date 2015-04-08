@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
@@ -43,6 +44,7 @@ import java.util.List;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
  *            {@code Trigger}
  */
+@Experimental(Experimental.Kind.TRIGGER)
 public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AfterEach.class);

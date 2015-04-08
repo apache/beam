@@ -37,6 +37,7 @@ import com.google.api.services.datastore.client.DatastoreFactory;
 import com.google.api.services.datastore.client.DatastoreHelper;
 import com.google.api.services.datastore.client.DatastoreOptions;
 import com.google.api.services.datastore.client.QuerySplitter;
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.EntityCoder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
@@ -67,9 +68,9 @@ import java.util.NoSuchElementException;
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a>
  * entities.
  *
- * <p> The DatastoreIO class provides an experimental API to Read and Write a
- * {@link PCollection} of Datastore Entity.  This API is subject to
- * change, and currently requires an authentication workaround described below.
+ * <p> The DatastoreIO class provides an API to Read and Write a
+ * {@link PCollection} of Datastore Entity.  This API currently requires an
+ * authentication workaround described below.
  *
  * <p> Datastore is a fully managed NoSQL data storage service.
  * An Entity is an object in Datastore, analogous to a row in traditional
@@ -143,7 +144,7 @@ import java.util.NoSuchElementException;
  * <a href="https://cloud.google.com/datastore/docs/concepts/entities">Entities, Properties, and
  * Keys</a> for more information about entity keys.
  */
-
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class DatastoreIO {
   public static final String DEFAULT_HOST = "https://www.googleapis.com";
 

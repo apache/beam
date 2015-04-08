@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
+
 import java.util.List;
 
 /**
@@ -43,8 +45,9 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setNumWorkers(int value);
 
   /**
-   * Type of autoscaling algorithm to use. These types are experimental and subject to change.
+   * Type of autoscaling algorithm to use.
    */
+  @Experimental(Experimental.Kind.AUTOSCALING)
   public enum AutoscalingAlgorithmType {
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
@@ -68,16 +71,17 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
       + "NONE: does not change the size of the worker pool. "
       + "BASIC: autoscale the worker pool size up to maxNumWorkers until the job completes.")
   @Default.Enum("NONE")
+  @Experimental(Experimental.Kind.AUTOSCALING)
   AutoscalingAlgorithmType getAutoscalingAlgorithm();
   void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);
 
   /**
    * The maximum number of workers to use when using workerpool autoscaling.
-   * This option is experimental and subject to change.
    */
   @Description("[Experimental] The maximum number of workers to use when using workerpool "
       + "autoscaling.")
   @Default.Integer(20)
+  @Experimental(Experimental.Kind.AUTOSCALING)
   int getMaxNumWorkers();
   void setMaxNumWorkers(int value);
 

@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
+
 import org.joda.time.Instant;
 
 /**
@@ -24,6 +26,7 @@ import org.joda.time.Instant;
  *
  * @param <W> The type of windows being triggered/encoded.
  */
+@Experimental(Experimental.Kind.TRIGGER)
 public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
 
   private static final long serialVersionUID = 0L;

@@ -17,17 +17,14 @@
 package com.google.cloud.dataflow.sdk.runners;
 
 import com.google.api.services.dataflow.model.Environment;
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 
 /**
  * An instance of this class can be passed to the
  * DataflowPipeline runner to add user defined hooks to be
  * invoked at various times during pipeline execution.
- *
- * <p> Important: DataflowPipelineRunnerHooks is experimental. Please consult with
- * the Dataflow team before using it. You should expect this class to change significantly
- * in future versions of the SDK or be removed entirely.
- *
  */
+@Experimental
 public class DataflowPipelineRunnerHooks {
   /**
    * Allows the user to modify the environment of their job before their job is submitted

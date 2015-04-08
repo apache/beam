@@ -15,6 +15,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.io.Sink;
@@ -39,9 +40,8 @@ import java.util.UUID;
  * <p>Example usage:
  *
  * <p>{@code p.apply(Write.to(new MySink(...)));}
- *
- * <p>Disclaimer: This API is experimental and may change.
  */
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class Write {
   /**
    * Creates a Write transform that writes to the given Sink.

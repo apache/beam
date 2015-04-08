@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -54,10 +55,9 @@ import javax.annotation.Nullable;
  * <p> {@code Source} objects should implement {@link Object#toString}, as it will be
  * used in important error and debugging messages.
  *
- * <p> This API is experimental and subject to change.
- *
  * @param <T> Type of elements read by the source.
  */
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public abstract class Source<T> implements Serializable {
   private static final long serialVersionUID = 0;
 

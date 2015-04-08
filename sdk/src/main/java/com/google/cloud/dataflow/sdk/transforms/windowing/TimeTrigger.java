@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.common.annotations.VisibleForTesting;
@@ -30,6 +31,7 @@ import org.joda.time.Instant;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used.
  * @param <T> {@code TimeTrigger} subclass produced by modifying the current {@code TimeTrigger}.
  */
+@Experimental(Experimental.Kind.TRIGGER)
 public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger<W, T>>
     extends OnceTrigger<W> {
 

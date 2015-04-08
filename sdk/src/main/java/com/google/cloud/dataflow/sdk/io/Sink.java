@@ -14,6 +14,7 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Write;
@@ -112,10 +113,9 @@ import java.io.Serializable;
  * safe, as different instances of Writer objects may be created in different threads on the same
  * worker.
  *
- * <p>Disclaimer: this API is experimental and subject to change.
- *
  * @param <T> the type that will be written to the Sink.
  */
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public abstract class Sink<T> implements Serializable {
   private static final long serialVersionUID = 0;
 

@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 
@@ -55,9 +56,8 @@ public abstract class BoundedSource<T> extends Source<T> {
   /**
    * A {@code Reader} that reads a bounded amount of input and supports some additional
    * operations, such as progress estimation and dynamic work rebalancing.
-   *
-   * <p>This API is experimental and subject to change.
    */
+  @Experimental(Experimental.Kind.SOURCE_SINK)
   public interface BoundedReader<T> extends Source.Reader<T> {
     /**
      * Returns a value in [0, 1] representing approximately what fraction of the source

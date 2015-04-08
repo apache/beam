@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.runners;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.BlockingDataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
@@ -112,10 +113,8 @@ public class BlockingDataflowPipelineRunner extends
 
   /**
    * Sets callbacks to invoke during execution see {@code DataflowPipelineRunnerHooks}.
-   * Important: setHooks is experimental. Please consult with the Dataflow team before using it.
-   * You should expect this class to change significantly in future versions of the SDK or be
-   * removed entirely.
    */
+  @Experimental
   public void setHooks(DataflowPipelineRunnerHooks hooks) {
     this.dataflowPipelineRunner.setHooks(hooks);
   }
