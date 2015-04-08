@@ -19,6 +19,8 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -41,12 +43,15 @@ import java.util.List;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
  *            {@code Trigger}
  */
-public class AfterEach<W extends BoundedWindow> extends CompositeTrigger<W> {
+public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(AfterEach.class);
 
   private static final long serialVersionUID = 0L;
+  private List<Trigger<W>> subTriggers;
 
   private AfterEach(List<Trigger<W>> subTriggers) {
-    super(subTriggers);
+    this.subTriggers = subTriggers;
     Preconditions.checkArgument(subTriggers.size() > 1);
   }
 
@@ -55,8 +60,8 @@ public class AfterEach<W extends BoundedWindow> extends CompositeTrigger<W> {
     return new AfterEach<W>(Arrays.<Trigger<W>>asList(triggers));
   }
 
-  private TriggerResult result(
-      TriggerResult subResult, SubTriggerExecutor subexecutor)
+  private TriggerResult wrapResult(
+      TriggerResult subResult, SubTriggerExecutor<W> subexecutor)
       throws Exception {
 
     if (subResult.isFire()) {
@@ -71,33 +76,42 @@ public class AfterEach<W extends BoundedWindow> extends CompositeTrigger<W> {
     // If all the sub-triggers have finished, we should have already finished, so we know there is
     // at least one unfinished trigger.
 
-    SubTriggerExecutor subexecutor = subExecutor(c, e.window());
+    SubTriggerExecutor<W> subexecutor = SubTriggerExecutor.forWindow(subTriggers, c, e.window());
 
     // There must be at least one unfinished, because otherwise we would have finished the root.
     int current = subexecutor.firstUnfinished();
-    return result(subexecutor.onElement(c, current, e), subexecutor);
+    return wrapResult(subexecutor.onElement(current, e), subexecutor);
   }
 
   @Override
   public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
-    SubTriggerExecutor subexecutor = subExecutor(c, e);
+    SubTriggerExecutor<W> subexecutor = SubTriggerExecutor.forMerge(subTriggers, c, e);
 
     // There must be at least one unfinished, because otherwise we would have finished the root.
     int current = subexecutor.firstUnfinished();
-    return result(subexecutor.onMerge(c, current, e), subexecutor);
+    return wrapResult(subexecutor.onMerge(current, e), subexecutor);
   }
 
   @Override
-  public TriggerResult afterChildTimer(
-      TriggerContext<W> c, W window, int childIdx, TriggerResult result) throws Exception {
-    SubTriggerExecutor subExecutor = subExecutor(c, window);
+  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+    if (e.isForCurrentLayer()) {
+      throw new IllegalStateException("AfterAll shouldn't receive any timers.");
+    }
+
+    int childIdx = e.getChildIndex();
+    SubTriggerExecutor<W> subExecutor = SubTriggerExecutor.forWindow(subTriggers, c, e.window());
+
     if (childIdx != subExecutor.firstUnfinished()) {
-      // If we aren't currently executing the given sub-trigger, it shouldn't have been able to send
-      // a timer at all. We record its finishing, but ignore it otherwise.
+      LOG.warn("AfterEach received timer for non-current sub-trigger {}", childIdx);
       return TriggerResult.CONTINUE;
     }
 
-    return result(result, subExecutor);
+    return wrapResult(subExecutor.onTimer(childIdx, e), subExecutor);
+  }
+
+  @Override
+  public void clear(Trigger.TriggerContext<W> c, W window) throws Exception {
+    SubTriggerExecutor.forWindow(subTriggers, c, window).clear();
   }
 
   @Override
@@ -115,5 +129,25 @@ public class AfterEach<W extends BoundedWindow> extends CompositeTrigger<W> {
     // This trigger will fire at least once when the first trigger in the sequence
     // fires at least once.
     return subTriggers.get(0).getWatermarkCutoff(window);
+  }
+
+  @Override
+  public boolean isCompatible(Trigger<?> other) {
+    if (!(other instanceof AfterEach)) {
+      return false;
+    }
+
+    AfterEach<?> that = (AfterEach<?>) other;
+    if (this.subTriggers.size() != that.subTriggers.size()) {
+      return false;
+    }
+
+    for (int i = 0; i < this.subTriggers.size(); i++) {
+      if (!this.subTriggers.get(i).isCompatible(that.subTriggers.get(i))) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }

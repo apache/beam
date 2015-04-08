@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
@@ -29,7 +30,7 @@ import org.joda.time.Instant;
  * @param <T> {@code TimeTrigger} subclass produced by modifying the current {@code TimeTrigger}.
  */
 public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger<W, T>>
-    implements Trigger<W> {
+    extends OnceTrigger<W> {
 
   private static final long serialVersionUID = 0L;
 

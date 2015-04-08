@@ -143,11 +143,12 @@ public class AfterEachTest {
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
 
     tester.advanceWatermark(new Instant(12));
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
+    assertThat(tester.extractOutput(), Matchers.contains(
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
 
     injectElement(2, null, TriggerResult.FIRE_AND_FINISH);
     assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(2), 2, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
   }

@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.common.collect.ImmutableList;
 
@@ -31,7 +30,7 @@ import org.joda.time.Instant;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used
  */
 public class AfterProcessingTime<W extends BoundedWindow>
-    extends TimeTrigger<W, AfterProcessingTime<W>> implements AtMostOnceTrigger<W>{
+    extends TimeTrigger<W, AfterProcessingTime<W>> {
 
   private static final long serialVersionUID = 0L;
 

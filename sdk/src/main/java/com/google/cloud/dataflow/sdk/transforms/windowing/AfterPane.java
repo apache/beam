@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 
 import org.joda.time.Instant;
@@ -30,7 +30,7 @@ import java.util.Map.Entry;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
  *            {@code Trigger}
  */
-public class AfterPane<W extends BoundedWindow> implements AtMostOnceTrigger<W>{
+public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
 
   private static final long serialVersionUID = 0L;
 

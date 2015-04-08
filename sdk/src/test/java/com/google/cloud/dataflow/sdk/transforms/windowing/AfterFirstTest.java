@@ -22,10 +22,10 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerEvent;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
@@ -48,8 +48,8 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class AfterFirstTest {
 
-  @Mock private AtMostOnceTrigger<IntervalWindow> mockTrigger1;
-  @Mock private AtMostOnceTrigger<IntervalWindow> mockTrigger2;
+  @Mock private OnceTrigger<IntervalWindow> mockTrigger1;
+  @Mock private OnceTrigger<IntervalWindow> mockTrigger2;
   private TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester;
   private IntervalWindow firstWindow;
 

@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.common.annotations.VisibleForTesting;
 
 import org.joda.time.Instant;
 
@@ -50,8 +51,8 @@ import java.util.Map;
  * <p>In addition, {@code Trigger}s can be combined in a variety of ways:
  * <ul>
  *   <li> {@link Repeatedly#forever} to create a trigger that executes forever. Any time its
- *   argument finishes it gets reset and starts over. Can be combined with {@link Repeatedly#until}
- *   to specify a condition which causes the repetition to stop.
+ *   argument finishes it gets reset and starts over. Can be combined with
+ *   {@link Trigger#orFinally} to specify a condition which causes the repetition to stop.
  *   <li> {@link AfterEach#inOrder} to execute each trigger in sequence, firing each (and every)
  *   time that a trigger fires, and advancing to the next trigger in the sequence when it finishes.
  *   <li> {@link AfterFirst#of} to create a trigger that fires after at least one of its arguments
@@ -75,15 +76,17 @@ import java.util.Map;
  *   elements in the buffer for that window, as well.
  * </ul>
  *
- * <p>Once finished, a trigger cannot return itself back to an earlier state, however a
- * {@link CompositeTrigger} can reset its sub-triggers.
+ * <p>Once finished, a trigger cannot return itself back to an earlier state, however a composite
+ * trigger could reset its sub-triggers.
  *
  * <p> This functionality is experimental and likely to change.
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
  *            {@code Trigger}
  */
-public interface Trigger<W extends BoundedWindow> extends Serializable {
+public abstract class Trigger<W extends BoundedWindow> implements Serializable {
+
+  private static final long serialVersionUID = 0L;
 
   /**
    * Triggers operate on both timestamps of elements that are being processed and the current
@@ -262,7 +265,8 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
    * @param c the context to interact with
    * @param e an event describing the cause of this callback being executed
    */
-  TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception;
+  public abstract TriggerResult onElement(
+      TriggerContext<W> c, OnElementEvent<W> e) throws Exception;
 
   /**
    * Details about an invocation of {@link Trigger#onMerge}.
@@ -306,7 +310,7 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
    * @param c the context to interact with
    * @param e an event describnig the cause of this callback being executed
    */
-  TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception;
+  public abstract TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception;
 
   /**
    * Details about an invocation of {@link Trigger#onTimer}.
@@ -357,9 +361,9 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
    * Called when a timer has fired for the trigger or one of it’s sub-triggers.
    *
    * @param c the context to interact with
-   * @param triggerId identifier for the trigger that the timer is for.
+   * @param e identifier for the trigger that the timer is for.
    */
-  TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> triggerId) throws Exception;
+  public abstract TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception;
 
   /**
    * Clear any state associated with this trigger in the given window.
@@ -371,12 +375,14 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
    * @param c the context to interact with
    * @param window the window that is being cleared
    */
-  void clear(TriggerContext<W> c, W window) throws Exception;
+  public abstract void clear(TriggerContext<W> c, W window) throws Exception;
 
   /**
    * Return true if the trigger is guaranteed to never finish.
    */
-  boolean willNeverFinish();
+  public boolean willNeverFinish() {
+    return false;
+  }
 
   /**
    * Returns a bound in watermark time by which this trigger would have fired at least once
@@ -384,14 +390,14 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
    * that does not depend on its state.
    *
    * <p> For triggers that do not fire based on the watermark advancing, returns
-   * {@link BoundedWindow.TIMESTAMP_MAX_VALUE}.
+   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
    */
-  Instant getWatermarkCutoff(W window);
+  public abstract Instant getWatermarkCutoff(W window);
 
   /**
    * Returns whether this performs the same triggering as the given {@code Trigger}.
    */
-  boolean isCompatible(Trigger<?> other);
+  public abstract boolean isCompatible(Trigger<?> other);
 
   /**
    * Identifies a unique trigger instance, by the window it is in and the path through the trigger
@@ -426,6 +432,21 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
   }
 
   /**
+   * Specify an ending condition for this trigger. If the {@code until} fires then the combination
+   * fires.
+   *
+   * <p> The expression {@code t1.orFinally(t2)} fires every time {@code t1} fires, and finishes
+   * as soon as either {@code t1} finishes or {@code t2} fires, in which case it fires one last time
+   * for {@code t2}.
+   *
+   * <p> Note that if {@code t1} is {@link OnceTrigger}, then {@code t1.orFinally(t2)} is the same
+   * as {@code AfterFirst.of(t1, t2)}.
+   */
+  public Trigger<W> orFinally(OnceTrigger<W> until) {
+    return new OrFinallyTrigger<W>(this, until);
+  }
+
+  /**
    * Triggers that are guaranteed to fire at most once should extend from this, rather than the
    * general {@link Trigger} class to indicate that behavior.
    *
@@ -434,5 +455,91 @@ public interface Trigger<W extends BoundedWindow> extends Serializable {
    * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
    *            {@code AtMostOnceTrigger}
    */
-  public interface AtMostOnceTrigger<W extends BoundedWindow> extends Trigger<W> {}
+  public abstract static class OnceTrigger<W extends BoundedWindow> extends Trigger<W> {
+    private static final long serialVersionUID = 0L;
+  }
+
+  /**
+   * Executes the {@code actual} trigger until it finishes or until the {@code until} trigger fires.
+   */
+  @VisibleForTesting static class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
+
+    private static final int ACTUAL = 0;
+    private static final int UNTIL = 1;
+    private static final long serialVersionUID = 0L;
+
+    private Trigger<W> actual;
+    private OnceTrigger<W> until;
+
+    @VisibleForTesting OrFinallyTrigger(Trigger<W> actual, OnceTrigger<W> until) {
+      this.actual = actual;
+      this.until = until;
+    }
+
+    @Override
+    public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+      TriggerResult untilResult = until.onElement(c.forChild(UNTIL), e);
+      if (untilResult != TriggerResult.CONTINUE) {
+        return TriggerResult.FIRE_AND_FINISH;
+      }
+
+      return actual.onElement(c.forChild(ACTUAL), e);
+    }
+
+    @Override
+    public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+      TriggerResult untilResult = until.onMerge(c.forChild(UNTIL), e);
+      if (untilResult != TriggerResult.CONTINUE) {
+        return TriggerResult.FIRE_AND_FINISH;
+      }
+
+      return actual.onMerge(c.forChild(ACTUAL), e);
+    }
+
+    @Override
+    public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+
+      if (e.isForCurrentLayer()) {
+        throw new IllegalStateException("Until shouldn't receive any timers.");
+      } else if (e.getChildIndex() == ACTUAL) {
+        return actual.onTimer(c.forChild(ACTUAL), e.withoutOuterTrigger());
+      } else {
+        if (until.onTimer(c.forChild(UNTIL), e.withoutOuterTrigger()) != TriggerResult.CONTINUE) {
+          return TriggerResult.FIRE_AND_FINISH;
+        }
+      }
+
+      return TriggerResult.CONTINUE;
+    }
+
+    @Override
+    public void clear(TriggerContext<W> c, W window) throws Exception {
+      actual.clear(c.forChild(ACTUAL), window);
+      until.clear(c.forChild(UNTIL), window);
+    }
+
+    @Override
+    public boolean willNeverFinish() {
+      return false;
+    }
+
+    @Override
+    public Instant getWatermarkCutoff(W window) {
+      // This trigger fires once either the trigger or the until trigger fires.
+      Instant actualDeadline = actual.getWatermarkCutoff(window);
+      Instant untilDeadline = until.getWatermarkCutoff(window);
+      return actualDeadline.isBefore(untilDeadline) ? actualDeadline : untilDeadline;
+    }
+
+    @Override
+    public boolean isCompatible(Trigger<?> other) {
+      if (!(other instanceof OrFinallyTrigger)) {
+        return false;
+      }
+
+      OrFinallyTrigger<?> that = (OrFinallyTrigger<?>) other;
+      return actual.isCompatible(that.actual)
+          && until.isCompatible(that.until);
+    }
+  }
 }

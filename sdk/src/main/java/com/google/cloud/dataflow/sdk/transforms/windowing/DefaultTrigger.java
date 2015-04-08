@@ -23,7 +23,7 @@ import org.joda.time.Instant;
  *
  * @param <W> The type of windows being triggered/encoded.
  */
-public class DefaultTrigger<W extends BoundedWindow> implements Trigger<W>{
+public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
 
   private static final long serialVersionUID = 0L;
 

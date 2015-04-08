@@ -30,9 +30,9 @@ import org.joda.time.Instant;
  * {@code SequenceOf(someTrigger, someTrigger, someTrigger, ...)}.
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
- * {@code Trigger}
+ *            {@code Trigger}
  */
-public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
+public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
 
   private static final long serialVersionUID = 0L;
 
@@ -42,7 +42,7 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
    * Create a composite trigger that repeatedly executes the trigger {@code toRepeat}, firing each
    * time it fires and ignoring any indications to finish.
    *
-   * <p>Unless used with {@link #finishing} the composite trigger will never finish.
+   * <p>Unless used with {@link Trigger#orFinally} the composite trigger will never finish.
    *
    * @param repeated the trigger to execute repeatedly.
    */
@@ -52,16 +52,6 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
 
   private Repeatedly(Trigger<W> repeated) {
     this.repeated = repeated;
-  }
-
-  /**
-   * Specify an ending condition for this {@code Repeated} trigger. When {@code until} fires the
-   * composite trigger will fire and finish.
-   *
-   * @param until the trigger that will fire when we should stop repeating.
-   */
-  public Trigger<W> finishing(AtMostOnceTrigger<W> until) {
-    return new Until<W>(this, until);
   }
 
   private TriggerResult wrap(TriggerContext<W> c, W window, TriggerResult result) throws Exception {
@@ -112,91 +102,5 @@ public class Repeatedly<W extends BoundedWindow> implements Trigger<W> {
 
     Repeatedly<?> that = (Repeatedly<?>) other;
     return repeated.isCompatible(that.repeated);
-  }
-
-  /**
-   * Repeats the given trigger forever, until the "until" trigger fires.
-   *
-   * <p> TODO: Move this to the top level.
-   */
-  public static class Until<W extends BoundedWindow> implements Trigger<W> {
-
-    private static final int ACTUAL = 0;
-    private static final int UNTIL = 1;
-    private static final long serialVersionUID = 0L;
-
-    private Trigger<W> actual;
-    private AtMostOnceTrigger<W> until;
-
-    private Until(Trigger<W> actual, AtMostOnceTrigger<W> until) {
-      this.actual = actual;
-      this.until = until;
-    }
-
-    @Override
-    public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
-      TriggerResult untilResult = until.onElement(c.forChild(UNTIL), e);
-      if (untilResult != TriggerResult.CONTINUE) {
-        return TriggerResult.FIRE_AND_FINISH;
-      }
-
-      return actual.onElement(c.forChild(ACTUAL), e);
-    }
-
-    @Override
-    public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
-      TriggerResult untilResult = until.onMerge(c.forChild(UNTIL), e);
-      if (untilResult != TriggerResult.CONTINUE) {
-        return TriggerResult.FIRE_AND_FINISH;
-      }
-
-      return actual.onMerge(c.forChild(ACTUAL), e);
-    }
-
-    @Override
-    public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
-
-      if (e.isForCurrentLayer()) {
-        throw new IllegalStateException("Until shouldn't receive any timers.");
-      } else if (e.getChildIndex() == ACTUAL) {
-        return actual.onTimer(c.forChild(ACTUAL), e.withoutOuterTrigger());
-      } else {
-        if (until.onTimer(c.forChild(UNTIL), e.withoutOuterTrigger()) != TriggerResult.CONTINUE) {
-          return TriggerResult.FIRE_AND_FINISH;
-        }
-      }
-
-      return TriggerResult.CONTINUE;
-    }
-
-    @Override
-    public void clear(TriggerContext<W> c, W window) throws Exception {
-      actual.clear(c.forChild(ACTUAL), window);
-      until.clear(c.forChild(UNTIL), window);
-    }
-
-    @Override
-    public boolean willNeverFinish() {
-      return false;
-    }
-
-    @Override
-    public Instant getWatermarkCutoff(W window) {
-      // This trigger fires once either the trigger or the until trigger fires.
-      Instant actualDeadline = actual.getWatermarkCutoff(window);
-      Instant untilDeadline = until.getWatermarkCutoff(window);
-      return actualDeadline.isBefore(untilDeadline) ? actualDeadline : untilDeadline;
-    }
-
-    @Override
-    public boolean isCompatible(Trigger<?> other) {
-      if (!(other instanceof Until)) {
-        return false;
-      }
-
-      Until<?> that = (Until<?>) other;
-      return actual.isCompatible(that.actual)
-          && until.isCompatible(that.until);
-    }
   }
 }

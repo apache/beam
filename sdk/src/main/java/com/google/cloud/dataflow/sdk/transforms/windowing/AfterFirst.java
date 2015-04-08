@@ -16,7 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.AtMostOnceTrigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
@@ -25,67 +25,63 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Create a {@link CompositeTrigger} that fires once after at least one of its sub-triggers have
- * fired. If all of the sub-triggers finish without firing, the {@code AfterFirst.of(...)} will also
- * finish without firing.
+ * Create a composite {@link Trigger} that fires once after at least one of its sub-triggers have
+ * fired.
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
  *            {@code Trigger}
  */
-public class AfterFirst<W extends BoundedWindow>
-    extends CompositeTrigger<W> implements AtMostOnceTrigger<W> {
+public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
 
   private static final long serialVersionUID = 0L;
+  private List<Trigger<W>> subTriggers;
 
   private AfterFirst(List<Trigger<W>> subTriggers) {
-    super(subTriggers);
+    this.subTriggers = subTriggers;
     Preconditions.checkArgument(subTriggers.size() > 1);
   }
 
   @SafeVarargs
-  public static <W extends BoundedWindow> AtMostOnceTrigger<W> of(
-      AtMostOnceTrigger<W>... triggers) {
+  public static <W extends BoundedWindow> OnceTrigger<W> of(
+      OnceTrigger<W>... triggers) {
     return new AfterFirst<W>(Arrays.<Trigger<W>>asList(triggers));
   }
 
   @Override
   public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
-    // If all the sub-triggers have finished, we should have already finished, so we know there is
-    // at least one unfinished trigger.
-
-    SubTriggerExecutor subStates = subExecutor(c, e.window());
     for (int i = 0; i < subTriggers.size(); i++) {
-      if (subStates.onElement(c, i, e).isFire()) {
+      if (subTriggers.get(i).onElement(c.forChild(i), e).isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
       }
-    }
-
-    if (subStates.allFinished()) {
-      throw new IllegalStateException("AfterFirst should have fired earlier.");
     }
     return TriggerResult.CONTINUE;
   }
 
   @Override
   public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
-    SubTriggerExecutor subStates = subExecutor(c, e);
     for (int i = 0; i < subTriggers.size(); i++) {
-      if (subStates.onMerge(c, i, e).isFire()) {
+      if (subTriggers.get(i).onMerge(c.forChild(i), e).isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
       }
     }
-
     return TriggerResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult afterChildTimer(
-      TriggerContext<W> c, W window, int childIdx, TriggerResult result) throws Exception {
-    if (result.isFire()) {
-      return TriggerResult.FIRE_AND_FINISH;
+  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+    if (e.isForCurrentLayer()) {
+      throw new IllegalStateException("AfterFirst shouldn't receive any timers.");
     }
 
-    return TriggerResult.CONTINUE;
+    int childIdx = e.getChildIndex();
+    return subTriggers.get(childIdx).onTimer(c.forChild(childIdx), e.withoutOuterTrigger()).isFire()
+        ? TriggerResult.FIRE_AND_FINISH
+        : TriggerResult.CONTINUE;
+  }
+
+  @Override
+  public void clear(Trigger.TriggerContext<W> c, W window) throws Exception {
+    SubTriggerExecutor.forWindow(subTriggers, c, window).clear();
   }
 
   @Override
@@ -106,5 +102,25 @@ public class AfterFirst<W extends BoundedWindow>
       }
     }
     return deadline;
+  }
+
+  @Override
+  public boolean isCompatible(Trigger<?> other) {
+    if (!(other instanceof AfterFirst)) {
+      return false;
+    }
+
+    AfterFirst<?> that = (AfterFirst<?>) other;
+    if (this.subTriggers.size() != that.subTriggers.size()) {
+      return false;
+    }
+
+    for (int i = 0; i < this.subTriggers.size(); i++) {
+      if (!this.subTriggers.get(i).isCompatible(that.subTriggers.get(i))) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }
