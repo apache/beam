@@ -16,33 +16,56 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
 /** Unit tests for {@link PipelineOptions}. */
 @RunWith(JUnit4.class)
 public class PipelineOptionsTest {
-  /** Interface used for testing that {@link PipelineOptions#as(Class)} functions. */
-  public static interface TestOptions extends PipelineOptions {
-    List<Boolean> getTestValue();
-    void setTestValue(List<Boolean> testValue);
+  /** Interfaces used for testing that {@link PipelineOptions#as(Class)} functions. */
+  private static interface DerivedTestOptions extends BaseTestOptions {
+    int getDerivedValue();
+    void setDerivedValue(int derivedValue);
+
+    @JsonIgnore
+    Set<String> getIgnoredValue();
+    void setIgnoredValue(Set<String> ignoredValue);
+  }
+
+  private static interface ConflictedTestOptions extends BaseTestOptions {
+    String getDerivedValue();
+    void setDerivedValue(String derivedValue);
+
+    @JsonIgnore
+    Set<String> getIgnoredValue();
+    void setIgnoredValue(Set<String> ignoredValue);
+  }
+
+  private static interface BaseTestOptions extends PipelineOptions {
+    List<Boolean> getBaseValue();
+    void setBaseValue(List<Boolean> baseValue);
 
     @JsonIgnore
     Set<String> getIgnoredValue();
@@ -51,7 +74,7 @@ public class PipelineOptionsTest {
 
   @Test
   public void testDynamicAs() {
-    TestOptions options = PipelineOptionsFactory.create().as(TestOptions.class);
+    BaseTestOptions options = PipelineOptionsFactory.create().as(BaseTestOptions.class);
     assertNotNull(options);
   }
 
@@ -61,20 +84,42 @@ public class PipelineOptionsTest {
   }
 
   @Test
-  public void testCloneAs() {
-    TestOptions options = PipelineOptionsFactory.create().as(TestOptions.class);
-    options.setTestValue(Lists.<Boolean>newArrayList());
+  public void testCloneAs() throws IOException {
+    DerivedTestOptions options = PipelineOptionsFactory.create().as(DerivedTestOptions.class);
+    options.setBaseValue(Lists.<Boolean>newArrayList());
     options.setIgnoredValue(Sets.<String>newHashSet());
     options.getIgnoredValue().add("ignoredString");
+    options.setDerivedValue(0);
 
-    TestOptions clonedOptions = options.cloneAs(TestOptions.class);
+    BaseTestOptions clonedOptions = options.cloneAs(BaseTestOptions.class);
     assertNotSame(clonedOptions, options);
-    assertNotSame(clonedOptions.getTestValue(), options.getTestValue());
+    assertNotSame(clonedOptions.getBaseValue(), options.getBaseValue());
 
-    clonedOptions.getTestValue().add(true);
-    assertFalse(clonedOptions.getTestValue().isEmpty());
-    assertTrue(options.getTestValue().isEmpty());
+    clonedOptions.getBaseValue().add(true);
+    assertFalse(clonedOptions.getBaseValue().isEmpty());
+    assertTrue(options.getBaseValue().isEmpty());
 
     assertNull(clonedOptions.getIgnoredValue());
+
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.readValue(mapper.writeValueAsBytes(clonedOptions), PipelineOptions.class);
+  }
+
+  @Test
+  public void testCloneAsConflicted() throws IOException {
+    DerivedTestOptions options = PipelineOptionsFactory.create().as(DerivedTestOptions.class);
+    options.setBaseValue(Lists.<Boolean>newArrayList());
+    options.setIgnoredValue(Sets.<String>newHashSet());
+    options.getIgnoredValue().add("ignoredString");
+    options.setDerivedValue(0);
+
+    try {
+      options.cloneAs(ConflictedTestOptions.class);
+      fail("should have failed");
+    } catch (Exception e) {
+      // Expected
+      assertThat(e.toString(), containsString("incompatible return types"));
+    }
   }
 }
+

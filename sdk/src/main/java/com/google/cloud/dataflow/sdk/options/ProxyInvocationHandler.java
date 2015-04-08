@@ -53,6 +53,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -167,11 +168,16 @@ class ProxyInvocationHandler implements InvocationHandler {
    * @return A copy of the PipelineOptions.
    */
   synchronized <T extends PipelineOptions> T cloneAs(Object proxy, Class<T> iface) {
+    PipelineOptions clonedOptions;
     try {
-      return MAPPER.readValue(MAPPER.writeValueAsBytes(proxy), PipelineOptions.class).as(iface);
+      clonedOptions = MAPPER.readValue(MAPPER.writeValueAsBytes(proxy), PipelineOptions.class);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to serialize the pipeline options to JSON.", e);
     }
+    for (Class<? extends PipelineOptions> knownIface : knownInterfaces) {
+      clonedOptions.as(knownIface);
+    }
+    return clonedOptions.as(iface);
   }
 
   /**
