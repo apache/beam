@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 
 /**
- * Options which can be used to configure BigQuery tables in Dataflow examples.
+ * Options that can be used to configure BigQuery tables in Dataflow examples.
  * The project defaults to the project being used to run the example.
  */
 public interface ExampleBigQueryTableOptions extends DataflowPipelineOptions {

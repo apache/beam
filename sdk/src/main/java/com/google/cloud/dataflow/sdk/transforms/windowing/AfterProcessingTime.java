@@ -42,8 +42,8 @@ public class AfterProcessingTime<W extends BoundedWindow>
   }
 
   /**
-   * Creates a trigger that fires when the current processing time passes the processing time at
-   * which this trigger saw the first element in a pane.
+   * Creates a trigger that fires when the current processing time passes the processing time
+   * at which this trigger saw the first element in a pane.
    */
   public static <W extends BoundedWindow> AfterProcessingTime<W> pastFirstElementInPane() {
     return new AfterProcessingTime<W>(IDENTITY);

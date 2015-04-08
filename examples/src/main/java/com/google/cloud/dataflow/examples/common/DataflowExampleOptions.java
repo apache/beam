@@ -19,7 +19,7 @@ import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 
 /**
- * Options which can be used to configure the Dataflow examples.
+ * Options that can be used to configure the Dataflow examples.
  */
 public interface DataflowExampleOptions extends DataflowPipelineOptions {
   @Description("Whether to keep jobs running on the Dataflow service after local process exit")

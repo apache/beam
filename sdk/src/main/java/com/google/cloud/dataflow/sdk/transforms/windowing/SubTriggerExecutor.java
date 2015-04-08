@@ -71,7 +71,7 @@ class SubTriggerExecutor<W extends BoundedWindow> {
    * windows.
    *
    * <p>The finished states of all of the sub-triggers will be OR-ed across all of the windows.
-   * This applies the behavior that a trigger which has finished in any of the merged windows is
+   * This applies the behavior that a trigger that has finished in any of the merged windows is
    * finished in the merged window.
    *
    * @param c The context of the composite trigger

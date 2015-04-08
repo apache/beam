@@ -259,7 +259,7 @@ or [`TrafficStreamingMaxLaneFlow.java`](https://github.com/GoogleCloudPlatform/D
         `--inputTopic=/topics/<project-name>/<topic-name>`
 
     Note that this format is different from the format you used when you
-    established your Cloud Pub/Sub topic name (and which you will pass to your
+    established your Cloud Pub/Sub topic name (and that you will pass to your
     pipeline). The reason for the difference is that the script depends on an
     earlier version of Pub/Sub, which uses a different topic name
     syntax than the latest Cloud Pub/Sub version.

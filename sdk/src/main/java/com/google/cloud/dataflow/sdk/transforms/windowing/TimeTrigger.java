@@ -57,7 +57,7 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * Adds some delay to the original target time.
    *
    * @param delay the delay to add
-   * @return An updated time trigger which will wait the additional time before firing.
+   * @return An updated time trigger that will wait the additional time before firing.
    */
   public T plusDelayOf(final Duration delay) {
     return newWith(new SerializableFunction<Instant, Instant>() {

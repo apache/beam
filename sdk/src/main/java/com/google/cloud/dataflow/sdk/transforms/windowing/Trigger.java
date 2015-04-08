@@ -55,7 +55,7 @@ import java.util.Map;
  * <ul>
  *   <li> {@link Repeatedly#forever} to create a trigger that executes forever. Any time its
  *   argument finishes it gets reset and starts over. Can be combined with
- *   {@link Trigger#orFinally} to specify a condition which causes the repetition to stop.
+ *   {@link Trigger#orFinally} to specify a condition that causes the repetition to stop.
  *   <li> {@link AfterEach#inOrder} to execute each trigger in sequence, firing each (and every)
  *   time that a trigger fires, and advancing to the next trigger in the sequence when it finishes.
  *   <li> {@link AfterFirst#of} to create a trigger that fires after at least one of its arguments
@@ -175,7 +175,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
      * @param window the window the timer is being set for.
      * @param timestamp the time at which the trigger’s {@link Trigger#onTimer} callback should
      *        execute
-     * @param timeDomain the domain which the {@code timestamp} applies to
+     * @param timeDomain the domain that the {@code timestamp} applies to
      */
     void setTimer(W window, Instant timestamp, TimeDomain timeDomain) throws IOException;
 
@@ -289,7 +289,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     }
 
     /**
-     * The old windows which were merged.
+     * The old windows that were merged.
      */
     public Iterable<W> oldWindows() {
       return oldWindows;

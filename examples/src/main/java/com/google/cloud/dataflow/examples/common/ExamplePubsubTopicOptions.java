@@ -21,7 +21,7 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 
 /**
- * Options which can be used to configure Pub/Sub topic in Dataflow examples.
+ * Options that can be used to configure Pub/Sub topic in Dataflow examples.
  */
 public interface ExamplePubsubTopicOptions extends DataflowPipelineOptions {
   @Description("Pub/Sub topic")

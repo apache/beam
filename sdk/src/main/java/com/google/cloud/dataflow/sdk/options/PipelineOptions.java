@@ -59,7 +59,7 @@ public interface PipelineOptions {
    * Makes a deep clone of this object, and transforms the cloned object into the specified
    * type {@code kls}. {@see #as} for more information about the conversion.
    * <p>
-   * Properties which are marked with {@code @JsonIgnore} will not be cloned.
+   * Properties that are marked with {@code @JsonIgnore} will not be cloned.
    */
   <T extends PipelineOptions> T cloneAs(Class<T> kls);
 

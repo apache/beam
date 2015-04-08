@@ -281,13 +281,13 @@ public class Window {
   }
 
   /**
-   * An incomplete {@code Window} transform which has a trigger specified but has an unspecified
+   * An incomplete {@code Window} transform that has a trigger specified but has an unspecified
    * accumulation mode.
    *
    * <p> The currently available accumulation modes are:
    *
    * <ul>
-   *   <li> {@link Window.Triggering#discardingFiredPanes} which causes the elements in a pane to
+   *   <li> {@link Window.Triggering#discardingFiredPanes}, which causes the elements in a pane to
    *   be discarded after the trigger fires and output is produced.
    * </ul>
    *
@@ -305,7 +305,7 @@ public class Window {
 
     /**
      * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
-     * Triggering behavior, and which discards elements in a pane after they are triggered.
+     * Triggering behavior, and that discards elements in a pane after they are triggered.
      *
      * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
      * specified to be applied, but more properties can still be specified.
