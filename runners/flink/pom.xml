@@ -93,7 +93,7 @@ Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 		<dependency>
 			<groupId>com.google.cloud.dataflow</groupId>
 			<artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-			<version>LATEST</version>
+			<version>0.3.150326</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.slf4j</groupId>
