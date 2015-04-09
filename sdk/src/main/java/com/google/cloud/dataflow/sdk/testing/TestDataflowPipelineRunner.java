@@ -40,7 +40,8 @@ public class TestDataflowPipelineRunner extends BlockingDataflowPipelineRunner {
   public DataflowPipelineJob run(Pipeline pipeline) {
     DataflowPipelineJob state = super.run(pipeline);
     if (state.getState() != State.DONE) {
-      throw new AssertionError("The dataflow failed.");
+      // TODO: Get an exception from the remote service.
+      throw new IllegalStateException("The dataflow failed.");
     }
     return state;
   }
