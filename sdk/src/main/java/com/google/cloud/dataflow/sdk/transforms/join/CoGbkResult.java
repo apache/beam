@@ -117,7 +117,7 @@ public class CoGbkResult {
                + "reiteration (which may be slow) is required.");
       final Reiterator<RawUnionValue> tail = (Reiterator<RawUnionValue>) taggedIter;
       // This is a trinary-state array recording whether a given tag is present in the tail. The
-      // inital value is null (unknown) for all tags, and the first iteration through the entire
+      // initial value is null (unknown) for all tags, and the first iteration through the entire
       // list will set these values to true or false to avoid needlessly iterating if filtering
       // against a given tag would not match anything.
       final Boolean[] containsTag = new Boolean[schema.size()];
@@ -164,6 +164,9 @@ public class CoGbkResult {
    * Returns the values from the table represented by the given
    * {@code TupleTag<V>} as an {@code Iterable<V>} (which may be empty if there
    * are no results).
+   * <p>
+   * If tag was not part of the original CoGroupByKey,
+   * throws an IllegalArgumentException.
    */
   public <V> Iterable<V> getAll(TupleTag<V> tag) {
     int index = schema.getIndex(tag);
@@ -179,6 +182,9 @@ public class CoGbkResult {
   /**
    * If there is a singleton value for the given tag, returns it.
    * Otherwise, throws an IllegalArgumentException.
+   * <p>
+   * If tag was not part of the original CoGroupByKey,
+   * throws an IllegalArgumentException.
    */
   public <V> V getOnly(TupleTag<V> tag) {
     return innerGetOnly(tag, null, false);
@@ -187,7 +193,9 @@ public class CoGbkResult {
   /**
    * If there is a singleton value for the given tag, returns it.  If there is
    * no value for the given tag, returns the defaultValue.
-   * Otherwise, throws an IllegalArgumentException.
+   * <p>
+   * If tag was not part of the original CoGroupByKey,
+   * throws an IllegalArgumentException.
    */
   public <V> V getOnly(TupleTag<V> tag, V defaultValue) {
     return innerGetOnly(tag, defaultValue, true);
@@ -305,7 +313,7 @@ public class CoGbkResult {
   // Methods for testing purposes
 
   /**
-   * Returns a new CoGbkResult that contains just the given tag the given data.
+   * Returns a new CoGbkResult that contains just the given tag and given data.
    */
   public static <V> CoGbkResult of(TupleTag<V> tag, List<V> data) {
     return CoGbkResult.empty().and(tag, data);

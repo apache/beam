@@ -33,7 +33,7 @@ import java.util.List;
 
 /**
  * A schema for the results of a CoGroupByKey.  This maintains the full
- * set of TupleTags for the results of a CoGroupByKey, and facilitates mapping
+ * set of TupleTags for the results of a CoGroupByKey and facilitates mapping
  * between TupleTags and Union Tags (which are used as secondary keys in the
  * CoGroupByKey).
  */
@@ -87,7 +87,7 @@ public class CoGbkResultSchema implements Serializable {
   }
 
   /**
-   * Returns the number of columms for this schema.
+   * Returns the number of columns for this schema.
    */
   public int size() {
     return tupleTagList.getAll().size();
