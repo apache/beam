@@ -72,7 +72,7 @@ import java.util.List;
  * By default, the example will run a separate pipeline to inject the data from the default
  * {@literal --inputFile} to the Pub/Sub {@literal --inputTopic}. It will make it available for
  * the streaming pipeline to process. You may override the default {@literal --inputFile} with the
- * file of your choosing. You may also set {@literal --inputTopic} to an empty string, which will
+ * file of your choosing. You may also set {@literal --inputFile} to an empty string, which will
  * disable the automatic Pub/Sub injection, and allow you to use separate tool to control the input
  * to this example. An example code, which publishes traffic sensor data to a Pub/Sub topic,
  * is provided in
