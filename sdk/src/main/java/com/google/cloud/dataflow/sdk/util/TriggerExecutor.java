@@ -230,9 +230,11 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
 
     // Before we finish, we can clean up the state associated with the trigger in the old windows
     for (W window : toBeMerged) {
-      trigger.clear(triggerContext, window);
-      if (!willNeverFinish) {
-        triggerContext.remove(IS_ROOT_FINISHED, window);
+      if (!mergeResult.equals(window)) {
+        trigger.clear(triggerContext, window);
+        if (!willNeverFinish) {
+          triggerContext.remove(IS_ROOT_FINISHED, window);
+        }
       }
     }
   }

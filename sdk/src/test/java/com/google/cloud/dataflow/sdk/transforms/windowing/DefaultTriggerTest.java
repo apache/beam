@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -91,6 +92,23 @@ public class DefaultTriggerTest {
         isSingleWindowedValue(Matchers.contains(4), 30, 30, 40)));
     assertFalse(tester.isDone(new IntervalWindow(new Instant(1), new Instant(25))));
     assertFalse(tester.isDone(new IntervalWindow(new Instant(30), new Instant(40))));
+    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
+  }
+
+  @Test
+  public void testDefaultTriggerWithContainedSessionWindow() throws Exception {
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+        Sessions.withGapDuration(Duration.millis(10)),
+        DefaultTrigger.<IntervalWindow>of());
+
+    tester.injectElement(1, new Instant(1));
+    tester.injectElement(2, new Instant(9));
+    tester.injectElement(3, new Instant(7));
+
+    tester.advanceWatermark(new Instant(20));
+    Iterable<WindowedValue<Iterable<Integer>>> extractOutput = tester.extractOutput();
+    assertThat(extractOutput, Matchers.contains(
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 1, 19)));
     assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 
