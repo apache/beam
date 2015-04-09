@@ -197,8 +197,9 @@ public class PubsubIO {
      *
      * <p> By default windows are emitted based on an estimate of when this source is likely
      * done producing data for a given timestamp (referred to as the Watermark; see
-     * {@link AfterWatermark} for more details). Any late data will be handled by the trigger
-     * specified with the windowing strategy -- by default it will be output immediately.
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark} for more details).
+     * Any late data will be handled by the trigger specified with the windowing strategy -- by
+     * default it will be output immediately.
      *
      * <p> The {#dropLateData} field allows you to control what to do with late data. This relaxes
      * the semantics of {@code GroupByKey}; see

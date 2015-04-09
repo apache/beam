@@ -21,7 +21,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 
 /**
  * Count transforms can be used to count the number of elements in a PCollection.
- * {@link PerElement Count.PerElement can be used to count the number of occurrences of each
+ * {@link PerElement Count.PerElement} can be used to count the number of occurrences of each
  * distinct element in the PCollection. {@link Globally Count.Globally} can
  * be used to count the total number of elements in a PCollection.
  */

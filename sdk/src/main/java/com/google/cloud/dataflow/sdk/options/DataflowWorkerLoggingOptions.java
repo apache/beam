@@ -90,8 +90,8 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
     /**
      * Overrides the default log level for the passed in class.
      * <p>
-     * This is equivalent to calling {@link #forName(String, Level)} and
-     * passing in the {@link Class#getName() class name}.
+     * This is equivalent to calling {@link #forName(String, DataflowWorkerLoggingOptions.Level)}
+     * and passing in the {@link Class#getName() class name}.
      */
     public static WorkerLogLevelOverride forClass(Class<?> klass, Level level) {
       Preconditions.checkNotNull(klass, "Expected class to be not null.");
@@ -101,8 +101,8 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
     /**
      * Overrides the default log level for the passed in package.
      * <p>
-     * This is equivalent to calling {@link #forName(String, Level)} and
-     * passing in the {@link Package#getName() package name}.
+     * This is equivalent to calling {@link #forName(String, DataflowWorkerLoggingOptions.Level)}
+     * and passing in the {@link Package#getName() package name}.
      */
     public static WorkerLogLevelOverride forPackage(Package pkg, Level level) {
       Preconditions.checkNotNull(pkg, "Expected package to be not null.");

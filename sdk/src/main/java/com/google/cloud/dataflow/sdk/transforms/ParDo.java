@@ -129,7 +129,7 @@ import java.util.Map;
  * {@code PCollection}s computed by earlier pipeline operations,
  * passed in to the {@code ParDo} transform using
  * {@link #withSideInputs}, and their contents accessible to each of
- * the {@code DoFn} operations via {@link DoFn.Context#sideInput}.
+ * the {@code DoFn} operations via {@link DoFn.ProcessContext#sideInput sideInput}.
  * For example:
  *
  * <pre> {@code
@@ -445,7 +445,7 @@ public class ParDo {
    *
    * <p> Side inputs are {@link PCollectionView}s, whose contents are
    * computed during pipeline execution and then made accessible to
-   * {@code DoFn} code via {@link DoFn.Context#sideInput}. Each
+   * {@code DoFn} code via {@link DoFn.ProcessContext#sideInput sideInput}. Each
    * invocation of the {@code DoFn} receives the same values for these
    * side inputs.
    *
@@ -466,7 +466,7 @@ public class ParDo {
     *
    * <p> Side inputs are {@link PCollectionView}s, whose contents are
    * computed during pipeline execution and then made accessible to
-   * {@code DoFn} code via {@link DoFn.Context#sideInput}.
+   * {@code DoFn} code via {@link DoFn.ProcessContext#sideInput sideInput}.
    *
    * <p> See the discussion of Side Inputs above for more explanation.
    *

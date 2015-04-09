@@ -47,7 +47,7 @@ import org.joda.time.Instant;
  * once when the watermark passes the end of the window and then immediately therafter when any
  * late data arrive, is one such example.
  *
- * <p> The watermark is the clock that defines {@link TimeDomain.EVENT_TIME}.
+ * <p> The watermark is the clock that defines {@link Trigger.TimeDomain#EVENT_TIME}.
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used.
  */

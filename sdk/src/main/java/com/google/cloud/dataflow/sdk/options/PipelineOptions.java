@@ -57,7 +57,7 @@ public interface PipelineOptions {
 
   /**
    * Makes a deep clone of this object, and transforms the cloned object into the specified
-   * type {@code kls}. {@see #as} for more information about the conversion.
+   * type {@code kls}. See {@link #as} for more information about the conversion.
    * <p>
    * Properties that are marked with {@code @JsonIgnore} will not be cloned.
    */
