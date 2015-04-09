@@ -617,10 +617,9 @@ public class CoderRegistry implements CoderProvider {
     }
 
     if (getFallbackCoderProvider() != null) {
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings({"unchecked", "rawtypes"})
       Optional<Coder<?>> coder =
-          (Optional<Coder<?>>) getFallbackCoderProvider()
-          .getCoder(TypeToken.of(clazz));
+          (Optional) getFallbackCoderProvider().getCoder(TypeToken.of(clazz));
       if (coder.isPresent()) {
         return coder.get();
       }
