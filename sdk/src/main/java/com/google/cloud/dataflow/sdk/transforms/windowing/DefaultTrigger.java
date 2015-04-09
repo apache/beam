@@ -48,10 +48,6 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
 
   @Override
   public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
-    for (W oldWindow : e.oldWindows()) {
-      c.deleteTimer(oldWindow, TimeDomain.EVENT_TIME);
-    }
-
     c.setTimer(e.newWindow(), e.newWindow().maxTimestamp(), TimeDomain.EVENT_TIME);
     return TriggerResult.CONTINUE;
   }
