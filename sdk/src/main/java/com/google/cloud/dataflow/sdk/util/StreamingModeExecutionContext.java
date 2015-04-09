@@ -303,7 +303,7 @@ public class StreamingModeExecutionContext extends ExecutionContext {
 
       // If we have pending (not-yet-persisted) additions, include them
       items.addAll(listUpdates.values);
-      return items.isEmpty() ? null : items;
+      return items;
     }
 
     @Override
