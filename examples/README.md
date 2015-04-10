@@ -78,14 +78,14 @@ Besides WordCount, the following examples are included:
   an hour within each month. Demonstrates using Cloud Dataflow
   <code>Windowing</code> to perform time-based aggregations of data.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficStreamingMaxLaneFlow.java">TrafficStreamingMaxLaneFlow</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficMaxLaneFlow.java">TrafficMaxLaneFlow</a>
   &mdash;A streaming Cloud Dataflow example using BigQuery output in the
   <code>traffic sensor</code> domain. Demonstrates the Cloud Dataflow streaming
   runner, sliding windows, Cloud Pub/Sub topic ingestion, the use of the
   <code>AvroCoder</code> to encode a custom class, and custom
   <code>Combine</code> transforms.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficStreamingRoutes.java">TrafficStreamingRoutes</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficRoutes.java">TrafficRoutes</a>
   &mdash;A streaming Cloud Dataflow example using BigQuery output in the
   <code>traffic sensor</code> domain. Demonstrates the Cloud Dataflow streaming
   runner, <code>GroupByKey</code>, keyed state, sliding windows, and Cloud
@@ -159,144 +159,27 @@ example, input file pattern of `c:\*.txt` should be entered as `c:\\*.txt`.
 running some of our streaming examples. Please stay tuned for much easier
 instructions in the near future!</p>
 
-## How to Set Up the "Traffic Sensor" Streaming Pipeline Examples
+### Running the Streaming "Traffic" Streaming Examples###
 
-Two of the streaming Cloud Dataflow pipeline examples,
-`TrafficStreamingMaxLaneFlow` and `TrafficStreamingRoutes`, require the
-publication of *traffic sensor* data to a [Google Cloud Pub/Sub](https://cloud.google.com/pubsub/docs)
-topic. This publication is accomplished via a Python script, which reads from
-traffic-sensor data file(s) and publishes that data to a Cloud Pub/Sub topic.
-The following subsections explain how to set up and use the script to input
-streaming traffic sensor data to one of the example Cloud Dataflow streaming
-pipelines.
+The `TrafficMaxLaneFlow` and `TrafficRoutes` pipelines, when run in
+streaming mode (with the `--streaming=true` option), require the
+publication of *traffic sensor* data to a
+[Google Cloud Pub/Sub](https://cloud.google.com/pubsub/docs) topic.
+By default, they use a separate batch pipeline and a pre-defined Cloud Pub/Sub
+topic to publish previously gathered traffic sensor data that is "streamed" into
+the pipeline.
 
-### Set Up a Cloud Pub/Sub Topic
-
-An easy way to set up a Cloud Pub/Sub topic is via the web UI. Navigate to the
-*Try It!* section of the [Cloud Pub/Sub API explorer page](https://cloud.google.com/pubsub/reference/rest/v1beta2/projects/topics/create).
-Turn on **Authorize requests using OAuth2**, then click **Authorize**
-(accept the default selected scopes). Next, click inside the *Request body* box,
-select *name*, then type your topic name. The topic name should be of the
-format: `/projects/<project-name>/topics/<topic-name>`. Make sure that you
-create it in the same project for which Cloud Dataflow has been whitelisted.
-Click **Execute** to create the topic.
-
-### Set Up a BigQuery Dataset
-
-If necessary, create a BigQuery dataset to write your pipeline output to.
-You can do this with the [BigQuery UI](https://bigquery.cloud.google.com/) or
-the `bq` command-line tool, which is installed as part of the Google Cloud SDK:
-
-    bq mk <project-name>:<dataset-name>
-
-It's easiest to create the dataset in the same project for which Cloud Dataflow
-has been whitelisted. If you create the BigQuery table in a different project,
-you will need to give your pipeline project access to this BigQuery table
-(see the [BigTable Access Control](https://cloud.google.com/bigquery/access-control)
-for more information).
-
-### Set Up the "Traffic Sensor" Data Generator Script
-
-This Python script reads traffic sensor data from a file and publishes that data
-to Cloud Pub/Sub. The `traffic_pubsub_generator.py`, is located [here](https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher).
-You can either clone its repo (`git clone https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python.git`),
-or download a zip of the repo ([click here to download the zip](https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/archive/master.zip)).
-
-The script uses the Google APIs Client Library for Python. You can install this
-library via:
-
-    pip install --upgrade google-api-python-client
-
-It also uses the Python dateutil package, which you can install via:
-
-    pip install python-dateutil
-
-The script must authenticate to access Cloud Pub/Sub. See [this page](https://developers.google.com/accounts/docs/application-default-credentials)
-for more information about the `GoogleCredentials` library used by the script.
-As described in that doc, you can:
-
- 1. run the script locally by downloading a credentials file, then pointing an
- environment variable to that file, or
-
- 2. run the script on a Google Compute Engine instance from the same project. If
- you run the script on a Compute Engine instance, this instance must be created
- with *Cloud Platform Project Access* enabled. Click **Show advanced options**
- when creating the Compute Instance image to display and enable this setting.
-
-The script reads a pre-written traffic sensor data file. You can either download
-the complete (~2GB) file:
+The default traffic sensor data `--inputFile` is downloaded from
 
     curl -O \
-    http://storage.googleapis.com/aju-sd-traffic/unzipped/Freeways-5Minaa2010-01-01_to_2010-02-15.csv
-
-or, a smaller test file:
-
     http://storage.googleapis.com/aju-sd-traffic/unzipped/Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv
 
-These files contain real traffic sensor data from San Diego freeways. See
+This file contains real traffic sensor data from San Diego freeways. See
 <a href="http://storage.googleapis.com/aju-sd-traffic/freeway_detector_config/Freeways-Metadata-2010_01_01/copyright(san%20diego).txt">this file</a>
 for copyright information.
 
-
-### Start a TrafficStreaming Pipeline
-
-Before running the traffic generator script, start one of the traffic sensor
-streaming pipelines ([`TrafficStreamingRoutes.java`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficStreamingRoutes.java)
-or [`TrafficStreamingMaxLaneFlow.java`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficStreamingMaxLaneFlow.java)).
-
- * See the Dataflow SDK for general instructions on compiling and running the
- examples.
-
- * See the comments in the source files and the <i>Example Use Cases&mdash;Streaming
- Pipeline Example</i> section in [Google Cloud Dataflow Documentation&mdash;Designing
- Your Pipeline](https://cloud.google.com/dataflow/pipelines/designing-your-pipeline)
- for more information on what these pipelines do and the options they take. To
- recap:
-
-   * You use the `--inputTopic` pipeline option to specify your Cloud Pub/Sub
-   topic name:
-
-        `--inputTopic=/topics/<project-name>/<topic-name>`
-
-    Note that this format is different from the format you used when you
-    established your Cloud Pub/Sub topic name (and that you will pass to your
-    pipeline). The reason for the difference is that the script depends on an
-    earlier version of Pub/Sub, which uses a different topic name
-    syntax than the latest Cloud Pub/Sub version.
-
-   * You specify the BigQuery dataset and table that your pipeline will write
-   output to with the `--dataset` and `--table pipeline` options:
-
-        `--dataset=<dataset-name> --table=<table-name>`
-
-### Run the "Traffic Sensor" Data Generator Script
-
-After starting a traffic streaming pipeline, run the [`traffic_pubsub_generator.py`](https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher)
-script. You can run the script with or without the `--replay` option; the
-`--replay` flag will simulate pauses in the data stream that correspond to the
-pauses in the original data, which was sampled every 5 minutes. Note that each
-of the streaming traffic sensor pipelines makes different assumptions about the
-use of this flag, so read the comments to those pipelines before deciding
-whether to use this flag when you run the script.
-
-    python traffic_pubsub_generator.py \
-    --filename <your-datafile.csv> \
-    --topic projects/<project-name>/topics/<topic-name> --replay
-
-Note that instead of using the `--topic` flag, you can set your topic name as
-the default topic directly in the script:
-
-    TOPIC = 'projects/your-project/topics/your-topic'  # default; set to your
-    topic
-
-To restrict the generator to N lines, use the `num_lines` flag:
-
-    python traffic_pubsub_generator.py --filename <your-datafile.csv> \
-    --replay --num_lines 10
-
-To alter the data timestamps to start from script time, add the `--current`
-flag.
-
-For more information, see the script doc string by running:
-
-    python traffic_pubsub_generator.py -h
+**Note:** If you set `--streaming=false`, these traffic pipelines will run in batch mode,
+using the timestamps applied to the original dataset to process the data in
+a batch. For further information on how these pipelines operate, see
+<a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficMaxLaneFlow.java">TrafficMaxLaneFlow</a>
+and <a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficRoutes.java">TrafficRoutes</a>.
