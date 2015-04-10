@@ -75,7 +75,7 @@ import java.util.Map;
  *
  * <p> In streaming mode, the pipeline reads the data from a Pub/Sub topic.
  * By default, the example will run a separate pipeline to inject the data from the default
- * {@literal --inputFile} to the Pub/Sub {@literal --inputTopic}. It will make it available for
+ * {@literal --inputFile} to the Pub/Sub {@literal --pubsubTopic}. It will make it available for
  * the streaming pipeline to process. You may override the default {@literal --inputFile} with the
  * file of your choosing. You may also set {@literal --inputFile} to an empty string, which will
  * disable the automatic Pub/Sub injection, and allow you to use separate tool to control the input
@@ -85,7 +85,7 @@ import java.util.Map;
  *
  * <p> The example is configured to use the default Pub/Sub topic and the default BigQuery table
  * from the example common package (there is no defaults for a general Dataflow pipeline).
- * You can override them by using the {@literal --inputTopic}, {@literal --bigQueryDataset}, and
+ * You can override them by using the {@literal --pubsubTopic}, {@literal --bigQueryDataset}, and
  * {@literal --bigQueryTable} options. If the Pub/Sub topic or the BigQuery table do not exist,
  * the example will try to create them.
  *
