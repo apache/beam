@@ -55,7 +55,7 @@ public class MultiOutputWordCountTest {
     PCollectionList<String> list = PCollectionList.of(w1).and(w2);
 
     PCollection<String> union = list.apply(Flatten.<String>pCollections());
-    PCollectionView<String, ?> regexView = regex.apply(View.<String>asSingleton());
+    PCollectionView<String> regexView = regex.apply(View.<String>asSingleton());
     PCollectionTuple luc = union.apply(new CountWords(regexView));
     PCollection<Long> unique = luc.get(lowerCnts).apply(
         ApproximateUnique.<KV<String, Long>>globally(16));
@@ -80,9 +80,9 @@ public class MultiOutputWordCountTest {
 
     private Aggregator<Integer> totalWords;
     private Aggregator<Integer> maxWordLength;
-    private final PCollectionView<String, ?> regex;
+    private final PCollectionView<String> regex;
 
-    ExtractWordsFn(PCollectionView<String, ?> regex) {
+    ExtractWordsFn(PCollectionView<String> regex) {
       this.regex = regex;
     }
 
@@ -113,9 +113,9 @@ public class MultiOutputWordCountTest {
 
   public static class CountWords extends PTransform<PCollection<String>, PCollectionTuple> {
 
-    private final PCollectionView<String, ?> regex;
+    private final PCollectionView<String> regex;
 
-    public CountWords(PCollectionView<String, ?> regex) {
+    public CountWords(PCollectionView<String> regex) {
       this.regex = regex;
     }
 

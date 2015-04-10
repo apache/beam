@@ -203,7 +203,7 @@ License.
         <dependency>
             <groupId>com.google.cloud.dataflow</groupId>
             <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-            <version>0.3.141216</version>
+            <version>0.3.150326</version>
         </dependency>
 
         <!-- test dependencies -->

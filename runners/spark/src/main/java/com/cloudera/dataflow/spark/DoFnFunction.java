@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.AggregatorImpl;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
@@ -91,7 +92,7 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     }
 
     @Override
-    public <T> T sideInput(PCollectionView<T, ?> view) {
+    public <T> T sideInput(PCollectionView<T> view) {
       @SuppressWarnings("unchecked")
       T value = (T) mSideInputs.get(view.getTagInternal()).getValue();
       return value;
@@ -104,8 +105,16 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
-      String message = "sideOutput is an unsupported operation for doFunctions, use a" +
+      String message = "sideOutput is an unsupported operation for doFunctions, use a " +
           "MultiDoFunction instead.";
+      LOG.warning(message);
+      throw new UnsupportedOperationException(message);
+    }
+
+    @Override
+    public <T> void sideOutputWithTimestamp(TupleTag<T> tupleTag, T t, Instant instant) {
+      String message = "sideOutputWithTimestamp is an unsupported operation for doFunctions, use a " +
+              "MultiDoFunction instead.";
       LOG.warning(message);
       throw new UnsupportedOperationException(message);
     }

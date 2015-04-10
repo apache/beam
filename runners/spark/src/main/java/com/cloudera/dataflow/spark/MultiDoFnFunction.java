@@ -97,7 +97,7 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
     }
 
     @Override
-    public <T> T sideInput(PCollectionView<T, ?> view) {
+    public <T> T sideInput(PCollectionView<T> view) {
       @SuppressWarnings("unchecked")
       T value = (T) mSideInputs.get(view.getTagInternal()).getValue();
       return value;
@@ -111,6 +111,11 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
     @Override
     public synchronized <T> void sideOutput(TupleTag<T> tag, T t) {
       outputs.put(tag, t);
+    }
+
+    @Override
+    public <T> void sideOutputWithTimestamp(TupleTag<T> tupleTag, T t, Instant instant) {
+      outputs.put(tupleTag, t);
     }
 
     @Override

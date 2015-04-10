@@ -15,10 +15,16 @@
 
 package com.cloudera.dataflow.spark.aggregators;
 
+import com.cloudera.dataflow.spark.SparkRuntimeContext;
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.common.collect.ImmutableList;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
@@ -124,11 +130,18 @@ public class NamedAggregators implements Serializable {
    */
   public static class CombineFunctionState<In, Inter, Out> implements State<In, Inter, Out> {
 
-    private final Combine.CombineFn<In, Inter, Out> combineFn;
-    private Inter state;
+    private Combine.CombineFn<In, Inter, Out> combineFn;
+    private Coder<In> inCoder;
+    private SparkRuntimeContext ctxt;
+    private transient Inter state;
 
-    public CombineFunctionState(Combine.CombineFn<In, Inter, Out> combineFn) {
+    public CombineFunctionState(
+        Combine.CombineFn<In, Inter, Out> combineFn,
+        Coder<In> inCoder,
+        SparkRuntimeContext ctxt) {
       this.combineFn = combineFn;
+      this.inCoder = inCoder;
+      this.ctxt = ctxt;
       this.state = combineFn.createAccumulator();
     }
 
@@ -151,6 +164,20 @@ public class NamedAggregators implements Serializable {
     @Override
     public Out render() {
       return combineFn.extractOutput(state);
+    }
+
+    private void writeObject(ObjectOutputStream oos) throws IOException {
+      oos.writeObject(ctxt);
+      oos.writeObject(combineFn);
+      oos.writeObject(inCoder);
+      combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder).encode(state, oos, Coder.Context.NESTED);
+    }
+
+    private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+      ctxt = (SparkRuntimeContext) ois.readObject();
+      combineFn = (Combine.CombineFn) ois.readObject();
+      inCoder = (Coder) ois.readObject();
+      state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder).decode(ois, Coder.Context.NESTED);
     }
   }
 

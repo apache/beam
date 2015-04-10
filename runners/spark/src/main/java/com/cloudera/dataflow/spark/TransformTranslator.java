@@ -350,11 +350,10 @@ public final class TransformTranslator {
     };
   }
 
-  private static <R, T, WT> TransformEvaluator<View.CreatePCollectionView<R, T,
-      WT>> createPCollView() {
-    return new TransformEvaluator<View.CreatePCollectionView<R, T, WT>>() {
+  private static <R, W> TransformEvaluator<View.CreatePCollectionView<R, W>> createPCollView() {
+    return new TransformEvaluator<View.CreatePCollectionView<R, W>>() {
       @Override
-      public void evaluate(View.CreatePCollectionView<R, T, WT> transform, EvaluationContext
+      public void evaluate(View.CreatePCollectionView<R, W> transform, EvaluationContext
           context) {
         Iterable<WindowedValue<?>> iter = Iterables.transform(context.get(context.getInput
                 (transform)), new WindowingFunction<R>()
@@ -387,13 +386,13 @@ public final class TransformTranslator {
   }
 
   private static Map<TupleTag<?>, BroadcastHelper<?>> getSideInputs(
-      List<PCollectionView<?, ?>> views,
+      List<PCollectionView<?>> views,
       EvaluationContext context) {
     if (views == null) {
       return ImmutableMap.of();
     } else {
       Map<TupleTag<?>, BroadcastHelper<?>> sideInputs = Maps.newHashMap();
-      for (PCollectionView<?, ?> view : views) {
+      for (PCollectionView<?> view : views) {
         Object sideinput = view.fromIterableInternal(context.getPCollectionView(view));
         Coder<Object> coder = context.getDefaultCoder(sideinput);
         BroadcastHelper<?> helper = new BroadcastHelper<>(sideinput, coder);

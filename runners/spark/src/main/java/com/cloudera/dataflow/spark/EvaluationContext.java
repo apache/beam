@@ -131,7 +131,7 @@ public class EvaluationContext implements EvaluationResult {
   }
 
 
-  <T, WT> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T, WT> view) {
+  <T> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
     Iterable<WindowedValue<?>> value = pview.get(view);
     return value;
   }

@@ -20,10 +20,17 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.Max;
+import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
+import com.google.cloud.dataflow.sdk.util.common.Counter;
+import com.google.common.reflect.TypeToken;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
 
@@ -34,7 +41,7 @@ import com.cloudera.dataflow.spark.aggregators.NamedAggregators;
  * The SparkRuntimeContext allows us to define useful features on the client side before our
  * data flow program is launched.
  */
-class SparkRuntimeContext implements Serializable {
+public class SparkRuntimeContext implements Serializable {
   /**
    * An accumulator that is a map from names to aggregators.
    */
@@ -43,6 +50,7 @@ class SparkRuntimeContext implements Serializable {
    * Map fo names to dataflow aggregators.
    */
   private final Map<String, Aggregator<?>> aggregators = new HashMap<>();
+  private transient CoderRegistry coderRegistry;
 
   SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.accum = jsc.accumulator(new NamedAggregators(), new AggAccumParam());
@@ -106,7 +114,7 @@ class SparkRuntimeContext implements Serializable {
     if (aggregator == null) {
       @SuppressWarnings("unchecked")
       NamedAggregators.CombineFunctionState<In, Inter, Out> state = new NamedAggregators
-          .CombineFunctionState<>((Combine.CombineFn<In, Inter, Out>) combineFn);
+          .CombineFunctionState<>((Combine.CombineFn<In, Inter, Out>) combineFn, (Coder<In>) getCoder(combineFn), this);
       accum.add(new NamedAggregators(named, state));
       aggregator = new SparkAggregator<>(state);
       aggregators.put(named, aggregator);
@@ -114,12 +122,45 @@ class SparkRuntimeContext implements Serializable {
     return aggregator;
   }
 
+  public CoderRegistry getCoderRegistry() {
+    if (coderRegistry == null) {
+      coderRegistry = new CoderRegistry();
+      coderRegistry.registerStandardCoders();
+    }
+    return coderRegistry;
+  }
+
+  private Coder getCoder(Combine.CombineFn<?, ?, ?> combiner) {
+    if (combiner.getClass() == Sum.SumIntegerFn.class) {
+      return getCoderRegistry().getDefaultCoder(TypeToken.of(Integer.class));
+    } else if (combiner.getClass() == Sum.SumLongFn.class) {
+      return getCoderRegistry().getDefaultCoder(TypeToken.of(Long.class));
+    } else if (combiner.getClass() == Sum.SumDoubleFn.class) {
+      return getCoderRegistry().getDefaultCoder(TypeToken.of(Double.class));
+    } else if (combiner.getClass() == Min.MinIntegerFn.class) {
+      return getCoderRegistry().getDefaultCoder(TypeToken.of(Integer.class));
+    } else if (combiner.getClass() == Min.MinLongFn.class) {
+      return getCoderRegistry().getDefaultCoder(TypeToken.of(Long.class));
+    } else if (combiner.getClass() == Min.MinDoubleFn.class) {
+      return getCoderRegistry().getDefaultCoder(TypeToken.of(Double.class));
+    } else if (combiner.getClass() == Max.MaxIntegerFn.class) {
+      return getCoderRegistry().getDefaultCoder(TypeToken.of(Integer.class));
+    } else if (combiner.getClass() == Max.MaxLongFn.class) {
+      return getCoderRegistry().getDefaultCoder(TypeToken.of(Long.class));
+    } else if (combiner.getClass() == Max.MaxDoubleFn.class) {
+      return getCoderRegistry().getDefaultCoder(TypeToken.of(Double.class));
+    } else {
+      throw new IllegalArgumentException("unsupported combiner in Aggregator: "
+              + combiner.getClass().getName());
+    }
+  }
+
   /**
    * Initialize spark aggregators exactly once.
    *
    * @param <In> Type of element fed in to aggregator.
    */
-  private static class SparkAggregator<In> implements Aggregator<In> {
+  private static class SparkAggregator<In> implements Aggregator<In>, Serializable {
     private final NamedAggregators.State<In, ?, ?> state;
 
     SparkAggregator(NamedAggregators.State<In, ?, ?> state) {
