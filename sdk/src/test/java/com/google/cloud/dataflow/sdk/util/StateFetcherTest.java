@@ -29,10 +29,12 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
@@ -264,6 +266,30 @@ public class StateFetcherTest {
         buildGlobalDataRequest(tag1, ByteString.EMPTY),
         buildGlobalDataRequest(tag2, ByteString.EMPTY),
         buildGlobalDataRequest(tag1, ByteString.EMPTY)));
+  }
+
+  @Test
+  public void testEmptyFetchGlobalData() throws Exception {
+    StateFetcher fetcher = new StateFetcher(server);
+
+    ByteString encodedIterable = ByteString.EMPTY;
+
+    PCollectionView<Long> view =
+        TestPipeline.create().apply(Create.<Long>of())
+        .setCoder(VarLongCoder.of()).apply(Sum.longsGlobally().asSingletonView());
+
+    String tag = view.getTagInternal().getId();
+
+    // Test three calls in a row. First, data is not ready, then data is ready,
+    // then the data is already cached.
+    when(server.getData(any(Windmill.GetDataRequest.class))).thenReturn(
+        buildGlobalDataResponse(tag, ByteString.EMPTY, true, encodedIterable));
+
+    assertEquals(0L,
+        (long) fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, SideInputState.UNKNOWN));
+
+    verify(server).getData(buildGlobalDataRequest(tag, ByteString.EMPTY));
+    verifyNoMoreInteractions(server);
   }
 
   private Windmill.GetDataResponse buildGlobalDataResponse(

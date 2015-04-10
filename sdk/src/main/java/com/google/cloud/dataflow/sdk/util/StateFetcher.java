@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -228,10 +229,14 @@ public class StateFetcher {
 
         Windmill.GlobalData data = response.getGlobalData(0);
 
+        Iterable<WindowedValue<?>> rawData;
         if (data.getIsReady()) {
-          Iterable<WindowedValue<?>> rawData =
-              view.getCoderInternal().decode(
-                  data.getData().newInput(), Coder.Context.OUTER);
+          if (data.getData().size() > 0) {
+            rawData = view.getCoderInternal().decode(
+                data.getData().newInput(), Coder.Context.OUTER);
+          } else {
+            rawData = Collections.emptyList();
+          }
 
           return new SideInputCacheEntry(
               view.fromIterableInternal(rawData), data.getData().size());
