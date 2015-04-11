@@ -159,15 +159,24 @@ example, input file pattern of `c:\*.txt` should be entered as `c:\\*.txt`.
 running some of our streaming examples. Please stay tuned for much easier
 instructions in the near future!</p>
 
-### Running the Streaming "Traffic" Streaming Examples###
+### Running the "Traffic" Streaming Examples###
 
 The `TrafficMaxLaneFlow` and `TrafficRoutes` pipelines, when run in
 streaming mode (with the `--streaming=true` option), require the
 publication of *traffic sensor* data to a
 [Google Cloud Pub/Sub](https://cloud.google.com/pubsub/docs) topic.
-By default, they use a separate batch pipeline and a pre-defined Cloud Pub/Sub
-topic to publish previously gathered traffic sensor data that is "streamed" into
-the pipeline.
+You can run the example with default settings using the following command:
+
+    mvn exec:java -pl examples \
+    -Dexec.mainClass=com.google.cloud.dataflow.examples.TrafficMaxLaneFlow \
+    -Dexec.args="--project=<YOUR CLOUD PLATFORM PROJECT NAME> \
+    --stagingLocation=<YOUR CLOUD STORAGE LOCATION> \
+    --runner=DataflowPipelineRunner \
+    --streaming=true"
+
+By default, they use a separate batch pipeline to publish previously gathered
+traffic sensor data to the Cloud Pub/Sub topic, which is used as an input source
+for the streaming pipeline.
 
 The default traffic sensor data `--inputFile` is downloaded from
 
@@ -177,6 +186,15 @@ The default traffic sensor data `--inputFile` is downloaded from
 This file contains real traffic sensor data from San Diego freeways. See
 <a href="http://storage.googleapis.com/aju-sd-traffic/freeway_detector_config/Freeways-Metadata-2010_01_01/copyright(san%20diego).txt">this file</a>
 for copyright information.
+
+You may override the default '--inputFile' with an alternative complete
+data set (~2GB). It is provided in the Google Cloud Storage bucket
+'gs://dataflow-samples/traffic_sensor/Freeways-5Minaa2010-01-01_to_2010-02-15.csv'.
+
+You may also set '--inputFile' to an empty string, which will disable
+the automatic Pub/Sub injection, and allow you to use separate tool to control
+the input to this example. An example code, which publishes traffic sensor data
+to a Pub/Sub topic, is provided in [`traffic_pubsub_generator.py`](https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher)
 
 **Note:** If you set `--streaming=false`, these traffic pipelines will run in batch mode,
 using the timestamps applied to the original dataset to process the data in
