@@ -311,6 +311,16 @@ public class PipelineOptionsFactoryTest {
     assertTrue(options.getBoolean());
   }
 
+  @Test
+  public void testEmptyValueNotAllowed() {
+    String[] args = new String[] {
+        "--byte="};
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Empty argument value is only allowed for String, String Array, and Collection");
+    PipelineOptionsFactory.fromArgs(args).as(Primitives.class);
+  }
+
   /** A test interface containing all supported objects. */
   public static interface Objects extends PipelineOptions {
     Boolean getBoolean();
@@ -331,6 +341,8 @@ public class PipelineOptionsFactoryTest {
     void setDouble(Double value);
     String getString();
     void setString(String value);
+    String getEmptyString();
+    void setEmptyString(String value);
     Class<?> getClassValue();
     void setClassValue(Class<?> value);
   }
@@ -347,6 +359,7 @@ public class PipelineOptionsFactoryTest {
         "--float=55.5",
         "--double=12.3",
         "--string=stringValue",
+        "--emptyString=",
         "--classValue=" + PipelineOptionsFactoryTest.class.getName()};
 
     Objects options = PipelineOptionsFactory.fromArgs(args).as(Objects.class);
@@ -359,6 +372,7 @@ public class PipelineOptionsFactoryTest {
     assertEquals(Float.valueOf(55.5f), options.getFloat(), 0.0f);
     assertEquals(Double.valueOf(12.3), options.getDouble(), 0.0);
     assertEquals("stringValue", options.getString());
+    assertTrue(options.getEmptyString().isEmpty());
     assertEquals(PipelineOptionsFactoryTest.class, options.getClassValue());
   }
 
@@ -437,6 +451,55 @@ public class PipelineOptionsFactoryTest {
     assertArrayEquals(new Class[] {PipelineOptionsFactory.class,
                                    PipelineOptionsFactoryTest.class},
         options.getClassValue());
+  }
+
+  @Test
+  @SuppressWarnings("rawtypes")
+  public void testEmptyInStringArrays() {
+    String[] args = new String[] {
+        "--string=",
+        "--string=",
+        "--string="};
+
+    Arrays options = PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
+    assertArrayEquals(new String[] {"", "", ""},
+        options.getString());
+  }
+
+  @Test
+  @SuppressWarnings("rawtypes")
+  public void testEmptyInStringArraysWithCommaList() {
+    String[] args = new String[] {
+        "--string=a,,b"};
+
+    Arrays options = PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
+    assertArrayEquals(new String[] {"a", "", "b"},
+        options.getString());
+  }
+
+  @Test
+  public void testEmptyInNonStringArrays() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Empty argument value is only allowed for String, String Array, and Collection");
+
+    String[] args = new String[] {
+        "--boolean=true",
+        "--boolean=",
+        "--boolean=false"};
+
+    PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
+  }
+
+  @Test
+  public void testEmptyInNonStringArraysWithCommaList() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Empty argument value is only allowed for String, String Array, and Collection");
+
+    String[] args = new String[] {
+        "--int=1,,9"};
+    PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
   }
 
   @Test
@@ -546,21 +609,6 @@ public class PipelineOptionsFactoryTest {
   public void testUsingArgumentWithUnknownPropertyIsIgnoredWithoutStrictParsing() {
     String[] args = new String[] {"--unknownProperty=value"};
     expectedLogs.expectWarn("missing a property named 'unknownProperty'");
-    PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
-  }
-
-  @Test
-  public void testUsingArgumentWithoutValueIsNotAllowed() {
-    String[] args = new String[] {"--diskSizeGb="};
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Argument '--diskSizeGb=' ends with '='");
-    PipelineOptionsFactory.fromArgs(args).create();
-  }
-
-  @Test
-  public void testUsingArgumentWithoutValueIsIgnoredWithoutStrictParsing() {
-    String[] args = new String[] {"--diskSizeGb="};
-    expectedLogs.expectWarn("Strict parsing is disabled, ignoring option");
     PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
   }
 

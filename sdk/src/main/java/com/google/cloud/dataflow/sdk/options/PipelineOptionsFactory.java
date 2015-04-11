@@ -1168,8 +1168,6 @@ public class PipelineOptionsFactory {
         // Make sure that '=' isn't the first character after '--' or the last character
         Preconditions.checkArgument(index != 2,
             "Argument '%s' starts with '--=', empty argument name not allowed", arg);
-        Preconditions.checkArgument(index != arg.length() - 1,
-            "Argument '%s' ends with '=', empty argument value not allowed", arg);
         if (index > 0) {
           builder.put(arg.substring(2, index), arg.substring(index + 1, arg.length()));
         } else {
@@ -1218,6 +1216,8 @@ public class PipelineOptionsFactory {
             "Class %s missing a property named '%s'", klass, entry.getKey());
 
         Method method = propertyNamesToGetters.get(entry.getKey());
+        // Only allow empty argument values for String, String Array, and Collection.
+        Class<?> returnType = method.getReturnType();
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
         if ("runner".equals(entry.getKey())) {
           String runner = Iterables.getOnlyElement(entry.getValue());
@@ -1225,8 +1225,7 @@ public class PipelineOptionsFactory {
               "Unknown 'runner' specified '%s', supported pipeline runners %s",
               runner, Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
           convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
-        } else if (method.getReturnType().isArray()
-            || Collection.class.isAssignableFrom(method.getReturnType())) {
+        } else if (returnType.isArray() || Collection.class.isAssignableFrom(returnType)) {
           // Split any strings with ","
           List<String> values = FluentIterable.from(entry.getValue())
               .transformAndConcat(new Function<String, Iterable<String>>() {
@@ -1235,9 +1234,20 @@ public class PipelineOptionsFactory {
                   return Arrays.asList(input.split(","));
                 }
           }).toList();
+
+          if (returnType.isArray() && !returnType.getComponentType().equals(String.class)) {
+            for (String value : values) {
+              Preconditions.checkArgument(!value.isEmpty(),
+                  "Empty argument value is only allowed for String, String Array, and Collection,"
+                  + " but received: " + returnType);
+            }
+          }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
         } else {
           String value = Iterables.getOnlyElement(entry.getValue());
+          Preconditions.checkArgument(returnType.equals(String.class) || !value.isEmpty(),
+              "Empty argument value is only allowed for String, String Array, and Collection,"
+               + " but received: " + returnType);
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(value, type));
         }
       } catch (IllegalArgumentException e) {
