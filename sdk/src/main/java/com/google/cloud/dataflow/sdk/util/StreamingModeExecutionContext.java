@@ -344,9 +344,11 @@ public class StreamingModeExecutionContext extends ExecutionContext {
             .setTag(serializeTag(tag));
         for (TimestampedValue<ByteString> item : entry.getValue().encodedValues) {
           long timestampMicros = TimeUnit.MILLISECONDS.toMicros(item.getTimestamp().getMillis());
+          // Windmill does not support empty data for tag list state; prepend a zero byte.
+          byte[] zero = {0x0};
           listBuilder.addValues(
               Windmill.Value.newBuilder()
-              .setData(item.getValue())
+              .setData(ByteString.copyFrom(zero).concat(item.getValue()))
               .setTimestamp(timestampMicros));
         }
         outputBuilder.addListUpdates(listBuilder.build());

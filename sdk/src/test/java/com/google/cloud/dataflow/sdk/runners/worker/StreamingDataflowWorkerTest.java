@@ -883,7 +883,7 @@ public class StreamingDataflowWorkerTest {
         "  tag: \"12:MergeWindowsbuffer:gAAAAAAAAAA=\"" +
         "    values {" +
         "    timestamp: 0" +
-        "    data: \"data0\"" +
+        "    data: \"\000data0\"" +
         "  }" +
         "}"),
         stripCounters(result.get(0L)));
@@ -911,7 +911,7 @@ public class StreamingDataflowWorkerTest {
         "      tag: \"12:MergeWindowsbuffer:gAAAAAAAAAA=\"" +
         "      values {" +
         "        timestamp: 0" +
-        "        data: \"data0\"" +
+        "        data: \"\000data0\"" +
         "      }" +
         "    }" +
         "  }" +

@@ -175,7 +175,9 @@ public class StateFetcher {
     List<TimestampedValue<T>> result = new ArrayList<>();
     for (Windmill.Value value : tagList.getValuesList()) {
       result.add(TimestampedValue.of(
-          tag.getCoder().decode(value.getData().newInput(), Coder.Context.OUTER),
+          // Drop the first byte of the data; it's the zero byte we prepended to avoid writing
+          // empty data.
+          tag.getCoder().decode(value.getData().substring(1).newInput(), Coder.Context.OUTER),
           new Instant(TimeUnit.MICROSECONDS.toMillis(value.getTimestamp()))));
     }
 
