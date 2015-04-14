@@ -370,7 +370,7 @@ public class Combine {
     public VO apply(Iterable<? extends VI> inputs) {
       VA accum = createAccumulator();
       for (VI input : inputs) {
-        addInput(accum, input);
+        accum = addInput(accum, input);
       }
       return extractOutput(accum);
     }
@@ -1019,7 +1019,7 @@ public class Combine {
     public VO apply(K key, Iterable<? extends VI> inputs) {
       VA accum = createAccumulator(key);
       for (VI input : inputs) {
-        addInput(key, accum, input);
+        accum = addInput(key, accum, input);
       }
       return extractOutput(key, accum);
     }

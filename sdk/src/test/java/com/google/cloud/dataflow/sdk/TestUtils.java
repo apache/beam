@@ -199,7 +199,7 @@ public class TestUtils {
     for (Iterable<VI> shard : shards) {
       VA accumulator = fn.createAccumulator();
       for (VI elem : shard) {
-        fn.addInput(accumulator, elem);
+        accumulator = fn.addInput(accumulator, elem);
       }
       accumulators.add(accumulator);
     }
