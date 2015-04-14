@@ -90,7 +90,7 @@ import javax.xml.stream.XMLStreamReader;
  * <p> Currently only XML files that use character encoding UTF-8 are supported. Using a file that
  * has a different character encoding may result in loss of data.
  *
- * <p> To use {@code XmlSource}, explicitly declare dependencies on following two jars from WoodStax
+ * <p> To use {@code XmlSource}, explicitly declare dependencies on following two jars from Woodstox
  * StAX XML parser.
  * (1) stax2-api-3.1.1.jar
  * (2) woodstox-core-asl-4.1.2.jar
