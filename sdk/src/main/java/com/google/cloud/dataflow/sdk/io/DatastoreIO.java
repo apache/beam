@@ -25,6 +25,9 @@ import static com.google.api.services.datastore.client.DatastoreHelper.makeOrder
 import static com.google.api.services.datastore.client.DatastoreHelper.makeValue;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.datastore.DatastoreV1;
 import com.google.api.services.datastore.DatastoreV1.CommitRequest;
 import com.google.api.services.datastore.DatastoreV1.Entity;
@@ -47,6 +50,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Write;
+import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.RetryHttpRequestInitializer;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -530,7 +534,12 @@ public class DatastoreIO {
      * Since a bundle is written in batches, we should retry the commit of a batch in order to
      * prevent transient errors from causing the bundle to fail.
      */
-    private static final int DATASTORE_MAX_RETRIES = 5;
+    private static final int MAX_RETRIES = 5;
+
+    /**
+     * Initial backoff time for exponential backoff for retry attempts.
+     */
+    private static final int INITIAL_BACKOFF_MILLIS = 5000;
 
     /**
      * Returns true if a Datastore key is complete.  A key is complete if its last element
@@ -593,18 +602,19 @@ public class DatastoreIO {
     /**
      * Writes a batch of entities to the Datastore.
      *
-     * <p>If a commit fails, it will be retried (up to {@link DatastoreWriter#DATASTORE_MAX_RETRIES}
+     * <p>If a commit fails, it will be retried (up to {@link DatastoreWriter#MAX_RETRIES}
      * times).  All entities in the batch will be committed again, even if the commit was partially
      * successful. If the retry limit is exceeded, the last exception from the Datastore will be
      * thrown.
      *
-     * @throws DatastoreException if the commit fails.
+     * @throws DatastoreException if the commit fails or IOException or InterruptedException if
+     * backing off between retries fails.
      */
-    private void flushBatch() throws DatastoreException {
-      int retryCount = 0;
+    private void flushBatch() throws DatastoreException, IOException, InterruptedException {
       LOG.debug("Writing batch of {} entities", entities.size());
+      Sleeper sleeper = Sleeper.DEFAULT;
+      BackOff backoff = new AttemptBoundedExponentialBackOff(MAX_RETRIES, INITIAL_BACKOFF_MILLIS);
 
-      retryCount = 0;
       while (true) {
         // Batch upsert entities.
         try {
@@ -613,10 +623,7 @@ public class DatastoreIO {
           commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
           datastore.commit(commitRequest.build());
 
-          totalWritten += entities.size();
-          entities.clear();
           // Break if the commit threw no exception.
-          LOG.debug("Successfully wrote {} entities", entities.size());
           break;
 
         } catch (DatastoreException exception) {
@@ -624,13 +631,15 @@ public class DatastoreIO {
           // will be propagated upon the last retry.
           LOG.error("Error writing to the Datastore ({}): {}", exception.getCode(),
               exception.getMessage());
-          retryCount += 1;
-          if (retryCount >= DATASTORE_MAX_RETRIES) {
+          if (!BackOffUtils.next(sleeper, backoff)) {
+            LOG.error("Aborting after {} retries.", MAX_RETRIES);
             throw exception;
           }
-          LOG.error("Committing entities: attempt {} of {}", retryCount + 1, DATASTORE_MAX_RETRIES);
         }
       }
+      totalWritten += entities.size();
+      LOG.debug("Successfully wrote {} entities", entities.size());
+      entities.clear();
     }
   }
 
