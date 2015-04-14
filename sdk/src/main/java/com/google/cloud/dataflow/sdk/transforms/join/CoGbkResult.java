@@ -310,7 +310,10 @@ public class CoGbkResult {
 
 
   //////////////////////////////////////////////////////////////////////////////
-  // Methods for testing purposes
+  // Methods for directly constructing a CoGbkResult
+  //
+  // (for example, creating test data for a transform that consumes a
+  // CoGbkResult)
 
   /**
    * Returns a new CoGbkResult that contains just the given tag and given data.
