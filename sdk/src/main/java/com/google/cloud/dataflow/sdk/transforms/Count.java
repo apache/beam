@@ -69,13 +69,16 @@ public class Count {
       extends PTransform<PCollection<T>, PCollection<Long>> {
 
     private final boolean withoutDefaults;
+    private final int fanout;
 
     public Globally() {
       this.withoutDefaults = false;
+      this.fanout = 0;
     }
 
-    private Globally(boolean withoutDefaults) {
+    private Globally(boolean withoutDefaults, int fanout) {
       this.withoutDefaults = withoutDefaults;
+      this.fanout = fanout;
     }
 
     /**
@@ -83,16 +86,24 @@ public class Count {
      * provide a default value in the case of empty input.
      */
     public Globally<T> withoutDefaults() {
-      return new Globally<T>(true /* withoutDefaults */);
+      return new Globally<T>(true /* withoutDefaults */, fanout);
+    }
+
+    /**
+     * Returns a {@link PTransform} identical to Globally(), but that uses an intermedate combining
+     * node to improve performance.  See {@link Combine.Globally#withFanout}.
+     */
+    public Globally<T> withHotKeyFanout(int fanout) {
+      return new Globally<T>(withoutDefaults, fanout);
     }
 
     @Override
     public PCollection<Long> apply(PCollection<T> input) {
       Combine.Globally<Long, Long> sumGlobally;
       if (withoutDefaults) {
-        sumGlobally = Sum.longsGlobally().withoutDefaults();
+        sumGlobally = Sum.longsGlobally().withoutDefaults().withFanout(fanout);
       } else {
-        sumGlobally = Sum.longsGlobally();
+        sumGlobally = Sum.longsGlobally().withFanout(fanout);
       }
       return
           input

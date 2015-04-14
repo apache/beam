@@ -93,7 +93,7 @@ public class Combine {
    */
   public static <VI, VO> Globally<VI, VO> globally(
       CombineFn<? super VI, ?, VO> fn) {
-    return new Globally<>(fn, true);
+    return new Globally<>(fn, true, 0);
   }
 
   /**
@@ -1115,10 +1115,12 @@ public class Combine {
 
     private final CombineFn<? super VI, ?, VO> fn;
     private final boolean insertDefault;
+    private final int fanout;
 
-    private Globally(CombineFn<? super VI, ?, VO> fn, boolean insertDefault) {
+    private Globally(CombineFn<? super VI, ?, VO> fn, boolean insertDefault, int fanout) {
       this.fn = fn;
       this.insertDefault = insertDefault;
+      this.fanout = fanout;
     }
 
     @Override
@@ -1135,7 +1137,7 @@ public class Combine {
      * on empty input will returned.
      */
     public GloballyAsSingletonView<VI, VO> asSingletonView() {
-      return new GloballyAsSingletonView<>(fn, insertDefault);
+      return new GloballyAsSingletonView<>(fn, insertDefault, fanout);
     }
 
     /**
@@ -1143,16 +1145,35 @@ public class Combine {
      * provide a default value in the case of empty input.
      */
     public Globally<VI, VO> withoutDefaults() {
-      return new Globally<>(fn, false);
+      return new Globally<>(fn, false, fanout);
+    }
+
+    /**
+     * Returns a {@link PTransform} identical to this, but that uses an intermediate node
+     * to combine parts of the data to reduce load on the final global combine step.
+     *
+     * <p> The {@code fanout} parameter determines the number of intermediate keys
+     * that will be used.
+     */
+    public Globally<VI, VO> withFanout(int fanout) {
+      return new Globally<>(fn, insertDefault, fanout);
     }
 
     @Override
     public PCollection<VO> apply(PCollection<VI> input) {
-      PCollection<VO> output = input
+      PCollection<KV<Void, VI>> withKeys = input
           .apply(WithKeys.<Void, VI>of((Void) null))
-          .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
-          .apply(Combine.<Void, VI, VO>fewKeys(fn.<Void>asKeyedFn()))
-          .apply(Values.<VO>create());
+          .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
+
+      PCollection<KV<Void, VO>> combined;
+      if (fanout >= 2) {
+        combined = withKeys.apply(
+            Combine.<Void, VI, VO>fewKeys(fn.<Void>asKeyedFn()).withHotKeyFanout(fanout));
+      } else {
+        combined = withKeys.apply(Combine.<Void, VI, VO>fewKeys(fn.<Void>asKeyedFn()));
+      }
+
+      PCollection<VO> output = combined.apply(Values.<VO>create());
 
       if (insertDefault) {
         if (!output.getWindowingStrategy().getWindowFn().isCompatible(new GlobalWindows())) {
@@ -1237,10 +1258,13 @@ public class Combine {
 
     private final CombineFn<? super VI, ?, VO> fn;
     private final boolean insertDefault;
+    private final int fanout;
 
-    private GloballyAsSingletonView(CombineFn<? super VI, ?, VO> fn, boolean insertDefault) {
+    private GloballyAsSingletonView(
+        CombineFn<? super VI, ?, VO> fn, boolean insertDefault, int fanout) {
       this.fn = fn;
       this.insertDefault = insertDefault;
+      this.fanout = fanout;
     }
 
     @Override
@@ -1252,7 +1276,7 @@ public class Combine {
     @Override
     public PCollectionView<VO> apply(PCollection<VI> input) {
       PCollection<VO> combined = input
-          .apply(Combine.globally(fn).withoutDefaults());
+          .apply(Combine.globally(fn).withoutDefaults().withFanout(fanout));
       if (insertDefault) {
         return combined
             .apply(View.<VO>asSingleton().withDefaultValue(
@@ -1532,7 +1556,7 @@ public class Combine {
       final TupleTag<KV<KV<K, Integer>, VI>> hot = new TupleTag<>();
       final TupleTag<KV<K, VI>> cold = new TupleTag<>();
       PCollectionTuple split = input.apply(
-          ParDo.of(new DoFn<KV<K, VI>, KV<K, VI>>(){
+          ParDo.of(new DoFn<KV<K, VI>, KV<K, VI>>() {
                 transient int counter;
                 @Override
                 public void startBundle(Context c) {
