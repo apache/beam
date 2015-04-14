@@ -76,18 +76,43 @@ public class DataflowExampleUtils {
    * @throws IOException if there is a problem setting up the resources
    */
   public void setup() throws IOException {
-    pendingMessages.add("**************************Set Up***************************");
+    setupPubsubTopic();
+    setupBigQueryTable();
+  }
+
+  /**
+   * Sets up the BigQuery table with the given schema.
+   *
+   * <p> If the table already exists, the schema has to match the given one. Otherwise, the example
+   * will throw a RuntimeException. If the table doesn't exist, a new table with the given schema
+   * will be created.
+   *
+   * @throws IOException if there is a problem setting up the BigQuery table
+   */
+  public void setupPubsubTopic() throws IOException {
     ExamplePubsubTopicOptions pubsubTopicOptions = options.as(ExamplePubsubTopicOptions.class);
     if (!pubsubTopicOptions.getPubsubTopic().isEmpty()) {
+      pendingMessages.add("*******************Set Up Pubsub Topic*********************");
       setupPubsubTopic(pubsubTopicOptions.getPubsubTopic());
       pendingMessages.add("The Pub/Sub topic has been set up for this example: "
           + pubsubTopicOptions.getPubsubTopic());
     }
+  }
+
+  /**
+   * Sets up the Google Cloud Pub/Sub topic.
+   *
+   * <p> If the topic doesn't exist, a new topic with the given name will be created.
+   *
+   * @throws IOException if there is a problem setting up the Pub/Sub topic
+   */
+  public void setupBigQueryTable() throws IOException {
     ExampleBigQueryTableOptions bigQueryTableOptions =
         options.as(ExampleBigQueryTableOptions.class);
     if (bigQueryTableOptions.getBigQueryDataset() != null
         && bigQueryTableOptions.getBigQueryTable() != null
         && bigQueryTableOptions.getBigQuerySchema() != null) {
+      pendingMessages.add("******************Set Up Big Query Table*******************");
       setupBigQueryTable(bigQueryTableOptions.getProject(),
                          bigQueryTableOptions.getBigQueryDataset(),
                          bigQueryTableOptions.getBigQueryTable(),
@@ -131,15 +156,6 @@ public class DataflowExampleUtils {
     }
   }
 
-  /**
-   * Sets up the BigQuery table with the given schema.
-   *
-   * <p> If the table already exists, the schema has to match the given one. Otherwise, the example
-   * will throw a RuntimeException. If the table doesn't exist, a new table with the given schema
-   * will be created.
-   *
-   * @throws IOException if there is a problem setting up the BigQuery table
-   */
   private void setupBigQueryTable(String projectId, String datasetId, String tableId,
       TableSchema schema) throws IOException {
     if (bigQueryClient == null) {
@@ -166,13 +182,6 @@ public class DataflowExampleUtils {
     }
   }
 
-  /**
-   * Sets up the Google Cloud Pub/Sub topic.
-   *
-   * <p> If the topic doesn't exist, a new topic with the given name will be created.
-   *
-   * @throws IOException if there is a problem setting up the Pub/Sub topic
-   */
   private void setupPubsubTopic(String topic) throws IOException {
     if (pubsubClient == null) {
       pubsubClient = Transport.newPubsubClient(options.as(StreamingOptions.class)).build();

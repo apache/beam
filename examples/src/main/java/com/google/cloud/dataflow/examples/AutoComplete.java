@@ -17,24 +17,28 @@
 package com.google.cloud.dataflow.examples;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.datastore.DatastoreV1.Entity;
 import com.google.api.services.datastore.DatastoreV1.Key;
 import com.google.api.services.datastore.DatastoreV1.Value;
 import com.google.api.services.datastore.client.DatastoreHelper;
+import com.google.cloud.dataflow.examples.common.DataflowExampleUtils;
+import com.google.cloud.dataflow.examples.common.ExampleBigQueryTableOptions;
+import com.google.cloud.dataflow.examples.common.ExamplePubsubTopicOptions;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.DatastoreIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Filter;
@@ -53,9 +57,11 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.common.base.Preconditions;
 
 import org.joda.time.Duration;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -72,17 +78,16 @@ import java.util.regex.Pattern;
  * specify pipeline configuration:
  *   --project=<PROJECT ID>
  *   --stagingLocation=gs://<STAGING DIRECTORY>
- *   --runner=[Blocking]DataflowPipelineRunner
+ *   --runner=DataflowPipelineRunner
  *   --inputFile=gs://path/to/input*.txt
- *   [--outputDataset=<DATASTORE DATASET ID>]
  *
  * <p> To execute this pipeline using the Dataflow service in streaming mode,
  * specify pipeline configuration:
  *   --project=<PROJECT ID>
  *   --stagingLocation=gs://<STAGING DIRECTORY>
  *   --runner=DataflowPipelineRunner
- *   --inputTopic=/topics/someproject/sometopic
- *   [--outputDataset=<DATASTORE DATASET ID>]
+ *   --inputFile=gs://path/to/input*.txt
+ *   --streaming
  *
  * <p> This will update the datastore every 10 seconds based on the last
  * 30 minutes of data received.
@@ -199,6 +204,7 @@ public class AutoComplete {
     private class KeySizePartitionFn implements PartitionFn<KV<String, List<CompletionCandidate>>> {
       private static final long serialVersionUID = 0;
 
+      @Override
       public int partitionFor(KV<String, List<CompletionCandidate>> elem, int numPartitions) {
         return elem.getKey().length() > minPrefix ? 0 : 1;
       }
@@ -208,6 +214,7 @@ public class AutoComplete {
         extends DoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
       private static final long serialVersionUID = 0;
 
+      @Override
       public void processElement(ProcessContext c) {
         for (CompletionCandidate cc : c.element().getValue()) {
           c.output(cc);
@@ -215,6 +222,7 @@ public class AutoComplete {
       }
     }
 
+    @Override
     public PCollectionList<KV<String, List<CompletionCandidate>>> apply(
           PCollection<CompletionCandidate> input) {
         if (minPrefix > 10) {
@@ -237,6 +245,7 @@ public class AutoComplete {
             .and(input.apply(Filter.by(new SerializableFunction<CompletionCandidate, Boolean>() {
                     private static final long serialVersionUID = 0;
 
+                    @Override
                     public Boolean apply(CompletionCandidate c) {
                       return c.getValue().length() == minPrefix;
                     }
@@ -341,6 +350,7 @@ public class AutoComplete {
   static class ExtractHashtags extends DoFn<String, String> {
     private static final long serialVersionUID = 0;
 
+    @Override
     public void processElement(ProcessContext c) {
       Matcher m = Pattern.compile("#\\S+").matcher(c.element());
       while (m.find()) {
@@ -352,6 +362,7 @@ public class AutoComplete {
   static class FormatForBigquery extends DoFn<KV<String, List<CompletionCandidate>>, TableRow> {
     private static final long serialVersionUID = 0;
 
+    @Override
     public void processElement(ProcessContext c) {
       List<TableRow> completions = new ArrayList<>();
       for (CompletionCandidate cc : c.element().getValue()) {
@@ -363,6 +374,20 @@ public class AutoComplete {
         .set("prefix", c.element().getKey())
         .set("tags", completions);
       c.output(row);
+    }
+
+    /**
+     * Defines the BigQuery schema used for the output.
+     */
+    static TableSchema getSchema() {
+      List<TableFieldSchema> tagFields = new ArrayList<>();
+      tagFields.add(new TableFieldSchema().setName("count").setType("INTEGER"));
+      tagFields.add(new TableFieldSchema().setName("tag").setType("STRING"));
+      List<TableFieldSchema> fields = new ArrayList<>();
+      fields.add(new TableFieldSchema().setName("prefix").setType("STRING"));
+      fields.add(new TableFieldSchema()
+          .setName("tags").setType("RECORD").setMode("REPEATED").setFields(tagFields));
+      return new TableSchema().setFields(fields);
     }
   }
 
@@ -379,11 +404,10 @@ public class AutoComplete {
       this.kind = kind;
     }
 
+    @Override
     public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
-      // Create entities with same ancestor Key.???
-      Key ancestorKey = DatastoreHelper.makeKey(kind, "root").build();
-      Key key = DatastoreHelper.makeKey(ancestorKey, c.element().getKey()).build();
+      Key key = DatastoreHelper.makeKey(kind, c.element().getKey()).build();
 
       entityBuilder.setKey(key);
       List<Value> candidates = new ArrayList<>();
@@ -393,7 +417,7 @@ public class AutoComplete {
             DatastoreHelper.makeProperty("tag", DatastoreHelper.makeValue(tag.value)));
         tagEntity.addProperty(
             DatastoreHelper.makeProperty("count", DatastoreHelper.makeValue(tag.count)));
-        candidates.add(DatastoreHelper.makeValue(tagEntity).build());
+        candidates.add(DatastoreHelper.makeValue(tagEntity).setIndexed(false).build());
       }
       entityBuilder.addProperty(
           DatastoreHelper.makeProperty("candidates", DatastoreHelper.makeValue(candidates)));
@@ -406,50 +430,58 @@ public class AutoComplete {
    *
    * <p> Inherits standard Dataflow configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  private static interface Options extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
     @Description("Input text file")
     String getInputFile();
     void setInputFile(String value);
-
-    @Description("Input Pubsub topic")
-    String getInputTopic();
-    void setInputTopic(String value);
 
     @Description("Whether to use the recursive algorithm")
     @Default.Boolean(true)
     Boolean getRecursive();
     void setRecursive(Boolean value);
 
-    @Description("BigQuery table to write to, specified as "
-                 + "<project_id>:<dataset_id>.<table_id>. The dataset must already exist.")
-    String getOutputBigqueryTable();
-    void setOutputBigqueryTable(String value);
-
     @Description("Dataset entity kind")
     @Default.String("autocomplete-demo")
     String getKind();
     void setKind(String value);
 
-    @Description("Dataset ID to write to in datastore")
-    String getOutputDataset();
-    void setOutputDataset(String value);
+    @Description("Whether output to BigQuery")
+    @Default.Boolean(true)
+    Boolean getOutputToBigQuery();
+    void setOutputToBigQuery(Boolean value);
+
+    @Description("Whether output to Datastoree")
+    @Default.Boolean(false)
+    Boolean getOutputToDatastore();
+    void setOutputToDatastore(Boolean value);
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
+    if (options.isStreaming()) {
+      // In order to cancel the pipelines automatically,
+      // {@literal DataflowPipelineRunner} is forced to be used.
+      options.setRunner(DataflowPipelineRunner.class);
+    }
+
+    options.setBigQuerySchema(FormatForBigquery.getSchema());
+    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
 
     // We support running the same pipeline in either
     // batch or windowed streaming mode.
     PTransform<? super PBegin, PCollection<String>> readSource;
     WindowFn<Object, ?> windowFn;
-    if (options.getInputFile() != null) {
+    if (options.isStreaming()) {
+      Preconditions.checkArgument(
+          !options.getOutputToDatastore(), "DatastoreIO is not supported in streaming.");
+      dataflowUtils.setupPubsubTopic();
+
+      readSource = PubsubIO.Read.topic(options.getPubsubTopic());
+      windowFn = SlidingWindows.of(Duration.standardMinutes(30)).every(Duration.standardSeconds(5));
+    } else {
       readSource = TextIO.Read.from(options.getInputFile());
       windowFn = new GlobalWindows();
-    } else {
-      DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-      dataflowOptions.setStreaming(true);
-      readSource = PubsubIO.Read.topic(options.getInputTopic());
-      windowFn = SlidingWindows.of(Duration.standardMinutes(30)).every(Duration.standardSeconds(5));
     }
 
     // Create the pipeline.
@@ -460,33 +492,37 @@ public class AutoComplete {
       .apply(Window.<String>into(windowFn))
       .apply(ComputeTopCompletions.top(10, options.getRecursive()));
 
-    // Optionally write the result out to bigquery...
-    if (options.getOutputBigqueryTable() != null) {
-      List<TableFieldSchema> tagFields = new ArrayList<>();
-      tagFields.add(new TableFieldSchema().setName("count").setType("INTEGER"));
-      tagFields.add(new TableFieldSchema().setName("tag").setType("STRING"));
-      List<TableFieldSchema> fields = new ArrayList<>();
-      fields.add(new TableFieldSchema().setName("prefix").setType("STRING"));
-      fields.add(new TableFieldSchema().setName("tags").setType("RECORD").setFields(tagFields));
-      TableSchema schema = new TableSchema().setFields(fields);
+    if (options.getOutputToDatastore()) {
+      toWrite
+      .apply(ParDo.named("FormatForDatastore").of(new FormatForDatastore(options.getKind())))
+      .apply(DatastoreIO.writeTo(options.getProject()));
+    }
+    if (options.getOutputToBigQuery()) {
+      dataflowUtils.setupBigQueryTable();
+
+      TableReference tableRef = new TableReference();
+      tableRef.setProjectId(options.getProject());
+      tableRef.setDatasetId(options.getBigQueryDataset());
+      tableRef.setTableId(options.getBigQueryTable());
 
       toWrite
         .apply(ParDo.of(new FormatForBigquery()))
         .apply(BigQueryIO.Write
-               .to(options.getOutputBigqueryTable())
-               .withSchema(schema)
+               .to(tableRef)
+               .withSchema(FormatForBigquery.getSchema())
                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
     }
 
-    // ...and to Datastore.
-    if (options.getOutputDataset() != null) {
-      toWrite
-        .apply(ParDo.of(new FormatForDatastore(options.getKind())))
-        .apply(DatastoreIO.writeTo(options.getOutputDataset()));
+    // Run the pipeline.
+    PipelineResult result = p.run();
+
+    if (options.isStreaming() && !options.getInputFile().isEmpty()) {
+      // Inject the data into the Pub/Sub topic with a Dataflow batch pipeline.
+      dataflowUtils.runInjectorPipeline(options.getInputFile(), options.getPubsubTopic());
     }
 
-    // Run the pipeline.
-    p.run();
+    // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
+    dataflowUtils.waitToFinish(result);
   }
 }
