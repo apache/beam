@@ -231,6 +231,9 @@ public class Pipeline {
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
 
+  /**
+   * @deprecated replaced by {@link #Pipeline(PipelineRunner, PipelineOptions)}
+   */
   @Deprecated
   protected Pipeline(PipelineRunner<?> runner) {
     this(runner, PipelineOptionsFactory.create());

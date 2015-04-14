@@ -764,8 +764,24 @@ public class PipelineOptionsFactory {
    * properties. This is meant to only be used from the {@link DataflowWorkerHarness} as a method to
    * bootstrap the worker harness.
    *
+   * <p>For internal use only.
+   *
    * @return A {@link DataflowWorkerHarnessOptions} object configured for the
    *         {@link DataflowWorkerHarness}.
+   */
+  public static DataflowWorkerHarnessOptions createFromSystemPropertiesInternal()
+      throws IOException {
+    return createFromSystemProperties();
+  }
+
+  /**
+   * Creates a set of {@link DataflowWorkerHarnessOptions} based of a set of known system
+   * properties. This is meant to only be used from the {@link DataflowWorkerHarness} as a method to
+   * bootstrap the worker harness.
+   *
+   * @return A {@link DataflowWorkerHarnessOptions} object configured for the
+   *         {@link DataflowWorkerHarness}.
+   * @deprecated for internal use only
    */
   @Deprecated
   public static DataflowWorkerHarnessOptions createFromSystemProperties() throws IOException {

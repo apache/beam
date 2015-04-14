@@ -96,7 +96,7 @@ public class StreamingDataflowWorker {
 
     DataflowWorkerLoggingInitializer.initialize();
     DataflowWorkerHarnessOptions options =
-        PipelineOptionsFactory.createFromSystemProperties();
+        PipelineOptionsFactory.createFromSystemPropertiesInternal();
     // TODO: Remove setting these options once we have migrated to passing
     // through the pipeline options.
     options.setAppName("StreamingWorkerHarness");
@@ -119,8 +119,8 @@ public class StreamingDataflowWorker {
     }
 
     ArrayList<MapTask> mapTasks = new ArrayList<>();
-    for (int i = 0; i < args.length; i++) {
-      mapTasks.add(parseMapTask(args[i]));
+    for (String arg : args) {
+      mapTasks.add(parseMapTask(arg));
     }
 
     WindmillServerStub windmillServer =

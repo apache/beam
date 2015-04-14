@@ -313,6 +313,12 @@ public class DataflowAssert {
       return satisfies(new AssertIsEqualToRelation<T>(), expectedValue);
     }
 
+    /**
+     * Checks that the value of this {@code SingletonAssert}'s view is equal to
+     * the expected value.
+     *
+     * @deprecated replaced by {@link #isEqualTo}
+     */
     @Deprecated
     public SingletonAssert<T> is(T expectedValue) {
       return isEqualTo(expectedValue);

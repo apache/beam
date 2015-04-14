@@ -110,7 +110,7 @@ public class DataflowWorkerHarness {
     DataflowWorkerLoggingInitializer.initialize();
 
     DataflowWorkerHarnessOptions pipelineOptions =
-        PipelineOptionsFactory.createFromSystemProperties();
+        PipelineOptionsFactory.createFromSystemPropertiesInternal();
     DataflowWorkerLoggingInitializer.configure(pipelineOptions);
 
     final Sleeper sleeper = Sleeper.DEFAULT;

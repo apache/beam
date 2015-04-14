@@ -101,7 +101,8 @@ public class DataflowWorkerHarnessTest {
         .put("job_id", "jobId")
         .put("worker_id", "workerId")
         .build());
-    DataflowWorkerHarnessOptions options = PipelineOptionsFactory.createFromSystemProperties();
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.createFromSystemPropertiesInternal();
     options.setGcpCredential(new TestCredential());
     assertNotNull(DataflowWorkerHarness.create(options));
     assertEquals("jobId", DataflowWorkerLoggingFormatter.getJobId());
@@ -120,7 +121,8 @@ public class DataflowWorkerHarnessTest {
 
     when(request.execute()).thenReturn(generateMockResponse(workItem));
 
-    DataflowWorkerHarnessOptions options = PipelineOptionsFactory.createFromSystemProperties();
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.createFromSystemPropertiesInternal();
 
     DataflowWorker.WorkUnitClient client =
         new DataflowWorkerHarness.DataflowWorkUnitClient(service, options);
@@ -151,7 +153,8 @@ public class DataflowWorkerHarnessTest {
 
     when(request.execute()).thenReturn(generateMockResponse(workItem));
 
-    DataflowWorkerHarnessOptions options = PipelineOptionsFactory.createFromSystemProperties();
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.createFromSystemPropertiesInternal();
 
     DataflowWorker.WorkUnitClient client =
         new DataflowWorkerHarness.DataflowWorkUnitClient(service, options);
@@ -178,7 +181,8 @@ public class DataflowWorkerHarnessTest {
 
     when(request.execute()).thenReturn(generateMockResponse());
 
-    DataflowWorkerHarnessOptions options = PipelineOptionsFactory.createFromSystemProperties();
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.createFromSystemPropertiesInternal();
 
     DataflowWorker.WorkUnitClient client =
         new DataflowWorkerHarness.DataflowWorkUnitClient(service, options);
@@ -211,7 +215,8 @@ public class DataflowWorkerHarnessTest {
 
     when(request.execute()).thenReturn(generateMockResponse(workItem1, workItem2));
 
-    DataflowWorkerHarnessOptions options = PipelineOptionsFactory.createFromSystemProperties();
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.createFromSystemPropertiesInternal();
 
     DataflowWorker.WorkUnitClient client =
         new DataflowWorkerHarness.DataflowWorkUnitClient(service, options);
