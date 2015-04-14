@@ -326,6 +326,7 @@ public class CombineTest implements Serializable {
       };
 
   @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testHotKeyCombining() {
     Pipeline p = TestPipeline.create();
     PCollection<KV<String, Integer>> input = copy(createInput(p, TABLE), 10);

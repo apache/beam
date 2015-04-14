@@ -223,7 +223,7 @@ public class MapTaskExecutorFactory {
    * Implements PGBKOp.Combiner via Combine.KeyedCombineFn.
    */
   public static class ValueCombiner<K, VI, VA, VO>
-      implements PartialGroupByKeyOperation.Combiner<K, VI, VA, VO> {
+      implements PartialGroupByKeyOperation.Combiner<WindowedValue<K>, VI, VA, VO> {
     private final Combine.KeyedCombineFn<K, VI, VA, VO> combineFn;
 
     private ValueCombiner(Combine.KeyedCombineFn<K, VI, VA, VO> combineFn) {
@@ -231,23 +231,23 @@ public class MapTaskExecutorFactory {
     }
 
     @Override
-    public VA createAccumulator(K key) {
-      return this.combineFn.createAccumulator(key);
+    public VA createAccumulator(WindowedValue<K> windowedKey) {
+      return this.combineFn.createAccumulator(windowedKey.getValue());
     }
 
     @Override
-    public VA add(K key, VA accumulator, VI value) {
-      return this.combineFn.addInput(key, accumulator, value);
+    public VA add(WindowedValue<K> windowedKey, VA accumulator, VI value) {
+      return this.combineFn.addInput(windowedKey.getValue(), accumulator, value);
     }
 
     @Override
-    public VA merge(K key, Iterable<VA> accumulators) {
-      return this.combineFn.mergeAccumulators(key, accumulators);
+    public VA merge(WindowedValue<K> windowedKey, Iterable<VA> accumulators) {
+      return this.combineFn.mergeAccumulators(windowedKey.getValue(), accumulators);
     }
 
     @Override
-    public VO extract(K key, VA accumulator) {
-      return this.combineFn.extractOutput(key, accumulator);
+    public VO extract(WindowedValue<K> windowedKey, VA accumulator) {
+      return this.combineFn.extractOutput(windowedKey.getValue(), accumulator);
     }
   }
 
