@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * {@code PTransform}s for combining {@code PCollection} elements
@@ -1532,20 +1533,25 @@ public class Combine {
       final TupleTag<KV<K, VI>> cold = new TupleTag<>();
       PCollectionTuple split = input.apply(
           ParDo.of(new DoFn<KV<K, VI>, KV<K, VI>>(){
-                     int counter = 0;
-                     @Override
-                     public void processElement(ProcessContext c) {
-                       KV<K, VI> kv = c.element();
-                       int spread = hotKeyFanout.apply(kv.getKey());
-                       if (spread <= 1) {
-                         c.output(kv);
-                       } else {
-                         int nonce = counter++ % spread;
-                         c.sideOutput(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
-                       }
-                     }
-                   })
-               .withOutputTags(cold, TupleTagList.of(hot)));
+                transient int counter;
+                @Override
+                public void startBundle(Context c) {
+                  counter = ThreadLocalRandom.current().nextInt();
+                }
+
+                @Override
+                public void processElement(ProcessContext c) {
+                  KV<K, VI> kv = c.element();
+                  int spread = hotKeyFanout.apply(kv.getKey());
+                  if (spread <= 1) {
+                    c.output(kv);
+                  } else {
+                    int nonce = counter++ % spread;
+                    c.sideOutput(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
+                  }
+                }
+              })
+          .withOutputTags(cold, TupleTagList.of(hot)));
 
       // Combine the hot and cold keys separately.
       PCollection<KV<K, VO>> combinedHot = split
