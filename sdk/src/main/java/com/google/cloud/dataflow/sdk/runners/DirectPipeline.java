@@ -20,9 +20,9 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
 
 /**
- * A DirectPipeline, which returns a
- * {@link DirectPipelineRunner.EvaluationResults} subclass of PipelineResult
- * from {@link com.google.cloud.dataflow.sdk.Pipeline#run()}.
+ * A {@link DirectPipeline} is a {@link Pipeline} that returns
+ * {@link DirectPipelineRunner.EvaluationResults} when it is
+ * {@link com.google.cloud.dataflow.sdk.Pipeline#run()}.
  */
 public class DirectPipeline extends Pipeline {
 

@@ -65,7 +65,8 @@ import java.util.SortedSet;
 import javax.annotation.Nullable;
 
 /**
- * An encoder using Avro binary format.
+ * A {@link Coder} using Avro binary format.
+ *
  * <p>
  * The Avro schema is generated using reflection on the element type, using
  * Avro's <a href="http://avro.apache.org/docs/current/api/java/index.html">

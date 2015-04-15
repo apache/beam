@@ -45,7 +45,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
- * Transforms for reading and writing Avro files.
+ * {@link PTransform}s for reading and writing Avro files.
  *
  * <p> To read a {@link PCollection} from one or more Avro files, use
  * {@link AvroIO.Read}, specifying {@link AvroIO.Read#from} to specify
@@ -116,8 +116,8 @@ import javax.annotation.Nullable;
  */
 public class AvroIO {
   /**
-   * A root PTransform that reads from an Avro file (or multiple Avro
-   * files matching a pattern) and returns a PCollection containing
+   * A root {@link PTransform} that reads from an Avro file (or multiple Avro
+   * files matching a pattern) and returns a {@link PCollection} containing
    * the decoding of each record.
    */
   public static class Read {
@@ -183,8 +183,8 @@ public class AvroIO {
     }
 
     /**
-     * A PTransform that reads from an Avro file (or multiple Avro
-     * files matching a pattern) and returns a bounded PCollection containing
+     * A {@link PTransform} that reads from an Avro file (or multiple Avro
+     * files matching a pattern) and returns a bounded {@link PCollection} containing
      * the decoding of each record.
      *
      * @param <T> the type of each of the elements of the resulting
@@ -332,7 +332,7 @@ public class AvroIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A root PTransform that writes a PCollection to an Avro file (or
+   * A root {@link PTransform} that writes a {@link PCollection} to an Avro file (or
    * multiple Avro files matching a sharding pattern).
    */
   public static class Write {
@@ -442,7 +442,7 @@ public class AvroIO {
     }
 
     /**
-     * A PTransform that writes a bounded PCollection to an Avro file (or
+     * A {@link PTransform} that writes a bounded {@link PCollection} to an Avro file (or
      * multiple Avro files matching a sharding pattern).
      *
      * @param <T> the type of each of the elements of the input PCollection

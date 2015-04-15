@@ -46,7 +46,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * A row result of a CoGroupByKey.  This is a tuple of Iterables produced for
+ * A row result of a {@link CoGroupByKey}.  This is a tuple of {@link Iterable}s produced for
  * a given key, and these can be accessed in different ways.
  */
 public class CoGbkResult {
@@ -202,7 +202,7 @@ public class CoGbkResult {
   }
 
   /**
-   * A coder for CoGbkResults.
+   * A {@link Coder} for {@link CoGbkResult}s.
    */
   @SuppressWarnings("serial")
   public static class CoGbkResultCoder extends StandardCoder<CoGbkResult> {

@@ -94,9 +94,8 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   private static final long serialVersionUID = 0L;
 
   /**
-   * Triggers operate on both timestamps of elements that are being processed and the current
-   * (real-world) time as reported while processing. {@code TimeDomain} specifies which of these
-   * domains are applicable to a given operation.
+   * {@code TimeDomain} specifies whether an operation is based on
+   * timestamps of elements or current "real-world" time as reported while processing.
    */
   public enum TimeDomain {
     /**
@@ -158,10 +157,10 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   }
 
   /**
-   * Information accessible to all of the callbacks that are executed on a trigger.
+   * Information accessible to all of the callbacks that are executed on a {@link Trigger}.
    *
    * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
-   *            {@code TriggerContext}
+   *            {@link TriggerContext}
    */
   public interface TriggerContext<W extends BoundedWindow>  {
 
@@ -405,8 +404,8 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   public abstract boolean isCompatible(Trigger<?> other);
 
   /**
-   * Identifies a unique trigger instance, by the window it is in and the path through the trigger
-   * tree.
+   * Identifies a unique {@link Trigger} instance, by the window it is in
+   * and the path through the {@link Trigger} tree.
    *
    * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
    *            {@code TriggerId}
@@ -452,7 +451,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   }
 
   /**
-   * Triggers that are guaranteed to fire at most once should extend from this, rather than the
+   * {@link Trigger}s that are guaranteed to fire at most once should extend from this, rather than the
    * general {@link Trigger} class to indicate that behavior.
    *
    * <p> TODO: Add checks that an AtMostOnceTrigger never returns TriggerResult.FIRE.

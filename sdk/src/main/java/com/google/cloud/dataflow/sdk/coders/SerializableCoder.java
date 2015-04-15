@@ -31,7 +31,8 @@ import java.io.OutputStream;
 import java.io.Serializable;
 
 /**
- * An encoder of {@link java.io.Serializable} objects.
+ * A {@code SerializableCoder} is a {@link Coder} for a
+ * Java class that implements {@link java.io.Serializable}.
  *
  * <p> To use, specify the coder type on a PCollection:
  * <pre>

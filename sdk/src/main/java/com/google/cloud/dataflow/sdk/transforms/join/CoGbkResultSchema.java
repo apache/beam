@@ -32,10 +32,11 @@ import java.util.HashMap;
 import java.util.List;
 
 /**
- * A schema for the results of a CoGroupByKey.  This maintains the full
- * set of TupleTags for the results of a CoGroupByKey and facilitates mapping
- * between TupleTags and Union Tags (which are used as secondary keys in the
- * CoGroupByKey).
+ * A schema for the results of a {@link CoGroupByKey}.  This maintains the full
+ * set of {@link TupleTag}s for the results of a {@link CoGroupByKey} and
+ * facilitates mapping between {@link TupleTag}s and
+ * {@link RawUnionValue} tags (which are used as secondary keys in the
+ * {@link CoGroupByKey}).
  */
 @SuppressWarnings("serial")
 public class CoGbkResultSchema implements Serializable {

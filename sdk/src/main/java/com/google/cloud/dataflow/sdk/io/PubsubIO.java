@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
- * Read and Write transforms for Pub/Sub streams. These transforms create
+ * Read and Write {@link PTransform}s for Pub/Sub streams. These transforms create
  * and consume unbounded {@link com.google.cloud.dataflow.sdk.values.PCollection}s.
  *
  * <p> {@code PubsubIO}  is only usable
@@ -129,7 +129,7 @@ public class PubsubIO {
   }
 
   /**
-   * A PTransform that continuously reads from a Pubsub stream and
+   * A {@link PTransform} that continuously reads from a Pubsub stream and
    * returns a {@code PCollection<String>} containing the items from
    * the stream.
    */
@@ -254,7 +254,7 @@ public class PubsubIO {
     }
 
     /**
-     * A PTransform that reads from a PubSub source and returns
+     * A {@link PTransform} that reads from a PubSub source and returns
      * a unbounded PCollection containing the items from the stream.
      */
     @SuppressWarnings("serial")
@@ -411,7 +411,7 @@ public class PubsubIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A PTransform that continuously writes a
+   * A {@link PTransform} that continuously writes a
    * {@code PCollection<String>} to a Pubsub stream.
    */
   // TODO: Support non-String encodings.
@@ -467,7 +467,7 @@ public class PubsubIO {
     }
 
     /**
-     * A PTransfrom that writes a unbounded {@code PCollection<String>}
+     * A {@link PTransform} that writes a unbounded {@code PCollection<String>}
      * to a PubSub stream.
      */
     @SuppressWarnings("serial")

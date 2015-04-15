@@ -26,7 +26,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * Support for manipulating the time at which time-based triggers fire.
+ * Support for manipulating the time at which time-based {@link Trigger}s fire.
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used.
  * @param <T> {@code TimeTrigger} subclass produced by modifying the current {@code TimeTrigger}.

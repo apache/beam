@@ -26,10 +26,10 @@ import org.joda.time.Instant;
 import java.util.Map.Entry;
 
 /**
- * Triggers that fire based on properties of the elements in the current pane.
+ * {@link Trigger}s that fire based on properties of the elements in the current pane.
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
- *            {@code Trigger}
+ *            {@link Trigger}
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{

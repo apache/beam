@@ -45,8 +45,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A CoderRegistry allows registering the default Coder to use for a Java class,
- * and looking up and instantiating the default Coder for a Java type.
+ * A {@code CoderRegistry} allows registering the
+ * default {@link Coder} to use for a Java class,
+ * and looking up and instantiating the default
+ * {@link Coder} for a Java type.
  *
  * <p> {@code CoderRegistry} uses the following mechanisms to determine a
  * default {@link Coder} for a Java class, in order of precedence:

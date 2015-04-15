@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * A MapCoder encodes Maps.
+ * A {@code MapCoder} encodes {@code Map}s.
  *
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded

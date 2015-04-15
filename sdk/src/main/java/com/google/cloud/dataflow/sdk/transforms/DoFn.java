@@ -291,7 +291,9 @@ public abstract class DoFn<I, O> implements Serializable {
   public interface RequiresWindowAccess {}
 
   /**
-   * Interface for interacting with keyed state.
+   * A {@code KeyedState} is a mutable mapping
+   * from {@link CodedTupleTag CodedTupleTag<T>}
+   * to {@code T}.
    */
   @Experimental
   public interface KeyedState {

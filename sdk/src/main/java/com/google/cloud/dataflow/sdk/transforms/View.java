@@ -309,7 +309,7 @@ public class View {
   }
 
   /**
-   * Creates a primitive PCollectionView.
+   * Creates a primitive {@link PCollectionView}.
    *
    * <p> For internal use only.
    *

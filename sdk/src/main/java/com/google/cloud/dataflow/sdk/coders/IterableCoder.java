@@ -28,7 +28,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * An IterableCoder encodes Iterables.
+ * An {@code IterableCoder} encodes any {@code Iterable}
+ * as the sequence of its elements, encoded according to the
+ * component coder.
  *
  * @param <T> the type of the elements of the Iterables being transcoded
  */

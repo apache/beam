@@ -23,7 +23,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Specifies a default {@link Coder} class to handle encoding and decoding
+ * The {@code DefaultCoder} annotation
+ * specifies a default {@link Coder} class to handle encoding and decoding
  * instances of the annotated class.
  *
  * <p> The specified {@code Coder} must implement a function with the following

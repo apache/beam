@@ -27,7 +27,10 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A SetCoder encodes Sets.
+ * A {@code SetCoder<T>} encodes any {@code Set<T>}
+ * as an encoding of an iterable of its elements. The elements
+ * may not be in a deterministic order, depending on the
+ * {@code Set} implementation.
  *
  * @param <T> the type of the elements of the set
  */

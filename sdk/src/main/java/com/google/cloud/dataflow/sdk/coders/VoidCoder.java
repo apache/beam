@@ -22,7 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * A VoidCoder encodes Voids.  Uses zero bytes per Void.
+ * A {@code VoidCoder} encodes {@code Void}s. Uses zero bytes per {@code Void}.
  */
 @SuppressWarnings("serial")
 public class VoidCoder extends AtomicCoder<Void> {

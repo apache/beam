@@ -40,8 +40,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A Pipeline manages a DAG of PTransforms, and the PCollections
- * that the PTransforms consume and produce.
+ * A {@code Pipeline} manages a DAG of {@link PTransform}s, and the
+ * {@link com.google.cloud.dataflow.sdk.values.PCollection}s
+ * that the {@link PTransform}s consume and produce.
  *
  * <p> After a {@code Pipeline} has been constructed, it can be executed,
  * using a default or an explicit {@link PipelineRunner}.
@@ -175,7 +176,7 @@ public class Pipeline {
   }
 
   /**
-   * A PipelineVisitor can be passed into
+   * A {@link PipelineVisitor} can be passed into
    * {@link Pipeline#traverseTopologically} to be called for each of the
    * transforms and values in the Pipeline.
    */

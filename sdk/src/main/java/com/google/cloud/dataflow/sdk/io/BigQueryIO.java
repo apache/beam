@@ -57,7 +57,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Transformations for reading and writing
+ * {@link PTransform}s for reading and writing
  * <a href="https://developers.google.com/bigquery/">BigQuery</a> tables.
  * <p><h3>Table References</h3>
  * A fully-qualified BigQuery table name consists of three components:
@@ -184,8 +184,8 @@ public class BigQueryIO {
   }
 
   /**
-   * A PTransform that reads from a BigQuery table and returns a
-   * {@code PCollection<TableRow>} containing each of the rows of the table.
+   * A {@link PTransform} that reads from a BigQuery table and returns a
+   * {@link PCollection PCollection<TableRow>} containing each of the rows of the table.
    * <p>
    * Each TableRow record contains values indexed by column name.  Here is a
    * sample processing function that processes a "line" column from rows:
@@ -234,8 +234,8 @@ public class BigQueryIO {
     }
 
     /**
-     * A PTransform that reads from a BigQuery table and returns a bounded
-     * {@code PCollection<TableRow>}.
+     * A {@link PTransform} that reads from a BigQuery table and returns a bounded
+     * {@link PCollection PCollection<TableRow>}.
      */
     public static class Bound extends PTransform<PInput, PCollection<TableRow>> {
       private static final long serialVersionUID = 0;
@@ -337,7 +337,7 @@ public class BigQueryIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A PTransform that writes a {@code PCollection<TableRow>} containing rows
+   * A {@link PTransform} that writes a {@link PCollection PCollection<TableRow>} containing rows
    * to a BigQuery table.
    * <p>
    * By default, tables will be created if they do not exist, which
@@ -481,8 +481,8 @@ public class BigQueryIO {
     }
 
     /**
-     * A PTransform that can write either a bounded or unbounded
-     * {@code PCollection<TableRow>}s to a BigQuery table.
+     * A {@link PTransform} that can write either a bounded or unbounded
+     * {@link PCollection PCollection<TableRow>}s to a BigQuery table.
      */
     public static class Bound extends PTransform<PCollection<TableRow>, PDone> {
       private static final long serialVersionUID = 0;

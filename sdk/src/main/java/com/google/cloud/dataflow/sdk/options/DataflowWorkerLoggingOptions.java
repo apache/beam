@@ -67,8 +67,8 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
 
   /**
    * Defines a log level override for a specific class, package, or name.
-   * <p>
-   * {@link java.util.logging} is used on the Dataflow worker harness and supports
+   *
+   * <p> {@code java.util.logging} is used on the Dataflow worker harness and supports
    * a logging hierarchy based off of names that are "." separated. It is a common
    * pattern to have the logger for a given class share the same name as the class itself.
    * Given the classes {@code a.b.c.Foo}, {@code a.b.c.Xyz}, and {@code a.b.Bar}, with

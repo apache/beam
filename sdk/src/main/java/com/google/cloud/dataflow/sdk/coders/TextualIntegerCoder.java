@@ -23,7 +23,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * A TextualIntegerCoder encodes Integers as text.
+ * A {@code TextualIntegerCoder} encodes {@code Integer}s
+ * as their textual, decimal, representation.
  */
 @SuppressWarnings("serial")
 public class TextualIntegerCoder extends AtomicCoder<Integer> {

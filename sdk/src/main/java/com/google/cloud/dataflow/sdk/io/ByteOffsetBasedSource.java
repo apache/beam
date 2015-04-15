@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A source that uses byte offsets to define starting and ending positions. Extend this class to
+ * A {@link Source} that uses byte offsets to define starting and ending positions. Extend this class to
  * implement your own byte offset based custom source. {@link FileBasedSource}, which is a subclass
  * of this, adds additional functionality useful for custom sources that are based on files. If
  * possible implementors should start from {@code FileBasedSource} instead of
@@ -153,7 +153,8 @@ public abstract class ByteOffsetBasedSource<T> extends BoundedSource<T> {
   public abstract ByteOffsetBasedSource<T> createSourceForSubrange(long start, long end);
 
   /**
-   * A reader that implements code common to readers of all {@link ByteOffsetBasedSource}s.
+   * A {@link Source.Reader} that implements code common
+   * to readers of all {@link ByteOffsetBasedSource}s.
    */
   public abstract static class ByteOffsetBasedReader<T> extends AbstractBoundedReader<T> {
     private static final Logger LOG = LoggerFactory.getLogger(ByteOffsetBasedReader.class);

@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * A ListCoder encodes Lists.
+ * A {@code ListCoder} encodes {@code List}s.
  *
  * @param <T> the type of the elements of the Lists being transcoded
  */

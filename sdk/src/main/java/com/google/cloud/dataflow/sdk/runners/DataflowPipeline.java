@@ -20,14 +20,18 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 
 /**
- * A DataflowPipeline, which returns a
- * {@link DataflowPipelineJob} subclass of PipelineResult
- * from {@link com.google.cloud.dataflow.sdk.Pipeline#run()}.
+ * A {@link DataflowPipeline} is a {@link Pipeline} that returns a
+ * {@link DataflowPipelineJob} when it is
+ * {@link com.google.cloud.dataflow.sdk.Pipeline#run()}.
+ *
+ * <p> This is not intended for use by users of Cloud Dataflow.
+ * Instead, use {@link Pipeline#create(PipelineOptions)} to initialize a
+ * {@link Pipeline}.
  */
 public class DataflowPipeline extends Pipeline {
 
   /**
-   * Creates and returns a new DataflowPipeline instance for tests.
+   * Creates and returns a new {@link DataflowPipeline} instance for tests.
    */
   public static DataflowPipeline create(DataflowPipelineOptions options) {
     return new DataflowPipeline(options);

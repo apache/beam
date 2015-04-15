@@ -103,8 +103,8 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * DataflowPipelineTranslator knows how to translate Pipeline objects
- * into Dataflow API Jobs.
+ * {@link DataflowPipelineTranslator} knows how to translate {@link Pipeline} objects
+ * into Cloud Dataflow Service API {@link Job}s.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class DataflowPipelineTranslator {
@@ -113,8 +113,8 @@ public class DataflowPipelineTranslator {
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   /**
-   * A map from PTransform class to the corresponding
-   * TransformTranslator to use to translate that transform.
+   * A map from {@link PTransform} subclass to the corresponding
+   * {@link TransformTranslator} to use to translate that transform.
    *
    * <p> A static map that contains system-wide defaults.
    */
@@ -159,7 +159,7 @@ public class DataflowPipelineTranslator {
   /**
    * Records that instances of the specified PTransform class
    * should be translated by default by the corresponding
-   * TransformTranslator.
+   * {@link TransformTranslator}.
    */
   public static <PT extends PTransform> void registerTransformTranslator(
       Class<PT> transformClass,
@@ -171,7 +171,7 @@ public class DataflowPipelineTranslator {
   }
 
   /**
-   * Returns the TransformTranslator to use for instances of the
+   * Returns the {@link TransformTranslator} to use for instances of the
    * specified PTransform class, or null if none registered.
    */
   @SuppressWarnings("unchecked")
@@ -181,7 +181,10 @@ public class DataflowPipelineTranslator {
   }
 
   /**
-   * A translator of a {@link PTransform}.
+   * A {@link TransformTranslator} knows how to translate
+   * a particular subclass of {@link PTransform} for the
+   * Cloud Dataflow service. It does so by
+   * mutating the {@link TranslationContext}.
    */
   public interface TransformTranslator<PT extends PTransform> {
     public void translate(PT transform,

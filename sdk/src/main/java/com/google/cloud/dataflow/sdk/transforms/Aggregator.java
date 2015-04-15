@@ -17,7 +17,8 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 /**
- * An {@code Aggregator} enables arbitrary monitoring in user code.
+ * An {@code Aggregator<VI>} enables monitoring of values of type {@code VI},
+ * to be combined across all bundles.
  *
  * <p> Aggregators are created by calling {@link DoFn.Context#createAggregator},
  * typically from {@link DoFn#startBundle}. Elements can be added to the

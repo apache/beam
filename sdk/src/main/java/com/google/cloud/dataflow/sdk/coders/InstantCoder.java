@@ -25,7 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * A InstantCoder encodes joda Instant.
+ * A {@code InstantCoder} is a {@link Coder} for a joda {@link Instant}.
  */
 @SuppressWarnings("serial")
 public class InstantCoder extends AtomicCoder<Instant> {

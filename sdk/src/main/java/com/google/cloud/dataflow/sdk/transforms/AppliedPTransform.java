@@ -20,7 +20,7 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 
 /**
- * Represents the application of this transform to a specific input to produce
+ * Represents the application of a {@link PTransform} to a specific input to produce
  * a specific output.
  *
  * @param <Input> transform input type

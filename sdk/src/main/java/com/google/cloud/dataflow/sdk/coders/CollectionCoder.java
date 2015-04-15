@@ -26,7 +26,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * A CollectionCoder encodes Collections.
+ * A {@code CollectionCoder} encodes {@code Collection}s.
  *
  * @param <T> the type of the elements of the Collections being transcoded
  */

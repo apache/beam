@@ -27,8 +27,8 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 
 /**
- * A VarLongCoder encodes longs using between 1 and 10 bytes.  Negative
- * numbers always take 10 bytes, so BigEndianLongCoder may be preferable for
+ * A {@code VarLongCoder} encodes longs using between 1 and 10 bytes. Negative
+ * numbers always take 10 bytes, so {@link BigEndianLongCoder} may be preferable for
  * longs that are known to often be large or negative.
  */
 @SuppressWarnings("serial")

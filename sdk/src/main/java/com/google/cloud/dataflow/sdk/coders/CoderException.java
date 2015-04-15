@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.coders;
 import java.io.IOException;
 
 /**
- * A CoderException is thrown if there is a problem encoding or
+ * A {@code CoderException} is thrown if there is a problem encoding or
  * decoding a value.
  */
 public class CoderException extends IOException {

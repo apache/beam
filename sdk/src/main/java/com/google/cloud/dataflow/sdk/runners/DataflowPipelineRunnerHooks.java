@@ -21,7 +21,7 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 
 /**
  * An instance of this class can be passed to the
- * DataflowPipeline runner to add user defined hooks to be
+ * {@link DataflowPipelineRunner} to add user defined hooks to be
  * invoked at various times during pipeline execution.
  */
 @Experimental

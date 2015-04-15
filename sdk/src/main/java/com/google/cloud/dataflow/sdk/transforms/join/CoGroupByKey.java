@@ -33,12 +33,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A transform that performs a CoGroupByKey on a tuple of tables.  A
- * CoGroupByKey groups results from all tables by like keys into CoGbkResults,
+ * A {@link PTransform} that performs a {@link CoGroupByKey} on a tuple
+ * of tables.  A {@link CoGroupByKey} groups results from all
+ * tables by like keys into {@link CoGbkResult}s,
  * from which the results for any specific table can be accessed by the
- * TupleTag supplied with the initial table.
+ * {@link com.google.cloud.dataflow.sdk.values.TupleTag}
+ * supplied with the initial table.
  *
- * <p> Example of performing a CoGroupByKey followed by a ParDo that consumes
+ * <p> Example of performing a {@link CoGroupByKey} followed by a
+ * {@link ParDo} that consumes
  * the results:
  * <pre> <code>
  * {@literal PCollection<KV<K, V1>>} pt1 = ...;

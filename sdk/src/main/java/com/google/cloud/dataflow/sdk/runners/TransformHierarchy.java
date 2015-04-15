@@ -31,7 +31,7 @@ import java.util.Set;
 
 /**
  * Captures information about a collection of transformations and their
- * associated PValues.
+ * associated {@link PValue}s.
  */
 public class TransformHierarchy {
   private final Deque<TransformTreeNode> transformStack = new LinkedList<>();

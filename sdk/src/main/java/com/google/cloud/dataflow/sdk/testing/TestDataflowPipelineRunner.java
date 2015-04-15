@@ -24,8 +24,8 @@ import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
 
 /**
- * TestDataflowPipelineRunner is a pipeline runner that wraps a
- * DataflowPipelineRunner when running tests against the {@link TestPipeline}.
+ * {@link TestDataflowPipelineRunner} is a pipeline runner that wraps a
+ * {@link DataflowPipelineRunner} when running tests against the {@link TestPipeline}.
  *
  * @see TestPipeline
  */

@@ -20,8 +20,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * An AtomicCoder is one that has no component Coders or other state.
- * All instances of its class are equal.
+ * An {@code AtomicCoder} is a {@link Coder} that has no component
+ * {@link Coder}s or other state.
+ *
+ * <p> All instances of its class are equal.
  *
  * @param <T> the type of the values being transcoded
  */

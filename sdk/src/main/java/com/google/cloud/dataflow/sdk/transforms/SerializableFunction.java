@@ -19,7 +19,8 @@ package com.google.cloud.dataflow.sdk.transforms;
 import java.io.Serializable;
 
 /**
- * A function that computes an output value based on an input value,
+ * A function that computes an output value of type
+ * {@code O} from an input value of type {@code I}
  * and is {@link Serializable}.
  *
  * @param <I> input value type

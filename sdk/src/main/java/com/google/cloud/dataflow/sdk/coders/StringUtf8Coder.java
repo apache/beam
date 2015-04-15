@@ -32,8 +32,9 @@ import java.io.UTFDataFormatException;
 import java.nio.charset.Charset;
 
 /**
- * A StringUtf8Coder encodes Java Strings in UTF-8 encoding.
- * If in a nested context, prefixes the string with a VarInt length field.
+ * A {@code StringUtf8Coder} encodes Java Strings in UTF-8 encoding.
+ * If in a nested context, prefixes the string with an integer length field,
+ * encoded via the {@link VarIntCoder}.
  */
 @SuppressWarnings("serial")
 public class StringUtf8Coder extends AtomicCoder<String> {

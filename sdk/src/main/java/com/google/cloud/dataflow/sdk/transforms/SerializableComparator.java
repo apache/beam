@@ -20,7 +20,7 @@ import java.io.Serializable;
 import java.util.Comparator;
 
 /**
- * A {@code Serializable} {@code Comparator}.
+ * A {@code Comparator} that is also {@code Serializable}.
  *
  * @param <T> type of values being compared
  */

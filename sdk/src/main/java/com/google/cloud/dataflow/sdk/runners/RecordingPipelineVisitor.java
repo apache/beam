@@ -24,7 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Provides a simple PipelineVisitor that records the transformation tree.
+ * Provides a simple {@link com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor}
+ * that records the transformation tree.
  *
  * <p> Provided for internal unit tests.
  */

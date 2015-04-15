@@ -27,8 +27,8 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 
 /**
- * A VarIntCoder encodes Integers using between 1 and 5 bytes.  Negative
- * numbers always take 5 bytes, so BigEndianIntegerCoder may be preferable for
+ * A {@code VarIntCoder} encodes {@code Integer}s using between 1 and 5 bytes. Negative
+ * numbers always take 5 bytes, so {@link BigEndianIntegerCoder} may be preferable for
  * ints that are known to often be large or negative.
  */
 @SuppressWarnings("serial")

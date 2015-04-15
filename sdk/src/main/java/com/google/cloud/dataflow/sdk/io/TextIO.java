@@ -46,7 +46,7 @@ import java.util.zip.GZIPInputStream;
 import javax.annotation.Nullable;
 
 /**
- * Transforms for reading and writing text files.
+ * {@link PTransform}s for reading and writing text files.
  *
  * <p> To read a {@link PCollection} from one or more text files, use
  * {@link TextIO.Read}, specifying {@link TextIO.Read#from} to specify
@@ -101,21 +101,21 @@ public class TextIO {
   public static final Coder<String> DEFAULT_TEXT_CODER = StringUtf8Coder.of();
 
   /**
-   * A root PTransform that reads from a text file (or multiple text
-   * files matching a pattern) and returns a PCollection containing
+   * A {@link PTransform} that reads from a text file (or multiple text
+   * files matching a pattern) and returns a {@link PCollection} containing
    * the decoding of each of the lines of the text file(s).  The
    * default decoding just returns the lines.
    */
   public static class Read {
     /**
-     * Returns a TextIO.Read PTransform with the given step name.
+     * Returns a {@link TextIO.Read} {@link PTransform} with the given step name.
      */
     public static Bound<String> named(String name) {
       return new Bound<>(DEFAULT_TEXT_CODER).named(name);
     }
 
     /**
-     * Returns a TextIO.Read PTransform that reads from the file(s)
+     * Returns a {@link TextIO.Read} {@link PTransform} that reads from the file(s)
      * with the given name or pattern.  This can be a local filename
      * or filename pattern (if running locally), or a Google Cloud
      * Storage filename or filename pattern of the form
@@ -171,7 +171,7 @@ public class TextIO {
     // TODO: strippingNewlines, etc.
 
     /**
-     * A root PTransform that reads from a text file (or multiple text files
+     * A {@link PTransform} that reads from a text file (or multiple text files
      * matching a pattern) and returns a bounded PCollection containing the
      * decoding of each of the lines of the text file(s).  The default
      * decoding just returns the lines.
@@ -321,7 +321,7 @@ public class TextIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A PTransform that writes a PCollection to a text file (or
+   * A {@link PTransform} that writes a {@link PCollection} to a text file (or
    * multiple text files matching a sharding pattern), with each
    * PCollection element being encoded into its own line.
    */

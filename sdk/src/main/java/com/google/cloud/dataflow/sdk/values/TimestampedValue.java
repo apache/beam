@@ -83,7 +83,7 @@ public class TimestampedValue<V> {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Coder for {@code TimestampedValue}.
+   * A {@link Coder} for {@code TimestampedValue}.
    */
   @SuppressWarnings("serial")
   public static class TimestampedValueCoder<T>

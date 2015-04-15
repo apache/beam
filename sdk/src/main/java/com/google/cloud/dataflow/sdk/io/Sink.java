@@ -23,8 +23,8 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import java.io.Serializable;
 
 /**
- * A Sink represents a resource that can be written to using the {@link Write} transform. A parallel
- * write to a Sink consists of three phases:
+ * A {@code Sink} represents a resource that can be written to using the {@link Write} transform. A parallel
+ * write to a {@code Sink} consists of three phases:
  * <ol>
  * <li>A sequential <i>initialization</i> phase (e.g., creating a temporary output directory, etc.)
  * <li>A <i>parallel write</i> phase where workers write bundles of records
@@ -37,10 +37,10 @@ import java.io.Serializable;
  *
  * <p>{@code p.apply(Write.to(new MySink()));}
  *
- * <p>Implementing a Sink and the corresponding write operations requires extending three abstract
+ * <p>Implementing a {@link Sink} and the corresponding write operations requires extending three abstract
  * classes:
  * <ul>
- * <li>{@link Sink}: A Sink describes a location/resource to write to. It may contain fields like a
+ * <li>{@link Sink}: A {@link Sink} describes a location/resource to write to. It may contain fields like a
  * URI or other metadata about the sink. Implementors of {@link Sink} must implement two methods:
  * {@link Sink#validate} and {@link Sink#createWriteOperation}. {@link Sink#validate Validate} is
  * called by the Write transform at pipeline creation, and should validate that the Sink can be
@@ -131,19 +131,20 @@ public abstract class Sink<T> implements Serializable {
   public abstract WriteOperation<T, ?> createWriteOperation(PipelineOptions options);
 
   /**
-   * A WriteOperation defines the process of a parallel write of objects to a Sink.
+   * A {@link WriteOperation} defines the process of a parallel write of objects to a Sink.
    *
-   * <p>The WriteOperation defines how to perform initialization and finalization of a parallel
+   * <p>The {@code WriteOperation} defines how to perform initialization and finalization of a parallel
    * write to a sink as well as how to create a {@link Sink.Writer} object that can write a bundle
    * to the sink.
    *
    * <p>Since operations in Dataflow may be run multiple times for redundancy or fault-tolerance,
    * the initialization and finalization defined by a WriteOperation <b>must be idempotent</b>.
    *
-   * <p>WriteOperations may be mutable; a WriteOperation is serialized after the call to initialize
-   * method and deserialized before calls to createWriter and finalized.  However, it is not
-   * reserialized after createWriter, so createWriter should not mutate the state of the
-   * WriteOperation.
+   * <p>{@code WriteOperation}s may be mutable; a {@code WriteOperation} is serialized after the
+   * call to {@code initialize} method and deserialized before calls to
+   * {@code createWriter} and {@code finalized}. However, it is not
+   * reserialized after {@code createWriter}, so {@code createWriter} should not mutate the
+   * state of the {@code WriteOperation}.
    *
    * <p>See {@link Sink} for more detailed documentation about the process of writing to a Sink.
    *

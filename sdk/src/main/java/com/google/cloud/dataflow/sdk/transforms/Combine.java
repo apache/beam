@@ -466,7 +466,7 @@ public class Combine {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * An abstract subclass of CombineFn for implementing combiners that are more
+   * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily expressed as binary operations.
    */
   public abstract static class BinaryCombineFn<V>
@@ -578,7 +578,7 @@ public class Combine {
   }
 
   /**
-   * An abstract subclass of CombineFn for implementing combiners that are more
+   * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily expressed as binary operations on ints.
    */
   public abstract static class BinaryCombineIntegerFn extends CombineFn<Integer, int[], Integer> {
@@ -648,7 +648,7 @@ public class Combine {
   }
 
   /**
-   * An abstract subclass of CombineFn for implementing combiners that are more
+   * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily expressed as binary operations on longs.
    */
   public abstract static class BinaryCombineLongFn extends CombineFn<Long, long[], Long> {
@@ -717,7 +717,7 @@ public class Combine {
   }
 
   /**
-   * An abstract subclass of CombineFn for implementing combiners that are more
+   * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily expressed as binary operations on doubles.
    */
   public abstract static class BinaryCombineDoubleFn extends CombineFn<Double, double[], Double> {

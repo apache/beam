@@ -32,8 +32,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A StandardCoder is one that defines equality, hashing, and printing
- * via the class name and recursively using {@link #getComponents}.
+ * A {@code StandardCoder} is a {@link Coder} that defines equality,
+ * hashing, and printing via the class name and recursively using
+ * {@link #getComponents}.
  *
  * @param <T> the type of the values being transcoded
  */

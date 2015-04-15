@@ -167,7 +167,7 @@ public class PipelineOptionsFactory {
     return new Builder().withValidation();
   }
 
-  /** A fluent PipelineOptions builder. */
+  /** A fluent {@link PipelineOptions} builder. */
   public static class Builder {
     private final String defaultAppName;
     private final String[] args;

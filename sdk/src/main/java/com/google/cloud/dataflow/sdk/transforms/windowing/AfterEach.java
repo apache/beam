@@ -27,8 +27,9 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * A composite trigger that executes its sub-triggers in order. Only one sub-trigger is executing at
- * a time, and any time it fires the {@code AfterEach} fires. When the currently executing
+ * A composite {@link Trigger} that executes its sub-triggers in order.
+ * Only one sub-trigger is executing at a time,
+ * and any time it fires the {@code AfterEach} fires. When the currently executing
  * sub-trigger finishes, the {@code AfterEach} starts executing the next sub-trigger.
  *
  * <p> {@code AfterEach.inOrder(t1, t2, ...)} finishes when all of the sub-triggers have finished.

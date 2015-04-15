@@ -25,7 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * An EntityCoder encodes/decodes Datastore Entity objects.
+ * An {@code EntityCoder} is a {@link Coder} for {@link Entity} objects.
  */
 @SuppressWarnings("serial")
 public class EntityCoder extends AtomicCoder<Entity> {

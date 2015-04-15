@@ -23,7 +23,7 @@ import java.util.Observable;
 /**
  * Abstract base class for readers.
  *
- * <p> A Source is read from by getting an Iterator-like value and
+ * <p> A {@link Source} is read from by getting an {@code Iterator}-like value and
  * iterating through it.
  *
  * @param <T> the type of the elements read from the source

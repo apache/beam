@@ -28,7 +28,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
 
 /**
- * An abstract base class for writing Coders that encodes itself via java
+ * An abstract base class for writing {@link Coder}s that encodes itself via java
  * serialization.  Subclasses only need to implement the {@link Coder#encode}
  * and {@link Coder#decode} methods.
  *

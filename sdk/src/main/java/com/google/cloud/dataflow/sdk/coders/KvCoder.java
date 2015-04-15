@@ -34,7 +34,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * A KvCoder encodes KVs.
+ * A {@code KvCoder} encodes {@link KV}s.
  *
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded

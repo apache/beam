@@ -29,8 +29,8 @@ import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.base.Preconditions;
 
 /**
- * A PipelineRunner can execute, translate, or otherwise process a
- * Pipeline.
+ * A {@link PipelineRunner} can execute, translate, or otherwise process a
+ * {@link Pipeline}.
  *
  * @param <Results> the type of the result of {@link #run}.
  */

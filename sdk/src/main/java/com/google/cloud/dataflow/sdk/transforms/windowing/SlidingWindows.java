@@ -26,7 +26,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * A WindowFn that windows values into possibly overlapping fixed-size
+ * A {@link WindowFn} that windows values into possibly overlapping fixed-size
  * timestamp-based windows.
  *
  * <p> For example, in order to window data into 10 minute windows that

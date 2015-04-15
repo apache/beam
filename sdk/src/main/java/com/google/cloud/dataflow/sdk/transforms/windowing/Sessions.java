@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * A WindowFn windowing values into sessions separated by {@link #gapDuration}-long
+ * A {@link WindowFn} windowing values into sessions separated by {@link #gapDuration}-long
  * periods with no elements.
  *
  * <p> For example, in order to window data into session with at least 10 minute

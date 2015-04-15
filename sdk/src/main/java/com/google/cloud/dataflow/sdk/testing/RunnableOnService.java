@@ -17,8 +17,9 @@
 package com.google.cloud.dataflow.sdk.testing;
 
 /**
- * Category tag for tests that can be run on the DataflowPipelineRunner if the
- * runIntegrationTestOnService System property is set to true.
+ * Category tag for tests that can be run on the
+ * {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner} if the
+ * {@code runIntegrationTestOnService} System property is set to true.
  * Example usage:
  * <pre><code>
  *     {@literal @}Test

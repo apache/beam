@@ -225,12 +225,14 @@ public class DirectPipelineRunner
   }
 
   /**
-   * The implementation may split the KeyedCombineFn into ADD, MERGE
-   * and EXTRACT phases (see CombineValuesFn). In order to emulate
-   * this for the DirectPipelineRunner and provide an experience
+   * The implementation may split the {@link KeyedCombineFn} into ADD, MERGE
+   * and EXTRACT phases (see {@link com.google.cloud.dataflow.sdk.runners.worker.CombineValuesFn}).
+   * In order to emulate
+   * this for the {@link DirectPipelineRunner} and provide an experience
    * closer to the service, go through heavy seralizability checks for
    * the equivalent of the results of the ADD phase, but after the
-   * GroupByKey shuffle, and the MERGE phase. Doing these checks
+   * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
+   * shuffle, and the MERGE phase. Doing these checks
    * ensure that not only is the accumulator coder serializable, but
    * the accumulator coder can actually serialize the data in
    * question.

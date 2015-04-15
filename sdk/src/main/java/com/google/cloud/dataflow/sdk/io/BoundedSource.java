@@ -25,7 +25,7 @@ import java.io.IOException;
 import javax.annotation.Nullable;
 
 /**
- * A {@code Source} that reads a bounded amount of input and, because of that, supports
+ * A {@link Source} that reads a bounded amount of input and, because of that, supports
  * some additional operations, e.g. size estimation, and its reader supports progress estimation.
  *
  * @param <T> Type of records read by the source.

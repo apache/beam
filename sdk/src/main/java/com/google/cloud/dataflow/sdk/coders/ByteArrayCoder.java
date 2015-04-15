@@ -28,10 +28,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * A ByteArrayCoder encodes byte[] objects.
+ * A {@code ByteArrayCoder} encodes {@code byte[]} objects.
  *
- * <p> If in a nested context, prefixes the encoded array with a VarInt encoding
- * of the length.
+ * <p> If in a nested context, prefixes the encoded array with its
+ * length, encoded via a {@link VarIntCoder}.
  */
 @SuppressWarnings("serial")
 public class ByteArrayCoder extends AtomicCoder<byte[]> {

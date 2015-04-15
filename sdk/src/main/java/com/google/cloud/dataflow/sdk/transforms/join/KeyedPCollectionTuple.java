@@ -33,21 +33,23 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Represents an immutable tuple of keyed PCollections (i.e. PCollections of
- * {@code KV<K, ?>}), with key type K.
+ * An immutable tuple of keyed {@link PCollection}s
+ * with key type K.
+ * ({@link PCollection}s containing values of type
+ * {@code KV<K, ?>})
  *
  * @param <K> the type of key shared by all constituent PCollections
  */
 public class KeyedPCollectionTuple<K> implements PInput {
   /**
-   * Returns an empty {@code KeyedPCollections<K>} on the given pipeline.
+   * Returns an empty {@code KeyedPCollectionTuple<K>} on the given pipeline.
    */
   public static <K> KeyedPCollectionTuple<K> empty(Pipeline pipeline) {
     return new KeyedPCollectionTuple<>(pipeline);
   }
 
   /**
-   * Returns a new {@code KeyedPCollections<K>} with the given tag and initial
+   * Returns a new {@code KeyedPCollectionTuple<K>} with the given tag and initial
    * PCollection.
    */
   public static <K, VI> KeyedPCollectionTuple<K> of(
@@ -57,7 +59,7 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Returns a new {@code KeyedPCollections<K>} that is the same as this,
+   * Returns a new {@code KeyedPCollectionTuple<K>} that is the same as this,
    * appended with the given PCollection.
    */
   public <V> KeyedPCollectionTuple<K> and(
@@ -87,15 +89,16 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Returns a list of TaggedKeyedPCollections for the PCollections contained in
-   * this {@code KeyedPCollections<K>}.
+   * Returns a list of {@link TaggedKeyedPCollection}s for the
+   * {@link PCollection}s contained in
+   * this {@link KeyedPCollectionTuple KeyedPCollectionTuple<K>}.
    */
   public List<TaggedKeyedPCollection<K, ?>> getKeyedCollections() {
     return keyedCollections;
   }
 
   /**
-   * Applies the given transform to this input.
+   * Applies the given {@link PTransform} to this input.
    */
   public <O extends POutput> O apply(
       PTransform<KeyedPCollectionTuple<K>, O> transform) {
@@ -103,7 +106,7 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Expands the component PCollections, stripping off any tag-specific
+   * Expands the component {@link PCollection}s, stripping off any tag-specific
    * information.
    */
   @Override
@@ -116,7 +119,8 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Returns the KeyCoder for all PCollections in this KeyedPCollections.
+   * Returns the key {@link Coder} for all {@link PCollection}s
+   * in this {@link KeyedPCollectionTuple}.
    */
   public Coder<K> getKeyCoder() {
     if (keyCoder == null) {
@@ -126,8 +130,8 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Returns the CoGbkResultSchema associated with this
-   * KeyedPCollections.
+   * Returns the {@link CoGbkResultSchema} associated with this
+   * {@link KeyedPCollectionTuple}.
    */
   public CoGbkResultSchema getCoGbkResultSchema() {
     return schema;

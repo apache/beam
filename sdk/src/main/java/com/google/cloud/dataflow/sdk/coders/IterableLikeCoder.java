@@ -32,9 +32,10 @@ import java.util.Observable;
 import java.util.Observer;
 
 /**
- * The base class of Coders for Iterable subclasses.
+ * An abstract base class with functionality for assembling a
+ * {@link Coder} for a class that implements {@code Iterable}.
  *
- * @param <T> the type of the elements of the Iterables being transcoded
+ * @param <T> the type of the elements of the {@code Iterable}s being transcoded
  * @param <IT> the type of the Iterables being transcoded
  */
 public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
