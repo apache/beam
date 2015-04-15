@@ -15,7 +15,7 @@ are also open to linking external repositories via
 [`submodule`](http://git-scm.com/docs/git-submodule/) functionality within Git.
 
 While we are happy to host individual modules to provide additional value to all
-Cloud Dataflow users, the modules are _maintanted solely by their respective
+Cloud Dataflow users, the modules are _maintained solely by their respective
 authors_. We will make sure that modules are related to Cloud Dataflow, that
 they are distributed under the same license as the mainline SDK, and provide
 some guidance to the authors to make the quality as high as possible.
