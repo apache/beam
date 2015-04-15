@@ -103,7 +103,7 @@ public class CombineTest implements Serializable {
 
   private void runTestSimpleCombine(KV<String, Integer>[] table,
                                     int globalSum,
-                                    KV<String, Integer>[] perKeySums) {
+                                    KV<String, String>[] perKeyCombines) {
     Pipeline p = TestPipeline.create();
     PCollection<KV<String, Integer>> input = createInput(p, table);
 
@@ -112,11 +112,11 @@ public class CombineTest implements Serializable {
         .apply(Combine.globally(new SumInts()));
 
     // Java 8 will infer.
-    PCollection<KV<String, Integer>> sumPerKey = input
-        .apply(Combine.<String, Integer>perKey(new SumInts()));
+    PCollection<KV<String, String>> sumPerKey = input
+        .apply(Combine.perKey(new TestKeyedCombineFn()));
 
     DataflowAssert.that(sum).containsInAnyOrder(globalSum);
-    DataflowAssert.that(sumPerKey).containsInAnyOrder(perKeySums);
+    DataflowAssert.that(sumPerKey).containsInAnyOrder(perKeyCombines);
 
     p.run();
   }
@@ -126,7 +126,7 @@ public class CombineTest implements Serializable {
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testSimpleCombine() {
     runTestSimpleCombine(TABLE, 20, new KV[] {
-        KV.of("a", 6), KV.of("b", 14) });
+        KV.of("a", "114a"), KV.of("b", "113b") });
   }
 
   @Test
@@ -209,15 +209,15 @@ public class CombineTest implements Serializable {
         .apply(Values.<Integer>create())
         .apply(Combine.globally(new SumInts()).withoutDefaults());
 
-    PCollection<KV<String, Integer>> sumPerKey = input
-        .apply(Combine.<String, Integer>perKey(new SumInts()));
+    PCollection<KV<String, String>> sumPerKey = input
+        .apply(Combine.perKey(new TestKeyedCombineFn()));
 
     DataflowAssert.that(sum).containsInAnyOrder(2, 5, 13);
     DataflowAssert.that(sumPerKey).containsInAnyOrder(
-        KV.of("a", 2),
-        KV.of("a", 4),
-        KV.of("b", 1),
-        KV.of("b", 13));
+        KV.of("a", "11a"),
+        KV.of("a", "4a"),
+        KV.of("b", "1b"),
+        KV.of("b", "13b"));
     p.run();
   }
 
@@ -236,14 +236,14 @@ public class CombineTest implements Serializable {
         .apply(Values.<Integer>create())
         .apply(Combine.globally(new SumInts()).withoutDefaults());
 
-    PCollection<KV<String, Integer>> sumPerKey = input
-        .apply(Combine.<String, Integer>perKey(new SumInts()));
+    PCollection<KV<String, String>> sumPerKey = input
+        .apply(Combine.perKey(new TestKeyedCombineFn()));
 
     DataflowAssert.that(sum).containsInAnyOrder(7, 13);
     DataflowAssert.that(sumPerKey).containsInAnyOrder(
-        KV.of("a", 6),
-        KV.of("b", 1),
-        KV.of("b", 13));
+        KV.of("a", "114a"),
+        KV.of("b", "1b"),
+        KV.of("b", "13b"));
     p.run();
   }
 
@@ -602,6 +602,77 @@ public class CombineTest implements Serializable {
         LONG_CODER.registerByteSizeObserver(value.count, observer, context);
         DOUBLE_CODER.registerByteSizeObserver(value.sum, observer, context);
       }
+    }
+  }
+
+  /**
+   * A KeyedCombineFn that exercises the full generality of [Keyed]CombineFn.
+   *
+   * <p> The net result of applying this CombineFn is a sorted list of all
+   * characters occurring in the key and the decimal representations of
+   * each value.
+   */
+  public class TestKeyedCombineFn extends KeyedCombineFn
+      <String, Integer, TestKeyedCombineFn.Accumulator, String> {
+
+    // Not serializable.
+    private class Accumulator {
+      String value;
+      public Accumulator(String value) {
+        this.value = value;
+      }
+    }
+
+    @Override
+    public Coder<Accumulator> getAccumulatorCoder(
+        CoderRegistry registry, Coder<String> keyCoder, Coder<Integer> inputCoder) {
+      return new CustomCoder<Accumulator>() {
+        @Override
+        public void encode(Accumulator accumulator, OutputStream outStream, Coder.Context context)
+            throws CoderException, IOException {
+          StringUtf8Coder.of().encode(accumulator.value, outStream, context);
+        }
+
+        @Override
+        public Accumulator decode(InputStream inStream, Coder.Context context)
+            throws CoderException, IOException {
+          return new Accumulator(StringUtf8Coder.of().decode(inStream, context));
+        }
+      };
+    }
+
+    @Override
+    public Accumulator createAccumulator(String key) {
+      return new Accumulator(key);
+    }
+
+    @Override
+    public Accumulator addInput(String key, Accumulator accumulator, Integer value) {
+      try {
+        assertThat(accumulator.value, Matchers.startsWith(key));
+        return new Accumulator(accumulator.value + String.valueOf(value));
+      } finally {
+        accumulator.value = "cleared in addInput";
+      }
+    }
+
+    @Override
+    public Accumulator mergeAccumulators(String key, Iterable<Accumulator> accumulators) {
+      String all = key;
+      for (Accumulator accumulator : accumulators) {
+        assertThat(accumulator.value, Matchers.startsWith(key));
+        all += accumulator.value.substring(key.length());
+        accumulator.value = "cleared in mergeAccumulators";
+      }
+      return new Accumulator(all);
+    }
+
+    @Override
+    public String extractOutput(String key, Accumulator accumulator) {
+      assertThat(accumulator.value, Matchers.startsWith(key));
+      char[] chars = accumulator.value.toCharArray();
+      Arrays.sort(chars);
+      return new String(chars);
     }
   }
 
