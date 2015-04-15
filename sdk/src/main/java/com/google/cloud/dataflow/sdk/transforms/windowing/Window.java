@@ -62,7 +62,7 @@ import java.util.List;
  *
  * <pre> {@code
  * PCollection<String> items = ...;
- * PCollection<String> windowed_items = item.apply(
+ * PCollection<String> windowed_items = items.apply(
  *   Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES)));
  * PCollection<KV<String, Long>> windowed_counts = windowed_items.apply(
  *   Count.<String>perElement());
@@ -108,7 +108,7 @@ import java.util.List;
  *
  * <pre> {@code
  * PCollection<String> items = ...;
- * PCollection<String> windowed_items = item.apply(
+ * PCollection<String> windowed_items = items.apply(
  *   Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES)
  *      .triggering(AfterEach.inOrder(
  *          AfterWatermark.pastEndOfWindow(),
@@ -125,7 +125,7 @@ import java.util.List;
  * time (for which there were new elements in the given window) we could do the following:
  *
  * <pre> {@code
- * PCollection<String> windowed_items = item.apply(
+ * PCollection<String> windowed_items = items.apply(
  *   Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES)
  *      .triggering(Repeatedly
  *              .forever(AfterProcessingTime
