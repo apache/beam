@@ -51,7 +51,55 @@ import java.util.NoSuchElementException;
 /**
  * Transforms for creating {@link PCollectionView}s from {@link PCollection}s,
  * for consuming the contents of those {@link PCollection}s as side inputs
- * to {@link ParDo} transforms.
+ * to {@link ParDo} transforms. These transforms support viewing a {@link PCollection}
+ * as a single value, an iterable, a map, or a multimap.
+ *
+ * <p> For a {@link PCollection} that contains a single value of type {@code T}
+ * per window, such as the output of {@link Combine#globally},
+ * use {@link View#asSingleton()} to prepare it for use as a side input:
+ *
+ * <pre>
+ * {@code
+ * PCollectionView<A> output = someOtherPCollection
+ *     .apply(Combine.globally(...))
+ *     .apply(View.asSingleton());
+ * }
+ * </pre>
+ *
+ * <p> To iterate over an entire window of a {@link PCollection} via
+ * side input, use {@link View#asIterable()}:
+ *
+ * <pre>
+ * {@code
+ * PCollectionView<Iterable<A>> output =
+ *     somePCollection.apply(View.asIterable());
+ * }
+ * </pre>
+ *
+ * <p> To access a {@link PCollection PCollection<K, V>} as a
+ * {@code Map<K, Iterable<V>>} side input, use {@link View#asMap()}:
+ *
+ * <pre>
+ * {@code
+ * PCollectionView<Map<K, Iterable<V>> output =
+ *     somePCollection.apply(View.asMap());
+ * }
+ * </pre>
+ *
+ * <p> If a {@link PCollection PCollection<K, V>} is known to
+ * have a single value for each key, then use
+ * {@code View.AsMultimap#withSingletonValues View.asMap().withSingletonValues()}
+ * to view it as a {@code Map<K, V>}:
+ *
+ * <pre>
+ * {@code
+ * PCollectionView<Map<K, V> output =
+ *     somePCollection.apply(View.asMap().withSingletonValues());
+ * }
+ * </pre>
+ *
+ * <p> See {@link ParDo#withSideInputs} for details on how to access
+ * this variable inside a {@link ParDo} over another {@link PCollection}.
  */
 public class View {
 
@@ -314,7 +362,7 @@ public class View {
    * <p> For internal use only.
    *
    * @param <R> The type of the elements of the input PCollection
-   * @param <T> The type associated with the PCollectionView used as a side input
+   * @param <T> The type associated with the {@link PCollectionView} used as a side input
    */
   public static class CreatePCollectionView<R, T>
       extends PTransform<PCollection<R>, PCollectionView<T>> {

@@ -136,7 +136,7 @@ import java.util.Map;
  * PCollection<String> words = ...;
  * PCollection<Integer> maxWordLengthCutOff = ...; // Singleton PCollection
  * final PCollectionView<Integer> maxWordLengthCutOffView =
- *     SingletonPCollectionView.of(maxWordLengthCutOff);
+ *     maxWordLengthCutOff.apply(View.asSingleton());
  * PCollection<String> wordsBelowCutOff =
  *     words.apply(ParDo.withSideInput(maxWordLengthCutOffView)
  *                      .of(new DoFn<String, String>() {
