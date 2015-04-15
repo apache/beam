@@ -39,6 +39,8 @@ final class ChunkingShuffleEntryWriter implements ShuffleEntryWriter {
 
   private ByteArrayOutputStream chunk = new ByteArrayOutputStream();
 
+  private DataOutputStream output = new DataOutputStream(chunk);
+
   private final ShuffleWriter writer;
 
   /**
@@ -54,7 +56,6 @@ final class ChunkingShuffleEntryWriter implements ShuffleEntryWriter {
       writeChunk();
     }
 
-    DataOutputStream output = new DataOutputStream(chunk);
     return putFixedLengthPrefixedByteArray(entry.getKey(), output)
         + putFixedLengthPrefixedByteArray(entry.getSecondaryKey(), output)
         + putFixedLengthPrefixedByteArray(entry.getValue(), output);
@@ -70,6 +71,7 @@ final class ChunkingShuffleEntryWriter implements ShuffleEntryWriter {
     if (chunk.size() > 0) {
       writer.write(chunk.toByteArray());
       chunk.reset();
+      output = new DataOutputStream(chunk);
     }
   }
 

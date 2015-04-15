@@ -24,7 +24,6 @@ import com.google.common.io.ByteStreams;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 
 import javax.annotation.Nullable;
@@ -54,7 +53,8 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
 
     ShuffleReader.ReadChunkResult result =
         reader.readIncludingPosition(startPosition, endPosition);
-    InputStream input = new ByteArrayInputStream(result.chunk);
+    DataInputStream input =
+        new DataInputStream(new ByteArrayInputStream(result.chunk));
     ArrayList<ShuffleEntry> entries = new ArrayList<>();
     while (input.available() > 0) {
       entries.add(getShuffleEntry(input));
@@ -69,7 +69,7 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
    * @param input stream to read from
    * @return parsed ShuffleEntry
    */
-  static ShuffleEntry getShuffleEntry(InputStream input) throws IOException {
+  static ShuffleEntry getShuffleEntry(DataInputStream input) throws IOException {
     byte[] position = getFixedLengthPrefixedByteArray(input);
     byte[] key = getFixedLengthPrefixedByteArray(input);
     byte[] skey = getFixedLengthPrefixedByteArray(input);
@@ -83,9 +83,8 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
    * @param input stream to read from
    * @return parsed byte array
    */
-  static byte[] getFixedLengthPrefixedByteArray(InputStream input)
+  static byte[] getFixedLengthPrefixedByteArray(DataInputStream dataInputStream)
       throws IOException {
-    DataInputStream dataInputStream = new DataInputStream(input);
     int length = dataInputStream.readInt();
     if (length < 0) {
       throw new IOException("invalid length: " + length);
