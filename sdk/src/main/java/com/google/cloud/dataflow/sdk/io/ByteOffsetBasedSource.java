@@ -24,11 +24,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A {@link Source} that uses byte offsets to define starting and ending positions. Extend this class to
- * implement your own byte offset based custom source. {@link FileBasedSource}, which is a subclass
- * of this, adds additional functionality useful for custom sources that are based on files. If
- * possible implementors should start from {@code FileBasedSource} instead of
- * {@code ByteOffsetBasedSource}.
+ * A {@link Source} that uses byte offsets to define starting and ending positions.
+ *
+ * <p>Extend this class to implement your own byte offset based custom source.
+ * {@link FileBasedSource}, which is a subclass of this, adds additional functionality useful for
+ * custom sources that are based on files. If possible implementors should start from
+ * {@code FileBasedSource} instead of {@code ByteOffsetBasedSource}.
  *
  * <p>This is a common base class for all sources that use a byte offset range. It stores the range
  * and implements splitting into bundles. This should be used for sources that can be cheaply read

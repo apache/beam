@@ -23,8 +23,9 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import java.io.Serializable;
 
 /**
- * A {@code Sink} represents a resource that can be written to using the {@link Write} transform. A parallel
- * write to a {@code Sink} consists of three phases:
+ * A {@code Sink} represents a resource that can be written to using the {@link Write} transform.
+ *
+ * <p>A parallel write to a {@code Sink} consists of three phases:
  * <ol>
  * <li>A sequential <i>initialization</i> phase (e.g., creating a temporary output directory, etc.)
  * <li>A <i>parallel write</i> phase where workers write bundles of records
@@ -37,16 +38,18 @@ import java.io.Serializable;
  *
  * <p>{@code p.apply(Write.to(new MySink()));}
  *
- * <p>Implementing a {@link Sink} and the corresponding write operations requires extending three abstract
- * classes:
+ * <p>Implementing a {@link Sink} and the corresponding write operations requires extending three
+ * abstract classes:
+ *
  * <ul>
- * <li>{@link Sink}: A {@link Sink} describes a location/resource to write to. It may contain fields like a
- * URI or other metadata about the sink. Implementors of {@link Sink} must implement two methods:
- * {@link Sink#validate} and {@link Sink#createWriteOperation}. {@link Sink#validate Validate} is
- * called by the Write transform at pipeline creation, and should validate that the Sink can be
- * written to. The createWriteOperation method is also called at pipeline creation, and should
- * return a WriteOperation object that defines how to write to the Sink.  Note that implementations
- * of Sink must be serializable and Sinks must be immutable.
+ * <li>{@link Sink}: an immutable logical description of the location/resource to write to.
+ * Depending on the type of sink, it may contain fields such as the path to an output directory
+ * on a filesystem, a database table name, etc. Implementors of {@link Sink} must
+ * implement two methods: {@link Sink#validate} and {@link Sink#createWriteOperation}.
+ * {@link Sink#validate Validate} is called by the Write transform at pipeline creation, and should
+ * validate that the Sink can be written to. The createWriteOperation method is also called at
+ * pipeline creation, and should return a WriteOperation object that defines how to write to the
+ * Sink. Note that implementations of Sink must be serializable and Sinks must be immutable.
  *
  * <li>{@link WriteOperation}: The WriteOperation implements the <i>initialization</i> and
  * <i>finalization</i> phases of a write. Implementors of {@link WriteOperation} must implement
@@ -133,9 +136,9 @@ public abstract class Sink<T> implements Serializable {
   /**
    * A {@link WriteOperation} defines the process of a parallel write of objects to a Sink.
    *
-   * <p>The {@code WriteOperation} defines how to perform initialization and finalization of a parallel
-   * write to a sink as well as how to create a {@link Sink.Writer} object that can write a bundle
-   * to the sink.
+   * <p>The {@code WriteOperation} defines how to perform initialization and finalization of a
+   * parallel write to a sink as well as how to create a {@link Sink.Writer} object that can write
+   * a bundle to the sink.
    *
    * <p>Since operations in Dataflow may be run multiple times for redundancy or fault-tolerance,
    * the initialization and finalization defined by a WriteOperation <b>must be idempotent</b>.

@@ -451,8 +451,8 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   }
 
   /**
-   * {@link Trigger}s that are guaranteed to fire at most once should extend from this, rather than the
-   * general {@link Trigger} class to indicate that behavior.
+   * {@link Trigger}s that are guaranteed to fire at most once should extend from this, rather
+   * than the general {@link Trigger} class to indicate that behavior.
    *
    * <p> TODO: Add checks that an AtMostOnceTrigger never returns TriggerResult.FIRE.
    *
