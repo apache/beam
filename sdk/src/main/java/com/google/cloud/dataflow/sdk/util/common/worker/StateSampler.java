@@ -26,7 +26,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -50,7 +49,7 @@ public class StateSampler extends TimerTask implements AutoCloseable {
   private HashMap<String, Integer> statesByName = new HashMap<>();
 
   /** The current state. */
-  private final AtomicInteger currentState;
+  private volatile int currentState;
 
   /** Special value of {@code currentState} that means we do not sample. */
   private static final int DO_NOT_SAMPLE = -1;
@@ -87,7 +86,7 @@ public class StateSampler extends TimerTask implements AutoCloseable {
                       long samplingPeriodMs) {
     this.prefix = prefix;
     this.counterSetMutator = counterSetMutator;
-    currentState = new AtomicInteger(DO_NOT_SAMPLE);
+    currentState = DO_NOT_SAMPLE;
     Random rand = new Random();
     int initialDelay = rand.nextInt((int) samplingPeriodMs);
     timers[rand.nextInt(NUM_TIMER_THREADS)].scheduleAtFixedRate(
@@ -112,7 +111,7 @@ public class StateSampler extends TimerTask implements AutoCloseable {
   @Override
   public void run() {
     long startTimestampNs = System.nanoTime();
-    int state = currentState.get();
+    int state = currentState;
     if (state != DO_NOT_SAMPLE) {
       synchronized (this) {
         countersByState.get(state).addValue(
@@ -161,7 +160,9 @@ public class StateSampler extends TimerTask implements AutoCloseable {
    * @return the previous state
    */
   public int setState(int state) {
-    return currentState.getAndSet(state);
+    int previousState = currentState;
+    currentState = state;
+    return previousState;
   }
 
   /**
