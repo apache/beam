@@ -362,7 +362,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   }
 
   /**
-   * Called when a timer has fired for the trigger or one of it’s sub-triggers.
+   * Called when a timer has fired for the trigger or one of its sub-triggers.
    *
    * @param c the context to interact with
    * @param e identifier for the trigger that the timer is for.

@@ -82,7 +82,7 @@ public class Proto2Coder<T extends Message> extends CustomCoder<T> {
   public Proto2Coder<T> withExtensionsFrom(Class<?>... extensionHosts) {
     for (Class<?> extensionHost : extensionHosts) {
       try {
-        // Attempt to access the declared method, to make sure its present.
+        // Attempt to access the declared method, to make sure it's present.
         extensionHost
             .getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class);
       } catch (NoSuchMethodException e) {
