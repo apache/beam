@@ -53,10 +53,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * Represents and {@link InvocationHandler} for a {@link Proxy}. The invocation handler uses bean
@@ -71,6 +72,7 @@ import java.util.TreeMap;
  * {@link Object#equals(Object)}, {@link Object#hashCode()}, {@link Object#toString()} and
  * {@link PipelineOptions#as(Class)}.
  */
+@ThreadSafe
 class ProxyInvocationHandler implements InvocationHandler {
   private static final ObjectMapper MAPPER = new ObjectMapper();
   /**
@@ -255,6 +257,7 @@ class ProxyInvocationHandler implements InvocationHandler {
    * @return The default value from an {@link Default} annotation if present, otherwise a default
    *         value as per the Java Language Specification.
    */
+  @SuppressWarnings({"unchecked", "rawtypes"})
   private Object getDefault(PipelineOptions proxy, Method method) {
     for (Annotation annotation : method.getAnnotations()) {
       if (annotation instanceof Default.Class) {
@@ -337,14 +340,16 @@ class ProxyInvocationHandler implements InvocationHandler {
     public void serialize(PipelineOptions value, JsonGenerator jgen, SerializerProvider provider)
         throws IOException, JsonProcessingException {
       ProxyInvocationHandler handler = (ProxyInvocationHandler) Proxy.getInvocationHandler(value);
-      Map<String, Object> options = Maps.<String, Object>newHashMap(handler.jsonOptions);
-      options.putAll(handler.options);
-      removeIgnoredOptions(handler.knownInterfaces, options);
-      ensureSerializable(handler.knownInterfaces, options);
-      jgen.writeStartObject();
-      jgen.writeFieldName("options");
-      jgen.writeObject(options);
-      jgen.writeEndObject();
+      synchronized (handler) {
+        Map<String, Object> options = Maps.<String, Object>newHashMap(handler.jsonOptions);
+        options.putAll(handler.options);
+        removeIgnoredOptions(handler.knownInterfaces, options);
+        ensureSerializable(handler.knownInterfaces, options);
+        jgen.writeStartObject();
+        jgen.writeFieldName("options");
+        jgen.writeObject(options);
+        jgen.writeEndObject();
+      }
     }
 
     /**

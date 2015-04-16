@@ -26,6 +26,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * Dataflow SDK pipeline configuration options.
  * <p>
@@ -41,6 +43,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
  */
 @JsonSerialize(using = Serializer.class)
 @JsonDeserialize(using = Deserializer.class)
+@ThreadSafe
 public interface PipelineOptions {
   /**
    * Transforms this object into an object of type {@code <T>}. {@code <T>} must extend
