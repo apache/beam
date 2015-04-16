@@ -503,8 +503,9 @@ public class CombineTest implements Serializable {
     }
 
     @Override
-    public boolean isDeterministic() {
-      return false;
+    public void verifyDeterministic() throws NonDeterministicException {
+      throw new NonDeterministicException(this,
+          "CombineTest.SetCoder does not encode in a deterministic order.");
     }
 
     @Override
@@ -585,9 +586,7 @@ public class CombineTest implements Serializable {
       }
 
       @Override
-      public boolean isDeterministic() {
-        return true;
-      }
+      public void verifyDeterministic() throws NonDeterministicException { }
 
       @Override
       public boolean isRegisterByteSizeObserverCheap(

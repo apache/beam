@@ -118,26 +118,6 @@ public interface Coder<T> extends Serializable {
   public CloudObject asCloudObject();
 
   /**
-   * Returns true if the coding is deterministic.
-   *
-   * <p> In order for a {@code Coder} to be considered deterministic,
-   * the following must be true:
-   * <ul>
-   *   <li>two values that compare as equal (via {@code Object.equals()}
-   *       or {@code Comparable.compareTo()}, if supported) have the same
-   *       encoding.
-   *   <li>the {@code Coder} always produces a canonical encoding, which is the
-   *       same for an instance of an object even if produced on different
-   *       computers at different times.
-   * </ul>
-   *
-   * @deprecated {@link #verifyDeterministic()} should be used instead to
-   * produce explanations of why a given Coder is non-deterministic.
-   */
-  @Deprecated
-  public boolean isDeterministic();
-
-  /**
    * Throw {@link NonDeterministicException} if the coding is not deterministic.
    *
    * <p> In order for a {@code Coder} to be considered deterministic,

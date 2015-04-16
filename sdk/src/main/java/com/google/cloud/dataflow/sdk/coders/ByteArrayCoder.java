@@ -78,11 +78,6 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   }
 
   @Override
-  public boolean isDeterministic() {
-    return true;
-  }
-
-  @Override
   public Object structuralValue(byte[] value) {
     return new StructuralByteArray(value);
   }

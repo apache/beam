@@ -126,12 +126,6 @@ public class MapCoder<K, V> extends MapCoderBase<Map<K, V>> {
    * two HashMap instances may be equal but produce different encodings.
    */
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return false;
-  }
-
-  @Override
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(this,
         "Ordering of entries in a Map may be non-deterministic.");

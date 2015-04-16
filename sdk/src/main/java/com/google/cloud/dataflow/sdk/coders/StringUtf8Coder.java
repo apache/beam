@@ -106,12 +106,6 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   }
 
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return true;
-  }
-
-  @Override
   public void verifyDeterministic() { }
 
   @Override

@@ -441,12 +441,6 @@ public class Top {
       }
 
       @Override
-      @Deprecated
-      public boolean isDeterministic() {
-        return listCoder.isDeterministic();
-      }
-
-      @Override
       public void verifyDeterministic() throws NonDeterministicException {
         verifyDeterministic(
             "HeapCoder requires a deterministic list coder", listCoder);

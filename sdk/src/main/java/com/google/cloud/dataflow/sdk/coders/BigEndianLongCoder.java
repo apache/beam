@@ -65,11 +65,6 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
   }
 
   @Override
-  public boolean isDeterministic() {
-    return true;
-  }
-
-  @Override
   public boolean consistentWithEquals() {
     return true;
   }

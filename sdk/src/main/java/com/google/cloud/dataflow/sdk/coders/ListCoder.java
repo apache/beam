@@ -70,12 +70,6 @@ public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
    * the general IterableLikeCoder is not.
    */
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return getElemCoder().isDeterministic();
-  }
-
-  @Override
   public void verifyDeterministic() throws NonDeterministicException {
     verifyDeterministic(
         "ListCoder.elemCoder must be deterministic", getElemCoder());

@@ -26,7 +26,7 @@ import static org.junit.Assert.assertEquals;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.coders.StandardCoder;
+import com.google.cloud.dataflow.sdk.coders.DeterministicStandardCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
@@ -127,7 +127,7 @@ public class CombineValuesFnTest {
   /**
    * An example "cheap" accumulator coder.
    */
-  public static class CountSumCoder extends StandardCoder<MeanInts.CountSum> {
+  public static class CountSumCoder extends DeterministicStandardCoder<MeanInts.CountSum> {
     public CountSumCoder() { }
 
     @Override
@@ -147,12 +147,6 @@ public class CombineValuesFnTest {
       double sum = dataStream.readDouble();
       return (new MeanInts ()).new CountSum(count, sum);
     }
-
-    @Override
-    public boolean isDeterministic() { return true; }
-
-    @Override
-    public void verifyDeterministic() { }
 
     public CloudObject asCloudObject() {
       return makeCloudEncoding(this.getClass().getName());

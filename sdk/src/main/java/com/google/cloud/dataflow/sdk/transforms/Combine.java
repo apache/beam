@@ -541,16 +541,10 @@ public class Combine {
         public Holder<V> decode(InputStream inStream, Context context)
             throws CoderException, IOException {
           if (inStream.read() == 1) {
-            return new Holder(inputCoder.decode(inStream, context));
+            return new Holder<>(inputCoder.decode(inStream, context));
           } else {
             return new Holder<>();
           }
-        }
-
-        @Override
-        @Deprecated
-        public boolean isDeterministic() {
-          return inputCoder.isDeterministic();
         }
 
         @Override

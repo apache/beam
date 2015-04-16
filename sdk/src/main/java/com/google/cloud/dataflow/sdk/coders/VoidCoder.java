@@ -50,15 +50,6 @@ public class VoidCoder extends AtomicCoder<Void> {
   }
 
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return true;
-  }
-
-  @Override
-  public void verifyDeterministic() { }
-
-  @Override
   public boolean consistentWithEquals() {
     return true;
   }

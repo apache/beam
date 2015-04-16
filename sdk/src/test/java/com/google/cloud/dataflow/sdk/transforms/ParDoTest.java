@@ -906,9 +906,6 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public boolean isDeterministic() { return true; }
-
-    @Override
     public boolean isRegisterByteSizeObserverCheap(TestDummy value, Context context) {
       return true;
     }

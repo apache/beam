@@ -155,12 +155,6 @@ public class TimerOrElement<E> {
       }
     }
 
-    @Deprecated
-    @Override
-    public boolean isDeterministic() {
-      return elemCoder.isDeterministic();
-    }
-
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(

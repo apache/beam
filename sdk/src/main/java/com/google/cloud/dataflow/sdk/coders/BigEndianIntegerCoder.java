@@ -66,11 +66,6 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
   }
 
   @Override
-  public boolean isDeterministic() {
-    return true;
-  }
-
-  @Override
   public boolean consistentWithEquals() {
     return true;
   }

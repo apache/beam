@@ -654,14 +654,7 @@ public class ApproximateQuantiles {
       }
 
       @Override
-      @Deprecated
-      public boolean isDeterministic() {
-        return elementCoder.isDeterministic()
-            && elementListCoder.isDeterministic();
-      }
-
-      @Override
-      public void verifyDeterministic() throws NonDeterministicException{
+      public void verifyDeterministic() throws NonDeterministicException {
         verifyDeterministic(
             "QuantileState.ElementCoder must be deterministic",
             elementCoder);

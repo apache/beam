@@ -16,33 +16,23 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
-import java.util.Collections;
-import java.util.List;
-
 /**
- * An {@code AtomicCoder} is a {@link Coder} that has no component
- * {@link Coder}s or other state.
- *
- * <p> Note that, unless the behavior is overriden,
- * atomic coders are presumed to be deterministic
- * and all instances are considered equal.
+ * A {@code DeterministicStandardCoder} is a {@link StandardCoder} that is
+ * deterministic, in the sense that for objects considered equal
+ * according to {@code Object.equals()}, the encoded bytes are
+ * also equal.
  *
  * @param <T> the type of the values being transcoded
  */
-public abstract class AtomicCoder<T> extends DeterministicStandardCoder<T> {
+public abstract class DeterministicStandardCoder<T> extends StandardCoder<T> {
   private static final long serialVersionUID = 0;
 
-  protected AtomicCoder() {}
-
-  @Override
-  public List<Coder<?>> getCoderArguments() { return null; }
+  protected DeterministicStandardCoder() {}
 
   /**
-   * Returns a list of values contained in the provided example
-   * value, one per type parameter. If there are no type parameters,
-   * returns the empty list.
+   * As a {@code DeterministicStandardCoder} is presumed deterministic, this
+   * method does nothing.
    */
-  public static <T> List<Object> getInstanceComponents(T exampleValue) {
-    return Collections.emptyList();
-  }
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException { }
 }

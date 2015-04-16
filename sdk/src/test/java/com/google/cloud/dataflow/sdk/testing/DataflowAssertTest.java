@@ -84,11 +84,6 @@ public class DataflowAssertTest implements Serializable {
     }
 
     @Override
-    public boolean isDeterministic() {
-      return true;
-    }
-
-    @Override
     public boolean isRegisterByteSizeObserverCheap(NotSerializableObject value, Context context) {
       return true;
     }

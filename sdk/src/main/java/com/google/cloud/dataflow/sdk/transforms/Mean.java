@@ -173,11 +173,6 @@ public class Mean {
               LONG_CODER.decode(inStream, nestedContext),
               DOUBLE_CODER.decode(inStream, nestedContext));
         }
-
-        @Override
-        public boolean isDeterministic() {
-          return true;
-        }
       };
     }
   }

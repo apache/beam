@@ -539,12 +539,6 @@ public abstract class WindowedValue<V> {
     }
 
     @Override
-    @Deprecated
-    public boolean isDeterministic() {
-      return valueCoder.isDeterministic() && windowCoder.isDeterministic();
-    }
-
-    @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
           "FullWindowedValueCoder requires a deterministic valueCoder",
@@ -624,13 +618,6 @@ public abstract class WindowedValue<V> {
       T value = valueCoder.decode(inStream, context);
       return WindowedValue.valueInGlobalWindow(value);
     }
-
-    @Override
-    @Deprecated
-    public boolean isDeterministic() {
-      return valueCoder.isDeterministic();
-    }
-
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {

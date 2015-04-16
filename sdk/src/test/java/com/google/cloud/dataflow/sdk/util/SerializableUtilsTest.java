@@ -20,7 +20,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.StandardCoder;
+import com.google.cloud.dataflow.sdk.coders.DeterministicStandardCoder;
 import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -93,7 +93,7 @@ public class SerializableUtilsTest {
   }
 
   /** A {@link Coder} that is not serializable by Java. */
-  private static class UnserializableCoderByJava extends StandardCoder<Object> {
+  private static class UnserializableCoderByJava extends DeterministicStandardCoder<Object> {
     private static final long serialVersionUID = 0;
 
     private final Object unserializableField = new Object();
@@ -113,11 +113,6 @@ public class SerializableUtilsTest {
     public List<? extends Coder<?>> getCoderArguments() {
       return ImmutableList.of();
     }
-
-    @Override
-    public boolean isDeterministic() {
-      return true;
-    }
   }
 
   @Test
@@ -128,7 +123,7 @@ public class SerializableUtilsTest {
   }
 
   /** A {@link Coder} that is not serializable by Jackson. */
-  private static class UnserializableCoderByJackson extends StandardCoder<Object> {
+  private static class UnserializableCoderByJackson extends DeterministicStandardCoder<Object> {
     private static final long serialVersionUID = 0;
 
     private final SerializableByJava unserializableField;
@@ -164,11 +159,6 @@ public class SerializableUtilsTest {
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
       return ImmutableList.of();
-    }
-
-    @Override
-    public boolean isDeterministic() {
-      return true;
     }
   }
 

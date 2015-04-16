@@ -56,8 +56,9 @@ public class CoderUtilsTest {
     }
 
     @Override
-    public boolean isDeterministic() {
-      return false;
+    public void verifyDeterministic() throws NonDeterministicException {
+      throw new NonDeterministicException(this,
+        "TestCoder does not actually encode or decode.");
     }
   }
 

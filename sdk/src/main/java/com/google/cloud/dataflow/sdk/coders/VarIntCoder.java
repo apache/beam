@@ -68,15 +68,6 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   }
 
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return true;
-  }
-
-  @Override
-  public void verifyDeterministic() { }
-
-  @Override
   public boolean consistentWithEquals() {
     return true;
   }

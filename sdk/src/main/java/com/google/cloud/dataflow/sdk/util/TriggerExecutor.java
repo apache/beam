@@ -411,12 +411,6 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
       return new TriggerId<>(window, path);
     }
 
-    @Deprecated
-    @Override
-    public boolean isDeterministic() {
-      return windowCoder.isDeterministic();
-    }
-
     @Override
     public void verifyDeterministic() throws Coder.NonDeterministicException {
       verifyDeterministic("TriggerIdCoder requires a deterministic windowCoder", windowCoder);

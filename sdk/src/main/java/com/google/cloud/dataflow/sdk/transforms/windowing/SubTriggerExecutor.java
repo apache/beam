@@ -240,10 +240,11 @@ class SubTriggerExecutor<W extends BoundedWindow> {
       return BitSet.valueOf(byteArrayCoder.decode(inStream, context));
     }
 
-    @Deprecated
     @Override
-    public boolean isDeterministic() {
-      return byteArrayCoder.isDeterministic();
+    public void verifyDeterministic() throws NonDeterministicException {
+      verifyDeterministic(
+          "SubTriggerExecutor.BitSetCoder requires its byteArrayCoder to be deterministic.",
+          byteArrayCoder);
     }
   }
 }

@@ -68,12 +68,6 @@ public class VarLongCoder extends AtomicCoder<Long> {
   }
 
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return true;
-  }
-
-  @Override
   public void verifyDeterministic() { }
 
   @Override

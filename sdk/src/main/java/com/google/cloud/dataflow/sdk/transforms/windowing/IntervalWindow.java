@@ -205,9 +205,6 @@ public class IntervalWindow extends BoundedWindow
       Instant end = instantCoder.decode(inStream, context.nested());
       return new IntervalWindow(start, end);
     }
-
-    @Override
-    public boolean isDeterministic() { return true; }
   }
 
   @SuppressWarnings("serial")
@@ -245,9 +242,6 @@ public class IntervalWindow extends BoundedWindow
       Instant start = instantCoder.decode(inStream, context);
       return new IntervalWindow(start, size);
     }
-
-    @Override
-    public boolean isDeterministic() { return true; }
 
     @Override
     public CloudObject asCloudObject() {

@@ -66,12 +66,11 @@ public class DelegateCoder<T, DT> extends CustomCoder<T> {
     return applyAndWrapExceptions(fromFn, coder.decode(inStream, context));
   }
 
-  @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return coder.isDeterministic();
-  }
-
+  /**
+   * A delegate coder is deterministic if the underlying coder is deterministic.
+   * For this to be safe, the intermediate {@code CodingFunction<T, DT>} must
+   * also be deterministic.
+   */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     coder.verifyDeterministic();

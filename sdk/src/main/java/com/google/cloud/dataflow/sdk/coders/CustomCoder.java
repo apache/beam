@@ -74,9 +74,10 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
   }
 
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return false;
+  public void verifyDeterministic() throws NonDeterministicException {
+    throw new NonDeterministicException(this,
+        "CustomCoder implementations must override verifyDeterministic,"
+        + " or they are presumed nondeterministic.");
   }
 
   // This coder inherits isRegisterByteSizeObserverCheap,

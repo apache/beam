@@ -53,11 +53,6 @@ public class GlobalWindow extends BoundedWindow {
       return GlobalWindow.INSTANCE;
     }
 
-    @Override
-    public boolean isDeterministic() {
-      return true;
-    }
-
     private Coder() {}
   }
 }

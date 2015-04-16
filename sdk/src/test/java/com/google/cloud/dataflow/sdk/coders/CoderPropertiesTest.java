@@ -101,9 +101,7 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public boolean isDeterministic() {
-      return true;
-    }
+    public void verifyDeterministic() throws NonDeterministicException { }
   }
 
   @Test

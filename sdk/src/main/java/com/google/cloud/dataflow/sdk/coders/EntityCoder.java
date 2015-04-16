@@ -77,12 +77,6 @@ public class EntityCoder extends AtomicCoder<Entity> {
    * makes the encoding non-deterministic.
    */
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return false;
-  }
-
-  @Override
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(this,
         "Datastore encodings can hold arbitrary Object instances");

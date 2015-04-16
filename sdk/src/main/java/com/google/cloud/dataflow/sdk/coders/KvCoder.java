@@ -102,12 +102,6 @@ public class KvCoder<K, V> extends KvCoderBase<KV<K, V>> {
   }
 
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return getKeyCoder().isDeterministic() && getValueCoder().isDeterministic();
-  }
-
-  @Override
   public void verifyDeterministic() throws NonDeterministicException {
     verifyDeterministic("Key coder must be deterministic", getKeyCoder());
     verifyDeterministic("Value coder must be deterministic", getValueCoder());

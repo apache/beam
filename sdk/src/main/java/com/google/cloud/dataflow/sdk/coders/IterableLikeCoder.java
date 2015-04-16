@@ -139,12 +139,6 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
    * while the encoding differs.
    */
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return false;
-  }
-
-  @Override
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(this,
         "IterableLikeCoder can not guarantee deterministic ordering.");

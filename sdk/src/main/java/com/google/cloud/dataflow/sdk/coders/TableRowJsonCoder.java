@@ -74,12 +74,6 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
    * non-deterministic.
    */
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return false;
-  }
-
-  @Override
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(this,
         "TableCell can hold arbitrary instances, which may be non-deterministic.");

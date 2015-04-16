@@ -60,12 +60,6 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
   }
 
   @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return true;
-  }
-
-  @Override
   public void verifyDeterministic() { }
 
   protected long getEncodedElementByteSize(Integer value, Context context)

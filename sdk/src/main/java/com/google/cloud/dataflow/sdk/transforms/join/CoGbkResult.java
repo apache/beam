@@ -296,12 +296,6 @@ public class CoGbkResult {
     }
 
     @Override
-    @Deprecated
-    public boolean isDeterministic() {
-      return mapCoder.isDeterministic();
-    }
-
-    @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
           "CoGbkResult requires the mapCoder to be deterministic", mapCoder);

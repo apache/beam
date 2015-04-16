@@ -221,17 +221,6 @@ public class AvroCoder<T> extends StandardCoder<T> {
   }
 
   /**
-   * Returns true if the given type should be deterministically encoded using
-   * the given Schema, the directBinaryEncoder, and the ReflectDatumWriter or
-   * GenericDatumWriter.
-   */
-  @Override
-  @Deprecated
-  public boolean isDeterministic() {
-    return nonDeterministicReasons.isEmpty();
-  }
-
-  /**
    * Raises an exception describing reasons why the type may not be deterministically
    * encoded using the given Schema, the directBinaryEncoder, and the ReflectDatumWriter
    * or GenericDatumWriter.
