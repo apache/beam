@@ -600,11 +600,13 @@ public class CoderRegistry implements CoderProvider {
    * <li>This registry's fallback {@link CoderProvider}, which
    * may be able to generate a coder for an arbitrary class.
    */
-  Coder<?> getDefaultCoder(Class<?> clazz) {
+  <T> Coder<T> getDefaultCoder(Class<T> clazz) {
     CoderFactory coderFactory = getDefaultCoderFactory(clazz);
     if (coderFactory != null) {
       LOG.debug("Default Coder for {} found by factory", clazz);
-      return coderFactory.create(Collections.<Coder<?>>emptyList());
+      @SuppressWarnings("unchecked")
+      Coder<T> coder = (Coder<T>) coderFactory.create(Collections.<Coder<?>>emptyList());
+      return coder;
     }
 
     DefaultCoder defaultAnnotation = clazz.getAnnotation(
@@ -619,9 +621,8 @@ public class CoderRegistry implements CoderProvider {
     }
 
     if (getFallbackCoderProvider() != null) {
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      Optional<Coder<?>> coder =
-          (Optional) getFallbackCoderProvider().getCoder(TypeToken.of(clazz));
+      Optional<Coder<T>> coder =
+          getFallbackCoderProvider().getCoder(TypeToken.of(clazz));
       if (coder.isPresent()) {
         return coder.get();
       }
