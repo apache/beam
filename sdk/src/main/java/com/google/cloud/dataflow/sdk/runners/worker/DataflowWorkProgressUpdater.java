@@ -63,7 +63,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     this.workItem = workItem;
     this.workUnitClient = workUnitClient;
     this.options = options;
-    this.nextReportIndex = 1;
+    this.nextReportIndex = workItem.getInitialReportIndex();
   }
 
   @Override
@@ -93,7 +93,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     if (result != null) {
       // Resets state after a successful progress report.
       dynamicSplitResultToReport = null;
-      nextReportIndex++;
+      nextReportIndex = result.getNextReportIndex();
 
       progressReportIntervalMs = nextProgressReportInterval(
           fromCloudDuration(result.getReportStatusInterval()).getMillis(),

@@ -165,6 +165,7 @@ public class DataflowWorkProgressUpdaterTest {
     workItem.setId(WORK_ID);
     workItem.setLeaseExpireTime(toCloudTime(new Instant(nowMillis + 1000)));
     workItem.setReportStatusInterval(toCloudDuration(Duration.millis(300)));
+    workItem.setInitialReportIndex(1L);
 
     progressUpdater = new DataflowWorkProgressUpdater(workItem, worker, workUnitClient, options);
   }
@@ -175,7 +176,7 @@ public class DataflowWorkProgressUpdaterTest {
   @Test(timeout = 1000)
   public void workProgressUpdaterUpdates() throws Exception {
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
-        .thenReturn(generateServiceState(nowMillis + 2000, 1000, null));
+        .thenReturn(generateServiceState(nowMillis + 2000, 1000, null, 2L));
     setUpCounters(2);
     setUpMetrics(3);
     setUpProgress(approximateProgressAtIndex(1L));
@@ -196,10 +197,10 @@ public class DataflowWorkProgressUpdaterTest {
     // us to truncate the task at index 3, and the next two will not ask us to
     // truncate at all.
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
-        .thenReturn(generateServiceState(nowMillis + 2000, 1000, positionAtIndex(3L)))
-        .thenReturn(generateServiceState(nowMillis + 3000, 2000, null))
-        .thenReturn(generateServiceState(nowMillis + 1000, 3000, null))
-        .thenReturn(generateServiceState(nowMillis + 4000, 3000, null));
+        .thenReturn(generateServiceState(nowMillis + 2000, 1000, positionAtIndex(3L), 2L))
+        .thenReturn(generateServiceState(nowMillis + 3000, 2000, null, 3L))
+        .thenReturn(generateServiceState(nowMillis + 1000, 3000, null, 4L))
+        .thenReturn(generateServiceState(nowMillis + 4000, 3000, null, 5L));
 
     setUpCounters(3);
     setUpMetrics(2);
@@ -253,8 +254,8 @@ public class DataflowWorkProgressUpdaterTest {
   @Test(timeout = 2000)
   public void workProgressUpdaterLastUpdate() throws Exception {
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
-        .thenReturn(generateServiceState(nowMillis + 2000, 1000, positionAtIndex(2L)))
-        .thenReturn(generateServiceState(nowMillis + 3000, 2000, null));
+        .thenReturn(generateServiceState(nowMillis + 2000, 1000, positionAtIndex(2L), 2L))
+        .thenReturn(generateServiceState(nowMillis + 3000, 2000, null, 3L));
 
     setUpProgress(approximateProgressAtIndex(1L));
     progressUpdater.startReportingProgress();
@@ -330,12 +331,14 @@ public class DataflowWorkProgressUpdaterTest {
   }
 
   private WorkItemServiceState generateServiceState(long leaseExpirationTimestamp,
-      int progressReportIntervalMs, Position suggestedStopPosition) throws IOException {
+      int progressReportIntervalMs, Position suggestedStopPosition,
+      long nextReportIndex) throws IOException {
     WorkItemServiceState responseState = new WorkItemServiceState();
     responseState.setFactory(Transport.getJsonFactory());
     responseState.setLeaseExpireTime(toCloudTime(new Instant(leaseExpirationTimestamp)));
     responseState.setReportStatusInterval(
         toCloudDuration(Duration.millis(progressReportIntervalMs)));
+    responseState.setNextReportIndex(nextReportIndex);
 
     if (suggestedStopPosition != null) {
       responseState.setSuggestedStopPoint(approximateProgressAtPosition(suggestedStopPosition));
