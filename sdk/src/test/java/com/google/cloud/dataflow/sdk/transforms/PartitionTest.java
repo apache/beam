@@ -135,7 +135,7 @@ public class PartitionTest implements Serializable {
     outputs = PCollectionList.of(outputsList);
     assertTrue(outputs.size() == 2);
 
-    PCollection<Integer> output = outputs.apply(Flatten.<Integer>create());
+    PCollection<Integer> output = outputs.apply(Flatten.<Integer>pCollections());
     DataflowAssert.that(output).containsInAnyOrder(2, 4, 5, 7, 8, 10, 11);
     p.run();
   }

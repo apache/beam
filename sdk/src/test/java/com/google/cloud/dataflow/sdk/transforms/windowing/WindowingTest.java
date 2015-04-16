@@ -178,7 +178,7 @@ public class WindowingTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(Flatten.<String>create())
+        .apply(Flatten.<String>pCollections())
         .apply(new WindowedCount(FixedWindows.<String>of(new Duration(5))));
 
     DataflowAssert.that(output).containsInAnyOrder(

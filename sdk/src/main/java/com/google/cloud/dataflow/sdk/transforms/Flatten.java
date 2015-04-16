@@ -71,18 +71,6 @@ public class Flatten {
   }
 
   /**
-   * Returns a {@link PTransform} that flattens a {@link PCollectionList} into a
-   * {@link PCollection} containing all the elements of all the
-   * {@link PCollection}s in its input.
-   *
-   * @deprecated replaced by {@link #pCollections()}
-   */
-  @Deprecated
-  public static <T> FlattenPCollectionList<T> create() {
-    return pCollections();
-  }
-
-  /**
    * Returns a {@code PTransform} that takes a {@code PCollection<Iterable<T>>}
    * and returns a {@code PCollection<T>} containing all the elements from
    * all the {@code Iterable}s.

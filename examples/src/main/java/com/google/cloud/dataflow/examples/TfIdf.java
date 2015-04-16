@@ -188,7 +188,7 @@ public class TfIdf {
         urisToLines = urisToLines.and(oneUriToLines);
       }
 
-      return urisToLines.apply(Flatten.<KV<URI, String>>create());
+      return urisToLines.apply(Flatten.<KV<URI, String>>pCollections());
     }
   }
 
