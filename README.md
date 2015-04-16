@@ -65,10 +65,10 @@ The SDK is built to be extensible and support additional execution environments
 beyond local execution and the Google Cloud Dataflow Service. In partnership
 with [Cloudera](https://www.cloudera.com/), you can run Dataflow pipelines on
 an [Apache Spark](https://spark.apache.org/) backend using the 
-[SparkPipelineRunner](https://github.com/cloudera/spark-dataflow).
+[`SparkPipelineRunner`](https://github.com/cloudera/spark-dataflow).
 Additionally, you can run Dataflow pipelines on an
 [Apache Flink](https://flink.apache.org/) backend using the
-[FlinkPipelineRunner](https://github.com/dataArtisans/flink-dataflow).
+[`FlinkPipelineRunner`](https://github.com/dataArtisans/flink-dataflow).
 
 ## Getting Started
 
@@ -121,5 +121,5 @@ on GitHub to report any bugs, comments or questions regarding SDK development.
 ## More Information
 
 * [Google Cloud Dataflow](https://cloud.google.com/dataflow/)
-* [Dataflow Concepts and Programming Model](https://cloud.google.com/dataflow/java-sdk/building-a-pipeline)
+* [Dataflow Concepts and Programming Model](https://cloud.google.com/dataflow/model/programming-model)
 * [Javadoc](https://cloud.google.com/dataflow/java-sdk/JavaDoc/index)
