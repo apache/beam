@@ -91,8 +91,14 @@ public class FileIOChannelFactory implements IOChannelFactory {
   public WritableByteChannel create(String spec, String mimeType)
       throws IOException {
     LOG.debug("creating file {}", spec);
+    File file = new File(spec);
+    if (file.getAbsoluteFile().getParentFile() != null
+        && !file.getAbsoluteFile().getParentFile().exists()
+        && !file.getAbsoluteFile().getParentFile().mkdirs()) {
+      throw new IOException("Unable to create parent directories for '" + spec + "'");
+    }
     return Channels.newChannel(
-        new BufferedOutputStream(new FileOutputStream(spec)));
+        new BufferedOutputStream(new FileOutputStream(file)));
   }
 
   @Override
