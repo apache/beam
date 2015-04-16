@@ -1,20 +1,39 @@
-# Cloud Dataflow Java SDK (Alpha)
+# Google Cloud Dataflow SDK for Java (Beta)
 
-[Google Cloud Dataflow](https://cloud.google.com/dataflow/)
-provides a simple, powerful programming model for building both batch
-and streaming parallel data processing pipelines.
+[Google Cloud Dataflow](https://cloud.google.com/dataflow/) provides a simple,
+powerful programming model for building both batch and streaming parallel data
+processing pipelines. This repository hosts the open-sourced Cloud Dataflow SDK
+for Java, which can be used to run pipelines against the Google Cloud Dataflow
+Service.
+
+The contents of this repository are also available as released artifacts in the
+[Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.google.cloud.dataflow%22).
+You can bypass this GitHub repository and depend directly on the released
+artifacts from Maven Central by adding the following dependency to development
+environments like Eclipse or Apache Maven:
+
+    <dependency>
+      <groupId>com.google.cloud.dataflow</groupId>
+      <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
+      <version>version_number</version>
+    </dependency>
+
+Please replace `version_number` with one of the supported versions from our
+[Release Notes](https://cloud.google.com/dataflow/release-notes/java).
 
 ## Status [![Build Status](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK.svg?branch=master)](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK)
 
-The Cloud Dataflow SDK is used to access the Google Cloud Dataflow
-service, which is currently in Alpha and restricted to whitelisted users.
+The SDK is publicly available as a Beta release, and might be changed in
+backward-incompatible ways.
 
-The SDK is publicly available and can be used for local execution by anyone.
-Note, however, that the SDK is also an Alpha release and may change
-significantly over time. The SDK is built to be extensible and support
-additional execution environments ("runners") beyond local execution and the
-Google Cloud Dataflow service. As the product matures, we look forward to
-working with you to improve Cloud Dataflow.
+The Google Cloud Dataflow Service is also publicly available in Beta under the
+following conditions:
+
+* Your use of Google Cloud Dataflow is governed by the Google Cloud Platform
+  Terms of Service. The foregoing   notwithstanding, Google Cloud Dataflow is
+  currently in Beta release and might be changed in backward-incompatible ways.
+  It is not subject to any SLA or deprecation policy and is not recommended for
+  production use.
 
 ## Overview
 
@@ -38,28 +57,30 @@ runs the pipeline on your local machine.
   2. The [`DataflowPipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/DataflowPipelineRunner.java)
 submits the pipeline to the Dataflow Service, where it runs using managed
 resources in the [Google Cloud Platform](https://cloud.google.com) (GCP).
-  3. The
-[`BlockingDataflowPipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/BlockingDataflowPipelineRunner.java)
+  3. The [`BlockingDataflowPipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/BlockingDataflowPipelineRunner.java)
 submits the pipeline to the Dataflow Service via the `DataflowPipelineRunner`
 and then prints messages about the job status until the execution is complete.
 
-_The Dataflow Service is currently in the Alpha phase of development and
-access is limited to whitelisted users._
-
-Additionally, in partnership with [Cloudera](https://www.cloudera.com/), you can
-run Dataflow pipelines on an [Apache Spark](https://spark.apache.org/) backend.
-The relevant runner code is hosted in
-[this](https://github.com/cloudera/spark-dataflow) repository.
+The SDK is built to be extensible and support additional execution environments
+beyond local execution and the Google Cloud Dataflow Service. In partnership
+with [Cloudera](https://www.cloudera.com/), you can run Dataflow pipelines on
+an [Apache Spark](https://spark.apache.org/) backend using the 
+[SparkPipelineRunner](https://github.com/cloudera/spark-dataflow).
+Additionally, you can run Dataflow pipelines on an
+[Apache Flink](https://flink.apache.org/) backend using the
+[FlinkPipelineRunner](https://github.com/dataArtisans/flink-dataflow).
 
 ## Getting Started
 
-This repository consists of two modules:
+This repository consists of three parts:
 
-* [`SDK`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk)
+* The [`SDK`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk)
 module provides a set of basic Java APIs to program against.
-* [`Examples`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples)
+* The [`Examples`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples)
 module provides a few samples to get started. We recommend starting with the
-WordCount example.
+`WordCount` example.
+* The [`Contrib`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/contrib)
+directory hosts community-contributed Dataflow modules.
 
 The following command will build both modules and install them in your local
 Maven repository:
@@ -81,18 +102,13 @@ You can speed up the build and install process by using the following options:
   from the local repository (or Maven Central) even if you have changed it
   locally.
 
-  3. To run Maven using multiple threads, run:
-
-        mvn -T 4 install
-
 If you are using [Eclipse](https://eclipse.org/) integrated development
 environment (IDE), please additionally review our
 [Eclipse integration instructions](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/eclipse/README.md).
 
-## Running the Examples
-
-After building and installing, you can execute the `WordCount` and other example
-pipelines by following the instructions in this [README](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/README.md).
+After building and installing, you can execute the `WordCount` and other
+example pipelines by following the instructions in this
+[README](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/README.md).
 
 ## Contact Us
 
