@@ -67,7 +67,7 @@ public class CounterSet extends AbstractSet<Counter<?>> {
    * reused, as long as it is compatible.
    *
    * @return the Counter that was reused, or added
-   * @throws IllegalArgumentException if the a counter with the same
+   * @throws IllegalArgumentException if a counter with the same
    * name but an incompatible kind had already been added
    */
   public synchronized <T> Counter<T> addOrReuseCounter(Counter<T> counter) {
@@ -142,7 +142,7 @@ public class CounterSet extends AbstractSet<Counter<?>> {
      * reused, as long as it has the same type.
      *
      * @return the Counter that was reused, or added
-     * @throws IllegalArgumentException if the a counter with the same
+     * @throws IllegalArgumentException if a counter with the same
      * name but an incompatible kind had already been added
      */
     public <T> Counter<T> addCounter(Counter<T> counter) {
