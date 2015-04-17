@@ -79,7 +79,7 @@ import java.util.List;
  * <a href="https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher"></a>.
  *
  * <p> The example is configured to use the default Pub/Sub topic and the default BigQuery table
- * from the example common package (there is no defaults for a general Dataflow pipeline).
+ * from the example common package (there are no defaults for a general Dataflow pipeline).
  * You can override them by using the {@literal --pubsubTopic}, {@literal --bigQueryDataset}, and
  * {@literal --bigQueryTable} options. If the Pub/Sub topic or the BigQuery table do not exist,
  * the example will try to create them.

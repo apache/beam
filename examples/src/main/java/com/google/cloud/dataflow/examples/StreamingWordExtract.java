@@ -19,31 +19,45 @@ package com.google.cloud.dataflow.examples;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.dataflow.examples.common.DataflowExampleUtils;
+import com.google.cloud.dataflow.examples.common.ExampleBigQueryTableOptions;
+import com.google.cloud.dataflow.examples.common.ExamplePubsubTopicOptions;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.options.Validation;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 /**
  * A streaming Dataflow Example using BigQuery output.
  *
- * <p> This pipeline example lines of text from a PubSub topic, splits each line
+ * <p> This pipeline example reads lines of text from a PubSub topic, splits each line
  * into individual words, capitalizes those words, and writes the output to
- * a BigQuery table. </p>
+ * a BigQuery table.
  *
- * <p> To run this example using the Dataflow service, you must provide an input
- * pubsub topic and an output BigQuery table, using the {@literal --inputTopic}
- * {@literal --dataset} and {@literal --table} options. Since this is a streaming
- * pipeline that never completes, select the non-blocking pipeline runner
- * {@literal --runner=DataflowPipelineRunner}.
+ * <p> By default, the example will run a separate pipeline to inject the data from the default
+ * {@literal --inputFile} to the Pub/Sub {@literal --pubsubTopic}. It will make it available for
+ * the streaming pipeline to process. You may override the default {@literal --inputFile} with the
+ * file of your choosing. You may also set {@literal --inputFile} to an empty string, which will
+ * disable the automatic Pub/Sub injection, and allow you to use separate tool to control the input
+ * to this example.
+ *
+ * <p> The example is configured to use the default Pub/Sub topic and the default BigQuery table
+ * from the example common package (there are no defaults for a general Dataflow pipeline).
+ * You can override them by using the {@literal --pubsubTopic}, {@literal --bigQueryDataset}, and
+ * {@literal --bigQueryTable} options. If the Pub/Sub topic or the BigQuery table do not exist,
+ * the example will try to create them.
+ *
+ * <p> The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
+ * and then exits.
  */
 public class StreamingWordExtract {
 
@@ -99,50 +113,59 @@ public class StreamingWordExtract {
   }
 
   /**
-   * Command line parameter options.
+   * Options supported by {@link StreamingWordExtract}.
+   *
+   * <p> Inherits standard configuration options.
    */
-  private interface StreamingWordExtractOptions extends PipelineOptions {
-    @Description("Input Pubsub topic")
-    @Validation.Required
-    String getInputTopic();
-    void setInputTopic(String value);
-
-    @Description("BigQuery dataset name")
-    @Validation.Required
-    String getDataset();
-    void setDataset(String value);
-
-    @Description("BigQuery table name")
-    @Validation.Required
-    String getTable();
-    void setTable(String value);
+  private interface StreamingWordExtractOptions
+      extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
+    @Description("Input file to inject to Pub/Sub topic")
+    @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
+    String getInputFile();
+    void setInputFile(String value);
   }
 
   /**
    * Sets up and starts streaming pipeline.
+   *
+   * @throws IOException if there is a problem setting up resources
    */
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
     StreamingWordExtractOptions options = PipelineOptionsFactory.fromArgs(args)
         .withValidation()
         .as(StreamingWordExtractOptions.class);
-    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-    dataflowOptions.setStreaming(true);
+    options.setStreaming(true);
+    // In order to cancel the pipelines automatically,
+    // {@literal DataflowPipelineRunner} is forced to be used.
+    options.setRunner(DataflowPipelineRunner.class);
+
+    options.setBigQuerySchema(StringToRowConverter.getSchema());
+    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
+    dataflowUtils.setup();
 
     Pipeline pipeline = Pipeline.create(options);
 
     String tableSpec = new StringBuilder()
-        .append(dataflowOptions.getProject()).append(":")
-        .append(options.getDataset()).append(".")
-        .append(options.getTable())
+        .append(options.getProject()).append(":")
+        .append(options.getBigQueryDataset()).append(".")
+        .append(options.getBigQueryTable())
         .toString();
     pipeline
-        .apply(PubsubIO.Read.topic(options.getInputTopic()))
+        .apply(PubsubIO.Read.topic(options.getPubsubTopic()))
         .apply(ParDo.of(new ExtractWords()))
         .apply(ParDo.of(new Uppercase()))
         .apply(ParDo.of(new StringToRowConverter()))
         .apply(BigQueryIO.Write.to(tableSpec)
             .withSchema(StringToRowConverter.getSchema()));
 
-    pipeline.run();
+    PipelineResult result = pipeline.run();
+
+    if (!options.getInputFile().isEmpty()) {
+      // Inject the data into the Pub/Sub topic with a Dataflow batch pipeline.
+      dataflowUtils.runInjectorPipeline(options.getInputFile(), options.getPubsubTopic());
+    }
+
+    // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
+    dataflowUtils.waitToFinish(result);
   }
 }
