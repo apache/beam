@@ -25,7 +25,6 @@ import com.google.common.base.Preconditions;
  * <p>
  * Example: The initial interval is .5 seconds and the maximum number of retries is 10.
  * For 10 tries the sequence will be (values in seconds):
- * </p>
  *
  * <pre>
    retry#      retry_interval     randomized_interval
@@ -43,7 +42,6 @@ import com.google.common.base.Preconditions;
  *
  * <p>
  * Implementation is not thread-safe.
- * </p>
  */
 public class AttemptBoundedExponentialBackOff implements BackOff {
   public static final double DEFAULT_MULTIPLIER = 1.5;

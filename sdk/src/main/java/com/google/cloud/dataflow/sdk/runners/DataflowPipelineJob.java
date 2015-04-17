@@ -18,11 +18,19 @@ package com.google.cloud.dataflow.sdk.runners;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudTime;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.NanoClock;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.cloud.dataflow.sdk.PipelineResult;
+import com.google.cloud.dataflow.sdk.util.AttemptAndTimeBoundedExponentialBackOff;
+import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +71,18 @@ public class DataflowPipelineJob implements PipelineResult {
   private State terminalState;
 
   /**
+   * The polling interval for job status and messages information.
+   */
+  static final long MESSAGES_POLLING_INTERVAL = TimeUnit.SECONDS.toMillis(2);
+  static final long STATUS_POLLING_INTERVAL = TimeUnit.SECONDS.toMillis(2);
+
+  /**
+   * The amount of polling attempts for job status and messages information.
+   */
+  static final int MESSAGES_POLLING_ATTEMPTS = 10;
+  static final int STATUS_POLLING_ATTEMPTS = 5;
+
+  /**
    * Constructs the job.
    *
    * @param projectId the project id
@@ -92,8 +112,8 @@ public class DataflowPipelineJob implements PipelineResult {
    * Waits for the job to finish and return the final status.
    *
    * @param timeToWait The time to wait in units timeUnit for the job to finish.
+   *     Provide a value less than 1 ms for an infinite wait.
    * @param timeUnit The unit of time for timeToWait.
-   *     Provide a negative value for an infinite wait.
    * @param messageHandler If non null this handler will be invoked for each
    *   batch of messages received.
    * @return The final state of the job or null on timeout or if the
@@ -108,24 +128,51 @@ public class DataflowPipelineJob implements PipelineResult {
       TimeUnit timeUnit,
       MonitoringUtil.JobMessagesHandler messageHandler)
           throws IOException, InterruptedException {
-    // The polling interval for job status information.
-    long interval = TimeUnit.SECONDS.toMillis(2);
+    return waitToFinish(timeToWait, timeUnit, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);
+  }
 
-    // The time at which to stop.
-    long endTime = timeToWait >= 0
-        ? System.currentTimeMillis() + timeUnit.toMillis(timeToWait)
-        : Long.MAX_VALUE;
-
+  /**
+   * Wait for the job to finish and return the final status.
+   *
+   * @param timeToWait The time to wait in units timeUnit for the job to finish.
+   *     Provide a value less than 1 ms for an infinite wait.
+   * @param timeUnit The unit of time for timeToWait.
+   * @param messageHandler If non null this handler will be invoked for each
+   *   batch of messages received.
+   * @param sleeper A sleeper to use to sleep between attempts.
+   * @param nanoClock A nanoClock used to time the total time taken.
+   * @return The final state of the job or null on timeout or if the
+   *   thread is interrupted.
+   * @throws IOException If there is a persistent problem getting job
+   *   information.
+   * @throws InterruptedException
+   */
+  @Nullable
+  @VisibleForTesting
+  State waitToFinish(
+      long timeToWait,
+      TimeUnit timeUnit,
+      MonitoringUtil.JobMessagesHandler messageHandler,
+      Sleeper sleeper,
+      NanoClock nanoClock)
+          throws IOException, InterruptedException {
     MonitoringUtil monitor = new MonitoringUtil(project, dataflowClient);
 
     long lastTimestamp = 0;
-    int errorGettingMessages = 0;
-    while (true) {
+    BackOff backoff = timeUnit.toMillis(timeToWait) > 0
+        ? new AttemptAndTimeBoundedExponentialBackOff(
+            MESSAGES_POLLING_ATTEMPTS, MESSAGES_POLLING_INTERVAL, timeUnit.toMillis(timeToWait),
+            nanoClock)
+        : new AttemptBoundedExponentialBackOff(
+            MESSAGES_POLLING_ATTEMPTS, MESSAGES_POLLING_INTERVAL);
+
+    do {
       // Get the state of the job before listing messages. This ensures we always fetch job
       // messages after the job finishes to ensure we have all them.
-      State state = getState();
+      State state = getStateWithRetries(1, sleeper);
+      boolean hasError = state == State.UNKNOWN;
 
-      if (messageHandler != null) {
+      if (messageHandler != null && !hasError) {
         // Process all the job messages that have accumulated so far.
         try {
           List<JobMessage> allMessages = monitor.getJobMessages(
@@ -137,30 +184,22 @@ public class DataflowPipelineJob implements PipelineResult {
             messageHandler.process(allMessages);
           }
         } catch (GoogleJsonResponseException | SocketTimeoutException e) {
-          if (++errorGettingMessages > 5) {
-            // We want to continue to wait for the job to finish so
-            // we ignore this error, but warn occasionally if it keeps happening.
-            LOG.warn("There are problems accessing job messages: ", e);
-            errorGettingMessages = 0;
-          }
+          hasError = true;
+          LOG.warn("There were problems getting current job messages: {}.", e.getMessage());
+          LOG.debug("Exception information:", e);
         }
       }
 
-      // Check if the job is done.
-      if (state.isTerminal()) {
-        return state;
+      if (!hasError) {
+        backoff.reset();
+        // Check if the job is done.
+        if (state.isTerminal()) {
+          return state;
+        }
       }
+    } while(BackOffUtils.next(sleeper, backoff));
 
-      if (System.currentTimeMillis() >= endTime) {
-        // Timed out.
-        return null;
-      }
-
-      // Job not yet done.  Wait a little, then check again.
-      long sleepTime = Math.min(
-          endTime - System.currentTimeMillis(), interval);
-      TimeUnit.MILLISECONDS.sleep(sleepTime);
-    }
+    return null;  // Timed out.
   }
 
   /**
@@ -179,11 +218,28 @@ public class DataflowPipelineJob implements PipelineResult {
 
   @Override
   public State getState() {
+    return getStateWithRetries(STATUS_POLLING_ATTEMPTS, Sleeper.DEFAULT);
+  }
+
+
+  /**
+   * Attempts to get the state. Uses exponential backoff on failure up to the maximum number
+   * of passed in attempts.
+   *
+   * @param attempts The amount of attempts to make.
+   * @param sleeper Object used to do the sleeps between attempts.
+   * @return The state of the job or State.UNKNOWN in case of failure.
+   */
+  @VisibleForTesting
+  State getStateWithRetries(int attempts, Sleeper sleeper) {
     if (terminalState != null) {
       return terminalState;
     }
     Job job = null;
-    for (int retryAttempts = 5; retryAttempts > 0; retryAttempts--) {
+    AttemptBoundedExponentialBackOff backoff =
+        new AttemptBoundedExponentialBackOff(attempts, STATUS_POLLING_INTERVAL);
+    boolean shouldRetry;
+    do {
       try {
         job = dataflowClient
             .v1b3()
@@ -197,9 +253,15 @@ public class DataflowPipelineJob implements PipelineResult {
         }
         return currentState;
       } catch (IOException e) {
-        LOG.warn("There were problems getting current job status: ", e);
+        LOG.warn("There were problems getting current job status: {}.", e.getMessage());
+        LOG.debug("Exception information:", e);
       }
-    }
+      try {
+        shouldRetry = BackOffUtils.next(sleeper, backoff);
+      } catch (InterruptedException | IOException e) {
+        throw Throwables.propagate(e);
+      }
+    } while (shouldRetry);
     return State.UNKNOWN;
   }
 }
