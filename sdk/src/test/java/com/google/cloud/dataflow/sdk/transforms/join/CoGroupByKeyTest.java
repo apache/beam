@@ -283,7 +283,7 @@ public class CoGroupByKeyTest implements Serializable {
             idToClick,
             Arrays.asList(0L, 2L, 4L, 6L, 8L))
         .apply(Window.<KV<Integer, String>>into(
-            FixedWindows.<KV<Integer, String>>of(new Duration(4))));
+            FixedWindows.of(new Duration(4))));
 
     PCollection<KV<Integer, String>> purchasesTable =
         createInput(
@@ -291,7 +291,7 @@ public class CoGroupByKeyTest implements Serializable {
             idToPurchases,
             Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L))
         .apply(Window.<KV<Integer, String>>into(
-            FixedWindows.<KV<Integer, String>>of(new Duration(4))));
+            FixedWindows.of(new Duration(4))));
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         KeyedPCollectionTuple.of(clicksTag, clicksTable)

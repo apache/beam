@@ -201,7 +201,7 @@ public class GroupByKeyTest {
     p.run();
 
     Assert.assertTrue(output.getWindowingStrategy().getWindowFn().isCompatible(
-        FixedWindows.<KV<String, Integer>>of(Duration.standardMinutes(1))));
+        FixedWindows.of(Duration.standardMinutes(1))));
   }
 
   @Test
@@ -225,7 +225,7 @@ public class GroupByKeyTest {
         output.getWindowingStrategy().getWindowFn().isCompatible(
             new InvalidWindows(
                 "Invalid",
-                Sessions.<KV<String, Integer>>withGapDuration(
+                Sessions.withGapDuration(
                     Duration.standardMinutes(1)))));
   }
 

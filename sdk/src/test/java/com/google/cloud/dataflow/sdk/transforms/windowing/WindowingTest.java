@@ -126,7 +126,7 @@ public class WindowingTest implements Serializable {
     PCollection<String> output =
         input
         .apply(new WindowedCount(
-            SlidingWindows.<String>of(new Duration(10)).every(new Duration(5))));
+            SlidingWindows.of(new Duration(10)).every(new Duration(5))));
 
     DataflowAssert.that(output).containsInAnyOrder(
         output("a", 1, 1, -5, 5),
@@ -151,7 +151,7 @@ public class WindowingTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(new WindowedCount(Sessions.<String>withGapDuration(new Duration(10))));
+        .apply(new WindowedCount(Sessions.withGapDuration(new Duration(10))));
 
     DataflowAssert.that(output).containsInAnyOrder(
         output("a", 2, 1, 1, 15),
@@ -179,7 +179,7 @@ public class WindowingTest implements Serializable {
     PCollection<String> output =
         input
         .apply(Flatten.<String>pCollections())
-        .apply(new WindowedCount(FixedWindows.<String>of(new Duration(5))));
+        .apply(new WindowedCount(FixedWindows.of(new Duration(5))));
 
     DataflowAssert.that(output).containsInAnyOrder(
         output("a", 2, 1, 0, 5),
@@ -233,7 +233,7 @@ public class WindowingTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(new WindowedCount(FixedWindows.<String>of(new Duration(10))));
+        .apply(new WindowedCount(FixedWindows.of(new Duration(10))));
 
     DataflowAssert.that(output).containsInAnyOrder();
 
@@ -257,7 +257,7 @@ public class WindowingTest implements Serializable {
     PCollection<String> output = p.begin()
         .apply(TextIO.Read.named("ReadLines").from(filename))
         .apply(ParDo.of(new ExtractWordsWithTimestampsFn()))
-        .apply(new WindowedCount(FixedWindows.<String>of(Duration.millis(10))));
+        .apply(new WindowedCount(FixedWindows.of(Duration.millis(10))));
 
     DataflowAssert.that(output).containsInAnyOrder(
         output("a", 1, 1, 0, 10),

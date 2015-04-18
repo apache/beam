@@ -202,7 +202,7 @@ public class FlattenTest implements Serializable {
     p.run();
 
     Assert.assertTrue(output.getWindowingStrategy().getWindowFn().isCompatible(
-        FixedWindows.<String>of(Duration.standardMinutes(1))));
+        FixedWindows.of(Duration.standardMinutes(1))));
   }
 
   @Test
@@ -223,7 +223,7 @@ public class FlattenTest implements Serializable {
     p.run();
 
     Assert.assertTrue(output.getWindowingStrategy().getWindowFn().isCompatible(
-        Sessions.<String>withGapDuration(Duration.standardMinutes(2))));
+        Sessions.withGapDuration(Duration.standardMinutes(2))));
   }
 
   @Test
