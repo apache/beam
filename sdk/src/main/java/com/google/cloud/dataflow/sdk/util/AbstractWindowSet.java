@@ -20,9 +20,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
-
-import org.joda.time.Instant;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -68,12 +65,11 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
   protected abstract Collection<W> windows();
 
   /**
-   * Returns the final value of the elements in the given window, as well
-   * as the minimum timestamp of all the elements that were placed in the window.
+   * Returns the final value of the elements in the given window.
    *
    * <p> Returns null if the window does not exist in the set.
    */
-  protected abstract TimestampedValue<VO> finalValue(W window) throws Exception;
+  protected abstract VO finalValue(W window) throws Exception;
 
   /**
    * Adds the given value in the given window to the set.
@@ -82,7 +78,7 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
    * If not, adds the window to the set first, then puts the element
    * in the window.
    */
-  protected abstract WindowStatus put(W window, VI value, Instant timestamp) throws Exception;
+  protected abstract WindowStatus put(W window, VI value) throws Exception;
 
   /**
    * Removes the given window from the set.

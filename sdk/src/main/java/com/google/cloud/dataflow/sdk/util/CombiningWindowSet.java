@@ -27,12 +27,8 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
-
-import org.joda.time.Instant;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -105,31 +101,23 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
   }
 
   @Override
-  protected TimestampedValue<VO> finalValue(W window) throws Exception {
-    TimestampedValue<VA> timestampedAccumulator = lookupAccumulator(window);
-
-    if (timestampedAccumulator == null) {
+  protected VO finalValue(W window) throws Exception {
+    VA accumulator = lookupAccumulator(window);
+    if (accumulator == null) {
       return null;
     }
 
-    return TimestampedValue.of(
-        combineFn.extractOutput(key, timestampedAccumulator.getValue()),
-        timestampedAccumulator.getTimestamp());
+    return combineFn.extractOutput(key, accumulator);
   }
 
   @Override
-  protected WindowStatus put(W window, VI value, Instant timestamp) throws Exception {
-    TimestampedValue<VA> timestampedAccumulator = lookupAccumulator(window);
-    if (timestampedAccumulator == null) {
-      storeAccumulator(
-          window, combineFn.addInput(key, combineFn.createAccumulator(key), value), timestamp);
+  protected WindowStatus put(W window, VI value) throws Exception {
+    VA accumulator = lookupAccumulator(window);
+    if (accumulator == null) {
+      storeAccumulator(window, combineFn.addInput(key, combineFn.createAccumulator(key), value));
       return WindowStatus.NEW;
     } else {
-      VA accumulator = timestampedAccumulator.getValue();
-      if (timestampedAccumulator.getTimestamp().isBefore(timestamp)) {
-        timestamp = timestampedAccumulator.getTimestamp();
-      }
-      storeAccumulator(window, combineFn.addInput(key, accumulator, value), timestamp);
+      storeAccumulator(window, combineFn.addInput(key, accumulator, value));
       return WindowStatus.EXISTING;
     }
   }
@@ -137,7 +125,7 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
   @Override
   protected void remove(W window) throws Exception {
     if (contains(window)) {
-      windowingInternals.deleteTagList(accumulatorTag(window));
+      keyedState.remove(accumulatorTag(window));
       liveWindowsModified = liveWindows.remove(window);
     }
   }
@@ -145,19 +133,13 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
   @Override
   protected void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
     List<VA> accumulators = Lists.newArrayList();
-    Instant minTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
     for (W window : toBeMerged) {
-      TimestampedValue<VA> timestampedAccumulator =
-          Preconditions.checkNotNull(lookupAccumulator(window));
-
-      accumulators.add(timestampedAccumulator.getValue());
-      if (timestampedAccumulator.getTimestamp().isBefore(minTimestamp)) {
-        minTimestamp = timestampedAccumulator.getTimestamp();
-      }
+      VA accumulator = Preconditions.checkNotNull(lookupAccumulator(window));
+      accumulators.add(accumulator);
       remove(window);
     }
     VA mergedAccumulator = combineFn.mergeAccumulators(key, accumulators);
-    storeAccumulator(mergeResult, mergedAccumulator, minTimestamp);
+    storeAccumulator(mergeResult, mergedAccumulator);
   }
 
   private CodedTupleTag<VA> accumulatorTag(W window) throws Exception {
@@ -165,21 +147,13 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
     return bufferTag(window, windowCoder, accumulatorCoder);
   }
 
-  private void storeAccumulator(W window, VA accumulator, Instant timestamp) throws Exception {
-    CodedTupleTag<VA> tag = accumulatorTag(window);
-    windowingInternals.readTagList(tag);
-    windowingInternals.deleteTagList(tag);
-    windowingInternals.writeToTagList(tag, accumulator, timestamp);
+  private void storeAccumulator(W window, VA accumulator) throws Exception {
+    keyedState.store(accumulatorTag(window), accumulator);
     liveWindowsModified = liveWindows.add(window);
   }
 
-  private TimestampedValue<VA> lookupAccumulator(W window) throws Exception {
-    CodedTupleTag<VA> tag = accumulatorTag(window);
-    Iterable<TimestampedValue<VA>> data = windowingInternals.readTagList(tag);
-    if (data == null || !data.iterator().hasNext()) {
-      return null;
-    }
-    return Iterables.getOnlyElement(data);
+  private VA lookupAccumulator(W window) throws Exception {
+    return keyedState.lookup(accumulatorTag(window));
   }
 
   @Override

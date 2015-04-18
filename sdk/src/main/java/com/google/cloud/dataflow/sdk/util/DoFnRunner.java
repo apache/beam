@@ -36,7 +36,6 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
@@ -539,9 +538,9 @@ public class DoFnRunner<I, O, R> {
         }
 
         @Override
-        public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
+        public <T> void writeToTagList(CodedTupleTag<T> tag, T value)
             throws IOException {
-          context.stepContext.writeToTagList(tag, value, timestamp);
+          context.stepContext.writeToTagList(tag, value);
         }
 
         @Override
@@ -550,9 +549,15 @@ public class DoFnRunner<I, O, R> {
         }
 
         @Override
-        public <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag)
+        public <T> Iterable<T> readTagList(CodedTupleTag<T> tag)
             throws IOException {
           return context.stepContext.readTagList(tag);
+        }
+
+        @Override
+        public <T> Map<CodedTupleTag<T>, Iterable<T>> readTagList(List<CodedTupleTag<T>> tags)
+            throws IOException {
+          return context.stepContext.readTagLists(tags);
         }
 
         @Override
@@ -580,6 +585,11 @@ public class DoFnRunner<I, O, R> {
           context.stepContext.getExecutionContext().writePCollectionViewData(
               tag, data, IterableCoder.of(WindowedValue.getFullCoder(elemCoder, windowCoder)),
               window(), windowCoder);
+        }
+
+        @Override
+        public <T> void store(CodedTupleTag<T> tag, T value, Instant timestamp) throws IOException {
+          context.stepContext.store(tag, value, timestamp);
         }
       };
     }

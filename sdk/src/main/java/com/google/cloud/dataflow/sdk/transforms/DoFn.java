@@ -32,7 +32,6 @@ import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * The argument to {@link ParDo} providing the code to use to process
@@ -298,8 +297,7 @@ public abstract class DoFn<I, O> implements Serializable {
   @Experimental
   public interface KeyedState {
     /**
-     * Updates this {@code KeyedState} in place so that the given tag
-     * maps to the given value.
+     * Updates this {@code KeyedState} in place so that the given tag maps to the given value.
      *
      * @throws IOException if encoding the given value fails
      */
@@ -315,7 +313,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * {@code KeyedState}, or {@code null} if the tag has no asssociated
      * value.
      *
-     * <p> See {@link #lookup(List)} to look up multiple tags at
+     * <p> See {@link #lookup(Iterable)} to look up multiple tags at
      * once.  It is significantly more efficient to look up multiple
      * tags all at once rather than one at a time.
      *
@@ -333,7 +331,7 @@ public abstract class DoFn<I, O> implements Serializable {
      *
      * @throws CoderException if decoding any of the requested values fails
      */
-    public CodedTupleTagMap lookup(List<? extends CodedTupleTag<?>> tags) throws IOException;
+    public CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags) throws IOException;
   }
 
   /////////////////////////////////////////////////////////////////////////////

@@ -37,7 +37,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.protobuf.ByteString;
 
@@ -48,13 +47,17 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -146,12 +149,15 @@ public class StreamingSideInputDoFnRunnerTest {
     Map<IntervalWindow, Set<Windmill.GlobalDataRequest>> blockedMap = new HashMap<>();
     blockedMap.put(window, requestSet);
 
-    when(stepContext.lookup(any(CodedTupleTag.class))).thenReturn(blockedMap);
+    when(stepContext
+        .lookup(Mockito.<CodedTupleTag<Map<IntervalWindow, Set<Windmill.GlobalDataRequest>>>>any()))
+        .thenReturn(blockedMap);
     when(execContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
     when(execContext.getSideInput(eq(view), eq(window), any(PTuple.class)))
         .thenReturn("data");
-    when(stepContext.readTagList(any(CodedTupleTag.class))).thenReturn(
-        Arrays.asList(TimestampedValue.of(createDatum("e", 0), new Instant(0))));
+    when(stepContext.readTagLists(
+        Mockito.<Iterable<CodedTupleTag<WindowedValue<String>>>>any()))
+        .thenAnswer(readTagListAnswer(Arrays.asList(createDatum("e", 0))));
 
     StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> runner =
         createRunner(Arrays.asList(view));
@@ -163,6 +169,24 @@ public class StreamingSideInputDoFnRunnerTest {
         contains(createDatum("e:data", 0)));
 
     verify(stepContext).store(any(CodedTupleTag.class), eq(new HashMap()));
+  }
+
+  private <T> Answer<Map<CodedTupleTag<T>, Iterable<T>>> readTagListAnswer(
+      final Iterable<T> answer) {
+    return new Answer<Map<CodedTupleTag<T>, Iterable<T>>>() {
+      @Override
+      public Map<CodedTupleTag<T>, Iterable<T>> answer(InvocationOnMock invocation)
+          throws Throwable {
+        Map<CodedTupleTag<T>, Iterable<T>> result = new LinkedHashMap<>();
+        @SuppressWarnings("unchecked")
+        Iterable<CodedTupleTag<T>> tags =
+            (Iterable<CodedTupleTag<T>>) invocation.getArguments()[0];
+        for (CodedTupleTag<T> tag : tags) {
+          result.put(tag, answer);
+        }
+        return result;
+      }
+    };
   }
 
   @Test
@@ -182,7 +206,9 @@ public class StreamingSideInputDoFnRunnerTest {
     Map<IntervalWindow, Set<Windmill.GlobalDataRequest>> blockedMap = new HashMap<>();
     blockedMap.put(window, requestSet);
 
-    when(stepContext.lookup(any(CodedTupleTag.class))).thenReturn(blockedMap);
+    when(stepContext.lookup(
+        Mockito.<CodedTupleTag<Map<IntervalWindow, Set<Windmill.GlobalDataRequest>>>>any()))
+        .thenReturn(blockedMap);
     when(execContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
     when(execContext.issueSideInputFetch(any(PCollectionView.class), any(BoundedWindow.class)))
         .thenReturn(true);
@@ -190,8 +216,9 @@ public class StreamingSideInputDoFnRunnerTest {
         .thenReturn("data1");
     when(execContext.getSideInput(eq(view2), eq(window), any(PTuple.class)))
         .thenReturn("data2");
-    when(stepContext.readTagList(any(CodedTupleTag.class))).thenReturn(
-        Arrays.asList(TimestampedValue.of(createDatum("e1", 0), new Instant(0))));
+    when(stepContext.readTagLists(
+        Mockito.<Iterable<CodedTupleTag<WindowedValue<String>>>>any()))
+        .thenAnswer(readTagListAnswer(Arrays.asList(createDatum("e1", 0))));
 
     StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> runner =
         createRunner(Arrays.asList(view1, view2));

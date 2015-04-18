@@ -25,11 +25,12 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.common.base.Function;
+import com.google.common.base.Functions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.FluentIterable;
 
-import org.joda.time.Instant;
-
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -100,10 +101,8 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   }
 
   @Override
-  public WindowStatus put(W window, V value, Instant timestamp) throws Exception {
-    windowingInternals.writeToTagList(bufferTag(window, windowCoder, inputCoder),
-        value,
-        timestamp);
+  public WindowStatus put(W window, V value) throws Exception {
+    windowingInternals.writeToTagList(bufferTag(window, windowCoder, inputCoder), value);
 
     if (!mergeTree.containsKey(window)) {
       mergeTree.put(window, new HashSet<W>());
@@ -155,13 +154,11 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
   }
 
   @Override
-  protected TimestampedValue<Iterable<V>> finalValue(W window) throws Exception {
+  protected Iterable<V> finalValue(W window) throws Exception {
     if (!contains(window)) {
       return null;
     }
 
-    List<V> toEmit = new ArrayList<>();
-    Instant minTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
     // This is the set of windows that we're currently emitting.
     Set<W> curWindows = new HashSet<>();
     curWindows.add(window);
@@ -176,18 +173,24 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
       }
     }
 
-    for (W curWindow : curWindows) {
-      Iterable<TimestampedValue<V>> items = windowingInternals.readTagList(
-          bufferTag(curWindow, windowCoder, inputCoder));
-      for (TimestampedValue<V> item : items) {
-        toEmit.add(item.getValue());
-        if (item.getTimestamp().isBefore(minTimestamp)) {
-          minTimestamp = item.getTimestamp();
-        }
-      }
-    }
+    List<CodedTupleTag<V>> bufferTags = FluentIterable.from(curWindows)
+        .transform(new Function<W, CodedTupleTag<V>>() {
+          @Override
+          public CodedTupleTag<V> apply(W input) {
+            try {
+              return bufferTag(input, windowCoder, inputCoder);
+            } catch (IOException e) {
+              throw Throwables.propagate(e);
+            }
+          }
+        })
+        .toList();
 
-    return TimestampedValue.of((Iterable<V>) toEmit, minTimestamp);
+    List<V> toEmit = FluentIterable
+        .from(windowingInternals.readTagList(bufferTags).values())
+        .transformAndConcat(Functions.<Iterable<V>>identity())
+        .toList();
+    return toEmit;
   }
 
   @Override

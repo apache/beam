@@ -22,18 +22,20 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * {@link ExecutionContext} for use in batch mode.
@@ -123,7 +125,7 @@ public class BatchModeExecutionContext extends ExecutionContext {
    */
   class StepContext extends ExecutionContext.StepContext {
     private Map<Object, Map<CodedTupleTag<?>, Object>> state = new HashMap<>();
-    private Map<Object, Map<CodedTupleTag<?>, Map<Instant, List<TimestampedValue>>>> tagLists =
+    private Map<Object, Map<CodedTupleTag<?>, List<?>>> tagLists =
         new HashMap<>();
 
     StepContext(String stepName) {
@@ -131,7 +133,8 @@ public class BatchModeExecutionContext extends ExecutionContext {
     }
 
     @Override
-    public <T> void store(CodedTupleTag<T> tag, T value) {
+    public <T> void store(CodedTupleTag<T> tag, T value, Instant timestamp) {
+      // We never read the timestamp, and batch doesn't need it. So don't store it.
       Map<CodedTupleTag<?>, Object> perKeyState = state.get(getKey());
       if (perKeyState == null) {
         perKeyState = new HashMap<>();
@@ -149,56 +152,70 @@ public class BatchModeExecutionContext extends ExecutionContext {
     }
 
     @Override
-    public CodedTupleTagMap lookup(List<? extends CodedTupleTag<?>> tags) {
+    public CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags) {
       Map<CodedTupleTag<?>, Object> perKeyState = state.get(getKey());
+      if (perKeyState == null) {
+        return CodedTupleTagMap.empty();
+      }
+
       Map<CodedTupleTag<?>, Object> map = new HashMap<>();
-      if (perKeyState != null) {
-        for (CodedTupleTag<?> tag : tags) {
-          map.put(tag, perKeyState.get(tag));
-        }
+      for (CodedTupleTag<?> tag : tags) {
+        map.put(tag, perKeyState.get(tag));
       }
       return CodedTupleTagMap.of(map);
     }
 
     @Override
     public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp) {
-      Map<CodedTupleTag<?>, Map<Instant, List<TimestampedValue>>> perKeyTagLists =
-          tagLists.get(getKey());
+      // We never read the timestamp, and batch doesn't need it. So don't store it.
+      Map<CodedTupleTag<?>, List<?>> perKeyTagLists = tagLists.get(getKey());
       if (perKeyTagLists == null) {
         perKeyTagLists = new HashMap<>();
         tagLists.put(getKey(), perKeyTagLists);
       }
-      Map<Instant, List<TimestampedValue>> tagList = perKeyTagLists.get(tag);
+      @SuppressWarnings("unchecked")
+      List<T> tagList = (List<T>) perKeyTagLists.get(tag);
       if (tagList == null) {
-        tagList = new TreeMap<>();
+        tagList = new ArrayList<>();
         perKeyTagLists.put(tag, tagList);
       }
-      List<TimestampedValue> timestampList = tagList.get(timestamp);
-      if (timestampList == null) {
-        timestampList = new ArrayList<>();
-        tagList.put(timestamp, timestampList);
-      }
-      timestampList.add(TimestampedValue.of(value, timestamp));
+
+      tagList.add(value);
     }
 
     @Override
     public <T> void deleteTagList(CodedTupleTag<T> tag) {
-      Map<CodedTupleTag<?>, Map<Instant, List<TimestampedValue>>> perKeyTagLists =
-          tagLists.get(getKey());
+      Map<CodedTupleTag<?>, List<?>> perKeyTagLists = tagLists.get(getKey());
       if (perKeyTagLists != null) {
         perKeyTagLists.remove(tag);
       }
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag) {
-      Map<CodedTupleTag<?>, Map<Instant, List<TimestampedValue>>> perKeyTagLists =
-          tagLists.get(getKey());
-      if (perKeyTagLists == null || perKeyTagLists.get(tag) == null) {
-        return new ArrayList<TimestampedValue<T>>();
+    public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) {
+      Map<CodedTupleTag<?>, List<?>> perKeyTagLists = tagLists.get(getKey());
+      if (perKeyTagLists == null) {
+        return Collections.emptyList();
       }
-      return Iterables.concat((Iterable) perKeyTagLists.get(tag).values());
+
+      @SuppressWarnings("unchecked")
+      List<T> list = (List<T>) perKeyTagLists.get(tag);
+      if (list == null) {
+        return Collections.emptyList();
+      }
+      return list;
+    }
+
+    @Override
+    public <T> Map<CodedTupleTag<T>, Iterable<T>> readTagLists(Iterable<CodedTupleTag<T>> tags)
+        throws IOException {
+      return FluentIterable.from(tags)
+          .toMap(new Function<CodedTupleTag<T>, Iterable<T>>() {
+            @Override
+            public Iterable<T> apply(CodedTupleTag<T> input) {
+              return readTagList(input);
+            }
+          });
     }
   }
 }

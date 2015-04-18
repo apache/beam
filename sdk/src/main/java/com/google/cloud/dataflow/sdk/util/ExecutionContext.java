@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import org.joda.time.Instant;
@@ -32,7 +31,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -144,7 +142,13 @@ public abstract class ExecutionContext {
      *
      * @throws IOException if encoding the given value fails
      */
-    public abstract <T> void store(CodedTupleTag<T> tag, T value) throws IOException;
+    public abstract <T> void store(CodedTupleTag<T> tag, T value, Instant timestamp)
+        throws IOException;
+
+    @Override
+    public <T> void store(CodedTupleTag<T> tag, T value) throws IOException {
+      store(tag, value, BoundedWindow.TIMESTAMP_MAX_VALUE);
+    }
 
     /**
      * Loads the values from the per-{@link com.google.cloud.dataflow.sdk.transforms.DoFn},
@@ -152,7 +156,8 @@ public abstract class ExecutionContext {
      *
      * @throws IOException if decoding any of the requested values fails
      */
-    public abstract CodedTupleTagMap lookup(List<? extends CodedTupleTag<?>> tags)
+    @Override
+    public abstract CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags)
         throws IOException;
 
     /**
@@ -161,6 +166,7 @@ public abstract class ExecutionContext {
      *
      * @throws IOException if decoding the value fails
      */
+    @Override
     public <T> T lookup(CodedTupleTag<T> tag) throws IOException {
       return lookup(Arrays.asList(tag)).get(tag);
     }
@@ -171,6 +177,10 @@ public abstract class ExecutionContext {
      *
      * @throws IOException if encoding the given value fails
      */
+    public <T> void writeToTagList(CodedTupleTag<T> tag, T value) throws IOException {
+      writeToTagList(tag, value, BoundedWindow.TIMESTAMP_MAX_VALUE);
+    }
+
     public abstract <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
         throws IOException;
 
@@ -184,7 +194,16 @@ public abstract class ExecutionContext {
      *
      * @throws IOException if decoding any of the requested values fails
      */
-    public abstract <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag)
-        throws IOException;
+    public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) throws IOException {
+      return readTagLists(Arrays.asList(tag)).get(tag);
+    }
+
+    /**
+     * Reads the elements of the list in stored state corresponding to the provided tag.
+     *
+     * @throws IOException if decoding any of the requested values fails
+     */
+    public abstract <T> Map<CodedTupleTag<T>, Iterable<T>> readTagLists(
+        Iterable<CodedTupleTag<T>> tags) throws IOException;
   }
 }

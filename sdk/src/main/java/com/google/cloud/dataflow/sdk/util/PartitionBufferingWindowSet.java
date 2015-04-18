@@ -23,11 +23,6 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
-
-import org.joda.time.Instant;
 
 import java.util.Collection;
 
@@ -68,9 +63,8 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
   }
 
   @Override
-  public WindowStatus put(W window, V value, Instant timestamp) throws Exception {
-    windowingInternals.writeToTagList(
-        bufferTag(window, windowCoder, inputCoder), value, timestamp);
+  public WindowStatus put(W window, V value) throws Exception {
+    windowingInternals.writeToTagList(bufferTag(window, windowCoder, inputCoder), value);
 
     // Adds the window even if it is already present, relying on the streaming backend to
     // de-duplicate. As such, we don't know if this was a genuinely new window.
@@ -98,21 +92,13 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
   }
 
   @Override
-  protected TimestampedValue<Iterable<V>> finalValue(W window) throws Exception {
+  protected Iterable<V> finalValue(W window) throws Exception {
     CodedTupleTag<V> tag = bufferTag(window, windowCoder, inputCoder);
-    Iterable<TimestampedValue<V>> result = windowingInternals.readTagList(tag);
+    Iterable<V> result = windowingInternals.readTagList(tag);
     if (result == null) {
       return null;
     }
 
-    Instant timestamp = result.iterator().next().getTimestamp();
-    return TimestampedValue.of(
-        Iterables.transform(result, new Function<TimestampedValue<V>, V>() {
-              @Override
-              public V apply(TimestampedValue<V> input) {
-                return input.getValue();
-              }
-            }),
-        timestamp);
+    return result;
   }
 }

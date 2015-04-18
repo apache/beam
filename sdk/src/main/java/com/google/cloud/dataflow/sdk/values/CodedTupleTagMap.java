@@ -16,15 +16,20 @@
 
 package com.google.cloud.dataflow.sdk.values;
 
+import java.util.Collections;
 import java.util.Map;
 
 /**
  * A mapping of {@link CodedTupleTag}s to associated values.
  *
  * <p> Returned by
- * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState#lookup(java.util.List)}.
+ * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState#lookup(java.lang.Iterable)}.
  */
 public class CodedTupleTagMap {
+
+  private static final CodedTupleTagMap EMPTY =
+      of(Collections.<CodedTupleTag<?>, Object>emptyMap());
+
   /**
    * Returns a {@code CodedTupleTagMap} containing the given mappings.
    *
@@ -38,6 +43,13 @@ public class CodedTupleTagMap {
     // TODO: Should we copy the Map here, to insulate this
     // map from any changes to the original argument?
     return new CodedTupleTagMap(map);
+  }
+
+  /**
+   * Returns an empty {@code CodedTupleTagMap}.
+   */
+  public static CodedTupleTagMap empty() {
+    return EMPTY;
   }
 
   /**

@@ -24,14 +24,13 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.Weigher;
+import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
-
-import org.joda.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,12 +74,56 @@ public class StateFetcher {
     this.sideInputCache = sideInputCache;
   }
 
-  public Map<CodedTupleTag<?>, Object> fetch(
+  public Map<CodedTupleTag<?>, Optional<?>> fetch(
       String computation, ByteString key, long workToken, String prefix,
-      List<? extends CodedTupleTag<?>> tags) throws CoderException, IOException {
-    Map<CodedTupleTag<?>, Object> resultMap = new HashMap<>();
-    if (tags.isEmpty()) {
-      return resultMap;
+      Iterable<? extends CodedTupleTag<?>> tags) throws CoderException, IOException {
+    if (Iterables.isEmpty(tags)) {
+      return Collections.emptyMap();
+    }
+
+    Windmill.KeyedGetDataRequest.Builder requestBuilder = Windmill.KeyedGetDataRequest.newBuilder()
+        .setKey(key)
+        .setWorkToken(workToken);
+
+
+    Map<ByteString, CodedTupleTag<?>> tagMap = new HashMap<>();
+    for (CodedTupleTag<?> tag : tags) {
+      ByteString tagString = ByteString.copyFromUtf8(prefix + tag.getId());
+      if (tagMap.put(tagString, tag) == null) {
+        requestBuilder.addValuesToFetch(Windmill.TagValue.newBuilder().setTag(tagString).build());
+      }
+    }
+
+    Map<CodedTupleTag<?>, Optional<?>> resultMap = new HashMap<>();
+    Windmill.KeyedGetDataResponse keyResponse = getResponse(computation, key, requestBuilder);
+
+    for (Windmill.TagValue tv : keyResponse.getValuesList()) {
+      CodedTupleTag<?> tag = tagMap.get(tv.getTag());
+      if (tag != null) {
+        if (tv.getValue().hasData() && !tv.getValue().getData().isEmpty()) {
+          Object v = tag.getCoder().decode(tv.getValue().getData().newInput(), Coder.Context.OUTER);
+          resultMap.put(tag, Optional.of(v));
+        } else {
+          resultMap.put(tag, Optional.absent());
+        }
+      }
+    }
+
+    for (CodedTupleTag<?> tag : tags) {
+      if (!resultMap.containsKey(tag)) {
+        resultMap.put(tag, Optional.absent());
+      }
+    }
+
+    return resultMap;
+  }
+
+  public Map<CodedTupleTag<?>, List<?>> fetchList(
+      String computation, ByteString key, long workToken, String prefix,
+      Iterable<? extends CodedTupleTag<?>> tags)
+      throws IOException {
+    if (Iterables.isEmpty(tags)) {
+      return Collections.emptyMap();
     }
 
     Windmill.KeyedGetDataRequest.Builder requestBuilder = Windmill.KeyedGetDataRequest.newBuilder()
@@ -90,98 +133,70 @@ public class StateFetcher {
     Map<ByteString, CodedTupleTag<?>> tagMap = new HashMap<>();
     for (CodedTupleTag<?> tag : tags) {
       ByteString tagString = ByteString.copyFromUtf8(prefix + tag.getId());
-      requestBuilder.addValuesToFetch(
-          Windmill.TagValue.newBuilder()
-          .setTag(tagString)
-          .build());
-      tagMap.put(tagString, tag);
-    }
-
-    Windmill.GetDataResponse response = server.getData(
-        Windmill.GetDataRequest.newBuilder()
-        .addRequests(
-            Windmill.ComputationGetDataRequest.newBuilder()
-            .setComputationId(computation)
-            .addRequests(requestBuilder.build())
-            .build())
-        .build());
-
-    if (response.getDataCount() != 1
-        || !response.getData(0).getComputationId().equals(computation)
-        || response.getData(0).getDataCount() != 1
-        || !response.getData(0).getData(0).getKey().equals(key)) {
-      throw new IOException("Invalid data response, expected single computation and key");
-    }
-    Windmill.KeyedGetDataResponse keyResponse = response.getData(0).getData(0);
-    if (keyResponse.getFailed()) {
-      throw new StreamingDataflowWorker.KeyTokenInvalidException(key.toStringUtf8());
-    }
-
-    for (Windmill.TagValue tv : keyResponse.getValuesList()) {
-      CodedTupleTag<?> tag = tagMap.get(tv.getTag());
-      if (tag != null) {
-        if (tv.getValue().hasData() && !tv.getValue().getData().isEmpty()) {
-          resultMap.put(tag, tag.getCoder().decode(tv.getValue().getData().newInput(),
-                  Coder.Context.OUTER));
-        } else {
-          resultMap.put(tag, null);
-        }
+      if (tagMap.put(tagString, tag) == null) {
+        requestBuilder.addListsToFetch(Windmill.TagList.newBuilder()
+            .setTag(tagString)
+            .setEndTimestamp(Long.MAX_VALUE)
+            .build());
       }
+    }
+
+    Map<CodedTupleTag<?>, List<?>> resultMap = new HashMap<>();
+    Windmill.KeyedGetDataResponse keyResponse = getResponse(computation, key, requestBuilder);
+    for (Windmill.TagList tagList : keyResponse.getListsList()) {
+      CodedTupleTag<?> tag = tagMap.get(tagList.getTag());
+      resultMap.put(tag, decodeTagList(tag, tagList));
     }
 
     return resultMap;
   }
 
-  public <T> List<TimestampedValue<T>> fetchList(
-      String computation, ByteString key, long workToken, String prefix, CodedTupleTag<T> tag)
-      throws IOException {
-
-    ByteString tagString = ByteString.copyFromUtf8(prefix + tag.getId());
+  private Windmill.KeyedGetDataResponse getResponse(
+      String computation, ByteString key,
+      Windmill.KeyedGetDataRequest.Builder requestBuilder) throws IOException {
     Windmill.GetDataRequest request = Windmill.GetDataRequest.newBuilder()
         .addRequests(
             Windmill.ComputationGetDataRequest.newBuilder()
             .setComputationId(computation)
-            .addRequests(
-                Windmill.KeyedGetDataRequest.newBuilder()
-                .setKey(key)
-                .setWorkToken(workToken)
-                .addListsToFetch(
-                    Windmill.TagList.newBuilder()
-                    .setTag(tagString)
-                    .setEndTimestamp(Long.MAX_VALUE)
-                    .build())
-                .build())
+            .addRequests(requestBuilder.build())
             .build())
         .build();
-
     Windmill.GetDataResponse response = server.getData(request);
 
     if (response.getDataCount() != 1
         || !response.getData(0).getComputationId().equals(computation)
-        || response.getData(0).getDataCount() != 1
-        || !response.getData(0).getData(0).getKey().equals(key)) {
-      throw new IOException("Invalid data response, expected single computation and key\n");
+        || response.getData(0).getDataCount() != 1) {
+      throw new IOException("Invalid data response, expected single computation and key.");
     }
 
     Windmill.KeyedGetDataResponse keyResponse = response.getData(0).getData(0);
+    if (!keyResponse.getKey().equals(key)) {
+      throw new IOException("Invalid data response, expected key "
+          + key.toStringUtf8() + " but got " + keyResponse.getKey().toStringUtf8());
+    }
+
     if (keyResponse.getFailed()) {
       throw new StreamingDataflowWorker.KeyTokenInvalidException(key.toStringUtf8());
     }
-    if (keyResponse.getListsCount() != 1
-        || !keyResponse.getLists(0).getTag().equals(tagString)) {
-      throw new IOException("Expected single list for tag " + tagString);
-    }
-    Windmill.TagList tagList = keyResponse.getLists(0);
-    List<TimestampedValue<T>> result = new ArrayList<>();
-    for (Windmill.Value value : tagList.getValuesList()) {
-      result.add(TimestampedValue.of(
-          // Drop the first byte of the data; it's the zero byte we prepended to avoid writing
-          // empty data.
-          tag.getCoder().decode(value.getData().substring(1).newInput(), Coder.Context.OUTER),
-          new Instant(TimeUnit.MICROSECONDS.toMillis(value.getTimestamp()))));
+    return keyResponse;
+  }
+
+  private <T> List<T> decodeTagList(CodedTupleTag<T> tag, Windmill.TagList tagList)
+      throws IOException {
+    if (tag == null) {
+      throw new IOException("Unexpected tag list for tag: " + tagList.getTag());
     }
 
-    return result;
+    List<T> valueList = new ArrayList<>();
+    for (Windmill.Value value : tagList.getValuesList()) {
+      if (value.hasData() && !value.getData().isEmpty()) {
+        valueList.add(
+          // Drop the first byte of the data; it's the zero byte we prepended to avoid writing
+          // empty data.
+          tag.getCoder().decode(value.getData().substring(1).newInput(), Coder.Context.OUTER));
+      }
+    }
+    return valueList;
   }
 
   /**

@@ -110,7 +110,9 @@ public class AfterEachTest {
     assertFalse(tester.isDone(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         // Buffering element 1; Ignored the trigger for T2 since we aren't there yet.
-        tester.bufferTag(firstWindow)));
+        tester.bufferTag(firstWindow),
+        // Still holding the earliest element, waiting to fire
+        tester.earliestElement(firstWindow)));
   }
 
   @SuppressWarnings("unchecked")

@@ -27,7 +27,6 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
@@ -93,7 +92,7 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
   public void startBundle() {
     super.startBundle();
 
-    Set<W> readyWindows = new HashSet<>();
+    Map<W, CodedTupleTag<WindowedValue<I>>> readyWindowTags = new HashMap<>();
 
     for (Windmill.GlobalDataId id : execContext.getSideInputNotifications()) {
       PCollectionView<?> view = sideInputViews.get(id.getTag());
@@ -111,25 +110,37 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
         }
         entry.getValue().removeAll(found);
         if (entry.getValue().isEmpty()) {
-          readyWindows.add(entry.getKey());
+          try {
+            readyWindowTags.put(entry.getKey(), getElemListTag(entry.getKey()));
+          } catch (IOException e) {
+            throw Throwables.propagate(e);
+          }
         }
       }
     }
 
-    for (W window : readyWindows) {
-      blockedMap.remove(window);
+    Map<CodedTupleTag<WindowedValue<I>>, Iterable<WindowedValue<I>>> elementsPerWindow;
+    try {
+      elementsPerWindow = stepContext.readTagLists(readyWindowTags.values());
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
 
+    for (Map.Entry<W, CodedTupleTag<WindowedValue<I>>> entry : readyWindowTags.entrySet()) {
+      blockedMap.remove(entry.getKey());
+
+      Iterable<WindowedValue<I>> elements = elementsPerWindow.get(entry.getValue());
       try {
-        CodedTupleTag<WindowedValue<I>> elementTag = getElemListTag((W) window);
-        for (TimestampedValue<WindowedValue<I>> elem : stepContext.readTagList(elementTag)) {
-          fn.processElement(createProcessContext(elem.getValue()));
+        for (WindowedValue<I> elem : elements) {
+          fn.processElement(createProcessContext(elem));
         }
-        stepContext.deleteTagList(elementTag);
       } catch (Throwable t) {
         // Exception in user code.
         Throwables.propagateIfInstanceOf(t, UserCodeException.class);
         throw new UserCodeException(t);
       }
+
+      stepContext.deleteTagList(entry.getValue());
     }
   }
 

@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.addObject;
 import static com.google.cloud.dataflow.sdk.util.Structs.addString;
+import static org.junit.Assert.assertFalse;
 
 import com.google.api.services.dataflow.model.InstructionInput;
 import com.google.api.services.dataflow.model.InstructionOutput;
@@ -158,12 +159,15 @@ public class StreamingDataflowWorkerTest {
     }
 
     public Map<Long, Windmill.WorkItemCommitRequest> waitForAndGetCommits(int numCommits) {
-      while (commitsReceived.size() < commitsRequested + numCommits) {
+      int maxTries = 10;
+      while (maxTries-- > 0 && commitsReceived.size() < commitsRequested + numCommits) {
         try {
           Thread.sleep(1000);
         } catch (InterruptedException expected) {}
       }
 
+      assertFalse("Should have received commits after 10s, but only got " + commitsReceived,
+          commitsReceived.size() < commitsRequested + numCommits);
       commitsRequested += numCommits;
 
       return commitsReceived;
@@ -465,13 +469,6 @@ public class StreamingDataflowWorkerTest {
         "        data: \"key0\"" +
         "      }" +
         "    }" +
-        "  }" +
-        "}"));
-    server.addDataToOffer(buildData(
-        "data {" +
-        "  computation_id: \"computation\"" +
-        "  data {" +
-        "    key: \"key0\"" +
         "    values {" +
         "      tag: \"5:Stagestate\"" +
         "      value {" +
@@ -547,7 +544,7 @@ public class StreamingDataflowWorkerTest {
         "value_updates {" +
         "  tag: \"5:parDostate\"" +
         "  value {" +
-        "    timestamp: 9223372036854775807" +
+        "    timestamp: 9223372036854775000" +
         "    data: \"key0-0-1\"" +
         "  }" +
         "} " +
@@ -583,7 +580,7 @@ public class StreamingDataflowWorkerTest {
         "value_updates {" +
         "  tag: \"5:parDostate\"" +
         "  value {" +
-        "    timestamp: 9223372036854775807" +
+        "    timestamp: 9223372036854775000" +
         "    data: \"key1-2\"" +
         "  }" +
         "}" +
@@ -868,6 +865,16 @@ public class StreamingDataflowWorkerTest {
         CoderUtils.encodeToByteArray(
             CollectionCoder.of(IntervalWindow.getCoder()),
             Arrays.asList(new IntervalWindow(new Instant(0), new Instant(1000))))));
+    server.addDataToOffer(buildData(
+        "data {" +
+        "  computation_id: \"computation\"" +
+        "  data {" +
+        "    key: \"key\"" +
+        "    values {" +
+        "      tag: \"12:MergeWindowsearliest-element-gAAAAAAAAAAAAAAA\"" +
+        "    }" +
+        "  }" +
+        "}"));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
@@ -879,10 +886,17 @@ public class StreamingDataflowWorkerTest {
         "  timestamp: 999000" +
         "  type: WATERMARK" +
         "} " +
+        "value_updates {" +
+        "  tag: \"12:MergeWindowsearliest-element-gAAAAAAAAAAAAAAA\"" +
+        "  value {" +
+        "    timestamp: 0" +
+        "    data: \"\\200\\000\\000\\000\\000\\000\\000\\000\"" +
+        "  }" +
+        "}" +
         "list_updates {" +
         "  tag: \"12:MergeWindowsbuffer:gAAAAAAAAAA=\"" +
         "    values {" +
-        "    timestamp: 0" +
+        "    timestamp: 9223372036854775000" +
         "    data: \"\000data0\"" +
         "  }" +
         "}"),
@@ -916,6 +930,20 @@ public class StreamingDataflowWorkerTest {
         "    }" +
         "  }" +
         "}"));
+    server.addDataToOffer(buildData(
+        "data {" +
+        "  computation_id: \"computation\"" +
+        "  data {" +
+        "    key: \"key\"" +
+        "    values {" +
+        "      tag: \"12:MergeWindowsearliest-element-gAAAAAAAAAAAAAAA\"" +
+        "      value {" +
+        "        timestamp: 0" +
+        "        data: \"\\200\\000\\000\\000\\000\\000\\000\\000\"" +
+        "      }" +
+        "    }" +
+        "  }" +
+        "}"));
 
     result = server.waitForAndGetCommits(1);
 
@@ -928,10 +956,17 @@ public class StreamingDataflowWorkerTest {
         "    key: \"key\"" +
         "    messages {" +
         "      timestamp: 0" +
-        "      data: \"\\377\\377\\377\\377\001\005data0\000\"" +
+        "      data: \"\\000\\000\\000\\001\\005data0\"" +
         "    }" +
         "  }" +
         "} " +
+        "value_updates {" +
+        "  tag: \"12:MergeWindowsearliest-element-gAAAAAAAAAAAAAAA\"" +
+        "  value {" +
+        "    timestamp: 9223372036854775807" +
+        "    data: \"\"" +
+        "  }" +
+        "}" +
         "list_updates {" +
         "  tag: \"12:MergeWindowsbuffer:gAAAAAAAAAA=\"" +
         "  end_timestamp: 9223372036854775807" +

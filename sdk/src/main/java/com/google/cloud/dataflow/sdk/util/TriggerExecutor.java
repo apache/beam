@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
@@ -37,7 +38,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicates;
@@ -67,10 +67,17 @@ import java.util.Map;
  */
 public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
 
-  private static final CodedTupleTag<Integer> IS_ROOT_FINISHED =
-      CodedTupleTag.of("finished-root", VarIntCoder.of());
 
+  /**
+   * Integer used to identify triggers that have been finished and marked the window closed.
+   */
   private static final Integer FINISHED = Integer.valueOf(1);
+
+  /**
+   * Tag that holds {@code FINISHED} if the root trigger has closed the associated window.
+   */
+  private static final CodedTupleTag<Integer> IS_ROOT_FINISHED_TAG =
+      CodedTupleTag.of("finished-root", VarIntCoder.of());
 
   private final Trigger<W> trigger;
   private final WindowingInternals<?, KV<K, VO>> windowingInternals;
@@ -82,6 +89,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
   private final TriggerContextImpl triggerContext;
   private final Coder<TriggerId<W>> triggerIdCoder;
   private final boolean willNeverFinish;
+  private final WatermarkHold watermarkHold;
 
   /**
    * Methods that the system must provide in order for us to implement triggers.
@@ -101,7 +109,9 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
     void deleteTimer(String timer, Trigger.TimeDomain domain);
 
     /**
-     * @return the current timestamp in the {@link Trigger.TimeDomain#PROCESSING_TIME}.
+     * @return the current timestamp in the
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain#PROCESSING_TIME}
+     * time domain.
      */
     Instant currentProcessingTime();
   }
@@ -122,8 +132,10 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
     this.mergeContext = new MergeContext();
     this.triggerContext = new TriggerContextImpl();
     this.triggerIdCoder = new TriggerIdCoder<>(windowFn.windowCoder());
+    this.watermarkHold = new WatermarkHold();
 
     this.willNeverFinish = trigger.willNeverFinish();
+
   }
 
   /**
@@ -131,7 +143,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
    */
   @VisibleForTesting boolean isRootFinished(W window) throws IOException {
     return !willNeverFinish
-        && FINISHED.equals(triggerContext.lookup(IS_ROOT_FINISHED, window));
+        && FINISHED.equals(triggerContext.lookup(IS_ROOT_FINISHED_TAG, window));
   }
 
   /**
@@ -142,7 +154,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
       return false;
     }
 
-    for (Integer isFinished : triggerContext.lookup(IS_ROOT_FINISHED, windows).values()) {
+    for (Integer isFinished : triggerContext.lookup(IS_ROOT_FINISHED_TAG, windows).values()) {
       if (FINISHED.equals(isFinished)) {
         return true;
       }
@@ -159,7 +171,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
     }
 
     return Maps.transformValues(
-        triggerContext.lookup(IS_ROOT_FINISHED, windows),
+        triggerContext.lookup(IS_ROOT_FINISHED_TAG, windows),
         Functions.forPredicate(Predicates.equalTo(FINISHED)));
   }
 
@@ -174,7 +186,9 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
       }
 
       W window = entry.getKey();
-      WindowStatus status = windowSet.put(window, value.getValue(), value.getTimestamp());
+      WindowStatus status = windowSet.put(window, value.getValue());
+
+      watermarkHold.updateHoldForElement(window, value.getTimestamp());
 
       handleResult(trigger, window,
           trigger.onElement(triggerContext,
@@ -219,6 +233,8 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
     boolean isFinished = isRootFinished(toBeMerged);
 
     if (!isFinished) {
+      watermarkHold.updateHoldForMerge(toBeMerged, mergeResult);
+
       // If the root wasn't finished in any of the windows, then call the underlying merge and
       // handle the result appropriately.
       handleResult(trigger, mergeResult,
@@ -233,8 +249,10 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
       if (!mergeResult.equals(window)) {
         trigger.clear(triggerContext, window);
         if (!willNeverFinish) {
-          triggerContext.remove(IS_ROOT_FINISHED, window);
+          triggerContext.remove(IS_ROOT_FINISHED_TAG, window);
         }
+
+        watermarkHold.clearHold(window);
       }
     }
   }
@@ -247,6 +265,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
     if (result.isFire() || result.isFinish()) {
       // Remove the window from management (assume it is "done")
       windowSet.remove(window);
+      watermarkHold.clearHold(window);
     }
 
     // If the trigger is finished, we can clear out its state as long as we keep the
@@ -255,28 +274,72 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
       if (willNeverFinish) {
         throw new RuntimeException("Trigger that shouldn't finish finished: " + trigger);
       }
-      triggerContext.store(IS_ROOT_FINISHED, window, FINISHED);
+
+      triggerContext.store(IS_ROOT_FINISHED_TAG, window, FINISHED);
       trigger.clear(triggerContext, window);
     }
   }
 
   private void emitWindow(W window) throws Exception {
-    TimestampedValue<VO> finalValue = windowSet.finalValue(window);
+    VO finalValue = windowSet.finalValue(window);
 
     // If there were any contents to output in the window, do so.
     if (finalValue != null) {
       // Emit the (current) final values for the window
-      KV<K, VO> value = KV.of(windowSet.getKey(), finalValue.getValue());
+      KV<K, VO> value = KV.of(windowSet.getKey(), finalValue);
 
       // Output the windowed value.
       windowingInternals.outputWindowedValue(
-          value, finalValue.getTimestamp(), Arrays.asList(window));
+          value, watermarkHold.lookupEarliestElement(window), Arrays.asList(window));
     }
   }
 
   @VisibleForTesting void setTimer(TriggerId<W> triggerId, Instant timestamp, TimeDomain domain)
       throws CoderException {
     timerManager.setTimer(CoderUtils.encodeToBase64(triggerIdCoder, triggerId), timestamp, domain);
+  }
+
+  @VisibleForTesting void deleteTimer(
+      TriggerId<W> triggerId, TimeDomain domain) throws CoderException {
+    timerManager.deleteTimer(CoderUtils.encodeToBase64(triggerIdCoder, triggerId), domain);
+  }
+
+  /**
+   * Helper class for managing the keyed state that tracks the earliest element in the active pane,
+   * and holds up the watermark accordingly.
+   */
+  private class WatermarkHold {
+    /**
+     * Tag used to store the timestamp of the earliest element in the active pane.
+     */
+    private final CodedTupleTag<Instant> earliestElementTag =
+        CodedTupleTag.of("earliest-element", InstantCoder.of());
+
+    public Instant lookupEarliestElement(W window) throws IOException {
+      return triggerContext.lookup(earliestElementTag, window);
+    }
+
+    public void updateHoldForElement(W window, Instant timestamp) throws IOException {
+      // TODO: Combine the lookup of EARLIEST_ELEMENT_TAG with any lookups needed by the windowset.
+      Instant oldHold = triggerContext.lookup(earliestElementTag, window);
+      if (oldHold == null || oldHold.isAfter(timestamp)) {
+        triggerContext.store(earliestElementTag, window, timestamp, timestamp);
+      }
+    }
+
+    public void updateHoldForMerge(Iterable<W> oldWindows, W newWindow) throws IOException {
+      Instant earliestElement = BoundedWindow.TIMESTAMP_MAX_VALUE;
+      for (Instant old : triggerContext.lookup(earliestElementTag, oldWindows).values()) {
+        if (old.isBefore(earliestElement)) {
+          earliestElement = old;
+        }
+      }
+      triggerContext.store(earliestElementTag, newWindow, earliestElement, earliestElement);
+    }
+
+    public void clearHold(W window) throws IOException {
+      triggerContext.remove(earliestElementTag, window);
+    }
   }
 
   private class MergeContext extends WindowFn<Object, W>.MergeContext {
@@ -330,20 +393,24 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
 
     @Override
     public void deleteTimer(W window, TimeDomain domain) throws IOException {
-      timerManager.deleteTimer(triggerIdTag(window), domain);
+      TriggerExecutor.this.deleteTimer(triggerId(window), domain);
     }
 
     @Override
     public <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException {
       CodedTupleTag<T> codedTriggerIdTag = codedTriggerIdTag(tag, window);
-      keyedState.lookup(codedTriggerIdTag);
       keyedState.store(codedTriggerIdTag, value);
+    }
+
+    private <T> void store(CodedTupleTag<T> tag, W window, T value, Instant timestamp)
+        throws IOException {
+      CodedTupleTag<T> codedTriggerIdTag = codedTriggerIdTag(tag, window);
+      windowingInternals.store(codedTriggerIdTag, value, timestamp);
     }
 
     @Override
     public <T> void remove(CodedTupleTag<T> tag, W window) throws IOException {
       CodedTupleTag<T> codedTriggerIdTag = codedTriggerIdTag(tag, window);
-      keyedState.lookup(codedTriggerIdTag);
       keyedState.remove(codedTriggerIdTag);
     }
 

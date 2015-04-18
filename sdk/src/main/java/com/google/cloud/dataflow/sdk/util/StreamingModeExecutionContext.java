@@ -17,23 +17,23 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
-import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.base.Optional;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import com.google.protobuf.ByteString;
 
 import org.joda.time.Instant;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -117,7 +117,7 @@ public class StreamingModeExecutionContext extends ExecutionContext {
    * items until the active work item is finished.
    */
   private <T> T fetchSideInput(
-      PCollectionView<?> view, BoundedWindow mainInputWindow, SideInputState state) {
+      PCollectionView<T> view, BoundedWindow mainInputWindow, SideInputState state) {
     BoundedWindow sideInputWindow =
         view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
 
@@ -127,9 +127,11 @@ public class StreamingModeExecutionContext extends ExecutionContext {
       sideInputCache.put(view.getTagInternal(), tagCache);
     }
 
+    @SuppressWarnings("unchecked")
     T sideInput = (T) tagCache.get(sideInputWindow);
     if (sideInput == null) {
-      sideInput = (T) stateFetcher.fetchSideInput(view, sideInputWindow, state);
+      T typed = (T) stateFetcher.fetchSideInput(view, sideInputWindow, state);
+      sideInput = typed;
       if (sideInput != null) {
         tagCache.put(sideInputWindow, sideInput);
         return sideInput;
@@ -196,171 +198,113 @@ public class StreamingModeExecutionContext extends ExecutionContext {
 
   public void flushState() {
     for (ExecutionContext.StepContext stepContext : getAllStepContexts()) {
-      ((StepContext) stepContext).flushState();
+      try {
+        ((StepContext) stepContext).flushState();
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to flush state");
+      }
     }
   }
 
-  public Map<CodedTupleTag<?>, Object> lookupState(
-      String prefix, List<? extends CodedTupleTag<?>> tags) throws CoderException, IOException {
-    return stateFetcher.fetch(computation, getSerializedKey(), getWorkToken(), prefix, tags);
+  private class TagLoader extends CacheLoader<CodedTupleTag<?>, Optional<?>> {
+
+    private final String mangledPrefix;
+
+    private TagLoader(String mangledPrefix) {
+      this.mangledPrefix = mangledPrefix;
+    }
+
+    @Override
+    public Optional<?> load(CodedTupleTag<?> key) throws Exception {
+      return loadAll(Arrays.asList(key)).get(key);
+    }
+
+    @Override
+    public Map<CodedTupleTag<?>, Optional<?>> loadAll(
+        Iterable<? extends CodedTupleTag<?>> keys) throws Exception {
+      return  stateFetcher.fetch(
+          computation, getSerializedKey(), getWorkToken(), mangledPrefix, keys);
+    }
   }
 
-  private static class TagListUpdates<T> {
-    List<TimestampedValue<ByteString>> encodedValues = new ArrayList<>();
-    List<TimestampedValue<T>> values = new ArrayList<>();
-    boolean remove = false;
+  private class TagListLoader extends CacheLoader<CodedTupleTag<?>, List<?>> {
 
-    public void deleteTagList() {
-      encodedValues.clear();
-      values.clear();
-      remove = true;
+    private final String mangledPrefix;
+
+    private TagListLoader(String mangledPrefix) {
+      this.mangledPrefix = mangledPrefix;
     }
 
-    public boolean isRemove() {
-      return remove;
+    @Override
+    public List<?> load(CodedTupleTag<?> key) throws Exception {
+      return loadAll(Arrays.asList(key)).get(key);
     }
 
-    public void add(Instant timestamp, ByteString encoded, T value) {
-      encodedValues.add(TimestampedValue.of(encoded, timestamp));
-      values.add(TimestampedValue.of(value, timestamp));
+    @Override
+    public Map<CodedTupleTag<?>, List<?>> loadAll(
+        Iterable<? extends CodedTupleTag<?>> keys) throws Exception {
+      return stateFetcher.fetchList(
+          computation, getSerializedKey(), getWorkToken(), mangledPrefix, keys);
     }
   }
 
   class StepContext extends ExecutionContext.StepContext {
-    private final String mangledPrefix;
-
-    // K = the value that was put, V = the encoded value
-    private Map<CodedTupleTag<?>, KV<?, ByteString>> stateCache = new HashMap<>();
-
-    private Map<CodedTupleTag<?>, TagListUpdates<?>> tagListUpdates = new HashMap<>();
-
-    private <T> TagListUpdates<T> getOrCreateListUpdates(CodedTupleTag<T> tag) {
-      @SuppressWarnings("unchecked")
-      TagListUpdates<T> updates = (TagListUpdates<T>) tagListUpdates.get(tag);
-      if (updates == null) {
-        updates = new TagListUpdates<T>();
-        tagListUpdates.put(tag, updates);
-      }
-      return updates;
-    }
+    private KeyedStateCache tagCache;
 
     public StepContext(String stepName) {
       super(stepName);
+
       // Mangle such that there are no partially overlapping prefixes.
-      this.mangledPrefix = stepName.length() + ":" + stepName;
+      String mangledPrefix = stepName.length() + ":" + stepName;
+      this.tagCache = new KeyedStateCache(
+          mangledPrefix,
+          CacheBuilder.newBuilder().build(new TagLoader(mangledPrefix)),
+          CacheBuilder.newBuilder().build(new TagListLoader(mangledPrefix)));
     }
 
     @Override
-    public <T> void store(CodedTupleTag<T> tag, T value) throws CoderException, IOException {
-      ByteString.Output stream = ByteString.newOutput();
-      tag.getCoder().encode(value, stream, Coder.Context.OUTER);
-      stateCache.put(tag, KV.of(value, stream.toByteString()));
+    public <T> void store(CodedTupleTag<T> tag, T value, Instant timestamp) {
+      tagCache.store(tag, value, timestamp);
     }
 
     @Override
     public <T> void remove(CodedTupleTag<T> tag) {
-      // Write ByteString.EMPTY to indicate the value associated with the tag is removed.
-      stateCache.put(tag, KV.of(null, ByteString.EMPTY));
+      tagCache.removeTags(tag);
     }
 
     @Override
-    public CodedTupleTagMap lookup(List<? extends CodedTupleTag<?>> tags)
-        throws CoderException, IOException {
-      List<CodedTupleTag<?>> tagsToLookup = new ArrayList<>();
-      List<CodedTupleTag<?>> residentTags = new ArrayList<>();
-      for (CodedTupleTag<?> tag : tags) {
-        if (stateCache.containsKey(tag)) {
-          residentTags.add(tag);
-        } else {
-          tagsToLookup.add(tag);
-        }
-      }
-      Map<CodedTupleTag<?>, Object> result =
-          StreamingModeExecutionContext.this.lookupState(mangledPrefix, tagsToLookup);
-      for (CodedTupleTag<?> tag : residentTags) {
-        result.put(tag, stateCache.get(tag).getKey());
-      }
-      return CodedTupleTagMap.of(result);
+    public CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags) throws IOException {
+      return CodedTupleTagMap.of(tagCache.lookupTags(tags));
     }
 
     @Override
-    public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
+    public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp) {
+      tagCache.writeToTagList(tag, value, timestamp);
+    }
+
+    @Override
+    public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) throws IOException {
+      return readTagLists(Arrays.asList(tag)).get(tag);
+    }
+
+    @Override
+    public <T> Map<CodedTupleTag<T>, Iterable<T>> readTagLists(Iterable<CodedTupleTag<T>> tags)
         throws IOException {
-      ByteString.Output stream = ByteString.newOutput();
-      tag.getCoder().encode(value, stream, Coder.Context.OUTER);
-      getOrCreateListUpdates(tag).add(timestamp, stream.toByteString(), value);
-    }
-
-    @Override
-    public <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag) throws IOException {
-      TagListUpdates<T> listUpdates = getOrCreateListUpdates(tag);
-      ArrayList<TimestampedValue<T>> items = new ArrayList<>();
-      // If we've done a (not-yet-persisted) remove don't include the persisted items
-      if (!listUpdates.isRemove()) {
-        items.addAll(stateFetcher.fetchList(
-          computation, getSerializedKey(), getWorkToken(), mangledPrefix, tag));
-      }
-
-      // If we have pending (not-yet-persisted) additions, include them
-      items.addAll(listUpdates.values);
-      return items;
+      @SuppressWarnings({"unchecked"})
+      Iterable<CodedTupleTag<?>> wildcardTags = (Iterable) tags;
+      Map<CodedTupleTag<?>, Iterable<?>> wildcardMap = tagCache.readTagLists(wildcardTags);
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Map<CodedTupleTag<T>, Iterable<T>> typedMap = (Map) wildcardMap;
+      return typedMap;
     }
 
     @Override
     public <T> void deleteTagList(CodedTupleTag<T> tag) {
-      getOrCreateListUpdates(tag).deleteTagList();
-
-      // And record the deletion
-      outputBuilder.addListUpdates(
-          Windmill.TagList.newBuilder()
-          .setTag(serializeTag(tag))
-          .setEndTimestamp(Long.MAX_VALUE)
-          .build());
+      tagCache.removeTagLists(tag);
     }
 
-    public void flushState() {
-      for (Map.Entry<CodedTupleTag<?>, KV<?, ByteString>> entry : stateCache.entrySet()) {
-        CodedTupleTag<?> tag = entry.getKey();
-        ByteString encodedValue = entry.getValue().getValue();
-        outputBuilder.addValueUpdates(
-            Windmill.TagValue.newBuilder()
-            .setTag(serializeTag(tag))
-            .setValue(
-                Windmill.Value.newBuilder()
-                .setData(encodedValue)
-                .setTimestamp(Long.MAX_VALUE)
-                .build())
-            .build());
-      }
-
-      for (Map.Entry<CodedTupleTag<?>, TagListUpdates<?>> entry : tagListUpdates.entrySet()) {
-        if (entry.getValue().encodedValues.isEmpty()) {
-          continue;
-        }
-
-        CodedTupleTag<?> tag = entry.getKey();
-        Windmill.TagList.Builder listBuilder =
-            Windmill.TagList.newBuilder()
-            .setTag(serializeTag(tag));
-        for (TimestampedValue<ByteString> item : entry.getValue().encodedValues) {
-          long timestampMicros = TimeUnit.MILLISECONDS.toMicros(item.getTimestamp().getMillis());
-          // Windmill does not support empty data for tag list state; prepend a zero byte.
-          byte[] zero = {0x0};
-          listBuilder.addValues(
-              Windmill.Value.newBuilder()
-              .setData(ByteString.copyFrom(zero).concat(item.getValue()))
-              .setTimestamp(timestampMicros));
-        }
-        outputBuilder.addListUpdates(listBuilder.build());
-      }
-
-      // Clear all of the not-yet-persisted information, since we're about to persist it.
-      stateCache.clear();
-      tagListUpdates.clear();
-    }
-
-    private ByteString serializeTag(CodedTupleTag<?> tag) {
-      return ByteString.copyFromUtf8(mangledPrefix + tag.getId());
+    public void flushState() throws IOException {
+      tagCache.flushTo(outputBuilder);
     }
   }
 }

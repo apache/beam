@@ -31,7 +31,6 @@ import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TriggerIdCoder;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -45,11 +44,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -161,6 +160,12 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     return WindowUtils.bufferTag(window, windowFn.windowCoder(), VoidCoder.of()).getId();
   }
 
+  public String earliestElement(W window) throws CoderException {
+    return "earliest-element-"
+        + CoderUtils.encodeToBase64(triggerIdCoder,
+            new TriggerId<W>(window, Arrays.<Integer>asList()));
+  }
+
   /**
    * Retrieve the values that have been output to this time, and clear out the output accumulator.
    */
@@ -212,9 +217,12 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
 
   private class StubContexts implements WindowingInternals<VI, KV<String, VO>>, DoFn.KeyedState {
 
-    private Map<CodedTupleTag<?>, List<TimestampedValue<?>>> tagListValues = new HashMap<>();
+    private Map<CodedTupleTag<?>, List<?>> tagListValues = new HashMap<>();
     private Map<CodedTupleTag<?>, Object> tagValues = new HashMap<>();
     private List<WindowedValue<KV<String, VO>>> outputs = new ArrayList<>();
+
+    private Map<CodedTupleTag<?>, Instant> tagTimestamps = new HashMap<>();
+    private PriorityQueue<Instant> minTagTimestamp = new PriorityQueue<>();
 
     @Override
     public void outputWindowedValue(KV<String, VO> output, Instant timestamp,
@@ -239,15 +247,14 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     }
 
     @Override
-    public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
-        throws IOException {
+    public <T> void writeToTagList(CodedTupleTag<T> tag, T value) throws IOException {
       @SuppressWarnings("unchecked")
-      List<TimestampedValue<?>> values = tagListValues.get(tag);
+      List<T> values = (List<T>) tagListValues.get(tag);
       if (values == null) {
         values = new ArrayList<>();
         tagListValues.put(tag, values);
       }
-      values.add(TimestampedValue.of(value, timestamp));
+      values.add(value);
     }
 
     @Override
@@ -256,20 +263,27 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     }
 
     @Override
-    public <T> Iterable<TimestampedValue<T>> readTagList(CodedTupleTag<T> tag) throws IOException {
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      List<TimestampedValue<T>> values = (List) tagListValues.get(tag);
+    public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) {
+      @SuppressWarnings("unchecked")
+      List<T> values = (List<T>) tagListValues.get(tag);
       if (values == null) {
-        return Collections.<TimestampedValue<T>>emptyList();
+        return Collections.emptyList();
       } else {
-        Collections.sort(values, new Comparator<TimestampedValue<T>>() {
-              @Override
-              public int compare(TimestampedValue<T> v1, TimestampedValue<T> v2) {
-                return v1.getTimestamp().compareTo(v2.getTimestamp());
-              }
-            });
         return values;
       }
+    }
+
+    @Override
+    public <T> Map<CodedTupleTag<T>, Iterable<T>> readTagList(
+        List<CodedTupleTag<T>> tags) throws IOException {
+      return FluentIterable.from(tags)
+          .toMap(new Function<CodedTupleTag<T>, Iterable<T>>() {
+            @Override
+            @Nullable
+            public Iterable<T> apply(@Nullable CodedTupleTag<T> tag) {
+              return readTagList(tag);
+            }
+          });
     }
 
     @Override
@@ -292,12 +306,26 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
 
     @Override
     public <T> void store(CodedTupleTag<T> tag, T value) throws IOException {
+      store(tag, value, BoundedWindow.TIMESTAMP_MAX_VALUE);
+    }
+
+    @Override
+    public <T> void store(CodedTupleTag<T> tag, T value, Instant timestamp) throws IOException {
       tagValues.put(tag, value);
+
+      // We never use the timestamp, but for testing purposes we want to keep track of the minimum
+      // timestamp that is currently being stored, since this will be used to hold-up the watermark.
+      Instant old = tagTimestamps.put(tag, timestamp);
+      if (old != null) {
+        minTagTimestamp.remove(old);
+      }
+      minTagTimestamp.add(timestamp);
     }
 
     @Override
     public <T> void remove(CodedTupleTag<T> tag) {
       tagValues.remove(tag);
+      minTagTimestamp.remove(tagTimestamps.remove(tag));
     }
 
     @Override
@@ -309,7 +337,7 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
 
     @SuppressWarnings("unchecked")
     @Override
-    public CodedTupleTagMap lookup(List<? extends CodedTupleTag<?>> tags) throws IOException {
+    public CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags) throws IOException {
       LinkedHashMap<CodedTupleTag<?>, Object> result = new LinkedHashMap<>();
       for (CodedTupleTag<?> tag : tags) {
         result.put(tag, tagValues.get(tag));
@@ -381,4 +409,5 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
       return windows;
     }
   }
+
 }

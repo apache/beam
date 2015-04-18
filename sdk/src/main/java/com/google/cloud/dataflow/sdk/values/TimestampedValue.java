@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.common.base.Function;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -142,6 +143,15 @@ public class TimestampedValue<V> {
     public static <T> List<Object> getInstanceComponents(TimestampedValue<T> exampleValue) {
       return Arrays.<Object>asList(exampleValue.getValue());
     }
+  }
+
+  public static <T> Function<TimestampedValue<T>, T> valueFunction() {
+    return new Function<TimestampedValue<T>, T>() {
+      @Override
+      public T apply(TimestampedValue<T> input) {
+        return input.getValue();
+      }
+    };
   }
 
   /////////////////////////////////////////////////////////////////////////////

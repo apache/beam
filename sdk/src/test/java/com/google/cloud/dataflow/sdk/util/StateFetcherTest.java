@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import static com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -38,14 +37,14 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.protobuf.ByteString;
 
-import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -99,7 +98,7 @@ public class StateFetcherTest {
             .build())
         .build());
 
-    Map<CodedTupleTag<?>, Object> data =
+    Map<CodedTupleTag<?>, Optional<?>> data =
         fetcher.fetch("computation", ByteString.copyFromUtf8("key"), 17L, "p:",
             Arrays.asList(
                 CodedTupleTag.of("tag1", StringUtf8Coder.of()),
@@ -123,8 +122,8 @@ public class StateFetcherTest {
         .build());
 
     assertEquals(2, data.size());
-    assertEquals("data1", data.get(CodedTupleTag.of("tag1", StringUtf8Coder.of())));
-    assertEquals("data2", data.get(CodedTupleTag.of("tag2", StringUtf8Coder.of())));
+    assertEquals("data1", data.get(CodedTupleTag.of("tag1", StringUtf8Coder.of())).get());
+    assertEquals("data2", data.get(CodedTupleTag.of("tag2", StringUtf8Coder.of())).get());
   }
 
   @Test
@@ -152,9 +151,11 @@ public class StateFetcherTest {
             .build())
         .build());
 
-    List<TimestampedValue<String>> data =
-        fetcher.fetchList("computation", ByteString.copyFromUtf8("key"), 17L, "p:",
-            CodedTupleTag.of("tag1", StringUtf8Coder.of()));
+    CodedTupleTag<String> tag = CodedTupleTag.of("tag1", StringUtf8Coder.of());
+    @SuppressWarnings("unchecked")
+    List<String> data =
+        (List<String>) fetcher.fetchList("computation", ByteString.copyFromUtf8("key"), 17L, "p:",
+        Arrays.asList(tag)).get(tag);
 
     verify(server).getData(
         Windmill.GetDataRequest.newBuilder()
@@ -171,9 +172,7 @@ public class StateFetcherTest {
             .build())
         .build());
 
-    assertThat(data, contains(
-        TimestampedValue.of("data1", new Instant(0)),
-        TimestampedValue.of("data2", new Instant(1))));
+    assertThat(data, contains("data1", "data2"));
   }
 
   @Test

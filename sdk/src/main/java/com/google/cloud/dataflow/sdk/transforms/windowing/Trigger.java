@@ -502,7 +502,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
 
     @Override
     public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
-
       if (e.isForCurrentLayer()) {
         throw new IllegalStateException("Until shouldn't receive any timers.");
       } else if (e.getChildIndex() == ACTUAL) {
