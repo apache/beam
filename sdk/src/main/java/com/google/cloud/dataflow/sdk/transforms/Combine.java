@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
@@ -1550,11 +1551,13 @@ public class Combine {
       final TupleTag<KV<KV<K, Integer>, VI>> hot = new TupleTag<>();
       final TupleTag<KV<K, VI>> cold = new TupleTag<>();
       PCollectionTuple split = input.apply(
-          ParDo.of(new DoFn<KV<K, VI>, KV<K, VI>>() {
+          ParDo.of(
+              new DoFn<KV<K, VI>, KV<K, VI>>() {
                 transient int counter;
                 @Override
                 public void startBundle(Context c) {
-                  counter = ThreadLocalRandom.current().nextInt();
+                  counter = ThreadLocalRandom.current().nextInt(
+                      Integer.MAX_VALUE);
                 }
 
                 @Override
@@ -1569,26 +1572,28 @@ public class Combine {
                   }
                 }
               })
-          .withOutputTags(cold, TupleTagList.of(hot)));
+          .withOutputTags(cold, TupleTagList.of(hot))
+          .withName("AddNonce"));
 
       // Combine the hot and cold keys separately.
       PCollection<KV<K, VO>> combinedHot = split
           .get(hot)
           .setCoder(KvCoder.of(KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
                                inputCoder.getValueCoder()))
-          .apply(Combine.perKey(hotPreCombine))
+          .apply(Combine.perKey(hotPreCombine).withName("PreCombineHot"))
           .apply(ParDo.of(
               new DoFn<KV<KV<K, Integer>, VA>, KV<K, VA>>() {
                 @Override
                 public void processElement(ProcessContext c) {
                   c.output(KV.of(c.element().getKey().getKey(), c.element().getValue()));
                 }
-              }))
-          .apply(Combine.perKey(hotPostCombine));
+              }).withName("StripNonce"))
+          .apply(Window.<KV<K, VA>>remerge())
+          .apply(Combine.perKey(hotPostCombine).withName("PostCombineHot"));
       PCollection<KV<K, VO>> combinedCold = split
           .get(cold)
           .setCoder(inputCoder)
-          .apply(Combine.perKey(fn));
+          .apply(Combine.perKey(fn).withName("CombineCold"));
 
       // Return the union of the hot and cold key results.
       return PCollectionList.of(combinedHot).and(combinedCold)
