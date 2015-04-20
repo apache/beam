@@ -203,20 +203,19 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
 
   /**
    * Sets the base name of this {@code PTransform}.
+   * Returns {@code this} for method chaining.
    */
-  public void setName(String name) {
+  public PTransform<Input, Output> setName(String name) {
     this.name = name;
+    return this;
   }
 
   /**
-   * Sets the base name of this {@code PTransform} and returns itself.
-   *
-   * <p> This is a shortcut for calling {@link #setName}, which allows method
-   * chaining.
+   * @deprecated Use {@link #setName}, which has been modified to return {@code this}.
    */
+  @Deprecated
   public PTransform<Input, Output> withName(String name) {
-    setName(name);
-    return this;
+    return setName(name);
   }
 
   /**

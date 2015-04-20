@@ -82,7 +82,7 @@ public class Top {
   public static <T, C extends Comparator<T> & Serializable>
       Combine.Globally<T, List<T>> of(int count, C compareFn) {
     return Combine.globally(new TopCombineFn<>(count, compareFn))
-        .withName("Top");
+        .setName("Top");
   }
 
   /**
@@ -122,7 +122,7 @@ public class Top {
   public static <T extends Comparable<T>>
       Combine.Globally<T, List<T>> smallest(int count) {
     return Combine.globally(new TopCombineFn<>(count, new Smallest<T>()))
-        .withName("Top.Smallest");
+        .setName("Top.Smallest");
   }
 
   /**
@@ -162,7 +162,7 @@ public class Top {
   public static <T extends Comparable<T>>
       Combine.Globally<T, List<T>> largest(int count) {
     return Combine.globally(new TopCombineFn<>(count, new Largest<T>()))
-        .withName("Top.Largest");
+        .setName("Top.Largest");
   }
 
   /**
@@ -211,7 +211,7 @@ public class Top {
       perKey(int count, C compareFn) {
     return Combine.perKey(
         new TopCombineFn<>(count, compareFn).<K>asKeyedFn())
-        .withName("Top.PerKey");
+        .setName("Top.PerKey");
   }
 
   /**
@@ -259,7 +259,7 @@ public class Top {
       smallestPerKey(int count) {
     return Combine.perKey(
         new TopCombineFn<>(count, new Smallest<V>()).<K>asKeyedFn())
-        .withName("Top.SmallestPerKey");
+        .setName("Top.SmallestPerKey");
   }
 
   /**
@@ -307,7 +307,7 @@ public class Top {
       largestPerKey(int count) {
     return Combine.perKey(
         new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
-        .withName("Top.LargestPerKey");
+        .setName("Top.LargestPerKey");
   }
 
 

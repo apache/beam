@@ -48,7 +48,7 @@ import java.util.List;
  * PCollection<MyProto.Message> records =
  *     input.apply(...)
  *          .setCoder(Proto2Coder.of(MyProto.Message.class)
- *          .withExtensionsFrom(MyProto.class));
+ *              .addExtensionsFrom(MyProto.class));
  * }
  * </pre>
  *
@@ -74,12 +74,13 @@ public class Proto2Coder<T extends Message> extends CustomCoder<T> {
   }
 
   /**
-   * Adds custom Protobuf extensions to the coder.
+   * Adds custom Protobuf extensions to the coder. Returns {@code this}
+   * for method chaining.
    *
    * @param extensionHosts must be a class that defines a static
    *      method name {@code registerAllExtensions}
    */
-  public Proto2Coder<T> withExtensionsFrom(Class<?>... extensionHosts) {
+  public Proto2Coder<T> addExtensionsFrom(Class<?>... extensionHosts) {
     for (Class<?> extensionHost : extensionHosts) {
       try {
         // Attempt to access the declared method, to make sure it's present.
@@ -116,9 +117,12 @@ public class Proto2Coder<T extends Message> extends CustomCoder<T> {
       return parser;
     }
     try {
+      @SuppressWarnings("unchecked")
       T protoMessageInstance = (T) protoMessageClass
           .getMethod("getDefaultInstance").invoke(null);
-      parser = (Parser<T>) protoMessageInstance.getParserForType();
+      @SuppressWarnings("unchecked")
+      Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
+      parser = tParser;
     } catch (IllegalAccessException
         | InvocationTargetException
         | NoSuchMethodException e) {

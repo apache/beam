@@ -1119,9 +1119,16 @@ public class Combine {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
+    public Globally<VI, VO> setName(String name) {
+      super.setName(name);
+      return this;
+    }
+
+    @Override
+    @Deprecated
     public Globally<VI, VO> withName(String name) {
-      return (Globally<VI, VO>) super.withName(name);
+      super.setName(name);
+      return this;
     }
 
     /**
@@ -1263,9 +1270,15 @@ public class Combine {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
+    public GloballyAsSingletonView<VI, VO> setName(String name) {
+      super.setName(name);
+      return this;
+    }
+
+    @Override
+    @Deprecated
     public GloballyAsSingletonView<VI, VO> withName(String name) {
-      return (GloballyAsSingletonView<VI, VO>) super.withName(name);
+      return setName(name);
     }
 
     @Override
@@ -1429,9 +1442,15 @@ public class Combine {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
+    public PerKey<K, VI, VO> setName(String name) {
+      super.setName(name);
+      return this;
+    }
+
+    @Override
+    @Deprecated
     public PerKey<K, VI, VO> withName(String name) {
-      return (PerKey<K, VI, VO>) super.withName(name);
+      return setName(name);
     }
 
     /**

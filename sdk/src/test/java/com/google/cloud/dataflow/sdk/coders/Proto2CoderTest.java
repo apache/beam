@@ -82,6 +82,6 @@ public class Proto2CoderTest {
         .build();
     CoderProperties.coderDecodeEncodeEqual(
         Proto2Coder.of(MessageC.class)
-        .withExtensionsFrom(Proto2CoderTestMessages.class), value);
+        .addExtensionsFrom(Proto2CoderTestMessages.class), value);
   }
 }
