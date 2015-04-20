@@ -63,7 +63,7 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
     for (int i : subExecutor.getUnfinishedTriggers()) {
       // Mark any fired triggers as finished.
       if (subExecutor.onElement(i, e).isFire()) {
-        subExecutor.markFinished(c, i);
+        subExecutor.markFinished(i);
       }
     }
 
@@ -83,7 +83,7 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
     // Otherwise, merge all of the unfinished triggers.
     for (int i : subExecutor.getUnfinishedTriggers()) {
       if (subExecutor.onMerge(i, e).isFire()) {
-        subExecutor.markFinished(c, i);
+        subExecutor.markFinished(i);
       }
     }
 
@@ -92,17 +92,12 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
 
   @Override
   public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
-    if (e.isForCurrentLayer()) {
-      throw new IllegalStateException("AfterAll shouldn't receive any timers.");
-    }
-
-    int childIdx = e.getChildIndex();
     SubTriggerExecutor<W> subExecutor = SubTriggerExecutor.forWindow(subTriggers, c, e.window());
 
     // We take at-most-once triggers, so the result of the timer on the child should be either
     // CONTINUE or FIRE_AND_FINISH. The subexecutor already tracks finishing of children, so we just
     // need to know that we fire and finish if all of the children have finished.
-    subExecutor.onTimer(childIdx, e);
+    subExecutor.onTimer(e);
     return wrapResult(subExecutor);
   }
 

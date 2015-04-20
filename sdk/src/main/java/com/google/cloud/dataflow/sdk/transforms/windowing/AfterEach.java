@@ -97,19 +97,8 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
 
   @Override
   public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
-    if (e.isForCurrentLayer()) {
-      throw new IllegalStateException("AfterAll shouldn't receive any timers.");
-    }
-
-    int childIdx = e.getChildIndex();
     SubTriggerExecutor<W> subExecutor = SubTriggerExecutor.forWindow(subTriggers, c, e.window());
-
-    if (childIdx != subExecutor.firstUnfinished()) {
-      LOG.warn("AfterEach received timer for non-current sub-trigger {}", childIdx);
-      return TriggerResult.CONTINUE;
-    }
-
-    return wrapResult(subExecutor.onTimer(childIdx, e), subExecutor);
+    return wrapResult(subExecutor.onTimer(e), subExecutor);
   }
 
   @Override

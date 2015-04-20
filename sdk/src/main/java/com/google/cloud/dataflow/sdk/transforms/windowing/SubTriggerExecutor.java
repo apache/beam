@@ -121,12 +121,11 @@ class SubTriggerExecutor<W extends BoundedWindow> {
     return result.build();
   }
 
+  /**
+   * Return the index of the first-unfinished sub-trigger.
+   */
   public int firstUnfinished() {
     return isFinished.nextClearBit(0);
-  }
-
-  public BitSet getFinishedSet() {
-    return (BitSet) isFinished.clone();
   }
 
   private TriggerResult handleChildResult(
@@ -138,6 +137,11 @@ class SubTriggerExecutor<W extends BoundedWindow> {
     return result;
   }
 
+  /**
+   * Invoke {@code onElement} for the {@code index} sub-trigger on the given event.
+   *
+   * <p>Updates the is-finished set if the sub-trigger finishes.
+   */
   public TriggerResult onElement(int index, OnElementEvent<W> e) throws Exception {
     if (isFinished.get(index)) {
       throw new IllegalStateException("Calling onElement on already finished sub-element " + index);
@@ -150,7 +154,19 @@ class SubTriggerExecutor<W extends BoundedWindow> {
         subTrigger.onElement(childContext, e));
   }
 
-  public TriggerResult onTimer(int index, OnTimerEvent<W> e) throws Exception {
+  /**
+   * Invoke {@code onTimer} for the {@code index} sub-trigger on the given event. Expects the
+   * {@link OnTimerEvent} to be for one of the sub-triggers.
+   *
+   * <p>Updates the is-finished set if the sub-trigger finishes.
+   */
+  public TriggerResult onTimer(OnTimerEvent<W> e) throws Exception {
+    if (e.isForCurrentLayer()) {
+      throw new IllegalStateException(
+          "SubTriggerExecutor can only execute timers for sub-triggres.");
+    }
+
+    int index = e.getChildIndex();
     if (isFinished.get(index)) {
       throw new IllegalStateException("Calling onTimer on already finished sub-element " + index);
     }
@@ -174,7 +190,7 @@ class SubTriggerExecutor<W extends BoundedWindow> {
   /**
    * Clears the state associated with the given subtrigger.
    */
-  public void clearSubTrigger(int index) throws Exception {
+  private void clearSubTrigger(int index) throws Exception {
     subTriggers.get(index).clear(context.forChild(index), window);
   }
 
@@ -188,34 +204,16 @@ class SubTriggerExecutor<W extends BoundedWindow> {
     context.remove(SUBTRIGGERS_FINISHED_SET_TAG, window);
   }
 
-  /**
-   * Mark the sub-trigger at {@code index} as never-started. If the sub-trigger wasn't finished,
-   * clears any associated state.
-   *
-   * @param index the index of the sub-trigger to affect.
-   */
-  public void reset(int index) throws Exception {
-    // If it wasn't finished, the trigger may have state associated with it. Clear that up.
-    if (!isFinished.get(index)) {
-      clearSubTrigger(index);
-    }
-
-    // And mark it finished.
-    isFinished.clear(index);
-    flush();
-  }
-
-  public boolean isFinished(int index) {
-    return isFinished.get(index);
-  }
-
   private void markFinishedInChild(TriggerContext<W> childContext, int index) throws Exception {
     isFinished.set(index);
     flush();
     subTriggers.get(index).clear(childContext, window);
   }
 
-  public void markFinished(TriggerContext<W> context, int index) throws Exception {
+  /**
+   * Mark the child at the given index as finished and clean up any associated state.
+   */
+  public void markFinished(int index) throws Exception {
     markFinishedInChild(context.forChild(index), index);
   }
 
