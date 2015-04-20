@@ -125,7 +125,7 @@ authenticated Google Cloud SDK. In this case, invoke the example as follows:
 
 Your Cloud Storage location should be entered in the form of
 `gs://bucket/path/to/staging/directory`. The Cloud Platform project refers to
-its name (not number). 
+its name (not number).
 
 Alternatively, you may choose to bundle all dependencies into a single JAR and
 execute it outside of the Maven environment. For example, after building and
