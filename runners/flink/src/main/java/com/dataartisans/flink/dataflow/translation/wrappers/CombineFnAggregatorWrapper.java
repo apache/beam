@@ -84,25 +84,5 @@ public class CombineFnAggregatorWrapper<AI, AA, AR> implements Aggregator<AI>, A
 	public void addValue(AI value) {
 		add(value);
 	}
-
-	@Override
-	public void write(ObjectOutputStream out) throws IOException {
-		byte[] aaByte = SerializableUtils.serializeToByteArray((Serializable) aa);
-		byte[] combinerByte = SerializableUtils.serializeToByteArray(combiner);
-		out.write(aaByte.length);
-		out.write(aaByte);
-		out.write(combinerByte.length);
-		out.write(combinerByte);
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void read(ObjectInputStream in) throws IOException {
-		byte[] aaByte = new byte[in.readInt()];
-		in.read(aaByte);
-		byte[] combinerByte = new byte[in.readInt()];
-		in.read(combinerByte);
-		this.aa = (AA) SerializableUtils.deserializeFromByteArray(aaByte, "AggreatorValue");
-		this.combiner = (Combine.CombineFn<AI,AA,AR>) SerializableUtils.deserializeFromByteArray(combinerByte, "AggreatorCombiner");
-	}
+	
 }

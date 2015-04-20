@@ -76,28 +76,6 @@ public class SerializableFnAggregatorWrapper<AI, AO> implements Aggregator<AI>, 
 	}
 
 	@Override
-	public void write(ObjectOutputStream out) throws IOException {
-		byte[] aaByte = SerializableUtils.serializeToByteArray((Serializable) aa);
-		byte[] combinerByte = SerializableUtils.serializeToByteArray(serFun);
-		out.writeInt(aaByte.length);
-		out.write(aaByte);
-		out.writeInt(combinerByte.length);
-		out.write(combinerByte);
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void read(ObjectInputStream in) throws IOException {
-		byte[] aaByte = new byte[in.readInt()];
-		in.read(aaByte);
-		byte[] serFunByte = new byte[in.readInt()];
-		in.read(serFunByte);
-		this.aa = (AO) SerializableUtils.deserializeFromByteArray(aaByte, "AggreatorValue");
-		this.serFun = (SerializableFunction<Iterable<AI>, AO>) SerializableUtils.deserializeFromByteArray(serFunByte, "AggreatorSerializableFunction");
-
-	}
-
-	@Override
 	public Accumulator<AI, Serializable> clone() {
 		// copy it by merging
 		AO resultCopy = serFun.apply(Lists.newArrayList((AI) aa));
