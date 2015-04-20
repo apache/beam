@@ -688,7 +688,7 @@ public class DatastoreIO {
      * <p> Must be set, or it may result in an I/O error when querying
      * Cloud Datastore.
      */
-    private static final int QUERY_LIMIT = 5000;
+    private static final int QUERY_LIMIT = 500;
 
     private Entity currentEntity;
 
