@@ -20,6 +20,7 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.client.util.Preconditions;
 import com.google.api.services.storage.Storage;
+import com.google.api.services.storage.model.StorageObject;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,10 +31,13 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  * Implements WritableByteChannel to provide write access to GCS.
@@ -94,6 +98,9 @@ public class GoogleCloudStorageWriteChannel
   // Upload operation that takes place on a separate thread.
   private UploadOperation uploadOperation;
 
+  // The future wrapping the upload operation.
+  private Future<StorageObject> uploadOperationFuture;
+
   // Default GCS upload granularity.
   private static final int GCS_UPLOAD_GRANULARITY = 8 * 1024 * 1024;
 
@@ -125,17 +132,10 @@ public class GoogleCloudStorageWriteChannel
    * Allows running upload operation on a background thread.
    */
   static class UploadOperation
-      implements Runnable {
+      implements Callable<StorageObject> {
 
     // Object to be uploaded. This object declared final for safe object publishing.
     private final Storage.Objects.Insert insertObject;
-
-    // Exception encountered during upload.
-    Throwable exception;
-
-    // Allows other threads to wait for this operation to be complete. This object declared final
-    // for safe object publishing.
-    final CountDownLatch uploadDone = new CountDownLatch(1);
 
     // Read end of the pipe. This object declared final for safe object publishing.
     private final InputStream pipeSource;
@@ -151,44 +151,31 @@ public class GoogleCloudStorageWriteChannel
     }
 
     /**
-     * Gets exception/error encountered during upload or null.
-     */
-    public Throwable exception() {
-      return exception;
-    }
-
-    /**
      * Runs the upload operation.
      */
     @Override
-    public void run() {
+    public StorageObject call() throws Exception {
+      Exception exception = null;
       try {
-        insertObject.execute();
-      } catch (Throwable t) {
-        exception = t;
-        LOG.error("Upload failure", t);
+        return insertObject.execute();
+      } catch (Exception e) {
+        exception = e;
+        LOG.error("Upload failure", e);
       } finally {
-        uploadDone.countDown();
         try {
           // Close this end of the pipe so that the writer at the other end
           // will not hang indefinitely.
           pipeSource.close();
         } catch (IOException ioe) {
           LOG.error("Error trying to close pipe.source()", ioe);
-          // Log and ignore IOException while trying to close the channel,
-          // as there is not much we can do about it.
+          if (exception != null) {
+            exception.addSuppressed(ioe);
+          } else {
+            exception = ioe;
+          }
         }
       }
-    }
-
-    public void waitForCompletion() {
-      do {
-        try {
-          uploadDone.await();
-        } catch (InterruptedException e) {
-          // Ignore it and continue to wait.
-        }
-      } while(uploadDone.getCount() > 0);
+      throw exception;
     }
   }
 
@@ -236,7 +223,9 @@ public class GoogleCloudStorageWriteChannel
     throwIfNotOpen();
 
     // No point in writing further if upload failed on another thread.
-    throwIfUploadFailed();
+    if (uploadOperationFuture.isDone()) {
+      waitForCompletionAndThrowIfUploadFailed();
+    }
 
     return pipeSinkChannel.write(buffer);
   }
@@ -266,13 +255,13 @@ public class GoogleCloudStorageWriteChannel
     throwIfNotOpen();
     try {
       pipeSinkChannel.close();
-      uploadOperation.waitForCompletion();
-      throwIfUploadFailed();
+      waitForCompletionAndThrowIfUploadFailed();
     } finally {
       pipeSinkChannel = null;
       pipeSink = null;
       pipeSource = null;
       uploadOperation = null;
+      uploadOperationFuture = null;
     }
   }
 
@@ -343,7 +332,7 @@ public class GoogleCloudStorageWriteChannel
     // Given that the two ends of the pipe must operate asynchronous relative
     // to each other, we need to start the upload operation on a separate thread.
     uploadOperation = new UploadOperation(insertObject, pipeSource);
-    threadPool.execute(uploadOperation);
+    uploadOperationFuture = threadPool.submit(uploadOperation);
   }
 
   /**
@@ -363,14 +352,24 @@ public class GoogleCloudStorageWriteChannel
    *
    * @throws IOException on IO error
    */
-  private void throwIfUploadFailed()
+  private StorageObject waitForCompletionAndThrowIfUploadFailed()
       throws IOException {
-    if ((uploadOperation != null) && (uploadOperation.exception() != null)) {
-      if (uploadOperation.exception() instanceof Error) {
-        throw (Error) uploadOperation.exception();
+    try {
+      return uploadOperationFuture.get();
+    } catch (InterruptedException e) {
+      // If we were interrupted, we need to cancel the upload operation.
+      uploadOperationFuture.cancel(true);
+      IOException exception = new ClosedByInterruptException();
+      exception.addSuppressed(e);
+      throw exception;
+    } catch (ExecutionException e) {
+      if (e.getCause() instanceof Error) {
+        throw (Error) e.getCause();
+      } else {
+        throw new IOException(
+            String.format("Failed to write to GCS path %s.", getPrintableGCSPath()),
+            e.getCause());
       }
-      throw new IOException(String.format("Failed to write to GCS path %s.", getPrintableGCSPath()),
-          uploadOperation.exception());
     }
   }
 
