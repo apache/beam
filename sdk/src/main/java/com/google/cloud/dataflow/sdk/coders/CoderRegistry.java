@@ -29,15 +29,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -64,25 +60,6 @@ import java.util.Map;
  */
 public class CoderRegistry implements CoderProvider {
   private static final Logger LOG = LoggerFactory.getLogger(CoderRegistry.class);
-
-  /** A factory that always returns the coder with which it is instantiated. */
-  public class ConstantCoderFactory implements CoderFactory {
-    private Coder<?> coder;
-
-    public ConstantCoderFactory(Coder<?> coder) {
-      this.coder = coder;
-    }
-
-    @Override
-    public Coder<?> create(List<? extends Coder<?>> typeArgumentCoders) {
-      return this.coder;
-    }
-
-    @Override
-    public List<Object> getInstanceComponents(Object value) {
-      return Collections.emptyList();
-    }
-  }
 
   public CoderRegistry() {
     setFallbackCoderProvider(SerializableCoder.PROVIDER);
@@ -136,65 +113,7 @@ public class CoderRegistry implements CoderProvider {
    */
   public void registerCoder(Class<?> clazz,
                             Class<?> coderClazz) {
-    int numTypeParameters = clazz.getTypeParameters().length;
-
-    // Find the static factory method of coderClazz named 'of' with
-    // the appropriate number of type parameters.
-
-    Class<?>[] factoryMethodArgTypes = new Class<?>[numTypeParameters];
-    Arrays.fill(factoryMethodArgTypes, Coder.class);
-
-    Method factoryMethod;
-    try {
-      factoryMethod =
-          coderClazz.getDeclaredMethod("of", factoryMethodArgTypes);
-    } catch (NoSuchMethodException | SecurityException exn) {
-      throw new IllegalArgumentException(
-          "Cannot register Coder " + coderClazz + ": "
-          + "does not have an accessible method named 'of' with "
-          + numTypeParameters + " arguments of Coder type",
-          exn);
-    }
-    if (!Modifier.isStatic(factoryMethod.getModifiers())) {
-      throw new IllegalArgumentException(
-          "Cannot register Coder " + coderClazz + ": "
-          + "method named 'of' with " + numTypeParameters
-          + " arguments of Coder type is not static");
-    }
-    if (!coderClazz.isAssignableFrom(factoryMethod.getReturnType())) {
-      throw new IllegalArgumentException(
-          "Cannot register Coder " + coderClazz + ": "
-          + "method named 'of' with " + numTypeParameters
-          + " arguments of Coder type does not return a " + coderClazz);
-    }
-    try {
-      if (!factoryMethod.isAccessible()) {
-        factoryMethod.setAccessible(true);
-      }
-    } catch (SecurityException exn) {
-      throw new IllegalArgumentException(
-          "Cannot register Coder " + coderClazz + ": "
-          + "method named 'of' with " + numTypeParameters
-          + " arguments of Coder type is not accessible",
-          exn);
-    }
-
-    // Find the static method to decompose values when inferring a coder,
-    // if there are type parameters for which we also need an example
-    // value
-    Method getComponentsMethod = null;
-    if (clazz.getTypeParameters().length > 0) {
-      try {
-        getComponentsMethod = coderClazz.getDeclaredMethod(
-            "getInstanceComponents",
-            clazz);
-      } catch (NoSuchMethodException | SecurityException exn) {
-        LOG.warn("Cannot find getInstanceComponents for class {}. This may limit the ability to"
-            + " infer a Coder for values of this type.", coderClazz, exn);
-      }
-    }
-
-    registerCoder(clazz, defaultCoderFactory(coderClazz, factoryMethod, getComponentsMethod));
+    registerCoder(clazz, CoderFactories.fromStaticMethods(coderClazz));
   }
 
   public void registerCoder(Class<?> rawClazz,
@@ -206,7 +125,7 @@ public class CoderRegistry implements CoderProvider {
   }
 
   public void registerCoder(Class<?> rawClazz, Coder<?> coder) {
-    CoderFactory factory = new ConstantCoderFactory(coder);
+    CoderFactory factory = CoderFactories.forCoder(coder);
     registerCoder(rawClazz, factory);
   }
 
@@ -479,62 +398,6 @@ public class CoderRegistry implements CoderProvider {
    private CoderProvider fallbackCoderProvider;
 
   /**
-   * Returns a CoderFactory that invokes the given static factory method
-   * to create the Coder.
-   */
-  static CoderFactory defaultCoderFactory(
-      final Class<?> coderClazz,
-      final Method coderFactoryMethod,
-      final Method getComponentsMethod) {
-
-    return new CoderFactory() {
-      @Override
-      public Coder<?> create(List<? extends Coder<?>> typeArgumentCoders) {
-        try {
-          return (Coder) coderFactoryMethod.invoke(
-              null /* static */, typeArgumentCoders.toArray());
-        } catch (IllegalAccessException |
-                 IllegalArgumentException |
-                 InvocationTargetException |
-                 NullPointerException |
-                 ExceptionInInitializerError exn) {
-          throw new IllegalStateException(
-              "Error when invoking Coder factory method " + coderFactoryMethod,
-              exn);
-        }
-      }
-
-      @Override
-      public List<Object> getInstanceComponents(Object value) {
-        if (getComponentsMethod == null) {
-          throw new IllegalStateException(
-              "No suitable static getInstanceComponents method available for "
-              + "Coder " + coderClazz);
-        }
-
-        try {
-          @SuppressWarnings("unchecked")
-          List<Object> result = (List<Object>) (getComponentsMethod.invoke(
-              null /* static */, value));
-          return result;
-        } catch (IllegalAccessException
-            | IllegalArgumentException
-            | InvocationTargetException
-            | NullPointerException
-            | ExceptionInInitializerError exn) {
-          throw new IllegalStateException(
-              "Error when invoking Coder getComponents method " + getComponentsMethod,
-              exn);
-        }
-      }
-    };
-  }
-
-  static CoderFactory defaultCoderFactory(Class<?> coderClazz, final Method coderFactoryMethod) {
-    return defaultCoderFactory(coderClazz, coderFactoryMethod, null);
-  }
-
-  /**
    * Returns the CoderFactory to use to create default Coders for
    * instances of the given class, or null if there is no default
    * CoderFactory registered.
@@ -573,7 +436,9 @@ public class CoderRegistry implements CoderProvider {
       return coder;
     }
     if (type instanceof Class<?>) {
-      return getDefaultCoder((Class) type);
+      @SuppressWarnings("unchecked")
+      Class<?> clazz = (Class<?>) type;
+      return getDefaultCoder(clazz);
     } else if (type instanceof ParameterizedType) {
       return this.getDefaultCoder((ParameterizedType) type,
                                   typeCoderBindings);
@@ -613,11 +478,13 @@ public class CoderRegistry implements CoderProvider {
         DefaultCoder.class);
     if (defaultAnnotation != null) {
       LOG.debug("Default Coder for {} found by DefaultCoder annotation", clazz);
-      return InstanceBuilder.ofType(Coder.class)
+      @SuppressWarnings("unchecked")
+      Coder<T> coder = (Coder<T>) InstanceBuilder.ofType(Coder.class)
           .fromClass(defaultAnnotation.value())
           .fromFactoryMethod("of")
           .withArg(Class.class, clazz)
           .build();
+      return coder;
     }
 
     if (getFallbackCoderProvider() != null) {
