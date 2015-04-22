@@ -22,17 +22,12 @@ import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.TestUtils;
-import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.DoubleCoder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.EvaluationResults;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -41,6 +36,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -51,7 +47,8 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
-public class ApproximateUniqueTest {
+public class ApproximateUniqueTest implements Serializable {
+  // implements Serializable just to make it easy to use anonymous inner DoFn subclasses
 
   @Test
   public void testEstimationErrorToSampleSize() {
@@ -65,23 +62,18 @@ public class ApproximateUniqueTest {
     assertEquals(16, ApproximateUnique.sampleSizeFromEstimationError(0.5));
   }
 
-  public <T> PCollection<T> createInput(Pipeline p, Iterable<T> input,
-      Coder<T> coder) {
-    return p.apply(Create.of(input)).setCoder(coder);
-  }
-
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testApproximateUniqueWithSmallInput() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input =
-        createInput(p, Arrays.asList(1, 2, 3, 3), BigEndianIntegerCoder.of());
+    PCollection<Integer> input = p.apply(
+        Create.of(Arrays.asList(1, 2, 3, 3)));
 
     PCollection<Long> estimate = input
         .apply(ApproximateUnique.<Integer>globally(1000));
 
-    DataflowAssert.that(estimate).containsInAnyOrder(3L);
+    DataflowAssert.thatSingleton(estimate).isEqualTo(3L);
 
     p.run();
   }
@@ -104,15 +96,14 @@ public class ApproximateUniqueTest {
     }
     Collections.shuffle(elements);
 
-    DirectPipeline p = DirectPipeline.createForTest();
-    PCollection<Double> input = createInput(p, elements, DoubleCoder.of());
+    Pipeline p = TestPipeline.create();
+    PCollection<Double> input = p.apply(Create.of(elements));
     PCollection<Long> estimate =
         input.apply(ApproximateUnique.<Double>globally(sampleSize));
 
-    EvaluationResults results = p.run();
+    DataflowAssert.thatSingleton(estimate).satisfies(new VerifyEstimateFn(uniqueCount, sampleSize));
 
-    verifyEstimate(uniqueCount, sampleSize,
-        results.getPCollection(estimate).get(0));
+    p.run();
   }
 
   @Test
@@ -142,42 +133,38 @@ public class ApproximateUniqueTest {
       }
     }
 
-    DirectPipeline p = DirectPipeline.createForTest();
-    PCollection<Integer> input =
-        createInput(p, elements, BigEndianIntegerCoder.of());
+    Pipeline p = TestPipeline.create();
+    PCollection<Integer> input = p.apply(Create.of(elements));
     PCollection<Long> estimate =
         input.apply(ApproximateUnique.<Integer>globally(sampleSize));
 
-    EvaluationResults results = p.run();
+    DataflowAssert.thatSingleton(estimate).satisfies(new VerifyEstimateFn(uniqueCount, sampleSize));
 
-    verifyEstimate(uniqueCount, sampleSize,
-        results.getPCollection(estimate).get(0).longValue());
+    p.run();
   }
 
   @Test
   public void testApproximateUniquePerKey() {
-    List<KV<Integer, Integer>> elements = Lists.newArrayList();
-    List<Integer> keys = ImmutableList.of(20, 50, 100);
+    List<KV<Long, Long>> elements = Lists.newArrayList();
+    List<Long> keys = ImmutableList.of(20L, 50L, 100L);
     int elementCount = 1000;
     int sampleSize = 100;
     // Use the key as the number of unique values.
-    for (int uniqueCount : keys) {
-      for (int value = 0; value < elementCount; value++) {
+    for (long uniqueCount : keys) {
+      for (long value = 0; value < elementCount; value++) {
         elements.add(KV.of(uniqueCount, value % uniqueCount));
       }
     }
 
-    DirectPipeline p = DirectPipeline.createForTest();
-    PCollection<KV<Integer, Integer>> input = createInput(p, elements,
-        KvCoder.of(BigEndianIntegerCoder.of(), BigEndianIntegerCoder.of()));
-    PCollection<KV<Integer, Long>> counts =
-        input.apply(ApproximateUnique.<Integer, Integer>perKey(sampleSize));
+    Pipeline p = TestPipeline.create();
+    PCollection<KV<Long, Long>> input = p.apply(Create.of(elements));
+    PCollection<KV<Long, Long>> counts =
+        input.apply(ApproximateUnique.<Long, Long>perKey(sampleSize));
 
-    EvaluationResults results = p.run();
+    DataflowAssert.that(counts).satisfies(new VerifyEstimatePerKeyFn(sampleSize));
 
-    for (KV<Integer, Long> result : results.getPCollection(counts)) {
-      verifyEstimate(result.getKey(), sampleSize, result.getValue());
-    }
+    p.run();
+
   }
 
   /**
@@ -208,19 +195,30 @@ public class ApproximateUniqueTest {
    * error falls within the maximum allowed error of {@code 2/sqrt(sampleSize)}.
    */
   private void runApproximateUniquePipeline(int sampleSize) {
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
     PCollection<String> collection = readPCollection(p);
 
-    PCollection<Long> exact = collection.apply(RemoveDuplicates.<String>create())
-        .apply(Combine.globally(new CountElements<String>()));
+    final PCollectionView<Long> exact = collection
+        .apply(RemoveDuplicates.<String>create())
+        .apply(Combine.globally(new CountElements<String>()))
+        .apply(View.<Long>asSingleton());
 
-    PCollection<Long> approximate =
-        collection.apply(ApproximateUnique.<String>globally(sampleSize));
+    PCollection<Long> approximate = collection
+        .apply(ApproximateUnique.<String>globally(sampleSize));
 
-    EvaluationResults results = p.run();
+    PCollection<KV<Long, Long>> approximateAndExact = approximate
+        .apply(ParDo.of(new DoFn<Long, KV<Long, Long>>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                c.output(KV.of(c.element(), c.sideInput(exact)));
+              }
+            })
+            .withSideInputs(exact));
 
-    verifyEstimate(results.getPCollection(exact).get(0).longValue(), sampleSize,
-        results.getPCollection(approximate).get(0).longValue());
+    DataflowAssert.that(approximateAndExact)
+        .satisfies(new VerifyEstimatePerKeyFn(sampleSize));
+
+    p.run();
   }
 
   /**
@@ -244,8 +242,7 @@ public class ApproximateUniqueTest {
    * {@code uniqueCount} and {@code estimate} is less than
    * {@code 2 / sqrt(sampleSize}).
    */
-  private static void verifyEstimate(long uniqueCount, int sampleSize,
-      long estimate) {
+  private static void verifyEstimate(long uniqueCount, int sampleSize, long estimate) {
     if (uniqueCount < sampleSize) {
       assertEquals("Number of hashes is less than the sample size. "
           + "Estimate should be exact", uniqueCount, estimate);
@@ -256,6 +253,43 @@ public class ApproximateUniqueTest {
 
     assertTrue("Estimate= " + estimate + " Actual=" + uniqueCount + " Error="
         + error + "%, MaxError=" + maxError + "%.", error < maxError);
+
+    assertTrue("Estimate= " + estimate + " Actual=" + uniqueCount + " Error="
+        + error + "%, MaxError=" + maxError + "%.", error < maxError);
+  }
+
+  private static class VerifyEstimateFn implements SerializableFunction<Long, Void> {
+    private long uniqueCount;
+    private int sampleSize;
+
+    public VerifyEstimateFn(long uniqueCount, int sampleSize) {
+      this.uniqueCount = uniqueCount;
+      this.sampleSize = sampleSize;
+    }
+
+    @Override
+    public Void apply(Long estimate) {
+      verifyEstimate(uniqueCount, sampleSize, estimate);
+      return null;
+    }
+  }
+
+  private static class VerifyEstimatePerKeyFn
+      implements SerializableFunction<Iterable<KV<Long, Long>>, Void> {
+
+    private int sampleSize;
+
+    public VerifyEstimatePerKeyFn(int sampleSize) {
+      this.sampleSize = sampleSize;
+    }
+
+    @Override
+    public Void apply(Iterable<KV<Long, Long>> estimatePerKey) {
+      for (KV<Long, Long> result : estimatePerKey) {
+        verifyEstimate(result.getKey(), sampleSize, result.getValue());
+      }
+      return null;
+    }
   }
 
   /**

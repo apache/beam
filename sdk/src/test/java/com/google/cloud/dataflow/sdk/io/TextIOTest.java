@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.cloud.dataflow.sdk.TestUtils.INTS_ARRAY;
-import static com.google.cloud.dataflow.sdk.TestUtils.LINES;
 import static com.google.cloud.dataflow.sdk.TestUtils.LINES_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_INTS_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES_ARRAY;
@@ -33,9 +32,9 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.TextualIntegerCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO.CompressionType;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.EvaluationResults;
+import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
@@ -149,7 +148,7 @@ public class TextIOTest {
       }
     }
 
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     TextIO.Read.Bound<T> read;
     if (coder.equals(StringUtf8Coder.of())) {
@@ -162,10 +161,8 @@ public class TextIOTest {
 
     PCollection<T> output = p.apply(read);
 
-    EvaluationResults results = p.run();
-
-    assertThat(results.getPCollection(output),
-               containsInAnyOrder(expected));
+    DataflowAssert.that(output).containsInAnyOrder(expected);
+    p.run();
   }
 
   @Test
@@ -190,7 +187,7 @@ public class TextIOTest {
 
   @Test
   public void testReadNamed() {
-    Pipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     {
       PCollection<String> output1 =
@@ -215,7 +212,7 @@ public class TextIOTest {
     File tmpFile = tmpFolder.newFile("file.txt");
     String filename = tmpFile.getPath();
 
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     PCollection<T> input =
         p.apply(Create.of(Arrays.asList(elems))).setCoder(coder);
@@ -281,7 +278,7 @@ public class TextIOTest {
     File outFolder = tmpFolder.newFolder();
     String filename = outFolder.toPath().resolve("output").toString();
 
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(LINES_ARRAY)))
@@ -300,11 +297,6 @@ public class TextIOTest {
 
   @Test
   public void testWriteNamed() {
-    Pipeline p = DirectPipeline.createForTest();
-
-    PCollection<String> input =
-        p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of());
-
     {
       PTransform<PCollection<String>, PDone> transform1 =
         TextIO.Write.to("/tmp/file.txt");
@@ -329,7 +321,7 @@ public class TextIOTest {
     File outFolder = tmpFolder.newFolder();
     String filename = outFolder.toPath().resolve("output@*").toString();
 
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(LINES_ARRAY)))
@@ -346,6 +338,7 @@ public class TextIOTest {
    */
   @Test
   public void testGoodWildcards() throws Exception {
+
     TestDataflowPipelineOptions options = buildTestPipelineOptions();
     options.setGcsUtil(buildMockGcsUtil());
 
@@ -376,7 +369,7 @@ public class TextIOTest {
    */
   @Test
   public void testBadWildcardRecursive() throws Exception {
-    Pipeline pipeline = Pipeline.create(buildTestPipelineOptions());
+    Pipeline pipeline = TestPipeline.create();
 
     pipeline.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
 
@@ -423,16 +416,15 @@ public class TextIOTest {
       }
     }
 
-
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     TextIO.Read.Bound<String> read =
         TextIO.Read.from(filename).withCompressionType(CompressionType.GZIP);
     PCollection<String> output = p.apply(read);
 
-    EvaluationResults results = p.run();
+    DataflowAssert.that(output).containsInAnyOrder(expected);
+    p.run();
 
-    assertThat(results.getPCollection(output), containsInAnyOrder(expected.toArray()));
     tmpFile.delete();
   }
 
@@ -450,14 +442,14 @@ public class TextIOTest {
       }
     }
 
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
     TextIO.Read.Bound<String> read =
         TextIO.Read.from(filename).withCompressionType(CompressionType.GZIP);
     PCollection<String> output = p.apply(read);
 
-    EvaluationResults results = p.run();
+    DataflowAssert.that(output).containsInAnyOrder(expected);
+    p.run();
 
-    assertThat(results.getPCollection(output), containsInAnyOrder(expected.toArray()));
     tmpFile.delete();
   }
 }

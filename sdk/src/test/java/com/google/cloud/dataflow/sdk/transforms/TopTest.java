@@ -16,17 +16,15 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.EvaluationResults;
 import com.google.cloud.dataflow.sdk.runners.RecordingPipelineVisitor;
+import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
@@ -87,7 +85,7 @@ public class TopTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testTop() {
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(COLLECTION)))
                  .setCoder(StringUtf8Coder.of());
@@ -101,23 +99,23 @@ public class TopTest {
     PCollection<KV<String, List<Integer>>> smallestPerKey = createInputTable(p)
         .apply(Top.<String, Integer>smallestPerKey(2));
 
-    EvaluationResults results = p.run();
-
-    assertThat(results.getPCollection(top1).get(0), contains("bb"));
-    assertThat(results.getPCollection(top2).get(0), contains("z", "c"));
-    assertThat(results.getPCollection(top3).get(0), contains("a", "bb", "c"));
-    assertThat(results.getPCollection(largestPerKey), containsInAnyOrder(
+    DataflowAssert.thatSingletonIterable(top1).containsInAnyOrder(Arrays.asList("bb"));
+    DataflowAssert.thatSingletonIterable(top2).containsInAnyOrder("z", "c");
+    DataflowAssert.thatSingletonIterable(top3).containsInAnyOrder("a", "bb", "c");
+    DataflowAssert.that(largestPerKey).containsInAnyOrder(
         KV.of("a", Arrays.asList(3, 2)),
-        KV.of("b", Arrays.asList(100, 10))));
-    assertThat(results.getPCollection(smallestPerKey), containsInAnyOrder(
+        KV.of("b", Arrays.asList(100, 10)));
+    DataflowAssert.that(smallestPerKey).containsInAnyOrder(
         KV.of("a", Arrays.asList(1, 2)),
-        KV.of("b", Arrays.asList(1, 10))));
+        KV.of("b", Arrays.asList(1, 10)));
+
+    p.run();
   }
 
   @Test
   @SuppressWarnings("unchecked")
   public void testTopEmpty() {
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(EMPTY_COLLECTION)))
                  .setCoder(StringUtf8Coder.of());
@@ -131,19 +129,19 @@ public class TopTest {
     PCollection<KV<String, List<Integer>>> smallestPerKey = createEmptyInputTable(p)
         .apply(Top.<String, Integer>smallestPerKey(2));
 
-    EvaluationResults results = p.run();
+    DataflowAssert.thatSingletonIterable(top1).containsInAnyOrder();
+    DataflowAssert.thatSingletonIterable(top2).containsInAnyOrder();
+    DataflowAssert.thatSingletonIterable(top3).containsInAnyOrder();
+    DataflowAssert.that(largestPerKey).containsInAnyOrder();
+    DataflowAssert.that(smallestPerKey).containsInAnyOrder();
 
-    assertThat(results.getPCollection(top1).get(0), containsInAnyOrder());
-    assertThat(results.getPCollection(top2).get(0), containsInAnyOrder());
-    assertThat(results.getPCollection(top3).get(0), containsInAnyOrder());
-    assertThat(results.getPCollection(largestPerKey), containsInAnyOrder());
-    assertThat(results.getPCollection(smallestPerKey), containsInAnyOrder());
+    p.run();
   }
 
   @Test
   @SuppressWarnings("unchecked")
   public void testTopZero() {
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(COLLECTION)))
                  .setCoder(StringUtf8Coder.of());
@@ -158,23 +156,23 @@ public class TopTest {
     PCollection<KV<String, List<Integer>>> smallestPerKey = createInputTable(p)
         .apply(Top.<String, Integer>smallestPerKey(0));
 
-    EvaluationResults results = p.run();
+    DataflowAssert.thatSingletonIterable(top1).containsInAnyOrder();
+    DataflowAssert.thatSingletonIterable(top2).containsInAnyOrder();
+    DataflowAssert.thatSingletonIterable(top3).containsInAnyOrder();
+    DataflowAssert.that(largestPerKey).containsInAnyOrder(
+        KV.of("a", Arrays.<Integer>asList()),
+        KV.of("b", Arrays.<Integer>asList()));
+    DataflowAssert.that(smallestPerKey).containsInAnyOrder(
+        KV.of("a", Arrays.<Integer>asList()),
+        KV.of("b", Arrays.<Integer>asList()));
 
-    assertThat(results.getPCollection(top1).get(0), containsInAnyOrder());
-    assertThat(results.getPCollection(top2).get(0), containsInAnyOrder());
-    assertThat(results.getPCollection(top3).get(0), containsInAnyOrder());
-    assertThat(results.getPCollection(largestPerKey), containsInAnyOrder(
-        KV.of("a", Arrays.<Integer>asList()),
-        KV.of("b", Arrays.<Integer>asList())));
-    assertThat(results.getPCollection(smallestPerKey), containsInAnyOrder(
-        KV.of("a", Arrays.<Integer>asList()),
-        KV.of("b", Arrays.<Integer>asList())));
+    p.run();
   }
 
   // This is a purely compile-time test.  If the code compiles, then it worked.
   @Test
   public void testPerKeySerializabilityRequirement() {
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
     p.apply(Create.of(Arrays.asList(COLLECTION)))
             .setCoder(StringUtf8Coder.of());
 
@@ -189,7 +187,7 @@ public class TopTest {
 
   @Test
   public void testCountConstraint() {
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(COLLECTION)))
             .setCoder(StringUtf8Coder.of());
@@ -202,7 +200,7 @@ public class TopTest {
 
   @Test
   public void testTransformName() {
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(COLLECTION)))
             .setCoder(StringUtf8Coder.of());

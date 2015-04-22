@@ -18,6 +18,9 @@ package com.google.cloud.dataflow.sdk.testing;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.IterableCoder;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
+import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -27,6 +30,7 @@ import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.common.base.Optional;
@@ -39,6 +43,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
@@ -92,19 +97,26 @@ public class DataflowAssert {
    * {@link PCollection PCollection&lt;Iterable&lt;T&gt;&gt;}, which must be a
    * singleton.
    */
-  public static <T> IterableAssert<T> thatSingletonIterable(PCollection<Iterable<T>> actual) {
+  public static <T> IterableAssert<T>
+      thatSingletonIterable(PCollection<? extends Iterable<T>> actual) {
+
     List<? extends Coder<?>> maybeElementCoder = actual.getCoder().getCoderArguments();
     Coder<T> tCoder;
     try {
       tCoder = (Coder<T>) Iterables.getOnlyElement(maybeElementCoder);
     } catch (NoSuchElementException | IllegalArgumentException exc) {
       throw new IllegalArgumentException(
-        "DataflowAssert.<T>thatSingltonIterable requires a PCollection<Iterable<T>>"
+        "DataflowAssert.<T>thatSingletonIterable requires a PCollection<Iterable<T>>"
         + " with a Coder<Iterable<T>> where getCoderArguments() yields a"
         + " single Coder<T> to apply to the elements.");
     }
 
-    return new IterableAssert<>(inGlobalWindows(actual).apply(View.<Iterable<T>>asSingleton()))
+    @SuppressWarnings("unchecked") // Safe covariant cast
+    PCollection<Iterable<T>> actualIterables = (PCollection<Iterable<T>>) actual;
+
+    return new IterableAssert<T>(
+            inGlobalWindows(actualIterables)
+            .apply(View.<Iterable<T>>asSingleton()))
         .setCoder(tCoder);
   }
 
@@ -123,6 +135,37 @@ public class DataflowAssert {
   public static <T> SingletonAssert<T> thatSingleton(PCollection<T> actual) {
     return new SingletonAssert<>(inGlobalWindows(actual).apply(View.<T>asSingleton()))
         .setCoder(actual.getCoder());
+  }
+
+  /**
+   * Constructs a {@link SingletonAssert SingletonAssert<Map<K, Iterable<V>>>}
+   * for the value of the provided {@link PCollection PCollection<KV<K, V>>}
+   *
+   * <p> Note that the actual value must be coded by a {@link KvCoder},
+   * not just any {@code Coder<K, V>}.
+   */
+  public static <K, V> SingletonAssert<Map<K, Iterable<V>>>
+      thatMultimap(PCollection<KV<K, V>> actual) {
+    @SuppressWarnings("unchecked")
+    KvCoder<K, V> kvCoder = (KvCoder<K, V>) actual.getCoder();
+    return new SingletonAssert<>(inGlobalWindows(actual).apply(View.<K, V>asMap()))
+        .setCoder(MapCoder.of(kvCoder.getKeyCoder(), IterableCoder.of(kvCoder.getValueCoder())));
+  }
+
+  /**
+   * Constructs a {@link SingletonAssert SingletonAssert<Map<K, V>>} for the value of the provided
+   * {@link PCollection PCollection<KV<K, V>>}, which must have at
+   * most one value per key.
+
+   * <p> Note that the actual value must be coded by a {@link KvCoder},
+   * not just any {@code Coder<K, V>}.
+   */
+  public static <K, V> SingletonAssert<Map<K, V>> thatMap(PCollection<KV<K, V>> actual) {
+    @SuppressWarnings("unchecked")
+    KvCoder<K, V> kvCoder = (KvCoder<K, V>) actual.getCoder();
+    return new SingletonAssert<>(
+        inGlobalWindows(actual).apply(View.<K, V>asMap().withSingletonValues()))
+        .setCoder(MapCoder.of(kvCoder.getKeyCoder(), kvCoder.getValueCoder()));
   }
 
   ////////////////////////////////////////////////////////////

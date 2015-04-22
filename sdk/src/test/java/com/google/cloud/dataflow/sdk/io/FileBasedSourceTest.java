@@ -23,20 +23,18 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.FileBasedSource.FileBasedReader;
 import com.google.cloud.dataflow.sdk.io.FileBasedSource.Mode;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.EvaluationResults;
-import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
-import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.ImmutableList;
 
@@ -57,7 +55,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
@@ -646,38 +643,22 @@ public class FileBasedSourceTest {
 
   @Test
   public void testDataflowFile() throws IOException {
-    TestDataflowPipelineOptions options =
-        PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
-    options.setGcpCredential(new TestCredential());
-
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
     List<String> data = createStringDataset(3, 50);
 
     String fileName = "file";
     File file = createFileWithData(fileName, data);
 
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 64, null);
-
     PCollection<String> output = p.apply(Read.from(source).named("ReadFileData"));
 
-    EvaluationResults results = p.run();
-    List<String> readData = results.getPCollection(output);
-
-    // Need to sort here since we have no control over the order of files returned from a file
-    // pattern expansion.
-    Collections.sort(data);
-    Collections.sort(readData);
-
-    assertThat(data, containsInAnyOrder(readData.toArray()));
+    DataflowAssert.that(output).containsInAnyOrder(data);
+    p.run();
   }
 
   @Test
   public void testDataflowFilePattern() throws IOException {
-    TestDataflowPipelineOptions options =
-        PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
-    options.setGcpCredential(new TestCredential());
-
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     List<String> data1 = createStringDataset(3, 50);
     File file1 = createFileWithData("file1", data1);
@@ -696,20 +677,13 @@ public class FileBasedSourceTest {
 
     PCollection<String> output = p.apply(Read.from(source).named("ReadFileData"));
 
-    EvaluationResults pipelineResults = p.run();
-    List<String> results = pipelineResults.getPCollection(output);
-
     List<String> expectedResults = new ArrayList<String>();
     expectedResults.addAll(data1);
     expectedResults.addAll(data2);
     expectedResults.addAll(data3);
 
-    // Need to sort here since we have no control over the order of files returned from a file
-    // pattern expansion.
-    Collections.sort(expectedResults);
-    Collections.sort(results);
-
-    assertThat(expectedResults, containsInAnyOrder(results.toArray()));
+    DataflowAssert.that(output).containsInAnyOrder(expectedResults);
+    p.run();
   }
 
   @Test

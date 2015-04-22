@@ -17,17 +17,13 @@
 package com.google.cloud.dataflow.sdk.transforms.join;
 
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.EvaluationResults;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -35,6 +31,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
@@ -43,7 +40,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.Iterables;
 
-import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -53,8 +49,8 @@ import org.junit.runners.JUnit4;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tests for CoGroupByKeyTest.  Implements Serializable for anonymous DoFns.
@@ -98,10 +94,10 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   /**
-   * Returns a PCollection<KV<Integer, CoGbkResult>> containing the result
-   * of a CoGbk over 2 PCollection<KV<Integer, String>>, where each PCollection
-   * has no duplicate keys and the key sets of each PCollection are
-   * intersecting but neither is a subset of the other.
+   * Returns a {@code PCollection<KV<Integer, CoGbkResult>>} containing the result
+   * of a {@link CoGroupByKey} over 2 {@code PCollection<KV<Integer, String>>},
+   * where each {@link PCollection} has no duplicate keys and the key sets of
+   * each {@link PCollection} are intersecting but neither is a subset of the other.
    */
   private PCollection<KV<Integer, CoGbkResult>> buildGetOnlyGbk(
       Pipeline p,
@@ -126,74 +122,34 @@ public class CoGroupByKeyTest implements Serializable {
 
   @Test
   public void testCoGroupByKeyGetOnly() {
-    TupleTag<String> tag1 = new TupleTag<>();
-    TupleTag<String> tag2 = new TupleTag<>();
+    final TupleTag<String> tag1 = new TupleTag<>();
+    final TupleTag<String> tag2 = new TupleTag<>();
 
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         buildGetOnlyGbk(p, tag1, tag2);
 
-    EvaluationResults results = p.run();
+    DataflowAssert.thatMap(coGbkResults).satisfies(
+        new SerializableFunction<Map<Integer, CoGbkResult>, Void>() {
+          @Override
+          public Void apply(Map<Integer, CoGbkResult> results) {
+            assertEquals("collection1-1", results.get(1).getOnly(tag1));
+            assertEquals("collection1-2", results.get(2).getOnly(tag1));
+            assertEquals("collection2-2", results.get(2).getOnly(tag2));
+            assertEquals("collection2-3", results.get(3).getOnly(tag2));
+            return null;
+          }
+        });
 
-    List<KV<Integer, CoGbkResult>> finalResult =
-        results.getPCollection(coGbkResults);
-
-    HashMap<Integer, Matcher<String>> collection1Matchers =
-        new HashMap<Integer, Matcher<String>>() {
-      {
-        put(1, equalTo("collection1-1"));
-        put(2, equalTo("collection1-2"));
-      }
-    };
-
-    HashMap<Integer, Matcher<String>> collection2Matchers =
-        new HashMap<Integer, Matcher<String>>() {
-      {
-        put(2, equalTo("collection2-2"));
-        put(3, equalTo("collection2-3"));
-      }
-    };
-
-    for (KV<Integer, CoGbkResult> result : finalResult) {
-      int key = result.getKey();
-      CoGbkResult row = result.getValue();
-      checkGetOnlyForKey(key, collection1Matchers, row, tag1, "default");
-      checkGetOnlyForKey(key, collection2Matchers, row, tag2, "default");
-    }
+    p.run();
   }
 
   /**
-   * Check that a singleton value for a key in a CoGbkResult matches the
-   * expected value in a map.  If no value exists for the key, check that
-   * a default value is given (if supplied) and that an
-   * {@link IllegalArgumentException} is thrown if no default is supplied.
-   */
-  private <K, V> void checkGetOnlyForKey(
-      K key,
-      HashMap<K, Matcher<V>> matchers,
-      CoGbkResult row,
-      TupleTag<V> tag,
-      V defaultValue) {
-    if (matchers.containsKey(key)) {
-      assertThat(row.getOnly(tag), matchers.get(key));
-    } else {
-      assertThat(row.getOnly(tag, defaultValue), equalTo(defaultValue));
-      try {
-        row.getOnly(tag);
-        fail();
-      } catch (IllegalArgumentException e) {
-        // if no value exists, an IllegalArgumentException should be thrown
-      }
-
-    }
-  }
-
-  /**
-   * Returns a PCollection<KV<Integer, CoGbkResult>> containing the
-   * results of the CoGbk over 3 PCollection<KV<Integer, String>>,
-   * each of which correlates a customer id to purchases, addresses, or names,
-   * respectively.
+   * Returns a {@code PCollection<KV<Integer, CoGbkResult>>} containing the
+   * results of the {@code CoGroupByKey} over three
+   * {@code PCollection<KV<Integer, String>>}, each of which correlates
+   * a customer id to purchases, addresses, or names, respectively.
    */
   private PCollection<KV<Integer, CoGbkResult>> buildPurchasesCoGbk(
       Pipeline p,
@@ -248,8 +204,8 @@ public class CoGroupByKeyTest implements Serializable {
   }
 
   /**
-   * Returns a PCollection<KV<Integer, CoGbkResult>> containing the
-   * results of the CoGbk over 2 PCollection<KV<Integer, String>>,
+   * Returns a {@code PCollection<KV<Integer, CoGbkResult>>} containing the
+   * results of the {@code CoGroupByKey} over 2 {@code PCollection<KV<Integer, String>>},
    * each of which correlates a customer id to clicks, purchases, respectively.
    */
   private PCollection<KV<Integer, CoGbkResult>> buildPurchasesCoGbkWithWindowing(
@@ -302,82 +258,53 @@ public class CoGroupByKeyTest implements Serializable {
 
   @Test
   public void testCoGroupByKey() {
-    TupleTag<String> namesTag = new TupleTag<>();
-    TupleTag<String> addressesTag = new TupleTag<>();
-    TupleTag<String> purchasesTag = new TupleTag<>();
+    final TupleTag<String> namesTag = new TupleTag<>();
+    final TupleTag<String> addressesTag = new TupleTag<>();
+    final TupleTag<String> purchasesTag = new TupleTag<>();
 
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         buildPurchasesCoGbk(p, purchasesTag, addressesTag, namesTag);
 
-    EvaluationResults results = p.run();
+    DataflowAssert.thatMap(coGbkResults).satisfies(
+        new SerializableFunction<Map<Integer, CoGbkResult>, Void>() {
+          @Override
+          public Void apply(Map<Integer, CoGbkResult> results) {
+            CoGbkResult result1 = results.get(1);
+            assertEquals("John Smith", result1.getOnly(namesTag));
+            assertThat(result1.getAll(purchasesTag), containsInAnyOrder("Shoes", "Book"));
 
-    List<KV<Integer, CoGbkResult>> finalResult =
-        results.getPCollection(coGbkResults);
+            CoGbkResult result2 = results.get(2);
+            assertEquals("Sally James", result2.getOnly(namesTag));
+            assertEquals("53 S. 3rd", result2.getOnly(addressesTag));
+            assertThat(result2.getAll(purchasesTag), containsInAnyOrder("Suit", "Boat"));
 
-    HashMap<Integer, Matcher<Iterable<? extends String>>> namesMatchers =
-        new HashMap<Integer, Matcher<Iterable<? extends String>>>() {
-      {
-        put(1, containsInAnyOrder("John Smith"));
-        put(2, containsInAnyOrder("Sally James"));
-        put(8, containsInAnyOrder("Jeffery Spalding"));
-        put(20, containsInAnyOrder("Joan Lichtfield"));
-      }
-    };
+            CoGbkResult result3 = results.get(3);
+            assertEquals("29 School Rd", result3.getOnly(addressesTag), "29 School Rd");
+            assertThat(result3.getAll(purchasesTag), containsInAnyOrder("Car", "House"));
 
-    HashMap<Integer, Matcher<Iterable<? extends String>>> addressesMatchers =
-        new HashMap<Integer, Matcher<Iterable<? extends String>>>() {
-      {
-        put(2, containsInAnyOrder("53 S. 3rd"));
-        put(3, containsInAnyOrder("29 School Rd"));
-        put(8, containsInAnyOrder("6 Watling Rd"));
-        put(10, containsInAnyOrder("383 Jackson Street"));
-        put(20, containsInAnyOrder("3 W. Arizona"));
-      }
-    };
+            CoGbkResult result8 = results.get(8);
+            assertEquals("Jeffery Spalding", result8.getOnly(namesTag));
+            assertEquals("6 Watling Rd", result8.getOnly(addressesTag));
+            assertThat(result8.getAll(purchasesTag), containsInAnyOrder("House", "Suit Case"));
 
-    HashMap<Integer, Matcher<Iterable<? extends String>>> purchasesMatchers =
-        new HashMap<Integer, Matcher<Iterable<? extends String>>>() {
-      {
-        put(1, containsInAnyOrder("Shoes", "Book"));
-        put(2, containsInAnyOrder("Suit", "Boat"));
-        put(3, containsInAnyOrder("Car", "House"));
-        put(4, containsInAnyOrder("Suit"));
-        put(8, containsInAnyOrder("House", "Suit Case"));
-        put(10, containsInAnyOrder("Pens"));
-        put(11, containsInAnyOrder("House"));
-        put(14, containsInAnyOrder("Shoes"));
-      }
-    };
+            CoGbkResult result20 = results.get(20);
+            assertEquals("Joan Lichtfield", result20.getOnly(namesTag));
+            assertEquals("3 W. Arizona", result20.getOnly(addressesTag));
 
-    // TODO: Figure out a way to do a hamcrest matcher for CoGbkResults.
-    for (KV<Integer, CoGbkResult> result : finalResult) {
-      int key = result.getKey();
-      CoGbkResult row = result.getValue();
-      checkValuesMatch(key, namesMatchers, row, namesTag);
-      checkValuesMatch(key, addressesMatchers, row, addressesTag);
-      checkValuesMatch(key, purchasesMatchers, row, purchasesTag);
+            assertEquals("383 Jackson Street", results.get(10).getOnly(addressesTag));
 
-    }
+            assertThat(results.get(4).getAll(purchasesTag), containsInAnyOrder("Suit"));
+            assertThat(results.get(10).getAll(purchasesTag), containsInAnyOrder("Pens"));
+            assertThat(results.get(11).getAll(purchasesTag), containsInAnyOrder("House"));
+            assertThat(results.get(14).getAll(purchasesTag), containsInAnyOrder("Shoes"));
 
-  }
+            return null;
+          }
+        });
 
-  /**
-   * Checks that the values for the given tag in the given row matches the
-   * expected values for the given key in the given matchers map.
-   */
-  private <K, V> void checkValuesMatch(
-      K key,
-      HashMap<K, Matcher<Iterable<? extends V>>> matchers,
-      CoGbkResult row,
-      TupleTag<V> tag) {
-    Iterable<V> taggedValues = row.getAll(tag);
-    if (taggedValues.iterator().hasNext()) {
-      assertThat(taggedValues, matchers.get(key));
-    } else {
-      assertNull(matchers.get(key));
-    }
+    p.run();
   }
 
   /**
@@ -511,6 +438,7 @@ public class CoGroupByKeyTest implements Serializable {
                     KV.of(2, result2),
                     KV.of(3, result3),
                     KV.of(4, result4));
+
     assertThat(results, containsInAnyOrder(KV.of("4a", 2), KV.of("8a", 0)));
   }
 

@@ -23,12 +23,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.Source.Reader;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.EvaluationResults;
-import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.util.TestCredential;
+import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.ImmutableList;
 
@@ -537,11 +535,7 @@ public class XmlSourceTest {
 
   @Test
   public void testReadXMLSmallDataflow() throws IOException {
-    TestDataflowPipelineOptions options =
-        PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
-    options.setGcpCredential(new TestCredential());
-
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
@@ -555,16 +549,13 @@ public class XmlSourceTest {
 
     PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
 
-    EvaluationResults results = p.run();
-    List<Train> readData = results.getPCollection(output);
-
     List<Train> expectedResults =
         ImmutableList.of(new Train("Thomas", 1, "blue", null), new Train("Henry", 3, "green", null),
             new Train("Toby", 7, "brown", null), new Train("Gordon", 4, "blue", null),
             new Train("Emily", -1, "red", null), new Train("Percy", 6, "green", null));
 
-    assertThat(
-        trainsToStrings(expectedResults), containsInAnyOrder(trainsToStrings(readData).toArray()));
+    DataflowAssert.that(output).containsInAnyOrder(expectedResults);
+    p.run();
   }
 
   @Test
@@ -638,7 +629,7 @@ public class XmlSourceTest {
     List<Train> trains = generateRandomTrainList(100);
     File file = createRandomTrainXML(fileName, trains);
 
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
     XmlSource<Train> source =
         XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
@@ -647,10 +638,8 @@ public class XmlSourceTest {
             .withMinBundleSize(1024);
     PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
 
-    EvaluationResults results = p.run();
-    List<Train> readData = results.getPCollection(output);
-
-    assertThat(trainsToStrings(trains), containsInAnyOrder(trainsToStrings(readData).toArray()));
+    DataflowAssert.that(output).containsInAnyOrder(trains);
+    p.run();
   }
 
   @Test
@@ -765,7 +754,7 @@ public class XmlSourceTest {
     generateRandomTrainList(8);
     createRandomTrainXML("otherfile.xml", trains1);
 
-    DirectPipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     XmlSource<Train> source = XmlSource.<Train>from(file.getParent() + "/"
                                            + "temp*.xml")
@@ -775,15 +764,12 @@ public class XmlSourceTest {
                                   .withMinBundleSize(1024);
     PCollection<Train> output = p.apply(Read.from(source).named("ReadFileData"));
 
-    EvaluationResults results = p.run();
-    List<Train> readData = results.getPCollection(output);
-
     List<Train> expectedResults = new ArrayList<>();
     expectedResults.addAll(trains1);
     expectedResults.addAll(trains2);
     expectedResults.addAll(trains3);
 
-    assertThat(
-        trainsToStrings(expectedResults), containsInAnyOrder(trainsToStrings(readData).toArray()));
+    DataflowAssert.that(output).containsInAnyOrder(expectedResults);
+    p.run();
   }
 }

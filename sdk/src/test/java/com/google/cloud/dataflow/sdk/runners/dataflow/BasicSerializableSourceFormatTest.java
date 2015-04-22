@@ -29,7 +29,6 @@ import static com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -56,8 +55,9 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
+import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Sample;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -271,30 +271,23 @@ public class BasicSerializableSourceFormatTest {
 
   @Test
   public void testDirectPipelineWithoutTimestamps() throws Exception {
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    DirectPipelineRunner runner = DirectPipelineRunner.fromOptions(options);
-    Pipeline p = Pipeline.create(options);
+    Pipeline p = TestPipeline.create();
     PCollection<Integer> sum = p.apply(Read.from(TestIO.fromRange(10, 20)))
         .apply(Sum.integersGlobally())
         .apply(Sample.<Integer>any(1));
-    DirectPipelineRunner.EvaluationResults results = runner.run(p);
-    assertThat(results.getPCollection(sum), contains(145));
+
+    DataflowAssert.thatSingleton(sum).isEqualTo(145);
   }
 
   @Test
   public void testDirectPipelineWithTimestamps() throws Exception {
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    DirectPipelineRunner runner = DirectPipelineRunner.fromOptions(options);
-    Pipeline p = Pipeline.create(options);
+    Pipeline p = TestPipeline.create();
     PCollection<Integer> sums =
         p.apply(Read.from(TestIO.fromRange(10, 20).withTimestampsMillis()))
          .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(3))))
          .apply(Sum.integersGlobally().withoutDefaults());
-    DirectPipelineRunner.EvaluationResults results = runner.run(p);
     // Should group into [10 11] [12 13 14] [15 16 17] [18 19].
-    assertThat(results.getPCollection(sums), containsInAnyOrder(21, 37, 39, 48));
+    DataflowAssert.that(sums).containsInAnyOrder(21, 37, 39, 48);
   }
 
   @Test
@@ -545,9 +538,11 @@ public class BasicSerializableSourceFormatTest {
     // Encoding is specified in the step, not in the source itself.  This is
     // normal: incoming Dataflow API Source objects in map tasks will have the
     // encoding filled in from the step's output encoding.
-    CloudObject encoding = CloudObject.fromSpec(getObject(
-        // TODO: This should be done via a Structs accessor.
-        ((List<Map<String, Object>>) step.getProperties().get(PropertyNames.OUTPUT_INFO)).get(0),
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> outputInfo =
+        (List<Map<String, Object>>) step.getProperties().get(PropertyNames.OUTPUT_INFO);
+
+    CloudObject encoding = CloudObject.fromSpec(getObject(outputInfo.get(0),
         PropertyNames.ENCODING));
     res.setCodec(encoding);
     return res;
