@@ -567,15 +567,15 @@ public class StreamingDataflowWorker {
 
       responseWriter.println("<html><body>");
 
-      printHeader(responseWriter);
-
-      printMetrics(responseWriter);
-
-      printResources(responseWriter);
-
-      printLastException(responseWriter);
-
-      printSpecs(responseWriter);
+      if (target.equals("/healthz")) {
+        responseWriter.println("ok");
+      } else {
+        printHeader(responseWriter);
+        printMetrics(responseWriter);
+        printResources(responseWriter);
+        printLastException(responseWriter);
+        printSpecs(responseWriter);
+      }
 
       responseWriter.println("</body></html>");
     }
