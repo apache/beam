@@ -55,7 +55,6 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.RetryHttpRequestInitializer;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -196,7 +195,7 @@ public class DatastoreIO {
 
     /** For testing only. */
     private QuerySplitter mockSplitter;
-    private Supplier<Long> mockEstimateSizeBytes;
+    private Long mockEstimateSizeBytes;
 
     private Source(String host, String datasetId, Query query) {
       this.host = host;
@@ -228,7 +227,7 @@ public class DatastoreIO {
       // entity kind being queried, using the __Stat_Kind__ system table, assuming exactly 1 kind
       // is specified in the query.
       if (mockEstimateSizeBytes != null) {
-        return mockEstimateSizeBytes.get();
+        return mockEstimateSizeBytes;
       }
 
       Datastore datastore = getDatastore(options);
@@ -350,7 +349,7 @@ public class DatastoreIO {
     }
 
     /** For testing only. */
-    public Source withMockEstimateSizeBytes(Supplier<Long> estimateSizeBytes) {
+    public Source withMockEstimateSizeBytes(Long estimateSizeBytes) {
       Source res = new Source(host, datasetId, query);
       res.mockSplitter = mockSplitter;
       res.mockEstimateSizeBytes = estimateSizeBytes;

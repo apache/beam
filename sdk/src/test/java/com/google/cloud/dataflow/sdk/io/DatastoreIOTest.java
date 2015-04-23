@@ -42,7 +42,6 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 
 import org.junit.Before;
@@ -155,12 +154,7 @@ public class DatastoreIOTest {
             .withDataset(dataset)
             .withQuery(query)
             .withMockSplitter(splitter)
-            .withMockEstimateSizeBytes(new Supplier<Long>() {
-              @Override
-              public Long get() {
-                return 8 * 1024L;
-              }
-            });
+            .withMockEstimateSizeBytes(8 * 1024L);
 
     List<DatastoreIO.Source> bundles = io.splitIntoBundles(1024, options);
     assertEquals(8, bundles.size());
