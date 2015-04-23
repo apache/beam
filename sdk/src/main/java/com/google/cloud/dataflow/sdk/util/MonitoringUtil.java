@@ -82,27 +82,33 @@ public final class MonitoringUtil {
     @Override
     public void process(List<JobMessage> messages) {
       for (JobMessage message : messages) {
-        StringBuilder sb = new StringBuilder();
-        if (message.getMessageText() != null && !message.getMessageText().isEmpty()) {
-          if (message.getMessageImportance() != null) {
-            if (message.getMessageImportance().equals("ERROR")) {
-              sb.append("Error: ");
-            } else if (message.getMessageImportance().equals("WARNING")) {
-              sb.append("Warning: ");
-            }
-          }
-          // TODO: Allow filtering out overly detailed messages.
-          sb.append(message.getMessageText());
+        if (message.getMessageText() == null || message.getMessageText().isEmpty()) {
+          continue;
         }
-        if (sb.length() > 0) {
-          @Nullable Instant time = fromCloudTime(message.getTime());
-          if (time == null) {
-            out.print("UNKNOWN TIMESTAMP: ");
-          } else {
-            out.print(time + ": ");
-          }
-          out.println(sb.toString());
+        String importanceString = null;
+        if (message.getMessageImportance() == null) {
+          continue;
+        } else if (message.getMessageImportance().equals("JOB_MESSAGE_ERROR")) {
+          importanceString = "Error:   ";
+        } else if (message.getMessageImportance().equals("JOB_MESSAGE_WARNING")) {
+          importanceString = "Warning: ";
+        } else if (message.getMessageImportance().equals("JOB_MESSAGE_DETAILED")) {
+          importanceString = "Detail:  ";
+        } else {
+          // TODO: Remove filtering here once getJobMessages supports minimum
+          // importance.
+          continue;
         }
+        @Nullable Instant time = TimeUtil.fromCloudTime(message.getTime());
+        if (time == null) {
+          out.print("UNKNOWN TIMESTAMP: ");
+        } else {
+          out.print(time + ": ");
+        }
+        if (importanceString != null) {
+          out.print(importanceString);
+        }
+        out.println(message.getMessageText());
       }
       out.flush();
     }
@@ -147,6 +153,7 @@ public final class MonitoringUtil {
    */
   public ArrayList<JobMessage> getJobMessages(
       String jobId, long startTimestampMs) throws IOException {
+    // TODO: Allow filtering messages by importance
     Instant startTimestamp = new Instant(startTimestampMs);
     ArrayList<JobMessage> allMessages = new ArrayList<>();
     String pageToken = null;
@@ -200,6 +207,4 @@ public final class MonitoringUtil {
     return MoreObjects.firstNonNull(DATAFLOW_STATE_TO_JOB_STATE.get(stateName),
         State.UNKNOWN);
   }
-
 }
-
