@@ -804,42 +804,6 @@ public class PipelineOptionsFactory {
       options.setJobId(System.getProperty("job_id"));
     }
 
-    // TODO: Remove setting these options once we have migrated to passing
-    // through the pipeline options.
-    if (System.getProperties().containsKey("root_url")) {
-      options.setApiRootUrl(System.getProperty("root_url"));
-    }
-    if (System.getProperties().containsKey("service_path")) {
-      options.setDataflowEndpoint(System.getProperty("service_path"));
-    }
-    if (System.getProperties().containsKey("temp_gcs_directory")) {
-      options.setTempLocation(System.getProperty("temp_gcs_directory"));
-    }
-    if (System.getProperties().containsKey("service_account_name")) {
-      options.setServiceAccountName(System.getProperty("service_account_name"));
-    }
-    if (System.getProperties().containsKey("service_account_keyfile")) {
-      options.setServiceAccountKeyfile(System.getProperty("service_account_keyfile"));
-    }
-    if (System.getProperties().containsKey("project_id")) {
-      options.setProject(System.getProperty("project_id"));
-    }
-    if (System.getProperties().containsKey("path_validator_class")) {
-      try {
-        options.setPathValidatorClass((Class) Class.forName(
-            System.getProperty("path_validator_class")));
-      } catch (ClassNotFoundException e) {
-        throw new RuntimeException("Unable to find validator class", e);
-      }
-    }
-    if (System.getProperties().containsKey("credential_factory_class")) {
-      try {
-        options.setCredentialFactoryClass((Class) Class.forName(
-            System.getProperty("credential_factory_class")));
-      } catch (ClassNotFoundException e) {
-        throw new RuntimeException("Unable to find credential factory class", e);
-      }
-    }
     return options;
   }
 

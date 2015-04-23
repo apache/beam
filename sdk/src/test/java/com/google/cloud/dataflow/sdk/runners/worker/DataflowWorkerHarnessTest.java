@@ -42,7 +42,6 @@ import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 import org.junit.Before;
@@ -71,6 +70,10 @@ public class DataflowWorkerHarnessTest {
 
   private Dataflow service;
 
+  private static final String PROJECT_ID = "TEST_PROJECT_ID";
+  private static final String JOB_ID = "TEST_JOB_ID";
+  private static final String WORKER_ID = "TEST_WORKER_ID";
+
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
@@ -95,44 +98,36 @@ public class DataflowWorkerHarnessTest {
 
   @Test
   public void testCreationOfWorkerHarness() throws Exception {
-    System.getProperties().putAll(ImmutableMap
-        .<String, String>builder()
-        .put("project_id", "projectId")
-        .put("job_id", "jobId")
-        .put("worker_id", "workerId")
-        .build());
-    DataflowWorkerHarnessOptions options =
-        PipelineOptionsFactory.createFromSystemPropertiesInternal();
-    options.setGcpCredential(new TestCredential());
-    assertNotNull(DataflowWorkerHarness.create(options));
-    assertEquals("jobId", DataflowWorkerLoggingFormatter.getJobId());
-    assertEquals("workerId", DataflowWorkerLoggingFormatter.getWorkerId());
+    pipelineOptions.setProject(PROJECT_ID);
+    pipelineOptions.setJobId(JOB_ID);
+    pipelineOptions.setWorkerId(WORKER_ID);
+    pipelineOptions.setGcpCredential(new TestCredential());
+
+    assertNotNull(DataflowWorkerHarness.create(pipelineOptions));
+    assertEquals(JOB_ID, DataflowWorkerLoggingFormatter.getJobId());
+    assertEquals(WORKER_ID, DataflowWorkerLoggingFormatter.getWorkerId());
   }
 
   @Test
   public void testCloudServiceCall() throws Exception {
-    System.getProperties().putAll(ImmutableMap
-        .<String, String>builder()
-        .put("project_id", "projectId")
-        .put("job_id", "jobId")
-        .put("worker_id", "workerId")
-        .build());
-    WorkItem workItem = createWorkItem("projectId", "jobId");
+    pipelineOptions.setProject(PROJECT_ID);
+    pipelineOptions.setJobId(JOB_ID);
+    pipelineOptions.setWorkerId(WORKER_ID);
+    pipelineOptions.setGcpCredential(new TestCredential());
+
+    WorkItem workItem = createWorkItem(PROJECT_ID, JOB_ID);
 
     when(request.execute()).thenReturn(generateMockResponse(workItem));
 
-    DataflowWorkerHarnessOptions options =
-        PipelineOptionsFactory.createFromSystemPropertiesInternal();
-
     DataflowWorker.WorkUnitClient client =
-        new DataflowWorkerHarness.DataflowWorkUnitClient(service, options);
+        new DataflowWorkerHarness.DataflowWorkUnitClient(service, pipelineOptions);
 
     assertEquals(workItem, client.getWorkItem());
 
     LeaseWorkItemRequest actualRequest = Transport.getJsonFactory().fromString(
         request.getContentAsString(), LeaseWorkItemRequest.class);
-    assertEquals("workerId", actualRequest.getWorkerId());
-    assertEquals(ImmutableList.<String>of("workerId", "remote_source", "custom_source"),
+    assertEquals(WORKER_ID, actualRequest.getWorkerId());
+    assertEquals(ImmutableList.<String>of(WORKER_ID, "remote_source", "custom_source"),
         actualRequest.getWorkerCapabilities());
     assertEquals(ImmutableList.<String>of("map_task", "seq_map_task", "remote_source_task"),
         actualRequest.getWorkItemTypes());
@@ -141,30 +136,25 @@ public class DataflowWorkerHarnessTest {
 
   @Test
   public void testCloudServiceCallNoWorkId() throws Exception {
-    System.getProperties().putAll(ImmutableMap
-        .<String, String>builder()
-        .put("project_id", "projectId")
-        .put("job_id", "jobId")
-        .put("worker_id", "workerId")
-        .build());
+    pipelineOptions.setProject(PROJECT_ID);
+    pipelineOptions.setJobId(JOB_ID);
+    pipelineOptions.setWorkerId(WORKER_ID);
+    pipelineOptions.setGcpCredential(new TestCredential());
 
     // If there's no work the service should return an empty work item.
     WorkItem workItem = new WorkItem();
 
     when(request.execute()).thenReturn(generateMockResponse(workItem));
 
-    DataflowWorkerHarnessOptions options =
-        PipelineOptionsFactory.createFromSystemPropertiesInternal();
-
     DataflowWorker.WorkUnitClient client =
-        new DataflowWorkerHarness.DataflowWorkUnitClient(service, options);
+        new DataflowWorkerHarness.DataflowWorkUnitClient(service, pipelineOptions);
 
     assertNull(client.getWorkItem());
 
     LeaseWorkItemRequest actualRequest = Transport.getJsonFactory().fromString(
         request.getContentAsString(), LeaseWorkItemRequest.class);
-    assertEquals("workerId", actualRequest.getWorkerId());
-    assertEquals(ImmutableList.<String>of("workerId", "remote_source", "custom_source"),
+    assertEquals(WORKER_ID, actualRequest.getWorkerId());
+    assertEquals(ImmutableList.<String>of(WORKER_ID, "remote_source", "custom_source"),
         actualRequest.getWorkerCapabilities());
     assertEquals(ImmutableList.<String>of("map_task", "seq_map_task",  "remote_source_task"),
         actualRequest.getWorkItemTypes());
@@ -172,27 +162,22 @@ public class DataflowWorkerHarnessTest {
 
   @Test
   public void testCloudServiceCallNoWorkItem() throws Exception {
-    System.getProperties().putAll(ImmutableMap
-        .<String, String>builder()
-        .put("project_id", "projectId")
-        .put("job_id", "jobId")
-        .put("worker_id", "workerId")
-        .build());
+    pipelineOptions.setProject(PROJECT_ID);
+    pipelineOptions.setJobId(JOB_ID);
+    pipelineOptions.setWorkerId(WORKER_ID);
+    pipelineOptions.setGcpCredential(new TestCredential());
 
     when(request.execute()).thenReturn(generateMockResponse());
 
-    DataflowWorkerHarnessOptions options =
-        PipelineOptionsFactory.createFromSystemPropertiesInternal();
-
     DataflowWorker.WorkUnitClient client =
-        new DataflowWorkerHarness.DataflowWorkUnitClient(service, options);
+        new DataflowWorkerHarness.DataflowWorkUnitClient(service, pipelineOptions);
 
     assertNull(client.getWorkItem());
 
     LeaseWorkItemRequest actualRequest = Transport.getJsonFactory().fromString(
         request.getContentAsString(), LeaseWorkItemRequest.class);
-    assertEquals("workerId", actualRequest.getWorkerId());
-    assertEquals(ImmutableList.<String>of("workerId", "remote_source", "custom_source"),
+    assertEquals(WORKER_ID, actualRequest.getWorkerId());
+    assertEquals(ImmutableList.<String>of(WORKER_ID, "remote_source", "custom_source"),
         actualRequest.getWorkerCapabilities());
     assertEquals(ImmutableList.<String>of("map_task", "seq_map_task",  "remote_source_task"),
         actualRequest.getWorkItemTypes());
@@ -203,23 +188,19 @@ public class DataflowWorkerHarnessTest {
     expectedException.expect(IOException.class);
     expectedException.expectMessage(
         "This version of the SDK expects no more than one work item from the service");
-    System.getProperties().putAll(ImmutableMap
-        .<String, String>builder()
-        .put("project_id", "projectId")
-        .put("job_id", "jobId")
-        .put("worker_id", "workerId")
-        .build());
+    pipelineOptions.setProject(PROJECT_ID);
+    pipelineOptions.setJobId(JOB_ID);
+    pipelineOptions.setWorkerId(WORKER_ID);
+    pipelineOptions.setGcpCredential(new TestCredential());
 
-    WorkItem workItem1 = createWorkItem("projectId", "jobId");
-    WorkItem workItem2 = createWorkItem("projectId", "jobId");
+
+    WorkItem workItem1 = createWorkItem(PROJECT_ID, JOB_ID);
+    WorkItem workItem2 = createWorkItem(PROJECT_ID, JOB_ID);
 
     when(request.execute()).thenReturn(generateMockResponse(workItem1, workItem2));
 
-    DataflowWorkerHarnessOptions options =
-        PipelineOptionsFactory.createFromSystemPropertiesInternal();
-
     DataflowWorker.WorkUnitClient client =
-        new DataflowWorkerHarness.DataflowWorkUnitClient(service, options);
+        new DataflowWorkerHarness.DataflowWorkUnitClient(service, pipelineOptions);
 
     client.getWorkItem();
   }

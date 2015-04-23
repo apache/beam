@@ -36,9 +36,7 @@ import com.google.api.services.dataflow.model.Disk;
 import com.google.api.services.dataflow.model.Environment;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.Step;
-import com.google.api.services.dataflow.model.TaskRunnerSettings;
 import com.google.api.services.dataflow.model.WorkerPool;
-import com.google.api.services.dataflow.model.WorkerSettings;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -375,16 +373,6 @@ public class DataflowPipelineTranslator {
       if (options.getTeardownPolicy() != null) {
         workerPool.setTeardownPolicy(options.getTeardownPolicy().getTeardownPolicyName());
       }
-
-      // Pass the URL and endpoint to use to the worker pool.
-      WorkerSettings workerSettings = new WorkerSettings();
-      workerSettings.setBaseUrl(options.getApiRootUrl());
-      workerSettings.setServicePath(options.getDataflowEndpoint());
-
-      TaskRunnerSettings taskRunnerSettings = new TaskRunnerSettings();
-      taskRunnerSettings.setParallelWorkerSettings(workerSettings);
-
-      workerPool.setTaskrunnerSettings(taskRunnerSettings);
 
       // Config Cloud Debugger
       if (!Strings.isNullOrEmpty(options.getCdbgVersion())) {
