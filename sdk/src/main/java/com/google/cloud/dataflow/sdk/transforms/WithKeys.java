@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -94,13 +95,6 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
 
   @Override
   public PCollection<KV<K, V>> apply(PCollection<V> in) {
-    Coder<K> keyCoder;
-    CoderRegistry coderRegistry = in.getPipeline().getCoderRegistry();
-    if (keyClass == null) {
-      keyCoder = coderRegistry.getDefaultOutputCoder(fn, in.getCoder());
-    } else {
-      keyCoder = coderRegistry.getDefaultCoder(TypeToken.of(keyClass));
-    }
     PCollection<KV<K, V>> result =
         in.apply(ParDo.named("AddKeys")
                  .of(new DoFn<V, KV<K, V>>() {
@@ -110,10 +104,21 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
                                     c.element()));
                      }
                     }));
-    if (keyCoder != null) {
+
+    try {
+      Coder<K> keyCoder;
+      CoderRegistry coderRegistry = in.getPipeline().getCoderRegistry();
+      if (keyClass == null) {
+        keyCoder = coderRegistry.getDefaultOutputCoder(fn, in.getCoder());
+      } else {
+        keyCoder = coderRegistry.getDefaultCoder(TypeToken.of(keyClass));
+      }
       // TODO: Remove when we can set the coder inference context.
       result.setCoder(KvCoder.of(keyCoder, in.getCoder()));
+    } catch (CannotProvideCoderException exc) {
+      // let lazy coder inference have a try
     }
+
     return result;
   }
 }

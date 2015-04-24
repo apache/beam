@@ -27,7 +27,6 @@ import static org.hamcrest.core.AnyOf.anyOf;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -943,24 +942,23 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testSideOutputUnknownCoder() {
+  public void testSideOutputUnknownCoder() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> input = pipeline
         .apply(Create.of(Arrays.asList(1, 2, 3)));
 
-    // Expect a fail, but it should be a NoCoderException
     final TupleTag<Integer> mainTag = new TupleTag<Integer>();
     final TupleTag<TestDummy> sideTag = new TupleTag<TestDummy>();
     input.apply(ParDo.of(new SideOutputDummyFn(sideTag))
         .withOutputTags(mainTag, TupleTagList.of(sideTag)));
 
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("unable to infer a default Coder");
+    thrown.expectMessage("Unable to infer a default Coder");
     pipeline.run();
   }
 
   @Test
-  public void testSideOutputUnregisteredExplicitCoder() {
+  public void testSideOutputUnregisteredExplicitCoder() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> input = pipeline
         .apply(Create.of(Arrays.asList(1, 2, 3)));
@@ -969,8 +967,6 @@ public class ParDoTest implements Serializable {
     final TupleTag<TestDummy> sideTag = new TupleTag<TestDummy>();
     PCollectionTuple outputTuple = input.apply(ParDo.of(new SideOutputDummyFn(sideTag))
         .withOutputTags(mainTag, TupleTagList.of(sideTag)));
-
-    assertNull(pipeline.getCoderRegistry().getDefaultCoder(TestDummy.class));
 
     outputTuple.get(sideTag).setCoder(new TestDummyCoder());
 

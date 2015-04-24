@@ -79,5 +79,5 @@ public abstract class POutputValueBase implements POutput {
   /**
    * The {@code PTransform} that produces this {@code POutputValueBase}.
    */
-  private PTransform<?, ?> producingTransform;
+  private PTransform<?, ?> producingTransform = null;
 }

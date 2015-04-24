@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObservableIterable;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import com.google.common.base.Preconditions;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -71,6 +72,8 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
   }
 
   protected IterableLikeCoder(Coder<T> elementCoder) {
+    Preconditions.checkArgument(elementCoder != null,
+        "element Coder for IterableLikeCoder must not be null");
     this.elementCoder = elementCoder;
   }
 

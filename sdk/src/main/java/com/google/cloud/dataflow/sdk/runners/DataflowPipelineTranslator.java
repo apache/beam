@@ -39,6 +39,7 @@ import com.google.api.services.dataflow.model.Step;
 import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
@@ -789,9 +790,14 @@ public class DataflowPipelineTranslator {
             context.addInput(
                 PropertyNames.SERIALIZED_FN,
                 byteArrayToJsonString(serializeToByteArray(transform.getFn())));
-            context.addEncodingInput(transform.getAccumulatorCoder(
-                context.getInput(transform).getPipeline().getCoderRegistry(),
-                context.getInput(transform)));
+            try {
+              context.addEncodingInput(transform.getAccumulatorCoder(
+                  context.getInput(transform).getPipeline().getCoderRegistry(),
+                  context.getInput(transform)));
+            } catch (CannotProvideCoderException exc) {
+              throw new IllegalStateException(
+                "Could not determine coder for input to Combine.GroupedValues", exc);
+            }
             context.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
           }
         });

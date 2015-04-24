@@ -88,7 +88,7 @@ public class CreateTest {
   public void testPolymorphicType() throws Exception {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage(
-        Matchers.containsString("unable to infer a default Coder"));
+        Matchers.containsString("Unable to infer a default Coder"));
 
     Pipeline p = TestPipeline.create();
 
@@ -158,7 +158,7 @@ public class CreateTest {
   public void testCreateTimestampedPolymorphicType() throws Exception {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage(
-        Matchers.containsString("unable to infer a default Coder"));
+        Matchers.containsString("Unable to infer a default Coder"));
 
     Pipeline p = TestPipeline.create();
 

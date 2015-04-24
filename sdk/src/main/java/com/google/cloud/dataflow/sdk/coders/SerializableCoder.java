@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.common.base.Optional;
 import com.google.common.reflect.TypeToken;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -88,17 +87,19 @@ public class SerializableCoder<T extends Serializable>
    */
   public static final CoderProvider PROVIDER = new CoderProvider() {
     @Override
-    public <T> Optional<Coder<T>> getCoder(TypeToken<T> typeToken) {
+    public <T> Coder<T> getCoder(TypeToken<T> typeToken) throws CannotProvideCoderException {
       Class<?> clazz = typeToken.getRawType();
       if (Serializable.class.isAssignableFrom(clazz)) {
         @SuppressWarnings("unchecked")
         Class<? extends Serializable> serializableClazz =
             (Class<? extends Serializable>) clazz;
         @SuppressWarnings("unchecked")
-        Coder<T> coderOrNull = (Coder<T>) SerializableCoder.of(serializableClazz);
-        return Optional.fromNullable(coderOrNull);
+        Coder<T> coder = (Coder<T>) SerializableCoder.of(serializableClazz);
+        return coder;
       } else {
-        return Optional.<Coder<T>>absent();
+        throw new CannotProvideCoderException(
+            "Cannot provide SerializableCoder because " + typeToken
+            + " does not implement Serializable");
       }
     }
   };

@@ -66,7 +66,7 @@ public class CoderRegistryTest {
   private static class NotACoderProvider { }
 
   @Test
-  public void testSerializableFallbackCoderProvider() {
+  public void testSerializableFallbackCoderProvider() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     registry.setFallbackCoderProvider(SerializableCoder.PROVIDER);
     Coder<?> serializableCoder = registry.getDefaultCoder(SerializableClass.class);
@@ -75,7 +75,7 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testAvroFallbackCoderProvider() {
+  public void testAvroFallbackCoderProvider() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     registry.setFallbackCoderProvider(AvroCoder.PROVIDER);
     Coder<?> avroCoder = registry.getDefaultCoder(NotSerializableClass.class);
@@ -84,7 +84,7 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testRegisterInstantiatedGenericCoder() {
+  public void testRegisterInstantiatedGenericCoder() throws Exception {
     class MyValueList extends ArrayList<MyValue> { }
 
     CoderRegistry registry = new CoderRegistry();
@@ -93,14 +93,20 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testSimpleDefaultCoder() {
+  public void testSimpleDefaultCoder() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     assertEquals(StringUtf8Coder.of(), registry.getDefaultCoder(String.class));
-    assertEquals(null, registry.getDefaultCoder(UnknownType.class));
   }
 
   @Test
-  public void testTemplateDefaultCoder() {
+  public void testSimpleUnknownDefaultCoder() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    thrown.expect(CannotProvideCoderException.class);
+    registry.getDefaultCoder(UnknownType.class);
+  }
+
+  @Test
+  public void testParameterizedDefaultCoder() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     TypeToken<List<Integer>> listToken = new TypeToken<List<Integer>>() {};
     assertEquals(ListCoder.of(VarIntCoder.of()),
@@ -113,50 +119,57 @@ public class CoderRegistryTest {
                             ListCoder.of(MyValueCoder.of())),
                  registry.getDefaultCoder(kvToken));
 
-    TypeToken<List<UnknownType>> listUnknownToken =
-        new TypeToken<List<UnknownType>>() {};
-    assertEquals(null, registry.getDefaultCoder(listUnknownToken));
   }
 
   @Test
-  public void testTemplateInference() {
+  public void testParameterizedDefaultCoderUnknown() throws Exception {
     CoderRegistry registry = getStandardRegistry();
-    MyTemplateClass<MyValue, List<MyValue>> instance =
-        new MyTemplateClass<MyValue, List<MyValue>>() {};
+    TypeToken<List<UnknownType>> listUnknownToken =
+        new TypeToken<List<UnknownType>>() {};
+
+    thrown.expect(CannotProvideCoderException.class);
+    registry.getDefaultCoder(listUnknownToken);
+  }
+
+  @Test
+  public void testTypeParameterInference() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    MyGenericClass<MyValue, List<MyValue>> instance =
+        new MyGenericClass<MyValue, List<MyValue>>() {};
     Coder<List<MyValue>> listCoder = ListCoder.of(MyValueCoder.of());
 
     // The map method operates on parameter names.
     Map<String, Coder<?>> coderMap = registry.getDefaultCoders(
         instance.getClass(),
-        MyTemplateClass.class,
+        MyGenericClass.class,
         Collections.singletonMap("A", MyValueCoder.of()));
     assertEquals(listCoder, coderMap.get("B"));
 
     // Check we can infer the other direction as well.
     Map<String, Coder<?>> coderMap2 = registry.getDefaultCoders(
         instance.getClass(),
-        MyTemplateClass.class,
+        MyGenericClass.class,
         Collections.singletonMap("B", listCoder));
     assertEquals(MyValueCoder.of(), coderMap2.get("A"));
 
     // The array interface operates on position.
     Coder<?>[] coders = registry.getDefaultCoders(
         instance.getClass(),
-        MyTemplateClass.class,
+        MyGenericClass.class,
         new Coder<?>[] { MyValueCoder.of(), null });
     assertEquals(listCoder, coders[1]);
 
     // The "last argument" coder handles a common case.
     Coder<List<MyValueCoder>> actual = registry.getDefaultCoder(
         instance.getClass(),
-        MyTemplateClass.class,
+        MyGenericClass.class,
         MyValueCoder.of());
     assertEquals(listCoder, actual);
 
     try {
       registry.getDefaultCoder(
           instance.getClass(),
-          MyTemplateClass.class,
+          MyGenericClass.class,
           BigEndianIntegerCoder.of());
       fail("should have failed");
     } catch (IllegalArgumentException exn) {
@@ -167,7 +180,7 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testGetDefaultCoderFromIntegerValue() {
+  public void testGetDefaultCoderFromIntegerValue() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     Integer i = 13;
     Coder<Integer> coder = registry.getDefaultCoder(i);
@@ -175,7 +188,7 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testGetDefaultCoderFromKvValue() {
+  public void testGetDefaultCoderFromKvValue() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     KV<Integer, String> kv = KV.of(13, "hello");
     Coder<KV<Integer, String>> coder = registry.getDefaultCoder(kv);
@@ -184,7 +197,7 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testGetDefaultCoderFromNestedKvValue() {
+  public void testGetDefaultCoderFromNestedKvValue() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     KV<Integer, KV<Long, KV<String, String>>> kv = KV.of(13, KV.of(17L, KV.of("hello", "goodbye")));
     Coder<KV<Integer, KV<Long, KV<String, String>>>> coder = registry.getDefaultCoder(kv);
@@ -196,7 +209,7 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testTypeCompatibility() {
+  public void testTypeCompatibility() throws Exception {
     assertTrue(CoderRegistry.isCompatible(
         BigEndianIntegerCoder.of(), Integer.class));
     assertFalse(CoderRegistry.isCompatible(
@@ -212,7 +225,7 @@ public class CoderRegistryTest {
         new TypeToken<List<String>>() {}.getType()));
   }
 
-  static class MyTemplateClass<A, B> { }
+  static class MyGenericClass<A, B> { }
 
   static class MyValue { }
 

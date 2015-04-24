@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.values.PInput;
@@ -355,34 +356,42 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
 
   /**
    * Returns the default {@code Coder} to use for the output of this
-   * single-output {@code PTransform}, or {@code null} if
-   * none can be inferred.
+   * single-output {@code PTransform}.
    *
-   * <p> By default, returns {@code null}.
+   * <p> By default, always throws
+   *
+   * @throws CannotProvideCoderException if no coder can be inferred
    */
-  protected Coder<?> getDefaultOutputCoder() {
-    return null;
+  protected Coder<?> getDefaultOutputCoder() throws CannotProvideCoderException {
+    throw new CannotProvideCoderException(
+      "PTransform.getDefaultOutputCoder called.");
   }
 
   /**
    * Returns the default {@code Coder} to use for the output of this
-   * single-output {@code PTransform}, or {@code null} if
-   * none can be inferred.
+   * single-output {@code PTransform}.
    *
-   * <p> By default, returns {@code null}.
+   * @throws CannotProvideCoderException if none can be inferred.
+   *
+   * <p> By default, always throws.
    */
-  protected Coder<?> getDefaultOutputCoder(Input input) {
+  protected Coder<?> getDefaultOutputCoder(Input input) throws CannotProvideCoderException {
     return getDefaultOutputCoder();
   }
 
   /**
    * Returns the default {@code Coder} to use for the given output of
-   * this single-output {@code PTransform}, or {@code null}
-   * if none can be inferred.
+   * this single-output {@code PTransform}.
+   *
+   * @throws CannotProvideCoderException if none can be inferred.
+   *
+   * <p> By default, always throws.
    */
-  public <T> Coder<T> getDefaultOutputCoder(Input input, TypedPValue<T> output) {
+  public <T> Coder<T> getDefaultOutputCoder(Input input, TypedPValue<T> output)
+      throws CannotProvideCoderException {
     if (output != getOutput()) {
-      return null;
+      throw new CannotProvideCoderException(
+          "Attempt to get default output coder from PTransform for a POutput it did not produce");
     } else {
       @SuppressWarnings("unchecked")
       Coder<T> defaultOutputCoder = (Coder<T>) getDefaultOutputCoder(input);

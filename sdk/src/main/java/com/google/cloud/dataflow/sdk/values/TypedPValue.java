@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -41,7 +42,15 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
    */
   public Coder<T> getCoder() {
     if (coder == null) {
-      inferCoderOrFail();
+      try {
+        coder = inferCoderOrFail();
+      } catch (CannotProvideCoderException exc) {
+        throw new IllegalStateException(
+            "Unable to infer a default Coder for " + this
+            + "; either correct the root cause below "
+            + "or use setCoder() to specify one explicitly. ",
+            exc);
+      }
     }
     return coder;
   }
@@ -135,29 +144,23 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
    * but can and should be improved by subclasses.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  private void inferCoderOrFail() {
-    if (coder == null) {
-      TypeToken<T> token = getTypeToken();
-      CoderRegistry registry = getPipeline().getCoderRegistry();
-
-      if (token != null) {
-        coder = registry.getDefaultCoder(token);
-      }
-
-      if (coder == null) {
-        coder = ((PTransform) getProducingTransformInternal()).getDefaultOutputCoder(
-            getPipeline().getInput(getProducingTransformInternal()), this);
-      }
-
-      if (coder == null) {
-        throw new IllegalStateException(
-            "unable to infer a default Coder for " + this
-            + "; either register a default Coder for its element type, "
-            + "or use setCoder() to specify one explicitly. "
-            + "If a default coder is registered, it may not be found "
-            + "due to type erasure; again, use setCoder() to specify "
-            + "a Coder explicitly.");
-      }
+  private Coder<T> inferCoderOrFail() throws CannotProvideCoderException {
+    if (coder != null) {
+      return coder;
     }
+
+    TypeToken<T> token = getTypeToken();
+    CoderRegistry registry = getPipeline().getCoderRegistry();
+
+    try {
+      if (token != null) {
+        return registry.getDefaultCoder(token);
+      }
+    } catch (CannotProvideCoderException exc) {
+        // try the next thing
+    }
+
+    return ((PTransform) getProducingTransformInternal()).getDefaultOutputCoder(
+        getPipeline().getInput(getProducingTransformInternal()), this);
   }
 }

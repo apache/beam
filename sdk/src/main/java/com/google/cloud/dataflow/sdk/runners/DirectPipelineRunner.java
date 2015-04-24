@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.PipelineResult;
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
@@ -220,8 +221,16 @@ public class DirectPipelineRunner
   private <K, VI, VA, VO> PCollection<KV<K, VO>> applyTestCombine(
       Combine.GroupedValues<K, VI, VO> transform,
       PCollection<KV<K, Iterable<VI>>> input) {
-    return input.apply(ParDo.of(TestCombineDoFn.create(transform, input, testSerializability)))
-                .setCoder(transform.getDefaultOutputCoder(input));
+
+    PCollection<KV<K, VO>> output = input
+        .apply(ParDo.of(TestCombineDoFn.create(transform, input, testSerializability)));
+
+    try {
+      output.setCoder(transform.getDefaultOutputCoder(input));
+    } catch (CannotProvideCoderException exc) {
+      // let coder inference occur later, if it can
+    }
+    return output;
   }
 
   /**
@@ -250,10 +259,19 @@ public class DirectPipelineRunner
         Combine.GroupedValues<K, VI, VO> transform,
         PCollection<KV<K, Iterable<VI>>> input,
         boolean testSerializability) {
+
+      Coder<VA> accumCoder;
+      try {
+        accumCoder = (Coder<VA>) transform.getAccumulatorCoder(
+            input.getPipeline().getCoderRegistry(), input);
+      } catch (CannotProvideCoderException exc) {
+        throw new IllegalArgumentException(
+          "Transform " + transform + " failed to provide a coder for its accumulator type");
+      }
+
       return new TestCombineDoFn(
           transform.getFn(),
-          transform.getAccumulatorCoder(
-              input.getPipeline().getCoderRegistry(), input),
+          accumCoder,
           testSerializability);
     }
 

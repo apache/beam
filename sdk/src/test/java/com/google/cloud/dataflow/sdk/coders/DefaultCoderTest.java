@@ -21,7 +21,9 @@ import com.google.common.reflect.TypeToken;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -33,6 +35,9 @@ import java.io.Serializable;
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class DefaultCoderTest {
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @DefaultCoder(AvroCoder.class)
   private static class AvroRecord {
@@ -76,9 +81,9 @@ public class DefaultCoderTest {
 
   @Test
   public void testUnknown() throws Exception {
+    thrown.expect(CannotProvideCoderException.class);
     CoderRegistry registry = new CoderRegistry();
-    Coder<?> coderType = registry.getDefaultCoder(Unknown.class);
-    Assert.assertNull(coderType);
+    registry.getDefaultCoder(Unknown.class);
   }
 
   /**
@@ -86,7 +91,7 @@ public class DefaultCoderTest {
    * {@code expectedCoder}.
    */
   private void checkDefault(Class<?> valueType,
-      Class<?> expectedCoder) {
+      Class<?> expectedCoder) throws Exception {
     CoderRegistry registry = new CoderRegistry();
     Coder<?> coder = registry.getDefaultCoder(TypeToken.of(valueType));
     Assert.assertThat(coder, Matchers.instanceOf(expectedCoder));

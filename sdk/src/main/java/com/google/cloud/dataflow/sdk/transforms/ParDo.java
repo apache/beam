@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
@@ -714,7 +715,8 @@ public class ParDo {
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Coder<O> getDefaultOutputCoder(PCollection<? extends I> input) {
+    protected Coder<O> getDefaultOutputCoder(PCollection<? extends I> input)
+        throws CannotProvideCoderException {
       return input.getPipeline().getCoderRegistry().getDefaultCoder(
           fn.getOutputTypeToken(),
           fn.getInputTypeToken(),

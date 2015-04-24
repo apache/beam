@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
@@ -25,7 +26,6 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
@@ -391,7 +391,7 @@ public class Combine {
      * significant performance benefits.
      */
     public Coder<VA> getAccumulatorCoder(
-        CoderRegistry registry, Coder<VI> inputCoder) {
+        CoderRegistry registry, Coder<VI> inputCoder) throws CannotProvideCoderException {
       return registry.getDefaultCoder(
           getClass(),
           CombineFn.class,
@@ -409,7 +409,7 @@ public class Combine {
      * Coder for {@code VO} values.
      */
     public Coder<VO> getDefaultOutputCoder(
-        CoderRegistry registry, Coder<VI> inputCoder) {
+        CoderRegistry registry, Coder<VI> inputCoder) throws CannotProvideCoderException {
       return registry.getDefaultCoder(
           getClass(),
           CombineFn.class,
@@ -451,13 +451,15 @@ public class Combine {
 
         @Override
         public Coder<VA> getAccumulatorCoder(
-            CoderRegistry registry, Coder<K> keyCoder, Coder<VI> inputCoder) {
+            CoderRegistry registry, Coder<K> keyCoder, Coder<VI> inputCoder)
+            throws CannotProvideCoderException {
           return CombineFn.this.getAccumulatorCoder(registry, inputCoder);
         }
 
         @Override
         public Coder<VO> getDefaultOutputCoder(
-            CoderRegistry registry, Coder<K> keyCoder, Coder<VI> inputCoder) {
+            CoderRegistry registry, Coder<K> keyCoder, Coder<VI> inputCoder)
+            throws CannotProvideCoderException {
           return CombineFn.this.getDefaultOutputCoder(registry, inputCoder);
         }
       };
@@ -1037,7 +1039,8 @@ public class Combine {
      * significant performance benefits.
      */
     public Coder<VA> getAccumulatorCoder(
-        CoderRegistry registry, Coder<K> keyCoder, Coder<VI> inputCoder) {
+        CoderRegistry registry, Coder<K> keyCoder, Coder<VI> inputCoder)
+        throws CannotProvideCoderException {
       return registry.getDefaultCoder(
           getClass(),
           KeyedCombineFn.class,
@@ -1055,7 +1058,8 @@ public class Combine {
      * infer the Coder for {@code VO} values.
      */
     public Coder<VO> getDefaultOutputCoder(
-        CoderRegistry registry, Coder<K> keyCoder, Coder<VI> inputCoder) {
+        CoderRegistry registry, Coder<K> keyCoder, Coder<VI> inputCoder)
+        throws CannotProvideCoderException {
       return registry.getDefaultCoder(
           getClass(),
           KeyedCombineFn.class,
@@ -1535,7 +1539,8 @@ public class Combine {
             @Override
             @SuppressWarnings("unchecked")
             public Coder<VA> getAccumulatorCoder(
-                CoderRegistry registry, Coder<KV<K, Integer>> keyCoder, Coder<VI> inputCoder) {
+                CoderRegistry registry, Coder<KV<K, Integer>> keyCoder, Coder<VI> inputCoder)
+                throws CannotProvideCoderException {
               return fn.getAccumulatorCoder(
                   registry, ((KvCoder<K, Integer>) keyCoder).getKeyCoder(), inputCoder);
             }
@@ -1564,7 +1569,8 @@ public class Combine {
             }
             @Override
             public Coder<VO> getDefaultOutputCoder(
-                CoderRegistry registry, Coder<K> keyCoder, Coder<VA> accumulatorCoder) {
+                CoderRegistry registry, Coder<K> keyCoder, Coder<VA> accumulatorCoder)
+                throws CannotProvideCoderException {
               return fn.getDefaultOutputCoder(registry, keyCoder, inputCoder.getValueCoder());
             }
       };
@@ -1708,15 +1714,24 @@ public class Combine {
     @Override
     public PCollection<KV<K, VO>> apply(
         PCollection<? extends KV<K, ? extends Iterable<VI>>> input) {
-      Coder<KV<K, VO>> outputCoder = getDefaultOutputCoder(input);
-      return input.apply(ParDo.of(
+
+      PCollection<KV<K, VO>> output = input.apply(ParDo.of(
           new DoFn<KV<K, ? extends Iterable<VI>>, KV<K, VO>>() {
             @Override
             public void processElement(ProcessContext c) {
               K key = c.element().getKey();
               c.output(KV.of(key, fn.apply(key, c.element().getValue())));
             }
-          })).setCoder(outputCoder);
+          }));
+
+      try {
+        Coder<KV<K, VO>> outputCoder = getDefaultOutputCoder(input);
+        output.setCoder(outputCoder);
+      } catch (CannotProvideCoderException exc) {
+        // let coder inference happen later, if it can
+      }
+
+      return output;
     }
 
     private KvCoder<K, VI> getKvCoder(
@@ -1747,7 +1762,8 @@ public class Combine {
     @SuppressWarnings("unchecked")
     public Coder<?> getAccumulatorCoder(
         CoderRegistry coderRegistry,
-        PCollection<? extends KV<K, ? extends Iterable<VI>>> input) {
+        PCollection<? extends KV<K, ? extends Iterable<VI>>> input)
+        throws CannotProvideCoderException {
       KvCoder<K, VI> kvCoder = getKvCoder(input.getCoder());
       return ((KeyedCombineFn<K, VI, ?, VO>) fn).getAccumulatorCoder(
           coderRegistry, kvCoder.getKeyCoder(), kvCoder.getValueCoder());
@@ -1755,7 +1771,8 @@ public class Combine {
 
     @Override
     public Coder<KV<K, VO>> getDefaultOutputCoder(
-        PCollection<? extends KV<K, ? extends Iterable<VI>>> input) {
+        PCollection<? extends KV<K, ? extends Iterable<VI>>> input)
+        throws CannotProvideCoderException {
       KvCoder<K, VI> kvCoder = getKvCoder(input.getCoder());
       @SuppressWarnings("unchecked")
       Coder<VO> outputValueCoder = ((KeyedCombineFn<K, VI, ?, VO>) fn)

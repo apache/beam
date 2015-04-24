@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
@@ -199,7 +200,14 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
   public PCollection<T> applyHelper(PInput input, boolean isStreaming) {
     if (isStreaming) {
       @SuppressWarnings("unchecked")
-      Coder<T> elemCoder = (Coder<T>) getElementCoder(input.getPipeline().getCoderRegistry());
+      Coder<T> elemCoder;
+      try {
+        elemCoder = (Coder<T>) getElementCoder(input.getPipeline().getCoderRegistry());
+      } catch (CannotProvideCoderException exc) {
+        throw new IllegalArgumentException(
+            "Failed to apply Create: could not determine element coder");
+      }
+
       return Pipeline.applyTransform(
           input, PubsubIO.Read.named("StartingSignal").subscription("_starting_signal/"))
           .apply(ParDo.of(new DoFn<String, KV<Void, Void>>() {
@@ -268,26 +276,25 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
     return elems;
   }
 
-  private Coder<?> getElementCoder(CoderRegistry coderRegistry) {
+  private Coder<?> getElementCoder(CoderRegistry coderRegistry) throws CannotProvideCoderException {
     // First try to deduce a coder using the types of the elements.
-    Class<?> elementType = null;
+    Class<?> elementClazz = null;
     for (T elem : elems) {
-      Class<?> type = elem.getClass();
-      if (elementType == null) {
-        elementType = type;
-      } else if (!elementType.equals(type)) {
+      Class<?> clazz = elem.getClass();
+      if (elementClazz == null) {
+        elementClazz = clazz;
+      } else if (!elementClazz.equals(clazz)) {
         // Elements are not the same type, require a user-specified coder.
-        elementType = null;
-        break;
+        throw new CannotProvideCoderException(
+            "Cannot provide coder for Create: The elements are not all of the same class.");
       }
     }
-    if (elementType == null) {
-      return null;
-    }
-    if (elementType.getTypeParameters().length == 0) {
-      Coder<?> candidate = coderRegistry.getDefaultCoder(TypeToken.of(elementType));
-      if (candidate != null) {
-        return candidate;
+
+    if (elementClazz.getTypeParameters().length == 0) {
+      try {
+        return coderRegistry.getDefaultCoder(TypeToken.of(elementClazz));
+      } catch (CannotProvideCoderException exc) {
+        // let the next stage try
       }
     }
 
@@ -298,15 +305,17 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
       if (coder == null) {
         coder = c;
       } else if (!Objects.equals(c, coder)) {
-        coder = null;
-        break;
+        throw new CannotProvideCoderException(
+            "Cannot provide coder for elements of " + Create.class.getSimpleName() + ":"
+            + " For their common class, no coder could be provided."
+            + " Based on their values, they do not all default to the same Coder.");
       }
     }
     return coder;
   }
 
   @Override
-  protected Coder<?> getDefaultOutputCoder(PInput input) {
+  protected Coder<?> getDefaultOutputCoder(PInput input) throws CannotProvideCoderException {
     Coder<?> elemCoder = getElementCoder(input.getPipeline().getCoderRegistry());
     if (elemCoder == null) {
       return super.getDefaultOutputCoder(input);

@@ -20,7 +20,6 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.common.base.Optional;
 import com.google.common.reflect.TypeToken;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -161,9 +160,8 @@ public class AvroCoder<T> extends StandardCoder<T> {
 
   public static final CoderProvider PROVIDER = new CoderProvider() {
     @Override
-    @SuppressWarnings("unchecked")
-    public <T> Optional<Coder<T>> getCoder(TypeToken<T> typeToken) {
-      return Optional.<Coder<T>>fromNullable(AvroCoder.of(typeToken));
+    public <T> Coder<T> getCoder(TypeToken<T> typeToken) {
+      return AvroCoder.of(typeToken);
     }
   };
 
