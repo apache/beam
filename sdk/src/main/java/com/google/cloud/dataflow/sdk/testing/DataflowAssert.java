@@ -188,20 +188,11 @@ public class DataflowAssert {
     /**
      * Sets the coder to use for elements of type {@code T}, as needed
      * for internal purposes.
-     */
-    public IterableAssert<T> setCoder(Coder<T> coder) {
-      this.coder = Optional.of(coder);
-      return this;
-    }
-
-    /**
-     * Sets the coder to use for elements of type {@code T}, as needed
-     * for internal purposes.
      *
      * <p> Returns this {@code IterableAssert}.
      */
-    public IterableAssert<T> setCoder(Optional<Coder<T>> coder) {
-      this.coder = coder;
+    public IterableAssert<T> setCoder(Coder<T> coderOrNull) {
+      this.coder = Optional.fromNullable(coderOrNull);
       return this;
     }
 
@@ -287,19 +278,8 @@ public class DataflowAssert {
      * Sets the coder to use for elements of type {@code T}, as needed
      * for internal purposes.
      */
-    public SingletonAssert<T> setCoder(Coder<T> coder) {
-      this.coder = Optional.of(coder);
-      return this;
-    }
-
-    /**
-     * Sets the coder to use for elements of type {@code T}, as needed
-     * for internal purposes.
-     *
-     * <p> Returns this {@code SingletonAssert}.
-     */
-    public SingletonAssert<T> setCoder(Optional<Coder<T>> coder) {
-      this.coder = coder;
+    public SingletonAssert<T> setCoder(Coder<T> coderOrNull) {
+      this.coder = Optional.fromNullable(coderOrNull);
       return this;
     }
 
