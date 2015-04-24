@@ -42,6 +42,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -376,6 +377,10 @@ public class CombineTest implements Serializable {
   private static final class TestProdInt extends Combine.BinaryCombineIntegerFn {
     public int apply(int left, int right) { return left * right; }
     public int identity() { return 1; }
+    @Override
+    public Counter<Integer> getCounter(String name) {
+      throw new UnsupportedOperationException();
+    }
   }
 
   private static final class TestProdObj extends Combine.BinaryCombineFn<Integer> {

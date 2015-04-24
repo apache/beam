@@ -19,16 +19,25 @@ package com.google.cloud.dataflow.sdk.util;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MAX;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MIN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Combine.SimpleCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Max;
 import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
+import com.google.cloud.dataflow.sdk.util.common.CounterProvider;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet.AddCounterMutator;
 import com.google.cloud.dataflow.sdk.util.common.CounterTestUtils;
 
 import org.hamcrest.Matchers;
@@ -47,35 +56,18 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
-public class AggregatorImplTest {
+public class CounterAggregatorTest {
   @Rule
   public final ExpectedException expectedEx = ExpectedException.none();
 
   private static final String AGGREGATOR_NAME = "aggregator_name";
 
   @SuppressWarnings("rawtypes")
-  private <V> void testAggregator(List<V> items,
-                                  SerializableFunction<Iterable<V>, V> combiner,
-                                  Counter expectedCounter) {
-    CounterSet counters = new CounterSet();
-    Aggregator<V> aggregator = new AggregatorImpl<V, Iterable<V>, V>(
-        AGGREGATOR_NAME, combiner, counters.getAddCounterMutator());
-    for (V item : items) {
-      aggregator.addValue(item);
-    }
-
-    List<MetricUpdate> cloudCounterSet = CounterTestUtils.extractCounterUpdates(counters, false);
-    Assert.assertEquals(cloudCounterSet.size(), 1);
-    Assert.assertEquals(cloudCounterSet.get(0),
-                        CounterTestUtils.extractCounterUpdate(expectedCounter, false));
-  }
-
-  @SuppressWarnings("rawtypes")
   private <V, VA> void testAggregator(List<V> items,
                                       Combine.CombineFn<V, VA, V> combiner,
                                       Counter expectedCounter) {
     CounterSet counters = new CounterSet();
-    Aggregator<V> aggregator = new AggregatorImpl<V, VA, V>(
+    Aggregator<V, V> aggregator = new CounterAggregator<>(
         AGGREGATOR_NAME, combiner, counters.getAddCounterMutator());
     for (V item : items) {
       aggregator.addValue(item);
@@ -88,6 +80,27 @@ public class AggregatorImplTest {
   }
 
   @Test
+  public void testGetName() {
+    String name = "testAgg";
+    CounterAggregator<Long, long[], Long> aggregator = new CounterAggregator<>(
+        name, new Sum.SumLongFn(),
+        new CounterSet().getAddCounterMutator());
+
+    assertEquals(name, aggregator.getName());
+  }
+
+  @Test
+  public void testGetCombineFn() {
+    CombineFn<Long, ?, Long> combineFn = new Min.MinLongFn();
+
+    CounterAggregator<Long, ?, Long> aggregator = new CounterAggregator<>("foo",
+        combineFn, new CounterSet().getAddCounterMutator());
+
+    assertEquals(combineFn, aggregator.getCombineFn());
+  }
+
+  @Test
+
   public void testSumInteger() throws Exception {
     testAggregator(Arrays.asList(2, 4, 1, 3), new Sum.SumIntegerFn(),
                    Counter.ints(AGGREGATOR_NAME, SUM).resetToValue(10));
@@ -142,17 +155,41 @@ public class AggregatorImplTest {
   }
 
   @Test
+  public void testCounterProviderCallsProvidedCounterAddValue() {
+    @SuppressWarnings("unchecked")
+    CombineFn<String, ?, String> combiner = mock(CombineFn.class,
+        withSettings().extraInterfaces(CounterProvider.class));
+    @SuppressWarnings("unchecked")
+    CounterProvider<String> provider = (CounterProvider<String>) combiner;
+
+    @SuppressWarnings("unchecked")
+    Counter<String> mockCounter = mock(Counter.class);
+    String name = "foo";
+    when(provider.getCounter(name)).thenReturn(mockCounter);
+
+    AddCounterMutator addCounterMutator = mock(AddCounterMutator.class);
+    when(addCounterMutator.addCounter(mockCounter)).thenReturn(mockCounter);
+
+    Aggregator<String, String> aggregator =
+        new CounterAggregator<>(name, combiner, addCounterMutator);
+
+    aggregator.addValue("bar_baz");
+
+    verify(mockCounter).addValue("bar_baz");
+    verify(addCounterMutator).addCounter(mockCounter);
+  }
+
+
+  @Test
   public void testCompatibleDuplicateNames() throws Exception {
     CounterSet counters = new CounterSet();
-    Aggregator<Integer> aggregator1 =
-        new AggregatorImpl<Integer, int[], Integer>(
-            AGGREGATOR_NAME, new Sum.SumIntegerFn(),
-            counters.getAddCounterMutator());
+    Aggregator<Integer, Integer> aggregator1 = new CounterAggregator<>(
+        AGGREGATOR_NAME, new Sum.SumIntegerFn(),
+        counters.getAddCounterMutator());
 
-    Aggregator<Integer> aggregator2 =
-        new AggregatorImpl<Integer, int[], Integer>(
-            AGGREGATOR_NAME, new Sum.SumIntegerFn(),
-            counters.getAddCounterMutator());
+    Aggregator<Integer, Integer> aggregator2 = new CounterAggregator<>(
+        AGGREGATOR_NAME, new Sum.SumIntegerFn(),
+        counters.getAddCounterMutator());
 
     // The duplicate aggregators should update the same counter.
     aggregator1.addValue(3);
@@ -165,7 +202,7 @@ public class AggregatorImplTest {
   @Test
   public void testIncompatibleDuplicateNames() throws Exception {
     CounterSet counters = new CounterSet();
-    new AggregatorImpl<Integer, int[], Integer>(
+    new CounterAggregator<>(
         AGGREGATOR_NAME, new Sum.SumIntegerFn(),
         counters.getAddCounterMutator());
 
@@ -173,7 +210,7 @@ public class AggregatorImplTest {
     expectedEx.expectMessage(Matchers.containsString(
         "aggregator's name collides with an existing aggregator or "
         + "system-provided counter of an incompatible type"));
-    new AggregatorImpl<Long, long[], Long>(
+    new CounterAggregator<>(
         AGGREGATOR_NAME, new Sum.SumLongFn(),
         counters.getAddCounterMutator());
     }
@@ -182,7 +219,7 @@ public class AggregatorImplTest {
   public void testUnsupportedCombineFn() throws Exception {
     expectedEx.expect(IllegalArgumentException.class);
     expectedEx.expectMessage(Matchers.containsString("unsupported combiner"));
-    new AggregatorImpl<>(
+    new CounterAggregator<>(
         AGGREGATOR_NAME,
         new Combine.CombineFn<Integer, List<Integer>, Integer>() {
           @Override
@@ -197,20 +234,21 @@ public class AggregatorImplTest {
           }
           @Override
           public Integer extractOutput(List<Integer> accumulator) { return null; }
-        },
-        (new CounterSet()).getAddCounterMutator());
+        }, (new CounterSet()).getAddCounterMutator());
   }
 
   @Test
   public void testUnsupportedSerializableFunction() throws Exception {
     expectedEx.expect(IllegalArgumentException.class);
     expectedEx.expectMessage(Matchers.containsString("unsupported combiner"));
-    new AggregatorImpl<Integer, Iterable<Integer>, Integer>(
-        AGGREGATOR_NAME,
-        new SerializableFunction<Iterable<Integer>, Integer>() {
+    CombineFn<Integer, List<Integer>, Integer> combiner = SimpleCombineFn
+        .<Integer>of(new SerializableFunction<Iterable<Integer>, Integer>() {
           @Override
-          public Integer apply(Iterable<Integer> input) { return null; }
-        },
+          public Integer apply(Iterable<Integer> input) {
+            return null;
+          }
+        });
+    new CounterAggregator<>(AGGREGATOR_NAME, combiner,
         (new CounterSet()).getAddCounterMutator());
   }
 }

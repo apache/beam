@@ -16,6 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.util.common.Counter;
+import com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind;
+import com.google.cloud.dataflow.sdk.util.common.CounterProvider;
+
 /**
  * {@code PTransform}s for computing the maximum of the elements in a
  * {@code PCollection}, or the maximum of the values associated with
@@ -173,8 +177,14 @@ public class Max {
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   @SuppressWarnings("serial")
-  public static class MaxIntegerFn extends MaxFn<Integer> {
+  public static class MaxIntegerFn extends MaxFn<Integer> implements
+      CounterProvider<Integer> {
     public MaxIntegerFn() { super(Integer.MIN_VALUE); }
+
+    @Override
+    public Counter<Integer> getCounter(String name) {
+      return Counter.ints(name, AggregationKind.MAX);
+    }
   }
 
   /**
@@ -183,8 +193,14 @@ public class Max {
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   @SuppressWarnings("serial")
-  public static class MaxLongFn extends MaxFn<Long> {
+  public static class MaxLongFn extends MaxFn<Long> implements
+      CounterProvider<Long> {
     public MaxLongFn() { super(Long.MIN_VALUE); }
+
+    @Override
+    public Counter<Long> getCounter(String name) {
+      return Counter.longs(name, AggregationKind.MAX);
+    }
   }
 
   /**
@@ -193,7 +209,13 @@ public class Max {
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
   @SuppressWarnings("serial")
-  public static class MaxDoubleFn extends MaxFn<Double> {
+  public static class MaxDoubleFn extends MaxFn<Double> implements
+      CounterProvider<Double> {
     public MaxDoubleFn() { super(Double.NEGATIVE_INFINITY); }
+
+    @Override
+    public Counter<Double> getCounter(String name) {
+      return Counter.doubles(name, AggregationKind.MAX);
+    }
   }
 }

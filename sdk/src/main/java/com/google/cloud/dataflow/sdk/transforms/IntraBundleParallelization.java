@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 import com.google.api.client.util.Throwables;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -308,18 +309,6 @@ public class IntraBundleParallelization {
       }
 
       @Override
-      public <AI, AA, AO> Aggregator<AI> createAggregator(
-          String name, Combine.CombineFn<? super AI, AA, AO> combiner) {
-        return context.createAggregator(name, combiner);
-      }
-
-      @Override
-      public <AI, AO> Aggregator<AI> createAggregator(
-          String name, SerializableFunction<Iterable<AI>, AO> combiner) {
-        return context.createAggregator(name, combiner);
-      }
-
-      @Override
       public Instant timestamp() {
         return context.timestamp();
       }
@@ -332,6 +321,12 @@ public class IntraBundleParallelization {
       @Override
       public WindowingInternals<I, O> windowingInternals() {
         return context.windowingInternals();
+      }
+
+      @Override
+      protected <VI, VO> Aggregator<VI, VO> createAggregatorInternal(
+          String name, CombineFn<VI, ?, VO> combiner) {
+        return context.createAggregatorInternal(name, combiner);
       }
     }
 

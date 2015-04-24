@@ -62,12 +62,8 @@ public class WordCount {
   static class ExtractWordsFn extends DoFn<String, String> {
     private static final long serialVersionUID = 0;
 
-    private Aggregator<Long> emptyLines;
-
-    @Override
-    public void startBundle(Context c) {
-      emptyLines = c.createAggregator("emptyLines", new Sum.SumLongFn());
-    }
+    private final Aggregator<Long, Long> emptyLines =
+        createAggregator("emptyLines", new Sum.SumLongFn());
 
     @Override
     public void processElement(ProcessContext c) {

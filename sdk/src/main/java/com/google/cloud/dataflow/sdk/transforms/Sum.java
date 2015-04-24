@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.util.common.Counter;
+import com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind;
+
 /**
  * {@code PTransform}s for computing the sum of the elements in a
  * {@code PCollection}, or the sum of the values associated with
@@ -142,6 +145,11 @@ public class Sum {
     public int identity() {
       return 0;
     }
+
+    @Override
+    public Counter<Integer> getCounter(String name) {
+      return Counter.ints(name, AggregationKind.SUM);
+    }
   }
 
   /**
@@ -159,6 +167,11 @@ public class Sum {
     public long identity() {
       return 0;
     }
+
+    @Override
+    public Counter<Long> getCounter(String name) {
+      return Counter.longs(name, AggregationKind.SUM);
+    }
   }
 
   /**
@@ -175,6 +188,11 @@ public class Sum {
     @Override
     public double identity() {
       return 0;
+    }
+
+    @Override
+    public Counter<Double> getCounter(String name) {
+      return Counter.doubles(name, AggregationKind.SUM);
     }
   }
 }

@@ -81,12 +81,8 @@ public class CombinePerKeyExamples {
   static class ExtractLargeWordsFn extends DoFn<TableRow, KV<String, String>> {
     private static final long serialVersionUID = 0;
 
-    private Aggregator<Long> smallerWords;
-
-    @Override
-    public void startBundle(Context c) {
-      smallerWords = c.createAggregator("smallerWords", new Sum.SumLongFn());
-    }
+    private final Aggregator<Long, Long> smallerWords =
+        createAggregator("smallerWords", new Sum.SumLongFn());
 
     @Override
     public void processElement(ProcessContext c){

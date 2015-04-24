@@ -16,15 +16,21 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.reflect.TypeToken;
 
 import org.joda.time.Duration;
@@ -32,6 +38,8 @@ import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The argument to {@link ParDo} providing the code to use to process
@@ -153,42 +161,43 @@ public abstract class DoFn<I, O> implements Serializable {
         TupleTag<T> tag, T output, Instant timestamp);
 
     /**
-     * Returns an aggregator with aggregation logic specified by the CombineFn
-     * argument. The name provided should be unique across aggregators created
-     * within the containing ParDo transform application.
+     * Creates an {@link Aggregator} in the {@link DoFn} context with the
+     * specified name and aggregation logic specified by {@link CombineFn}.
      *
-     * <p> All instances of this DoFn in the containing ParDo
-     * transform application should define aggregators consistently,
-     * i.e., an aggregator with a given name always specifies the same
-     * combiner in all DoFn instances in the containing ParDo
-     * transform application.
+     * <p>For internal use only.
      *
-     * @throws IllegalArgumentException if the given CombineFn is not
-     * supported as aggregator's combiner, or if the given name collides
-     * with another aggregator or system-provided counter.
+     * @param name the name of the aggregator
+     * @param combiner the {@link CombineFn} to use in the aggregator
+     * @return an aggregator for the provided name and {@link CombineFn} in this
+     *         context
      */
-    @Experimental(Experimental.Kind.AGGREGATOR)
-    public abstract <AI, AA, AO> Aggregator<AI> createAggregator(
-        String name, Combine.CombineFn<? super AI, AA, AO> combiner);
+    @Experimental(Kind.AGGREGATOR)
+    protected abstract <VI, VO> Aggregator<VI, VO> createAggregatorInternal(
+        String name,
+        CombineFn<VI, ?, VO> combiner);
 
     /**
-     * Returns an aggregator with aggregation logic specified by the
-     * SerializableFunction argument. The name provided should be unique across
-     * aggregators created within the containing ParDo transform application.
+     * Sets up {@link Aggregator}s created by the {@link DoFn} so they are
+     * usable within this context.
      *
-     * <p> All instances of this DoFn in the containing ParDo
-     * transform application should define aggregators consistently,
-     * i.e., an aggregator with a given name always specifies the same
-     * combiner in all DoFn instances in the containing ParDo
-     * transform application.
-     *
-     * @throws IllegalArgumentException if the given SerializableFunction is
-     * not supported as aggregator's combiner, or if the given name collides
-     * with another aggregator or system-provided counter.
+     * <p>This method should be called by runners before {@link DoFn#startBundle}
+     * is executed.
      */
-    @Experimental(Experimental.Kind.AGGREGATOR)
-    public abstract <AI, AO> Aggregator<AI> createAggregator(
-        String name, SerializableFunction<Iterable<AI>, AO> combiner);
+    @Experimental(Kind.AGGREGATOR)
+    protected final void setupDelegateAggregators() {
+      for (DelegatingAggregator<?, ?> aggregator : aggregators.values()) {
+        setupDelegateAggregator(aggregator);
+      }
+    }
+
+    private final <VI, VO> void setupDelegateAggregator(
+        DelegatingAggregator<VI, VO> aggregator) {
+
+      Aggregator<VI, VO> delegate = createAggregatorInternal(
+          aggregator.getName(), aggregator.getCombineFn());
+
+      aggregator.setDelegate(delegate);
+    }
   }
 
   /**
@@ -336,6 +345,8 @@ public abstract class DoFn<I, O> implements Serializable {
 
   /////////////////////////////////////////////////////////////////////////////
 
+  private Map<String, DelegatingAggregator<?, ?>> aggregators = new HashMap<>();
+
   /**
    * Prepares this {@code DoFn} instance for processing a batch of elements.
    *
@@ -385,5 +396,108 @@ public abstract class DoFn<I, O> implements Serializable {
    */
   TypeToken<O> getOutputTypeToken() {
     return new TypeToken<O>(getClass()) {};
+  }
+
+  /**
+   * Returns an {@link Aggregator} with aggregation logic specified by the
+   * {@link CombineFn} argument. The name provided must be unique across
+   * {@link Aggregator}s created within the DoFn.
+   *
+   * @param name the name of the aggregator
+   * @param combiner the {@link CombineFn} to use in the aggregator
+   * @return an aggregator for the provided name and combiner in the scope of
+   *         this DoFn
+   * @throws NullPointerException if the name or combiner is null
+   * @throws IllegalArgumentException if the given name collides with another
+   *         aggregator in this scope
+   */
+  protected final <VI, VO> Aggregator<VI, VO> createAggregator(String name,
+      CombineFn<? super VI, ?, VO> combiner) {
+    checkNotNull(name, "name cannot be null");
+    checkNotNull(combiner, "combiner cannot be null");
+    checkArgument(!aggregators.containsKey(name),
+        "Cannot create aggregator with name %s."
+        + " An Aggregator with that name already exists within this scope.",
+        name);
+    DelegatingAggregator<VI, VO> aggregator =
+        new DelegatingAggregator<>(name, combiner);
+    aggregators.put(name, aggregator);
+    return aggregator;
+  }
+
+  /**
+   * Returns an {@link Aggregator} with the aggregation logic specified by the
+   * {@link SerializableFunction} argument. The name provided must be unique
+   * across {@link Aggregator}s created within the DoFn.
+   *
+   * @param name the name of the aggregator
+   * @param combiner the {@link SerializableFunction} to use in the aggregator
+   * @return an aggregator for the provided name and combiner in the scope of
+   *         this DoFn
+   * @throws NullPointerException if the name or combiner is null
+   * @throws IllegalArgumentException if the given name collides with another
+   *         aggregator in this scope
+   */
+  protected final <VI> Aggregator<VI, VI> createAggregator(String name,
+      SerializableFunction<Iterable<VI>, VI> combiner) {
+    checkNotNull(combiner, "combiner cannot be null.");
+    return createAggregator(name, Combine.SimpleCombineFn.of(combiner));
+  }
+
+  /**
+   * An {@link Aggregator} that delegates calls to addValue to another
+   * aggregator.
+   *
+   * @param <VI> the type of input element
+   * @param <VO> the type of output element
+   */
+  @VisibleForTesting
+  static class DelegatingAggregator<VI, VO> implements
+      Aggregator<VI, VO>, Serializable {
+    private static final long serialVersionUID = 0L;
+
+    private final String name;
+
+    private final CombineFn<VI, ?, VO> combineFn;
+
+    private Aggregator<VI, ?> delegate;
+
+    public DelegatingAggregator(String name,
+        CombineFn<? super VI, ?, VO> combiner) {
+      this.name = name;
+      // Safe contravariant cast
+      @SuppressWarnings("unchecked")
+      CombineFn<VI, ?, VO> specificCombiner = (CombineFn<VI, ?, VO>) combiner;
+      this.combineFn = specificCombiner;
+    }
+
+    @Override
+    public void addValue(VI value) {
+      if (delegate == null) {
+        throw new IllegalStateException(
+            "addValue cannot be called on Aggregator outside of the execution of a DoFn.");
+      } else {
+        delegate.addValue(value);
+      }
+    }
+
+    @Override
+    public String getName() {
+      return name;
+    }
+
+    @Override
+    public CombineFn<VI, ?, VO> getCombineFn() {
+      return combineFn;
+    }
+
+    /**
+     * Sets the current delegate of the Aggregator.
+     *
+     * @param delegate the delegate to set in this aggregator
+     */
+    public void setDelegate(Aggregator<VI, ?> delegate) {
+      this.delegate = delegate;
+    }
   }
 }

@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
+import com.google.cloud.dataflow.sdk.util.common.CounterProvider;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
@@ -470,8 +471,8 @@ public class Combine {
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily expressed as binary operations.
    */
-  public abstract static class BinaryCombineFn<V>
-      extends CombineFn<V, BinaryCombineFn.Holder<V>, V> {
+  public abstract static class BinaryCombineFn<V> extends
+      CombineFn<V, BinaryCombineFn.Holder<V>, V> {
 
     /**
      * Applies the binary operation to the two operands, returning the result.
@@ -576,7 +577,8 @@ public class Combine {
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily expressed as binary operations on ints.
    */
-  public abstract static class BinaryCombineIntegerFn extends CombineFn<Integer, int[], Integer> {
+  public abstract static class BinaryCombineIntegerFn extends
+      CombineFn<Integer, int[], Integer> implements CounterProvider<Integer> {
 
     /**
      * Applies the binary operation to the two operands, returning the result.
@@ -646,7 +648,8 @@ public class Combine {
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily expressed as binary operations on longs.
    */
-  public abstract static class BinaryCombineLongFn extends CombineFn<Long, long[], Long> {
+  public abstract static class BinaryCombineLongFn extends
+      CombineFn<Long, long[], Long> implements CounterProvider<Long> {
 
     /**
      * Applies the binary operation to the two operands, returning the result.
@@ -715,7 +718,8 @@ public class Combine {
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily expressed as binary operations on doubles.
    */
-  public abstract static class BinaryCombineDoubleFn extends CombineFn<Double, double[], Double> {
+  public abstract static class BinaryCombineDoubleFn extends
+      CombineFn<Double, double[], Double> implements CounterProvider<Double> {
 
     /**
      * Applies the binary operation to the two operands, returning the result.

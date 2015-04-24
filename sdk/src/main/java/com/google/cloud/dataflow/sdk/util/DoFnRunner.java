@@ -21,12 +21,11 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
-import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresKeyedState;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
@@ -238,6 +237,7 @@ public class DoFnRunner<I, O, R> {
       this.stepContext = stepContext;
       this.addCounterMutator = addCounterMutator;
       this.windowFn = windowFn;
+      super.setupDelegateAggregators();
     }
 
     public R getReceiver(TupleTag<?> tag) {
@@ -372,20 +372,14 @@ public class DoFnRunner<I, O, R> {
     }
 
     @Override
-    public <AI, AA, AO> Aggregator<AI> createAggregator(
-        String name, Combine.CombineFn<? super AI, AA, AO> combiner) {
-      Preconditions.checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
-      return new AggregatorImpl<>(
-          generateInternalAggregatorName(name), combiner, addCounterMutator);
+    protected <VI, VO> Aggregator<VI, VO> createAggregatorInternal(String name,
+        CombineFn<VI, ?, VO> combiner) {
+      Preconditions.checkNotNull(combiner,
+          "Combiner passed to createAggregator cannot be null");
+      return new CounterAggregator<>(generateInternalAggregatorName(name),
+          combiner, addCounterMutator);
     }
 
-    @Override
-    public <AI, AO> Aggregator<AI> createAggregator(
-        String name, SerializableFunction<Iterable<AI>, AO> combiner) {
-      Preconditions.checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
-      return new AggregatorImpl<AI, Iterable<AI>, AO>(
-          generateInternalAggregatorName(name), combiner, addCounterMutator);
-    }
   }
 
   /**
@@ -500,20 +494,6 @@ public class DoFnRunner<I, O, R> {
     }
 
     @Override
-    public <AI, AA, AO> Aggregator<AI> createAggregator(
-        String name, Combine.CombineFn<? super AI, AA, AO> combiner) {
-      Preconditions.checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
-      return context.createAggregator(name, combiner);
-    }
-
-    @Override
-    public <AI, AO> Aggregator<AI> createAggregator(
-        String name, SerializableFunction<Iterable<AI>, AO> combiner) {
-      Preconditions.checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
-      return context.createAggregator(name, combiner);
-    }
-
-    @Override
     public Instant timestamp() {
       return windowedValue.getTimestamp();
     }
@@ -580,7 +560,7 @@ public class DoFnRunner<I, O, R> {
             TupleTag<?> tag,
             Iterable<WindowedValue<T>> data,
             Coder<T> elemCoder) throws IOException {
-          Coder<BoundedWindow> windowCoder = (Coder<BoundedWindow>) context.windowFn.windowCoder();
+          Coder<BoundedWindow> windowCoder = context.windowFn.windowCoder();
 
           context.stepContext.getExecutionContext().writePCollectionViewData(
               tag, data, IterableCoder.of(WindowedValue.getFullCoder(elemCoder, windowCoder)),
@@ -592,6 +572,12 @@ public class DoFnRunner<I, O, R> {
           context.stepContext.store(tag, value, timestamp);
         }
       };
+    }
+
+    @Override
+    protected <VI, VO> Aggregator<VI, VO> createAggregatorInternal(String name,
+        CombineFn<VI, ?, VO> combiner) {
+      return context.createAggregatorInternal(name, combiner);
     }
   }
 }
