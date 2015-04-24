@@ -405,9 +405,6 @@ public class DataflowPipelineTranslator {
 
       workerPool.setPackages(packages);
       workerPool.setNumWorkers(options.getNumWorkers());
-      if (options.getDiskSourceImage() != null) {
-        workerPool.setDiskSourceImage(options.getDiskSourceImage());
-      }
 
       if (options.isStreaming()) {
         // Use separate data disk for streaming.
