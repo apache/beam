@@ -99,7 +99,9 @@ public class Read {
     public final PCollection<T> apply(PInput input) {
       Preconditions.checkNotNull(source, "source must be set");
       source.validate();
-      return PCollection.<T>createPrimitiveOutputInternal(WindowingStrategy.globalDefault())
+      return PCollection.<T>createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault())
           .setCoder(getDefaultOutputCoder());
     }
 

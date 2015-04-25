@@ -76,20 +76,6 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
     return this;
   }
 
-  @Override
-  public void recordAsOutput(Pipeline pipeline,
-                             PTransform<?, ?> transform,
-                             String outName) {
-    super.recordAsOutput(pipeline, transform, outName);
-    pipeline.addValueInternal(this);
-  }
-
-  @Override
-  public TypedPValue<T> setPipelineInternal(Pipeline pipeline) {
-    super.setPipelineInternal(pipeline);
-    return this;
-  }
-
   /**
    * After building, finalizes this PValue to make it ready for
    * running.  Automatically invoked whenever the PValue is "used"
@@ -113,7 +99,9 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
    */
   private Coder<T> coder;
 
-  protected TypedPValue() {}
+  protected TypedPValue(Pipeline p) {
+    super(p);
+  }
 
   private TypeToken<T> typeToken;
 

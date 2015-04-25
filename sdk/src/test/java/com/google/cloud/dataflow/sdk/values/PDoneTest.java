@@ -49,7 +49,7 @@ public class PDoneTest {
   static class EmptyTransform extends PTransform<PBegin, PDone> {
     @Override
     public PDone apply(PBegin begin) {
-      return new PDone();
+      return PDone.in(begin.getPipeline());
     }
   }
 

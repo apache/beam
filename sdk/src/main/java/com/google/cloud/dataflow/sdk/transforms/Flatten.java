@@ -129,7 +129,9 @@ public class Flatten {
         windowingStrategy = WindowingStrategy.globalDefault();
       }
 
-      return PCollection.<T>createPrimitiveOutputInternal(windowingStrategy);
+      return PCollection.<T>createPrimitiveOutputInternal(
+          inputs.getPipeline(),
+          windowingStrategy);
     }
 
     @Override

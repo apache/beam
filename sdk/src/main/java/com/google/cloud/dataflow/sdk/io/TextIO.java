@@ -278,7 +278,9 @@ public class TextIO {
         // Force the output's Coder to be what the read is using, and
         // unchangeable later, to ensure that we read the input in the
         // format specified by the Read transform.
-        return PCollection.<T>createPrimitiveOutputInternal(WindowingStrategy.globalDefault())
+        return PCollection.<T>createPrimitiveOutputInternal(
+                input.getPipeline(),
+                WindowingStrategy.globalDefault())
             .setCoder(coder);
       }
 
@@ -575,7 +577,7 @@ public class TextIO {
           throw new IllegalStateException(
               "need to set the filename prefix of a TextIO.Write transform");
         }
-        return new PDone();
+        return PDone.in(input.getPipeline());
       }
 
       /**

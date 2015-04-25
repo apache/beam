@@ -183,7 +183,9 @@ public class PCollectionTuple implements PInput, POutput {
    * <p> For use by primitive transformations only.
    */
   public static PCollectionTuple ofPrimitiveOutputsInternal(
-      TupleTagList outputTags, WindowingStrategy<?, ?> windowingStrategy) {
+      Pipeline pipeline,
+      TupleTagList outputTags,
+      WindowingStrategy<?, ?> windowingStrategy) {
     Map<TupleTag<?>, PCollection<?>> pcollectionMap = new LinkedHashMap<>();
     for (TupleTag<?> outputTag : outputTags.tupleTags) {
       if (pcollectionMap.containsKey(outputTag)) {
@@ -200,7 +202,7 @@ public class PCollectionTuple implements PInput, POutput {
       @SuppressWarnings("unchecked")
       TypeToken<Object> token = (TypeToken<Object>) outputTag.getTypeToken();
       PCollection<Object> outputCollection = PCollection
-          .createPrimitiveOutputInternal(windowingStrategy)
+          .createPrimitiveOutputInternal(pipeline, windowingStrategy)
           .setTypeTokenInternal(token);
 
       pcollectionMap.put(outputTag, outputCollection);
@@ -219,19 +221,13 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   @Override
-  public void recordAsOutput(Pipeline pipeline,
-                             PTransform<?, ?> transform) {
-    if (this.pipeline != null && this.pipeline != pipeline) {
-      throw new AssertionError(
-          "not expecting to change the Pipeline owning a PCollectionTuple");
-    }
-    this.pipeline = pipeline;
+  public void recordAsOutput(PTransform<?, ?> transform) {
     int i = 0;
     for (Map.Entry<TupleTag<?>, PCollection<?>> entry
              : pcollectionMap.entrySet()) {
       TupleTag<?> tag = entry.getKey();
       PCollection<?> pc = entry.getValue();
-      pc.recordAsOutput(pipeline, transform, tag.getOutName(i));
+      pc.recordAsOutput(transform, tag.getOutName(i));
       i++;
     }
   }

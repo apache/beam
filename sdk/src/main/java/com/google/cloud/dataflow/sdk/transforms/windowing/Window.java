@@ -259,7 +259,7 @@ public class Window {
 
     @Override
     public PCollection<T> apply(PCollection<T> input) {
-      return PCollection.<T>createPrimitiveOutputInternal(windowingStrategy);
+      return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(), windowingStrategy);
     }
 
     @Override

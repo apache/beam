@@ -438,7 +438,9 @@ public class DataflowPipelineRunnerTest {
 
     @Override
     public PCollection<Integer> apply(PCollection<Integer> input) {
-      return PCollection.<Integer>createPrimitiveOutputInternal(WindowingStrategy.globalDefault());
+      return PCollection.<Integer>createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault());
     }
 
     @Override

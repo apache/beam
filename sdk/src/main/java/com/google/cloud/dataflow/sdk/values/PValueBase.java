@@ -73,7 +73,18 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  protected PValueBase() {}
+  protected PValueBase(Pipeline pipeline) {
+    super(pipeline);
+  }
+
+  /**
+   * No-arg constructor for Java serialization only.
+   * The resulting {@code PValueBase} is unlikely to be
+   * valid.
+   */
+  protected PValueBase() {
+    super();
+  }
 
   /**
    * The name of this {@code PValueBase}, or null if not yet set.
@@ -81,56 +92,14 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   private String name;
 
   /**
-   * The {@code Pipeline} that owns this {@code PValueBase}, or null
-   * if not yet set.
-   */
-  private Pipeline pipeline;
-
-  /**
    * Whether this {@code PValueBase} has been finalized, and its core
    * properties, e.g., name, can no longer be changed.
    */
   private boolean finishedSpecifying = false;
 
-
-  /**
-   * Returns the owning {@code Pipeline} of this {@code PValueBase}.
-   *
-   * @throws IllegalStateException if the owning {@code Pipeline}
-   * hasn't been set yet
-   */
   @Override
-  public Pipeline getPipeline() {
-    if (pipeline == null) {
-      throw new IllegalStateException("owning pipeline not set");
-    }
-    return pipeline;
-  }
-
-  /**
-   * Sets the owning {@code Pipeline} of this {@code PValueBase}.
-   * Returns {@code this}.
-   *
-   * <p> For internal use only.
-   *
-   * @throws IllegalArgumentException if the owner has already been set
-   * differently
-   */
-  @Override
-  public PValue setPipelineInternal(Pipeline pipeline) {
-    if (this.pipeline != null
-        && this.pipeline != pipeline) {
-      throw new IllegalArgumentException(
-          "owning pipeline cannot be changed once set");
-    }
-    this.pipeline = pipeline;
-    return this;
-  }
-
-  @Override
-  public void recordAsOutput(Pipeline pipeline,
-                             PTransform<?, ?> transform) {
-    recordAsOutput(pipeline, transform, "out");
+  public void recordAsOutput(PTransform<?, ?> transform) {
+    recordAsOutput(transform, "out");
   }
 
   /**
@@ -141,12 +110,11 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    * <p> To be invoked only by {@link POutput#recordAsOutput}
    * implementations.  Not to be invoked directly by user code.
    */
-  protected void recordAsOutput(Pipeline pipeline,
-                             PTransform<?, ?> transform,
+  protected void recordAsOutput(PTransform<?, ?> transform,
                              String outName) {
-    super.recordAsOutput(pipeline, transform);
+    super.recordAsOutput(transform);
     if (name == null) {
-      name = pipeline.getFullName(transform) + "." + outName;
+      name = getPipeline().getFullName(transform) + "." + outName;
     }
   }
 

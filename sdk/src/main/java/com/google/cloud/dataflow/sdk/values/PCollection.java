@@ -146,7 +146,9 @@ public class PCollection<T> extends TypedPValue<T> {
    */
   private WindowingStrategy<?, ?> windowingStrategy;
 
-  private PCollection() {}
+  private PCollection(Pipeline p) {
+    super(p);
+  }
 
   /**
    * Sets the {@code TypeToken<T>} for this {@code PCollection<T>}, so that
@@ -171,23 +173,13 @@ public class PCollection<T> extends TypedPValue<T> {
   }
 
   /**
-   * Sets the {@link Pipeline} for this {@code PCollection}.
-   *
-   * <p> For use by primitive transformations only.
-   */
-  @Override
-  public PCollection<T> setPipelineInternal(Pipeline pipeline) {
-    super.setPipelineInternal(pipeline);
-    return this;
-  }
-
-  /**
    * Creates and returns a new PCollection for a primitive output.
    *
    * <p> For use by primitive transformations only.
    */
   public static <T> PCollection<T> createPrimitiveOutputInternal(
+      Pipeline pipeline,
       WindowingStrategy<?, ?> windowingStrategy) {
-    return new PCollection<T>().setWindowingStrategyInternal(windowingStrategy);
+    return new PCollection<T>(pipeline).setWindowingStrategyInternal(windowingStrategy);
   }
 }

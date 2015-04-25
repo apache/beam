@@ -30,7 +30,25 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
  */
 public abstract class POutputValueBase implements POutput {
 
-  protected POutputValueBase() { }
+  private final Pipeline pipeline;
+
+  protected POutputValueBase(Pipeline pipeline) {
+    this.pipeline = pipeline;
+  }
+
+  /**
+   * No-arg constructor for Java serialization only.
+   * The resulting {@code POutputValueBase} is unlikely to be
+   * valid.
+   */
+  protected POutputValueBase() {
+    pipeline = null;
+  }
+
+  @Override
+  public Pipeline getPipeline() {
+    return pipeline;
+  }
 
   /**
    * Returns the {@code PTransform} that this {@code POutputValueBase}
@@ -45,13 +63,11 @@ public abstract class POutputValueBase implements POutput {
   /**
    * Records that this {@code POutputValueBase} is an output with the
    * given name of the given {@code PTransform} in the given
-   * {@code Pipeline}.
    *
    * <p> To be invoked only by {@link POutput#recordAsOutput}
    * implementations.  Not to be invoked directly by user code.
    */
-  public void recordAsOutput(Pipeline pipeline,
-                             PTransform<?, ?> transform) {
+  public void recordAsOutput(PTransform<?, ?> transform) {
     if (producingTransform != null) {
       // Already used this POutput as a PTransform output.  This can
       // happen if the POutput is an output of a transform within a

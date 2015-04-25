@@ -201,7 +201,7 @@ public class Write {
               writeOperation.finalize(results, c.getPipelineOptions());
             }
           }).withSideInputs(resultsView));
-      return new PDone();
+      return PDone.in(input.getPipeline());
     }
   }
 }

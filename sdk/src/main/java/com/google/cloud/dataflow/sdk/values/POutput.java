@@ -22,10 +22,15 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import java.util.Collection;
 
 /**
- * The abstract interface of things that might be output from a
- * {@link PTransform}.
+ * The interface for things that might be output from a {@link PTransform}.
  */
 public interface POutput {
+
+  /**
+   * Returns the owning {@link Pipeline} of this {@code POutput}.
+   */
+  public Pipeline getPipeline();
+
   /**
    * Expands this {@code POutput} into a list of its component output
    * {@code PValue}s.
@@ -42,17 +47,16 @@ public interface POutput {
 
   /**
    * Records that this {@code POutput} is an output of the given
-   * {@code PTransform} in the given {@code Pipeline}.
+   * {@code PTransform}.
    *
-   * <p> Should expand this {@code POutput} and invoke
-   * {@link PValue#recordAsOutput(Pipeline, com.google.cloud.dataflow.sdk.transforms.PTransform)}
-   * on each component output {@code PValue}.
+   * <p> For a compound {@code POutput}, it is advised to call
+   * this method on each component {@code POutput}.
    *
-   * <p> Automatically invoked as part of applying a
-   * {@code PTransform}.  Not to be invoked directly by user code.
+   * <p> This is not intended to be invoked by user code, but
+   * is automatically invoked as part of applying the
+   * producing {@code PTransform}.
    */
-  public void recordAsOutput(Pipeline pipeline,
-                             PTransform<?, ?> transform);
+  public void recordAsOutput(PTransform<?, ?> transform);
 
   /**
    * As part of finishing the producing {@code PTransform}, finalizes this
@@ -64,8 +68,8 @@ public interface POutput {
    *
    * <p> Automatically invoked whenever this {@code POutput} is used
    * as a {@code PInput} to another {@code PTransform}, or if never
-   * used as a {@code PInput}, when {@link Pipeline#run} is called, so
-   * users do not normally call this explicitly.
+   * used as a {@code PInput}, when {@link Pipeline#run}
+   * is called, so users do not normally call this explicitly.
    */
   public void finishSpecifyingOutput();
 }

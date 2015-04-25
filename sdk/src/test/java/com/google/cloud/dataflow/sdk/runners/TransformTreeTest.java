@@ -75,6 +75,7 @@ public class TransformTreeTest {
       // from within a composite transform.
       return PCollectionList.of(
           Arrays.asList(result, PCollection.<String>createPrimitiveOutputInternal(
+              b.getPipeline(),
               WindowingStrategy.globalDefault())));
     }
   }
@@ -90,7 +91,7 @@ public class TransformTreeTest {
       // Apply an operation so that this is a composite transform.
       input.apply(Count.<Integer>perElement());
 
-      return new PDone();
+      return PDone.in(input.getPipeline());
     }
 
     @Override

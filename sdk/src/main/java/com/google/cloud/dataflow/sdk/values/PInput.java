@@ -21,37 +21,33 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import java.util.Collection;
 
 /**
- * The abstract interface of things that might be input to a
+ * The interface for things that might be input to a
  * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}.
  */
 public interface PInput {
   /**
-   * Returns the owning Pipeline of this PInput.
-   *
-   * @throws IllegalStateException if the owning Pipeline hasn't been
-   * set yet
+   * Returns the owning {@link Pipeline} of this {@code PInput}.
    */
   public Pipeline getPipeline();
 
   /**
-   * Expands this PInput into a list of its component input PValues.
+   * Expands this {@code PInput} into a list of its component input {@link PValue}s.
    *
-   * <p> A PValue expands to itself.
+   * <p> A {@link PValue} expands to itself.
    *
-   * <p> A tuple or list of PValues (e.g.,
-   * PCollectionTuple, and PCollectionList) expands to its component
-   * PValues.
+   * <p> A tuple or list of {@link PValue}s (e.g., {@link PCollectionTuple},
+   * and {@link PCollectionList}) expands to its component {@link PValue}s.
    *
    * <p> Not intended to be invoked directly by user code.
    */
   public Collection<? extends PValue> expand();
 
   /**
-   * <p> After building, finalizes this PInput to make it ready for
-   * being used as an input to a PTransform.
+   * <p> After building, finalizes this {@code PInput} to make it ready for
+   * being used as an input to a {@link PTransform}.
    *
    * <p> Automatically invoked whenever {@code apply()} is invoked on
-   * this PInput, so users do not normally call this explicitly.
+   * this {@code PInput}, so users do not normally call this explicitly.
    */
   public void finishSpecifying();
 }

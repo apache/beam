@@ -330,7 +330,8 @@ public class GroupByKey<K, V>
 
       // We also return to the default trigger.
       WindowingStrategy<?, ?> newWindowingStrategy = WindowingStrategy.of(newWindowFn);
-      return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(newWindowingStrategy);
+      return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
+          input.getPipeline(), newWindowingStrategy);
     }
 
     /**

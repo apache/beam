@@ -709,7 +709,9 @@ public class ParDo {
       if (sideInputs == null) {
         sideInputs = Collections.emptyList();
       }
-      return PCollection.<O>createPrimitiveOutputInternal(input.getWindowingStrategy())
+      return PCollection.<O>createPrimitiveOutputInternal(
+              input.getPipeline(),
+              input.getWindowingStrategy())
           .setTypeTokenInternal(fn.getOutputTypeToken());
     }
 
@@ -912,6 +914,7 @@ public class ParDo {
     @Override
     public PCollectionTuple apply(PCollection<? extends I> input) {
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
+          input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
           input.getWindowingStrategy());
 

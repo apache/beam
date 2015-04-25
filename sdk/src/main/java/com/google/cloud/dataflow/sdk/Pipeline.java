@@ -286,7 +286,7 @@ public class Pipeline {
       transforms.setOutput(child, output);
 
       // recordAsOutput is a NOOP if already called;
-      output.recordAsOutput(this, child.getTransform());
+      output.recordAsOutput(child.getTransform());
       verifyOutputState(output, child);
       return output;
     } finally {
@@ -314,16 +314,39 @@ public class Pipeline {
    *
    * <p> A non-composite transform must have all
    * of its outputs registered as produced by the transform.
+   *
+   * <p> A composite transform must have all of its outputs
+   * registered as produced by the contains primitive transforms.
+   * They have each had the above check performed already, when
+   * they were applied, so the only possible failure state is
+   * that the composite transform has returned a primitive output.
    */
   private void verifyOutputState(POutput output, TransformTreeNode node) {
     if (!node.isCompositeNode()) {
       PTransform<?, ?> thisTransform = node.getTransform();
       List<PTransform<?, ?>> producingTransforms = getProducingTransforms(output);
       for (PTransform<?, ?> producingTransform : producingTransforms) {
+
+        // Using != because object identity indicates that the transforms
+        // are the same node in the pipeline
         if (thisTransform != producingTransform) {
           throw new IllegalArgumentException("Output of non-composite transform "
               + thisTransform + " is registered as being produced by"
               + " a different transform: " + producingTransform);
+        }
+      }
+    } else {
+      PTransform<?, ?> thisTransform = node.getTransform();
+      List<PTransform<?, ?>> producingTransforms = getProducingTransforms(output);
+      for (PTransform<?, ?> producingTransform : producingTransforms) {
+
+        // Using == because object identity indicates that the transforms
+        // are the same node in the pipeline
+        if (thisTransform == producingTransform) {
+          throw new IllegalStateException("Output of composite transform "
+              + thisTransform + " is registered as being produced by it,"
+              + " but the output of every composite transform should be"
+              + " produced by a primitive transform contained therein.");
         }
       }
     }
@@ -414,7 +437,6 @@ public class Pipeline {
    */
   public void addValueInternal(PValue value) {
     this.values.add(value);
-    value.setPipelineInternal(this);
     LOG.debug("Adding {} to {}", value, this);
   }
 }

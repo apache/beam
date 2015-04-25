@@ -290,6 +290,7 @@ public class BigQueryIO {
               "must set the table reference of a BigQueryIO.Read transform");
         }
         return PCollection.<TableRow>createPrimitiveOutputInternal(
+            input.getPipeline(),
             WindowingStrategy.globalDefault())
             // Force the output's Coder to be what the read is using, and
             // unchangeable later, to ensure that we read the input in the
@@ -587,7 +588,7 @@ public class BigQueryIO {
           return input.apply(new StreamWithDeDup(table, schema));
         }
 
-        return new PDone();
+        return PDone.in(input.getPipeline());
       }
 
       @Override
@@ -798,7 +799,7 @@ public class BigQueryIO {
     }
 
     @Override
-    public PDone apply(PCollection<TableRow> in) {
+    public PDone apply(PCollection<TableRow> input) {
       // A naive implementation would be to simply stream data directly to BigQuery.
       // However, this could occassionally lead to duplicated data, e.g., when
       // a VM that runs this code is restarted and the code is re-run.
@@ -810,7 +811,7 @@ public class BigQueryIO {
       // unique id, which is then passed to BigQuery and used to ignore duplicates.
 
       PCollection<KV<Integer, KV<String, TableRow>>> tagged =
-          in.apply(ParDo.of(new TagWithUniqueIds()));
+          input.apply(ParDo.of(new TagWithUniqueIds()));
 
       // To prevent having the same TableRow processed more than once with regenerated
       // different unique ids, this implementation relies on "checkpointing", which is
@@ -823,7 +824,7 @@ public class BigQueryIO {
       // input, the transform may not necessarily be executed after
       // the BigQueryIO.Write.
 
-      return new PDone();
+      return PDone.in(input.getPipeline());
     }
   }
 

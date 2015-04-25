@@ -221,7 +221,9 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
           }))
           .apply(ParDo.of(new OutputOnceDoFn<>(elems, elemCoder)));
     } else {
-      return PCollection.<T>createPrimitiveOutputInternal(WindowingStrategy.globalDefault());
+      return PCollection.<T>createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault());
     }
   }
 

@@ -198,15 +198,10 @@ public class PCollectionList<T> implements PInput, POutput {
   }
 
   @Override
-  public void recordAsOutput(Pipeline pipeline,
-                             PTransform<?, ?> transform) {
-    if (this.pipeline != null && this.pipeline != pipeline) {
-      throw new AssertionError(
-          "not expecting to change the Pipeline owning a PCollectionList");
-    }
+  public void recordAsOutput(PTransform<?, ?> transform) {
     int i = 0;
     for (PCollection<T> pc : pcollections) {
-      pc.recordAsOutput(pipeline, transform, "out" + i);
+      pc.recordAsOutput(transform, "out" + i);
       i++;
     }
   }

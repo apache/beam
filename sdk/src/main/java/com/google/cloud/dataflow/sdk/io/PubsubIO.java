@@ -368,7 +368,9 @@ public class PubsubIO {
               "Can't set both the topic and the subscription for a "
               + "PubsubIO.Read transform");
         }
-        return PCollection.<T>createPrimitiveOutputInternal(WindowingStrategy.globalDefault())
+        return PCollection.<T>createPrimitiveOutputInternal(
+                input.getPipeline(),
+                WindowingStrategy.globalDefault())
             .setCoder(coder);
       }
 
@@ -543,7 +545,7 @@ public class PubsubIO {
           throw new IllegalStateException(
               "need to set the topic of a PubsubIO.Write transform");
         }
-        return new PDone();
+        return PDone.in(input.getPipeline());
       }
 
       @Override

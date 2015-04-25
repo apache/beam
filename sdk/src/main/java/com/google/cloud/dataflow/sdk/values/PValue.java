@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.values;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 
 /**
@@ -24,9 +23,11 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
  * input and output from {@link PTransform}s.
  */
 public interface PValue extends POutput, PInput {
-  public String getName();
 
-  public PValue setPipelineInternal(Pipeline pipeline);
+  /**
+   * Returns the name of this {@code PValue}.
+   */
+  public String getName();
 
   /**
    * Returns the {@code PTransform} that this {@code PValue} is an output of.

@@ -411,8 +411,7 @@ public class View {
     public SingletonPCollectionView(
         Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy,
         boolean hasDefault, T defaultValue, Coder<T> valueCoder) {
-      super(windowingStrategy, valueCoder);
-      setPipelineInternal(pipeline);
+      super(pipeline, windowingStrategy, valueCoder);
       this.defaultValue = defaultValue;
       this.valueCoder = valueCoder;
       if (hasDefault) {
@@ -457,8 +456,7 @@ public class View {
 
     public IterablePCollectionView(
         Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy, Coder<T> valueCoder) {
-      super(windowingStrategy, valueCoder);
-      setPipelineInternal(pipeline);
+      super(pipeline, windowingStrategy, valueCoder);
     }
 
     @Override
@@ -479,8 +477,7 @@ public class View {
 
     public MultimapPCollectionView(
         Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy, Coder<KV<K, V>> valueCoder) {
-      super(windowingStrategy, valueCoder);
-      setPipelineInternal(pipeline);
+      super(pipeline, windowingStrategy, valueCoder);
     }
 
     @Override
@@ -502,8 +499,7 @@ public class View {
 
     public MapPCollectionView(
         Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy, Coder<KV<K, V>> valueCoder) {
-      super(windowingStrategy, valueCoder);
-      setPipelineInternal(pipeline);
+      super(pipeline, windowingStrategy, valueCoder);
     }
 
     @Override
@@ -525,7 +521,18 @@ public class View {
       implements PCollectionView<T> {
     private static final long serialVersionUID = 0;
 
-    PCollectionViewBase(WindowingStrategy<?, ?> windowingStrategy, Coder<?> valueCoder) {
+    // for serialization only
+    protected PCollectionViewBase() {
+      super();
+    }
+
+    protected PCollectionViewBase(
+        Pipeline pipeline,
+        WindowingStrategy<?, ?> windowingStrategy,
+        Coder<?> valueCoder) {
+
+      super(pipeline);
+
       if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
         throw new IllegalArgumentException("WindowFn of PCollectionView cannot be InvalidWindows");
       }

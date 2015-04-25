@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.values;
 
+import com.google.cloud.dataflow.sdk.Pipeline;
+
 import java.util.Collection;
 import java.util.Collections;
 
@@ -26,11 +28,21 @@ import java.util.Collections;
  * transforms can be applied to it.
  */
 public class PDone extends POutputValueBase {
-  public PDone() {}
+
+  /**
+   * Creates a {@code PDone} in the given {@code Pipeline}.
+   */
+  public static PDone in(Pipeline pipeline) {
+    return new PDone(pipeline);
+  }
 
   @Override
   public Collection<? extends PValue> expand() {
     // A PDone contains no PValues.
     return Collections.emptyList();
+  }
+
+  private PDone(Pipeline pipeline) {
+    super(pipeline);
   }
 }

@@ -331,7 +331,9 @@ public class DataflowPipelineTranslatorTest {
 
     @Override
     public PCollection<String> apply(PCollection<String> input) {
-      return PCollection.createPrimitiveOutputInternal(WindowingStrategy.globalDefault());
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault());
     }
 
     @Override
@@ -386,7 +388,7 @@ public class DataflowPipelineTranslatorTest {
       // Apply an operation so that this is a composite transform.
       input.apply(Count.<Integer>perElement());
 
-      return new PDone();
+      return PDone.in(input.getPipeline());
     }
 
     @Override
@@ -413,6 +415,7 @@ public class DataflowPipelineTranslatorTest {
       // Fails here when attempting to construct a tuple with an unbound object.
       return PCollectionTuple.of(sumTag, sum)
           .and(doneTag, PCollection.<Void>createPrimitiveOutputInternal(
+              input.getPipeline(),
               WindowingStrategy.globalDefault()));
     }
   }
