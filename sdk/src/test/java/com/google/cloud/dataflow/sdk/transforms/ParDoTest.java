@@ -20,7 +20,6 @@ import static com.google.cloud.dataflow.sdk.TestUtils.createInts;
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.serializeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.byteArrayToJsonString;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.jsonStringToByteArray;
-import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.hamcrest.core.AnyOf.anyOf;
@@ -29,7 +28,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -538,13 +536,10 @@ public class ParDoTest implements Serializable {
                 c.sideOutput(new TupleTag<String>(){}, "side");
               }
             }}));
-    try {
-      p.run();
-      fail("should have failed");
-    } catch (RuntimeException exn) {
-      assertThat(exn.toString(),
-                 containsString("the number of side outputs has exceeded a limit"));
-    }
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("the number of side outputs has exceeded a limit");
+    p.run();
   }
 
   @Test
@@ -591,13 +586,9 @@ public class ParDoTest implements Serializable {
             Arrays.<PCollectionView<Integer>>asList(sideView),
             Arrays.<TupleTag<String>>asList())));
 
-    try {
-      p.run();
-      fail("should have failed");
-    } catch (RuntimeException exn) {
-      assertThat(exn.toString(),
-                 containsString("calling sideInput() with unknown view"));
-    }
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("calling sideInput() with unknown view");
+    p.run();
   }
 
   @Test
@@ -611,12 +602,9 @@ public class ParDoTest implements Serializable {
     input
         .apply(ParDo.of(new TestStartBatchErrorDoFn()));
 
-    try {
-      p.run();
-      fail("should have failed");
-    } catch (RuntimeException exn) {
-      assertThat(exn.toString(), containsString("test error in initialize"));
-    }
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("test error in initialize");
+    p.run();
   }
 
   @Test
@@ -630,12 +618,9 @@ public class ParDoTest implements Serializable {
     input
         .apply(ParDo.of(new TestProcessElementErrorDoFn()));
 
-    try {
-      p.run();
-      fail("should have failed");
-    } catch (RuntimeException exn) {
-      assertThat(exn.toString(), containsString("test error in process"));
-    }
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("test error in process");
+    p.run();
   }
 
   @Test
@@ -649,12 +634,9 @@ public class ParDoTest implements Serializable {
     input
         .apply(ParDo.of(new TestFinishBatchErrorDoFn()));
 
-    try {
-      p.run();
-      fail("should have failed");
-    } catch (RuntimeException exn) {
-      assertThat(exn.toString(), containsString("test error in finalize"));
-    }
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("test error in finalize");
+    p.run();
   }
 
   @Test
@@ -728,13 +710,9 @@ public class ParDoTest implements Serializable {
     input
         .apply(ParDo.of(new TestUnexpectedKeyedStateDoFn()));
 
-    try {
-      p.run();
-      fail("should have failed");
-    } catch (RuntimeException exn) {
-      assertThat(exn.toString(),
-                 containsString("Keyed state is only available"));
-    }
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Keyed state is only available");
+    p.run();
   }
 
   @Test
@@ -745,15 +723,12 @@ public class ParDoTest implements Serializable {
 
     PCollection<Integer> input = createInts(p, inputs);
 
-    try {
-      input.apply(ParDo.of(new TestKeyedStateDoFnWithNonKvInput()))
-          .finishSpecifying();
-      fail("should have failed");
-    } catch (RuntimeException exn) {
-      assertThat(exn.toString(), containsString(
-          "KeyedState is only available in DoFn's with keyed inputs, but "
-          + "input coder BigEndianIntegerCoder is not keyed."));
-    }
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage(
+        "KeyedState is only available in DoFn's with keyed inputs, but "
+        + "input coder BigEndianIntegerCoder is not keyed.");
+
+    input.apply(ParDo.of(new TestKeyedStateDoFnWithNonKvInput())).finishSpecifying();
   }
 
   @Test
@@ -764,18 +739,16 @@ public class ParDoTest implements Serializable {
 
     PCollection<Integer> input = createInts(p, inputs);
 
-    try {
-      input.apply(ParDo.of(new DoFnWithContext<Integer, String>() {
-        @SuppressWarnings("unused")
-        @ProcessElement
-        public void process(ProcessContext c, KeyedState keyedState) {}
-      })).finishSpecifying();
-      fail("should have failed");
-    } catch (RuntimeException exn) {
-      assertThat(exn.toString(), containsString(
-          "KeyedState is only available in DoFn's with keyed inputs, but "
-          + "input coder BigEndianIntegerCoder is not keyed."));
-    }
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage(
+        "KeyedState is only available in DoFn's with keyed inputs, but "
+            + "input coder BigEndianIntegerCoder is not keyed.");
+
+    input.apply(ParDo.of(new DoFnWithContext<Integer, String>() {
+      @SuppressWarnings("unused")
+      @ProcessElement
+      public void process(ProcessContext c, KeyedState keyedState) {}
+    })).finishSpecifying();
   }
 
   @Test
@@ -1261,12 +1234,9 @@ public class ParDoTest implements Serializable {
                                                    Duration.millis(-1001))))
         .apply(ParDo.of(new TestFormatTimestampDoFn()));
 
-    try {
-      p.run();
-      fail("should have failed");
-    } catch (RuntimeException exn) {
-      // expected
-    }
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("allowed maximum skew");
+    p.run();
   }
 
   @Test
@@ -1322,12 +1292,7 @@ public class ParDoTest implements Serializable {
                   }
                 }));
 
-    try {
-      p.run();
-      fail("should have failed");
-    } catch (Exception e) {
-      assertThat(e.toString(), containsString(
-          "WindowFn attemped to access input timestamp when none was available"));
-    }
+    thrown.expectMessage("WindowFn attempted to access input timestamp when none was available");
+    p.run();
   }
 }

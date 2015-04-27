@@ -273,27 +273,27 @@ public class DoFnRunner<I, O, R> {
       if (windows == null) {
         try {
           windows = windowFn.assignWindows(windowFn.new AssignContext() {
-              @Override
-              public Object element() {
-                throw new UnsupportedOperationException(
-                    "WindowFn attemped to access input element when none was available");
-              }
+            @Override
+            public Object element() {
+              throw new UnsupportedOperationException(
+                  "WindowFn attempted to access input element when none was available");
+            }
 
-              @Override
-              public Instant timestamp() {
-                if (inputTimestamp == null) {
-                  throw new UnsupportedOperationException(
-                      "WindowFn attemped to access input timestamp when none was available");
-                }
-                return inputTimestamp;
-              }
-
-              @Override
-              public Collection<? extends BoundedWindow> windows() {
+            @Override
+            public Instant timestamp() {
+              if (inputTimestamp == null) {
                 throw new UnsupportedOperationException(
-                    "WindowFn attemped to access input windows when none were available");
+                    "WindowFn attempted to access input timestamp when none was available");
               }
-            });
+              return inputTimestamp;
+            }
+
+            @Override
+            public Collection<? extends BoundedWindow> windows() {
+              throw new UnsupportedOperationException(
+                  "WindowFn attempted to access input windows when none were available");
+            }
+          });
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
