@@ -165,11 +165,11 @@ public class DataflowPipelineJob implements PipelineResult {
             nanoClock)
         : new AttemptBoundedExponentialBackOff(
             MESSAGES_POLLING_ATTEMPTS, MESSAGES_POLLING_INTERVAL);
-
+    State state;
     do {
       // Get the state of the job before listing messages. This ensures we always fetch job
       // messages after the job finishes to ensure we have all them.
-      State state = getStateWithRetries(1, sleeper);
+      state = getStateWithRetries(1, sleeper);
       boolean hasError = state == State.UNKNOWN;
 
       if (messageHandler != null && !hasError) {
@@ -198,7 +198,7 @@ public class DataflowPipelineJob implements PipelineResult {
         }
       }
     } while(BackOffUtils.next(sleeper, backoff));
-
+    LOG.warn("No terminal state was returned.  State value {}", state);
     return null;  // Timed out.
   }
 
