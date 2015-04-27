@@ -34,85 +34,88 @@ import java.util.regex.Pattern;
 public interface GoogleApiDebugOptions extends PipelineOptions {
   /**
    * This option enables tracing of API calls to Google services used within the Dataflow SDK.
-   * A tracing token must be requested from Google to be able to use this option.
-   * An invalid tracing token will result in 400 errors from Google when the API is invoked.
    */
   @Description("This option enables tracing of API calls to Google services used within the "
-      + "Dataflow SDK. Values are expected in the format \"ApiName#TracingToken\" where the "
-      + "ApiName represents the request classes canonical name. The TracingToken must be requested "
-      + "from Google to be able to use this option. An invalid tracing token will result in HTTP "
-      + "400 errors from Google when the API is invoked. Note, that by enabling this option, the "
-      + "contents of the requests to and from Google Cloud services will be made available to "
-      + "Google. For example, by specifiying \"Dataflow#TracingToken\", all calls to the Dataflow "
-      + "service will be made available to Google.")
+      + "Dataflow SDK. Values are expected in the format \"ApiName#TraceDestination\" where the "
+      + "ApiName represents the request classes canonical name. The TraceDestination is a "
+      + "logical trace consumer to whom the trace will be reported. Typically, \"producer\" is "
+      + "the right destination to use: this makes API traces available to the team offering the "
+      + "API. Note that by enabling this option, the contents of the requests to and from "
+      + "Google Cloud services will be made available to Google. For example, by specifying "
+      + "\"Dataflow#producer\", all calls to the Dataflow service will be made available to "
+      + "Google, specifically to the Google Cloud Dataflow team.")
   GoogleApiTracer[] getGoogleApiTrace();
   void setGoogleApiTrace(GoogleApiTracer... commands);
 
   /**
-   * A {@link GoogleClientRequestInitializer} that adds the 'trace' token to Google API calls.
+   * A {@link GoogleClientRequestInitializer} that adds the trace destination to Google API calls.
    */
   public static class GoogleApiTracer implements GoogleClientRequestInitializer {
     private static final Pattern COMMAND_LINE_PATTERN = Pattern.compile("([^#]*)#(.*)");
     /**
-     * Creates a {@link GoogleApiTracer} that sets the trace {@code token} on all
+     * Creates a {@link GoogleApiTracer} that sets the trace destination on all
      * calls that match the given client type.
      */
-    public static GoogleApiTracer create(AbstractGoogleClient client, String token) {
-      return new GoogleApiTracer(client.getClass().getCanonicalName(), token);
+    public static GoogleApiTracer create(AbstractGoogleClient client, String traceDestination) {
+      return new GoogleApiTracer(client.getClass().getCanonicalName(), traceDestination);
     }
 
     /**
-     * Creates a {@link GoogleApiTracer} that sets the trace {@code token} on all
+     * Creates a {@link GoogleApiTracer} that sets the trace {@code traceDestination} on all
      * calls that match for the given request type.
      */
-    public static GoogleApiTracer create(AbstractGoogleClientRequest<?> request, String token) {
-      return new GoogleApiTracer(request.getClass().getCanonicalName(), token);
+    public static GoogleApiTracer create(
+        AbstractGoogleClientRequest<?> request, String traceDestination) {
+      return new GoogleApiTracer(request.getClass().getCanonicalName(), traceDestination);
     }
 
     /**
-     * Creates a {@link GoogleClientRequestInitializer} that adds the trace token
+     * Creates a {@link GoogleClientRequestInitializer} that adds the trace destination
      * based upon the passed in value.
      * <p>
-     * The {@code value} represents a string containing {@code ApiName#TracingToken}.
-     * The {@code ApiName} is used to match against the request classes
-     * {@link Class#getCanonicalName() canonical name} for which to add the {@code TracingToken} to.
+     * The {@code value} represents a string containing {@code ApiName#TraceDestination}.
+     * The {@code ApiName} is used to match against the request class
+     * {@link Class#getCanonicalName() canonical name} to determine the requests to which the
+     * {@code TraceDestination} should be added.
+     * <p>
      * For example, to match:
      * <ul>
-     *   <li>all Google API calls: {@code #TracingToken}
-     *   <li>all Dataflow API calls: {@code Dataflow#TracingToken}
-     *   <li>all Dataflow V1B3 API calls: {@code Dataflow.V1b3#TracingToken}
-     *   <li>all Dataflow V1B3 Jobs API calls: {@code Dataflow.V1b3.Projects.Jobs#TracingToken}
-     *   <li>all Dataflow V1B3 Jobs Get calls: {@code Dataflow.V1b3.Projects.Jobs.Get#TracingToken}
-     *   <li>all Job creation calls in any version: {@code Jobs.Create#TracingToken}
+     *   <li>all Google API calls: {@code #TraceDestination}
+     *   <li>all Dataflow API calls: {@code Dataflow#TraceDestination}
+     *   <li>all Dataflow V1B3 API calls: {@code Dataflow.V1b3#TraceDestination}
+     *   <li>all Dataflow V1B3 Jobs API calls: {@code Dataflow.V1b3.Projects.Jobs#TraceDestination}
+     *   <li>all Dataflow V1B3 Jobs Get calls:
+     *       {@code Dataflow.V1b3.Projects.Jobs.Get#TraceDestination}
+     *   <li>all Job creation calls in any version: {@code Jobs.Create#TraceDestination}
      * </ul>
      */
     @JsonCreator
     public static GoogleApiTracer create(String value) {
       Matcher matcher = COMMAND_LINE_PATTERN.matcher(value);
       Preconditions.checkArgument(matcher.find() && matcher.groupCount() == 2,
-          "Unable to parse '%s', expected format 'ClientRequestName#Token'", value);
+          "Unable to parse '%s', expected format 'ClientRequestName#TraceDestination'", value);
       return new GoogleApiTracer(matcher.group(1), matcher.group(2));
     }
 
     private final String clientRequestName;
-    private final String token;
+    private final String traceDestination;
 
-    private GoogleApiTracer(String clientRequestName, String token) {
+    private GoogleApiTracer(String clientRequestName, String traceDestination) {
       this.clientRequestName = clientRequestName;
-      this.token = token;
+      this.traceDestination = traceDestination;
     }
 
     @Override
     public void initialize(AbstractGoogleClientRequest<?> request) throws IOException {
       if (request.getClass().getCanonicalName().contains(clientRequestName)) {
-        request.set("trace", token);
+        request.set("$trace", traceDestination);
       }
     }
 
     @JsonValue
     @Override
     public String toString() {
-      return clientRequestName + "#" + token;
+      return clientRequestName + "#" + traceDestination;
     }
   }
 }
