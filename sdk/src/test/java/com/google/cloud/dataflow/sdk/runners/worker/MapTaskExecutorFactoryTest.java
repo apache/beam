@@ -84,7 +84,7 @@ public class MapTaskExecutorFactoryTest {
   @Test
   public void testCreateMapTaskExecutor() throws Exception {
     List<ParallelInstruction> instructions = Arrays.asList(createReadInstruction("Read"),
-        createParDoInstruction(0, 0, "DoFn1"), createParDoInstruction(0, 0, "DoFn2"),
+        createParDoInstruction(0, 0, "DoFn1"), createParDoInstruction(0, 0, "DoFnWithContext"),
         createFlattenInstruction(1, 0, 2, 0, "Flatten"), createWriteInstruction(3, 0, "Write"));
 
     MapTask mapTask = new MapTask();
@@ -118,11 +118,11 @@ public class MapTaskExecutorFactoryTest {
             Counter.longs("test-DoFn1-start-msecs", SUM).resetToValue(0L),
             Counter.longs("test-DoFn1-process-msecs", SUM).resetToValue(0L),
             Counter.longs("test-DoFn1-finish-msecs", SUM).resetToValue(0L),
-            Counter.longs("DoFn2_output-ElementCount", SUM).resetToValue(0L),
-            Counter.longs("DoFn2_output-MeanByteCount", MEAN).resetToValue(0, 0L),
-            Counter.longs("test-DoFn2-start-msecs", SUM).resetToValue(0L),
-            Counter.longs("test-DoFn2-process-msecs", SUM).resetToValue(0L),
-            Counter.longs("test-DoFn2-finish-msecs", SUM).resetToValue(0L),
+            Counter.longs("DoFnWithContext_output-ElementCount", SUM).resetToValue(0L),
+            Counter.longs("DoFnWithContext_output-MeanByteCount", MEAN).resetToValue(0, 0L),
+            Counter.longs("test-DoFnWithContext-start-msecs", SUM).resetToValue(0L),
+            Counter.longs("test-DoFnWithContext-process-msecs", SUM).resetToValue(0L),
+            Counter.longs("test-DoFnWithContext-finish-msecs", SUM).resetToValue(0L),
             Counter.longs("flatten_output_name-ElementCount", SUM).resetToValue(0L),
             Counter.longs("flatten_output_name-MeanByteCount", MEAN).resetToValue(0, 0L),
             Counter.longs("test-Flatten-start-msecs", SUM).resetToValue(0L),
@@ -143,7 +143,7 @@ public class MapTaskExecutorFactoryTest {
   public void testExecutionContextPlumbing() throws Exception {
     List<ParallelInstruction> instructions =
         Arrays.asList(createReadInstruction("Read"), createParDoInstruction(0, 0, "DoFn1"),
-            createParDoInstruction(1, 0, "DoFn2"), createWriteInstruction(2, 0, "Write"));
+            createParDoInstruction(1, 0, "DoFnWithContext"), createWriteInstruction(2, 0, "Write"));
 
     MapTask mapTask = new MapTask();
     mapTask.setInstructions(instructions);
@@ -159,7 +159,7 @@ public class MapTaskExecutorFactoryTest {
     for (ExecutionContext.StepContext stepContext : context.getAllStepContexts()) {
       stepNames.add(stepContext.getStepName());
     }
-    assertThat(stepNames, CoreMatchers.hasItems("DoFn1", "DoFn2"));
+    assertThat(stepNames, CoreMatchers.hasItems("DoFn1", "DoFnWithContext"));
   }
 
   static ParallelInstruction createReadInstruction(String name) {

@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
 import com.google.common.base.Preconditions;
 
 import java.lang.reflect.Method;
@@ -45,7 +46,7 @@ public class PipelineOptionsValidator {
 
     ProxyInvocationHandler handler =
         (ProxyInvocationHandler) Proxy.getInvocationHandler(options);
-    for (Method method : PipelineOptionsFactory.getClosureOfMethodsOnInterface(klass)) {
+    for (Method method : ReflectHelpers.getClosureOfMethodsOnInterface(klass)) {
       if (method.getAnnotation(Validation.Required.class) != null) {
         Preconditions.checkArgument(handler.invoke(options, method, null) != null,
             "Missing required value for [" + method + ", \"" + getDescription(method) + "\"]. ");

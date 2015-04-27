@@ -72,7 +72,16 @@ public class DoFnTester<I, O> {
    */
   @SuppressWarnings("unchecked")
   public static <I, O> DoFnTester<I, O> of(DoFn<I, O> fn) {
-    return new DoFnTester(fn);
+    return new DoFnTester<I, O>(fn);
+  }
+
+  /**
+   * Returns a {@code DoFnTester} supporting unit-testing of the given
+   * {@link DoFn}.
+   */
+  @SuppressWarnings("unchecked")
+  public static <I, O> DoFnTester<I, O> of(DoFnWithContext<I, O> fn) {
+    return new DoFnTester<I, O>(DoFnReflector.of(fn.getClass()).toDoFn(fn));
   }
 
   /**

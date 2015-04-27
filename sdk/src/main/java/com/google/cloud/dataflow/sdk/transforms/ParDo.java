@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -527,10 +528,33 @@ public class ParDo {
     return new Unbound().of(fn);
   }
 
+  private static <I, O> DoFn<I, O> adapt(DoFnWithContext<I, O> fn) {
+    return DoFnReflector.of(fn.getClass()).toDoFn(fn);
+  }
+
+  /**
+   * Creates a {@code ParDo} {@code PTransform} that will invoke the
+   * given {@link DoFnWithContext} function.
+   *
+   * <p> The resulting {@code PTransform}'s types have been bound, with the
+   * input being a {@code PCollection<I>} and the output a
+   * {@code PCollection<O>}, inferred from the types of the argument
+   * {@code DoFn<I, O>}.  It is ready to be applied, or further
+   * properties can be set on it first.
+   *
+   * <p> {@link DoFnWithContext} is an experimental alternative to
+   * {@link DoFn} which simplifies accessing {@code KeyedState} and
+   * the window of the element.
+   */
+  @Experimental
+  public static <I, O> Bound<I, O> of(DoFnWithContext<I, O> fn) {
+    return of(adapt(fn));
+  }
+
   private static <I> void validateCoder(
       DoFn<I, ?> fn, PCollection<? extends I> input) {
     if (RequiresKeyedState.class.isAssignableFrom(fn.getClass())
-      && !isKvEquivalentCoder(input.getCoder())) {
+        && !isKvEquivalentCoder(input.getCoder())) {
       throw new UnsupportedOperationException(
           "KeyedState is only available in DoFn's with keyed inputs, but input coder "
           + input.getCoder() + " is not keyed.");
@@ -624,6 +648,18 @@ public class ParDo {
      */
     public <I, O> Bound<I, O> of(DoFn<I, O> fn) {
       return new Bound<>(name, sideInputs, fn);
+    }
+
+    /**
+     * Returns a new {@code ParDo} {@code PTransform} that's like this
+     * transform but which will invoke the given {@link DoFnWithContext}
+     * function, and which has its input and output types bound.  Does
+     * not modify this transform.  The resulting {@code PTransform} is
+     * sufficiently specified to be applied, but more properties can
+     * still be specified.
+     */
+    public <I, O> Bound<I, O> of(DoFnWithContext<I, O> fn) {
+      return of(adapt(fn));
     }
   }
 
@@ -727,10 +763,11 @@ public class ParDo {
 
     @Override
     protected String getDefaultName() {
-      if (fn.getClass().isAnonymousClass()) {
+      Class<?> clazz = DoFnReflector.getDoFnClass(fn);
+      if (clazz.isAnonymousClass()) {
         return "AnonymousParDo";
       } else {
-        return StringUtils.approximateSimpleName(fn.getClass());
+        return StringUtils.approximateSimpleName(clazz);
       }
     }
 
@@ -833,6 +870,18 @@ public class ParDo {
     public <I> BoundMulti<I, O> of(DoFn<I, O> fn) {
       return new BoundMulti<>(
           name, sideInputs, mainOutputTag, sideOutputTags, fn);
+    }
+
+    /**
+     * Returns a new multi-output {@code ParDo} {@code PTransform}
+     * that's like this transform but which will invoke the given
+     * {@link DoFnWithContext} function, and which has its input type bound.
+     * Does not modify this transform.  The resulting
+     * {@code PTransform} is sufficiently specified to be applied, but
+     * more properties can still be specified.
+     */
+    public <I> BoundMulti<I, O> of(DoFnWithContext<I, O> fn) {
+      return of(adapt(fn));
     }
   }
 
@@ -962,7 +1011,6 @@ public class ParDo {
       ParDo.validateCoder(fn, input);
     }
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 

@@ -65,5 +65,4 @@ public class DoFnContextTest {
 
     verify(agg).addValue(1L);
   }
-
 }

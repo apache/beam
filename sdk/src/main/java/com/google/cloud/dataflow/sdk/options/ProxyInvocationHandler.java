@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.options;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory.Registration;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
+import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
 import com.google.common.base.Defaults;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -360,7 +361,7 @@ class ProxyInvocationHandler implements InvocationHandler {
         Set<Class<? extends PipelineOptions>> interfaces, Map<String, Object> options) {
       // Find all the method names that are annotated with JSON ignore.
       Set<String> jsonIgnoreMethodNames = FluentIterable.from(
-          PipelineOptionsFactory.getClosureOfMethodsOnInterfaces(interfaces))
+          ReflectHelpers.getClosureOfMethodsOnInterfaces(interfaces))
           .filter(JsonIgnorePredicate.INSTANCE).transform(new Function<Method, String>() {
             @Override
             public String apply(Method input) {

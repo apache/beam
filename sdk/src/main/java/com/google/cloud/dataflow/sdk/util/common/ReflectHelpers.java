@@ -17,7 +17,10 @@ package com.google.cloud.dataflow.sdk.util.common;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Queues;
 
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
@@ -25,6 +28,10 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Queue;
 
 import javax.annotation.Nullable;
 
@@ -140,4 +147,61 @@ public class ReflectHelpers {
       builder.append("[]");
     }
   };
+
+  /**
+   * Returns all interfaces of the given clazz.
+   * @param clazz
+   * @return
+   */
+  public static FluentIterable<Class<?>> getClosureOfInterfaces(Class<?> clazz) {
+    Preconditions.checkNotNull(clazz);
+    Queue<Class<?>> interfacesToProcess = Queues.newArrayDeque();
+    Collections.addAll(interfacesToProcess, clazz.getInterfaces());
+
+    LinkedHashSet<Class<?>> interfaces = new LinkedHashSet<>();
+    while (!interfacesToProcess.isEmpty()) {
+      Class<?> current = interfacesToProcess.remove();
+      if (interfaces.add(current)) {
+        Collections.addAll(interfacesToProcess, current.getInterfaces());
+      }
+    }
+    return FluentIterable.from(interfaces);
+  }
+
+  /**
+   * Returns all the methods visible from the provided interfaces.
+   *
+   * @param interfaces The interfaces to use when searching for all their methods.
+   * @return An iterable of {@link Method}s which interfaces expose.
+   */
+  public static Iterable<Method> getClosureOfMethodsOnInterfaces(
+      Iterable<? extends Class<?>> interfaces) {
+    return FluentIterable.from(interfaces).transformAndConcat(
+        new Function<Class<?>, Iterable<Method>>() {
+          @Override
+          public Iterable<Method> apply(Class<?> input) {
+            return getClosureOfMethodsOnInterface(input);
+          }
+    });
+  }
+
+  /**
+   * Returns all the methods visible from {@code iface}.
+   *
+   * @param iface The interface to use when searching for all its methods.
+   * @return An iterable of {@link Method}s which {@code iface} exposes.
+   */
+  public static Iterable<Method> getClosureOfMethodsOnInterface(Class<?> iface) {
+    Preconditions.checkNotNull(iface);
+    Preconditions.checkArgument(iface.isInterface());
+    ImmutableSet.Builder<Method> builder = ImmutableSet.builder();
+    Queue<Class<?>> interfacesToProcess = Queues.newArrayDeque();
+    interfacesToProcess.add(iface);
+    while (!interfacesToProcess.isEmpty()) {
+      Class<?> current = interfacesToProcess.remove();
+      builder.add(current.getMethods());
+      interfacesToProcess.addAll(Arrays.asList(current.getInterfaces()));
+    }
+    return builder.build();
+  }
 }

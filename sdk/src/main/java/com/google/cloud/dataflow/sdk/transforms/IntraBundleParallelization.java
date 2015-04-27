@@ -238,12 +238,12 @@ public class IntraBundleParallelization {
     }
 
     @Override
-    TypeToken<I> getInputTypeToken() {
+    protected TypeToken<I> getInputTypeToken() {
       return doFn.getInputTypeToken();
     }
 
     @Override
-    TypeToken<O> getOutputTypeToken() {
+    protected TypeToken<O> getOutputTypeToken() {
       return doFn.getOutputTypeToken();
     }
 

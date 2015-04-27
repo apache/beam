@@ -30,7 +30,6 @@ import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.reflect.TypeToken;
 
 import org.joda.time.Duration;
@@ -56,6 +55,11 @@ import java.util.Map;
  * and then checking its output.  Unit testing of a {@code DoFn},
  * separately from any {@code ParDo} transform or {@code Pipeline},
  * can be done via the {@link DoFnTester} harness.
+ *
+ * <p> {@link DoFnWithContext} (currently experimental) offers an alternative
+ * mechanism for accessing {@link ProcessContext#keyedState} and
+ * {@link ProcessContext#window()} without the need to implement
+ * {@link RequiresKeyedState} or {@link RequiresWindowAccess}.
  *
  * @param <I> the type of the (main) input elements
  * @param <O> the type of the (main) output elements
@@ -343,9 +347,17 @@ public abstract class DoFn<I, O> implements Serializable {
     public CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags) throws IOException;
   }
 
+  public DoFn() {
+    this(new HashMap<String, DelegatingAggregator<?, ?>>());
+  }
+
+  DoFn(Map<String, DelegatingAggregator<?, ?>> aggregators) {
+    this.aggregators = aggregators;
+  }
+
   /////////////////////////////////////////////////////////////////////////////
 
-  private Map<String, DelegatingAggregator<?, ?>> aggregators = new HashMap<>();
+  private final Map<String, DelegatingAggregator<?, ?>> aggregators;
 
   /**
    * Prepares this {@code DoFn} instance for processing a batch of elements.
@@ -379,7 +391,7 @@ public abstract class DoFn<I, O> implements Serializable {
    *
    * <p> See {@link #getOutputTypeToken} for more discussion.
    */
-  TypeToken<I> getInputTypeToken() {
+  protected TypeToken<I> getInputTypeToken() {
     return new TypeToken<I>(getClass()) {};
   }
 
@@ -394,7 +406,7 @@ public abstract class DoFn<I, O> implements Serializable {
    * for choosing a default output {@code Coder<O>} for the output
    * {@code PCollection<O>}.
    */
-  TypeToken<O> getOutputTypeToken() {
+  protected TypeToken<O> getOutputTypeToken() {
     return new TypeToken<O>(getClass()) {};
   }
 
@@ -451,7 +463,6 @@ public abstract class DoFn<I, O> implements Serializable {
    * @param <VI> the type of input element
    * @param <VO> the type of output element
    */
-  @VisibleForTesting
   static class DelegatingAggregator<VI, VO> implements
       Aggregator<VI, VO>, Serializable {
     private static final long serialVersionUID = 0L;

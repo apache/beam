@@ -39,7 +39,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Queues;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 
@@ -68,7 +67,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Queue;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.SortedMap;
@@ -635,7 +633,7 @@ public class PipelineOptionsFactory {
     Preconditions.checkNotNull(iface);
     validateWellFormed(iface, REGISTERED_OPTIONS);
 
-    Iterable<Method> methods = getClosureOfMethodsOnInterface(iface);
+    Iterable<Method> methods = ReflectHelpers.getClosureOfMethodsOnInterface(iface);
     ListMultimap<Class<?>, Method> ifaceToMethods = ArrayListMultimap.create();
     for (Method method : methods) {
       // Process only methods that are not marked as hidden.
@@ -808,43 +806,6 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * Returns all the methods visible from the provided interfaces.
-   *
-   * @param interfaces The interfaces to use when searching for all their methods.
-   * @return An iterable of {@link Method}s that interfaces expose.
-   */
-  static Iterable<Method> getClosureOfMethodsOnInterfaces(
-      Iterable<Class<? extends PipelineOptions>> interfaces) {
-    return FluentIterable.from(interfaces).transformAndConcat(
-        new Function<Class<? extends PipelineOptions>, Iterable<Method>>() {
-          @Override
-          public Iterable<Method> apply(Class<? extends PipelineOptions> input) {
-            return getClosureOfMethodsOnInterface(input);
-          }
-    });
-  }
-
-  /**
-   * Returns all the methods visible from {@code iface}.
-   *
-   * @param iface The interface to use when searching for all its methods.
-   * @return An iterable of {@link Method}s that {@code iface} exposes.
-   */
-  static Iterable<Method> getClosureOfMethodsOnInterface(Class<? extends PipelineOptions> iface) {
-    Preconditions.checkNotNull(iface);
-    Preconditions.checkArgument(iface.isInterface());
-    ImmutableSet.Builder<Method> builder = ImmutableSet.builder();
-    Queue<Class<?>> interfacesToProcess = Queues.newArrayDeque();
-    interfacesToProcess.add(iface);
-    while (!interfacesToProcess.isEmpty()) {
-      Class<?> current = interfacesToProcess.remove();
-      builder.add(current.getMethods());
-      interfacesToProcess.addAll(Arrays.asList(current.getInterfaces()));
-    }
-    return builder.build();
-  }
-
-  /**
    * This method is meant to emulate the behavior of {@link Introspector#getBeanInfo(Class, int)}
    * to construct the list of {@link PropertyDescriptor}.
    * <p>
@@ -945,7 +906,7 @@ public class PipelineOptionsFactory {
 
     // Verify that there are no methods with the same name with two different return types.
     Iterable<Method> interfaceMethods = FluentIterable
-        .from(getClosureOfMethodsOnInterface(iface))
+        .from(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
         .toSortedSet(MethodComparator.INSTANCE);
     SetMultimap<Equivalence.Wrapper<Method>, Method> methodNameToMethodMap =
         HashMultimap.create();
@@ -968,8 +929,8 @@ public class PipelineOptionsFactory {
     // Verify that there is no getter with a mixed @JsonIgnore annotation and verify
     // that no setter has @JsonIgnore.
     Iterable<Method> allInterfaceMethods = FluentIterable
-        .from(getClosureOfMethodsOnInterfaces(validatedPipelineOptionsInterfaces))
-        .append(getClosureOfMethodsOnInterface(iface))
+        .from(ReflectHelpers.getClosureOfMethodsOnInterfaces(validatedPipelineOptionsInterfaces))
+        .append(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
         .toSortedSet(MethodComparator.INSTANCE);
     SetMultimap<Equivalence.Wrapper<Method>, Method> methodNameToAllMethodMap =
         HashMultimap.create();
