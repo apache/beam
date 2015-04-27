@@ -124,9 +124,22 @@ public class View {
   }
 
   /**
+   * Returns a transform that takes a {@link PCollection} and returns a
+   * {@code List} containing all of its elements, to be consumed as
+   * a side input.
+   *
+   * <p> The resulting list is required to fit in memory.
+   */
+  public static <T> PTransform<PCollection<T>, PCollectionView<List<T>>> asList() {
+    return Combine.globally(new Concatenate<T>()).asSingletonView();
+  }
+
+  /**
    * Returns a {@link AsIterable} that takes a
    * {@link PCollection} as input and produces a {@link PCollectionView}
-   * of the values, to be consumed as an iterable side input.
+   * of the values, to be consumed as an iterable side input.  The values of
+   * this {@code Iterable} may not be cached; if that behavior is desired, use
+   * {@link #asList}.
    */
   public static <T> AsIterable<T> asIterable() {
     return new AsIterable<>();
@@ -159,7 +172,8 @@ public class View {
     public PCollectionView<Iterable<T>> apply(
         PCollection<T> input) {
       if (input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()) {
-        return input.apply(Combine.globally(new Concatenate<T>()).asSingletonView());
+        return input.apply((Combine.GloballyAsSingletonView<T, Iterable<T>>)
+            Combine.globally(new Concatenate()).asSingletonView());
       } else {
         return input.apply(
             new CreatePCollectionView<T, Iterable<T>>(
@@ -317,12 +331,12 @@ public class View {
   // Internal details below
 
   /**
-   * Combiner that combines {@code T}s into a single {@code Iterable<T>} containing
+   * Combiner that combines {@code T}s into a single {@code List<T>} containing
    * all inputs.
    *
    * @param <T> the type of elements to concatenate.
    */
-  private static class Concatenate<T> extends CombineFn<T, List<T>, Iterable<T>> {
+  private static class Concatenate<T> extends CombineFn<T, List<T>, List<T>> {
     private static final long serialVersionUID = 0;
 
     @Override
@@ -346,12 +360,17 @@ public class View {
     }
 
     @Override
-    public Iterable<T> extractOutput(List<T> accumulator) {
+    public List<T> extractOutput(List<T> accumulator) {
       return accumulator;
     }
 
     @Override
     public Coder<List<T>> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder) {
+      return ListCoder.of(inputCoder);
+    }
+
+    @Override
+    public Coder<List<T>> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
       return ListCoder.of(inputCoder);
     }
   }

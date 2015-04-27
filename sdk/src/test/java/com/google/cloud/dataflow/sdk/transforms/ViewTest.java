@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.common.base.Preconditions;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -42,6 +43,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
@@ -93,7 +95,7 @@ public class ViewTest implements Serializable {
         .setCoder(VarIntCoder.of())
         .apply(View.<Integer>asSingleton());
 
-    PCollection<Integer> output = pipeline
+    pipeline
         .apply(Create.of(1, 2, 3))
         .apply(ParDo.withSideInputs(view).of(
             new DoFn<Integer, Integer>() {
@@ -120,7 +122,7 @@ public class ViewTest implements Serializable {
         .apply(Create.<Integer>of(1, 2, 3))
         .apply(View.<Integer>asSingleton());
 
-    PCollection<Integer> output = pipeline
+    pipeline
         .apply(Create.of(1, 2, 3))
         .apply(ParDo.withSideInputs(view).of(
             new DoFn<Integer, Integer>() {
@@ -135,6 +137,36 @@ public class ViewTest implements Serializable {
     thrown.expectMessage("PCollection");
     thrown.expectMessage("more than one");
     thrown.expectMessage("singleton");
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testListSideInput() {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<List<Integer>> view = pipeline
+        .apply(Create.of(11, 13, 17, 23))
+        .apply(View.<Integer>asList());
+
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(29, 31))
+        .apply(ParDo.withSideInputs(view).of(
+            new DoFn<Integer, Integer>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                Preconditions.checkArgument(c.sideInput(view).size() == 4);
+                Preconditions.checkArgument(c.sideInput(view).get(0) == c.sideInput(view).get(0));
+                for (Integer i : c.sideInput(view)) {
+                  c.output(i);
+                }
+              }
+            }));
+
+    DataflowAssert.that(output).containsInAnyOrder(
+        11, 13, 17, 23,
+        11, 13, 17, 23);
 
     pipeline.run();
   }
