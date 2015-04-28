@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
@@ -135,14 +136,18 @@ public class Flatten {
     }
 
     @Override
-    protected Coder<?> getDefaultOutputCoder(PCollectionList<T> input) {
-      List<PCollection<T>> inputs = input.getAll();
-      if (inputs.isEmpty()) {
-        // Cannot infer a Coder from an empty list of input PCollections.
-        return null;
+    protected Coder<?> getDefaultOutputCoder(PCollectionList<T> input)
+        throws CannotProvideCoderException {
+
+      // Take coder from first collection
+      for (PCollection<T> pCollection : input.getAll()) {
+        return pCollection.getCoder();
       }
-      // Use the Coder of the first input.
-      return inputs.get(0).getCoder();
+
+      // No inputs
+      throw new CannotProvideCoderException(
+          this.getClass().getSimpleName() + " cannot provide a Coder for"
+          + " empty " + PCollectionList.class.getSimpleName());
     }
   }
 
