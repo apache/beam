@@ -36,11 +36,20 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import java.io.IOException;
+import org.apache.avro.mapred.AvroKey;
+import org.apache.avro.mapreduce.AvroJob;
+import org.apache.avro.mapreduce.AvroKeyInputFormat;
+import org.apache.avro.mapreduce.AvroKeyOutputFormat;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
 
@@ -295,7 +304,15 @@ public final class TransformTranslator {
       @Override
       public void evaluate(AvroIO.Read.Bound<T> transform, EvaluationContext context) {
         String pattern = transform.getFilepattern();
-        JavaRDD<String> rdd = context.getSparkContext().textFile(pattern);
+        JavaRDD<?> rdd = context.getSparkContext()
+            .newAPIHadoopFile(pattern, AvroKeyInputFormat.class, AvroKey.class,
+                NullWritable.class, new Configuration())
+            .map(new Function<Tuple2<AvroKey, NullWritable>, Object>() {
+              @Override
+              public Object call(Tuple2<AvroKey, NullWritable> t) throws Exception {
+                return t._1().datum();
+              }
+            });
         context.setOutputRDD(transform, rdd);
       }
     };
@@ -306,9 +323,23 @@ public final class TransformTranslator {
       @Override
       public void evaluate(AvroIO.Write.Bound<T> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
-        JavaRDDLike<T, ?> last = (JavaRDDLike<T, ?>) context.getInputRDD(transform);
         String pattern = transform.getFilenamePrefix();
-        last.saveAsTextFile(pattern);
+        JavaRDDLike<T, ?> last = (JavaRDDLike<T, ?>) context.getInputRDD(transform);
+        Job job;
+        try {
+          job = Job.getInstance();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        AvroJob.setOutputKeySchema(job, transform.getSchema());
+        last.mapToPair(new PairFunction<T, AvroKey<T>, NullWritable>() {
+            @Override
+            public Tuple2<AvroKey<T>, NullWritable> call(T t) throws Exception {
+              return new Tuple2<>(new AvroKey<>(t), NullWritable.get());
+            }})
+          .saveAsNewAPIHadoopFile(pattern, AvroKey.class, NullWritable.class,
+              AvroKeyOutputFormat.class, job.getConfiguration());
+
       }
     };
   }

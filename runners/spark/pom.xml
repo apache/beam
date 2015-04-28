@@ -205,6 +205,12 @@ License.
             <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
             <version>0.3.150326</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro-mapred</artifactId>
+            <version>1.7.7</version>
+            <classifier>hadoop2</classifier>
+        </dependency>
 
         <!-- test dependencies -->
         <dependency>
