@@ -79,4 +79,9 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
   public boolean isCompatible(WindowFn<?, ?> other) {
     return other instanceof Sessions;
   }
+
+  public Duration getGapDuration() {
+    return gapDuration;
+  }
+
 }

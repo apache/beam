@@ -142,6 +142,19 @@ public class CalendarWindows {
           && startDate == that.startDate
           && timeZone == that.timeZone;
     }
+
+    public int getNumber() {
+      return number;
+    }
+
+    public DateTime getStartDate() {
+      return startDate;
+    }
+
+    public DateTimeZone getTimeZone() {
+      return timeZone;
+    }
+
   }
 
   /**
@@ -218,6 +231,23 @@ public class CalendarWindows {
           && startDate == that.startDate
           && timeZone == that.timeZone;
     }
+
+    public int getNumber() {
+      return number;
+    }
+
+    public int getDayOfMonth() {
+      return dayOfMonth;
+    }
+
+    public DateTime getStartDate() {
+      return startDate;
+    }
+
+    public DateTimeZone getTimeZone() {
+      return timeZone;
+    }
+
   }
 
   /**
@@ -299,5 +329,26 @@ public class CalendarWindows {
           && startDate == that.startDate
           && timeZone == that.timeZone;
     }
+
+    public DateTimeZone getTimeZone() {
+      return timeZone;
+    }
+
+    public DateTime getStartDate() {
+      return startDate;
+    }
+
+    public int getDayOfMonth() {
+      return dayOfMonth;
+    }
+
+    public int getMonthOfYear() {
+      return monthOfYear;
+    }
+
+    public int getNumber() {
+      return number;
+    }
+
   }
 }
