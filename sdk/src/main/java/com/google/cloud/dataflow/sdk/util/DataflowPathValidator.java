@@ -42,6 +42,12 @@ public class DataflowPathValidator implements PathValidator {
     Preconditions.checkArgument(!(Strings.isNullOrEmpty(dataflowOptions.getTempLocation())
         && Strings.isNullOrEmpty(dataflowOptions.getStagingLocation())),
         "Missing required value: at least one of tempLocation or stagingLocation must be set.");
+    if (dataflowOptions.getStagingLocation() != null) {
+      verifyGcsPath(dataflowOptions.getStagingLocation());
+    }
+    if (dataflowOptions.getTempLocation() != null) {
+      verifyGcsPath(dataflowOptions.getTempLocation());
+    }
     if (Strings.isNullOrEmpty(dataflowOptions.getTempLocation())) {
       dataflowOptions.setTempLocation(dataflowOptions.getStagingLocation());
     } else if (Strings.isNullOrEmpty(dataflowOptions.getStagingLocation())) {

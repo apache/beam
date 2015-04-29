@@ -32,6 +32,7 @@ import static org.mockito.Mockito.when;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
+import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -105,12 +106,21 @@ public class DataflowPipelineRunnerTest {
     Dataflow.V1b3.Projects.Jobs mockJobs = mock(Dataflow.V1b3.Projects.Jobs.class);
     Dataflow.V1b3.Projects.Jobs.Create mockRequest =
         mock(Dataflow.V1b3.Projects.Jobs.Create.class);
+    Dataflow.V1b3.Projects.Jobs.List mockList = mock(Dataflow.V1b3.Projects.Jobs.List.class);
 
     when(mockDataflowClient.v1b3()).thenReturn(mockV1b3);
     when(mockV1b3.projects()).thenReturn(mockProjects);
     when(mockProjects.jobs()).thenReturn(mockJobs);
     when(mockJobs.create(eq("someProject"), jobCaptor.capture()))
         .thenReturn(mockRequest);
+    when(mockJobs.list(eq("someProject"))).thenReturn(mockList);
+    when(mockList.setPageToken(anyString())).thenReturn(mockList);
+    when(mockList.execute())
+        .thenReturn(new ListJobsResponse().setJobs(
+            Arrays.asList(new Job()
+                              .setName("oldJobName")
+                              .setId("oldJobId")
+                              .setCurrentState("JOB_STATE_RUNNING"))));
 
     Job resultJob = new Job();
     resultJob.setId("newid");
@@ -151,6 +161,32 @@ public class DataflowPipelineRunnerTest {
     DataflowPipelineJob job = p.run();
     assertEquals("newid", job.getJobId());
     assertValidJob(jobCaptor.getValue());
+  }
+
+  @Test
+  public void testReload() throws IOException {
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+
+    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    options.setReload(true);
+    options.setJobName("oldJobName");
+    DataflowPipeline p = buildDataflowPipeline(options);
+    DataflowPipelineJob job = p.run();
+    assertEquals("newid", job.getJobId());
+    assertValidJob(jobCaptor.getValue());
+  }
+
+  @Test
+  public void testReloadNonExistentPipeline() throws IOException {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Could not find running job named badJobName");
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    options.setReload(true);
+    options.setJobName("badJobName");
+    DataflowPipeline p = buildDataflowPipeline(options);
+    p.run();
   }
 
   @Test
@@ -373,12 +409,14 @@ public class DataflowPipelineRunnerTest {
     options.setStagingLocation("file://my/staging/location");
     try {
       DataflowPipelineRunner.fromOptions(options);
+      fail("fromOptions should have failed");
     } catch (IllegalArgumentException e) {
       assertThat(e.getMessage(), containsString("GCS URI"));
     }
     options.setStagingLocation("my/staging/location");
     try {
       DataflowPipelineRunner.fromOptions(options);
+      fail("fromOptions should have failed");
     } catch (IllegalArgumentException e) {
       assertThat(e.getMessage(), containsString("GCS URI"));
     }

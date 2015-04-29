@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.options;
 
 import com.google.api.services.dataflow.Dataflow;
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.DataflowPathValidator;
 import com.google.cloud.dataflow.sdk.util.GcsStager;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
@@ -156,6 +157,16 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
         return Transport.newDataflowClient(options.as(DataflowPipelineOptions.class)).build();
     }
   }
+
+  /**
+   * Whether to reload the currently running pipeline with the same name as this one.
+   */
+  @JsonIgnore
+  @Description("If set, replace the existing pipeline with the name specified by --jobName with "
+      + "this pipeline, preserving state.")
+  @Experimental
+  boolean getReload();
+  void setReload(boolean value);
 
   /**
    * Creates a {@link PathValidator} object using the class specified in
