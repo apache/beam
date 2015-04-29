@@ -255,7 +255,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   /////////////////////////////////////////////////////////////////////////////
 
   @Override
-  public String toString() { return "DataflowPipelineRunner#" + hashCode(); }
+  public String toString() {
+    return "DataflowPipelineRunner#" + hashCode();
+  }
 
   /**
    * Attempts to detect all the resources the class loader has access to. This does not recurse

@@ -223,7 +223,9 @@ public class CounterAggregatorTest {
         AGGREGATOR_NAME,
         new Combine.CombineFn<Integer, List<Integer>, Integer>() {
           @Override
-          public List<Integer> createAccumulator() { return null; }
+          public List<Integer> createAccumulator() {
+            return null;
+          }
           @Override
           public List<Integer> addInput(List<Integer> accumulator, Integer input) {
             return null;
@@ -233,7 +235,9 @@ public class CounterAggregatorTest {
             return null;
           }
           @Override
-          public Integer extractOutput(List<Integer> accumulator) { return null; }
+          public Integer extractOutput(List<Integer> accumulator) {
+            return null;
+          }
         }, (new CounterSet()).getAddCounterMutator());
   }
 

@@ -180,7 +180,9 @@ public class Min {
       CounterProvider<Integer> {
     private static final long serialVersionUID = 0;
 
-    public MinIntegerFn() { super(Integer.MAX_VALUE); }
+    public MinIntegerFn() {
+      super(Integer.MAX_VALUE);
+    }
 
     @Override
     public Counter<Integer> getCounter(String name) {
@@ -197,7 +199,9 @@ public class Min {
       CounterProvider<Long> {
     private static final long serialVersionUID = 0;
 
-    public MinLongFn() { super(Long.MAX_VALUE); }
+    public MinLongFn() {
+      super(Long.MAX_VALUE);
+    }
 
     @Override
     public Counter<Long> getCounter(String name) {
@@ -214,7 +218,9 @@ public class Min {
       CounterProvider<Double> {
     private static final long serialVersionUID = 0;
 
-    public MinDoubleFn() { super(Double.POSITIVE_INFINITY); }
+    public MinDoubleFn() {
+      super(Double.POSITIVE_INFINITY);
+    }
 
     @Override
     public Counter<Double> getCounter(String name) {

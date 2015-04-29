@@ -43,7 +43,9 @@ import java.io.OutputStream;
 @SuppressWarnings("serial")
 public class CoderUtilsTest {
   static class TestCoder extends AtomicCoder<Integer> {
-    public static TestCoder of() { return new TestCoder(); }
+    public static TestCoder of() {
+      return new TestCoder();
+    }
 
     @Override
     public void encode(Integer value, OutputStream outStream, Context context) {

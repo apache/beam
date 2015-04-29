@@ -32,10 +32,12 @@ import java.util.List;
 public abstract class AtomicCoder<T> extends DeterministicStandardCoder<T> {
   private static final long serialVersionUID = 0;
 
-  protected AtomicCoder() {}
+  protected AtomicCoder() { }
 
   @Override
-  public List<Coder<?>> getCoderArguments() { return null; }
+  public List<Coder<?>> getCoderArguments() {
+    return null;
+  }
 
   /**
    * Returns a list of values contained in the provided example

@@ -30,9 +30,13 @@ public abstract class Metric<T> {
     this.value = value;
   }
 
-  public String getName() { return name; }
+  public String getName() {
+    return name;
+  }
 
-  public T getValue() { return value; }
+  public T getValue() {
+    return value;
+  }
 
   /**
    * A double-valued Metric.

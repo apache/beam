@@ -772,7 +772,9 @@ public class ParDo {
     }
 
     @Override
-    protected String getKindString() { return "ParDo"; }
+    protected String getKindString() {
+      return "ParDo";
+    }
 
     public DoFn<I, O> getFn() {
       return fn;
@@ -991,7 +993,9 @@ public class ParDo {
     }
 
     @Override
-    protected String getKindString() { return "ParMultiDo"; }
+    protected String getKindString() {
+      return "ParMultiDo";
+    }
 
     public DoFn<I, O> getFn() {
       return fn;

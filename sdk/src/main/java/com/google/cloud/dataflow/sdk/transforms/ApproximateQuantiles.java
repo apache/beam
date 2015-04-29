@@ -552,7 +552,10 @@ public class ApproximateQuantiles {
       public Iterator<WeightedElement<T>> weightedIterator() {
         return new UnmodifiableIterator<WeightedElement<T>>() {
           Iterator<T> iter = elements.iterator();
-          @Override public boolean hasNext() { return iter.hasNext(); }
+          @Override
+          public boolean hasNext() {
+            return iter.hasNext();
+          }
           @Override public WeightedElement<T> next() {
             return WeightedElement.of(weight, iter.next());
           }

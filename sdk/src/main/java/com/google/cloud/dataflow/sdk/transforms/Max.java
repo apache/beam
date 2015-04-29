@@ -179,7 +179,9 @@ public class Max {
   @SuppressWarnings("serial")
   public static class MaxIntegerFn extends MaxFn<Integer> implements
       CounterProvider<Integer> {
-    public MaxIntegerFn() { super(Integer.MIN_VALUE); }
+    public MaxIntegerFn() {
+      super(Integer.MIN_VALUE);
+    }
 
     @Override
     public Counter<Integer> getCounter(String name) {
@@ -195,7 +197,9 @@ public class Max {
   @SuppressWarnings("serial")
   public static class MaxLongFn extends MaxFn<Long> implements
       CounterProvider<Long> {
-    public MaxLongFn() { super(Long.MIN_VALUE); }
+    public MaxLongFn() {
+      super(Long.MIN_VALUE);
+    }
 
     @Override
     public Counter<Long> getCounter(String name) {
@@ -211,7 +215,9 @@ public class Max {
   @SuppressWarnings("serial")
   public static class MaxDoubleFn extends MaxFn<Double> implements
       CounterProvider<Double> {
-    public MaxDoubleFn() { super(Double.NEGATIVE_INFINITY); }
+    public MaxDoubleFn() {
+      super(Double.NEGATIVE_INFINITY);
+    }
 
     @Override
     public Counter<Double> getCounter(String name) {

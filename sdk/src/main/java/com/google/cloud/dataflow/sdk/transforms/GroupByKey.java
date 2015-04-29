@@ -533,7 +533,9 @@ public class GroupByKey<K, V>
       this.encodedKey = encodedKey;
     }
 
-    public K getKey() { return key; }
+    public K getKey() {
+      return key;
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -546,6 +548,8 @@ public class GroupByKey<K, V>
     }
 
     @Override
-    public int hashCode() { return Arrays.hashCode(encodedKey); }
+    public int hashCode() {
+      return Arrays.hashCode(encodedKey);
+    }
   }
 }

@@ -44,8 +44,12 @@ public interface CloudDebuggerOptions {
    */
   public static class DebuggerConfig {
     private String version;
-    public String getVersion() { return version; }
-    public void setVersion(String version) { this.version = version; }
+    public String getVersion() {
+      return version;
+    }
+    public void setVersion(String version) {
+      this.version = version;
+    }
 
     /**
      * Compute the string of Debugger config.

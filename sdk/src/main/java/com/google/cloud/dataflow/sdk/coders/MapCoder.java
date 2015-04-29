@@ -72,8 +72,13 @@ public class MapCoder<K, V> extends MapCoderBase<Map<K, V>> {
      return null;
    }
 
-  public Coder<K> getKeyCoder() { return keyCoder; }
-  public Coder<V> getValueCoder() { return valueCoder; }
+  public Coder<K> getKeyCoder() {
+    return keyCoder;
+  }
+
+  public Coder<V> getValueCoder() {
+    return valueCoder;
+  }
 
   /////////////////////////////////////////////////////////////////////////////
 

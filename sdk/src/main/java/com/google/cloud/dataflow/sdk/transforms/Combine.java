@@ -296,7 +296,9 @@ public class Combine {
    *     int sum = 0;
    *     int count = 0;
    *   }
-   *   public Accum createAccumulator() { return new Accum(); }
+   *   public Accum createAccumulator() {
+   *     return new Accum();
+   *   }
    *   public void addInput(Accum accum, Integer input) {
    *       accum.sum += input;
    *       accum.count++;
@@ -567,7 +569,9 @@ public class Combine {
       public V value;
       public boolean present;
       public Holder() { }
-      public Holder(V value) { set(value); }
+      public Holder(V value) {
+        set(value);
+      }
       public void set(V value) {
         this.present = true;
         this.value = value;
@@ -628,10 +632,16 @@ public class Combine {
       return DelegateCoder.of(
           inputCoder,
           new DelegateCoder.CodingFunction<int[], Integer>() {
-            @Override public Integer apply(int[] accumulator) { return accumulator[0]; }
+            @Override
+            public Integer apply(int[] accumulator) {
+              return accumulator[0];
+            }
           },
           new DelegateCoder.CodingFunction<Integer, int[]>() {
-            @Override public int[] apply(Integer value) { return wrap(value); }
+            @Override
+            public int[] apply(Integer value) {
+              return wrap(value);
+            }
           });
     }
 
@@ -699,10 +709,16 @@ public class Combine {
       return DelegateCoder.of(
           inputCoder,
           new DelegateCoder.CodingFunction<long[], Long>() {
-            @Override public Long apply(long[] accumulator) { return accumulator[0]; }
+            @Override
+            public Long apply(long[] accumulator) {
+              return accumulator[0];
+            }
           },
           new DelegateCoder.CodingFunction<Long, long[]>() {
-            @Override public long[] apply(Long value) { return wrap(value); }
+            @Override
+            public long[] apply(Long value) {
+              return wrap(value);
+            }
           });
     }
 
@@ -769,10 +785,16 @@ public class Combine {
       return DelegateCoder.of(
           inputCoder,
           new DelegateCoder.CodingFunction<double[], Double>() {
-            @Override public Double apply(double[] accumulator) { return accumulator[0]; }
+            @Override
+            public Double apply(double[] accumulator) {
+              return accumulator[0];
+            }
           },
           new DelegateCoder.CodingFunction<Double, double[]>() {
-            @Override public double[] apply(Double value) { return wrap(value); }
+            @Override
+            public double[] apply(Double value) {
+              return wrap(value);
+            }
           });
     }
 
@@ -803,7 +825,9 @@ public class Combine {
    * <pre> {@code
    * public class AverageFn
    *     extends AccumulatingCombineFn<Integer, AverageFn.Accum, Double> {
-   *   public Accum createAccumulator() { return new Accum(); }
+   *   public Accum createAccumulator() {
+   *     return new Accum();
+   *   }
    *   public class Accum
    *       extends AccumulatingCombineFn<Integer, AverageFn.Accum, Double>
    *               .Accumulator {
@@ -932,7 +956,9 @@ public class Combine {
    *   public static class Accum {
    *     String s = "";
    *   }
-   *   public Accum createAccumulator(String key) { return new Accum(); }
+   *   public Accum createAccumulator(String key) {
+   *     return new Accum();
+   *   }
    *   public void addInput(String key, Accum accum, Integer input) {
    *       accum.s += "+" + input;
    *   }
@@ -1445,7 +1471,10 @@ public class Combine {
     public PerKeyWithHotKeyFanout<K, VI, VO> withHotKeyFanout(final int hotKeyFanout) {
       return withHotKeyFanout(
           new SerializableFunction<K, Integer>(){
-            @Override public Integer apply(K unused) { return hotKeyFanout; }
+            @Override
+            public Integer apply(K unused) {
+              return hotKeyFanout;
+            }
           });
     }
 

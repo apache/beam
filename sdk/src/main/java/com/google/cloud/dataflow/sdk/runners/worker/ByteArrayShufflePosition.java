@@ -56,7 +56,9 @@ public class ByteArrayShufflePosition implements Comparable, ShufflePosition {
     return adapter.getPosition();
   }
 
-  public byte[] getPosition() { return position; }
+  public byte[] getPosition() {
+    return position;
+  }
 
   public String encodeBase64() {
     return encodeBase64URLSafeString(position);

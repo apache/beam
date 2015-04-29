@@ -92,7 +92,9 @@ public class TupleTag<V> implements Serializable {
    * Comparable interface. TupleTags implement equals and hashCode, making them
    * suitable for use as keys in HashMap and HashSet.
    */
-  public String getId() { return id; }
+  public String getId() {
+    return id;
+  }
 
   /**
    * If this {@code TupleTag} is tagging output {@code outputIndex} of
@@ -190,8 +192,12 @@ public class TupleTag<V> implements Serializable {
   }
 
   @Override
-  public int hashCode() { return id.hashCode(); }
+  public int hashCode() {
+    return id.hashCode();
+  }
 
   @Override
-  public String toString() { return "Tag<" + id + ">"; }
+  public String toString() {
+    return "Tag<" + id + ">";
+  }
 }

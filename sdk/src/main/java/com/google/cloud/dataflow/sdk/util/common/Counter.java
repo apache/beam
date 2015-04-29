@@ -648,8 +648,16 @@ public abstract class Counter<T> {
   //////////////////////////////////////////////////////////////////////////////
 
   // For testing.
-  synchronized T getTotalAggregate() { return aggregate; }
-  synchronized T getDeltaAggregate() { return deltaAggregate; }
-  synchronized long getTotalCount() { return count; }
-  synchronized long getDeltaCount() { return deltaCount; }
+  synchronized T getTotalAggregate() {
+    return aggregate;
+  }
+  synchronized T getDeltaAggregate() {
+    return deltaAggregate;
+  }
+  synchronized long getTotalCount() {
+    return count;
+  }
+  synchronized long getDeltaCount() {
+    return deltaCount;
+  }
 }

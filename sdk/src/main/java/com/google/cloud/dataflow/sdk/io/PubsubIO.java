@@ -380,7 +380,9 @@ public class PubsubIO {
       }
 
       @Override
-      protected String getKindString() { return "PubsubIO.Read"; }
+      protected String getKindString() {
+        return "PubsubIO.Read";
+      }
 
       public String getTopic() {
         return topic;
@@ -554,7 +556,9 @@ public class PubsubIO {
       }
 
       @Override
-      protected String getKindString() { return "PubsubIO.Write"; }
+      protected String getKindString() {
+        return "PubsubIO.Write";
+      }
 
       public String getTopic() {
         return topic;

@@ -166,7 +166,9 @@ public abstract class WindowedValue<V> {
    */
   private static class ValueInGlobalWindow<V>
       extends MinTimestampWindowedValue<V> {
-    public ValueInGlobalWindow(V value) { super(value); }
+    public ValueInGlobalWindow(V value) {
+      super(value);
+    }
 
     @Override
     public <V> WindowedValue<V> withValue(V value) {
@@ -205,7 +207,9 @@ public abstract class WindowedValue<V> {
    */
   private static class ValueInEmptyWindows<V>
       extends MinTimestampWindowedValue<V> {
-    public ValueInEmptyWindows(V value) { super(value); }
+    public ValueInEmptyWindows(V value) {
+      super(value);
+    }
 
     @Override
     public <V> WindowedValue<V> withValue(V value) {

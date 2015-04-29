@@ -375,8 +375,12 @@ public class CombineTest implements Serializable {
   }
 
   private static final class TestProdInt extends Combine.BinaryCombineIntegerFn {
-    public int apply(int left, int right) { return left * right; }
-    public int identity() { return 1; }
+    public int apply(int left, int right) {
+      return left * right;
+    }
+    public int identity() {
+      return 1;
+    }
     @Override
     public Counter<Integer> getCounter(String name) {
       throw new UnsupportedOperationException();
@@ -384,7 +388,9 @@ public class CombineTest implements Serializable {
   }
 
   private static final class TestProdObj extends Combine.BinaryCombineFn<Integer> {
-    public Integer apply(Integer left, Integer right) { return left * right; }
+    public Integer apply(Integer left, Integer right) {
+      return left * right;
+    }
   }
 
   /**

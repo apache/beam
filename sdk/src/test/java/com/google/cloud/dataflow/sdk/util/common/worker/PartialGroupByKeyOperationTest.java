@@ -307,7 +307,9 @@ public class PartialGroupByKeyOperationTest {
           }
           public Long merge(Object key, Iterable<Long> accumulators) {
             long sum = 0;
-            for (Long part : accumulators) { sum += part; }
+            for (Long part : accumulators) {
+              sum += part;
+            }
             return sum;
           }
           public Long extract(Object key, Long accumulator) {

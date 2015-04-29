@@ -934,5 +934,7 @@ public class DirectPipelineRunner
   }
 
   @Override
-  public String toString() { return "DirectPipelineRunner#" + hashCode(); }
+  public String toString() {
+    return "DirectPipelineRunner#" + hashCode();
+  }
 }

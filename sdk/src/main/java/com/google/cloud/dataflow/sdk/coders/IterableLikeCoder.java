@@ -43,7 +43,9 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
     extends StandardCoder<IT> {
   private static final long serialVersionUID = 0;
 
-  public Coder<T> getElemCoder() { return elementCoder; }
+  public Coder<T> getElemCoder() {
+    return elementCoder;
+  }
 
   /**
    * Builds an instance of the coder's associated {@code Iterable} from a list

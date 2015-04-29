@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -342,7 +341,8 @@ public abstract class DoFn<I, O> implements Serializable {
      * <p> See {@link #lookup(CodedTupleTag)} to look up a single
      * tag.
      *
-     * @throws CoderException if decoding any of the requested values fails
+     * @throws IOException if decoding any of the requested values fails, often
+     * a {@link com.google.cloud.dataflow.sdk.coders.CoderException}.
      */
     public CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags) throws IOException;
   }

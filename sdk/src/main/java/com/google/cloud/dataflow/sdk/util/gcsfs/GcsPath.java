@@ -386,7 +386,9 @@ public class GcsPath implements Path {
 
   // TODO: support "." and ".." path components?
   @Override
-  public GcsPath normalize() { return this; }
+  public GcsPath normalize() {
+    return this;
+  }
 
   @Override
   public GcsPath resolve(Path other) {

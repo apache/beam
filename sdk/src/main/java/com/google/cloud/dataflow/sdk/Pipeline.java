@@ -246,7 +246,9 @@ public class Pipeline {
   }
 
   @Override
-  public String toString() { return "Pipeline#" + hashCode(); }
+  public String toString() {
+    return "Pipeline#" + hashCode();
+  }
 
   /**
    * Applies a transformation to the given input.

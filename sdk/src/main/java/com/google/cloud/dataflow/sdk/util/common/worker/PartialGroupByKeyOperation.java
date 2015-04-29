@@ -75,7 +75,9 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
       this.value = value;
     }
 
-    public byte[] getValue() { return value; }
+    public byte[] getValue() {
+      return value;
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -388,9 +390,15 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
       return new GroupingTableEntry<K, V, List<V>>() {
         long size = keySizer.estimateSize(key);
         final List<V> values = new ArrayList<>();
-        public K getKey() { return key; }
-        public List<V> getValue() { return values; }
-        public long getSize() { return size; }
+        public K getKey() {
+          return key;
+        }
+        public List<V> getValue() {
+          return values;
+        }
+        public long getSize() {
+          return size;
+        }
         public void add(V value) throws Exception {
           values.add(value);
           size += BYTES_PER_JVM_WORD + valueSizer.estimateSize(value);
@@ -426,9 +434,15 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
         final long keySize = keySizer.estimateSize(key);
         VA accumulator = combiner.createAccumulator(key);
         long accumulatorSize = 0; // never used before a value is added...
-        public K getKey() { return key; }
-        public VA getValue() { return accumulator; }
-        public long getSize() { return keySize + accumulatorSize; }
+        public K getKey() {
+          return key;
+        }
+        public VA getValue() {
+          return accumulator;
+        }
+        public long getSize() {
+          return keySize + accumulatorSize;
+        }
         public void add(VI value) throws Exception {
           accumulator = combiner.add(key, accumulator, value);
           accumulatorSize = accumulatorSizer.estimateSize(accumulator);

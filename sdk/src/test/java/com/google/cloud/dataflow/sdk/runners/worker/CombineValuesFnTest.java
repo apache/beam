@@ -153,7 +153,9 @@ public class CombineValuesFnTest {
     }
 
     @Override
-    public List<? extends Coder<?>> getCoderArguments() { return null; }
+    public List<? extends Coder<?>> getCoderArguments() {
+      return null;
+    }
 
     public List<Object> getInstanceComponents(MeanInts.CountSum exampleValue) {
       return null;

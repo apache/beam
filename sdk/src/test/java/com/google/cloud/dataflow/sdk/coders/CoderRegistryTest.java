@@ -265,9 +265,13 @@ public class CoderRegistryTest {
     @Override
     public void verifyDeterministic() { }
 
-    public boolean consistentWithEquals() { return true; }
+    public boolean consistentWithEquals() {
+      return true;
+    }
 
-    public Object structuralValue(MyValue value) { return value; }
+    public Object structuralValue(MyValue value) {
+      return value;
+    }
 
     @Override
     public boolean isRegisterByteSizeObserverCheap(MyValue value, Context context) {

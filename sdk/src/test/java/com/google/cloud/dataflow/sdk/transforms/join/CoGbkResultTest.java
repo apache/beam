@@ -97,13 +97,19 @@ public class CoGbkResultTest {
     public Reiterator<RawUnionValue> iterator(final int start) {
       return new Reiterator<RawUnionValue>() {
         int pos = start;
-        public boolean hasNext() { return pos < tags.length; }
+        public boolean hasNext() {
+          return pos < tags.length;
+        }
         public RawUnionValue next() {
           maxPos = Math.max(pos + 1, maxPos);
           return new RawUnionValue(tags[pos], pos++);
         }
-        public void remove() { throw new UnsupportedOperationException(); }
-        public Reiterator<RawUnionValue> copy() { return iterator(pos); }
+        public void remove() {
+          throw new UnsupportedOperationException();
+        }
+        public Reiterator<RawUnionValue> copy() {
+          return iterator(pos);
+        }
       };
     }
   }

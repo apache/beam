@@ -442,7 +442,9 @@ public class DoFnReflectorTest {
   }
 
   @SuppressWarnings("unused")
-  private int badReturnType() { return 0; }
+  private int badReturnType() {
+    return 0;
+  }
 
   @Test
   public void testBadReturnType() throws Exception {
