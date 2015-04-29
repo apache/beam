@@ -149,9 +149,9 @@ public class DoFnRunner<I, O, R> {
    * the current element.
    */
   public void processElement(WindowedValue<I> elem) {
-    if (elem.getWindows().size() == 1
-        || !RequiresWindowAccess.class.isAssignableFrom(fn.getClass())
-        || !context.sideInputs.getAll().isEmpty()) {
+    if (elem.getWindows().size() <= 1
+        || (!RequiresWindowAccess.class.isAssignableFrom(fn.getClass())
+            && context.sideInputs.getAll().isEmpty())) {
       invokeProcessElement(elem);
     } else {
       // We could modify the windowed value (and the processContext) to
