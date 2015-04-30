@@ -228,7 +228,7 @@ public class CoderRegistry implements CoderProvider {
    * more than one coder matches
    */
   public <T> Coder<T> getDefaultCoder(T exampleValue) throws CannotProvideCoderException {
-    Class<?> clazz = exampleValue.getClass();
+    Class<?> clazz = exampleValue == null ? Void.class : exampleValue.getClass();
 
     if (clazz.getTypeParameters().length == 0) {
       // Trust that getDefaultCoder returns a valid

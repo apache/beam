@@ -20,14 +20,11 @@ import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -199,16 +196,7 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
 
   public PCollection<T> applyHelper(PInput input, boolean isStreaming) {
     if (isStreaming) {
-      @SuppressWarnings("unchecked")
-      Coder<T> elemCoder;
-      try {
-        elemCoder = (Coder<T>) getElementCoder(input.getPipeline().getCoderRegistry());
-      } catch (CannotProvideCoderException exc) {
-        throw new IllegalArgumentException(
-            "Failed to apply Create: could not determine element coder");
-      }
-
-      return Pipeline.applyTransform(
+      PCollection<T> output = Pipeline.applyTransform(
           input, PubsubIO.Read.named("StartingSignal").subscription("_starting_signal/"))
           .apply(ParDo.of(new DoFn<String, KV<Void, Void>>() {
             private static final long serialVersionUID = 0;
@@ -219,7 +207,19 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
               c.output(KV.of((Void) null, (Void) null));
             }
           }))
-          .apply(ParDo.of(new OutputOnceDoFn<>(elems, elemCoder)));
+          .apply(ParDo.of(new OutputOnceDoFn<>(elems)));
+
+      // Best effort attempt to set the coder for the user on the output of the
+      // "Create". ParDo has a different way in which it attempts to get
+      // the coder which doesn't take a look at the elements.
+      try {
+        @SuppressWarnings("unchecked")
+        Coder<T> coder = (Coder<T>) getDefaultOutputCoder(input);
+        output.setCoder(coder);
+      } catch (CannotProvideCoderException expected) {
+        // The user will need to specify a coder.
+      }
+      return output;
     } else {
       return PCollection.<T>createPrimitiveOutputInternal(
           input.getPipeline(),
@@ -233,24 +233,16 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
 
     private final CodedTupleTag<String> outputOnceTag =
         CodedTupleTag.of("outputOnce", StringUtf8Coder.of());
-    private final byte[] encodedBytes;
-    private final IterableCoder<T> iterableCoder;
+    private final Iterable<T> elems;
 
-    public OutputOnceDoFn(Iterable<T> elems, Coder<T> coder) {
-      this.iterableCoder = IterableCoder.of(coder);
-      try {
-        this.encodedBytes = CoderUtils.encodeToByteArray(iterableCoder, elems);
-      } catch (CoderException e) {
-        throw new IllegalArgumentException(
-            "Unable to encode element '" + elems + "' using coder '" + coder + "'.", e);
-      }
+    public OutputOnceDoFn(Iterable<T> elems) {
+      this.elems = elems;
     }
 
     @Override
     public void processElement(ProcessContext c) throws IOException {
       String state = c.keyedState().lookup(outputOnceTag);
       if (state == null || state.isEmpty()) {
-        Iterable<T> elems = CoderUtils.decodeFromByteArray(iterableCoder, encodedBytes);
         for (T t : elems) {
           c.output(t);
         }
@@ -282,7 +274,7 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
     // First try to deduce a coder using the types of the elements.
     Class<?> elementClazz = null;
     for (T elem : elems) {
-      Class<?> clazz = elem.getClass();
+      Class<?> clazz = elem == null ? Void.class : elem.getClass();
       if (elementClazz == null) {
         elementClazz = clazz;
       } else if (!elementClazz.equals(clazz)) {

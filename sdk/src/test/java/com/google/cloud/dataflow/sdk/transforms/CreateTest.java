@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
@@ -169,8 +170,35 @@ public class CreateTest {
 
     p.run();
 
-
     throw new RuntimeException("Coder: " + c.getCoder());
+  }
 
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testCreateWithVoidType() throws Exception {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<Void> output = p.apply(Create.of((Void) null, (Void) null));
+
+    DataflowAssert.that(output)
+      .containsInAnyOrder(null, null);
+
+    p.run();
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testCreateWithKVVoidType() throws Exception {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<KV<Void, Void>> output = p.apply(Create.of(
+        KV.of((Void) null, (Void) null),
+        KV.of((Void) null, (Void) null)));
+
+    DataflowAssert.that(output).containsInAnyOrder(
+        KV.of((Void) null, (Void) null),
+        KV.of((Void) null, (Void) null));
+
+    p.run();
   }
 }

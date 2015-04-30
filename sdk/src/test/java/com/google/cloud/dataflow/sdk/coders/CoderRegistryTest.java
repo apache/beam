@@ -188,12 +188,26 @@ public class CoderRegistryTest {
   }
 
   @Test
+  public void testGetDefaultCoderFromNullValue() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    assertEquals(VoidCoder.of(), registry.getDefaultCoder((Void) null));
+  }
+
+  @Test
   public void testGetDefaultCoderFromKvValue() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     KV<Integer, String> kv = KV.of(13, "hello");
     Coder<KV<Integer, String>> coder = registry.getDefaultCoder(kv);
     assertEquals(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()),
         coder);
+  }
+
+  @Test
+  public void testGetDefaultCoderFromKvNullValue() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    KV<Void, Void> kv = KV.of((Void) null, (Void) null);
+    assertEquals(KvCoder.of(VoidCoder.of(), VoidCoder.of()),
+        registry.getDefaultCoder(kv));
   }
 
   @Test
