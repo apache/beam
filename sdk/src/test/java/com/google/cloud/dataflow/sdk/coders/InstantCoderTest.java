@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.common.primitives.UnsignedBytes;
 

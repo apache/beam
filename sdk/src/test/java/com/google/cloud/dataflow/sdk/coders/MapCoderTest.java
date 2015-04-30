@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.coders;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.common.collect.ImmutableMap;
 
 import org.junit.Test;

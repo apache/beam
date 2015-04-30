@@ -21,6 +21,7 @@ import static com.google.api.services.datastore.client.DatastoreHelper.makePrope
 import static com.google.api.services.datastore.client.DatastoreHelper.makeValue;
 
 import com.google.api.services.datastore.DatastoreV1.Entity;
+import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

@@ -19,6 +19,8 @@ package com.google.cloud.dataflow.sdk.coders;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
