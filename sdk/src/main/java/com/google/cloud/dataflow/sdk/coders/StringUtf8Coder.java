@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.util.ExposedByteArrayOutputStream;
 import com.google.cloud.dataflow.sdk.util.StreamUtils;
 import com.google.cloud.dataflow.sdk.util.VarInt;
 
@@ -80,7 +81,12 @@ public class StringUtf8Coder extends AtomicCoder<String> {
       throw new CoderException("cannot encode a null String");
     }
     if (context.isWholeStream) {
-      outStream.write(value.getBytes(Singletons.UTF8));
+      byte[] bytes = value.getBytes(Singletons.UTF8);
+      if (outStream instanceof ExposedByteArrayOutputStream) {
+        ((ExposedByteArrayOutputStream) outStream).writeAndOwn(bytes);
+      } else {
+        outStream.write(bytes);
+      }
     } else {
       writeString(value, new DataOutputStream(outStream));
     }

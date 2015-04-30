@@ -59,7 +59,7 @@ public final class CoderUtils {
    */
   public static final String KIND_STREAM = "kind:stream";
 
-  private static ThreadLocal<SoftReference<ByteArrayOutputStream>> threadLocalOutputStream
+  private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>> threadLocalOutputStream
       = new ThreadLocal<>();
 
   /**
@@ -74,13 +74,11 @@ public final class CoderUtils {
   public static <T> byte[] encodeToByteArray(Coder<T> coder, T value, Coder.Context context)
       throws CoderException {
     try {
-      ByteArrayOutputStream stream;
-      SoftReference<ByteArrayOutputStream> refStream = threadLocalOutputStream.get();
-      if (refStream == null) {
-        stream = new ByteArrayOutputStream();
+      SoftReference<ExposedByteArrayOutputStream> refStream = threadLocalOutputStream.get();
+      ExposedByteArrayOutputStream stream = refStream == null ? null : refStream.get();
+      if (stream == null) {
+        stream = new ExposedByteArrayOutputStream();
         threadLocalOutputStream.set(new SoftReference<>(stream));
-      } else {
-        stream = refStream.get();
       }
       stream.reset();
       coder.encode(value, stream, context);

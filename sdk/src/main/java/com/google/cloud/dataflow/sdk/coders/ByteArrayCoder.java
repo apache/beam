@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.util.ExposedByteArrayOutputStream;
 import com.google.cloud.dataflow.sdk.util.StreamUtils;
 import com.google.cloud.dataflow.sdk.util.VarInt;
 import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.StructuralByteArray;
@@ -55,8 +56,14 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
     }
     if (!context.isWholeStream) {
       VarInt.encode(value.length, outStream);
+      outStream.write(value);
+    } else {
+      if (outStream instanceof ExposedByteArrayOutputStream) {
+        ((ExposedByteArrayOutputStream) outStream).writeAndOwn(value);
+      } else {
+        outStream.write(value);
+      }
     }
-    outStream.write(value);
   }
 
   @Override

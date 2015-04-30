@@ -48,13 +48,11 @@ public class StreamUtils {
       return ret;
     }
     // Falls back to normal stream copying.
-    byte[] buffer;
     SoftReference<byte[]> refBuffer = threadLocalBuffer.get();
-    if (refBuffer == null) {
+    byte[] buffer = refBuffer == null ? null : refBuffer.get();
+    if (buffer == null) {
       buffer = new byte[BUF_SIZE];
       threadLocalBuffer.set(new SoftReference<byte[]>(buffer));
-    } else {
-      buffer = refBuffer.get();
     }
     ByteArrayOutputStream outStream = new ByteArrayOutputStream();
     while (true) {
