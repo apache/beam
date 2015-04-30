@@ -32,7 +32,7 @@ import org.junit.runners.JUnit4;
 public class StateSamplerTest {
   public static long getCounterLongValue(CounterSet counters, String name) {
     Counter<Long> counter = (Counter<Long>) counters.getExistingCounter(name);
-    return counter.getAggregate(false);
+    return counter.getAggregate();
   }
 
   @Test

@@ -23,8 +23,8 @@ import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.ElementByteSizeObservableCoder;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
+import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.CounterTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReceiver;
 
 import org.hamcrest.CoreMatchers;
@@ -65,15 +65,11 @@ public class OutputReceiverTest {
     fanOut.process("bob");
 
     Assert.assertEquals("output_name", fanOut.getName());
-    Assert.assertEquals(
-        2,
-        (long) CounterTestUtils.getTotalAggregate(fanOut.getElementCount()));
-    Assert.assertEquals(
-        5,
-        (long) CounterTestUtils.getTotalAggregate(fanOut.getMeanByteCount()));
-    Assert.assertEquals(
-        2,
-        CounterTestUtils.getTotalCount(fanOut.getMeanByteCount()));
+    Assert.assertEquals(2, (long) fanOut.getElementCount().getAggregate());
+
+    CounterMean<Long> meanByteCount = fanOut.getMeanByteCount().getMean();
+    Assert.assertEquals(5, (long) meanByteCount.getAggregate());
+    Assert.assertEquals(2, meanByteCount.getCount());
   }
 
   @Test
@@ -93,19 +89,15 @@ public class OutputReceiverTest {
     fanOut.process("bob");
 
     Assert.assertEquals("output_name", fanOut.getName());
-    Assert.assertEquals(
-        2,
-        (long) CounterTestUtils.getTotalAggregate(fanOut.getElementCount()));
-    Assert.assertEquals(
-        5,
-        (long) CounterTestUtils.getTotalAggregate(fanOut.getMeanByteCount()));
-    Assert.assertEquals(
-        2,
-        CounterTestUtils.getTotalCount(fanOut.getMeanByteCount()));
+    Assert.assertEquals(2, (long) fanOut.getElementCount().getAggregate());
+
+    CounterMean<Long> meanByteCount = fanOut.getMeanByteCount().getMean();
+    Assert.assertEquals(5, meanByteCount.getAggregate().longValue());
+    Assert.assertEquals(2, meanByteCount.getCount());
     Assert.assertThat(receiver1.outputElems,
-                      CoreMatchers.<Object>hasItems("hi", "bob"));
+        CoreMatchers.<Object>hasItems("hi", "bob"));
     Assert.assertThat(receiver2.outputElems,
-                      CoreMatchers.<Object>hasItems("hi", "bob"));
+        CoreMatchers.<Object>hasItems("hi", "bob"));
   }
 
   @Test(expected = ClassCastException.class)
@@ -123,14 +115,14 @@ public class OutputReceiverTest {
   @Test
   public void testAddingCountersIntoCounterSet() throws Exception {
     CounterSet counters = new CounterSet();
-    TestOutputReceiver receiver = new TestOutputReceiver(counters);
+    new TestOutputReceiver(counters);
 
     Assert.assertEquals(
         new CounterSet(
             Counter.longs("output_name-ElementCount", SUM)
                 .resetToValue(0L),
             Counter.longs("output_name-MeanByteCount", MEAN)
-                .resetToValue(0, 0L)),
+                .resetMeanToValue(0, 0L)),
         counters);
   }
 }

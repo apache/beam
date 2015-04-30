@@ -64,17 +64,15 @@ public class FlattenOperationTest {
         new CounterSet(
             Counter.longs("test-FlattenOperation-start-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-FlattenOperation-start-msecs")).getAggregate(false)),
+                                   "test-FlattenOperation-start-msecs")).getAggregate()),
             Counter.longs("test-FlattenOperation-process-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-FlattenOperation-process-msecs")).getAggregate(false)),
+                                   "test-FlattenOperation-process-msecs")).getAggregate()),
             Counter.longs("test-FlattenOperation-finish-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-FlattenOperation-finish-msecs")).getAggregate(false)),
-            Counter.longs("test_receiver_out-ElementCount", SUM)
-                .resetToValue(4L),
-            Counter.longs("test_receiver_out-MeanByteCount", MEAN)
-                .resetToValue(4, 10L)),
+                                   "test-FlattenOperation-finish-msecs")).getAggregate()),
+            Counter.longs("test_receiver_out-ElementCount", SUM).resetToValue(4L),
+            Counter.longs("test_receiver_out-MeanByteCount", MEAN).resetMeanToValue(4, 10L)),
         counterSet);
   }
 }

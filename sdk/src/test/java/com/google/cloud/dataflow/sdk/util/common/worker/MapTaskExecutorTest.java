@@ -152,37 +152,37 @@ public class MapTaskExecutorTest {
             Counter.longs("test-o1-start-msecs", SUM)
                 .resetToValue(
                     ((Counter<Long>)
-                        counterSet.getExistingCounter("test-o1-start-msecs")).getAggregate(false)),
+                        counterSet.getExistingCounter("test-o1-start-msecs")).getAggregate()),
             Counter.longs("test-o1-process-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                   "test-o1-process-msecs")).getAggregate(false)),
+                                   "test-o1-process-msecs")).getAggregate()),
             Counter.longs("test-o1-finish-msecs", SUM)
                 .resetToValue(
                     ((Counter<Long>)
-                        counterSet.getExistingCounter("test-o1-finish-msecs")).getAggregate(false)),
+                        counterSet.getExistingCounter("test-o1-finish-msecs")).getAggregate()),
             Counter.longs("o2-ElementCount", SUM).resetToValue(2L),
             Counter.longs("test-o2-start-msecs", SUM)
                 .resetToValue(
                     ((Counter<Long>)
-                        counterSet.getExistingCounter("test-o2-start-msecs")).getAggregate(false)),
+                        counterSet.getExistingCounter("test-o2-start-msecs")).getAggregate()),
             Counter.longs("test-o2-process-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                   "test-o2-process-msecs")).getAggregate(false)),
+                                   "test-o2-process-msecs")).getAggregate()),
             Counter.longs("test-o2-finish-msecs", SUM)
                 .resetToValue(
                     ((Counter<Long>)
-                        counterSet.getExistingCounter("test-o2-finish-msecs")).getAggregate(false)),
+                        counterSet.getExistingCounter("test-o2-finish-msecs")).getAggregate()),
             Counter.longs("o3-ElementCount", SUM).resetToValue(3L),
             Counter.longs("test-o3-start-msecs", SUM)
                 .resetToValue(
                     ((Counter<Long>)
-                        counterSet.getExistingCounter("test-o3-start-msecs")).getAggregate(false)),
+                        counterSet.getExistingCounter("test-o3-start-msecs")).getAggregate()),
             Counter.longs("test-o3-process-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                   "test-o3-process-msecs")).getAggregate(false)),
+                                   "test-o3-process-msecs")).getAggregate()),
             Counter.longs("test-o3-finish-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                   "test-o3-finish-msecs")).getAggregate(false))),
+                                   "test-o3-finish-msecs")).getAggregate())),
         counterSet);
 
     executor.close();

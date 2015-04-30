@@ -62,13 +62,13 @@ public class WriteOperationTest {
                 .resetToValue(2L + 5 + 0 + 3),
             Counter.longs("test-WriteOperation-start-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-WriteOperation-start-msecs")).getAggregate(false)),
+                    "test-WriteOperation-start-msecs")).getAggregate()),
             Counter.longs("test-WriteOperation-process-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-WriteOperation-process-msecs")).getAggregate(false)),
+                    "test-WriteOperation-process-msecs")).getAggregate()),
             Counter.longs("test-WriteOperation-finish-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-WriteOperation-finish-msecs")).getAggregate(false))),
+                    "test-WriteOperation-finish-msecs")).getAggregate())),
         counterSet);
   }
 }

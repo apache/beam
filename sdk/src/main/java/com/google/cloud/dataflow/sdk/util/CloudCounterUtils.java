@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
+import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 
 import org.slf4j.Logger;
@@ -67,22 +68,32 @@ public class CloudCounterUtils {
         case MIN:
         case AND:
         case OR:
-          metricUpdate.setScalar(CloudObject.forKnownType(counter.getAggregate(delta)));
+          Object aggregate;
+          if (delta) {
+            aggregate = counter.getAndResetDelta();
+          } else {
+            aggregate = counter.getAggregate();
+          }
+          metricUpdate.setScalar(
+                CloudObject.forKnownType(aggregate));
           break;
         case MEAN: {
-          long countUpdate = counter.getCount(delta);
-          if (countUpdate <= 0) {
+          CounterMean<?> mean;
+          if (delta) {
+            mean = counter.getAndResetMeanDelta();
+          } else {
+            mean = counter.getMean();
+          }
+          if (mean.getCount() <= 0) {
             return null;
           }
-          metricUpdate.setMeanSum(CloudObject.forKnownType(counter.getAggregate(delta)));
-          metricUpdate.setMeanCount(CloudObject.forKnownType(countUpdate));
+          metricUpdate.setMeanSum(
+              CloudObject.forKnownType(mean.getAggregate()));
+          metricUpdate.setMeanCount(CloudObject.forKnownType(mean.getCount()));
           break;
         }
         default:
           throw new IllegalArgumentException("unexpected kind of counter");
-      }
-      if (delta) {
-        counter.resetDelta();
       }
       return metricUpdate;
     }

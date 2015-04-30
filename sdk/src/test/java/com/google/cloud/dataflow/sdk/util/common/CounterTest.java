@@ -31,6 +31,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
+import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -170,13 +171,13 @@ public class CounterTest {
 
 
   private void assertOK(long total, long delta, Counter<Long> c) {
-    assertEquals(total, c.getTotalAggregate().longValue());
-    assertEquals(delta, c.getDeltaAggregate().longValue());
+    assertEquals(total, c.getAggregate().longValue());
+    assertEquals(delta, c.getAndResetDelta().longValue());
   }
 
   private void assertOK(double total, double delta, Counter<Double> c) {
-    assertEquals(total, asDouble(c.getTotalAggregate()), EPSILON);
-    assertEquals(delta, asDouble(c.getDeltaAggregate()), EPSILON);
+    assertEquals(total, asDouble(c.getAggregate()), EPSILON);
+    assertEquals(delta, asDouble(c.getAndResetDelta()), EPSILON);
   }
 
 
@@ -364,18 +365,22 @@ public class CounterTest {
   // Tests for MEAN.
 
   private void assertMean(long s, long sd, long c, long cd, Counter<Long> cn) {
-    assertEquals(s, cn.getTotalAggregate().longValue());
-    assertEquals(sd, cn.getDeltaAggregate().longValue());
-    assertEquals(c, cn.getTotalCount());
-    assertEquals(cd, cn.getDeltaCount());
+    CounterMean<Long> mean = cn.getMean();
+    CounterMean<Long> deltaMean = cn.getAndResetMeanDelta();
+    assertEquals(s, mean.getAggregate().longValue());
+    assertEquals(sd, deltaMean.getAggregate().longValue());
+    assertEquals(c, mean.getCount());
+    assertEquals(cd, deltaMean.getCount());
   }
 
   private void assertMean(double s, double sd, long c, long cd,
       Counter<Double> cn) {
-    assertEquals(s, cn.getTotalAggregate().doubleValue(), EPSILON);
-    assertEquals(sd, cn.getDeltaAggregate().doubleValue(), EPSILON);
-    assertEquals(c, cn.getTotalCount());
-    assertEquals(cd, cn.getDeltaCount());
+    CounterMean<Double> mean = cn.getMean();
+    CounterMean<Double> deltaMean = cn.getAndResetMeanDelta();
+    assertEquals(s, mean.getAggregate().doubleValue(), EPSILON);
+    assertEquals(sd, deltaMean.getAggregate().doubleValue(), EPSILON);
+    assertEquals(c, mean.getCount());
+    assertEquals(cd, deltaMean.getCount());
   }
 
   @Test
@@ -394,7 +399,7 @@ public class CounterTest {
     expCountDelta += 3;
     assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
 
-    c.resetToValue(1L, 120L).addValue(17L).addValue(37L);
+    c.resetMeanToValue(1L, 120L).addValue(17L).addValue(37L);
     expTotal = expDelta = 174;
     assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
 
@@ -410,7 +415,7 @@ public class CounterTest {
     expCountDelta += 2;
     assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
 
-    c.resetToValue(3L, 100L).addValue(17L).addValue(49L);
+    c.resetMeanToValue(3L, 100L).addValue(17L).addValue(49L);
     expTotal = expDelta = 166;
     expCountTotal = expCountDelta = 5;
     assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
@@ -432,7 +437,8 @@ public class CounterTest {
     expCountDelta += 3;
     assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
 
-    c.resetToValue(1L, Math.sqrt(2)).addValue(2 * Math.PI).addValue(3 * Math.E);
+    c.resetMeanToValue(1L, Math.sqrt(2)).addValue(2 * Math.PI)
+        .addValue(3 * Math.E);
     expTotal = expDelta = Math.sqrt(2) + 2 * Math.PI + 3 * Math.E;
     assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
 
@@ -448,7 +454,7 @@ public class CounterTest {
     expCountDelta += 2;
     assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
 
-    c.resetToValue(3L, Math.sqrt(17)).addValue(17.0).addValue(49.0);
+    c.resetMeanToValue(3L, Math.sqrt(17)).addValue(17.0).addValue(49.0);
     expTotal = expDelta = Math.sqrt(17.0) + 17.0 + 49.0;
     expCountTotal = expCountDelta = 5;
     assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
@@ -456,10 +462,9 @@ public class CounterTest {
 
 
   // Test for AND and OR.
-
   private void assertBool(boolean total, boolean delta, Counter<Boolean> c) {
-    assertEquals(total, c.getTotalAggregate().booleanValue());
-    assertEquals(delta, c.getDeltaAggregate().booleanValue());
+    assertEquals(total, c.getAggregate().booleanValue());
+    assertEquals(delta, c.getAndResetDelta().booleanValue());
   }
 
   @Test
@@ -491,9 +496,6 @@ public class CounterTest {
     c.addValue(false);
     expectedDelta = false;
     assertBool(expectedTotal, expectedDelta, c);
-
-    c.addValue(true);
-    assertBool(expectedTotal, expectedDelta, c);
   }
 
   @Test
@@ -524,9 +526,6 @@ public class CounterTest {
 
     c.addValue(true);
     expectedDelta = true;
-    assertBool(expectedTotal, expectedDelta, c);
-
-    c.addValue(false);
     assertBool(expectedTotal, expectedDelta, c);
   }
 

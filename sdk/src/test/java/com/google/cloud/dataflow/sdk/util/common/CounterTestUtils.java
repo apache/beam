@@ -21,6 +21,7 @@ import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
+import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
 
 import org.junit.Assert;
 
@@ -70,25 +71,6 @@ public class CounterTestUtils {
     return cloudCounters;
   }
 
-
-  // These methods expose a counter's values for testing.
-
-  public static <T> T getTotalAggregate(Counter<T> counter) {
-    return counter.getTotalAggregate();
-  }
-
-  public static <T> T getDeltaAggregate(Counter<T> counter) {
-    return counter.getDeltaAggregate();
-  }
-
-  public static <T> long getTotalCount(Counter<T> counter) {
-    return counter.getTotalCount();
-  }
-
-  public static <T> long getDeltaCount(Counter<T> counter) {
-    return counter.getDeltaCount();
-  }
-
   /**
    * A utility method that passes the given (unencoded) elements through
    * coder's registerByteSizeObserver() and encode() methods, and confirms
@@ -108,7 +90,9 @@ public class CounterTestUtils {
     }
     long expectedLength = os.toByteArray().length;
 
-    Assert.assertEquals(expectedLength, (long) getTotalAggregate(meanByteCount));
-    Assert.assertEquals(elements.length, getTotalCount(meanByteCount));
+    CounterMean<Long> mean = meanByteCount.getMean();
+
+    Assert.assertEquals(expectedLength, mean.getAggregate().longValue());
+    Assert.assertEquals(elements.length, mean.getCount());
   }
 }

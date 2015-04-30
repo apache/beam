@@ -114,17 +114,17 @@ public class PartialGroupByKeyOperationTest {
         new CounterSet(
             Counter.longs("test-PartialGroupByKeyOperation-start-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-PartialGroupByKeyOperation-start-msecs")).getAggregate(false)),
+                    "test-PartialGroupByKeyOperation-start-msecs")).getAggregate()),
             Counter.longs("test-PartialGroupByKeyOperation-process-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-PartialGroupByKeyOperation-process-msecs")).getAggregate(false)),
+                    "test-PartialGroupByKeyOperation-process-msecs")).getAggregate()),
             Counter.longs("test-PartialGroupByKeyOperation-finish-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-PartialGroupByKeyOperation-finish-msecs")).getAggregate(false)),
+                    "test-PartialGroupByKeyOperation-finish-msecs")).getAggregate()),
             Counter.longs("test_receiver_out-ElementCount", SUM)
                 .resetToValue(3L),
             Counter.longs("test_receiver_out-MeanByteCount", MEAN)
-                .resetToValue(3, 49L)),
+                .resetMeanToValue(3, 49L)),
         counterSet);
   }
 
@@ -197,17 +197,17 @@ public class PartialGroupByKeyOperationTest {
         new CounterSet(
             Counter.longs("test-PartialGroupByKeyOperation-start-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-PartialGroupByKeyOperation-start-msecs")).getAggregate(false)),
+                    "test-PartialGroupByKeyOperation-start-msecs")).getAggregate()),
             Counter.longs("test-PartialGroupByKeyOperation-process-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-PartialGroupByKeyOperation-process-msecs")).getAggregate(false)),
+                    "test-PartialGroupByKeyOperation-process-msecs")).getAggregate()),
             Counter.longs("test-PartialGroupByKeyOperation-finish-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                    "test-PartialGroupByKeyOperation-finish-msecs")).getAggregate(false)),
+                    "test-PartialGroupByKeyOperation-finish-msecs")).getAggregate()),
             Counter.longs("test_receiver_out-ElementCount", SUM)
                 .resetToValue(3L),
             Counter.longs("test_receiver_out-MeanByteCount", MEAN)
-                .resetToValue(3, 25L)),
+                .resetMeanToValue(3, 25L)),
         counterSet);
   }
 

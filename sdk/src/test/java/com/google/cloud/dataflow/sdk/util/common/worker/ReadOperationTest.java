@@ -73,19 +73,19 @@ public class ReadOperationTest {
             new CounterSet(
                 Counter.longs("ReadOperation-ByteCount", SUM).resetToValue(2L + 5 + 0 + 3),
                 Counter.longs("test_receiver_out-ElementCount", SUM).resetToValue(4L),
-                Counter.longs("test_receiver_out-MeanByteCount", MEAN).resetToValue(4, 10L),
+                Counter.longs("test_receiver_out-MeanByteCount", MEAN).resetMeanToValue(4, 10L),
                 Counter.longs("test-ReadOperation-start-msecs", SUM)
                     .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                       "test-ReadOperation-start-msecs")).getAggregate(false)),
+                                       "test-ReadOperation-start-msecs")).getAggregate()),
                 Counter.longs("test-ReadOperation-read-msecs", SUM)
                     .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                       "test-ReadOperation-read-msecs")).getAggregate(false)),
+                                       "test-ReadOperation-read-msecs")).getAggregate()),
                 Counter.longs("test-ReadOperation-process-msecs", SUM)
                     .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                       "test-ReadOperation-process-msecs")).getAggregate(false)),
+                                       "test-ReadOperation-process-msecs")).getAggregate()),
                 Counter.longs("test-ReadOperation-finish-msecs", SUM)
                     .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                       "test-ReadOperation-finish-msecs")).getAggregate(false))),
+                                       "test-ReadOperation-finish-msecs")).getAggregate())),
             counterSet);
   }
 

@@ -98,17 +98,17 @@ public class ParDoOperationTest {
         new CounterSet(
             Counter.longs("test-ParDoOperation-start-msecs", SUM)
               .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-ParDoOperation-start-msecs")).getAggregate(false)),
+                  "test-ParDoOperation-start-msecs")).getAggregate()),
             Counter.longs("test-ParDoOperation-process-msecs", SUM)
               .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-ParDoOperation-process-msecs")).getAggregate(false)),
+                  "test-ParDoOperation-process-msecs")).getAggregate()),
             Counter.longs("test-ParDoOperation-finish-msecs", SUM)
               .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-ParDoOperation-finish-msecs")).getAggregate(false)),
+                  "test-ParDoOperation-finish-msecs")).getAggregate()),
             Counter.longs("test_receiver_out-ElementCount", SUM)
                 .resetToValue(6L),
             Counter.longs("test_receiver_out-MeanByteCount", MEAN)
-                .resetToValue(6, 33L)),
+                .resetMeanToValue(6, 33L)),
         counterSet);
   }
 

@@ -24,6 +24,8 @@ import com.google.common.reflect.TypeToken;
 
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 /**
  * A Counter enables the aggregation of a stream of values over time.  The
  * cumulative aggregate value is updated as new values are added, or it can be
@@ -168,43 +170,33 @@ public abstract class Counter<T> {
   public abstract Counter<T> addValue(T value);
 
   /**
-   * Resets the aggregation stream to this new value. Returns this (to allow
-   * method chaining).
+   * Resets the aggregation stream to this new value. This aggregator must not
+   * be a MEAN aggregator. Returns this (to allow method chaining).
    */
-  public Counter<T> resetToValue(T value) {
-    return resetToValue(-1, value);
-  }
+  public abstract Counter<T> resetToValue(T value);
 
   /**
    * Resets the aggregation stream to this new value. Returns this (to allow
-   * method chaining). The value of elementCount must be -1 for non-MEAN
-   * aggregations. The value of elementCount must be non-negative for MEAN
-   * aggregation.
+   * method chaining). The value of elementCount must be non-negative, and this
+   * aggregator must be a MEAN aggregator.
    */
-  public synchronized Counter<T> resetToValue(long elementCount, T value) {
-    aggregate = value;
-    deltaAggregate = value;
+  public abstract Counter<T> resetMeanToValue(long elementCount, T value);
 
-    if (kind.equals(MEAN)) {
-      if (elementCount < 0) {
-        throw new AssertionError(
-            "elementCount must be non-negative for MEAN aggregation");
-      }
-      count = elementCount;
-      deltaCount = elementCount;
-    } else {
-      if (elementCount != -1) {
-        throw new AssertionError(
-            "elementCount must be -1 for non-MEAN aggregations");
-      }
-      count = 0;
-      deltaCount = 0;
-    }
-    return this;
-  }
+  /**
+   * Resets the counter's delta value to have no values accumulated and returns
+   * the value of the delta prior to the reset.
+   *
+   * @return the aggregate delta at the time this method is called
+   */
+  public abstract T getAndResetDelta();
 
-  /** Resets the counter's delta value to have no values accumulated. */
-  public abstract void resetDelta();
+  /**
+   * Resets the counter's delta value to have no values accumulated and returns
+   * the value of the delta prior to the reset, for a MEAN counter.
+   *
+   * @return the mean delta t the time this method is called
+   */
+  public abstract CounterMean<T> getAndResetMeanDelta();
 
   /**
    * Returns the counter's name.
@@ -231,20 +223,34 @@ public abstract class Counter<T> {
 
   /**
    * Returns the aggregated value, or the sum for MEAN aggregation, either
-   * total or, if delta, since the last update extraction or resetDelta..
+   * total or, if delta, since the last update extraction or resetDelta.
    */
-  public T getAggregate(boolean delta) {
-    return delta ? deltaAggregate : aggregate;
+  public abstract T getAggregate();
+
+  /**
+   * The mean value of a {@code Counter}, represented as an aggregate value and
+   * a count.
+   *
+   * @param <T> the type of the aggregate
+   */
+  public static interface CounterMean<T> {
+    /**
+     * Gets the aggregate value of this {@code CounterMean}.
+     */
+    T getAggregate();
+
+    /**
+     * Gets the count of this {@code CounterMean}.
+     */
+    long getCount();
   }
 
   /**
-   * Returns the number of aggregated values, either total or, if
-   * delta, since the last update extraction or resetDelta, if a MEAN
-   * aggregation.
+   * Returns the mean in the form of a CounterMean, or null if this is not a
+   * MEAN counter.
    */
-  public long getCount(boolean delta) {
-    return delta ? deltaCount : count;
-  }
+  @Nullable
+  public abstract CounterMean<T> getMean();
 
   /**
    * Returns a string representation of the Counter. Useful for debugging logs.
@@ -337,7 +343,6 @@ public abstract class Counter<T> {
     this.deltaCount = 0;
   }
 
-
   //////////////////////////////////////////////////////////////////////////////
 
   /**
@@ -392,7 +397,13 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public synchronized void resetDelta() {
+    public synchronized Long getAggregate() {
+      return aggregate;
+    }
+
+    @Override
+    public synchronized Long getAndResetDelta() {
+      long oldDelta = deltaAggregate;
       switch (kind) {
         case SUM:
           deltaAggregate = 0L;
@@ -409,6 +420,70 @@ public abstract class Counter<T> {
           break;
         default:
           throw illegalArgumentException();
+      }
+      return oldDelta;
+    }
+
+    @Override
+    public synchronized Counter<Long> resetToValue(Long value) {
+      if (kind == MEAN) {
+        throw illegalArgumentException();
+      }
+      aggregate = value;
+      deltaAggregate = value;
+      return this;
+    }
+
+    @Override
+    public synchronized Counter<Long> resetMeanToValue(long elementCount,
+        Long value) {
+      if (kind != MEAN) {
+        throw illegalArgumentException();
+      }
+      aggregate = value;
+      deltaAggregate = value;
+      count = elementCount;
+      deltaCount = elementCount;
+      return this;
+    }
+
+    @Override
+    public synchronized CounterMean<Long> getAndResetMeanDelta() {
+      if (kind != MEAN) {
+        throw illegalArgumentException();
+      }
+      CounterMean<Long> mean = new LongCounterMean(deltaAggregate, deltaCount);
+      deltaAggregate = 0L;
+      deltaCount = 0L;
+      return mean;
+    }
+
+    @Override
+    @Nullable
+    public synchronized CounterMean<Long> getMean() {
+      if (kind != MEAN) {
+        throw illegalArgumentException();
+      }
+      return new LongCounterMean(aggregate, count);
+    }
+
+    private static class LongCounterMean implements CounterMean<Long> {
+      private final long aggregate;
+      private final long count;
+
+      public LongCounterMean(long aggregate, long count) {
+        this.aggregate = aggregate;
+        this.count = count;
+      }
+
+      @Override
+      public Long getAggregate() {
+        return aggregate;
+      }
+
+      @Override
+      public long getCount() {
+        return count;
       }
     }
   }
@@ -465,7 +540,8 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public synchronized void resetDelta() {
+    public synchronized Double getAndResetDelta() {
+      double oldDelta = deltaAggregate;
       switch (kind) {
         case SUM:
           deltaAggregate = 0.0;
@@ -482,6 +558,76 @@ public abstract class Counter<T> {
           break;
         default:
           throw illegalArgumentException();
+      }
+      return oldDelta;
+    }
+
+    @Override
+    public synchronized Counter<Double> resetToValue(Double value) {
+      if (kind == MEAN) {
+        throw illegalArgumentException();
+      }
+      aggregate = value;
+      deltaAggregate = value;
+      return this;
+    }
+
+    @Override
+    public synchronized Counter<Double> resetMeanToValue(long elementCount,
+        Double value) {
+      if (kind != MEAN) {
+        throw illegalArgumentException();
+      }
+      if (elementCount < 0) {
+        throw new IllegalArgumentException("elementCount must be non-negative");
+      }
+      aggregate = value;
+      deltaAggregate = value;
+      count = elementCount;
+      deltaCount = elementCount;
+      return this;
+    }
+
+    @Override
+    public synchronized CounterMean<Double> getAndResetMeanDelta() {
+      if (kind != MEAN) {
+        throw illegalArgumentException();
+      }
+      CounterMean<Double> mean =
+          new DoubleCounterMean(deltaAggregate, deltaCount);
+      deltaAggregate = 0.0;
+      deltaCount = 0L;
+      return mean;
+    }
+
+    @Override
+    public synchronized Double getAggregate() {
+      return aggregate;
+    }
+
+    @Override
+    @Nullable
+    public synchronized CounterMean<Double> getMean() {
+      return new DoubleCounterMean(aggregate, count);
+    }
+
+    private static class DoubleCounterMean implements CounterMean<Double> {
+      private final double aggregate;
+      private final long count;
+
+      public DoubleCounterMean(double aggregate, long count) {
+        this.aggregate = aggregate;
+        this.count = count;
+      }
+
+      @Override
+      public Double getAggregate() {
+        return aggregate;
+      }
+
+      @Override
+      public long getCount() {
+        return count;
       }
     }
   }
@@ -516,7 +662,8 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public synchronized void resetDelta() {
+    public synchronized Boolean getAndResetDelta() {
+      boolean delta = deltaAggregate;
       switch (kind) {
         case AND:
           deltaAggregate = true;
@@ -527,6 +674,36 @@ public abstract class Counter<T> {
         default:
           throw illegalArgumentException();
       }
+      return delta;
+    }
+
+    @Override
+    public synchronized Counter<Boolean> resetToValue(Boolean value) {
+      aggregate = value;
+      deltaAggregate = value;
+      return this;
+    }
+
+    @Override
+    public Counter<Boolean> resetMeanToValue(long elementCount, Boolean value) {
+      throw illegalArgumentException();
+    }
+
+    @Override
+    public com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean<
+        Boolean> getAndResetMeanDelta() {
+      throw illegalArgumentException();
+    }
+
+    @Override
+    public synchronized Boolean getAggregate() {
+      return aggregate;
+    }
+
+    @Override
+    @Nullable
+    public CounterMean<Boolean> getMean() {
+      throw illegalArgumentException();
     }
   }
 
@@ -551,7 +728,48 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public synchronized void resetDelta() {
+    public Counter<String> resetToValue(String value) {
+      switch (kind) {
+        default:
+          throw illegalArgumentException();
+      }
+    }
+
+    @Override
+    public Counter<String> resetMeanToValue(long elementCount, String value) {
+      switch (kind) {
+        default:
+          throw illegalArgumentException();
+      }
+    }
+
+    @Override
+    public String getAndResetDelta() {
+      switch (kind) {
+        default:
+          throw illegalArgumentException();
+      }
+    }
+
+    @Override
+    public CounterMean<String> getAndResetMeanDelta() {
+      switch (kind) {
+        default:
+          throw illegalArgumentException();
+      }
+    }
+
+    @Override
+    public String getAggregate() {
+      switch (kind) {
+        default:
+          throw illegalArgumentException();
+      }
+    }
+
+    @Override
+    @Nullable
+    public CounterMean<String> getMean() {
       switch (kind) {
         default:
           throw illegalArgumentException();
@@ -611,7 +829,8 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public synchronized void resetDelta() {
+    public synchronized Integer getAndResetDelta() {
+      int delta = deltaAggregate;
       switch (kind) {
         case SUM:
           deltaAggregate = 0;
@@ -629,9 +848,77 @@ public abstract class Counter<T> {
         default:
           throw illegalArgumentException();
       }
+      return delta;
+    }
+
+    @Override
+    public synchronized Counter<Integer> resetToValue(Integer value) {
+      if (kind == MEAN) {
+        throw illegalArgumentException();
+      }
+      aggregate = value;
+      deltaAggregate = value;
+      return this;
+    }
+
+    @Override
+    public Counter<Integer> resetMeanToValue(long elementCount, Integer value) {
+      if (kind != MEAN) {
+        throw illegalArgumentException();
+      }
+      if (elementCount < 0) {
+        throw new IllegalArgumentException("elementCount must be non-negative");
+      }
+      aggregate = value;
+      deltaAggregate = value;
+      count = value;
+      deltaCount = value;
+      return this;
+    }
+
+    @Override
+    public synchronized CounterMean<Integer> getAndResetMeanDelta() {
+      if (kind != MEAN) {
+        throw illegalArgumentException();
+      }
+      CounterMean<Integer> mean =
+          new IntegerCounterMean(deltaAggregate, deltaCount);
+      deltaAggregate = 0;
+      deltaCount = 0L;
+      return mean;
+    }
+
+    @Override
+    public synchronized Integer getAggregate() {
+      return aggregate;
+    }
+
+    @Override
+    @Nullable
+    public synchronized CounterMean<Integer> getMean() {
+      return new IntegerCounterMean(aggregate, count);
+    }
+
+    private static class IntegerCounterMean implements CounterMean<Integer> {
+      private final int aggregate;
+      private final long count;
+
+      public IntegerCounterMean(int aggregate, long count) {
+        this.aggregate = aggregate;
+        this.count = count;
+      }
+
+      @Override
+      public Integer getAggregate() {
+        return aggregate;
+      }
+
+      @Override
+      public long getCount() {
+        return count;
+      }
     }
   }
-
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -642,22 +929,5 @@ public abstract class Counter<T> {
   protected IllegalArgumentException illegalArgumentException() {
     return new IllegalArgumentException("Cannot compute " + kind
         + " aggregation over " + getType().getSimpleName() + " values.");
-  }
-
-
-  //////////////////////////////////////////////////////////////////////////////
-
-  // For testing.
-  synchronized T getTotalAggregate() {
-    return aggregate;
-  }
-  synchronized T getDeltaAggregate() {
-    return deltaAggregate;
-  }
-  synchronized long getTotalCount() {
-    return count;
-  }
-  synchronized long getDeltaCount() {
-    return deltaCount;
   }
 }

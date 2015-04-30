@@ -29,6 +29,8 @@ import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
+import com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind;
+import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
 import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
@@ -54,6 +56,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -463,16 +466,19 @@ public class StreamingDataflowWorker {
 
   private void buildCounters(CounterSet counterSet,
                              Windmill.WorkItemCommitRequest.Builder builder) {
-    for (Counter counter : counterSet) {
+    for (Counter<?> counter : counterSet) {
       Windmill.Counter.Builder counterBuilder = Windmill.Counter.newBuilder();
       Windmill.Counter.Kind kind;
+      Object aggregateObj = null;
       switch (counter.getKind()) {
         case SUM: kind = Windmill.Counter.Kind.SUM; break;
         case MAX: kind = Windmill.Counter.Kind.MAX; break;
         case MIN: kind = Windmill.Counter.Kind.MIN; break;
         case MEAN:
           kind = Windmill.Counter.Kind.MEAN;
-          long count = counter.getCount(true /* delta */);
+          CounterMean<?> mean = counter.getAndResetMeanDelta();
+          long count = mean.getCount();
+          aggregateObj = mean.getAggregate();
           if (count <= 0) {
             continue;
           }
@@ -482,30 +488,38 @@ public class StreamingDataflowWorker {
           LOG.debug("Unhandled counter type: {}", counter.getKind());
           continue;
       }
-      Object aggregateObj = counter.getAggregate(true /* delta */);
-      counter.resetDelta();
-      if (aggregateObj instanceof Double) {
-        double aggregate = (Double) aggregateObj;
-        if (aggregate != 0) {
-          counterBuilder.setDoubleScalar(aggregate);
-        }
-      } else if (aggregateObj instanceof Long) {
-        long aggregate = (Long) aggregateObj;
-        if (aggregate != 0) {
-          counterBuilder.setIntScalar(aggregate);
-        }
-      } else if (aggregateObj instanceof Integer) {
-        long aggregate = ((Integer) aggregateObj).longValue();
-        if (aggregate != 0) {
-          counterBuilder.setIntScalar(aggregate);
-        }
-      } else {
-        LOG.debug("Unhandled aggregate class: {}", aggregateObj.getClass());
-        continue;
+      if (counter.getKind() != AggregationKind.MEAN) {
+        aggregateObj = counter.getAndResetDelta();
       }
-      counterBuilder.setName(counter.getName()).setKind(kind);
-      builder.addCounterUpdates(counterBuilder);
+      if (addKnownTypeToCounterBuilder(aggregateObj, counterBuilder)) {
+        counterBuilder.setName(counter.getName()).setKind(kind);
+        builder.addCounterUpdates(counterBuilder);
+      }
     }
+  }
+
+  private boolean addKnownTypeToCounterBuilder(Object aggregateObj,
+      Windmill.Counter.Builder counterBuilder) {
+    if (aggregateObj instanceof Double) {
+      double aggregate = (Double) aggregateObj;
+      if (aggregate != 0) {
+        counterBuilder.setDoubleScalar(aggregate);
+      }
+    } else if (aggregateObj instanceof Long) {
+      long aggregate = (Long) aggregateObj;
+      if (aggregate != 0) {
+        counterBuilder.setIntScalar(aggregate);
+      }
+    } else if (aggregateObj instanceof Integer) {
+      long aggregate = ((Integer) aggregateObj).longValue();
+      if (aggregate != 0) {
+        counterBuilder.setIntScalar(aggregate);
+      }
+    } else {
+      LOG.debug("Unhandled aggregate class: {}", aggregateObj.getClass());
+      return false;
+    }
+    return true;
   }
 
   private Windmill.Exception buildExceptionReport(Throwable t) {
