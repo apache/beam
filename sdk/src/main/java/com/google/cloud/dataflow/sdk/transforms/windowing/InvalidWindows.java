@@ -74,4 +74,9 @@ public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W>
         && getOriginalWindowFn().isCompatible(
             ((InvalidWindows<?>) other).getOriginalWindowFn());
   }
+
+  @Override
+  public W getSideInputWindow(BoundedWindow window) {
+    throw new UnsupportedOperationException("InvalidWindows is not allowed in side inputs");
+  }
 }

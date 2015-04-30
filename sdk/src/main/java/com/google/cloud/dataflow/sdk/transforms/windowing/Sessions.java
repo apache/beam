@@ -79,4 +79,9 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
   public boolean isCompatible(WindowFn<?, ?> other) {
     return other instanceof Sessions;
   }
+
+  @Override
+  public IntervalWindow getSideInputWindow(BoundedWindow window) {
+    throw new UnsupportedOperationException("Sessions is not allowed in side inputs");
+  }
 }

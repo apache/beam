@@ -109,14 +109,26 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
     List<IntervalWindow> windows =
         new ArrayList<>((int) (size.getMillis() / period.getMillis()));
     Instant timestamp = c.timestamp();
-    long lastStart = timestamp.getMillis()
-        - timestamp.plus(period).minus(offset).getMillis() % period.getMillis();
+    long lastStart = lastStartFor(timestamp);
     for (long start = lastStart;
          start > timestamp.minus(size).getMillis();
          start -= period.getMillis()) {
       windows.add(new IntervalWindow(new Instant(start), size));
     }
     return windows;
+  }
+
+  /**
+   * Return the earliest window that contains the end of the main-input window.
+   */
+  @Override
+  public IntervalWindow getSideInputWindow(final BoundedWindow window) {
+    if (window instanceof GlobalWindow) {
+      throw new IllegalArgumentException(
+          "Attempted to get side input window for GlobalWindow from non-global WindowFn");
+    }
+    long lastStart = lastStartFor(window.maxTimestamp().minus(size));
+    return new IntervalWindow(new Instant(lastStart + period.getMillis()), size);
   }
 
   @Override
@@ -129,6 +141,14 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
     } else {
       return false;
     }
+  }
+
+  /**
+   * Return the last start of a sliding window that contains the timestamp.
+   */
+  private long lastStartFor(Instant timestamp) {
+    return timestamp.getMillis()
+        - timestamp.plus(period).minus(offset).getMillis() % period.getMillis();
   }
 
   static Duration getDefaultPeriod(Duration size) {

@@ -41,4 +41,13 @@ public abstract class PartitioningWindowFn<T, W extends BoundedWindow>
   public final Collection<W> assignWindows(AssignContext c) {
     return Arrays.asList(assignWindow(c.timestamp()));
   }
+
+  @Override
+  public W getSideInputWindow(final BoundedWindow window) {
+    if (window instanceof GlobalWindow) {
+      throw new IllegalArgumentException(
+          "Attempted to get side input window for GlobalWindow from non-global WindowFn");
+    }
+    return assignWindow(window.maxTimestamp());
+  }
 }
