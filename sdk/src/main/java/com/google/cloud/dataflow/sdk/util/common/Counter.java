@@ -161,6 +161,7 @@ public abstract class Counter<T> {
    * @return the newly constructed Counter
    * @throws IllegalArgumentException if the aggregation kind is not supported
    */
+  @SuppressWarnings("unused")
   private static Counter<String> strings(String name, AggregationKind kind) {
     return new StringCounter(name, kind);
   }
