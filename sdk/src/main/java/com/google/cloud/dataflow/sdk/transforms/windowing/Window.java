@@ -63,7 +63,7 @@ import java.util.List;
  * <pre> {@code
  * PCollection<String> items = ...;
  * PCollection<String> windowed_items = items.apply(
- *   Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES)));
+ *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
  * PCollection<KV<String, Long>> windowed_counts = windowed_items.apply(
  *   Count.<String>perElement());
  * } </pre>
@@ -92,9 +92,8 @@ import java.util.List;
  * behavior is to trigger first when the watermark passes the end of the window, and then trigger
  * again every time there is late arriving data.
  *
- * <p> All of the elements in a window since the last time a trigger fired are
- * part of the current pane. When a trigger fires, new output is produced
- * based on the elements in the current pane.
+ * <p> Elements are added to the current window pane as they arrive. When the root trigger fires,
+ * output is produced based on the elements in the current pane.
  *
  * <p>Depending on the trigger, this can be used both to output partial results
  * early during the processing of the whole window, and to deal with late
@@ -132,6 +131,10 @@ import java.util.List;
  *                  .pastFirstElementInPane().plusDelay(Duration.standardMinutes(1)))
  *              .until(AfterWatermark.pastEndOfWindow())));
  * } </pre>
+ *
+ * <p> After a {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} the trigger is reset to
+ * the default trigger. If you want to produce early results from a pipeline consisting of multiple
+ * {@code GroupByKey}s, you must set a trigger before <i>each</i> {@code GroupByKey}.
  *
  * <p> See {@link Trigger} for details on the available triggers.
  */

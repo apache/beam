@@ -38,9 +38,10 @@ import java.util.Map;
  * for more information about how grouping with windows works.
  *
  * <p>The elements that are assigned to a window since the last time it was fired (or since the
- * window was created) are placed into a pane. Triggers are evaluated against the elements in the
- * current pane, and when fired, will output those elements. Depending on the trigger, this will
- * either finish the trigger (and the window) or start a new pane.
+ * window was created) are placed into the current window pane. Triggers are evaluated against the
+ * elements as they are added. When the root trigger fires, the elements in the current pane will be
+ * output. When the root trigger finishes (indicating it will never fire again), the window is
+ * closed and any new elements assigned to that window are discarded.
  *
  * <p>Several predefined {@code Trigger}s are provided:
  * <ul>
@@ -441,7 +442,15 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    *
    * <p> The expression {@code t1.orFinally(t2)} fires every time {@code t1} fires, and finishes
    * as soon as either {@code t1} finishes or {@code t2} fires, in which case it fires one last time
-   * for {@code t2}.
+   * for {@code t2}. Both {@code t1} and {@code t2} are executed in parallel. This means that
+   * {@code t1} may have fired since {@code t2} started, so not all of the elements that {@code t2}
+   * has seen are necessarily in the current pane.
+   *
+   * <p>For example the final firing of the following trigger may only have 1 element:
+   * <pre> {@code
+   * Repeatedly.forever(AfterPane.elementCountAtLeast(2))
+   *     .orFinally(AfterPane.elementCountAtLeast(5))
+   * } </pre>
    *
    * <p> Note that if {@code t1} is {@link OnceTrigger}, then {@code t1.orFinally(t2)} is the same
    * as {@code AfterFirst.of(t1, t2)}.
