@@ -79,8 +79,8 @@ public class Top {
    * {@link #largestPerKey}, which take a {@code PCollection} of
    * {@code KV}s and return the top values associated with each key.
    */
-  public static <T, C extends Comparator<T> & Serializable>
-      Combine.Globally<T, List<T>> of(int count, C compareFn) {
+  public static <T, ComparatorT extends Comparator<T> & Serializable>
+      Combine.Globally<T, List<T>> of(int count, ComparatorT compareFn) {
     return Combine.globally(new TopCombineFn<>(count, compareFn))
         .setName("Top");
   }
@@ -206,9 +206,9 @@ public class Top {
    * <p> See also {@link #of}, {@link #smallest}, and {@link #largest}, which
    * take a {@code PCollection} and return the top elements.
    */
-  public static <K, V, C extends Comparator<V> & Serializable>
+  public static <K, V, ComparatorT extends Comparator<V> & Serializable>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
-      perKey(int count, C compareFn) {
+      perKey(int count, ComparatorT compareFn) {
     return Combine.perKey(
         new TopCombineFn<>(count, compareFn).<K>asKeyedFn())
         .setName("Top.PerKey");
@@ -328,8 +328,8 @@ public class Top {
     private final int count;
     private final Comparator<T> compareFn;
 
-    public <C extends Comparator<T> & Serializable> TopCombineFn(
-        int count, C compareFn) {
+    public <ComparatorT extends Comparator<T> & Serializable> TopCombineFn(
+        int count, ComparatorT compareFn) {
       if (count < 0) {
         throw new IllegalArgumentException("count must be >= 0");
       }

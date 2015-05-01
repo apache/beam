@@ -76,12 +76,12 @@ import java.util.Map;
  *         }}));
  * } </pre>
  *
- * @param <I> the type of the (main) input elements
- * @param <O> the type of the (main) output elements
+ * @param <InputT> the type of the (main) input elements
+ * @param <OutputT> the type of the (main) output elements
  */
 @Experimental
 @SuppressWarnings("serial")
-public abstract class DoFnWithContext<I, O> implements Serializable {
+public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
 
   /** Information accessible to all methods in this {@code DoFnWithContext}. */
   public abstract class Context {
@@ -109,7 +109,7 @@ public abstract class DoFnWithContext<I, O> implements Serializable {
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
      */
-    public abstract void output(O output);
+    public abstract void output(OutputT output);
 
     /**
      * Adds the given element to the main output {@code PCollection},
@@ -128,7 +128,7 @@ public abstract class DoFnWithContext<I, O> implements Serializable {
      * to access any information about the input element except for the
      * timestamp.
      */
-    public abstract void outputWithTimestamp(O output, Instant timestamp);
+    public abstract void outputWithTimestamp(OutputT output, Instant timestamp);
 
     /**
      * Adds the given element to the side output {@code PCollection} with the
@@ -189,7 +189,7 @@ public abstract class DoFnWithContext<I, O> implements Serializable {
     /**
      * Returns the input element to be processed.
      */
-    public abstract I element();
+    public abstract InputT element();
 
 
     /**
@@ -233,8 +233,8 @@ public abstract class DoFnWithContext<I, O> implements Serializable {
    *
    * <p> See {@link #getOutputTypeToken} for more discussion.
    */
-  protected TypeToken<I> getInputTypeToken() {
-    return new TypeToken<I>(getClass()) {};
+  protected TypeToken<InputT> getInputTypeToken() {
+    return new TypeToken<InputT>(getClass()) {};
   }
 
   /**
@@ -248,8 +248,8 @@ public abstract class DoFnWithContext<I, O> implements Serializable {
    * for choosing a default output {@code Coder<O>} for the output
    * {@code PCollection<O>}.
    */
-  protected TypeToken<O> getOutputTypeToken() {
-    return new TypeToken<O>(getClass()) {};
+  protected TypeToken<OutputT> getOutputTypeToken() {
+    return new TypeToken<OutputT>(getClass()) {};
   }
 
   /**
@@ -262,7 +262,7 @@ public abstract class DoFnWithContext<I, O> implements Serializable {
    * <p>In the case of {@link ProcessElement} it is called once per invocation of
    * {@link ProcessElement}.
    */
-  public interface ExtraContextFactory<I, O> {
+  public interface ExtraContextFactory<InputT, OutputT> {
     /**
      * Construct the {@link KeyedState} interface for use within a {@link DoFnWithContext} that
      * needs it. This is called if the {@link ProcessElement} method has a parameter of type
@@ -286,7 +286,7 @@ public abstract class DoFnWithContext<I, O> implements Serializable {
      * needs it. This is called if the {@link ProcessElement} method has a parameter of type
      * {@link WindowingInternals}.
      */
-    WindowingInternals<I, O> windowingInternals();
+    WindowingInternals<InputT, OutputT> windowingInternals();
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -312,7 +312,7 @@ public abstract class DoFnWithContext<I, O> implements Serializable {
    *   <li>It must have at least one argument.
    *   <li>Its first argument must be a {@link DoFnWithContext.ProcessContext}.
    *   <li>Its remaining arguments must be {@link KeyedState}, {@link BoundedWindow}, or
-   *   {@link WindowingInternals WindowingInternals<I, O>}.
+   *   {@link WindowingInternals WindowingInternals<InputT, OutputT>}.
    * </ul>
    */
   @Documented
@@ -346,15 +346,15 @@ public abstract class DoFnWithContext<I, O> implements Serializable {
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
    */
-  public final <VI, VO> Aggregator<VI, VO> createAggregator(
-      String name, Combine.CombineFn<? super VI, ?, VO> combiner) {
+  public final <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
+      createAggregator(String name, Combine.CombineFn<? super AggInputT, ?, AggOutputT> combiner) {
     checkNotNull(name, "name cannot be null");
     checkNotNull(combiner, "combiner cannot be null");
     checkArgument(!aggregators.containsKey(name),
         "Cannot create aggregator with name %s."
         + " An Aggregator with that name already exists within this scope.",
         name);
-    DelegatingAggregator<VI, VO> aggregator =
+    DelegatingAggregator<AggInputT, AggOutputT> aggregator =
         new DelegatingAggregator<>(name, combiner);
     aggregators.put(name, aggregator);
     return aggregator;
@@ -373,8 +373,8 @@ public abstract class DoFnWithContext<I, O> implements Serializable {
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
    */
-  public final <VI> Aggregator<VI, VI> createAggregator(
-      String name, SerializableFunction<Iterable<VI>, VI> combiner) {
+  public final <AggInputT> Aggregator<AggInputT, AggInputT> createAggregator(
+      String name, SerializableFunction<Iterable<AggInputT>, AggInputT> combiner) {
     checkNotNull(combiner, "combiner cannot be null.");
     return createAggregator(name, Combine.SimpleCombineFn.of(combiner));
   }

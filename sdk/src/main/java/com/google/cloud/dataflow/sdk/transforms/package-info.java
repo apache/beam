@@ -19,9 +19,9 @@
  * data in a pipeline.
  *
  * <p>A {@link com.google.cloud.dataflow.sdk.transforms.PTransform} is an operation that takes an
- * {@code Input} (some subtype of {@link com.google.cloud.dataflow.sdk.values.PInput})
+ * {@code InputT} (some subtype of {@link com.google.cloud.dataflow.sdk.values.PInput})
  * and produces an
- * {@code Output} (some subtype of {@link com.google.cloud.dataflow.sdk.values.POutput}).
+ * {@code OutputT} (some subtype of {@link com.google.cloud.dataflow.sdk.values.POutputT}).
  *
  * <p> Common PTransforms include root PTransforms like
  * {@link com.google.cloud.dataflow.sdk.io.TextIO.Read} and

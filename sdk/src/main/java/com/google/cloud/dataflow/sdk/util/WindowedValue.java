@@ -582,7 +582,7 @@ public abstract class WindowedValue<V> {
   /**
    * Coder for {@code WindowedValue}.
    *
-   * <P>A {@code ValueOnlyWindowedValueCoder} only encodes and decodes the value. It drops
+   * <p>A {@code ValueOnlyWindowedValueCoder} only encodes and decodes the value. It drops
    * timestamp and windows for encoding, and uses defaults timestamp, and windows for decoding.
    */
   public static class ValueOnlyWindowedValueCoder<T> extends WindowedValueCoder<T> {

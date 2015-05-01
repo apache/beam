@@ -74,7 +74,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       productionMap = new HashMap<ByteString, Windmill.KeyedMessageBundle.Builder>();
     }
 
-    private <S> ByteString encode(Coder<S> coder, S object) throws IOException {
+    private <T> ByteString encode(Coder<T> coder, T object) throws IOException {
       ByteString.Output stream = ByteString.newOutput();
       coder.encode(object, stream, Coder.Context.OUTER);
       return stream.toByteString();

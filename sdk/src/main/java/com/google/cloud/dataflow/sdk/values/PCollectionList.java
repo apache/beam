@@ -166,8 +166,8 @@ public class PCollectionList<T> implements PInput, POutput {
    * Applies the given PTransform to this input {@code PCollectionList<T>},
    * and returns the PTransform's Output.
    */
-  public <Output extends POutput> Output apply(
-      PTransform<PCollectionList<T>, Output> t) {
+  public <OutputT extends POutput> OutputT apply(
+      PTransform<PCollectionList<T>, OutputT> t) {
     return Pipeline.applyTransform(this, t);
   }
 

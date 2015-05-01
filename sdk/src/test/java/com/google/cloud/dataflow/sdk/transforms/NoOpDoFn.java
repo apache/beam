@@ -29,43 +29,43 @@ import org.joda.time.Instant;
  * A {@link DoFn} that does nothing with provided elements. Used for testing
  * methods provided by the DoFn abstract class.
  *
- * @param <I> unused.
- * @param <O> unused.
+ * @param <InputT> unused.
+ * @param <OutputT> unused.
  */
-class NoOpDoFn<I, O> extends DoFn<I, O> {
+class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
   private static final long serialVersionUID = 0L;
 
   @Override
-  public void processElement(DoFn<I, O>.ProcessContext c) throws Exception {
+  public void processElement(DoFn<InputT, OutputT>.ProcessContext c) throws Exception {
   }
 
   /**
    * Returns a new NoOp Context.
    */
-  public DoFn<I, O>.Context context() {
+  public DoFn<InputT, OutputT>.Context context() {
     return new NoOpDoFnContext();
   }
 
   /**
    * Returns a new NoOp Process Context.
    */
-  public DoFn<I, O>.ProcessContext processContext() {
+  public DoFn<InputT, OutputT>.ProcessContext processContext() {
     return new NoOpDoFnProcessContext();
   }
 
   /**
    * A {@link DoFn.Context} that does nothing and returns exclusively null.
    */
-  private class NoOpDoFnContext extends DoFn<I, O>.Context {
+  private class NoOpDoFnContext extends DoFn<InputT, OutputT>.Context {
     @Override
     public PipelineOptions getPipelineOptions() {
       return null;
     }
     @Override
-    public void output(O output) {
+    public void output(OutputT output) {
     }
     @Override
-    public void outputWithTimestamp(O output, Instant timestamp) {
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {
     }
     @Override
     public <T> void sideOutput(TupleTag<T> tag, T output) {
@@ -75,8 +75,8 @@ class NoOpDoFn<I, O> extends DoFn<I, O> {
         Instant timestamp) {
     }
     @Override
-    protected <VI, VO> Aggregator<VI, VO> createAggregatorInternal(String name,
-        CombineFn<VI, ?, VO> combiner) {
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
+        createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       return null;
     }
   }
@@ -85,9 +85,9 @@ class NoOpDoFn<I, O> extends DoFn<I, O> {
    * A {@link DoFn.ProcessContext} that does nothing and returns exclusively
    * null.
    */
-  private class NoOpDoFnProcessContext extends DoFn<I, O>.ProcessContext {
+  private class NoOpDoFnProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
     @Override
-    public I element() {
+    public InputT element() {
       return null;
     }
 
@@ -112,7 +112,7 @@ class NoOpDoFn<I, O> extends DoFn<I, O> {
     }
 
     @Override
-    public WindowingInternals<I, O> windowingInternals() {
+    public WindowingInternals<InputT, OutputT> windowingInternals() {
       return null;
     }
 
@@ -122,10 +122,10 @@ class NoOpDoFn<I, O> extends DoFn<I, O> {
     }
 
     @Override
-    public void output(O output) {}
+    public void output(OutputT output) {}
 
     @Override
-    public void outputWithTimestamp(O output, Instant timestamp) {}
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {}
 
     @Override
     public <T> void sideOutput(TupleTag<T> tag, T output) {}
@@ -135,8 +135,8 @@ class NoOpDoFn<I, O> extends DoFn<I, O> {
         Instant timestamp) {}
 
     @Override
-    protected <VI, VO> Aggregator<VI, VO> createAggregatorInternal(String name,
-        CombineFn<VI, ?, VO> combiner) {
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
+        createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       return null;
     }
 

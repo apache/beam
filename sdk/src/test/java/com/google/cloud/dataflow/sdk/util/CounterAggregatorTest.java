@@ -63,8 +63,8 @@ public class CounterAggregatorTest {
   private static final String AGGREGATOR_NAME = "aggregator_name";
 
   @SuppressWarnings("rawtypes")
-  private <V, VA> void testAggregator(List<V> items,
-                                      Combine.CombineFn<V, VA, V> combiner,
+  private <V, AccumT> void testAggregator(List<V> items,
+                                      Combine.CombineFn<V, AccumT, V> combiner,
                                       Counter expectedCounter) {
     CounterSet counters = new CounterSet();
     Aggregator<V, V> aggregator = new CounterAggregator<>(

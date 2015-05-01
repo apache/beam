@@ -71,7 +71,7 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
       outputBuilder = Windmill.PubSubMessageBundle.newBuilder().setTopic(topic);
     }
 
-    private <S> ByteString encode(Coder<S> coder, S object) throws IOException {
+    private <T> ByteString encode(Coder<T> coder, T object) throws IOException {
       ByteString.Output stream = ByteString.newOutput();
       coder.encode(object, stream, Coder.Context.OUTER);
       return stream.toByteString();

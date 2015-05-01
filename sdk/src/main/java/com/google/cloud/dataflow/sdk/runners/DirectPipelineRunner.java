@@ -100,10 +100,10 @@ public class DirectPipelineRunner
    * should be evaluated by default by the corresponding
    * TransformEvaluator.
    */
-  public static <PT extends PTransform<?, ?>>
+  public static <TransformT extends PTransform<?, ?>>
   void registerDefaultTransformEvaluator(
-      Class<PT> transformClass,
-      TransformEvaluator<PT> transformEvaluator) {
+      Class<TransformT> transformClass,
+      TransformEvaluator<TransformT> transformEvaluator) {
     if (defaultTransformEvaluators.put(transformClass, transformEvaluator)
         != null) {
       throw new IllegalArgumentException(
@@ -117,10 +117,10 @@ public class DirectPipelineRunner
    * Overrides any bindings specified by
    * {@link #registerDefaultTransformEvaluator}.
    */
-  public <PT extends PTransform<?, ?>>
+  public <TransformT extends PTransform<?, ?>>
   void registerTransformEvaluator(
-      Class<PT> transformClass,
-      TransformEvaluator<PT> transformEvaluator) {
+      Class<TransformT> transformClass,
+      TransformEvaluator<TransformT> transformEvaluator) {
     if (localTransformEvaluators.put(transformClass, transformEvaluator)
         != null) {
       throw new IllegalArgumentException(
@@ -133,9 +133,9 @@ public class DirectPipelineRunner
    * specified PTransform class, or null if none registered.
    */
   @SuppressWarnings("unchecked")
-  public <PT extends PTransform<?, ?>>
-      TransformEvaluator<PT> getTransformEvaluator(Class<PT> transformClass) {
-    TransformEvaluator<PT> transformEvaluator =
+  public <TransformT extends PTransform<?, ?>>
+      TransformEvaluator<TransformT> getTransformEvaluator(Class<TransformT> transformClass) {
+    TransformEvaluator<TransformT> transformEvaluator =
         localTransformEvaluators.get(transformClass);
     if (transformEvaluator == null) {
       transformEvaluator = defaultTransformEvaluators.get(transformClass);
@@ -209,20 +209,20 @@ public class DirectPipelineRunner
 
   @Override
   @SuppressWarnings("unchecked")
-  public <Output extends POutput, Input extends PInput> Output apply(
-      PTransform<Input, Output> transform, Input input) {
+  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
+      PTransform<InputT, OutputT> transform, InputT input) {
     if (transform instanceof Combine.GroupedValues) {
-      return (Output) applyTestCombine((Combine.GroupedValues) transform, (PCollection) input);
+      return (OutputT) applyTestCombine((Combine.GroupedValues) transform, (PCollection) input);
     } else {
       return super.apply(transform, input);
     }
   }
 
-  private <K, VI, VA, VO> PCollection<KV<K, VO>> applyTestCombine(
-      Combine.GroupedValues<K, VI, VO> transform,
-      PCollection<KV<K, Iterable<VI>>> input) {
+  private <K, InputT, AccumT, OutputT> PCollection<KV<K, OutputT>> applyTestCombine(
+      Combine.GroupedValues<K, InputT, OutputT> transform,
+      PCollection<KV<K, Iterable<InputT>>> input) {
 
-    PCollection<KV<K, VO>> output = input
+    PCollection<KV<K, OutputT>> output = input
         .apply(ParDo.of(TestCombineDoFn.create(transform, input, testSerializability)));
 
     try {
@@ -248,21 +248,21 @@ public class DirectPipelineRunner
    */
   // @VisibleForTesting
   @SuppressWarnings("serial")
-  public static class TestCombineDoFn<K, VI, VA, VO>
-      extends DoFn<KV<K, Iterable<VI>>, KV<K, VO>> {
-    private final KeyedCombineFn<? super K, ? super VI, VA, VO> fn;
-    private final Coder<VA> accumCoder;
+  public static class TestCombineDoFn<K, InputT, AccumT, OutputT>
+      extends DoFn<KV<K, Iterable<InputT>>, KV<K, OutputT>> {
+    private final KeyedCombineFn<? super K, ? super InputT, AccumT, OutputT> fn;
+    private final Coder<AccumT> accumCoder;
     private final boolean testSerializability;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static <K, VI, VA, VO> TestCombineDoFn<K, VI, VA, VO> create(
-        Combine.GroupedValues<K, VI, VO> transform,
-        PCollection<KV<K, Iterable<VI>>> input,
+    public static <K, InputT, AccumT, OutputT> TestCombineDoFn<K, InputT, AccumT, OutputT> create(
+        Combine.GroupedValues<K, InputT, OutputT> transform,
+        PCollection<KV<K, Iterable<InputT>>> input,
         boolean testSerializability) {
 
-      Coder<VA> accumCoder;
+      Coder<AccumT> accumCoder;
       try {
-        accumCoder = (Coder<VA>) transform.getAccumulatorCoder(
+        accumCoder = (Coder<AccumT>) transform.getAccumulatorCoder(
             input.getPipeline().getCoderRegistry(), input);
       } catch (CannotProvideCoderException exc) {
         throw new IllegalArgumentException(
@@ -276,8 +276,8 @@ public class DirectPipelineRunner
     }
 
     public TestCombineDoFn(
-        KeyedCombineFn<? super K, ? super VI, VA, VO> fn,
-        Coder<VA> accumCoder,
+        KeyedCombineFn<? super K, ? super InputT, AccumT, OutputT> fn,
+        Coder<AccumT> accumCoder,
         boolean testSerializability) {
       this.fn = fn;
       this.accumCoder = accumCoder;
@@ -287,33 +287,33 @@ public class DirectPipelineRunner
     @Override
     public void processElement(ProcessContext c) throws Exception {
       K key = c.element().getKey();
-      Iterable<VI> values = c.element().getValue();
-      List<VA> groupedPostShuffle =
+      Iterable<InputT> values = c.element().getValue();
+      List<AccumT> groupedPostShuffle =
           ensureSerializableByCoder(ListCoder.of(accumCoder),
               addInputsRandomly(fn, key, values, new Random()),
               "After addInputs of KeyedCombineFn " + fn.toString());
-      VA merged =
+      AccumT merged =
           ensureSerializableByCoder(accumCoder,
               fn.mergeAccumulators(key, groupedPostShuffle),
               "After mergeAccumulators of KeyedCombineFn " + fn.toString());
-      // Note: The serializability of KV<K, VO> is ensured by the
+      // Note: The serializability of KV<K, OutputT> is ensured by the
       // runner itself, since it's a transform output.
       c.output(KV.of(key, fn.extractOutput(key, merged)));
     }
 
     // Create a random list of accumulators from the given list of values
     // @VisibleForTesting
-    public static <K, VA, VI> List<VA> addInputsRandomly(
-        KeyedCombineFn<? super K, ? super VI, VA, ?> fn,
+    public static <K, AccumT, InputT> List<AccumT> addInputsRandomly(
+        KeyedCombineFn<? super K, ? super InputT, AccumT, ?> fn,
         K key,
-        Iterable<VI> values,
+        Iterable<InputT> values,
         Random random) {
-      List<VA> out = new ArrayList<VA>();
+      List<AccumT> out = new ArrayList<AccumT>();
       int i = 0;
-      VA accumulator = fn.createAccumulator(key);
+      AccumT accumulator = fn.createAccumulator(key);
       boolean hasInput = false;
 
-      for (VI value : values) {
+      for (InputT value : values) {
         accumulator = fn.addInput(key, accumulator, value);
         hasInput = true;
 
@@ -367,8 +367,8 @@ public class DirectPipelineRunner
   /**
    * An evaluator of a PTransform.
    */
-  public interface TransformEvaluator<PT extends PTransform> {
-    public void evaluate(PT transform,
+  public interface TransformEvaluator<TransformT extends PTransform> {
+    public void evaluate(TransformT transform,
                          EvaluationContext context);
   }
 
@@ -403,7 +403,7 @@ public class DirectPipelineRunner
      * implementation a {@link PCollectionView} should convert from this representation to a
      * suitable side input value.
      */
-    <T, WT> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T> view);
+    <T, WindowedT> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T> view);
   }
 
   /**
@@ -510,12 +510,12 @@ public class DirectPipelineRunner
     /**
      * Returns the input of the currently being processed transform.
      */
-    <Input extends PInput> Input getInput(PTransform<Input, ?> transform);
+    <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform);
 
     /**
      * Returns the output of the currently being processed transform.
      */
-    <Output extends POutput> Output getOutput(PTransform<?, Output> transform);
+    <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform);
 
     /**
      * Sets the value of the given PCollection, where each element also has a timestamp
@@ -550,9 +550,9 @@ public class DirectPipelineRunner
      * Sets the value associated with the given {@link PCollectionView}.
      * Throws an exception if the {@link PCollectionView}'s value has already been set.
      */
-    <R, T, WT> void setPCollectionView(
+    <ElemT, T, WindowedT> void setPCollectionView(
         PCollectionView<T> pc,
-        Iterable<WindowedValue<R>> value);
+        Iterable<WindowedValue<ElemT>> value);
 
     /**
      * Ensures that the element is encodable and decodable using the
@@ -576,7 +576,7 @@ public class DirectPipelineRunner
      * by encoding it and then decoding it, and returning the result.
      * Otherwise returns the argument unchanged.
      */
-    <Fn extends Serializable> Fn ensureSerializable(Fn fn);
+    <FunctionT extends Serializable> FunctionT ensureSerializable(FunctionT fn);
 
     /**
      * If the evaluation context is testing serializability, ensures
@@ -635,17 +635,17 @@ public class DirectPipelineRunner
     }
 
     @Override
-    public <Input extends PInput> Input getInput(PTransform<Input, ?> transform) {
+    public <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform) {
       checkArgument(currentTransform != null && currentTransform.transform == transform,
           "can only be called with current transform");
-      return (Input) currentTransform.input;
+      return (InputT) currentTransform.input;
     }
 
     @Override
-    public <Output extends POutput> Output getOutput(PTransform<?, Output> transform) {
+    public <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform) {
       checkArgument(currentTransform != null && currentTransform.transform == transform,
           "can only be called with current transform");
-      return (Output) currentTransform.output;
+      return (OutputT) currentTransform.output;
     }
 
     @Override
@@ -756,9 +756,9 @@ public class DirectPipelineRunner
     }
 
     @Override
-    public <R, T, WT> void setPCollectionView(
+    public <ElemT, T, WindowedT> void setPCollectionView(
         PCollectionView<T> view,
-        Iterable<WindowedValue<R>> value) {
+        Iterable<WindowedValue<ElemT>> value) {
       LOG.debug("Setting {} = {}", view, value);
       setPValue(view, value);
     }
@@ -811,7 +811,7 @@ public class DirectPipelineRunner
      * converts from this representation to a suitable side input value.
      */
     @Override
-    public <T, WT> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
+    public <T, WindowedT> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
       @SuppressWarnings("unchecked")
       Iterable<WindowedValue<?>> value = (Iterable<WindowedValue<?>>) getPValue(view);
       LOG.debug("Getting {} = {}", view, value);
@@ -855,7 +855,7 @@ public class DirectPipelineRunner
     }
 
     @Override
-    public <Fn extends Serializable> Fn ensureSerializable(Fn fn) {
+    public <FunctionT extends Serializable> FunctionT ensureSerializable(FunctionT fn) {
       if (!testSerializability) {
         return fn;
       }

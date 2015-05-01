@@ -106,28 +106,29 @@ public class Write {
      * implementations should guarantee that {@link WriteOperation#createWriter} does not mutate
      * WriteOperation).
      */
-    private <WR> PDone createWrite(PCollection<T> input, WriteOperation<T, WR> writeOperation) {
+    private <WriteT> PDone createWrite(
+        PCollection<T> input, WriteOperation<T, WriteT> writeOperation) {
       Pipeline p = input.getPipeline();
 
       // A coder to user for the WriteOperation.
       @SuppressWarnings("unchecked")
-      Coder<WriteOperation<T, WR>> operationCoder =
-          (Coder<WriteOperation<T, WR>>) SerializableCoder.of(writeOperation.getClass());
+      Coder<WriteOperation<T, WriteT>> operationCoder =
+          (Coder<WriteOperation<T, WriteT>>) SerializableCoder.of(writeOperation.getClass());
 
       // A singleton collection of the WriteOperation, to be used as input to a ParDo to initialize
       // the sink.
-      PCollection<WriteOperation<T, WR>> operationCollection =
-          p.apply(Create.<WriteOperation<T, WR>>of(writeOperation)).setCoder(operationCoder);
+      PCollection<WriteOperation<T, WriteT>> operationCollection =
+          p.apply(Create.<WriteOperation<T, WriteT>>of(writeOperation)).setCoder(operationCoder);
 
       // Initialize the resource in a do-once ParDo on the WriteOperation.
       operationCollection =
           operationCollection
-              .apply(ParDo.of(new DoFn<WriteOperation<T, WR>, WriteOperation<T, WR>>() {
+              .apply(ParDo.of(new DoFn<WriteOperation<T, WriteT>, WriteOperation<T, WriteT>>() {
                 private static final long serialVersionUID = 0;
 
                 @Override
                 public void processElement(ProcessContext c) throws Exception {
-                  WriteOperation<T, WR> writeOperation = c.element();
+                  WriteOperation<T, WriteT> writeOperation = c.element();
                   writeOperation.initialize(c.getPipelineOptions());
                   // The WriteOperation is also the output of this ParDo, so it can have mutable
                   // state.
@@ -137,25 +138,25 @@ public class Write {
               .setCoder(operationCoder);
 
       // Create a view of the WriteOperation to be used as a sideInput to the parallel write phase.
-      final PCollectionView<WriteOperation<T, WR>> writeOperationView =
-          operationCollection.apply(View.<WriteOperation<T, WR>>asSingleton());
+      final PCollectionView<WriteOperation<T, WriteT>> writeOperationView =
+          operationCollection.apply(View.<WriteOperation<T, WriteT>>asSingleton());
 
       // Perform the per-bundle writes as a ParDo on the input PCollection (with the WriteOperation
       // as a side input) and collect the results of the writes in a PCollection.
       // There is a dependency between this ParDo and the first (the WriteOperation PCollection
       // as a side input), so this will happen after the initial ParDo.
-      PCollection<WR> results = input.apply(ParDo.of(new DoFn<T, WR>() {
+      PCollection<WriteT> results = input.apply(ParDo.of(new DoFn<T, WriteT>() {
         private static final long serialVersionUID = 0;
 
         // Writer that will write the records in this bundle. Lazily
         // initialized in processElement.
-        private Writer<T, WR> writer = null;
+        private Writer<T, WriteT> writer = null;
 
         @Override
         public void processElement(ProcessContext c) throws Exception {
           // Lazily initialize the Writer
           if (writer == null) {
-            WriteOperation<T, WR> writeOperation = c.sideInput(writeOperationView);
+            WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
             writer = writeOperation.createWriter(c.getPipelineOptions());
             writer.open(UUID.randomUUID().toString());
           }
@@ -175,14 +176,15 @@ public class Write {
         @Override
         public void finishBundle(Context c) throws Exception {
           if (writer != null) {
-            WR result = writer.close();
+            WriteT result = writer.close();
             // Output the result of the write.
             c.output(result);
           }
         }
       }).withSideInputs(writeOperationView)).setCoder(writeOperation.getWriterResultCoder());
 
-      final PCollectionView<Iterable<WR>> resultsView = results.apply(View.<WR>asIterable());
+      final PCollectionView<Iterable<WriteT>> resultsView =
+          results.apply(View.<WriteT>asIterable());
 
       // Finalize the write in another do-once ParDo on the singleton collection containing the
       // Writer. The results from the per-bundle writes are given as an Iterable side input.
@@ -191,13 +193,13 @@ public class Write {
       // collection as a side input), so it will happen after the parallel write.
       @SuppressWarnings("unused")
       final PCollection<Integer> done =
-          operationCollection.apply(ParDo.of(new DoFn<WriteOperation<T, WR>, Integer>() {
+          operationCollection.apply(ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
             private static final long serialVersionUID = 0;
 
             @Override
             public void processElement(ProcessContext c) throws Exception {
-              Iterable<WR> results = c.sideInput(resultsView);
-              WriteOperation<T, WR> writeOperation = c.element();
+              Iterable<WriteT> results = c.sideInput(resultsView);
+              WriteOperation<T, WriteT> writeOperation = c.element();
               writeOperation.finalize(results, c.getPipelineOptions());
             }
           }).withSideInputs(resultsView));

@@ -142,15 +142,15 @@ public class CoderRegistryTest {
     Map<String, Coder<?>> coderMap = registry.getDefaultCoders(
         instance.getClass(),
         MyGenericClass.class,
-        Collections.singletonMap("A", MyValueCoder.of()));
-    assertEquals(listCoder, coderMap.get("B"));
+        Collections.singletonMap("FooT", MyValueCoder.of()));
+    assertEquals(listCoder, coderMap.get("BazT"));
 
     // Check we can infer the other direction as well.
     Map<String, Coder<?>> coderMap2 = registry.getDefaultCoders(
         instance.getClass(),
         MyGenericClass.class,
-        Collections.singletonMap("B", listCoder));
-    assertEquals(MyValueCoder.of(), coderMap2.get("A"));
+        Collections.singletonMap("BazT", listCoder));
+    assertEquals(MyValueCoder.of(), coderMap2.get("FooT"));
 
     // The array interface operates on position.
     Coder<?>[] coders = registry.getDefaultCoders(
@@ -239,7 +239,7 @@ public class CoderRegistryTest {
         new TypeToken<List<String>>() {}.getType()));
   }
 
-  static class MyGenericClass<A, B> { }
+  static class MyGenericClass<FooT, BazT> { }
 
   static class MyValue { }
 

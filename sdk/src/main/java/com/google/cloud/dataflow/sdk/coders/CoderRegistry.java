@@ -154,10 +154,10 @@ public class CoderRegistry implements CoderProvider {
    *
    * @throws CannotProvideCoderException if there is no default Coder.
    */
-  public <I, O> Coder<O> getDefaultCoder(
-      TypeToken<O> typeToken,
-      TypeToken<I> contextTypeToken,
-      Coder<I> contextCoder)
+  public <InputT, OutputT> Coder<OutputT> getDefaultCoder(
+      TypeToken<OutputT> typeToken,
+      TypeToken<InputT> contextTypeToken,
+      Coder<InputT> contextCoder)
       throws CannotProvideCoderException {
     return getDefaultCoder(typeToken,
                            getTypeToCoderBindings(contextTypeToken.getType(), contextCoder));
@@ -167,8 +167,8 @@ public class CoderRegistry implements CoderProvider {
    * Returns the Coder to use on elements produced by this function, given
    * the coder used for its input elements.
    */
-  public <I, O> Coder<O> getDefaultOutputCoder(
-      SerializableFunction<I, O> fn, Coder<I> inputCoder)
+  public <InputT, OutputT> Coder<OutputT> getDefaultOutputCoder(
+      SerializableFunction<InputT, OutputT> fn, Coder<InputT> inputCoder)
       throws CannotProvideCoderException {
     return getDefaultCoder(
         fn.getClass(), SerializableFunction.class, inputCoder);
@@ -181,7 +181,7 @@ public class CoderRegistry implements CoderProvider {
    *
    * @throws CannotProvideCoderException if there is no default Coder.
    */
-  public <T, O> Coder<O> getDefaultCoder(
+  public <T, OutputT> Coder<OutputT> getDefaultCoder(
       Class<? extends T> subClass,
       Class<T> baseClass,
       Coder<?>... knownCoders) throws CannotProvideCoderException {
@@ -190,7 +190,7 @@ public class CoderRegistry implements CoderProvider {
     System.arraycopy(knownCoders, 0, allCoders, 0, knownCoders.length);
     allCoders = getDefaultCoders(subClass, baseClass, allCoders);
     @SuppressWarnings("unchecked") // trusted
-    Coder<O> coder = (Coder<O>) allCoders[knownCoders.length];
+    Coder<OutputT> coder = (Coder<OutputT>) allCoders[knownCoders.length];
     return coder;
   }
 
@@ -201,7 +201,7 @@ public class CoderRegistry implements CoderProvider {
    *
    * @throws CannotProvideCoderException if there is no default Coder.
    */
-  public <T, O> Coder<O> getDefaultCoder(
+  public <T, OutputT> Coder<OutputT> getDefaultCoder(
       Class<? extends T> subClass,
       Class<T> baseClass,
       Map<String, ? extends Coder<?>> knownCoders,
@@ -211,7 +211,7 @@ public class CoderRegistry implements CoderProvider {
     Map<String, Coder<?>> inferredCoders = getDefaultCoders(subClass, baseClass, knownCoders);
 
     @SuppressWarnings("unchecked")
-    Coder<O> paramCoderOrNull = (Coder<O>) inferredCoders.get(paramName);
+    Coder<OutputT> paramCoderOrNull = (Coder<OutputT>) inferredCoders.get(paramName);
     if (paramCoderOrNull != null) {
       return paramCoderOrNull;
     } else {
@@ -283,10 +283,9 @@ public class CoderRegistry implements CoderProvider {
    * the parameters that will be used to infer the others.
    *
    * <p> Note that inference is attempted for every type variable.
-   * For a type {@code MyType<A, B, C, D, E>} inference will will be
-   * attempted for all of {@code A}, {@code B}, {@code C}, {@code D},
-   * and {@code E}, even if the requester only wants a coder for
-   * {@code C}.
+   * For a type {@code MyType<One, Two, Three>} inference will will be
+   * attempted for all of {@code One}, {@code Two}, {@code Three},
+   * even if the requester only wants a coder for {@code Two}.
    *
    * <p> For this reason, {@code getDefaultCoders} (plural) does not throw
    * an exception if a coder for a particular type variable cannot be
@@ -334,10 +333,9 @@ public class CoderRegistry implements CoderProvider {
    * for any of the parameters that will be used to infer the others.
    *
    * <p> Note that inference is attempted for every type variable.
-   * For a type {@code MyType<A, B, C, D, E>} inference will will be
-   * attempted for all of {@code A}, {@code B}, {@code C}, {@code D},
-   * and {@code E}, even if the requester only wants a coder for
-   * {@code C}.
+   * For a type {@code MyType<One, Two, Three>} inference will will be
+   * attempted for all of {@code One}, {@code Two}, {@code Three},
+   * even if the requester only wants a coder for {@code Two}.
    *
    * <p> For this reason {@code getDefaultCoders} (plural) does not throw
    * an exception if a coder for a particular type variable cannot be

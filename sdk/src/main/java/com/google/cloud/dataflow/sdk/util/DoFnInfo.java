@@ -25,32 +25,32 @@ import java.io.Serializable;
 /**
  * Wrapper class holding the necessary information to serialize a DoFn.
  *
- * @param <I> the type of the (main) input elements of the DoFn
- * @param <O> the type of the (main) output elements of the DoFn
+ * @param <InputT> the type of the (main) input elements of the DoFn
+ * @param <OutputT> the type of the (main) output elements of the DoFn
  */
-public class DoFnInfo<I, O> implements Serializable {
+public class DoFnInfo<InputT, OutputT> implements Serializable {
   private static final long serialVersionUID = 0;
-  private final DoFn<I, O> doFn;
+  private final DoFn<InputT, OutputT> doFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Iterable<PCollectionView<?>> sideInputViews;
-  private final Coder<I> inputCoder;
+  private final Coder<InputT> inputCoder;
 
-  public DoFnInfo(DoFn<I, O> doFn, WindowingStrategy<?, ?> windowingStrategy) {
+  public DoFnInfo(DoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = null;
     this.inputCoder = null;
   }
 
-  public DoFnInfo(DoFn<I, O> doFn, WindowingStrategy<?, ?> windowingStrategy,
-                  Iterable<PCollectionView<?>> sideInputViews, Coder<I> inputCoder) {
+  public DoFnInfo(DoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy,
+                  Iterable<PCollectionView<?>> sideInputViews, Coder<InputT> inputCoder) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = sideInputViews;
     this.inputCoder = inputCoder;
   }
 
-  public DoFn<I, O> getDoFn() {
+  public DoFn<InputT, OutputT> getDoFn() {
     return doFn;
   }
 
@@ -62,7 +62,7 @@ public class DoFnInfo<I, O> implements Serializable {
     return sideInputViews;
   }
 
-  public Coder<I> getInputCoder() {
+  public Coder<InputT> getInputCoder() {
     return inputCoder;
   }
 }

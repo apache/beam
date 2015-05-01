@@ -40,16 +40,16 @@ import java.util.List;
 public class SimpleStatsFnsTest {
   static final double DOUBLE_COMPARISON_ACCURACY = 1e-7;
 
-  private static class TestCase<N extends Number & Comparable<N>> {
-    final List<N> data;
-    final N min;
-    final N max;
-    final N sum;
+  private static class TestCase<NumT extends Number & Comparable<NumT>> {
+    final List<NumT> data;
+    final NumT min;
+    final NumT max;
+    final NumT sum;
     final Double mean;
 
     @SafeVarargs
     @SuppressWarnings("all")
-    public TestCase(N min, N max, N sum, N... values) {
+    public TestCase(NumT min, NumT max, NumT sum, NumT... values) {
       this.data = Arrays.asList(values);
       this.min = min;
       this.max = max;

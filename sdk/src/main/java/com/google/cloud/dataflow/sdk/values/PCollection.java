@@ -124,7 +124,7 @@ public class PCollection<T> extends TypedPValue<T> {
    * Applies the given PTransform to this input PCollection, and
    * returns the PTransform's Output.
    */
-  public <Output extends POutput> Output apply(PTransform<? super PCollection<T>, Output> t) {
+  public <OutputT extends POutput> OutputT apply(PTransform<? super PCollection<T>, OutputT> t) {
     return Pipeline.applyTransform(this, t);
   }
 

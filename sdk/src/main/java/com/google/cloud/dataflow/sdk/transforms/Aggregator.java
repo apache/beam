@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 
 /**
- * An {@code Aggregator<VI>} enables monitoring of values of type {@code VI},
+ * An {@code Aggregator<InputT>} enables monitoring of values of type {@code InputT},
  * to be combined across all bundles.
  *
  * <p> Aggregators are created by calling {@link DoFn#createAggregator},
@@ -48,15 +48,15 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
  * }
  * } </pre>
  *
- * @param <VI> the type of input values
- * @param <VO> the type of output values
+ * @param <InputT> the type of input values
+ * @param <OutputT> the type of output values
  */
-public interface Aggregator<VI, VO> {
+public interface Aggregator<InputT, OutputT> {
 
   /**
    * Adds a new value into the Aggregator.
    */
-  void addValue(VI value);
+  void addValue(InputT value);
 
   /**
    * Returns the name of the Aggregator.
@@ -67,7 +67,7 @@ public interface Aggregator<VI, VO> {
    * Returns the {@link CombineFn}, which combines input elements in the
    * aggregator.
    */
-  CombineFn<VI, ?, VO> getCombineFn();
+  CombineFn<InputT, ?, OutputT> getCombineFn();
 
   // TODO: Consider the following additional API conveniences:
   // - In addition to createAggregator(), consider adding getAggregator() to

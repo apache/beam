@@ -488,8 +488,9 @@ public class DoFnReflectorTest {
   }
 
   @SuppressWarnings("unused")
-  private <I, O> void goodTypeVariables(DoFnWithContext<I, O>.ProcessContext c,
-      WindowingInternals<I, O> i1) {}
+  private <InputT, OutputT> void goodTypeVariables(
+      DoFnWithContext<InputT, OutputT>.ProcessContext c,
+      WindowingInternals<InputT, OutputT> i1) {}
 
   @Test
   public void testGoodTypeVariables() throws Exception {
@@ -537,8 +538,8 @@ public class DoFnReflectorTest {
   }
 
   @SuppressWarnings("unused")
-  private <I, O> void badTypeVariables(DoFnWithContext<I, O>.ProcessContext c,
-      WindowingInternals<I, I> i1) {}
+  private <InputT, OutputT> void badTypeVariables(DoFnWithContext<InputT, OutputT>.ProcessContext c,
+      WindowingInternals<InputT, InputT> i1) {}
 
   @Test
   public void testBadTypeVariables() throws Exception {
@@ -547,9 +548,9 @@ public class DoFnReflectorTest {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Incompatible generics in context parameter "
-        + "WindowingInternals<I, I> for method " + getClass().getName()
+        + "WindowingInternals<InputT, InputT> for method " + getClass().getName()
         + "#badTypeVariables(ProcessContext, WindowingInternals). Should be "
-        + "WindowingInternals<I, O>");
+        + "WindowingInternals<InputT, OutputT>");
 
     DoFnReflector.verifyProcessMethodArguments(method);
   }

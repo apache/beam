@@ -152,9 +152,9 @@ public abstract class Sink<T> implements Serializable {
    * <p>See {@link Sink} for more detailed documentation about the process of writing to a Sink.
    *
    * @param <T> The type of objects to write
-   * @param <WR> The result of a per-bundle write
+   * @param <WriteT> The result of a per-bundle write
    */
-  public abstract static class WriteOperation<T, WR> implements Serializable {
+  public abstract static class WriteOperation<T, WriteT> implements Serializable {
     private static final long serialVersionUID = 0;
 
     /**
@@ -182,7 +182,7 @@ public abstract class Sink<T> implements Serializable {
      *
      * @param writerResults an Iterable of results from successful bundle writes.
      */
-    public abstract void finalize(Iterable<WR> writerResults, PipelineOptions options)
+    public abstract void finalize(Iterable<WriteT> writerResults, PipelineOptions options)
         throws Exception;
 
     /**
@@ -193,7 +193,7 @@ public abstract class Sink<T> implements Serializable {
      *
      * <p>Must not mutate the state of the WriteOperation.
      */
-    public abstract Writer<T, WR> createWriter(PipelineOptions options) throws Exception;
+    public abstract Writer<T, WriteT> createWriter(PipelineOptions options) throws Exception;
 
     /**
      * Returns the Sink that this write operation writes to.
@@ -203,7 +203,7 @@ public abstract class Sink<T> implements Serializable {
     /**
      * Returns a coder for the writer result type.
      */
-    public Coder<WR> getWriterResultCoder() {
+    public Coder<WriteT> getWriterResultCoder() {
       return null;
     }
   }
@@ -219,9 +219,9 @@ public abstract class Sink<T> implements Serializable {
    * <p>See {@link Sink} for more detailed documentation about the process of writing to a Sink.
    *
    * @param <T> The type of object to write
-   * @param <WR> The writer results type (e.g., the bundle's output filename, as String)
+   * @param <WriteT> The writer results type (e.g., the bundle's output filename, as String)
    */
-  public abstract static class Writer<T, WR> {
+  public abstract static class Writer<T, WriteT> {
     /**
      * Performs bundle initialization. For example, creates a temporary file for writing or
      * initializes any state that will be used across calls to {@link Writer#write}.
@@ -247,11 +247,11 @@ public abstract class Sink<T> implements Serializable {
      *
      * @return the writer result
      */
-    public abstract WR close() throws Exception;
+    public abstract WriteT close() throws Exception;
 
     /**
      * Returns the write operation this writer belongs to.
      */
-    public abstract WriteOperation<T, WR> getWriteOperation();
+    public abstract WriteOperation<T, WriteT> getWriteOperation();
   }
 }

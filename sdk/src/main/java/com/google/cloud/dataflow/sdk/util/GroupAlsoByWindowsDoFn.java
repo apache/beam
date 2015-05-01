@@ -35,13 +35,13 @@ import org.joda.time.Instant;
  * combining values.
  *
  * @param <K> key type
- * @param <VI> input value element type
- * @param <VO> output value element type
+ * @param <InputT> input value element type
+ * @param <OutputT> output value element type
  * @param <W> window type
  */
 @SuppressWarnings("serial")
-public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
-    extends DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>
+public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends BoundedWindow>
+    extends DoFn<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>>
     implements RequiresKeyedState {
 
   /**
@@ -65,27 +65,28 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
   /**
    * Construct a {@link GroupAlsoByWindowsDoFn} using the {@code combineFn} if available.
    */
-  public static <K, VI, VA, VO, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, VI, VO, W>
+  public static <K, InputT, AccumT, OutputT, W extends BoundedWindow>
+      GroupAlsoByWindowsDoFn<K, InputT, OutputT, W>
   create(
       final WindowingStrategy<?, W> windowingStrategy,
-      final KeyedCombineFn<K, VI, VA, VO> combineFn,
+      final KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn,
       final Coder<K> keyCoder,
-      final Coder<VI> inputCoder) {
+      final Coder<InputT> inputCoder) {
     Preconditions.checkNotNull(combineFn);
     return new GABWViaWindowSetDoFn<>(
-        windowingStrategy, CombiningWindowSet.<K, VI, VA, VO, W>factory(
+        windowingStrategy, CombiningWindowSet.<K, InputT, AccumT, OutputT, W>factory(
             combineFn, keyCoder, inputCoder));
   }
 
-  private static class GABWViaWindowSetDoFn<K, VI, VO, W extends BoundedWindow>
-     extends GroupAlsoByWindowsDoFn<K, VI, VO, W> {
+  private static class GABWViaWindowSetDoFn<K, InputT, OutputT, W extends BoundedWindow>
+     extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
 
     private WindowFn<Object, W> windowFn;
-    private AbstractWindowSet.Factory<K, VI, VO, W> windowSetFactory;
+    private AbstractWindowSet.Factory<K, InputT, OutputT, W> windowSetFactory;
     private Trigger<W> trigger;
 
     public GABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
-        AbstractWindowSet.Factory<K, VI, VO, W> factory) {
+        AbstractWindowSet.Factory<K, InputT, OutputT, W> factory) {
       @SuppressWarnings("unchecked")
       WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
       this.windowFn = noWildcard.getWindowFn();
@@ -95,17 +96,19 @@ public abstract class GroupAlsoByWindowsDoFn<K, VI, VO, W extends BoundedWindow>
 
     @Override
     public void processElement(
-        DoFn<KV<K, Iterable<WindowedValue<VI>>>, KV<K, VO>>.ProcessContext c) throws Exception {
+        DoFn<KV<K, Iterable<WindowedValue<InputT>>>,
+        KV<K, OutputT>>.ProcessContext c)
+        throws Exception {
       K key = c.element().getKey();
-      AbstractWindowSet<K, VI, VO, W> windowSet = windowSetFactory.create(
+      AbstractWindowSet<K, InputT, OutputT, W> windowSet = windowSetFactory.create(
           key, windowFn.windowCoder(), c.keyedState(), c.windowingInternals());
 
       BatchTimerManager timerManager = new BatchTimerManager(Instant.now());
-      TriggerExecutor<K, VI, VO, W> triggerExecutor = new TriggerExecutor<>(
+      TriggerExecutor<K, InputT, OutputT, W> triggerExecutor = new TriggerExecutor<>(
           windowFn, timerManager, trigger,
           c.keyedState(), c.windowingInternals(), windowSet);
 
-      for (WindowedValue<VI> e : c.element().getValue()) {
+      for (WindowedValue<InputT> e : c.element().getValue()) {
         // First, handle anything that needs to happen for this element
         triggerExecutor.onElement(e);
 

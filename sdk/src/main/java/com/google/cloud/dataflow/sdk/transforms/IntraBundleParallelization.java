@@ -35,7 +35,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Provides multi-threading of {@link DoFn DoFns}, using threaded execution to
+ * Provides multi-threading of {@link DoFn}s, using threaded execution to
  * process multiple elements concurrently within a bundle.
  *
  * <p> Note, that each Dataflow worker will already process multiple bundles
@@ -52,7 +52,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * share of the maximum write rate) will take at least 6 seconds to complete (there is additional
  * overhead in the extra parallelization).
  *
- * <p> To parallelize a DoFn to 10 threads:
+ * <p> To parallelize a {@link DoFn} to 10 threads:
  * <pre>{@code
  * PCollection<T> data = ...;
  * data.apply(
@@ -60,7 +60,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *                             .withMaxParallelism(10)));
  * }</pre>
  *
- * <p> An uncaught exception from the wrapped DoFn will result in the exception
+ * <p> An uncaught exception from the wrapped {@link DoFn} will result in the exception
  * being rethrown in later calls to {@link MultiThreadedIntraBundleProcessingDoFn#processElement}
  * or a call to {@link MultiThreadedIntraBundleProcessingDoFn#finishBundle}.
  */
@@ -71,7 +71,7 @@ public class IntraBundleParallelization {
    *
    * <p> Note that the specified {@code doFn} needs to be thread safe.
    */
-  public static <I, O> Bound<I, O> of(DoFn<I, O> doFn) {
+  public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> doFn) {
     return new Unbound().of(doFn);
   }
 
@@ -117,29 +117,29 @@ public class IntraBundleParallelization {
      *
      * <p> Note that the specified {@code doFn} needs to be thread safe.
      */
-    public <I, O> Bound<I, O> of(DoFn<I, O> doFn) {
+    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> doFn) {
       return new Bound<>(doFn, maxParallelism);
     }
   }
 
   /**
-   * A {@code PTransform} that, when applied to a {@code PCollection<I>},
-   * invokes a user-specified {@code DoFn<I, O>} on all its elements,
+   * A {@code PTransform} that, when applied to a {@code PCollection<InputT>},
+   * invokes a user-specified {@code DoFn<InputT, OutputT>} on all its elements,
    * with all its outputs collected into an output
-   * {@code PCollection<O>}.
+   * {@code PCollection<OutputT>}.
    *
    * <p> Note that the specified {@code doFn} needs to be thread safe.
    *
-   * @param <I> the type of the (main) input {@code PCollection} elements
-   * @param <O> the type of the (main) output {@code PCollection} elements
+   * @param <InputT> the type of the (main) input {@code PCollection} elements
+   * @param <OutputT> the type of the (main) output {@code PCollection} elements
    */
-  public static class Bound<I, O>
-      extends PTransform<PCollection<? extends I>, PCollection<O>> {
+  public static class Bound<InputT, OutputT>
+      extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     private static final long serialVersionUID = 0;
-    private final DoFn<I, O> doFn;
+    private final DoFn<InputT, OutputT> doFn;
     private final int maxParallelism;
 
-    Bound(DoFn<I, O> doFn, int maxParallelism) {
+    Bound(DoFn<InputT, OutputT> doFn, int maxParallelism) {
       Preconditions.checkArgument(maxParallelism > 0,
           "Expected parallelism factor greater than zero, received %s.", maxParallelism);
       this.doFn = doFn;
@@ -150,7 +150,7 @@ public class IntraBundleParallelization {
      * Returns a new {@link IntraBundleParallelization} {@link PTransform} like this one
      * with the specified maximum concurrency level.
      */
-    public Bound<I, O> withMaxParallelism(int maxParallelism) {
+    public Bound<InputT, OutputT> withMaxParallelism(int maxParallelism) {
       return new Bound<>(doFn, maxParallelism);
     }
 
@@ -160,12 +160,12 @@ public class IntraBundleParallelization {
      *
      * <p> Note that the specified {@code doFn} needs to be thread safe.
      */
-    public <I, O> Bound<I, O> of(DoFn<I, O> doFn) {
+    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> doFn) {
       return new Bound<>(doFn, maxParallelism);
     }
 
     @Override
-    public PCollection<O> apply(PCollection<? extends I> input) {
+    public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
       return input.apply(
           ParDo.of(new MultiThreadedIntraBundleProcessingDoFn<>(doFn, maxParallelism)));
     }
@@ -176,13 +176,15 @@ public class IntraBundleParallelization {
    *
    * @see IntraBundleParallelization#of(DoFn)
    *
-   * @param <I> the type of the (main) input elements
-   * @param <O> the type of the (main) output elements
+   * @param <InputT> the type of the (main) input elements
+   * @param <OutputT> the type of the (main) output elements
    */
-  public static class MultiThreadedIntraBundleProcessingDoFn<I, O> extends DoFn<I, O> {
+  public static class MultiThreadedIntraBundleProcessingDoFn<InputT, OutputT>
+      extends DoFn<InputT, OutputT> {
+
     private static final long serialVersionUID = 0;
 
-    public MultiThreadedIntraBundleProcessingDoFn(DoFn<I, O> doFn, int maxParallelism) {
+    public MultiThreadedIntraBundleProcessingDoFn(DoFn<InputT, OutputT> doFn, int maxParallelism) {
       Preconditions.checkArgument(maxParallelism > 0,
           "Expected parallelism factor greater than zero, received %s.", maxParallelism);
       this.doFn = doFn;
@@ -238,12 +240,12 @@ public class IntraBundleParallelization {
     }
 
     @Override
-    protected TypeToken<I> getInputTypeToken() {
+    protected TypeToken<InputT> getInputTypeToken() {
       return doFn.getInputTypeToken();
     }
 
     @Override
-    protected TypeToken<O> getOutputTypeToken() {
+    protected TypeToken<OutputT> getOutputTypeToken() {
       return doFn.getOutputTypeToken();
     }
 
@@ -261,7 +263,7 @@ public class IntraBundleParallelization {
       }
 
       @Override
-      public I element() {
+      public InputT element() {
         return context.element();
       }
 
@@ -281,14 +283,14 @@ public class IntraBundleParallelization {
       }
 
       @Override
-      public void output(O output) {
+      public void output(OutputT output) {
         synchronized (MultiThreadedIntraBundleProcessingDoFn.this) {
           context.output(output);
         }
       }
 
       @Override
-      public void outputWithTimestamp(O output, Instant timestamp) {
+      public void outputWithTimestamp(OutputT output, Instant timestamp) {
         synchronized (MultiThreadedIntraBundleProcessingDoFn.this) {
           context.outputWithTimestamp(output, timestamp);
         }
@@ -319,18 +321,18 @@ public class IntraBundleParallelization {
       }
 
       @Override
-      public WindowingInternals<I, O> windowingInternals() {
+      public WindowingInternals<InputT, OutputT> windowingInternals() {
         return context.windowingInternals();
       }
 
       @Override
-      protected <VI, VO> Aggregator<VI, VO> createAggregatorInternal(
-          String name, CombineFn<VI, ?, VO> combiner) {
+      protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+          String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
         return context.createAggregatorInternal(name, combiner);
       }
     }
 
-    private final DoFn<I, O> doFn;
+    private final DoFn<InputT, OutputT> doFn;
     private int maxParallelism;
 
     private transient ExecutorService executor;

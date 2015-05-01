@@ -42,27 +42,27 @@ import java.util.concurrent.TimeUnit;
 /**
  * Runs a DoFn by constructing the appropriate contexts and passing them in.
  *
- * @param <I> the type of the DoFn's (main) input elements
- * @param <O> the type of the DoFn's (main) output elements
- * @param <R> the type of object that receives outputs
+ * @param <InputT> the type of the DoFn's (main) input elements
+ * @param <OutputT> the type of the DoFn's (main) output elements
+ * @param <ReceiverT> the type of object that receives outputs
  * @param <W> the type of the windows of the main input
  */
-public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
-    extends DoFnRunner<I, O, R> {
+public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends BoundedWindow>
+    extends DoFnRunner<InputT, OutputT, ReceiverT> {
   private StepContext stepContext;
   private StreamingModeExecutionContext execContext;
   private WindowingStrategy<?, W> windowingStrategy;
   private Map<String, PCollectionView<?>> sideInputViews;
   private CodedTupleTag<Map<W, Set<Windmill.GlobalDataRequest>>> blockedMapTag;
   private Map<W, Set<Windmill.GlobalDataRequest>> blockedMap;
-  private Coder<I> elemCoder;
+  private Coder<InputT> elemCoder;
 
   public StreamingSideInputDoFnRunner(
       PipelineOptions options,
-      DoFnInfo<I, O> doFnInfo,
+      DoFnInfo<InputT, OutputT> doFnInfo,
       PTuple sideInputs,
-      OutputManager<R> outputManager,
-      TupleTag<O> mainOutputTag,
+      OutputManager<ReceiverT> outputManager,
+      TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
       CounterSet.AddCounterMutator addCounterMutator) throws Exception {
@@ -92,7 +92,7 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
   public void startBundle() {
     super.startBundle();
 
-    Map<W, CodedTupleTag<WindowedValue<I>>> readyWindowTags = new HashMap<>();
+    Map<W, CodedTupleTag<WindowedValue<InputT>>> readyWindowTags = new HashMap<>();
 
     for (Windmill.GlobalDataId id : execContext.getSideInputNotifications()) {
       PCollectionView<?> view = sideInputViews.get(id.getTag());
@@ -119,19 +119,19 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
       }
     }
 
-    Map<CodedTupleTag<WindowedValue<I>>, Iterable<WindowedValue<I>>> elementsPerWindow;
+    Map<CodedTupleTag<WindowedValue<InputT>>, Iterable<WindowedValue<InputT>>> elementsPerWindow;
     try {
       elementsPerWindow = stepContext.readTagLists(readyWindowTags.values());
     } catch (IOException e) {
       throw Throwables.propagate(e);
     }
 
-    for (Map.Entry<W, CodedTupleTag<WindowedValue<I>>> entry : readyWindowTags.entrySet()) {
+    for (Map.Entry<W, CodedTupleTag<WindowedValue<InputT>>> entry : readyWindowTags.entrySet()) {
       blockedMap.remove(entry.getKey());
 
-      Iterable<WindowedValue<I>> elements = elementsPerWindow.get(entry.getValue());
+      Iterable<WindowedValue<InputT>> elements = elementsPerWindow.get(entry.getValue());
       try {
-        for (WindowedValue<I> elem : elements) {
+        for (WindowedValue<InputT> elem : elements) {
           fn.processElement(createProcessContext(elem));
         }
       } catch (Throwable t) {
@@ -145,7 +145,7 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
   }
 
   @Override
-  public void invokeProcessElement(WindowedValue<I> elem) {
+  public void invokeProcessElement(WindowedValue<InputT> elem) {
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       W window = (W) elem.getWindows().iterator().next();
@@ -207,8 +207,8 @@ public class StreamingSideInputDoFnRunner<I, O, R, W extends BoundedWindow>
     }
   }
 
-  private CodedTupleTag<WindowedValue<I>> getElemListTag(W window) throws IOException {
-    return CodedTupleTag.<WindowedValue<I>>of(
+  private CodedTupleTag<WindowedValue<InputT>> getElemListTag(W window) throws IOException {
+    return CodedTupleTag.<WindowedValue<InputT>>of(
         "e:" + CoderUtils.encodeToBase64(windowingStrategy.getWindowFn().windowCoder(), window),
         WindowedValue.getFullCoder(elemCoder, windowingStrategy.getWindowFn().windowCoder()));
   }

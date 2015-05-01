@@ -295,9 +295,9 @@ public class ApproximateUniqueTest implements Serializable {
   /**
    * Combiner function counting the number of elements in an input PCollection.
    *
-   * @param <E> the type of elements in the input PCollection.
+   * @param <T> the type of elements in the input PCollection.
    */
-  private static class CountElements<E> extends CombineFn<E, Long, Long> {
+  private static class CountElements<T> extends CombineFn<T, Long, Long> {
 
     @Override
     public Long createAccumulator() {
@@ -305,7 +305,7 @@ public class ApproximateUniqueTest implements Serializable {
     }
 
     @Override
-    public Long addInput(Long accumulator, E input) {
+    public Long addInput(Long accumulator, T input) {
       return accumulator + 1;
     }
 

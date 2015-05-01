@@ -61,11 +61,11 @@ import java.util.Map;
  * Manages the execution of a trigger.
  *
  * @param <K>
- * @param <VI>
- * @param <VO>
+ * @param <InputT>
+ * @param <OutputT>
  * @param <W> The type of windows this operates on.
  */
-public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
+public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
 
   /**
@@ -80,8 +80,8 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
       CodedTupleTag.of("finished-root", VarIntCoder.of());
 
   private final Trigger<W> trigger;
-  private final WindowingInternals<?, KV<K, VO>> windowingInternals;
-  private final AbstractWindowSet<K, VI, VO, W> windowSet;
+  private final WindowingInternals<?, KV<K, OutputT>> windowingInternals;
+  private final AbstractWindowSet<K, InputT, OutputT, W> windowSet;
   private final WindowFn<Object, W> windowFn;
   private final TimerManager timerManager;
   private final KeyedState keyedState;
@@ -121,8 +121,8 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
       TimerManager timerManager,
       Trigger<W> trigger,
       KeyedState keyedState,
-      WindowingInternals<?, KV<K, VO>> windowingInternals,
-      AbstractWindowSet<K, VI, VO, W> windowSet) {
+      WindowingInternals<?, KV<K, OutputT>> windowingInternals,
+      AbstractWindowSet<K, InputT, OutputT, W> windowSet) {
     this.windowFn = windowFn;
     this.trigger = trigger;
     this.keyedState = keyedState;
@@ -175,7 +175,7 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
         Functions.forPredicate(Predicates.equalTo(FINISHED)));
   }
 
-  public void onElement(WindowedValue<VI> value) throws Exception {
+  public void onElement(WindowedValue<InputT> value) throws Exception {
     @SuppressWarnings("unchecked")
     Collection<W> windows = (Collection<W>) value.getWindows();
 
@@ -281,12 +281,12 @@ public class TriggerExecutor<K, VI, VO, W extends BoundedWindow> {
   }
 
   private void emitWindow(W window) throws Exception {
-    VO finalValue = windowSet.finalValue(window);
+    OutputT finalValue = windowSet.finalValue(window);
 
     // If there were any contents to output in the window, do so.
     if (finalValue != null) {
       // Emit the (current) final values for the window
-      KV<K, VO> value = KV.of(windowSet.getKey(), finalValue);
+      KV<K, OutputT> value = KV.of(windowSet.getKey(), finalValue);
 
       // Output the windowed value.
       windowingInternals.outputWindowedValue(

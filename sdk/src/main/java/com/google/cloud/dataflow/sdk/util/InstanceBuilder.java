@@ -124,8 +124,10 @@ public class InstanceBuilder<T> {
    * a supertype of the argument value's class.
    * <p>
    * Modifies and returns the {@code InstanceBuilder} for chaining.
+   *
+   * @param <ArgT> the argument type
    */
-  public <A> InstanceBuilder<T> withArg(Class<? super A> argType, A value) {
+  public <ArgT> InstanceBuilder<T> withArg(Class<? super ArgT> argType, ArgT value) {
     parameterTypes.add(argType);
     arguments.add(value);
     return this;

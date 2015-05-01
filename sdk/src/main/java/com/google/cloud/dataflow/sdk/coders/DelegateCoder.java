@@ -22,7 +22,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 
 /**
- * A {@code DelegateCoder<T, DT>} wraps a {@link Coder Coder&lt;DT&gt;} and
+ * A {@code DelegateCoder<T, IntermediateT>} wraps a {@link Coder Coder&lt;IntermediateT&gt;} and
  * encodes/decodes values of type {@code T}s by converting
  * to/from {@code DT} and then encoding/decoding using the underlying
  * {@link Coder Coder&lt;DT&gt;}.
@@ -35,24 +35,24 @@ import java.io.Serializable;
  * a {@link CoderException}.
  *
  * @param <T> The type of objects coded by this Coder.
- * @param <DT> The type of objects a {@code T} will be converted to for coding.
+ * @param <IntermediateT> The type of objects a {@code T} will be converted to for coding.
  */
-public class DelegateCoder<T, DT> extends CustomCoder<T> {
+public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   private static final long serialVersionUID = 0;
 
   /**
-   * A {@code CodingFunction<Input, Output>} is a serializable function
-   * from {@code Input} to {@code Output} that
+   * A {@code CodingFunction<InputT, OutputT>} is a serializable function
+   * from {@code InputT} to {@code OutputT} that
    * may throw any {@code Exception}.
    */
-  public static interface CodingFunction<Input, Output> extends Serializable {
-     public abstract Output apply(Input input) throws Exception;
+  public static interface CodingFunction<InputT, OutputT> extends Serializable {
+     public abstract OutputT apply(InputT input) throws Exception;
   }
 
-  public static <T, DT> DelegateCoder<T, DT> of(Coder<DT> coder,
-      CodingFunction<T, DT> toFn,
-      CodingFunction<DT, T> fromFn) {
-    return new DelegateCoder<T, DT>(coder, toFn, fromFn);
+  public static <T, IntermediateT> DelegateCoder<T, IntermediateT> of(Coder<IntermediateT> coder,
+      CodingFunction<T, IntermediateT> toFn,
+      CodingFunction<IntermediateT, T> fromFn) {
+    return new DelegateCoder<T, IntermediateT>(coder, toFn, fromFn);
   }
 
   @Override
@@ -68,7 +68,7 @@ public class DelegateCoder<T, DT> extends CustomCoder<T> {
 
   /**
    * A delegate coder is deterministic if the underlying coder is deterministic.
-   * For this to be safe, the intermediate {@code CodingFunction<T, DT>} must
+   * For this to be safe, the intermediate {@code CodingFunction<T, IntermediateT>} must
    * also be deterministic.
    */
   @Override
@@ -88,9 +88,9 @@ public class DelegateCoder<T, DT> extends CustomCoder<T> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private <Input, Output> Output applyAndWrapExceptions(
-      CodingFunction<Input, Output> fn,
-      Input input) throws CoderException, IOException {
+  private <InputT, OutputT> OutputT applyAndWrapExceptions(
+      CodingFunction<InputT, OutputT> fn,
+      InputT input) throws CoderException, IOException {
     try {
       return fn.apply(input);
     } catch (IOException exc) {
@@ -100,13 +100,13 @@ public class DelegateCoder<T, DT> extends CustomCoder<T> {
     }
   }
 
-  private final Coder<DT> coder;
-  private final CodingFunction<T, DT> toFn;
-  private final CodingFunction<DT, T> fromFn;
+  private final Coder<IntermediateT> coder;
+  private final CodingFunction<T, IntermediateT> toFn;
+  private final CodingFunction<IntermediateT, T> fromFn;
 
-  protected DelegateCoder(Coder<DT> coder,
-      CodingFunction<T, DT> toFn,
-      CodingFunction<DT, T> fromFn) {
+  protected DelegateCoder(Coder<IntermediateT> coder,
+      CodingFunction<T, IntermediateT> toFn,
+      CodingFunction<IntermediateT, T> fromFn) {
     this.coder = coder;
     this.fromFn = fromFn;
     this.toFn = toFn;

@@ -60,11 +60,12 @@ import javax.annotation.Nullable;
  * <p>To have all interactions between the trigger and underlying components logged, call
  * {@link #logInteractions(boolean)}.
  *
- * @param <VI> The element types.
- * @param <VO> The final type for elements in the window (for instance, {@code Iterable<VI>})
+ * @param <InputT> The element types.
+ * @param <OutputT> The final type for elements in the window (for instance,
+ *     {@code Iterable<InputT>})
  * @param <W> The type of windows being used.
  */
-public class TriggerTester<VI, VO, W extends BoundedWindow> {
+public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
   private static final Logger LOGGER = Logger.getLogger(TriggerTester.class.getName());
 
@@ -72,7 +73,7 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
   private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
   private BatchTimerManager timerManager = new LoggingBatchTimerManager(processingTime);
 
-  private TriggerExecutor<String, VI, VO, W> triggerExecutor;
+  private TriggerExecutor<String, InputT, OutputT, W> triggerExecutor;
 
   private WindowFn<Object, W> windowFn;
   private StubContexts stubContexts;
@@ -116,10 +117,10 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
   private TriggerTester(
       WindowFn<Object, W> windowFn,
       Trigger<W> trigger,
-      AbstractWindowSet.Factory<String, VI, VO, W> windowSetFactory) throws Exception {
+      AbstractWindowSet.Factory<String, InputT, OutputT, W> windowSetFactory) throws Exception {
     this.windowFn = windowFn;
     this.stubContexts = new StubContexts();
-    AbstractWindowSet<String, VI, VO, W> windowSet = windowSetFactory.create(
+    AbstractWindowSet<String, InputT, OutputT, W> windowSet = windowSetFactory.create(
         KEY, windowFn.windowCoder(), stubContexts, stubContexts);
     this.triggerExecutor = new TriggerExecutor<>(
         windowFn, timerManager, trigger, stubContexts, stubContexts, windowSet);
@@ -169,12 +170,12 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
   /**
    * Retrieve the values that have been output to this time, and clear out the output accumulator.
    */
-  public Iterable<WindowedValue<VO>> extractOutput() {
-    ImmutableList<WindowedValue<VO>> result = FluentIterable.from(stubContexts.outputs)
-        .transform(new Function<WindowedValue<KV<String, VO>>, WindowedValue<VO>>() {
+  public Iterable<WindowedValue<OutputT>> extractOutput() {
+    ImmutableList<WindowedValue<OutputT>> result = FluentIterable.from(stubContexts.outputs)
+        .transform(new Function<WindowedValue<KV<String, OutputT>>, WindowedValue<OutputT>>() {
           @Override
           @Nullable
-          public WindowedValue<VO> apply(@Nullable WindowedValue<KV<String, VO>> input) {
+          public WindowedValue<OutputT> apply(@Nullable WindowedValue<KV<String, OutputT>> input) {
             return WindowedValue.of(
                 input.getValue().getValue(), input.getTimestamp(), input.getWindows());
           }
@@ -201,7 +202,7 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     timerManager.advanceProcessingTime(triggerExecutor, newProcessingTime);
   }
 
-  public void injectElement(VI value, Instant timestamp) throws Exception {
+  public void injectElement(InputT value, Instant timestamp) throws Exception {
     Collection<W> windows = windowFn.assignWindows(new TriggerTester.StubAssignContext<W>(
         windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
     logInteraction("Element %s at time %d put in windows %s",
@@ -215,19 +216,20 @@ public class TriggerTester<VI, VO, W extends BoundedWindow> {
     triggerExecutor.setTimer(new TriggerId<W>(window, subTriggerPath), timestamp, domain);
   }
 
-  private class StubContexts implements WindowingInternals<VI, KV<String, VO>>, DoFn.KeyedState {
+  private class StubContexts
+      implements WindowingInternals<InputT, KV<String, OutputT>>, DoFn.KeyedState {
 
     private Map<CodedTupleTag<?>, List<?>> tagListValues = new HashMap<>();
     private Map<CodedTupleTag<?>, Object> tagValues = new HashMap<>();
-    private List<WindowedValue<KV<String, VO>>> outputs = new ArrayList<>();
+    private List<WindowedValue<KV<String, OutputT>>> outputs = new ArrayList<>();
 
     private Map<CodedTupleTag<?>, Instant> tagTimestamps = new HashMap<>();
     private PriorityQueue<Instant> minTagTimestamp = new PriorityQueue<>();
 
     @Override
-    public void outputWindowedValue(KV<String, VO> output, Instant timestamp,
+    public void outputWindowedValue(KV<String, OutputT> output, Instant timestamp,
         Collection<? extends BoundedWindow> windows) {
-      WindowedValue<KV<String, VO>> value = WindowedValue.of(output, timestamp, windows);
+      WindowedValue<KV<String, OutputT>> value = WindowedValue.of(output, timestamp, windows);
       logInteraction("Outputting: %s", value);
       outputs.add(value);
     }

@@ -45,9 +45,9 @@ import java.util.Map;
 /**
  * {@code ParDo} is the core element-wise transform in Google Cloud
  * Dataflow, invoking a user-specified function (from {@code I} to
- * {@code O}) on each of the elements of the input
- * {@code PCollection<I>} to produce zero or more output elements, all
- * of which are collected into the output {@code PCollection<O>}.
+ * {@code Output}) on each of the elements of the input
+ * {@code PCollection<InputT>} to produce zero or more output elements, all
+ * of which are collected into the output {@code PCollection<OutputT>}.
  *
  * <p> Elements are processed independently, and possibly in parallel across
  * distributed cloud resources.
@@ -61,12 +61,12 @@ import java.util.Map;
  * {@link DoFn DoFn&lt;I, O&gt;}.
  *
  * <p> Conceptually, when a {@code ParDo} transform is executed, the
- * elements of the input {@code PCollection<I>} are first divided up
+ * elements of the input {@code PCollection<InputT>} are first divided up
  * into some number of "batches".  These are farmed off to distributed
  * worker machines (or run locally, if using the
  * {@link com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner}).
  * For each batch of input elements, a fresh instance of the argument
- * {@code DoFn<I, O>} is created on a worker, then the {@code DoFn}'s
+ * {@code DoFn<InputT, OutputT>} is created on a worker, then the {@code DoFn}'s
  * optional {@link DoFn#startBundle} method is called to initialize it,
  * then the {@code DoFn}'s required {@link DoFn#processElement} method
  * is called on each of the input elements in the batch, then the
@@ -76,7 +76,7 @@ import java.util.Map;
  * methods can produce zero or more output elements, which are
  * collected together into a batch of output elements.  All of the
  * batches of output elements from all of the {@code DoFn} instances
- * are "flattened" together into the output {@code PCollection<O>}.
+ * are "flattened" together into the output {@code PCollection<OutputT>}.
  *
  * <p> For example:
  *
@@ -100,7 +100,7 @@ import java.util.Map;
  * } </pre>
  *
  * <p> Each output element has the same timestamp and is in the same windows
- * as its corresponding input element, and the output {@code PCollection}
+ * as its corresponding input element, and the output {@code PCollection<OutputT>}
  * has the same
  * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
  * associated with it as the input.
@@ -155,7 +155,7 @@ import java.util.Map;
  *
  * <p> Optionally, a {@code ParDo} transform can produce multiple
  * output {@code PCollection}s, both a "main output"
- * {@code PCollection<O>} plus any number of "side output"
+ * {@code PCollection<OutputT>} plus any number of "side output"
  * {@code PCollection}s, each keyed by a distinct {@link TupleTag},
  * and bundled in a {@link PCollectionTuple}.  The {@code TupleTag}s
  * to be used for the output {@code PCollectionTuple} is specified by
@@ -250,11 +250,11 @@ import java.util.Map;
  *
  * <h2>Output Coders</h2>
  *
- * <p> By default, the {@code Coder} of the
- * elements of the main output {@code PCollection<O>} is inferred from the
- * concrete type of the {@code DoFn<I, O>}'s output type {@code O}.
+ * <p> By default, the {@code Coder<OutputT>} of the
+ * elements of the main output {@code PCollection<OutputT>} is inferred from the
+ * concrete type of the {@code DoFn<InputT, OutputT>}'s output type {@code Output}.
  *
- * <p> By default, the {@code Coder} of the elements of a side output
+ * <p> By default, the {@code Coder<X>} of the elements of a side output
  * {@code PCollection<X>} is inferred from the concrete type of the
  * corresponding {@code TupleTag<X>}'s type {@code X}.  To be
  * successful, the {@code TupleTag} should be created as an instance
@@ -264,7 +264,7 @@ import java.util.Map;
  * For example:
  * <pre> {@code
  * // A TupleTag to use for a side input can be written concisely:
- * final TupleTag<Integer> sideInputTag = new TupleTag<>();
+ * final TupleTag<Integer> sideInputag = new TupleTag<>();
  * // A TupleTag to use for a side output should be written with "{}",
  * // and explicit generic parameter type:
  * final TupleTag<String> sideOutputTag = new TupleTag<String>(){};
@@ -508,8 +508,8 @@ public class ParDo {
    * to specify the {@link DoFn} to invoke, which will also bind the
    * input type of this {@code PTransform}.
    */
-  public static <O> UnboundMulti<O> withOutputTags(
-      TupleTag<O> mainOutputTag,
+  public static <OutputT> UnboundMulti<OutputT> withOutputTags(
+      TupleTag<OutputT> mainOutputTag,
       TupleTagList sideOutputTags) {
     return new Unbound().withOutputTags(mainOutputTag, sideOutputTags);
   }
@@ -519,16 +519,17 @@ public class ParDo {
    * given {@link DoFn} function.
    *
    * <p> The resulting {@code PTransform}'s types have been bound, with the
-   * input being a {@code PCollection<I>} and the output a
-   * {@code PCollection<O>}, inferred from the types of the argument
-   * {@code DoFn<I, O>}.  It is ready to be applied, or further
+   * input being a {@code PCollection<InputT>} and the output a
+   * {@code PCollection<OutputT>}, inferred from the types of the argument
+   * {@code DoFn<InputT, OutputT>}.  It is ready to be applied, or further
    * properties can be set on it first.
    */
-  public static <I, O> Bound<I, O> of(DoFn<I, O> fn) {
+  public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     return new Unbound().of(fn);
   }
 
-  private static <I, O> DoFn<I, O> adapt(DoFnWithContext<I, O> fn) {
+  private static <InputT, OutputT> DoFn<InputT, OutputT>
+      adapt(DoFnWithContext<InputT, OutputT> fn) {
     return DoFnReflector.of(fn.getClass()).toDoFn(fn);
   }
 
@@ -537,9 +538,9 @@ public class ParDo {
    * given {@link DoFnWithContext} function.
    *
    * <p> The resulting {@code PTransform}'s types have been bound, with the
-   * input being a {@code PCollection<I>} and the output a
-   * {@code PCollection<O>}, inferred from the types of the argument
-   * {@code DoFn<I, O>}.  It is ready to be applied, or further
+   * input being a {@code PCollection<InputT>} and the output a
+   * {@code PCollection<OutputT>}, inferred from the types of the argument
+   * {@code DoFn<InputT, OutputT>}.  It is ready to be applied, or further
    * properties can be set on it first.
    *
    * <p> {@link DoFnWithContext} is an experimental alternative to
@@ -547,12 +548,12 @@ public class ParDo {
    * the window of the element.
    */
   @Experimental
-  public static <I, O> Bound<I, O> of(DoFnWithContext<I, O> fn) {
+  public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
     return of(adapt(fn));
   }
 
-  private static <I> void validateCoder(
-      DoFn<I, ?> fn, PCollection<? extends I> input) {
+  private static <InputT> void validateCoder(
+      DoFn<InputT, ?> fn, PCollection<? extends InputT> input) {
     if (RequiresKeyedState.class.isAssignableFrom(fn.getClass())
         && !isKvEquivalentCoder(input.getCoder())) {
       throw new UnsupportedOperationException(
@@ -632,7 +633,7 @@ public class ParDo {
      * <p> See the discussion of Side Outputs above and on
      * {@link ParDo#withOutputTags} for more explanation.
      */
-    public <O> UnboundMulti<O> withOutputTags(TupleTag<O> mainOutputTag,
+    public <OutputT> UnboundMulti<OutputT> withOutputTags(TupleTag<OutputT> mainOutputTag,
                                               TupleTagList sideOutputTags) {
       return new UnboundMulti<>(
           name, sideInputs, mainOutputTag, sideOutputTags);
@@ -646,7 +647,7 @@ public class ParDo {
      * sufficiently specified to be applied, but more properties can
      * still be specified.
      */
-    public <I, O> Bound<I, O> of(DoFn<I, O> fn) {
+    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
       return new Bound<>(name, sideInputs, fn);
     }
 
@@ -658,33 +659,33 @@ public class ParDo {
      * sufficiently specified to be applied, but more properties can
      * still be specified.
      */
-    public <I, O> Bound<I, O> of(DoFnWithContext<I, O> fn) {
+    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
       return of(adapt(fn));
     }
   }
 
   /**
-   * A {@code PTransform} that, when applied to a {@code PCollection<I>},
-   * invokes a user-specified {@code DoFn<I, O>} on all its elements,
+   * A {@code PTransform} that, when applied to a {@code PCollection<InputT>},
+   * invokes a user-specified {@code DoFn<InputT, OutputT>} on all its elements,
    * with all its outputs collected into an output
-   * {@code PCollection<O>}.
+   * {@code PCollection<OutputT>}.
    *
    * <p> A multi-output form of this transform can be created with
    * {@link ParDo.Bound#withOutputTags}.
    *
-   * @param <I> the type of the (main) input {@code PCollection} elements
-   * @param <O> the type of the (main) output {@code PCollection} elements
+   * @param <InputT> the type of the (main) input {@code PCollection} elements
+   * @param <OutputT> the type of the (main) output {@code PCollection} elements
    */
   @SuppressWarnings("serial")
-  public static class Bound<I, O>
-      extends PTransform<PCollection<? extends I>, PCollection<O>> {
+  public static class Bound<InputT, OutputT>
+      extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     // Inherits name.
     List<PCollectionView<?>> sideInputs;
-    DoFn<I, O> fn;
+    DoFn<InputT, OutputT> fn;
 
     Bound(String name,
           List<PCollectionView<?>> sideInputs,
-          DoFn<I, O> fn) {
+          DoFn<InputT, OutputT> fn) {
       super(name);
       this.sideInputs = sideInputs;
       this.fn = SerializableUtils.clone(fn);
@@ -697,7 +698,7 @@ public class ParDo {
      *
      * <p> See the discussion of Naming above for more explanation.
      */
-    public Bound<I, O> named(String name) {
+    public Bound<InputT, OutputT> named(String name) {
       return new Bound<>(name, sideInputs, fn);
     }
 
@@ -709,7 +710,7 @@ public class ParDo {
      * <p> See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
      */
-    public Bound<I, O> withSideInputs(PCollectionView<?>... sideInputs) {
+    public Bound<InputT, OutputT> withSideInputs(PCollectionView<?>... sideInputs) {
       return new Bound<>(name, ImmutableList.copyOf(sideInputs), fn);
     }
 
@@ -721,7 +722,7 @@ public class ParDo {
      * <p> See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
      */
-    public Bound<I, O> withSideInputs(
+    public Bound<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
       return new Bound<>(name, ImmutableList.copyOf(sideInputs), fn);
     }
@@ -734,18 +735,18 @@ public class ParDo {
      * <p> See the discussion of Side Outputs above and on
      * {@link ParDo#withOutputTags} for more explanation.
      */
-    public BoundMulti<I, O> withOutputTags(TupleTag<O> mainOutputTag,
+    public BoundMulti<InputT, OutputT> withOutputTags(TupleTag<OutputT> mainOutputTag,
                                            TupleTagList sideOutputTags) {
       return new BoundMulti<>(
           name, sideInputs, mainOutputTag, sideOutputTags, fn);
     }
 
     @Override
-    public PCollection<O> apply(PCollection<? extends I> input) {
+    public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
       if (sideInputs == null) {
         sideInputs = Collections.emptyList();
       }
-      return PCollection.<O>createPrimitiveOutputInternal(
+      return PCollection.<OutputT>createPrimitiveOutputInternal(
               input.getPipeline(),
               input.getWindowingStrategy())
           .setTypeTokenInternal(fn.getOutputTypeToken());
@@ -753,12 +754,12 @@ public class ParDo {
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Coder<O> getDefaultOutputCoder(PCollection<? extends I> input)
+    protected Coder<OutputT> getDefaultOutputCoder(PCollection<? extends InputT> input)
         throws CannotProvideCoderException {
       return input.getPipeline().getCoderRegistry().getDefaultCoder(
           fn.getOutputTypeToken(),
           fn.getInputTypeToken(),
-          ((PCollection<I>) input).getCoder());
+          ((PCollection<InputT>) input).getCoder());
     }
 
     @Override
@@ -776,7 +777,7 @@ public class ParDo {
       return "ParDo";
     }
 
-    public DoFn<I, O> getFn() {
+    public DoFn<InputT, OutputT> getFn() {
       return fn;
     }
 
@@ -785,7 +786,7 @@ public class ParDo {
     }
 
     @Override
-    public void validate(PCollection<? extends I> input) {
+    public void validate(PCollection<? extends InputT> input) {
       super.validate(input);
       ParDo.validateCoder(fn, input);
     }
@@ -799,17 +800,17 @@ public class ParDo {
    * invoked to specify the {@link DoFn} to invoke, which will also
    * bind the input type of this {@code PTransform}.
    *
-   * @param <O> the type of the main output {@code PCollection} elements
+   * @param <OutputT> the type of the main output {@code PCollection} elements
    */
-  public static class UnboundMulti<O> {
+  public static class UnboundMulti<OutputT> {
     String name;
     List<PCollectionView<?>> sideInputs;
-    TupleTag<O> mainOutputTag;
+    TupleTag<OutputT> mainOutputTag;
     TupleTagList sideOutputTags;
 
     UnboundMulti(String name,
                  List<PCollectionView<?>> sideInputs,
-                 TupleTag<O> mainOutputTag,
+                 TupleTag<OutputT> mainOutputTag,
                  TupleTagList sideOutputTags) {
       this.name = name;
       this.sideInputs = sideInputs;
@@ -824,7 +825,7 @@ public class ParDo {
      *
      * <p> See the discussion of Naming above for more explanation.
      */
-    public UnboundMulti<O> named(String name) {
+    public UnboundMulti<OutputT> named(String name) {
       return new UnboundMulti<>(
           name, sideInputs, mainOutputTag, sideOutputTags);
     }
@@ -838,7 +839,7 @@ public class ParDo {
      * <p> See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
      */
-    public UnboundMulti<O> withSideInputs(
+    public UnboundMulti<OutputT> withSideInputs(
         PCollectionView<?>... sideInputs) {
       return new UnboundMulti<>(
           name, ImmutableList.copyOf(sideInputs),
@@ -854,7 +855,7 @@ public class ParDo {
      * <p> See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
      */
-    public UnboundMulti<O> withSideInputs(
+    public UnboundMulti<OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
       return new UnboundMulti<>(
           name, ImmutableList.copyOf(sideInputs),
@@ -869,7 +870,7 @@ public class ParDo {
      * {@code PTransform} is sufficiently specified to be applied, but
      * more properties can still be specified.
      */
-    public <I> BoundMulti<I, O> of(DoFn<I, O> fn) {
+    public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
       return new BoundMulti<>(
           name, sideInputs, mainOutputTag, sideOutputTags, fn);
     }
@@ -882,36 +883,36 @@ public class ParDo {
      * {@code PTransform} is sufficiently specified to be applied, but
      * more properties can still be specified.
      */
-    public <I> BoundMulti<I, O> of(DoFnWithContext<I, O> fn) {
+    public <InputT> BoundMulti<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
       return of(adapt(fn));
     }
   }
 
   /**
    * A {@code PTransform} that, when applied to a
-   * {@code PCollection<I>}, invokes a user-specified
-   * {@code DoFn<I, O>} on all its elements, which can emit elements
+   * {@code PCollection<InputT>}, invokes a user-specified
+   * {@code DoFn<InputT, OutputT>} on all its elements, which can emit elements
    * to any of the {@code PTransform}'s main and side output
    * {@code PCollection}s, which are bundled into a result
    * {@code PCollectionTuple}.
    *
-   * @param <I> the type of the (main) input {@code PCollection} elements
-   * @param <O> the type of the main output {@code PCollection} elements
+   * @param <InputT> the type of the (main) input {@code PCollection} elements
+   * @param <OutputT> the type of the main output {@code PCollection} elements
    */
   @SuppressWarnings("serial")
-  public static class BoundMulti<I, O>
-      extends PTransform<PCollection<? extends I>, PCollectionTuple> {
+  public static class BoundMulti<InputT, OutputT>
+      extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
     // Inherits name.
     List<PCollectionView<?>> sideInputs;
-    TupleTag<O> mainOutputTag;
+    TupleTag<OutputT> mainOutputTag;
     TupleTagList sideOutputTags;
-    DoFn<I, O> fn;
+    DoFn<InputT, OutputT> fn;
 
     BoundMulti(String name,
                List<PCollectionView<?>> sideInputs,
-               TupleTag<O> mainOutputTag,
+               TupleTag<OutputT> mainOutputTag,
                TupleTagList sideOutputTags,
-               DoFn<I, O> fn) {
+               DoFn<InputT, OutputT> fn) {
       super(name);
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
@@ -926,7 +927,7 @@ public class ParDo {
      *
      * <p> See the discussion of Naming above for more explanation.
      */
-    public BoundMulti<I, O> named(String name) {
+    public BoundMulti<InputT, OutputT> named(String name) {
       return new BoundMulti<>(
           name, sideInputs, mainOutputTag, sideOutputTags, fn);
     }
@@ -939,7 +940,7 @@ public class ParDo {
      * <p> See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
      */
-    public BoundMulti<I, O> withSideInputs(
+    public BoundMulti<InputT, OutputT> withSideInputs(
         PCollectionView<?>... sideInputs) {
       return new BoundMulti<>(
           name, ImmutableList.copyOf(sideInputs),
@@ -954,7 +955,7 @@ public class ParDo {
      * <p> See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
      */
-    public BoundMulti<I, O> withSideInputs(
+    public BoundMulti<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
       return new BoundMulti<>(
           name, ImmutableList.copyOf(sideInputs),
@@ -963,7 +964,7 @@ public class ParDo {
 
 
     @Override
-    public PCollectionTuple apply(PCollection<? extends I> input) {
+    public PCollectionTuple apply(PCollection<? extends InputT> input) {
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
@@ -978,7 +979,7 @@ public class ParDo {
     }
 
     @Override
-    protected Coder<O> getDefaultOutputCoder() {
+    protected Coder<OutputT> getDefaultOutputCoder() {
       throw new RuntimeException(
           "internal error: shouldn't be calling this on a multi-output ParDo");
     }
@@ -997,11 +998,11 @@ public class ParDo {
       return "ParMultiDo";
     }
 
-    public DoFn<I, O> getFn() {
+    public DoFn<InputT, OutputT> getFn() {
       return fn;
     }
 
-    public TupleTag<O> getMainOutputTag() {
+    public TupleTag<OutputT> getMainOutputTag() {
       return mainOutputTag;
     }
 
@@ -1010,7 +1011,7 @@ public class ParDo {
     }
 
     @Override
-    public void validate(PCollection<? extends I> input) {
+    public void validate(PCollection<? extends InputT> input) {
       super.validate(input);
       ParDo.validateCoder(fn, input);
     }
@@ -1031,14 +1032,14 @@ public class ParDo {
         });
   }
 
-  private static <I, O> void evaluateSingleHelper(
-      Bound<I, O> transform,
+  private static <InputT, OutputT> void evaluateSingleHelper(
+      Bound<InputT, OutputT> transform,
       DirectPipelineRunner.EvaluationContext context) {
-    TupleTag<O> mainOutputTag = new TupleTag<>("out");
+    TupleTag<OutputT> mainOutputTag = new TupleTag<>("out");
 
     DirectModeExecutionContext executionContext = new DirectModeExecutionContext();
 
-    DoFnRunner<I, O, List> fnRunner =
+    DoFnRunner<InputT, OutputT, List> fnRunner =
         evaluateHelper(transform.fn, context.getStepName(transform),
             context.getInput(transform), transform.sideInputs,
             mainOutputTag, new ArrayList<TupleTag<?>>(),
@@ -1064,13 +1065,13 @@ public class ParDo {
         });
   }
 
-  private static <I, O> void evaluateMultiHelper(
-      BoundMulti<I, O> transform,
+  private static <InputT, OutputT> void evaluateMultiHelper(
+      BoundMulti<InputT, OutputT> transform,
       DirectPipelineRunner.EvaluationContext context) {
 
     DirectModeExecutionContext executionContext = new DirectModeExecutionContext();
 
-    DoFnRunner<I, O, List> fnRunner =
+    DoFnRunner<InputT, OutputT, List> fnRunner =
         evaluateHelper(transform.fn, context.getStepName(transform),
                        context.getInput(transform), transform.sideInputs,
                        transform.mainOutputTag, transform.sideOutputTags.getAll(),
@@ -1090,17 +1091,17 @@ public class ParDo {
     }
   }
 
-  private static <I, O> DoFnRunner<I, O, List> evaluateHelper(
-      DoFn<I, O> doFn,
+  private static <InputT, OutputT> DoFnRunner<InputT, OutputT, List> evaluateHelper(
+      DoFn<InputT, OutputT> doFn,
       String name,
-      PCollection<? extends I> input,
+      PCollection<? extends InputT> input,
       List<PCollectionView<?>> sideInputs,
-      TupleTag<O> mainOutputTag,
+      TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       DirectPipelineRunner.EvaluationContext context,
       DirectModeExecutionContext executionContext) {
     // TODO: Run multiple shards?
-    DoFn<I, O> fn = context.ensureSerializable(doFn);
+    DoFn<InputT, OutputT> fn = context.ensureSerializable(doFn);
 
     PTuple sideInputValues = PTuple.empty();
     for (PCollectionView<?> view : sideInputs) {
@@ -1109,7 +1110,7 @@ public class ParDo {
           context.getPCollectionView(view));
     }
 
-    DoFnRunner<I, O, List> fnRunner =
+    DoFnRunner<InputT, OutputT, List> fnRunner =
         DoFnRunner.createWithListOutputs(
             context.getPipelineOptions(),
             fn,
@@ -1122,7 +1123,7 @@ public class ParDo {
 
     fnRunner.startBundle();
 
-    for (DirectPipelineRunner.ValueWithMetadata<? extends I> elem
+    for (DirectPipelineRunner.ValueWithMetadata<? extends InputT> elem
              : context.getPCollectionValuesWithMetadata(input)) {
       if (doFn instanceof DoFn.RequiresKeyedState) {
         // If the DoFn needs keyed state, set the implicit keys to the keys in the input elements.
@@ -1134,7 +1135,7 @@ public class ParDo {
       } else {
         executionContext.setKey(elem.getKey());
       }
-      fnRunner.processElement((WindowedValue<I>) elem.getWindowedValue());
+      fnRunner.processElement((WindowedValue<InputT>) elem.getWindowedValue());
     }
 
     fnRunner.finishBundle();

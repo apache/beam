@@ -117,19 +117,19 @@ public class ReflectHelpersTest {
   }
 
   @Test
-  public <I> void testTypeFormatterWithWildcards() throws Exception {
-    assertEquals("Map<I, I>",
+  public <T> void testTypeFormatterWithWildcards() throws Exception {
+    assertEquals("Map<T, T>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeToken<Map<I, I>>() {
+            new TypeToken<Map<T, T>>() {
               private static final long serialVersionUID = 0;
             }.getType()));
   }
 
   @Test
-  public <I, O> void testTypeFormatterWithMultipleWildcards() throws Exception {
-    assertEquals("Map<? super I, ? extends O>",
+  public <InputT, OutputT> void testTypeFormatterWithMultipleWildcards() throws Exception {
+    assertEquals("Map<? super InputT, ? extends OutputT>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeToken<Map<? super I, ? extends O>>() {
+            new TypeToken<Map<? super InputT, ? extends OutputT>>() {
               private static final long serialVersionUID = 0;
             }.getType()));
   }

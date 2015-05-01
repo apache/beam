@@ -73,8 +73,8 @@ public class KeyedStateCacheTest {
     return Mockito.argThat(Matchers.containsInAnyOrder(tags));
   }
 
-  private <T1> Map<CodedTupleTag<?>, Optional<?>> lookup(
-      CodedTupleTag<T1> tag1, Optional<T1> value1) {
+  private <T> Map<CodedTupleTag<?>, Optional<?>> lookup(
+      CodedTupleTag<T> tag1, Optional<T> value1) {
     return ImmutableMap.<CodedTupleTag<?>, Optional<?>>of(tag1, value1);
   }
 
@@ -84,8 +84,8 @@ public class KeyedStateCacheTest {
     return ImmutableMap.of(tag1, value1, tag2, value2);
   }
 
-  private <T1> Map<CodedTupleTag<?>, List<?>> lookupList(
-      CodedTupleTag<T1> tag1, List<T1> value1) {
+  private <T> Map<CodedTupleTag<?>, List<?>> lookupList(
+      CodedTupleTag<T> tag1, List<T> value1) {
     return ImmutableMap.<CodedTupleTag<?>, List<?>>of(tag1, value1);
   }
 

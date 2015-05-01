@@ -43,9 +43,9 @@ import java.util.Map;
  * <p> For example:
  *
  * <pre> {@code
- * DoFn<Input, Output> fn = ...;
+ * DoFn<InputT, OutputT> fn = ...;
  *
- * DoFnTester<Input, Output> fnTester = DoFnTester.of(fn);
+ * DoFnTester<InputT, OutputT> fnTester = DoFnTester.of(fn);
  *
  * // Set arguments shared across all batches:
  * fnTester.setSideInputs(...);      // If fn takes side inputs.
@@ -53,7 +53,7 @@ import java.util.Map;
  *
  * // Process a batch containing a single input element:
  * Input testInput = ...;
- * List<Output> testOutputs = fnTester.processBatch(testInput);
+ * List<OutputT> testOutputs = fnTester.processBatch(testInput);
  * Assert.assertThat(testOutputs,
  *                   JUnitMatchers.hasItems(...));
  *
@@ -62,17 +62,17 @@ import java.util.Map;
  *                   JUnitMatchers.hasItems(...));
  * } </pre>
  *
- * @param <I> the type of the {@code DoFn}'s (main) input elements
- * @param <O> the type of the {@code DoFn}'s (main) output elements
+ * @param <InputT> the type of the {@code DoFn}'s (main) input elements
+ * @param <OutputT> the type of the {@code DoFn}'s (main) output elements
  */
-public class DoFnTester<I, O> {
+public class DoFnTester<InputT, OutputT> {
   /**
    * Returns a {@code DoFnTester} supporting unit-testing of the given
    * {@link DoFn}.
    */
   @SuppressWarnings("unchecked")
-  public static <I, O> DoFnTester<I, O> of(DoFn<I, O> fn) {
-    return new DoFnTester<I, O>(fn);
+  public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+    return new DoFnTester<InputT, OutputT>(fn);
   }
 
   /**
@@ -80,8 +80,9 @@ public class DoFnTester<I, O> {
    * {@link DoFn}.
    */
   @SuppressWarnings("unchecked")
-  public static <I, O> DoFnTester<I, O> of(DoFnWithContext<I, O> fn) {
-    return new DoFnTester<I, O>(DoFnReflector.of(fn.getClass()).toDoFn(fn));
+  public static <InputT, OutputT> DoFnTester<InputT, OutputT>
+      of(DoFnWithContext<InputT, OutputT> fn) {
+    return new DoFnTester<InputT, OutputT>(DoFnReflector.of(fn.getClass()).toDoFn(fn));
   }
 
   /**
@@ -153,9 +154,9 @@ public class DoFnTester<I, O> {
    * calls {@link #finishBundle}, then returns the result of
    * {@link #takeOutputElements}.
    */
-  public List<O> processBatch(I... inputElements) {
+  public List<OutputT> processBatch(InputT... inputElements) {
     startBundle();
-    for (I inputElement : inputElements) {
+    for (InputT inputElement : inputElements) {
       processElement(inputElement);
     }
     finishBundle();
@@ -185,7 +186,7 @@ public class DoFnTester<I, O> {
    * @throws IllegalStateException if the {@code DoFn} under test has already
    * been finished
    */
-  public void processElement(I element) {
+  public void processElement(InputT element) {
     if (state == State.FINISHED) {
       throw new IllegalStateException("finishBundle() has already been called");
     }
@@ -226,14 +227,14 @@ public class DoFnTester<I, O> {
    * <p> TODO: provide accessors that take and return {@code WindowedValue}s
    * in order to test timestamp- and window-sensitive DoFns.
    */
-  public List<O> peekOutputElements() {
+  public List<OutputT> peekOutputElements() {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(fnRunner.getReceiver(mainOutputTag),
-                           new Function<Object, O>() {
+                           new Function<Object, OutputT>() {
                              @Override
                              @SuppressWarnings("unchecked")
-                             public O apply(Object input) {
-                               return ((WindowedValue<O>) input).getValue();
+                             public OutputT apply(Object input) {
+                               return ((WindowedValue<OutputT>) input).getValue();
                              }
                            });
 
@@ -254,8 +255,8 @@ public class DoFnTester<I, O> {
    *
    * @see #peekOutputElements
    */
-  public List<O> takeOutputElements() {
-    List<O> resultElems = new ArrayList<>(peekOutputElements());
+  public List<OutputT> takeOutputElements() {
+    List<OutputT> resultElems = new ArrayList<>(peekOutputElements());
     clearOutputElements();
     return resultElems;
   }
@@ -308,21 +309,21 @@ public class DoFnTester<I, O> {
   final PipelineOptions options = PipelineOptionsFactory.create();
 
   /** The original DoFn under test. */
-  final DoFn<I, O> origFn;
+  final DoFn<InputT, OutputT> origFn;
 
   /** The side input values to provide to the DoFn under test. */
   private Map<PCollectionView<?>, Iterable<WindowedValue<?>>> sideInputs =
       new HashMap<>();
 
   /** The output tags used by the DoFn under test. */
-  TupleTag<O> mainOutputTag = new TupleTag<>();
+  TupleTag<OutputT> mainOutputTag = new TupleTag<>();
   List<TupleTag<?>> sideOutputTags = new ArrayList<>();
 
   /** The original DoFn under test, if started. */
-  DoFn<I, O> fn;
+  DoFn<InputT, OutputT> fn;
 
   /** The DoFnRunner if processing is in progress. */
-  DoFnRunner<I, O, List> fnRunner;
+  DoFnRunner<InputT, OutputT, List> fnRunner;
 
   /** Counters for user-defined Aggregators if processing is in progress. */
   CounterSet counterSet;
@@ -332,7 +333,7 @@ public class DoFnTester<I, O> {
   /** The state of processing of the DoFn under test. */
   State state;
 
-  DoFnTester(DoFn<I, O> origFn) {
+  DoFnTester(DoFn<InputT, OutputT> origFn) {
     this.origFn = origFn;
     resetState();
   }
@@ -346,7 +347,7 @@ public class DoFnTester<I, O> {
 
   @SuppressWarnings("unchecked")
   void initializeState() {
-    fn = (DoFn<I, O>)
+    fn = (DoFn<InputT, OutputT>)
         SerializableUtils.deserializeFromByteArray(
             SerializableUtils.serializeToByteArray(origFn),
             origFn.toString());

@@ -64,12 +64,13 @@ public abstract class DoFnReflector {
     /**
      * Create an instance of the given instance using the instance factory.
      */
-    <I, O> Object createInstance(DoFnWithContext.ExtraContextFactory<I, O> factory);
+    <InputT, OutputT> Object createInstance(
+        DoFnWithContext.ExtraContextFactory<InputT, OutputT> factory);
 
     /**
      * Create the type token for the given type, filling in the generics.
      */
-    <I, O> TypeToken<?> tokenFor(TypeToken<I> in, TypeToken<O> out);
+    <InputT, OutputT> TypeToken<?> tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out);
   }
 
   private static final Map<Class<?>, ExtraContextInfo> EXTRA_CONTEXTS = Collections.emptyMap();
@@ -78,39 +79,45 @@ public abstract class DoFnReflector {
       .putAll(EXTRA_CONTEXTS)
       .put(KeyedState.class, new ExtraContextInfo() {
         @Override
-        public <I, O> Object createInstance(ExtraContextFactory<I, O> factory) {
+        public <InputT, OutputT> Object
+            createInstance(ExtraContextFactory<InputT, OutputT> factory) {
           return factory.keyedState();
         }
 
         @Override
-        public <I, O> TypeToken<?> tokenFor(TypeToken<I> in, TypeToken<O> out) {
+        public <InputT, OutputT> TypeToken<?>
+            tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
           return TypeToken.of(KeyedState.class);
         }
       })
       .put(BoundedWindow.class, new ExtraContextInfo() {
         @Override
-        public <I, O> Object createInstance(ExtraContextFactory<I, O> factory) {
+        public <InputT, OutputT> Object
+            createInstance(ExtraContextFactory<InputT, OutputT> factory) {
           return factory.window();
         }
 
         @Override
-        public <I, O> TypeToken<?> tokenFor(TypeToken<I> in, TypeToken<O> out) {
+        public <InputT, OutputT> TypeToken<?>
+            tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
           return TypeToken.of(BoundedWindow.class);
         }
       })
       .put(WindowingInternals.class, new ExtraContextInfo() {
         @Override
-        public <I, O> Object createInstance(ExtraContextFactory<I, O> factory) {
+        public <InputT, OutputT> Object
+            createInstance(ExtraContextFactory<InputT, OutputT> factory) {
           return factory.windowingInternals();
         }
 
         @Override
-        public <I, O> TypeToken<?> tokenFor(TypeToken<I> in, TypeToken<O> out) {
-          return new TypeToken<WindowingInternals<I, O>>() {
+        public <InputT, OutputT> TypeToken<?>
+            tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
+          return new TypeToken<WindowingInternals<InputT, OutputT>>() {
             private static final long serialVersionUID = 0;
           }
-          .where(new TypeParameter<I>() {}, in)
-          .where(new TypeParameter<O>() {}, out);
+          .where(new TypeParameter<InputT>() {}, in)
+          .where(new TypeParameter<OutputT>() {}, out);
         }
       })
       .build();
@@ -132,10 +139,10 @@ public abstract class DoFnReflector {
    * @param c the {@link com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ProcessContext}
    *     to pass to {@link ProcessElement}.
    */
-  abstract <I, O> void invokeProcessElement(
-      DoFnWithContext<I, O> fn,
-      DoFnWithContext<I, O>.ProcessContext c,
-      ExtraContextFactory<I, O> extra);
+  abstract <InputT, OutputT> void invokeProcessElement(
+      DoFnWithContext<InputT, OutputT> fn,
+      DoFnWithContext<InputT, OutputT>.ProcessContext c,
+      ExtraContextFactory<InputT, OutputT> extra);
 
   /**
    * Invoke the reflected {@link StartBundle} method on the given instance.
@@ -144,10 +151,10 @@ public abstract class DoFnReflector {
    * @param c the {@link com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.Context}
    *     to pass to {@link StartBundle}.
    */
-  abstract <I, O> void invokeStartBundle(
-     DoFnWithContext<I, O> fn,
-     DoFnWithContext<I, O>.Context c,
-     ExtraContextFactory<I, O> extra);
+  abstract <InputT, OutputT> void invokeStartBundle(
+     DoFnWithContext<InputT, OutputT> fn,
+     DoFnWithContext<InputT, OutputT>.Context c,
+     ExtraContextFactory<InputT, OutputT> extra);
 
   /**
    * Invoke the reflected {@link FinishBundle} method on the given instance.
@@ -156,10 +163,10 @@ public abstract class DoFnReflector {
    * @param c the {@link com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.Context}
    *     to pass to {@link FinishBundle}.
    */
-  abstract <I, O> void invokeFinishBundle(
-      DoFnWithContext<I, O> fn,
-      DoFnWithContext<I, O>.Context c,
-      ExtraContextFactory<I, O> extra);
+  abstract <InputT, OutputT> void invokeFinishBundle(
+      DoFnWithContext<InputT, OutputT> fn,
+      DoFnWithContext<InputT, OutputT>.Context c,
+      ExtraContextFactory<InputT, OutputT> extra);
 
   private static final Map<Class<?>, DoFnReflector> REFLECTOR_CACHE =
       new LinkedHashMap<Class<?>, DoFnReflector>();
@@ -182,15 +189,15 @@ public abstract class DoFnReflector {
   /**
    * Create a {@link DoFn} that the {@link DoFnWithContext}.
    */
-  public <I, O> DoFn<I, O> toDoFn(DoFnWithContext<I, O> fn) {
+  public <InputT, OutputT> DoFn<InputT, OutputT> toDoFn(DoFnWithContext<InputT, OutputT> fn) {
     if (usesKeyedState() && usesSingleWindow()) {
-      return new WindowAndKeyedStateDoFnAdapter<I, O>(this, fn);
+      return new WindowAndKeyedStateDoFnAdapter<InputT, OutputT>(this, fn);
     } else if (usesKeyedState()) {
-      return new KeyedStateDoFnAdapter<I, O>(this, fn);
+      return new KeyedStateDoFnAdapter<InputT, OutputT>(this, fn);
     } else if (usesSingleWindow()) {
-      return new WindowDoFnAdapter<I, O>(this, fn);
+      return new WindowDoFnAdapter<InputT, OutputT>(this, fn);
     } else {
-      return new SimpleDoFnAdapter<I, O>(this, fn);
+      return new SimpleDoFnAdapter<InputT, OutputT>(this, fn);
     }
   }
 
@@ -217,24 +224,26 @@ public abstract class DoFnReflector {
         .toSortedSet(String.CASE_INSENSITIVE_ORDER);
   }
 
-  @VisibleForTesting static <I, O> ExtraContextInfo[] verifyProcessMethodArguments(Method m) {
+  @VisibleForTesting
+  static <InputT, OutputT> ExtraContextInfo[] verifyProcessMethodArguments(Method m) {
     return verifyMethodArguments(m,
         EXTRA_PROCESS_CONTEXTS,
-        new TypeToken<DoFnWithContext<I, O>.ProcessContext>() {
+        new TypeToken<DoFnWithContext<InputT, OutputT>.ProcessContext>() {
           private static final long serialVersionUID = 0;
         },
-        new TypeParameter<I>() {},
-        new TypeParameter<O>() {});
+        new TypeParameter<InputT>() {},
+        new TypeParameter<OutputT>() {});
   }
 
-  @VisibleForTesting static <I, O> ExtraContextInfo[] verifyBundleMethodArguments(Method m) {
+  @VisibleForTesting
+  static <InputT, OutputT> ExtraContextInfo[] verifyBundleMethodArguments(Method m) {
     return verifyMethodArguments(m,
         EXTRA_CONTEXTS,
-        new TypeToken<DoFnWithContext<I, O>.Context>() {
+        new TypeToken<DoFnWithContext<InputT, OutputT>.Context>() {
           private static final long serialVersionUID = 0;
         },
-        new TypeParameter<I>() {},
-        new TypeParameter<O>() {});
+        new TypeParameter<InputT>() {},
+        new TypeParameter<OutputT>() {});
   }
 
   /**
@@ -246,8 +255,9 @@ public abstract class DoFnReflector {
    * <li>The first argument is of type firstContextArg.
    * <li>The remaining arguments have raw types that appear in {@code contexts}
    * <li>Any generics on the extra context arguments match what is expected. Eg.,
-   *     {@code WindowingInternals<I, O>} either matches the {@code I} and {@code O} parameters of
-   *     the {@code DoFn<I, O>.ProcessContext}, or it uses a wildcard, etc.
+   *     {@code WindowingInternals<InputT, OutputT>} either matches the
+   *     {@code InputT} and {@code OutputT} parameters of the
+   *     {@code DoFn<InputT, OutputT>.ProcessContext}, or it uses a wildcard, etc.
    * </ol>
    *
    * @param m the method to verify
@@ -257,9 +267,9 @@ public abstract class DoFnReflector {
    * @param iParam TypeParameter representing the input type
    * @param oParam TypeParameter representing the output type
    */
-  @VisibleForTesting static <I, O> ExtraContextInfo[] verifyMethodArguments(Method m,
+  @VisibleForTesting static <InputT, OutputT> ExtraContextInfo[] verifyMethodArguments(Method m,
       Map<Class<?>, ExtraContextInfo> contexts,
-      TypeToken<?> firstContextArg, TypeParameter<I> iParam, TypeParameter<O> oParam) {
+      TypeToken<?> firstContextArg, TypeParameter<InputT> iParam, TypeParameter<OutputT> oParam) {
 
     if (!void.class.equals(m.getReturnType())) {
       throw new IllegalStateException(String.format(
@@ -290,9 +300,9 @@ public abstract class DoFnReflector {
     // We actually want the owner, since ProcessContext and Context are owned by DoFnWithContext.
     pt = (ParameterizedType) pt.getOwnerType();
     @SuppressWarnings("unchecked")
-    TypeToken<I> iActual = (TypeToken<I>) TypeToken.of(pt.getActualTypeArguments()[0]);
+    TypeToken<InputT> iActual = (TypeToken<InputT>) TypeToken.of(pt.getActualTypeArguments()[0]);
     @SuppressWarnings("unchecked")
-    TypeToken<O> oActual = (TypeToken<O>) TypeToken.of(pt.getActualTypeArguments()[1]);
+    TypeToken<OutputT> oActual = (TypeToken<OutputT>) TypeToken.of(pt.getActualTypeArguments()[1]);
 
     // All of the remaining parameters must be a super-interface of allExtraContextArgs
     // that is not listed in the EXCLUDED_INTERFACES set.
@@ -446,37 +456,37 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    <I, O> void invokeProcessElement(
-        DoFnWithContext<I, O> fn,
-        DoFnWithContext<I, O>.ProcessContext c,
-        ExtraContextFactory<I, O> extra) {
+    <InputT, OutputT> void invokeProcessElement(
+        DoFnWithContext<InputT, OutputT> fn,
+        DoFnWithContext<InputT, OutputT>.ProcessContext c,
+        ExtraContextFactory<InputT, OutputT> extra) {
       invoke(processElement, fn, c, extra, processElementArgs);
     }
 
     @Override
-    <I, O> void invokeStartBundle(
-        DoFnWithContext<I, O> fn,
-        DoFnWithContext<I, O>.Context c,
-        ExtraContextFactory<I, O> extra) {
+    <InputT, OutputT> void invokeStartBundle(
+        DoFnWithContext<InputT, OutputT> fn,
+        DoFnWithContext<InputT, OutputT>.Context c,
+        ExtraContextFactory<InputT, OutputT> extra) {
       if (startBundle != null) {
         invoke(startBundle, fn, c, extra, startBundleArgs);
       }
     }
 
     @Override
-    <I, O> void invokeFinishBundle(
-        DoFnWithContext<I, O> fn,
-        DoFnWithContext<I, O>.Context c,
-        ExtraContextFactory<I, O> extra) {
+    <InputT, OutputT> void invokeFinishBundle(
+        DoFnWithContext<InputT, OutputT> fn,
+        DoFnWithContext<InputT, OutputT>.Context c,
+        ExtraContextFactory<InputT, OutputT> extra) {
       if (finishBundle != null) {
         invoke(finishBundle, fn, c, extra, finishBundleArgs);
       }
     }
 
-    private <I, O> void invoke(Method m,
-        DoFnWithContext<I, O> on,
-        DoFnWithContext<I, O>.Context contextArg,
-        ExtraContextFactory<I, O> extraArgFactory,
+    private <InputT, OutputT> void invoke(Method m,
+        DoFnWithContext<InputT, OutputT> on,
+        DoFnWithContext<InputT, OutputT>.Context contextArg,
+        ExtraContextFactory<InputT, OutputT> extraArgFactory,
         ExtraContextInfo[] extraArgs) {
 
       Class<?>[] parameterTypes = m.getParameterTypes();
@@ -499,12 +509,14 @@ public abstract class DoFnReflector {
     }
   }
 
-  private static class ContextAdapter<I, O> extends DoFnWithContext<I, O>.Context
-      implements DoFnWithContext.ExtraContextFactory<I, O> {
+  private static class ContextAdapter<InputT, OutputT>
+      extends DoFnWithContext<InputT, OutputT>.Context
+      implements DoFnWithContext.ExtraContextFactory<InputT, OutputT> {
 
-    private DoFn<I, O>.Context context;
+    private DoFn<InputT, OutputT>.Context context;
 
-    private ContextAdapter(DoFnWithContext<I, O> fn, DoFn<I, O>.Context context) {
+    private ContextAdapter(
+        DoFnWithContext<InputT, OutputT> fn, DoFn<InputT, OutputT>.Context context) {
       fn.super();
       this.context = context;
     }
@@ -515,12 +527,12 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public void output(O output) {
+    public void output(OutputT output) {
       context.output(output);
     }
 
     @Override
-    public void outputWithTimestamp(O output, Instant timestamp) {
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {
       context.outputWithTimestamp(output, timestamp);
     }
 
@@ -549,7 +561,7 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public WindowingInternals<I, O> windowingInternals() {
+    public WindowingInternals<InputT, OutputT> windowingInternals() {
       // The DoFnWithContext doesn't allow us to ask for these outside ProcessElements, so this
       // should be unreachable.
       throw new UnsupportedOperationException(
@@ -557,13 +569,15 @@ public abstract class DoFnReflector {
     }
   }
 
-  private static class ProcessContextAdapter<I, O>
-      extends DoFnWithContext<I, O>.ProcessContext
-      implements DoFnWithContext.ExtraContextFactory<I, O> {
+  private static class ProcessContextAdapter<InputT, OutputT>
+      extends DoFnWithContext<InputT, OutputT>.ProcessContext
+      implements DoFnWithContext.ExtraContextFactory<InputT, OutputT> {
 
-    private DoFn<I, O>.ProcessContext context;
+    private DoFn<InputT, OutputT>.ProcessContext context;
 
-    private ProcessContextAdapter(DoFnWithContext<I, O> fn, DoFn<I, O>.ProcessContext context) {
+    private ProcessContextAdapter(
+        DoFnWithContext<InputT, OutputT> fn,
+        DoFn<InputT, OutputT>.ProcessContext context) {
       fn.super();
       this.context = context;
     }
@@ -579,12 +593,12 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public void output(O output) {
+    public void output(OutputT output) {
       context.output(output);
     }
 
     @Override
-    public void outputWithTimestamp(O output, Instant timestamp) {
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {
       context.outputWithTimestamp(output, timestamp);
     }
 
@@ -599,7 +613,7 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public I element() {
+    public InputT element() {
       return context.element();
     }
 
@@ -619,7 +633,7 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public WindowingInternals<I, O> windowingInternals() {
+    public WindowingInternals<InputT, OutputT> windowingInternals() {
       return context.windowingInternals();
     }
   }
@@ -632,44 +646,44 @@ public abstract class DoFnReflector {
     }
   }
 
-  private static class SimpleDoFnAdapter<I, O> extends DoFn<I, O> {
+  private static class SimpleDoFnAdapter<InputT, OutputT> extends DoFn<InputT, OutputT> {
 
     private static final long serialVersionUID = 0;
 
     private transient DoFnReflector reflector;
-    private DoFnWithContext<I, O> fn;
+    private DoFnWithContext<InputT, OutputT> fn;
 
-    private SimpleDoFnAdapter(DoFnReflector reflector, DoFnWithContext<I, O> fn) {
+    private SimpleDoFnAdapter(DoFnReflector reflector, DoFnWithContext<InputT, OutputT> fn) {
       super(fn.aggregators);
       this.reflector = reflector;
       this.fn = fn;
     }
 
     @Override
-    public void startBundle(DoFn<I, O>.Context c) throws Exception {
-      ContextAdapter<I, O> adapter = new ContextAdapter<>(fn, c);
+    public void startBundle(DoFn<InputT, OutputT>.Context c) throws Exception {
+      ContextAdapter<InputT, OutputT> adapter = new ContextAdapter<>(fn, c);
       reflector.invokeStartBundle(fn, adapter, adapter);
     }
 
     @Override
-    public void finishBundle(DoFn<I, O>.Context c) throws Exception {
-      ContextAdapter<I, O> adapter = new ContextAdapter<>(fn, c);
+    public void finishBundle(DoFn<InputT, OutputT>.Context c) throws Exception {
+      ContextAdapter<InputT, OutputT> adapter = new ContextAdapter<>(fn, c);
       reflector.invokeFinishBundle(fn, adapter, adapter);
     }
 
     @Override
-    public void processElement(DoFn<I, O>.ProcessContext c) throws Exception {
-      ProcessContextAdapter<I, O> adapter = new ProcessContextAdapter<>(fn, c);
+    public void processElement(DoFn<InputT, OutputT>.ProcessContext c) throws Exception {
+      ProcessContextAdapter<InputT, OutputT> adapter = new ProcessContextAdapter<>(fn, c);
       reflector.invokeProcessElement(fn, adapter, adapter);
     }
 
     @Override
-    protected TypeToken<I> getInputTypeToken() {
+    protected TypeToken<InputT> getInputTypeToken() {
       return fn.getInputTypeToken();
     }
 
     @Override
-    protected TypeToken<O> getOutputTypeToken() {
+    protected TypeToken<OutputT> getOutputTypeToken() {
       return fn.getOutputTypeToken();
     }
 
@@ -680,29 +694,31 @@ public abstract class DoFnReflector {
     }
   }
 
-  private static class KeyedStateDoFnAdapter<I, O>
-      extends SimpleDoFnAdapter<I, O> implements DoFn.RequiresKeyedState {
+  private static class KeyedStateDoFnAdapter<InputT, OutputT>
+      extends SimpleDoFnAdapter<InputT, OutputT> implements DoFn.RequiresKeyedState {
 
     private static final long serialVersionUID = 0;
-    private KeyedStateDoFnAdapter(DoFnReflector reflector, DoFnWithContext<I, O> fn) {
+    private KeyedStateDoFnAdapter(DoFnReflector reflector, DoFnWithContext<InputT, OutputT> fn) {
       super(reflector, fn);
     }
   }
 
-  private static class WindowDoFnAdapter<I, O>
-  extends SimpleDoFnAdapter<I, O> implements DoFn.RequiresWindowAccess {
+  private static class WindowDoFnAdapter<InputT, OutputT>
+  extends SimpleDoFnAdapter<InputT, OutputT> implements DoFn.RequiresWindowAccess {
 
     private static final long serialVersionUID = 0;
-    private WindowDoFnAdapter(DoFnReflector reflector, DoFnWithContext<I, O> fn) {
+    private WindowDoFnAdapter(DoFnReflector reflector, DoFnWithContext<InputT, OutputT> fn) {
       super(reflector, fn);
     }
   }
 
-  private static class WindowAndKeyedStateDoFnAdapter<I, O>
-  extends SimpleDoFnAdapter<I, O> implements DoFn.RequiresKeyedState, DoFn.RequiresWindowAccess {
+  private static class WindowAndKeyedStateDoFnAdapter<InputT, OutputT>
+      extends SimpleDoFnAdapter<InputT, OutputT>
+      implements DoFn.RequiresKeyedState, DoFn.RequiresWindowAccess {
 
     private static final long serialVersionUID = 0;
-    private WindowAndKeyedStateDoFnAdapter(DoFnReflector reflector, DoFnWithContext<I, O> fn) {
+    private WindowAndKeyedStateDoFnAdapter(
+        DoFnReflector reflector, DoFnWithContext<InputT, OutputT> fn) {
       super(reflector, fn);
     }
   }

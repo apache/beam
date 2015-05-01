@@ -41,24 +41,24 @@ import java.util.Set;
  * It merges accumulators when windows are added or merged.
  *
  * @param <K> key type
- * @param <VI> value input type
- * @param <VA> accumulator type
- * @param <VO> value output type
+ * @param <InputT> value input type
+ * @param <AccumT> accumulator type
+ * @param <OutputT> value output type
  * @param <W> window type
  */
-public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
-    extends AbstractWindowSet<K, VI, VO, W> {
+public class CombiningWindowSet<K, InputT, AccumT, OutputT, W extends BoundedWindow>
+    extends AbstractWindowSet<K, InputT, OutputT, W> {
 
-  public static <K, VI, VA, VO, W extends BoundedWindow>
-  AbstractWindowSet.Factory<K, VI, VO, W> factory(
-      final KeyedCombineFn<K, VI, VA, VO> combineFn,
-      final Coder<K> keyCoder, final Coder<VI> inputCoder) {
-    return new AbstractWindowSet.Factory<K, VI, VO, W>() {
+  public static <K, InputT, AccumT, OutputT, W extends BoundedWindow>
+  AbstractWindowSet.Factory<K, InputT, OutputT, W> factory(
+      final KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn,
+      final Coder<K> keyCoder, final Coder<InputT> inputCoder) {
+    return new AbstractWindowSet.Factory<K, InputT, OutputT, W>() {
 
       private static final long serialVersionUID = 0L;
 
       @Override
-      public AbstractWindowSet<K, VI, VO, W> create(K key,
+      public AbstractWindowSet<K, InputT, OutputT, W> create(K key,
           Coder<W> windowCoder, KeyedState keyedState,
           WindowingInternals<?, ?> windowingInternals) throws Exception {
         return new CombiningWindowSet<>(
@@ -70,17 +70,17 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
   private final CodedTupleTag<Iterable<W>> windowListTag =
       CodedTupleTag.of("liveWindowsList", IterableCoder.of(windowCoder));
 
-  private final KeyedCombineFn<K, VI, VA, VO> combineFn;
+  private final KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn;
   private final Set<W> liveWindows;
-  private final Coder<VA> accumulatorCoder;
+  private final Coder<AccumT> accumulatorCoder;
   private boolean liveWindowsModified;
 
   protected CombiningWindowSet(
       K key,
       Coder<W> windowCoder,
-      KeyedCombineFn<K, VI, VA, VO> combineFn,
+      KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn,
       Coder<K> keyCoder,
-      Coder<VI> inputValueCoder,
+      Coder<InputT> inputValueCoder,
       KeyedState keyedState,
       WindowingInternals<?, ?> windowingInternals) throws Exception {
     super(key, windowCoder, inputValueCoder, keyedState, windowingInternals);
@@ -101,8 +101,8 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
   }
 
   @Override
-  protected VO finalValue(W window) throws Exception {
-    VA accumulator = lookupAccumulator(window);
+  protected OutputT finalValue(W window) throws Exception {
+    AccumT accumulator = lookupAccumulator(window);
     if (accumulator == null) {
       return null;
     }
@@ -111,8 +111,8 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
   }
 
   @Override
-  protected WindowStatus put(W window, VI value) throws Exception {
-    VA accumulator = lookupAccumulator(window);
+  protected WindowStatus put(W window, InputT value) throws Exception {
+    AccumT accumulator = lookupAccumulator(window);
     if (accumulator == null) {
       storeAccumulator(window, combineFn.addInput(key, combineFn.createAccumulator(key), value));
       return WindowStatus.NEW;
@@ -132,27 +132,27 @@ public class CombiningWindowSet<K, VI, VA, VO, W extends BoundedWindow>
 
   @Override
   protected void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
-    List<VA> accumulators = Lists.newArrayList();
+    List<AccumT> accumulators = Lists.newArrayList();
     for (W window : toBeMerged) {
-      VA accumulator = Preconditions.checkNotNull(lookupAccumulator(window));
+      AccumT accumulator = Preconditions.checkNotNull(lookupAccumulator(window));
       accumulators.add(accumulator);
       remove(window);
     }
-    VA mergedAccumulator = combineFn.mergeAccumulators(key, accumulators);
+    AccumT mergedAccumulator = combineFn.mergeAccumulators(key, accumulators);
     storeAccumulator(mergeResult, mergedAccumulator);
   }
 
-  private CodedTupleTag<VA> accumulatorTag(W window) throws Exception {
+  private CodedTupleTag<AccumT> accumulatorTag(W window) throws Exception {
     // TODO: Cache this.
     return bufferTag(window, windowCoder, accumulatorCoder);
   }
 
-  private void storeAccumulator(W window, VA accumulator) throws Exception {
+  private void storeAccumulator(W window, AccumT accumulator) throws Exception {
     keyedState.store(accumulatorTag(window), accumulator);
     liveWindowsModified = liveWindows.add(window);
   }
 
-  private VA lookupAccumulator(W window) throws Exception {
+  private AccumT lookupAccumulator(W window) throws Exception {
     return keyedState.lookup(accumulatorTag(window));
   }
 

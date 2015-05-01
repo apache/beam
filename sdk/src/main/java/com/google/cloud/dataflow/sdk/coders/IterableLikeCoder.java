@@ -37,10 +37,10 @@ import java.util.Observer;
  * {@link Coder} for a class that implements {@code Iterable}.
  *
  * @param <T> the type of the elements of the {@code Iterable}s being transcoded
- * @param <IT> the type of the Iterables being transcoded
+ * @param <IterableT> the type of the Iterables being transcoded
  */
-public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
-    extends StandardCoder<IT> {
+public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
+    extends StandardCoder<IterableT> {
   private static final long serialVersionUID = 0;
 
   public Coder<T> getElemCoder() {
@@ -49,11 +49,11 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
 
   /**
    * Builds an instance of the coder's associated {@code Iterable} from a list
-   * of decoded elements.  If {@code IT} is a supertype of {@code List<T>}, the
+   * of decoded elements.  If {@code IterableT} is a supertype of {@code List<T>}, the
    * derived class implementation is permitted to return {@code decodedElements}
    * directly.
    */
-  protected abstract IT decodeToIterable(List<T> decodedElements);
+  protected abstract IterableT decodeToIterable(List<T> decodedElements);
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
@@ -64,9 +64,8 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
    * Returns the first element in this iterable-like if it is non-empty,
    * otherwise returns {@code null}.
    */
-  protected static <T, IT extends Iterable<T>>
-      List<Object> getInstanceComponentsHelper(
-          IT exampleValue) {
+  protected static <T, IterableT extends Iterable<T>>
+      List<Object> getInstanceComponentsHelper(IterableT exampleValue) {
     for (T value : exampleValue) {
       return Arrays.<Object>asList(value);
     }
@@ -80,7 +79,8 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
   }
 
   @Override
-  public void encode(IT iterable, OutputStream outStream, Context context)
+  public void encode(
+      IterableT iterable, OutputStream outStream, Context context)
       throws IOException, CoderException  {
     if (iterable == null) {
       throw new CoderException("cannot encode a null Iterable");
@@ -111,7 +111,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
   }
 
   @Override
-  public IT decode(InputStream inStream, Context context)
+  public IterableT decode(InputStream inStream, Context context)
       throws IOException, CoderException {
     Context nestedContext = context.nested();
     DataInputStream dataInStream = new DataInputStream(inStream);
@@ -154,7 +154,8 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
    * requires minimal extra computation.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(IT iterable, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(
+      IterableT iterable, Context context) {
     return iterable instanceof ElementByteSizeObservableIterable;
   }
 
@@ -164,7 +165,7 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
    */
   @Override
   public void registerByteSizeObserver(
-      IT iterable, ElementByteSizeObserver observer, Context context)
+      IterableT iterable, ElementByteSizeObserver observer, Context context)
       throws Exception {
     if (iterable == null) {
       throw new CoderException("cannot encode a null Iterable");
@@ -173,9 +174,9 @@ public abstract class IterableLikeCoder<T, IT extends Iterable<T>>
 
     if (iterable instanceof ElementByteSizeObservableIterable) {
       observer.setLazy();
-      ElementByteSizeObservableIterable<?, ?> observableIT =
+      ElementByteSizeObservableIterable<?, ?> observableIterable =
           (ElementByteSizeObservableIterable) iterable;
-      observableIT.addObserver(
+      observableIterable.addObserver(
           new IteratorObserver(observer, iterable instanceof Collection));
     } else {
       if (iterable instanceof Collection) {

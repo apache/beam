@@ -104,7 +104,7 @@ class UngroupedWindmillReader<T> extends Reader<WindowedValue<T>> {
       }
     }
 
-    private <S> S decode(Coder<S> coder, InputStream input) throws IOException {
+    private <T> T decode(Coder<T> coder, InputStream input) throws IOException {
       return coder.decode(input, Coder.Context.OUTER);
     }
   }

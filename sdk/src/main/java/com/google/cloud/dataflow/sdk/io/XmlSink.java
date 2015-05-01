@@ -33,6 +33,7 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 
+// JAVADOCSTYLE OFF
 /**
  * A {@link Sink} that outputs records as XML-formatted elements. Writes a {@link PCollection} of
  * records from JAXB-annotated classes to a single file location.
@@ -131,6 +132,8 @@ import javax.xml.bind.Marshaller;
  * }
  * </pre>
  */
+// JAVADOCSTYLE ON
+@SuppressWarnings("checkstyle:javadocstyle")
 public class XmlSink {
   protected static final String XML_EXTENSION = "xml";
 

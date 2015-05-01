@@ -29,9 +29,9 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 /**
- * A {@code PTransform<Input, Output>} is an operation that takes an
- * {@code Input} (some subtype of {@link PInput}) and produces an
- * {@code Output} (some subtype of {@link POutput}).
+ * A {@code PTransform<InputT, OutputT>} is an operation that takes an
+ * {@code InputT} (some subtype of {@link PInput}) and produces an
+ * {@code OutputT} (some subtype of {@link POutput}).
  *
  * <p> Common PTransforms include root PTransforms like
  * {@link com.google.cloud.dataflow.sdk.io.TextIO.Read},
@@ -44,10 +44,10 @@ import java.io.Serializable;
  * {@link com.google.cloud.dataflow.sdk.io.TextIO.Write}.  Users also
  * define their own application-specific composite PTransforms.
  *
- * <p> Each {@code PTransform<Input, Output>} has a single
- * {@code Input} type and a single {@code Output} type.  Many
+ * <p> Each {@code PTransform<InputT, OutputT>} has a single
+ * {@code InputT} type and a single {@code OutputT} type.  Many
  * PTransforms conceptually transform one input value to one output
- * value, and in this case {@code Input} and {@code Output} are
+ * value, and in this case {@code InputT} and {@code Output} are
  * typically instances of
  * {@link com.google.cloud.dataflow.sdk.values.PCollection}.
  * A root
@@ -65,8 +65,8 @@ import java.io.Serializable;
  * to combine multiple values into a single bundle for passing into or
  * returning from the PTransform.
  *
- * <p> A {@code PTransform<Input, Output>} is invoked by calling
- * {@code apply()} on its {@code Input}, returning its {@code Output}.
+ * <p> A {@code PTransform<InputT, OutputT>} is invoked by calling
+ * {@code apply()} on its {@code InputT}, returning its {@code OutputT}.
  * Calls can be chained to concisely create linear pipeline segments.
  * For example:
  *
@@ -128,7 +128,7 @@ import java.io.Serializable;
  * The majority of PTransforms are
  * implemented as composites of other PTransforms.  Such a PTransform
  * subclass typically just implements {@link #apply}, computing its
- * Output value from its Input value.  User programs are encouraged to
+ * Output value from its {@code InputT} value.  User programs are encouraged to
  * use this mechanism to modularize their own code.  Such composite
  * abstractions get their own name, and navigating through the
  * composition hierarchy of PTransforms is supported by the monitoring
@@ -164,15 +164,15 @@ import java.io.Serializable;
  * "https://cloud.google.com/dataflow/java-sdk/applying-transforms"
  * >Applying Transformations</a>
  *
- * @param <Input> the type of the input to this PTransform
- * @param <Output> the type of the output of this PTransform
+ * @param <InputT> the type of the input to this PTransform
+ * @param <OutputT> the type of the output of this PTransform
  */
-public abstract class PTransform<Input extends PInput, Output extends POutput>
+public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     implements Serializable /* See the note above */ {
   private static final long serialVersionUID = 0;
 
   /**
-   * Applies this {@code PTransform} on the given {@code Input}, and returns its
+   * Applies this {@code PTransform} on the given {@code InputT}, and returns its
    * {@code Output}.
    *
    * <p> Composite transforms, which are defined in terms of other transforms,
@@ -186,7 +186,7 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
    * implementation via
    * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner#apply}.
    */
-  public Output apply(Input input) {
+  public OutputT apply(InputT input) {
     throw new IllegalArgumentException(
         "Runner " + getPipeline().getRunner()
             + " has not registered an implementation for the required primitive operation "
@@ -200,13 +200,13 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
    *
    * <p> By default, does nothing.
    */
-  public void validate(Input input) { }
+  public void validate(InputT input) { }
 
   /**
    * Sets the base name of this {@code PTransform}.
    * Returns {@code this} for method chaining.
    */
-  public PTransform<Input, Output> setName(String name) {
+  public PTransform<InputT, OutputT> setName(String name) {
     this.name = name;
     return this;
   }
@@ -215,7 +215,7 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
    * @deprecated Use {@link #setName}, which has been modified to return {@code this}.
    */
   @Deprecated
-  public PTransform<Input, Output> withName(String name) {
+  public PTransform<InputT, OutputT> withName(String name) {
     return setName(name);
   }
 
@@ -248,9 +248,9 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
    * @throws IllegalStateException if this PTransform hasn't been applied yet
    */
   @Deprecated
-  private Output getOutput() {
+  private OutputT getOutput() {
     @SuppressWarnings("unchecked")
-    Output output = (Output) getPipeline().getOutput(this);
+    OutputT output = (OutputT) getPipeline().getOutput(this);
     return output;
   }
 
@@ -375,7 +375,7 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
    *
    * <p> By default, always throws.
    */
-  protected Coder<?> getDefaultOutputCoder(Input input) throws CannotProvideCoderException {
+  protected Coder<?> getDefaultOutputCoder(InputT input) throws CannotProvideCoderException {
     return getDefaultOutputCoder();
   }
 
@@ -387,7 +387,7 @@ public abstract class PTransform<Input extends PInput, Output extends POutput>
    *
    * <p> By default, always throws.
    */
-  public <T> Coder<T> getDefaultOutputCoder(Input input, TypedPValue<T> output)
+  public <T> Coder<T> getDefaultOutputCoder(InputT input, TypedPValue<T> output)
       throws CannotProvideCoderException {
     if (output != getOutput()) {
       throw new CannotProvideCoderException(

@@ -311,16 +311,16 @@ public class GroupAlsoByWindowsDoFnTest {
     return makeRunner(windowingStrategy, fn);
   }
 
-  private <VI, VO> DoFnRunner<KV<String, Iterable<WindowedValue<VI>>>,
-    KV<String, VO>, List> makeRunner(
+  private <InputT, OutputT> DoFnRunner<KV<String, Iterable<WindowedValue<InputT>>>,
+    KV<String, OutputT>, List> makeRunner(
         WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
-        GroupAlsoByWindowsDoFn<String, VI, VO, IntervalWindow> fn) {
+        GroupAlsoByWindowsDoFn<String, InputT, OutputT, IntervalWindow> fn) {
     return
         DoFnRunner.createWithListOutputs(
             PipelineOptionsFactory.create(),
             fn,
             PTuple.empty(),
-            (TupleTag<KV<String, VO>>) (TupleTag) outputTag,
+            (TupleTag<KV<String, OutputT>>) (TupleTag) outputTag,
             new ArrayList<TupleTag<?>>(),
             execContext.createStepContext("merge"),
             counters.getAddCounterMutator(),

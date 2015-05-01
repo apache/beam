@@ -141,14 +141,14 @@ public class Min {
    * of elements of type {@code N}, useful as an
    * argument to {@link Combine#globally} or {@link Combine#perKey}.
    *
-   * @param <N> the type of the {@code Number}s being compared
+   * @param <NumT> the type of the {@code Number}s being compared
    */
-  public static class MinFn<N extends Comparable<N>>
-      extends Combine.BinaryCombineFn<N> {
+  public static class MinFn<NumT extends Comparable<NumT>>
+      extends Combine.BinaryCombineFn<NumT> {
     private static final long serialVersionUID = 0;
 
-    /** The largest value of type N. */
-    private final N initialValue;
+    /** The largest value of type NumT. */
+    private final NumT initialValue;
 
     /**
      * Constructs a combining function that computes the minimum over
@@ -156,17 +156,17 @@ public class Min {
      * value of type {@code N}, which is the identity value for the
      * minimum operation over {@code N}s.
      */
-    public MinFn(N initialValue) {
+    public MinFn(NumT initialValue) {
       this.initialValue = initialValue;
     }
 
     @Override
-    public N apply(N a, N b) {
+    public NumT apply(NumT a, NumT b) {
       return a.compareTo(b) <= 0 ? a : b;
     }
 
     @Override
-    public N identity() {
+    public NumT identity() {
       return initialValue;
     }
   }

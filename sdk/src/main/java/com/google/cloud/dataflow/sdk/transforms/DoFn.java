@@ -60,11 +60,11 @@ import java.util.Map;
  * {@link ProcessContext#window()} without the need to implement
  * {@link RequiresKeyedState} or {@link RequiresWindowAccess}.
  *
- * @param <I> the type of the (main) input elements
- * @param <O> the type of the (main) output elements
+ * @param <InputT> the type of the (main) input elements
+ * @param <OutputT> the type of the (main) output elements
  */
 @SuppressWarnings("serial")
-public abstract class DoFn<I, O> implements Serializable {
+public abstract class DoFn<InputT, OutputT> implements Serializable {
 
   /** Information accessible to all methods in this {@code DoFn}. */
   public abstract class Context {
@@ -92,7 +92,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
      */
-    public abstract void output(O output);
+    public abstract void output(OutputT output);
 
     /**
      * Adds the given element to the main output {@code PCollection},
@@ -111,7 +111,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * to access any information about the input element except for the
      * timestamp.
      */
-    public abstract void outputWithTimestamp(O output, Instant timestamp);
+    public abstract void outputWithTimestamp(OutputT output, Instant timestamp);
 
     /**
      * Adds the given element to the side output {@code PCollection} with the
@@ -175,9 +175,8 @@ public abstract class DoFn<I, O> implements Serializable {
      *         context
      */
     @Experimental(Kind.AGGREGATOR)
-    protected abstract <VI, VO> Aggregator<VI, VO> createAggregatorInternal(
-        String name,
-        CombineFn<VI, ?, VO> combiner);
+    protected abstract <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
+        createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner);
 
     /**
      * Sets up {@link Aggregator}s created by the {@link DoFn} so they are
@@ -193,10 +192,10 @@ public abstract class DoFn<I, O> implements Serializable {
       }
     }
 
-    private final <VI, VO> void setupDelegateAggregator(
-        DelegatingAggregator<VI, VO> aggregator) {
+    private final <AggInputT, AggOutputT> void setupDelegateAggregator(
+        DelegatingAggregator<AggInputT, AggOutputT> aggregator) {
 
-      Aggregator<VI, VO> delegate = createAggregatorInternal(
+      Aggregator<AggInputT, AggOutputT> delegate = createAggregatorInternal(
           aggregator.getName(), aggregator.getCombineFn());
 
       aggregator.setDelegate(delegate);
@@ -211,18 +210,18 @@ public abstract class DoFn<I, O> implements Serializable {
     /**
      * Returns the input element to be processed.
      */
-    public abstract I element();
+    public abstract InputT element();
 
     /**
      * Returns the value of the side input for the window corresponding to the
      * window of the main input element.
      *
      * <p> See
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn#getSideInputWindow}
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn#getSideInputTWindow}
      * for how this corresponding window is determined.
      *
      * @throws IllegalArgumentException if this is not a side input
-     * @see ParDo#withSideInputs
+     * @see ParDo#withSideInputTs
      */
     public abstract <T> T sideInput(PCollectionView<T> view);
 
@@ -270,7 +269,7 @@ public abstract class DoFn<I, O> implements Serializable {
      * Returns the process context to use for implementing windowing.
      */
     @Experimental
-    public abstract WindowingInternals<I, O> windowingInternals();
+    public abstract WindowingInternals<InputT, OutputT> windowingInternals();
   }
 
   /**
@@ -391,8 +390,8 @@ public abstract class DoFn<I, O> implements Serializable {
    *
    * <p> See {@link #getOutputTypeToken} for more discussion.
    */
-  protected TypeToken<I> getInputTypeToken() {
-    return new TypeToken<I>(getClass()) {};
+  protected TypeToken<InputT> getInputTypeToken() {
+    return new TypeToken<InputT>(getClass()) {};
   }
 
   /**
@@ -403,11 +402,11 @@ public abstract class DoFn<I, O> implements Serializable {
    * <p> In the normal case of a concrete {@code DoFn} subclass with
    * no generic type parameters of its own (including anonymous inner
    * classes), this will be a complete non-generic type, which is good
-   * for choosing a default output {@code Coder<O>} for the output
-   * {@code PCollection<O>}.
+   * for choosing a default output {@code Coder<OutputT>} for the output
+   * {@code PCollection<OutputT>}.
    */
-  protected TypeToken<O> getOutputTypeToken() {
-    return new TypeToken<O>(getClass()) {};
+  protected TypeToken<OutputT> getOutputTypeToken() {
+    return new TypeToken<OutputT>(getClass()) {};
   }
 
   /**
@@ -423,15 +422,15 @@ public abstract class DoFn<I, O> implements Serializable {
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
    */
-  protected final <VI, VO> Aggregator<VI, VO> createAggregator(String name,
-      CombineFn<? super VI, ?, VO> combiner) {
+  protected final <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
+      createAggregator(String name, CombineFn<? super AggInputT, ?, AggOutputT> combiner) {
     checkNotNull(name, "name cannot be null");
     checkNotNull(combiner, "combiner cannot be null");
     checkArgument(!aggregators.containsKey(name),
         "Cannot create aggregator with name %s."
         + " An Aggregator with that name already exists within this scope.",
         name);
-    DelegatingAggregator<VI, VO> aggregator =
+    DelegatingAggregator<AggInputT, AggOutputT> aggregator =
         new DelegatingAggregator<>(name, combiner);
     aggregators.put(name, aggregator);
     return aggregator;
@@ -450,8 +449,8 @@ public abstract class DoFn<I, O> implements Serializable {
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
    */
-  protected final <VI> Aggregator<VI, VI> createAggregator(String name,
-      SerializableFunction<Iterable<VI>, VI> combiner) {
+  protected final <AggInputT> Aggregator<AggInputT, AggInputT> createAggregator(String name,
+      SerializableFunction<Iterable<AggInputT>, AggInputT> combiner) {
     checkNotNull(combiner, "combiner cannot be null.");
     return createAggregator(name, Combine.SimpleCombineFn.of(combiner));
   }
@@ -460,30 +459,31 @@ public abstract class DoFn<I, O> implements Serializable {
    * An {@link Aggregator} that delegates calls to addValue to another
    * aggregator.
    *
-   * @param <VI> the type of input element
-   * @param <VO> the type of output element
+   * @param <AggInputT> the type of input element
+   * @param <AggOutputT> the type of output element
    */
-  static class DelegatingAggregator<VI, VO> implements
-      Aggregator<VI, VO>, Serializable {
+  static class DelegatingAggregator<AggInputT, AggOutputT> implements
+      Aggregator<AggInputT, AggOutputT>, Serializable {
     private static final long serialVersionUID = 0L;
 
     private final String name;
 
-    private final CombineFn<VI, ?, VO> combineFn;
+    private final CombineFn<AggInputT, ?, AggOutputT> combineFn;
 
-    private Aggregator<VI, ?> delegate;
+    private Aggregator<AggInputT, ?> delegate;
 
     public DelegatingAggregator(String name,
-        CombineFn<? super VI, ?, VO> combiner) {
+        CombineFn<? super AggInputT, ?, AggOutputT> combiner) {
       this.name = name;
       // Safe contravariant cast
       @SuppressWarnings("unchecked")
-      CombineFn<VI, ?, VO> specificCombiner = (CombineFn<VI, ?, VO>) combiner;
+      CombineFn<AggInputT, ?, AggOutputT> specificCombiner =
+          (CombineFn<AggInputT, ?, AggOutputT>) combiner;
       this.combineFn = specificCombiner;
     }
 
     @Override
-    public void addValue(VI value) {
+    public void addValue(AggInputT value) {
       if (delegate == null) {
         throw new IllegalStateException(
             "addValue cannot be called on Aggregator outside of the execution of a DoFn.");
@@ -498,7 +498,7 @@ public abstract class DoFn<I, O> implements Serializable {
     }
 
     @Override
-    public CombineFn<VI, ?, VO> getCombineFn() {
+    public CombineFn<AggInputT, ?, AggOutputT> getCombineFn() {
       return combineFn;
     }
 
@@ -507,7 +507,7 @@ public abstract class DoFn<I, O> implements Serializable {
      *
      * @param delegate the delegate to set in this aggregator
      */
-    public void setDelegate(Aggregator<VI, ?> delegate) {
+    public void setDelegate(Aggregator<AggInputT, ?> delegate) {
       this.delegate = delegate;
     }
   }

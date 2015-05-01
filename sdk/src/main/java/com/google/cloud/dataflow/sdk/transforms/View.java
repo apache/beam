@@ -60,7 +60,7 @@ import java.util.NoSuchElementException;
  *
  * <pre>
  * {@code
- * PCollectionView<A> output = someOtherPCollection
+ * PCollectionView<T> output = someOtherPCollection
  *     .apply(Combine.globally(...))
  *     .apply(View.asSingleton());
  * }
@@ -71,7 +71,7 @@ import java.util.NoSuchElementException;
  *
  * <pre>
  * {@code
- * PCollectionView<Iterable<A>> output =
+ * PCollectionView<Iterable<T>> output =
  *     somePCollection.apply(View.asIterable());
  * }
  * </pre>
@@ -259,12 +259,13 @@ public class View {
     }
 
     /**
-     * Returns a PTransform creating a view as a {@code Map<K, VO>} rather than a
+     * Returns a PTransform creating a view as a {@code Map<K, OutputT>} rather than a
      * {@code Map<K, Iterable<V>>} by applying the given combiner to the set of
      * values associated with each key.
      */
-    public <VO> AsSingletonMap<K, V, VO> withCombiner(CombineFn<V, ?, VO> combineFn) {
-      return new AsSingletonMap<K, V, VO>(combineFn);
+    public <OutputT> AsSingletonMap<K, V, OutputT>
+        withCombiner(CombineFn<V, ?, OutputT> combineFn) {
+      return new AsSingletonMap<K, V, OutputT>(combineFn);
     }
 
     @Override
@@ -292,33 +293,34 @@ public class View {
    *
    * <p> Instantiate via {@link View#asMap}.
    */
-  public static class AsSingletonMap<K, VI, VO>
-      extends PTransform<PCollection<KV<K, VI>>, PCollectionView<Map<K, VO>>> {
+  public static class AsSingletonMap<K, InputT, OutputT>
+      extends PTransform<PCollection<KV<K, InputT>>, PCollectionView<Map<K, OutputT>>> {
     private static final long serialVersionUID = 0;
 
-    private CombineFn<VI, ?, VO> combineFn;
+    private CombineFn<InputT, ?, OutputT> combineFn;
 
-    private AsSingletonMap(CombineFn<VI, ?, VO> combineFn) {
+    private AsSingletonMap(CombineFn<InputT, ?, OutputT> combineFn) {
       this.combineFn = combineFn;
     }
 
     @Override
-    public PCollectionView<Map<K, VO>> apply(PCollection<KV<K, VI>> input) {
-      // VI == VO if combineFn is null
+    public PCollectionView<Map<K, OutputT>> apply(PCollection<KV<K, InputT>> input) {
+      // InputT == OutputT if combineFn is null
       @SuppressWarnings("unchecked")
-      PCollection<KV<K, VO>> combined =
+      PCollection<KV<K, OutputT>> combined =
         combineFn == null
         ? (PCollection) input
         : input.apply(Combine.perKey(combineFn.<K>asKeyedFn()));
 
-      MapPCollectionView<K, VO> view = new MapPCollectionView<K, VO>(
+      MapPCollectionView<K, OutputT> view = new MapPCollectionView<K, OutputT>(
           input.getPipeline(), combined.getWindowingStrategy(), combined.getCoder());
 
-      CreatePCollectionView<KV<K, VO>, Map<K, VO>> createView = new CreatePCollectionView<>(view);
+      CreatePCollectionView<KV<K, OutputT>, Map<K, OutputT>> createView =
+          new CreatePCollectionView<>(view);
 
       if (combined.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()) {
         return combined
-            .apply(Combine.globally(new Concatenate<KV<K, VO>>()).withoutDefaults())
+            .apply(Combine.globally(new Concatenate<KV<K, OutputT>>()).withoutDefaults())
             .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, combined.getCoder())))
             .apply(createView);
       } else {
@@ -380,21 +382,21 @@ public class View {
    *
    * <p> For internal use only.
    *
-   * @param <R> The type of the elements of the input PCollection
-   * @param <T> The type associated with the {@link PCollectionView} used as a side input
+   * @param <ElemT> The type of the elements of the input PCollection
+   * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input
    */
-  public static class CreatePCollectionView<R, T>
-      extends PTransform<PCollection<R>, PCollectionView<T>> {
+  public static class CreatePCollectionView<ElemT, ViewT>
+      extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
     private static final long serialVersionUID = 0;
 
-    private PCollectionView<T> view;
+    private PCollectionView<ViewT> view;
 
-    public CreatePCollectionView(PCollectionView<T> view) {
+    public CreatePCollectionView(PCollectionView<ViewT> view) {
       this.view = view;
     }
 
     @Override
-    public PCollectionView<T> apply(PCollection<R> input) {
+    public PCollectionView<ViewT> apply(PCollection<ElemT> input) {
       return view;
     }
 
@@ -409,10 +411,10 @@ public class View {
               evaluateTyped(transform, context);
             }
 
-            private <R, T> void evaluateTyped(
-                CreatePCollectionView<R, T> transform,
+            private <ElemT, ViewT> void evaluateTyped(
+                CreatePCollectionView<ElemT, ViewT> transform,
                 DirectPipelineRunner.EvaluationContext context) {
-              List<WindowedValue<R>> elems =
+              List<WindowedValue<ElemT>> elems =
                   context.getPCollectionWindowedValues(context.getInput(transform));
               context.setPCollectionView(context.getOutput(transform), elems);
             }

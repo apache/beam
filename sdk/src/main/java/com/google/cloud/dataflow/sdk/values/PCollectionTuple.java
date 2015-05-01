@@ -154,8 +154,8 @@ public class PCollectionTuple implements PInput, POutput {
    * Applies the given PTransform to this input PCollectionTuple, and
    * returns the PTransform's Output.
    */
-  public <Output extends POutput> Output apply(
-      PTransform<PCollectionTuple, Output> t) {
+  public <OutputT extends POutput> OutputT apply(
+      PTransform<PCollectionTuple, OutputT> t) {
     return Pipeline.applyTransform(this, t);
   }
 

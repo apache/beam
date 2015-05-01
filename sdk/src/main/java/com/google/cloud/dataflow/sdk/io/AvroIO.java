@@ -239,10 +239,10 @@ public class AvroIO {
        * that reads Avro file(s) containing records whose type is the
        * specified Avro-generated class.  Does not modify this object.
        *
-       * @param <T1> the type of the decoded elements, and the elements of
+       * @param <X> the type of the decoded elements, and the elements of
        * the resulting PCollection
        */
-      public <T1> Bound<T1> withSchema(Class<T1> type) {
+      public <X> Bound<X> withSchema(Class<X> type) {
         return new Bound<>(name, filepattern, type, ReflectData.get().getSchema(type), validate);
       }
 
@@ -573,9 +573,9 @@ public class AvroIO {
        * that writes to Avro file(s) containing records whose type is the
        * specified Avro-generated class.  Does not modify this object.
        *
-       * @param <T1> the type of the elements of the input PCollection
+       * @param <X> the type of the elements of the input PCollection
        */
-      public <T1> Bound<T1> withSchema(Class<T1> type) {
+      public <X> Bound<X> withSchema(Class<X> type) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type,
             ReflectData.get().getSchema(type), validate);
       }

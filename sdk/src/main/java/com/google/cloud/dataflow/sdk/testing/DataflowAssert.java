@@ -371,16 +371,16 @@ public class DataflowAssert {
    * are serializable but whose underlying data may not have a coder.
    */
   @SuppressWarnings("serial")
-  private static class OneSideInputAssert<Actual> implements Serializable {
+  private static class OneSideInputAssert<ActualT> implements Serializable {
 
-    private final PCollectionView<Actual> actualView;
+    private final PCollectionView<ActualT> actualView;
 
-    public OneSideInputAssert(PCollectionView<Actual> actualView) {
+    public OneSideInputAssert(PCollectionView<ActualT> actualView) {
       this.actualView = actualView;
     }
 
-    public OneSideInputAssert<Actual> satisfies(
-        final SerializableFunction<Actual, Void> checkerFn) {
+    public OneSideInputAssert<ActualT> satisfies(
+        final SerializableFunction<ActualT, Void> checkerFn) {
       actualView.getPipeline()
         .apply(Create.<Void>of((Void) null))
         .setCoder(VoidCoder.of())
@@ -389,7 +389,7 @@ public class DataflowAssert {
           .of(new DoFn<Void, Void>() {
             @Override
             public void processElement(ProcessContext c) {
-              Actual actualContents = c.sideInput(actualView);
+              ActualT actualContents = c.sideInput(actualView);
               checkerFn.apply(actualContents);
             }
           }));
@@ -408,20 +408,20 @@ public class DataflowAssert {
    * by the underlying {@link PCollection}s).
    */
   @SuppressWarnings("serial")
-  private static class TwoSideInputAssert<Actual, Expected> implements Serializable {
+  private static class TwoSideInputAssert<ActualT, ExpectedT> implements Serializable {
 
-    private final PCollectionView<Actual> actualView;
-    private final PCollectionView<Expected> expectedView;
+    private final PCollectionView<ActualT> actualView;
+    private final PCollectionView<ExpectedT> expectedView;
 
     protected TwoSideInputAssert(
-        PCollectionView<Actual> actualView,
-        PCollectionView<Expected> expectedView) {
+        PCollectionView<ActualT> actualView,
+        PCollectionView<ExpectedT> expectedView) {
       this.actualView = actualView;
       this.expectedView = expectedView;
     }
 
-    public TwoSideInputAssert<Actual, Expected> satisfies(
-        final AssertRelation<Actual, Expected> relation) {
+    public TwoSideInputAssert<ActualT, ExpectedT> satisfies(
+        final AssertRelation<ActualT, ExpectedT> relation) {
       actualView.getPipeline()
         .apply(Create.<Void>of((Void) null))
         .setCoder(VoidCoder.of())
@@ -430,8 +430,8 @@ public class DataflowAssert {
           .of(new DoFn<Void, Void>() {
             @Override
             public void processElement(ProcessContext c) {
-              Actual actualContents = c.sideInput(actualView);
-              Expected expectedContents = c.sideInput(expectedView);
+              ActualT actualContents = c.sideInput(actualView);
+              ExpectedT expectedContents = c.sideInput(expectedView);
               relation.assertFor(expectedContents).apply(actualContents);
             }
           }));
@@ -446,19 +446,19 @@ public class DataflowAssert {
    * {@code Assert.assertThat()} operation using a
    * {@code Matcher} operation.
    *
-   * <P> The {@code MatcherFactory} should take an {@code Expected} and
-   * produce a Matcher to be used to check an {@code Actual} value
+   * <p> The {@code MatcherFactory} should take an {@code ExpectedT} and
+   * produce a Matcher to be used to check an {@code ActualT} value
    * against.
    */
   @SuppressWarnings("serial")
-  public static class AssertThat<Actual, Expected>
-      implements SerializableFunction<Actual, Void> {
-    final Expected expected;
+  public static class AssertThat<ActualT, ExpectedT>
+      implements SerializableFunction<ActualT, Void> {
+    final ExpectedT expected;
     final Class<?> expectedClass;
     final String matcherClassName;
     final String matcherFactoryMethodName;
 
-    AssertThat(Expected expected,
+    AssertThat(ExpectedT expected,
                Class<?> expectedClass,
                String matcherClassName,
                String matcherFactoryMethodName) {
@@ -469,7 +469,7 @@ public class DataflowAssert {
     }
 
     @Override
-    public Void apply(Actual in) {
+    public Void apply(ActualT in) {
       try {
         Method matcherFactoryMethod = Class.forName(this.matcherClassName)
             .getMethod(this.matcherFactoryMethodName, expectedClass);
@@ -581,10 +581,10 @@ public class DataflowAssert {
 
   /**
    * A serializable function implementing a binary predicate
-   * between types {@code Actual} and {@code Expected}.
+   * between types {@code ActualT} and {@code ExpectedT}.
    */
-  public static interface AssertRelation<Actual, Expected> extends Serializable {
-    public SerializableFunction<Actual, Void> assertFor(Expected input);
+  public static interface AssertRelation<ActualT, ExpectedT> extends Serializable {
+    public SerializableFunction<ActualT, Void> assertFor(ExpectedT input);
   }
 
   /**

@@ -23,23 +23,29 @@ import com.google.cloud.dataflow.sdk.values.POutput;
  * Represents the application of a {@link PTransform} to a specific input to produce
  * a specific output.
  *
- * @param <Input> transform input type
- * @param <Output> transform output type
- * @param <PT> transform type
+ * @param <InputT> transform input type
+ * @param <OutputT> transform output type
+ * @param <TransformT> transform type
  */
-public class AppliedPTransform
-    <Input extends PInput, Output extends POutput, PT extends PTransform<Input, Output>> {
-  public final Input input;
-  public final Output output;
-  public final PT transform;
-  public AppliedPTransform(Input input, Output output, PT transform) {
+public class AppliedPTransform<
+    InputT extends PInput,
+    OutputT extends POutput,
+    TransformT extends PTransform<InputT, OutputT>> {
+  public final InputT input;
+  public final OutputT output;
+  public final TransformT transform;
+  public AppliedPTransform(InputT input, OutputT output, TransformT transform) {
     this.input = input;
     this.output = output;
     this.transform = transform;
   }
 
-  public static <Input extends PInput, Output extends POutput, PT extends PTransform<Input, Output>>
-  AppliedPTransform<Input, Output, PT> of(Input input, Output output, PT transform) {
-    return new AppliedPTransform<Input, Output, PT>(input, output, transform);
+  public static <
+      InputT extends PInput,
+      OutputT extends POutput,
+      TransformT extends PTransform<InputT, OutputT>>
+      AppliedPTransform<InputT, OutputT, TransformT>
+      of(InputT input, OutputT output, TransformT transform) {
+    return new AppliedPTransform<InputT, OutputT, TransformT>(input, output, transform);
   }
 }

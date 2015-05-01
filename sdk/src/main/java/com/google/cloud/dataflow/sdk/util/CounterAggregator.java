@@ -30,14 +30,14 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
  * {@link Counter} as the underlying representation. Supports {@link CombineFn}s
  * from the {@link Sum}, {@link Min} and {@link Max} classes.
  *
- * @param <VI> the type of input values
- * @param <VA> the type of accumulator values
- * @param <VO> the type of output value
+ * @param <InputT> the type of input values
+ * @param <AccumT> the type of accumulator values
+ * @param <OutputT> the type of output value
  */
-public class CounterAggregator<VI, VA, VO> implements Aggregator<VI, VO> {
+public class CounterAggregator<InputT, AccumT, OutputT> implements Aggregator<InputT, OutputT> {
 
-  private final Counter<VI> counter;
-  private final CombineFn<VI, VA, VO> combiner;
+  private final Counter<InputT> counter;
+  private final CombineFn<InputT, AccumT, OutputT> combiner;
 
   /**
    * Constructs a new aggregator with the given name and aggregation logic
@@ -47,16 +47,16 @@ public class CounterAggregator<VI, VA, VO> implements Aggregator<VI, VO> {
    *  <p> If a counter with the same name already exists, it will be reused, as
    * long as it has the same type.
    */
-  public CounterAggregator(String name, CombineFn<? super VI, VA, VO> combiner,
+  public CounterAggregator(String name, CombineFn<? super InputT, AccumT, OutputT> combiner,
       CounterSet.AddCounterMutator addCounterMutator) {
     // Safe contravariant cast
     this(constructCounter(name, combiner), addCounterMutator,
-        (CombineFn<VI, VA, VO>) combiner);
+        (CombineFn<InputT, AccumT, OutputT>) combiner);
   }
 
-  private CounterAggregator(Counter<VI> counter,
+  private CounterAggregator(Counter<InputT> counter,
       CounterSet.AddCounterMutator addCounterMutator,
-      CombineFn<VI, VA, VO> combiner) {
+      CombineFn<InputT, AccumT, OutputT> combiner) {
     try {
       this.counter = addCounterMutator.addCounter(counter);
     } catch (IllegalArgumentException ex) {
@@ -80,7 +80,7 @@ public class CounterAggregator<VI, VA, VO> implements Aggregator<VI, VO> {
   }
 
   @Override
-  public void addValue(VI value) {
+  public void addValue(InputT value) {
     counter.addValue(value);
   }
 
@@ -90,7 +90,7 @@ public class CounterAggregator<VI, VA, VO> implements Aggregator<VI, VO> {
   }
 
   @Override
-  public CombineFn<VI, ?, VO> getCombineFn() {
+  public CombineFn<InputT, ?, OutputT> getCombineFn() {
     return combiner;
   }
 }

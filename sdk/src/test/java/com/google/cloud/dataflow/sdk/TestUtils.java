@@ -155,20 +155,20 @@ public class TestUtils {
   // Utilities for testing CombineFns, ensuring they give correct results
   // across various permutations and shardings of the input.
 
-  public static <VI, VA, VO> void checkCombineFn(
-      CombineFn<VI, VA, VO> fn, List<VI> input, final VO expected) {
+  public static <InputT, AccumT, OutputT> void checkCombineFn(
+      CombineFn<InputT, AccumT, OutputT> fn, List<InputT> input, final OutputT expected) {
     checkCombineFn(fn, input, CoreMatchers.is(expected));
   }
 
-  public static <VI, VA, VO> void checkCombineFn(
-      CombineFn<VI, VA, VO> fn, List<VI> input, Matcher<? super VO> matcher) {
+  public static <InputT, AccumT, OutputT> void checkCombineFn(
+      CombineFn<InputT, AccumT, OutputT> fn, List<InputT> input, Matcher<? super OutputT> matcher) {
     checkCombineFnInternal(fn, input, matcher);
     Collections.shuffle(input);
     checkCombineFnInternal(fn, input, matcher);
   }
 
-  private static <VI, VA, VO> void checkCombineFnInternal(
-      CombineFn<VI, VA, VO> fn, List<VI> input, Matcher<? super VO> matcher) {
+  private static <InputT, AccumT, OutputT> void checkCombineFnInternal(
+      CombineFn<InputT, AccumT, OutputT> fn, List<InputT> input, Matcher<? super OutputT> matcher) {
     int size = input.size();
     checkCombineFnShards(fn, Collections.singletonList(input), matcher);
     checkCombineFnShards(fn, shardEvenly(input, 2), matcher);
@@ -182,28 +182,28 @@ public class TestUtils {
     checkCombineFnShards(fn, shardExponentially(input, Math.E), matcher);
   }
 
-  public static <VI, VA, VO> void checkCombineFnShards(
-      CombineFn<VI, VA, VO> fn,
-      List<? extends Iterable<VI>> shards,
-      Matcher<? super VO> matcher) {
+  public static <InputT, AccumT, OutputT> void checkCombineFnShards(
+      CombineFn<InputT, AccumT, OutputT> fn,
+      List<? extends Iterable<InputT>> shards,
+      Matcher<? super OutputT> matcher) {
     checkCombineFnShardsInternal(fn, shards, matcher);
     Collections.shuffle(shards);
     checkCombineFnShardsInternal(fn, shards, matcher);
   }
 
-  private static <VI, VA, VO> void checkCombineFnShardsInternal(
-      CombineFn<VI, VA, VO> fn,
-      Iterable<? extends Iterable<VI>> shards,
-      Matcher<? super VO> matcher) {
-    List<VA> accumulators = new ArrayList<>();
-    for (Iterable<VI> shard : shards) {
-      VA accumulator = fn.createAccumulator();
-      for (VI elem : shard) {
+  private static <InputT, AccumT, OutputT> void checkCombineFnShardsInternal(
+      CombineFn<InputT, AccumT, OutputT> fn,
+      Iterable<? extends Iterable<InputT>> shards,
+      Matcher<? super OutputT> matcher) {
+    List<AccumT> accumulators = new ArrayList<>();
+    for (Iterable<InputT> shard : shards) {
+      AccumT accumulator = fn.createAccumulator();
+      for (InputT elem : shard) {
         accumulator = fn.addInput(accumulator, elem);
       }
       accumulators.add(accumulator);
     }
-    VA merged = fn.mergeAccumulators(accumulators);
+    AccumT merged = fn.mergeAccumulators(accumulators);
     assertThat(fn.extractOutput(merged), matcher);
   }
 

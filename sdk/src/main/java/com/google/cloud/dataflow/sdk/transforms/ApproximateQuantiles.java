@@ -84,9 +84,9 @@ public class ApproximateQuantiles {
    *        quantile values {@code List}
    * @param compareFn the function to use to order the elements
    */
-  public static <T, C extends Comparator<T> & Serializable>
+  public static <T, ComparatorT extends Comparator<T> & Serializable>
   PTransform<PCollection<T>, PCollection<List<T>>> globally(
-      int numQuantiles, C compareFn) {
+      int numQuantiles, ComparatorT compareFn) {
     return Combine.globally(
         ApproximateQuantilesCombineFn.create(numQuantiles, compareFn));
   }
@@ -144,9 +144,9 @@ public class ApproximateQuantiles {
    *        quantile values {@code List}
    * @param compareFn the function to use to order the elements
    */
-  public static <K, V, C extends Comparator<V> & Serializable>
+  public static <K, V, ComparatorT extends Comparator<V> & Serializable>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
-      perKey(int numQuantiles, C compareFn) {
+      perKey(int numQuantiles, ComparatorT compareFn) {
     return Combine.perKey(
         ApproximateQuantilesCombineFn.create(numQuantiles, compareFn)
         .<K>asKeyedFn());
@@ -187,7 +187,7 @@ public class ApproximateQuantiles {
    * {@code numQuantiles}, then the result {@code List} will contain all the
    * values being combined, in sorted order.
    *
-   * <P> Values are ordered using either a specified
+   * <p> Values are ordered using either a specified
    * {@code Comparator} or the values' natural ordering.
    *
    * <p> To evaluate the quantiles we use the "New Algorithm" described here:
@@ -198,7 +198,7 @@ public class ApproximateQuantiles {
    *   http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.6.6513&amp;rep=rep1&amp;type=pdf
    * </pre>
    *
-   * <P> The default error bound is {@code 1 / N}, though in practice
+   * <p> The default error bound is {@code 1 / N}, though in practice
    * the accuracy tends to be much better.  <p> See
    * {@link #create(int, Comparator, long, double)} for
    * more information about the meaning of {@code epsilon}, and
@@ -208,9 +208,9 @@ public class ApproximateQuantiles {
    */
   @SuppressWarnings("serial")
   public static class ApproximateQuantilesCombineFn
-      <T, C extends Comparator<T> & Serializable>
+      <T, ComparatorT extends Comparator<T> & Serializable>
       extends AccumulatingCombineFn
-      <T, ApproximateQuantilesCombineFn<T, C>.QuantileState, List<T>> {
+      <T, ApproximateQuantilesCombineFn<T, ComparatorT>.QuantileState, List<T>> {
 
     /**
      * The cost (in time and space) to compute quantiles to a given
@@ -224,7 +224,7 @@ public class ApproximateQuantiles {
     public static final long DEFAULT_MAX_NUM_ELEMENTS = (long) 1e9;
 
     /** The comparison function to use. */
-    private final C compareFn;
+    private final ComparatorT compareFn;
 
     /**
      * Number of quantiles to produce.  The size of the final output
@@ -259,9 +259,9 @@ public class ApproximateQuantiles {
      * holds as long as the number of elements is less than
      * {@link #DEFAULT_MAX_NUM_ELEMENTS}.
      */
-    public static <T, C extends Comparator<T> & Serializable>
-    ApproximateQuantilesCombineFn<T, C> create(
-        int numQuantiles, C compareFn) {
+    public static <T, ComparatorT extends Comparator<T> & Serializable>
+    ApproximateQuantilesCombineFn<T, ComparatorT> create(
+        int numQuantiles, ComparatorT compareFn) {
       return create(numQuantiles, compareFn,
                     DEFAULT_MAX_NUM_ELEMENTS, 1.0 / numQuantiles);
     }
@@ -284,7 +284,7 @@ public class ApproximateQuantiles {
      * double)} for more information about the meaning of
      * {@code epsilon}.
      */
-    public ApproximateQuantilesCombineFn<T, C> withEpsilon(double epsilon) {
+    public ApproximateQuantilesCombineFn<T, ComparatorT> withEpsilon(double epsilon) {
       return create(numQuantiles, compareFn, maxNumElements, epsilon);
     }
 
@@ -296,7 +296,7 @@ public class ApproximateQuantiles {
      * <p> See {@link #create(int, Comparator, long, double)} for more
      * information about the meaning of {@code maxNumElements}.
      */
-    public ApproximateQuantilesCombineFn<T, C> withMaxInputSize(
+    public ApproximateQuantilesCombineFn<T, ComparatorT> withMaxInputSize(
         long maxNumElements) {
       return create(numQuantiles, compareFn, maxNumElements, maxNumElements);
     }
@@ -317,10 +317,10 @@ public class ApproximateQuantiles {
      * Note that these errors are worst-case scenarios; in practice the accuracy
      * tends to be much better.
      */
-    public static <T, C extends Comparator<T> & Serializable>
-    ApproximateQuantilesCombineFn<T, C> create(
+    public static <T, ComparatorT extends Comparator<T> & Serializable>
+    ApproximateQuantilesCombineFn<T, ComparatorT> create(
         int numQuantiles,
-        C compareFn,
+        ComparatorT compareFn,
         long maxNumElements,
         double epsilon) {
       // Compute optimal b and k.
@@ -335,7 +335,7 @@ public class ApproximateQuantiles {
     }
 
     private ApproximateQuantilesCombineFn(int numQuantiles,
-                                          C compareFn,
+                                          ComparatorT compareFn,
                                           int bufferSize,
                                           int numBuffers,
                                           double epsilon,
@@ -369,7 +369,7 @@ public class ApproximateQuantiles {
      */
     class QuantileState
         implements AccumulatingCombineFn.Accumulator
-        <T, ApproximateQuantilesCombineFn<T, C>.QuantileState, List<T>> {
+        <T, ApproximateQuantilesCombineFn<T, ComparatorT>.QuantileState, List<T>> {
 
       private T min;
       private T max;

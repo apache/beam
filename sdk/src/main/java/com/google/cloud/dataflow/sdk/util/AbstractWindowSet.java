@@ -27,13 +27,13 @@ import java.util.Collection;
 /**
  * Abstract class representing a set of active windows for a key.
  */
-abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
+abstract class AbstractWindowSet<K, InputT, OutputT, W extends BoundedWindow> {
 
   /**
    * Factory for creating a window set.
    */
-  public interface Factory<K, VI, VO, W extends BoundedWindow> extends Serializable {
-    public AbstractWindowSet<K, VI, VO, W> create(
+  public interface Factory<K, InputT, OutputT, W extends BoundedWindow> extends Serializable {
+    public AbstractWindowSet<K, InputT, OutputT, W> create(
         K key,
         Coder<W> windowCoder,
         KeyedState keyedState,
@@ -42,14 +42,14 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
 
   protected final K key;
   protected final Coder<W> windowCoder;
-  protected final Coder<VI> inputCoder;
+  protected final Coder<InputT> inputCoder;
   protected final KeyedState keyedState;
   protected final WindowingInternals<?, ?> windowingInternals;
 
   protected AbstractWindowSet(
       K key,
       Coder<W> windowCoder,
-      Coder<VI> inputCoder,
+      Coder<InputT> inputCoder,
       KeyedState keyedState,
       WindowingInternals<?, ?> windowingInternals) {
     this.key = key;
@@ -69,7 +69,7 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
    *
    * <p> Returns null if the window does not exist in the set.
    */
-  protected abstract VO finalValue(W window) throws Exception;
+  protected abstract OutputT finalValue(W window) throws Exception;
 
   /**
    * Adds the given value in the given window to the set.
@@ -78,7 +78,7 @@ abstract class AbstractWindowSet<K, VI, VO, W extends BoundedWindow> {
    * If not, adds the window to the set first, then puts the element
    * in the window.
    */
-  protected abstract WindowStatus put(W window, VI value) throws Exception;
+  protected abstract WindowStatus put(W window, InputT value) throws Exception;
 
   /**
    * Removes the given window from the set.

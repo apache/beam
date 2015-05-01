@@ -115,8 +115,8 @@ public class CoderProperties {
    * and value of type {@code Collection<T>}, encoding followed by decoding yields an
    * equal value of type {@code Collection<T>}, in any {@link Coder.Context}.
    */
-  public static <T, IT extends Collection<T>> void coderDecodeEncodeContentsEqual(
-      Coder<IT> coder, IT value)
+  public static <T, CollectionT extends Collection<T>> void coderDecodeEncodeContentsEqual(
+      Coder<CollectionT> coder, CollectionT value)
       throws Exception {
     for (Coder.Context context : ALL_CONTEXTS) {
       coderDecodeEncodeContentsEqualInContext(coder, context, value);
@@ -129,8 +129,8 @@ public class CoderProperties {
    * equal value of type {@code Collection<T>}, in the given {@link Coder.Context}.
    */
   @SuppressWarnings("unchecked")
-  public static <T, CT extends Collection<T>> void coderDecodeEncodeContentsEqualInContext(
-      Coder<CT> coder, Coder.Context context, CT value)
+  public static <T, CollectionT extends Collection<T>> void coderDecodeEncodeContentsEqualInContext(
+      Coder<CollectionT> coder, Coder.Context context, CollectionT value)
       throws Exception {
     // Matchers.containsInAnyOrder() requires at least one element
     Collection<T> result = decodeEncode(coder, context, value);
@@ -147,11 +147,11 @@ public class CoderProperties {
    * and value of type {@code Collection<T>}, encoding followed by decoding yields an
    * equal value of type {@code Collection<T>}, in any {@link Coder.Context}.
    */
-  public static <T, IT extends Iterable<T>> void coderDecodeEncodeContentsInSameOrder(
-      Coder<IT> coder, IT value)
+  public static <T, IterableT extends Iterable<T>> void coderDecodeEncodeContentsInSameOrder(
+      Coder<IterableT> coder, IterableT value)
       throws Exception {
     for (Coder.Context context : ALL_CONTEXTS) {
-      CoderProperties.<T, IT>coderDecodeEncodeContentsInSameOrderInContext(
+      CoderProperties.<T, IterableT>coderDecodeEncodeContentsInSameOrderInContext(
           coder, context, value);
     }
   }
@@ -162,8 +162,9 @@ public class CoderProperties {
    * equal value of type {@code Collection<T>}, in the given {@link Coder.Context}.
    */
   @SuppressWarnings("unchecked")
-  public static <T, IT extends Iterable<T>> void coderDecodeEncodeContentsInSameOrderInContext(
-      Coder<IT> coder, Coder.Context context, IT value)
+  public static <T, IterableT extends Iterable<T>> void
+      coderDecodeEncodeContentsInSameOrderInContext(
+          Coder<IterableT> coder, Coder.Context context, IterableT value)
       throws Exception {
     Iterable<T> result = decodeEncode(coder, context, value);
     // Matchers.contains() requires at least one element

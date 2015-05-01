@@ -137,18 +137,18 @@ public class CombineValuesFn extends NormalParDoFn {
    * The ALL phase is the unsplit combiner, in case combiner lifting
    * is disabled or the optimizer chose not to lift this combiner.
    */
-  private static class CombineValuesDoFn<K, VI, VO>
-      extends DoFn<KV<K, Iterable<VI>>, KV<K, VO>>{
-    private final Combine.KeyedCombineFn<K, VI, ?, VO> combineFn;
+  private static class CombineValuesDoFn<K, InputT, OutputT>
+      extends DoFn<KV<K, Iterable<InputT>>, KV<K, OutputT>>{
+    private final Combine.KeyedCombineFn<K, InputT, ?, OutputT> combineFn;
 
     private CombineValuesDoFn(
-        Combine.KeyedCombineFn<K, VI, ?, VO> combineFn) {
+        Combine.KeyedCombineFn<K, InputT, ?, OutputT> combineFn) {
       this.combineFn = combineFn;
     }
 
     @Override
     public void processElement(ProcessContext c) {
-      KV<K, Iterable<VI>> kv = c.element();
+      KV<K, Iterable<InputT>> kv = c.element();
       K key = kv.getKey();
 
       c.output(KV.of(key, this.combineFn.apply(key, kv.getValue())));
@@ -156,23 +156,23 @@ public class CombineValuesFn extends NormalParDoFn {
   }
 
   /*
-   * ADD phase: KV<K, Iterable<VI>> -> KV<K, VA>.
+   * ADD phase: KV<K, Iterable<InputT>> -> KV<K, AccumT>.
    */
-  private static class AddInputsDoFn<K, VI, VA>
-      extends DoFn<KV<K, Iterable<VI>>, KV<K, VA>>{
-    private final Combine.KeyedCombineFn<K, VI, VA, ?> combineFn;
+  private static class AddInputsDoFn<K, InputT, AccumT>
+      extends DoFn<KV<K, Iterable<InputT>>, KV<K, AccumT>>{
+    private final Combine.KeyedCombineFn<K, InputT, AccumT, ?> combineFn;
 
     private AddInputsDoFn(
-        Combine.KeyedCombineFn<K, VI, VA, ?> combineFn) {
+        Combine.KeyedCombineFn<K, InputT, AccumT, ?> combineFn) {
       this.combineFn = combineFn;
     }
 
     @Override
     public void processElement(ProcessContext c) {
-      KV<K, Iterable<VI>> kv = c.element();
+      KV<K, Iterable<InputT>> kv = c.element();
       K key = kv.getKey();
-      VA accum = this.combineFn.createAccumulator(key);
-      for (VI input : kv.getValue()) {
+      AccumT accum = this.combineFn.createAccumulator(key);
+      for (InputT input : kv.getValue()) {
         accum = this.combineFn.addInput(key, accum, input);
       }
 
@@ -181,44 +181,44 @@ public class CombineValuesFn extends NormalParDoFn {
   }
 
   /*
-   * MERGE phase: KV<K, Iterable<VA>> -> KV<K, VA>.
+   * MERGE phase: KV<K, Iterable<AccumT>> -> KV<K, AccumT>.
    */
-  private static class MergeAccumulatorsDoFn<K, VA>
-      extends DoFn<KV<K, Iterable<VA>>, KV<K, VA>>{
-    private final Combine.KeyedCombineFn<K, ?, VA, ?> combineFn;
+  private static class MergeAccumulatorsDoFn<K, AccumT>
+      extends DoFn<KV<K, Iterable<AccumT>>, KV<K, AccumT>>{
+    private final Combine.KeyedCombineFn<K, ?, AccumT, ?> combineFn;
 
     private MergeAccumulatorsDoFn(
-        Combine.KeyedCombineFn<K, ?, VA, ?> combineFn) {
+        Combine.KeyedCombineFn<K, ?, AccumT, ?> combineFn) {
       this.combineFn = combineFn;
     }
 
     @Override
     public void processElement(ProcessContext c) {
-      KV<K, Iterable<VA>> kv = c.element();
+      KV<K, Iterable<AccumT>> kv = c.element();
       K key = kv.getKey();
-      VA accum = this.combineFn.mergeAccumulators(key, kv.getValue());
+      AccumT accum = this.combineFn.mergeAccumulators(key, kv.getValue());
 
       c.output(KV.of(key, accum));
     }
   }
 
   /*
-   * EXTRACT phase: KV<K, VA> -> KV<K, VO>.
+   * EXTRACT phase: KV<K, AccumT> -> KV<K, OutputT>.
    */
-  private static class ExtractOutputDoFn<K, VA, VO>
-      extends DoFn<KV<K, VA>, KV<K, VO>>{
-    private final Combine.KeyedCombineFn<K, ?, VA, VO> combineFn;
+  private static class ExtractOutputDoFn<K, AccumT, OutputT>
+      extends DoFn<KV<K, AccumT>, KV<K, OutputT>>{
+    private final Combine.KeyedCombineFn<K, ?, AccumT, OutputT> combineFn;
 
     private ExtractOutputDoFn(
-        Combine.KeyedCombineFn<K, ?, VA, VO> combineFn) {
+        Combine.KeyedCombineFn<K, ?, AccumT, OutputT> combineFn) {
       this.combineFn = combineFn;
     }
 
     @Override
     public void processElement(ProcessContext c) {
-      KV<K, VA> kv = c.element();
+      KV<K, AccumT> kv = c.element();
       K key = kv.getKey();
-      VO output = this.combineFn.extractOutput(key, kv.getValue());
+      OutputT output = this.combineFn.extractOutput(key, kv.getValue());
 
       c.output(KV.of(key, output));
     }

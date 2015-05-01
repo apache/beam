@@ -160,9 +160,9 @@ public class DataflowPipelineTranslator {
    * should be translated by default by the corresponding
    * {@link TransformTranslator}.
    */
-  public static <PT extends PTransform> void registerTransformTranslator(
-      Class<PT> transformClass,
-      TransformTranslator<? extends PT> transformTranslator) {
+  public static <TransformT extends PTransform> void registerTransformTranslator(
+      Class<TransformT> transformClass,
+      TransformTranslator<? extends TransformT> transformTranslator) {
     if (transformTranslators.put(transformClass, transformTranslator) != null) {
       throw new IllegalArgumentException(
           "defining multiple translators for " + transformClass);
@@ -174,8 +174,8 @@ public class DataflowPipelineTranslator {
    * specified PTransform class, or null if none registered.
    */
   @SuppressWarnings("unchecked")
-  public <PT extends PTransform>
-      TransformTranslator<PT> getTransformTranslator(Class<PT> transformClass) {
+  public <TransformT extends PTransform>
+      TransformTranslator<TransformT> getTransformTranslator(Class<TransformT> transformClass) {
     return transformTranslators.get(transformClass);
   }
 
@@ -185,8 +185,8 @@ public class DataflowPipelineTranslator {
    * Cloud Dataflow service. It does so by
    * mutating the {@link TranslationContext}.
    */
-  public interface TransformTranslator<PT extends PTransform> {
-    public void translate(PT transform,
+  public interface TransformTranslator<TransformT extends PTransform> {
+    public void translate(TransformT transform,
                           TranslationContext context);
   }
 
@@ -204,12 +204,12 @@ public class DataflowPipelineTranslator {
     /**
      * Returns the input of the currently being translated transform.
      */
-    <Input extends PInput> Input getInput(PTransform<Input, ?> transform);
+    <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform);
 
     /**
      * Returns the output of the currently being translated transform.
      */
-    <Output extends POutput> Output getOutput(PTransform<?, Output> transform);
+    <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform);
 
     /**
      * Adds a step to the Dataflow workflow for the given transform, with
@@ -446,17 +446,17 @@ public class DataflowPipelineTranslator {
     }
 
     @Override
-    public <Input extends PInput> Input getInput(PTransform<Input, ?> transform) {
+    public <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform) {
       checkArgument(currentTransform != null && currentTransform.transform == transform,
           "can only be called with current transform");
-      return (Input) currentTransform.input;
+      return (InputT) currentTransform.input;
     }
 
     @Override
-    public <Output extends POutput> Output getOutput(PTransform<?, Output> transform) {
+    public <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform) {
       checkArgument(currentTransform != null && currentTransform.transform == transform,
           "can only be called with current transform");
-      return (Output) currentTransform.output;
+      return (OutputT) currentTransform.output;
     }
 
     @Override
@@ -760,8 +760,8 @@ public class DataflowPipelineTranslator {
             translateTyped(transform, context);
           }
 
-          private <R, T> void translateTyped(
-              View.CreatePCollectionView<R, T> transform,
+          private <ElemT, ViewT> void translateTyped(
+              View.CreatePCollectionView<ElemT, ViewT> transform,
               TranslationContext context) {
             context.addStep(transform, "CollectionToSingleton");
             context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
@@ -783,8 +783,8 @@ public class DataflowPipelineTranslator {
             translateHelper(transform, context);
           }
 
-          private <K, VI, VO> void translateHelper(
-              final Combine.GroupedValues<K, VI, VO> transform,
+          private <K, InputT, OutputT> void translateHelper(
+              final Combine.GroupedValues<K, InputT, OutputT> transform,
               DataflowPipelineTranslator.TranslationContext context) {
             context.addStep(transform, "CombineValues");
             context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
@@ -898,8 +898,8 @@ public class DataflowPipelineTranslator {
             translateMultiHelper(transform, context);
           }
 
-          private <I, O> void translateMultiHelper(
-              ParDo.BoundMulti<I, O> transform,
+          private <InputT, OutputT> void translateMultiHelper(
+              ParDo.BoundMulti<InputT, OutputT> transform,
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(context.getInput(transform), transform.getSideInputs(), context);
@@ -919,8 +919,8 @@ public class DataflowPipelineTranslator {
             translateSingleHelper(transform, context);
           }
 
-          private <I, O> void translateSingleHelper(
-              ParDo.Bound<I, O> transform,
+          private <InputT, OutputT> void translateSingleHelper(
+              ParDo.Bound<InputT, OutputT> transform,
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(context.getInput(transform), transform.getSideInputs(), context);

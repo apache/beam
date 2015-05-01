@@ -76,6 +76,13 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <property name="severity" value="error"/>
   </module>
 
+  <!-- Allow use of comment to suppress javadocstyle -->
+  <module name="SuppressionCommentFilter">
+    <property name="offCommentFormat" value="JAVADOCSTYLE OFF"/>
+    <property name="onCommentFormat" value="JAVADOCSTYLE ON"/>
+    <property name="checkFormat" value="JavadocStyle"/>
+  </module>
+
   <!-- All Java AST specific tests live under TreeWalker module. -->
   <module name="TreeWalker">
 
@@ -148,9 +155,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     <module name="JavadocStyle">
       <property name="severity" value="error"/>
-      <!-- checkHtml considers {@code PCollection<I>} and {@code DoFn<I, O>}
-          to contains unclosed tags. -->
-      <property name="checkHtml" value="false"/>
+      <property name="checkHtml" value="true"/>
     </module>
 
     <!--
@@ -240,6 +245,23 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="severity" value="error"/>
     </module>
 
+    <!-- Type parameters must be either one of the four blessed letters
+    T, K, V, W, X or else be capital-case terminated with a T,
+    such as MyGenericParameterT -->
+    <module name="ClassTypeParameterName">
+      <property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>
+      <property name="severity" value="error"/>
+    </module>
+
+    <module name="MethodTypeParameterName">
+      <property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>
+      <property name="severity" value="error"/>
+    </module>
+
+    <module name="InterfaceTypeParameterName">
+      <property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>
+      <property name="severity" value="error"/>
+    </module>
 
     <!--
 
@@ -381,6 +403,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
       -->
       <property name="severity" value="error"/>
     </module>
+
+    <!-- Required to support SuppressWarningsComment -->
+    <module name="FileContentsHolder"/>
 
   </module>
 </module>

@@ -141,14 +141,14 @@ public class Max {
    * of type {@code N}, useful as an argument to {@link Combine#globally}
    * or {@link Combine#perKey}.
    *
-   * @param <N> the type of the {@code Number}s being compared
+   * @param <NumT> the type of the {@code Number}s being compared
    */
   @SuppressWarnings("serial")
-  public static class MaxFn<N extends Comparable<N>>
-      extends Combine.BinaryCombineFn<N> {
+  public static class MaxFn<NumT extends Comparable<NumT>>
+      extends Combine.BinaryCombineFn<NumT> {
 
-    /** The smallest value of type N. */
-    private final N initialValue;
+    /** The smallest value of type NumT. */
+    private final NumT initialValue;
 
     /**
      * Constructs a combining function that computes the maximum over
@@ -156,17 +156,17 @@ public class Max {
      * value of type {@code N}, which is the identity value for the
      * maximum operation over {@code N}s.
      */
-    public MaxFn(N initialValue) {
+    public MaxFn(NumT initialValue) {
       this.initialValue = initialValue;
     }
 
     @Override
-    public N apply(N a, N b) {
+    public NumT apply(NumT a, NumT b) {
       return a.compareTo(b) >= 0 ? a : b;
     }
 
     @Override
-    public N identity() {
+    public NumT identity() {
       return initialValue;
     }
   }

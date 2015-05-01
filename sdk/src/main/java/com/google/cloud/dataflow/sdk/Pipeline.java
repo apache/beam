@@ -129,11 +129,10 @@ public class Pipeline {
    * {@code TextIO.Read} or
    * {@link com.google.cloud.dataflow.sdk.transforms.Create}.
    *
-   * <P>
-   * Alias for {@code begin().apply(root)}.
+   * <p> Alias for {@code begin().apply(root)}.
    */
-  public <Output extends POutput> Output apply(
-      PTransform<? super PBegin, Output> root) {
+  public <OutputT extends POutput> OutputT apply(
+      PTransform<? super PBegin, OutputT> root) {
     return begin().apply(root);
   }
 
@@ -211,14 +210,14 @@ public class Pipeline {
   }
 
   /**
-   * Applies the given PTransform to the given Input,
-   * and returns its Output.
+   * Applies the given {@link PTransform} to the given {@code InputT},
+   * and returns its {@code OutputT}.
    *
-   * <p> Called by PInput subclasses in their {@code apply} methods.
+   * <p> Called by {@link PInput} subclasses in their {@code apply} methods.
    */
-  public static <Input extends PInput, Output extends POutput>
-  Output applyTransform(Input input,
-                        PTransform<? super Input, Output> transform) {
+  public static <InputT extends PInput, OutputT extends POutput>
+  OutputT applyTransform(InputT input,
+                        PTransform<? super InputT, OutputT> transform) {
     return input.getPipeline().applyInternal(input, transform);
   }
 
@@ -255,9 +254,9 @@ public class Pipeline {
    *
    * @see Pipeline#apply
    */
-  private <Input extends PInput, Output extends POutput>
-  Output applyInternal(Input input,
-      PTransform<? super Input, Output> transform) {
+  private <InputT extends PInput, OutputT extends POutput>
+  OutputT applyInternal(InputT input,
+      PTransform<? super InputT, OutputT> transform) {
     input.finishSpecifying();
 
     TransformTreeNode parent = transforms.getCurrent();
@@ -284,7 +283,7 @@ public class Pipeline {
     try {
       transforms.pushNode(child);
       transform.validate(input);
-      Output output = runner.apply(transform, input);
+      OutputT output = runner.apply(transform, input);
       transforms.setOutput(child, output);
 
       // recordAsOutput is a NOOP if already called;

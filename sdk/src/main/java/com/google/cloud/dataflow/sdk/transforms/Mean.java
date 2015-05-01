@@ -51,15 +51,15 @@ public class Mean {
 
   /**
    * Returns a {@code PTransform} that takes an input
-   * {@code PCollection<N>} and returns a
+   * {@code PCollection<NumT>} and returns a
    * {@code PCollection<Double>} whose contents is the mean of the
    * input {@code PCollection}'s elements, or
    * {@code 0} if there are no elements.
    *
-   * @param <N> the type of the {@code Number}s being combined
+   * @param <NumT> the type of the {@code Number}s being combined
    */
-  public static <N extends Number> Combine.Globally<N, Double> globally() {
-    Combine.Globally<N, Double> combine = Combine.globally(new MeanFn<>());
+  public static <NumT extends Number> Combine.Globally<NumT, Double> globally() {
+    Combine.Globally<NumT, Double> combine = Combine.globally(new MeanFn<>());
     combine.setName("Mean");
     return combine;
   }
@@ -75,10 +75,10 @@ public class Mean {
    * <p> See {@link Combine.PerKey} for how this affects timestamps and bucketing.
    *
    * @param <K> the type of the keys
-   * @param <N> the type of the {@code Number}s being combined
+   * @param <NumT> the type of the {@code Number}s being combined
    */
-  public static <K, N extends Number> Combine.PerKey<K, N, Double> perKey() {
-    Combine.PerKey<K, N, Double> combine = Combine.perKey(new MeanFn<>());
+  public static <K, NumT extends Number> Combine.PerKey<K, NumT, Double> perKey() {
+    Combine.PerKey<K, NumT, Double> combine = Combine.perKey(new MeanFn<>());
     combine.setName("Mean.PerKey");
     return combine;
   }
@@ -94,10 +94,10 @@ public class Mean {
    *
    * <p> Returns {@code Double.NaN} if combining zero elements.
    *
-   * @param <N> the type of the {@code Number}s being combined
+   * @param <NumT> the type of the {@code Number}s being combined
    */
-  public static class MeanFn<N extends Number> extends
-    Combine.AccumulatingCombineFn<N, MeanFn<N>.CountSum, Double> {
+  public static class MeanFn<NumT extends Number> extends
+    Combine.AccumulatingCombineFn<NumT, MeanFn<NumT>.CountSum, Double> {
     private static final long serialVersionUID = 0;
 
     /**
@@ -110,7 +110,7 @@ public class Mean {
      * Accumulator helper class for MeanFn.
      */
     class CountSum
-        implements Combine.AccumulatingCombineFn.Accumulator<N, CountSum, Double> {
+        implements Combine.AccumulatingCombineFn.Accumulator<NumT, CountSum, Double> {
 
       long count = 0;
       double sum = 0.0;
@@ -125,7 +125,7 @@ public class Mean {
       }
 
       @Override
-      public void addInput(N element) {
+      public void addInput(NumT element) {
         count++;
         sum += element.doubleValue();
       }
@@ -153,7 +153,7 @@ public class Mean {
     @SuppressWarnings("unchecked")
     @Override
     public Coder<CountSum> getAccumulatorCoder(
-        CoderRegistry registry, Coder<N> inputCoder) {
+        CoderRegistry registry, Coder<NumT> inputCoder) {
       return new CustomCoder<CountSum> () {
         private static final long serialVersionUID = 0;
 

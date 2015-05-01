@@ -411,15 +411,17 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     return makeRunner(windowingStrategy, fn);
   }
 
-  private <VI, VO> DoFnRunner<TimerOrElement<KV<String, VI>>, KV<String, VO>, List> makeRunner(
-      WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
-      StreamingGroupAlsoByWindowsDoFn<String, VI, VO, IntervalWindow> fn) {
+  private <InputT, OutputT>
+      DoFnRunner<TimerOrElement<KV<String, InputT>>, KV<String, OutputT>, List>
+      makeRunner(
+          WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
+          StreamingGroupAlsoByWindowsDoFn<String, InputT, OutputT, IntervalWindow> fn) {
     return
         DoFnRunner.createWithListOutputs(
             PipelineOptionsFactory.create(),
             fn,
             PTuple.empty(),
-            (TupleTag<KV<String, VO>>) (TupleTag) outputTag,
+            (TupleTag<KV<String, OutputT>>) (TupleTag) outputTag,
             new ArrayList<TupleTag<?>>(),
             execContext.createStepContext("merge"),
             counters.getAddCounterMutator(),

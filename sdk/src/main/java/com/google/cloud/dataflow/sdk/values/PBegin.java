@@ -43,8 +43,8 @@ public class PBegin implements PInput {
    * Applies the given {@link PTransform} to this input {@code PBegin}, and
    * returns the {@link PTransform}'s Output.
    */
-  public <Output extends POutput> Output apply(
-      PTransform<? super PBegin, Output> t) {
+  public <OutputT extends POutput> OutputT apply(
+      PTransform<? super PBegin, OutputT> t) {
     return Pipeline.applyTransform(this, t);
   }
 

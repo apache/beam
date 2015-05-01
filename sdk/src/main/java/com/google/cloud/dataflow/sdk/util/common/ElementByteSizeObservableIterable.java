@@ -25,10 +25,10 @@ import java.util.Observer;
  * bytes of their elements, as they are being iterated over.
  *
  * @param <V> the type of elements returned by this iterable
- * @param <VI> type type of iterator returned by this iterable
+ * @param <InputT> type type of iterator returned by this iterable
  */
 public abstract class ElementByteSizeObservableIterable<
-    V, VI extends ElementByteSizeObservableIterator<V>>
+    V, InputT extends ElementByteSizeObservableIterator<V>>
     implements Iterable<V> {
   private List<Observer> observers = new ArrayList<>();
 
@@ -36,7 +36,7 @@ public abstract class ElementByteSizeObservableIterable<
    * Derived classes override this method to return an iterator for this
    * iterable.
    */
-  protected abstract VI createIterator();
+  protected abstract InputT createIterator();
 
   /**
    * Sets the observer, which will observe the iterator returned in
@@ -52,8 +52,8 @@ public abstract class ElementByteSizeObservableIterable<
    * a previous call to setObserver(), it will observe the iterator returned.
    */
   @Override
-  public VI iterator() {
-    VI iterator = createIterator();
+  public InputT iterator() {
+    InputT iterator = createIterator();
     for (Observer observer : observers) {
       iterator.addObserver(observer);
     }

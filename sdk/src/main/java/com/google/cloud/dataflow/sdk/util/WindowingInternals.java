@@ -36,10 +36,10 @@ import java.util.Map;
  *
  * <p>This interface should be provided by runner implementors to support windowing on their runner.
  *
- * @param <I> input type
- * @param <O> output type
+ * @param <InputT> input type
+ * @param <OutputT> output type
  */
-public interface WindowingInternals<I, O> {
+public interface WindowingInternals<InputT, OutputT> {
 
   /**
    * Updates the {@code KeyedState} in place so that the given tag maps to the given value.
@@ -57,7 +57,7 @@ public interface WindowingInternals<I, O> {
   /**
    * Output the value at the specified timestamp in the listed windows.
    */
-  void outputWindowedValue(O output, Instant timestamp,
+  void outputWindowedValue(OutputT output, Instant timestamp,
       Collection<? extends BoundedWindow> windows);
 
   /**

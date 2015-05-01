@@ -346,13 +346,13 @@ public class PubsubIO {
 
       /**
        * Returns a new PubsubIO.Read PTransform that's like this one but that uses the given
-       * {@code Coder<T1>} to decode each record into a value of type {@code T1}.  Does not modify
+       * {@code Coder<X>} to decode each record into a value of type {@code X}.  Does not modify
        * this object.
        *
-       * @param <T1> the type of the decoded elements, and the
+       * @param <X> the type of the decoded elements, and the
        * elements of the resulting PCollection.
        */
-      public <T1> Bound<T1> withCoder(Coder<T1> coder) {
+      public <X> Bound<X> withCoder(Coder<X> coder) {
         return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
       }
 
@@ -531,13 +531,13 @@ public class PubsubIO {
 
      /**
        * Returns a new PubsubIO.Write PTransform that's like this one
-       * but that uses the given {@code Coder<T1>} to encode each of
-       * the elements of the input {@code PCollection<T1>} into an
+       * but that uses the given {@code Coder<X>} to encode each of
+       * the elements of the input {@code PCollection<X>} into an
        * output record.  Does not modify this object.
        *
-       * @param <T1> the type of the elements of the input PCollection
+       * @param <X> the type of the elements of the input PCollection
        */
-      public <T1> Bound<T1> withCoder(Coder<T1> coder) {
+      public <X> Bound<X> withCoder(Coder<X> coder) {
         return new Bound<>(name, topic, timestampLabel, idLabel, coder);
       }
 

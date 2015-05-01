@@ -52,9 +52,9 @@ public class KeyedPCollectionTuple<K> implements PInput {
    * Returns a new {@code KeyedPCollectionTuple<K>} with the given tag and initial
    * PCollection.
    */
-  public static <K, VI> KeyedPCollectionTuple<K> of(
-      TupleTag<VI> tag,
-      PCollection<KV<K, VI>> pc) {
+  public static <K, InputT> KeyedPCollectionTuple<K> of(
+      TupleTag<InputT> tag,
+      PCollection<KV<K, InputT>> pc) {
     return new KeyedPCollectionTuple<K>(pc.getPipeline()).and(tag, pc);
   }
 
@@ -100,8 +100,8 @@ public class KeyedPCollectionTuple<K> implements PInput {
   /**
    * Applies the given {@link PTransform} to this input.
    */
-  public <O extends POutput> O apply(
-      PTransform<KeyedPCollectionTuple<K>, O> transform) {
+  public <OutputT extends POutput> OutputT apply(
+      PTransform<KeyedPCollectionTuple<K>, OutputT> transform) {
     return Pipeline.applyTransform(this, transform);
   }
 

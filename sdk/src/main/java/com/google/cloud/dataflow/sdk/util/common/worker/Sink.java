@@ -35,11 +35,11 @@ public abstract class Sink<T> {
   /**
    * Writes to a Sink.
    */
-  public interface SinkWriter<E> extends AutoCloseable {
+  public interface SinkWriter<ElemT> extends AutoCloseable {
     /**
      * Adds a value to the sink. Returns the size in bytes of the data written.
      */
-    public long add(E value) throws IOException;
+    public long add(ElemT value) throws IOException;
 
     @Override
     public void close() throws IOException;

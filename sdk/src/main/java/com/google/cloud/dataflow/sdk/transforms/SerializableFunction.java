@@ -19,14 +19,13 @@ package com.google.cloud.dataflow.sdk.transforms;
 import java.io.Serializable;
 
 /**
- * A function that computes an output value of type
- * {@code O} from an input value of type {@code I}
- * and is {@link Serializable}.
+ * A function that computes an output value of type {@code OutputT} from an input value of type
+ * {@code InputT} and is {@link Serializable}.
  *
- * @param <I> input value type
- * @param <O> output value type
+ * @param <InputT> input value type
+ * @param <OutputT> output value type
  */
-public interface SerializableFunction<I, O> extends Serializable {
+public interface SerializableFunction<InputT, OutputT> extends Serializable {
   /** Returns the result of invoking this function on the given input. */
-  public O apply(I input);
+  public OutputT apply(InputT input);
 }

@@ -143,21 +143,21 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   @Override
   @SuppressWarnings("unchecked")
-  public <Output extends POutput, Input extends PInput> Output apply(
-      PTransform<Input, Output> transform, Input input) {
+  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
+      PTransform<InputT, OutputT> transform, InputT input) {
     if (transform instanceof Combine.GroupedValues) {
       // TODO: Redundant with translator registration?
-      return (Output) PCollection.createPrimitiveOutputInternal(
+      return (OutputT) PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
           ((PCollection<?>) input).getWindowingStrategy());
     } else if (transform instanceof GroupByKey) {
       // The DataflowPipelineRunner implementation of GroupByKey will sort values by timestamp,
       // so no need for an explicit sort transform.
       boolean runnerSortsByTimestamp = true;
-      return (Output) ((GroupByKey) transform).applyHelper(
+      return (OutputT) ((GroupByKey) transform).applyHelper(
           (PCollection<?>) input, options.isStreaming(), runnerSortsByTimestamp);
     } else if (transform instanceof Create) {
-      return (Output) ((Create) transform).applyHelper(input, options.isStreaming());
+      return (OutputT) ((Create) transform).applyHelper(input, options.isStreaming());
     } else {
       return super.apply(transform, input);
     }

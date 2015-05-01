@@ -34,26 +34,26 @@ import java.util.List;
  * Class representing either a timer, or arbitrary element.
  * Used as the input type of {@link StreamingGroupAlsoByWindowsDoFn}.
  *
- * @param <E> the element type
+ * @param <ElemT> the element type
  */
-public class TimerOrElement<E> {
+public class TimerOrElement<ElemT> {
 
   /**
-   * Creates a new {@code TimerOrElement<E>} representing a timer.
+   * Creates a new {@code TimerOrElement<ElemT>} representing a timer.
    *
-   * @param <E> the element type
+   * @param <ElemT> the element type
    */
-  public static <E> TimerOrElement<E> timer(
+  public static <ElemT> TimerOrElement<ElemT> timer(
       String tag, Instant timestamp, Object key) {
     return new TimerOrElement<>(tag, timestamp, key);
   }
 
   /**
-   * Creates a new {@code TimerOrElement<E>} representing an element.
+   * Creates a new {@code TimerOrElement<ElemT>} representing an element.
    *
-   * @param <E> the element type
+   * @param <ElemT> the element type
    */
-  public static <E> TimerOrElement<E> element(E element) {
+  public static <ElemT> TimerOrElement<ElemT> element(ElemT element) {
     return new TimerOrElement<>(element);
   }
 
@@ -97,7 +97,7 @@ public class TimerOrElement<E> {
   /**
    * If this is an element, returns it, otherwise throws an exception.
    */
-  public E element() {
+  public ElemT element() {
     if (isTimer) {
       throw new IllegalStateException("element() called, but this is a timer");
     }
@@ -181,7 +181,7 @@ public class TimerOrElement<E> {
   private String tag;
   private Instant timestamp;
   private Object key;
-  private E element;
+  private ElemT element;
 
   TimerOrElement(String tag, Instant timestamp, Object key) {
     this.isTimer = true;
@@ -190,7 +190,7 @@ public class TimerOrElement<E> {
     this.key = key;
   }
 
-  TimerOrElement(E element) {
+  TimerOrElement(ElemT element) {
     this.isTimer = false;
     this.element = element;
   }

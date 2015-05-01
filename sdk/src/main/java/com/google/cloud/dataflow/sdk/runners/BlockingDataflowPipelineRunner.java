@@ -106,8 +106,8 @@ public class BlockingDataflowPipelineRunner extends
   }
 
   @Override
-  public <Output extends POutput, Input extends PInput> Output apply(
-      PTransform<Input, Output> transform, Input input) {
+  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
+      PTransform<InputT, OutputT> transform, InputT input) {
     return dataflowPipelineRunner.apply(transform, input);
   }
 

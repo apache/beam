@@ -47,8 +47,8 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * satisfying various inequalities with the specified value based on
    * the elements' natural ordering.
    */
-  public static <T, C extends SerializableFunction<T, Boolean>>
-      ParDo.Bound<T, T> by(final C filterPred) {
+  public static <T, PredicateT extends SerializableFunction<T, Boolean>>
+      ParDo.Bound<T, T> by(final PredicateT filterPred) {
     return ParDo.named("Filter").of(new DoFn<T, T>() {
             @Override
             public void processElement(ProcessContext c) {

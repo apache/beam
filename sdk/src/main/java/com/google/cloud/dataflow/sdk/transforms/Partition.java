@@ -128,9 +128,9 @@ public class Partition<T>
     this.partitionDoFn = partitionDoFn;
   }
 
-  private static class PartitionDoFn<T1> extends DoFn<T1, Void> {
+  private static class PartitionDoFn<X> extends DoFn<X, Void> {
     private final int numPartitions;
-    private final PartitionFn<? super T1> partitionFn;
+    private final PartitionFn<? super X> partitionFn;
     private final TupleTagList outputTags;
 
     /**
@@ -139,7 +139,7 @@ public class Partition<T>
      * @throws IllegalArgumentException if {@code numPartitions <= 0}
      */
     public PartitionDoFn(
-        int numPartitions, PartitionFn<? super T1> partitionFn) {
+        int numPartitions, PartitionFn<? super X> partitionFn) {
       if (numPartitions <= 0) {
         throw new IllegalArgumentException("numPartitions must be > 0");
       }
@@ -149,7 +149,7 @@ public class Partition<T>
 
       TupleTagList buildOutputTags = TupleTagList.empty();
       for (int partition = 0; partition < numPartitions; partition++) {
-        buildOutputTags = buildOutputTags.and(new TupleTag<T1>());
+        buildOutputTags = buildOutputTags.and(new TupleTag<X>());
       }
       outputTags = buildOutputTags;
     }
@@ -160,11 +160,11 @@ public class Partition<T>
 
     @Override
     public void processElement(ProcessContext c) {
-      T1 input = c.element();
+      X input = c.element();
       int partition = partitionFn.partitionFor(input, numPartitions);
       if (0 <= partition && partition < numPartitions) {
         @SuppressWarnings("unchecked")
-        TupleTag<T1> typedTag = (TupleTag<T1>) outputTags.get(partition);
+        TupleTag<X> typedTag = (TupleTag<X>) outputTags.get(partition);
         c.sideOutput(typedTag, input);
       } else {
         throw new IndexOutOfBoundsException(
