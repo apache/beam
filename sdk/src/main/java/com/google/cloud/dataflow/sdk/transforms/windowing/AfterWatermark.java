@@ -20,9 +20,10 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
+
+import java.util.List;
 
 /**
  * <p>{@code AfterWatermark} triggers fire based on progress of the system watermark. This time is a
@@ -57,7 +58,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
   private static final long serialVersionUID = 0L;
 
-  protected AfterWatermark(ImmutableList<SerializableFunction<Instant, Instant>> transforms) {
+  protected AfterWatermark(List<SerializableFunction<Instant, Instant>> transforms) {
     super(transforms);
   }
 
@@ -84,7 +85,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
         CodedTupleTag.of("delayed-until", InstantCoder.of());
 
     private FromFirstElementInPane(
-        ImmutableList<SerializableFunction<Instant, Instant>> delayFunction) {
+        List<SerializableFunction<Instant, Instant>> delayFunction) {
       super(delayFunction);
     }
 
@@ -141,7 +142,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     protected AfterWatermark<W> newWith(
-        ImmutableList<SerializableFunction<Instant, Instant>> transforms) {
+        List<SerializableFunction<Instant, Instant>> transforms) {
       return new FromFirstElementInPane<W>(transforms);
     }
   }
@@ -151,7 +152,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     private static final long serialVersionUID = 0L;
 
     private FromEndOfWindow(
-        ImmutableList<SerializableFunction<Instant, Instant>> composed) {
+        List<SerializableFunction<Instant, Instant>> composed) {
       super(composed);
     }
 
@@ -194,7 +195,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     protected AfterWatermark<W> newWith(
-        ImmutableList<SerializableFunction<Instant, Instant>> transforms) {
+        List<SerializableFunction<Instant, Instant>> transforms) {
       return new FromEndOfWindow<>(transforms);
     }
   }

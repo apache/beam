@@ -26,9 +26,9 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 
@@ -276,7 +276,11 @@ class KeyedStateCache {
     }
 
     private Iterable<T> getAddedItems() {
-      return FluentIterable.from(added).transform(TimestampedValue.<T>valueFunction()).toList();
+      List<T> addedItems = Lists.newArrayList();
+      for (TimestampedValue<T> item : added) {
+        addedItems.add(item.getValue());
+      }
+      return addedItems;
     }
 
     public List<T> mergeWith(List<?> wildcardValue) {

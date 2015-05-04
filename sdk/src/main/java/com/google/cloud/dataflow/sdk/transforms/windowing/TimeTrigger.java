@@ -25,6 +25,8 @@ import com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+import java.util.List;
+
 /**
  * Support for manipulating the time at which time-based {@link Trigger}s fire.
  *
@@ -37,13 +39,13 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
 
   private static final long serialVersionUID = 0L;
 
-  protected static final ImmutableList<SerializableFunction<Instant, Instant>> IDENTITY =
+  protected static final List<SerializableFunction<Instant, Instant>> IDENTITY =
       ImmutableList.<SerializableFunction<Instant, Instant>>of();
 
-  private final ImmutableList<SerializableFunction<Instant, Instant>> timestampMappers;
+  private final List<SerializableFunction<Instant, Instant>> timestampMappers;
 
   protected TimeTrigger(
-      ImmutableList<SerializableFunction<Instant, Instant>> timestampMappers) {
+      List<SerializableFunction<Instant, Instant>> timestampMappers) {
     this.timestampMappers = timestampMappers;
   }
 
@@ -145,5 +147,5 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * @param transform The new transform to apply to target times.
    * @return a new {@code TimeTrigger}.
    */
-  protected abstract T newWith(ImmutableList<SerializableFunction<Instant, Instant>> transform);
+  protected abstract T newWith(List<SerializableFunction<Instant, Instant>> transform);
 }

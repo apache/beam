@@ -20,9 +20,10 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
+
+import java.util.List;
 
 /**
  * {@code AfterProcessingTime} triggers fire based on the current processing time. They operate in
@@ -39,7 +40,7 @@ public class AfterProcessingTime<W extends BoundedWindow>
   private static final CodedTupleTag<Instant> DELAYED_UNTIL_TAG =
       CodedTupleTag.of("delayed-until", InstantCoder.of());
 
-  private AfterProcessingTime(ImmutableList<SerializableFunction<Instant, Instant>> transforms) {
+  private AfterProcessingTime(List<SerializableFunction<Instant, Instant>> transforms) {
     super(transforms);
   }
 
@@ -53,7 +54,7 @@ public class AfterProcessingTime<W extends BoundedWindow>
 
   @Override
   protected AfterProcessingTime<W> newWith(
-      ImmutableList<SerializableFunction<Instant, Instant>> transforms) {
+      List<SerializableFunction<Instant, Instant>> transforms) {
     return new AfterProcessingTime<W>(transforms);
   }
 
