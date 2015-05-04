@@ -26,6 +26,15 @@ import java.util.List;
 @Description("Options that are used to configure the Dataflow pipeline worker pool.")
 public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   /**
+   * Disk source image to use by VMs for jobs.
+   * @see <a href="https://developers.google.com/compute/docs/images">Compute Engine Images</a>
+   */
+  @Description("Disk source image to use by VMs for jobs. See "
+      + "https://developers.google.com/compute/docs/images for further details.")
+  String getDiskSourceImage();
+  void setDiskSourceImage(String value);
+
+  /**
    * Number of workers to use when executing the Dataflow job.
    */
   @Description("Number of workers to use when executing the Dataflow job. Note that "
