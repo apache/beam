@@ -80,11 +80,9 @@ import java.util.NoSuchElementException;
  * database table.  DatastoreIO supports Read/Write from/to Datastore within
  * Dataflow SDK service.
  *
- * <p> To use {@link DatastoreIO}, users must set up the environment and use gcloud
- * to get credential for Datastore:
+ * <p> To use {@link DatastoreIO}, users must use gcloud to get credential for Datastore:
  * <pre>
- * $ export CLOUDSDK_EXTRA_SCOPES=https://www.googleapis.com/auth/datastore
- * $ gcloud auth login
+  * $ gcloud auth login
  * </pre>
  *
  * <p> Note that the environment variable CLOUDSDK_EXTRA_SCOPES must be set

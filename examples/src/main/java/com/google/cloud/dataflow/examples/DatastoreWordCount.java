@@ -44,10 +44,8 @@ import java.util.UUID;
  * write the results to Cloud Storage.  Note that this example will write
  * data to Datastore, which may incur charge for Datastore operations.
  *
- * <p> To run this example, users need to set up the environment and use gcloud
- * to get credential for Datastore:
+ * <p> To run this example, users need to use gcloud to get credential for Datastore:
  * <pre>
- * $ export CLOUDSDK_EXTRA_SCOPES=https://www.googleapis.com/auth/datastore
  * $ gcloud auth login
  * </pre>
  *
