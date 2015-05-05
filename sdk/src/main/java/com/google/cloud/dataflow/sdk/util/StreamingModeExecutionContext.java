@@ -101,15 +101,15 @@ public class StreamingModeExecutionContext extends ExecutionContext {
           "ParDo.withSideInputs()?");
     }
 
-    return fetchSideInput(view, mainInputWindow, SideInputState.KNOWN_READY);
+    return fetchSideInput(view, mainInputWindow, SideInputState.CACHED_IN_WORKITEM);
   }
 
   /**
    * Fetch the given side input asynchronously and return true if it is present.
    */
   public boolean issueSideInputFetch(
-      PCollectionView<?> view, BoundedWindow mainInputWindow) {
-    return fetchSideInput(view, mainInputWindow, SideInputState.UNKNOWN) != null;
+      PCollectionView<?> view, BoundedWindow mainInputWindow, SideInputState state) {
+    return fetchSideInput(view, mainInputWindow, state) != null;
   }
 
   /**
@@ -130,6 +130,11 @@ public class StreamingModeExecutionContext extends ExecutionContext {
     @SuppressWarnings("unchecked")
     T sideInput = (T) tagCache.get(sideInputWindow);
     if (sideInput == null) {
+      if (state == SideInputState.CACHED_IN_WORKITEM) {
+        throw new IllegalStateException(
+            "Expected side input to be cached. Tag: "
+            + view.getTagInternal().getId());
+      }
       T typed = (T) stateFetcher.fetchSideInput(view, sideInputWindow, state);
       sideInput = typed;
       if (sideInput != null) {
@@ -173,10 +178,20 @@ public class StreamingModeExecutionContext extends ExecutionContext {
     return work.getGlobalDataIdNotificationsList();
   }
 
-  public void setBlockingSideInputs(Iterable<Windmill.GlobalDataRequest> sideInputs) {
+  /**
+   * Note that there is data on the current key that is blocked on the given side input.
+   */
+  public void addBlockingSideInput(Windmill.GlobalDataRequest sideInput) {
+    outputBuilder.addGlobalDataRequests(sideInput);
+    outputBuilder.addGlobalDataIdRequests(sideInput.getDataId());
+  }
+
+  /**
+   * Note that there is data on the current key that is blocked on the given side inputs.
+   */
+  public void addBlockingSideInputs(Iterable<Windmill.GlobalDataRequest> sideInputs) {
     for (Windmill.GlobalDataRequest sideInput : sideInputs) {
-      outputBuilder.addGlobalDataRequests(sideInput);
-      outputBuilder.addGlobalDataIdRequests(sideInput.getDataId());
+      addBlockingSideInput(sideInput);
     }
   }
 

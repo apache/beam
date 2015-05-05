@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
+import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -88,30 +89,49 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
     }
   }
 
-  @Override
-  public void startBundle() {
-    super.startBundle();
-
+  /**
+   * Computes the set of main input windows for which all side inputs are ready and cached.
+   */
+  private Map<W, CodedTupleTag<WindowedValue<InputT>>> getReadyWindowTags() {
     Map<W, CodedTupleTag<WindowedValue<InputT>>> readyWindowTags = new HashMap<>();
 
     for (Windmill.GlobalDataId id : execContext.getSideInputNotifications()) {
-      PCollectionView<?> view = sideInputViews.get(id.getTag());
-      if (view == null) {
+      if (sideInputViews.get(id.getTag()) == null) {
         // Side input is for a different DoFn; ignore it.
         continue;
       }
 
       for (Map.Entry<W, Set<Windmill.GlobalDataRequest>> entry : blockedMap.entrySet()) {
+        Set<Windmill.GlobalDataRequest> windowBlockedSet = entry.getValue();
         Set<Windmill.GlobalDataRequest> found = new HashSet<>();
-        for (Windmill.GlobalDataRequest request : entry.getValue()) {
+        for (Windmill.GlobalDataRequest request : windowBlockedSet) {
           if (id.equals(request.getDataId())) {
             found.add(request);
           }
         }
-        entry.getValue().removeAll(found);
-        if (entry.getValue().isEmpty()) {
+
+        windowBlockedSet.removeAll(found);
+
+        if (windowBlockedSet.isEmpty()) {
+          // Notifications were received for all side inputs for this window.
+          // Issue fetches for all the needed side inputs to make sure they are all present
+          // in the local cache.  If not, note the side inputs as still being blocked.
           try {
-            readyWindowTags.put(entry.getKey(), getElemListTag(entry.getKey()));
+            W window = entry.getKey();
+            boolean allSideInputsCached = true;
+            for (PCollectionView<?> view : sideInputViews.values()) {
+              if (!execContext.issueSideInputFetch(
+                  view, window, SideInputState.KNOWN_READY)) {
+                Windmill.GlobalDataRequest request = buildGlobalDataRequest(view, window);
+                execContext.addBlockingSideInput(request);
+                windowBlockedSet.add(request);
+                allSideInputsCached = false;
+              }
+            }
+
+            if (allSideInputsCached) {
+              readyWindowTags.put(window, getElemListTag(window));
+            }
           } catch (IOException e) {
             throw Throwables.propagate(e);
           }
@@ -119,6 +139,17 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
       }
     }
 
+    return readyWindowTags;
+  }
+
+  @Override
+  public void startBundle() {
+    super.startBundle();
+
+    // Find the set of ready windows.
+    Map<W, CodedTupleTag<WindowedValue<InputT>>> readyWindowTags = getReadyWindowTags();
+
+    // Fetch the elements for each of the ready windows.
     Map<CodedTupleTag<WindowedValue<InputT>>, Iterable<WindowedValue<InputT>>> elementsPerWindow;
     try {
       elementsPerWindow = stepContext.readTagLists(readyWindowTags.values());
@@ -126,6 +157,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
       throw Throwables.propagate(e);
     }
 
+    // Run the DoFn code now that all side inputs are ready.
     for (Map.Entry<W, CodedTupleTag<WindowedValue<InputT>>> entry : readyWindowTags.entrySet()) {
       blockedMap.remove(entry.getKey());
 
@@ -144,43 +176,32 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
     }
   }
 
+  /**
+   * Compute the set of side inputs that are not yet ready for the given main input window.
+   */
+  private Set<Windmill.GlobalDataRequest> computeBlockedSideInputs(W window) throws IOException {
+    Set<Windmill.GlobalDataRequest> blocked = blockedMap.get(window);
+    if (blocked == null) {
+      for (PCollectionView<?> view : sideInputViews.values()) {
+        if (!execContext.issueSideInputFetch(view, window, SideInputState.UNKNOWN)) {
+          if (blocked == null) {
+            blocked = new HashSet<>();
+            blockedMap.put(window, blocked);
+          }
+          blocked.add(buildGlobalDataRequest(view, window));
+        }
+      }
+    }
+    return blocked;
+  }
+
   @Override
   public void invokeProcessElement(WindowedValue<InputT> elem) {
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       W window = (W) elem.getWindows().iterator().next();
 
-      Set<Windmill.GlobalDataRequest> blocked = blockedMap.get(window);
-      if (blocked == null) {
-        for (PCollectionView<?> view : sideInputViews.values()) {
-          if (!execContext.issueSideInputFetch(view, window)) {
-            if (blocked == null) {
-              blocked = new HashSet<>();
-              blockedMap.put(window, blocked);
-            }
-            Coder<BoundedWindow> sideInputWindowCoder =
-                view.getWindowingStrategyInternal().getWindowFn().windowCoder();
-
-            BoundedWindow sideInputWindow =
-                view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(window);
-
-            ByteString.Output windowStream = ByteString.newOutput();
-            sideInputWindowCoder.encode(sideInputWindow, windowStream, Coder.Context.OUTER);
-
-            blocked.add(Windmill.GlobalDataRequest.newBuilder()
-                .setDataId(Windmill.GlobalDataId.newBuilder()
-                    .setTag(view.getTagInternal().getId())
-                    .setVersion(windowStream.toByteString())
-                    .build())
-                .setExistenceWatermarkDeadline(
-                    TimeUnit.MILLISECONDS.toMicros(view.getWindowingStrategyInternal()
-                        .getTrigger()
-                        .getWatermarkCutoff(sideInputWindow)
-                        .getMillis()))
-                .build());
-          }
-        }
-      }
+      Set<Windmill.GlobalDataRequest> blocked = computeBlockedSideInputs(window);
 
       if (blocked == null) {
         fn.processElement(createProcessContext(elem));
@@ -188,7 +209,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
         stepContext.writeToTagList(
             getElemListTag(window), elem, elem.getTimestamp());
 
-        execContext.setBlockingSideInputs(blocked);
+        execContext.addBlockingSideInputs(blocked);
       }
     } catch (Throwable t) {
       // Exception in user code.
@@ -205,6 +226,30 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
     } catch (IOException e) {
       throw new RuntimeException("Exception while storing streaming side input info: ", e);
     }
+  }
+
+  private Windmill.GlobalDataRequest buildGlobalDataRequest(
+      PCollectionView<?> view, BoundedWindow window) throws IOException {
+    Coder<BoundedWindow> sideInputWindowCoder =
+        view.getWindowingStrategyInternal().getWindowFn().windowCoder();
+
+    BoundedWindow sideInputWindow =
+        view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(window);
+
+    ByteString.Output windowStream = ByteString.newOutput();
+    sideInputWindowCoder.encode(sideInputWindow, windowStream, Coder.Context.OUTER);
+
+    return Windmill.GlobalDataRequest.newBuilder()
+        .setDataId(Windmill.GlobalDataId.newBuilder()
+            .setTag(view.getTagInternal().getId())
+            .setVersion(windowStream.toByteString())
+            .build())
+        .setExistenceWatermarkDeadline(
+            TimeUnit.MILLISECONDS.toMicros(view.getWindowingStrategyInternal()
+                .getTrigger()
+                .getWatermarkCutoff(sideInputWindow)
+                .getMillis()))
+        .build();
   }
 
   private CodedTupleTag<WindowedValue<InputT>> getElemListTag(W window) throws IOException {

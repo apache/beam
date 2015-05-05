@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
+import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -83,7 +84,9 @@ public class StreamingSideInputDoFnRunnerTest {
     when(stepContext.lookup(any(CodedTupleTag.class))).thenReturn(new HashMap());
     when(execContext.getSideInputNotifications())
         .thenReturn(Arrays.<Windmill.GlobalDataId>asList());
-    when(execContext.issueSideInputFetch(eq(view), any(BoundedWindow.class))).thenReturn(true);
+    when(execContext.issueSideInputFetch(
+             eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
+        .thenReturn(true);
     when(execContext.getSideInput(eq(view), any(BoundedWindow.class), any(PTuple.class)))
         .thenReturn("data");
 
@@ -105,7 +108,9 @@ public class StreamingSideInputDoFnRunnerTest {
     when(stepContext.lookup(any(CodedTupleTag.class))).thenReturn(new HashMap());
     when(execContext.getSideInputNotifications())
         .thenReturn(Arrays.<Windmill.GlobalDataId>asList());
-    when(execContext.issueSideInputFetch(eq(view), any(BoundedWindow.class))).thenReturn(false);
+    when(execContext.issueSideInputFetch(
+             eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
+        .thenReturn(false);
 
     StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> runner =
         createRunner(Arrays.asList(view));
@@ -153,6 +158,12 @@ public class StreamingSideInputDoFnRunnerTest {
         .lookup(Mockito.<CodedTupleTag<Map<IntervalWindow, Set<Windmill.GlobalDataRequest>>>>any()))
         .thenReturn(blockedMap);
     when(execContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
+    when(execContext.issueSideInputFetch(
+             eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
+        .thenReturn(false);
+    when(execContext.issueSideInputFetch(
+             eq(view), any(BoundedWindow.class), eq(SideInputState.KNOWN_READY)))
+        .thenReturn(true);
     when(execContext.getSideInput(eq(view), eq(window), any(PTuple.class)))
         .thenReturn("data");
     when(stepContext.readTagLists(
@@ -210,7 +221,8 @@ public class StreamingSideInputDoFnRunnerTest {
         Mockito.<CodedTupleTag<Map<IntervalWindow, Set<Windmill.GlobalDataRequest>>>>any()))
         .thenReturn(blockedMap);
     when(execContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
-    when(execContext.issueSideInputFetch(any(PCollectionView.class), any(BoundedWindow.class)))
+    when(execContext.issueSideInputFetch(
+             any(PCollectionView.class), any(BoundedWindow.class), any(SideInputState.class)))
         .thenReturn(true);
     when(execContext.getSideInput(eq(view1), eq(window), any(PTuple.class)))
         .thenReturn("data1");

@@ -203,7 +203,7 @@ public class StateFetcher {
    * Indicates the caller's knowledge of whether a particular side input has been computed.
    */
   public enum SideInputState {
-    KNOWN_READY, UNKNOWN;
+    CACHED_IN_WORKITEM, KNOWN_READY, UNKNOWN;
   }
 
   /**
@@ -279,13 +279,7 @@ public class StateFetcher {
             }
           }
 
-          T result = (T) sideInputCache.get(id, fetchCallable).value;
-          if (result == null) {
-            throw new IllegalStateException(
-                "Side input fetch unexpectedly returned null. Tag: "
-                + view.getTagInternal().getId());
-          }
-          return result;
+          return (T) sideInputCache.get(id, fetchCallable).value;
         } else {
           return (T) entry.value;
         }
