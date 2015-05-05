@@ -57,7 +57,7 @@ public class AfterPaneTest {
     assertTrue(tester.isDone(new IntervalWindow(new Instant(0), new Instant(10))));
     assertFalse(tester.isDone(new IntervalWindow(new Instant(10), new Instant(20))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.rootFinished(new IntervalWindow(new Instant(0), new Instant(10)))));
+        tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10)))));
   }
 
   @Test
@@ -81,7 +81,7 @@ public class AfterPaneTest {
     assertTrue(tester.isDone(new IntervalWindow(new Instant(0), new Instant(10))));
     assertFalse(tester.isDone(new IntervalWindow(new Instant(10), new Instant(20))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.rootFinished(new IntervalWindow(new Instant(0), new Instant(10)))));
+        tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10)))));
   }
 
   @Test
@@ -107,8 +107,8 @@ public class AfterPaneTest {
 
     assertTrue(tester.isDone(new IntervalWindow(new Instant(1), new Instant(12))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.rootFinished(new IntervalWindow(new Instant(1), new Instant(12))),
-        tester.rootFinished(new IntervalWindow(new Instant(7), new Instant(18)))));
+        tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(12))),
+        tester.finishedSet(new IntervalWindow(new Instant(7), new Instant(18)))));
   }
 
   @Test

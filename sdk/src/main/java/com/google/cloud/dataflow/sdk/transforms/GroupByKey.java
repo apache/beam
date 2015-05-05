@@ -485,10 +485,10 @@ public class GroupByKey<K, V>
         !(windowingStrategy.getWindowFn() instanceof NonMergingWindowFn)
         || (isStreaming && !fewKeys)
         // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
-        || !(windowingStrategy.getTrigger() instanceof DefaultTrigger);
+        || !(windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger);
 
     if (windowingStrategy.getWindowFn().isCompatible(new GlobalWindows())
-        && windowingStrategy.getTrigger() instanceof DefaultTrigger) {
+        && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger) {
       // The input PCollection is using the degenerate default
       // window function, which uses a single global window for all
       // elements.  We can implement this using a more-primitive

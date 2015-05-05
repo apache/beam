@@ -62,7 +62,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
     if (windowingStrategy.getWindowFn() instanceof PartitioningWindowFn
         // TODO: Characterize the other kinds of triggers that work with the
         // PartitioningBufferingWindowSet
-        && windowingStrategy.getTrigger() instanceof DefaultTrigger) {
+        && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger) {
       return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
           PartitionBufferingWindowSet.<K, InputT, W>factory(inputValueCoder));
     } else {
@@ -75,7 +75,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
   extends StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
     private final WindowFn<Object, W> windowFn;
     private Factory<K, InputT, OutputT, W> windowSetFactory;
-    private Trigger<W> trigger;
+    private ExecutableTrigger<W> trigger;
 
     public StreamingGABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
         AbstractWindowSet.Factory<K, InputT, OutputT, W> windowSetFactory) {

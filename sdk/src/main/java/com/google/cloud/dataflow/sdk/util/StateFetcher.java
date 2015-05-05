@@ -166,7 +166,7 @@ public class StateFetcher {
     if (response.getDataCount() != 1
         || !response.getData(0).getComputationId().equals(computation)
         || response.getData(0).getDataCount() != 1) {
-      throw new IOException("Invalid data response, expected single computation and key.");
+      throw new IOException("Invalid data response, expected single computation and key");
     }
 
     Windmill.KeyedGetDataResponse keyResponse = response.getData(0).getData(0);
@@ -233,7 +233,7 @@ public class StateFetcher {
                     .build())
                 .setExistenceWatermarkDeadline(
                      TimeUnit.MILLISECONDS.toMicros(view.getWindowingStrategyInternal()
-                         .getTrigger()
+                         .getTrigger().getSpec()
                          .getWatermarkCutoff(window)
                          .getMillis()))
                 .build();

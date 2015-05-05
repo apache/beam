@@ -122,7 +122,7 @@ public class StreamingDataflowWorkerTest {
     public Windmill.GetDataResponse getData(Windmill.GetDataRequest request) {
       Windmill.GetDataResponse response = dataToOffer.poll();
       if (response == null) {
-        return Windmill.GetDataResponse.newBuilder().build();
+        response = Windmill.GetDataResponse.newBuilder().build();
       }
       return response;
     }
@@ -871,7 +871,7 @@ public class StreamingDataflowWorkerTest {
         "  data {" +
         "    key: \"key\"" +
         "    values {" +
-        "      tag: \"12:MergeWindowsearliest-element-gAAAAAAAAAAAAAAA\"" +
+        "      tag: \"12:MergeWindowsgAAAAAAAAAA=earliest-element\"" +
         "    }" +
         "  }" +
         "}"));
@@ -882,12 +882,12 @@ public class StreamingDataflowWorkerTest {
         "key: \"key\" " +
         "work_token: 0 " +
         "output_timers {" +
-        "  tag: \"gAAAAAAAAAAAAAAA\"" +
+        "  tag: \"gAAAAAAAAAAA\"" +
         "  timestamp: 999000" +
         "  type: WATERMARK" +
         "} " +
         "value_updates {" +
-        "  tag: \"12:MergeWindowsearliest-element-gAAAAAAAAAAAAAAA\"" +
+        "  tag: \"12:MergeWindowsgAAAAAAAAAA=earliest-element\"" +
         "  value {" +
         "    timestamp: 0" +
         "    data: \"\\200\\000\\000\\000\\000\\000\\000\\000\"" +
@@ -936,7 +936,7 @@ public class StreamingDataflowWorkerTest {
         "  data {" +
         "    key: \"key\"" +
         "    values {" +
-        "      tag: \"12:MergeWindowsearliest-element-gAAAAAAAAAAAAAAA\"" +
+        "      tag: \"12:MergeWindowsgAAAAAAAAAA=earliest-element\"" +
         "      value {" +
         "        timestamp: 0" +
         "        data: \"\\200\\000\\000\\000\\000\\000\\000\\000\"" +
@@ -961,7 +961,7 @@ public class StreamingDataflowWorkerTest {
         "  }" +
         "} " +
         "value_updates {" +
-        "  tag: \"12:MergeWindowsearliest-element-gAAAAAAAAAAAAAAA\"" +
+        "  tag: \"12:MergeWindowsgAAAAAAAAAA=earliest-element\"" +
         "  value {" +
         "    timestamp: 9223372036854775807" +
         "    data: \"\"" +

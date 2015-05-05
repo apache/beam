@@ -18,10 +18,12 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerEvent;
@@ -29,8 +31,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
+import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
-import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -50,12 +52,17 @@ public class AfterFirstTest {
 
   @Mock private OnceTrigger<IntervalWindow> mockTrigger1;
   @Mock private OnceTrigger<IntervalWindow> mockTrigger2;
+  private ExecutableTrigger<IntervalWindow> executable1;
+  private ExecutableTrigger<IntervalWindow> executable2;
+
   private TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester;
   private IntervalWindow firstWindow;
 
   public void setUp(WindowFn<?, IntervalWindow> windowFn) throws Exception {
     MockitoAnnotations.initMocks(this);
     tester = TriggerTester.buffering(windowFn, AfterFirst.of(mockTrigger1, mockTrigger2));
+    executable1 = tester.getTrigger().subTriggers().get(0);
+    executable2 = tester.getTrigger().subTriggers().get(1);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
 
@@ -85,11 +92,11 @@ public class AfterFirstTest {
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    injectElement(2, TriggerResult.FIRE, TriggerResult.CONTINUE);
+    injectElement(2, TriggerResult.FIRE_AND_FINISH, TriggerResult.CONTINUE);
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
   }
 
   @Test
@@ -98,11 +105,11 @@ public class AfterFirstTest {
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    injectElement(2, TriggerResult.CONTINUE, TriggerResult.FIRE);
+    injectElement(2, TriggerResult.CONTINUE, TriggerResult.FIRE_AND_FINISH);
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
   }
 
   @SuppressWarnings("unchecked")
@@ -112,15 +119,15 @@ public class AfterFirstTest {
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
-    tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, ImmutableList.of(0));
+    tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, executable1);
     when(mockTrigger1.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
-        .thenReturn(TriggerResult.FIRE);
+        .thenReturn(TriggerResult.FIRE_AND_FINISH);
     tester.advanceWatermark(new Instant(12));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
   }
 
   @SuppressWarnings("unchecked")
@@ -130,7 +137,7 @@ public class AfterFirstTest {
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
-    tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, ImmutableList.of(1));
+    tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, executable2);
     when(mockTrigger2.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
 
@@ -139,7 +146,7 @@ public class AfterFirstTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
 
     assertTrue(tester.isDone(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.rootFinished(firstWindow)));
+    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
   }
 
   @Test
@@ -151,11 +158,11 @@ public class AfterFirstTest {
 
     when(mockTrigger1.onMerge(
         isTriggerContext(),
-        Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.CONTINUE);
+        Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(MergeResult.CONTINUE);
 
     when(mockTrigger2.onMerge(
         isTriggerContext(),
-        Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.FIRE);
+        Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(MergeResult.FIRE_AND_FINISH);
 
     // The arrival of this element should trigger merging.
     injectElement(5, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
@@ -164,7 +171,7 @@ public class AfterFirstTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     assertTrue(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
-        tester.rootFinished(new IntervalWindow(new Instant(1), new Instant(22)))));
+        tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(22)))));
   }
 
   @Test
@@ -178,5 +185,53 @@ public class AfterFirstTest {
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterFirst.of(AfterPane.elementCountAtLeast(2), AfterPane.elementCountAtLeast(1))
             .getWatermarkCutoff(window));
+  }
+
+  @Test
+  public void testAfterFirstRealTriggersFixedWindow() throws Exception {
+    tester = TriggerTester.buffering(FixedWindows.of(Duration.millis(50)),
+        Repeatedly.<IntervalWindow>forever(
+            AfterFirst.<IntervalWindow>of(
+                AfterPane.<IntervalWindow>elementCountAtLeast(5),
+                AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
+                    .plusDelayOf(Duration.millis(5)))));
+
+    tester.advanceProcessingTime(new Instant(0));
+    // 5 elements -> after pane fires
+    tester.injectElement(0, new Instant(0));
+    tester.injectElement(1, new Instant(0));
+    tester.injectElement(2, new Instant(1));
+    tester.injectElement(3, new Instant(1));
+    tester.injectElement(4, new Instant(1));
+
+    assertThat(tester.extractOutput(), Matchers.contains(
+        isSingleWindowedValue(Matchers.containsInAnyOrder(0, 1, 2, 3, 4), 0, 0, 50)));
+
+    // 4 elements, advance processing time to 5 (shouldn't fire yet), then advance it to 6
+    tester.advanceProcessingTime(new Instant(1));
+    tester.injectElement(5, new Instant(2));
+    tester.injectElement(6, new Instant(3));
+    tester.injectElement(7, new Instant(4));
+    tester.injectElement(8, new Instant(5));
+    tester.advanceProcessingTime(new Instant(5));
+    assertThat(tester.extractOutput(), Matchers.emptyIterable());
+    tester.advanceProcessingTime(new Instant(6));
+    assertThat(tester.extractOutput(), Matchers.contains(
+        isSingleWindowedValue(Matchers.containsInAnyOrder(5, 6, 7, 8), 2, 0, 50)));
+
+    // Now, send in 5 more elements, and make sure they come out as a group. State should not
+    // be carried over.
+    tester.injectElement(9, new Instant(6));
+    tester.injectElement(10, new Instant(7));
+    tester.injectElement(11, new Instant(8));
+    tester.injectElement(12, new Instant(9));
+    tester.injectElement(13, new Instant(10));
+
+    assertThat(tester.extractOutput(), Matchers.contains(
+        isSingleWindowedValue(Matchers.containsInAnyOrder(9, 10, 11, 12, 13), 6, 0, 50)));
+    assertFalse(tester.isDone(new IntervalWindow(new Instant(0), new Instant(50))));
+    // Because none of the triggers every stay finished (we always immediately reset) there is no
+    // persisted keyed state.
+    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 }

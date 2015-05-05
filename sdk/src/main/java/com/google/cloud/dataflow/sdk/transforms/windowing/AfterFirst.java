@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
+import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
@@ -36,10 +37,9 @@ import java.util.List;
 public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
 
   private static final long serialVersionUID = 0L;
-  private List<Trigger<W>> subTriggers;
 
   private AfterFirst(List<Trigger<W>> subTriggers) {
-    this.subTriggers = subTriggers;
+    super(subTriggers);
     Preconditions.checkArgument(subTriggers.size() > 1);
   }
 
@@ -51,46 +51,42 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
 
   @Override
   public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
-    for (int i = 0; i < subTriggers.size(); i++) {
-      if (subTriggers.get(i).onElement(c.forChild(i), e).isFire()) {
+    for (ExecutableTrigger<W> subTrigger : c.subTriggers()) {
+      if (subTrigger.invokeElement(c, e).isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
       }
     }
+
     return TriggerResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
-    for (int i = 0; i < subTriggers.size(); i++) {
-      if (subTriggers.get(i).onMerge(c.forChild(i), e).isFire()) {
-        return TriggerResult.FIRE_AND_FINISH;
+  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    // FINISH if merging returns FINISH for any sub-trigger.
+    // FIRE_AND_FINISH if merging returns FIRE or FIRE_AND_FINISH for at least one sub-trigger.
+    // CONTINUE otherwise
+    boolean fired = false;
+    for (ExecutableTrigger<W> subTrigger : c.subTriggers()) {
+      MergeResult mergeResult = subTrigger.invokeMerge(c, e);
+      if (MergeResult.ALREADY_FINISHED.equals(mergeResult)) {
+        return MergeResult.ALREADY_FINISHED;
+      } else if (mergeResult.isFire()) {
+        fired = true;
       }
     }
-    return TriggerResult.CONTINUE;
+    return fired ? MergeResult.FIRE_AND_FINISH : MergeResult.CONTINUE;
   }
 
   @Override
   public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
-    if (e.isForCurrentLayer()) {
+    if (c.isCurrentTrigger(e.getDestinationIndex())) {
       throw new IllegalStateException("AfterFirst shouldn't receive any timers.");
     }
 
-    int childIdx = e.getChildIndex();
-    return subTriggers.get(childIdx).onTimer(c.forChild(childIdx), e.withoutOuterTrigger()).isFire()
+    ExecutableTrigger<W> subTrigger = c.nextStepTowards(e.getDestinationIndex());
+    return subTrigger.invokeTimer(c, e).isFire()
         ? TriggerResult.FIRE_AND_FINISH
         : TriggerResult.CONTINUE;
-  }
-
-  @Override
-  public void clear(Trigger.TriggerContext<W> c, W window) throws Exception {
-    SubTriggerExecutor.forWindow(subTriggers, c, window).clear();
-  }
-
-  @Override
-  public boolean willNeverFinish() {
-    // The only case an AfterAll will never finish, is if some trigger never fires. But, we can't
-    // statically determine if (or when) a trigger might fire.
-    return false;
   }
 
   @Override
@@ -104,25 +100,5 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
       }
     }
     return deadline;
-  }
-
-  @Override
-  public boolean isCompatible(Trigger<?> other) {
-    if (!(other instanceof AfterFirst)) {
-      return false;
-    }
-
-    AfterFirst<?> that = (AfterFirst<?>) other;
-    if (this.subTriggers.size() != that.subTriggers.size()) {
-      return false;
-    }
-
-    for (int i = 0; i < this.subTriggers.size(); i++) {
-      if (!this.subTriggers.get(i).isCompatible(that.subTriggers.get(i))) {
-        return false;
-      }
-    }
-
-    return true;
   }
 }

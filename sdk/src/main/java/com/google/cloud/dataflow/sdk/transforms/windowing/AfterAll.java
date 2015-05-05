@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
+import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
@@ -35,10 +36,9 @@ import java.util.List;
 public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
 
   private static final long serialVersionUID = 0L;
-  private List<Trigger<W>> subTriggers;
 
   private AfterAll(List<Trigger<W>> subTriggers) {
-    this.subTriggers = subTriggers;
+    super(subTriggers);
     Preconditions.checkArgument(subTriggers.size() > 1);
   }
 
@@ -48,9 +48,9 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
     return new AfterAll<W>(Arrays.<Trigger<W>>asList(triggers));
   }
 
-  private TriggerResult wrapResult(SubTriggerExecutor<W> subExecutor) {
+  private TriggerResult wrapResult(TriggerContext<W> c) {
     // If all children have finished, then they must have each fired at least once.
-    if (subExecutor.allFinished()) {
+    if (c.areAllSubtriggersFinished()) {
       return TriggerResult.FIRE_AND_FINISH;
     }
 
@@ -59,58 +59,42 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
 
   @Override
   public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
-    SubTriggerExecutor<W> subExecutor = SubTriggerExecutor.forWindow(subTriggers, c, e.window());
-    for (int i : subExecutor.getUnfinishedTriggers()) {
-      // Mark any fired triggers as finished.
-      if (subExecutor.onElement(i, e).isFire()) {
-        subExecutor.markFinished(i);
-      }
+    for (ExecutableTrigger<W> subTrigger : c.unfinishedSubTriggers()) {
+      // Since subTriggers are all OnceTriggers, they must either CONTINUE or FIRE_AND_FINISH.
+      // invokeElement will automatically mark the finish bit if they return FIRE_AND_FINISH.
+      subTrigger.invokeElement(c, e);
     }
 
-    return wrapResult(subExecutor);
+    return wrapResult(c);
   }
 
   @Override
-  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
-    SubTriggerExecutor<W> subExecutor = SubTriggerExecutor.forMerge(subTriggers, c, e);
-
-    // If after merging the set of fire & finished sub-triggers, we're done, we can
-    // FIRE_AND_FINISH early.
-    if (subExecutor.allFinished()) {
-      return TriggerResult.FIRE_AND_FINISH;
-    }
-
-    // Otherwise, merge all of the unfinished triggers.
-    for (int i : subExecutor.getUnfinishedTriggers()) {
-      if (subExecutor.onMerge(i, e).isFire()) {
-        subExecutor.markFinished(i);
+  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    // CONTINUE if merging returns CONTINUE for at least one sub-trigger
+    // FIRE_AND_FINISH if merging returns FIRE or FIRE_AND_FINISH for at least one sub-trigger
+    //   *and* FIRE, FIRE_AND_FINISH, or FINISH for all other sub-triggers.
+    // FINISH if merging returns FINISH for all sub-triggers.
+    boolean fired = false;
+    for (ExecutableTrigger<W> subTrigger : c.subTriggers()) {
+      MergeResult result = subTrigger.invokeMerge(c, e);
+      if (MergeResult.CONTINUE.equals(result)) {
+        return MergeResult.CONTINUE;
       }
+      fired |= result.isFire();
     }
 
-    return wrapResult(subExecutor);
+    return fired ? MergeResult.FIRE_AND_FINISH : MergeResult.ALREADY_FINISHED;
   }
 
   @Override
   public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
-    SubTriggerExecutor<W> subExecutor = SubTriggerExecutor.forWindow(subTriggers, c, e.window());
+    if (c.isCurrentTrigger(e.getDestinationIndex())) {
+      throw new IllegalStateException("AfterAll shouldn't receive any timers.");
+    }
 
-    // We take at-most-once triggers, so the result of the timer on the child should be either
-    // CONTINUE or FIRE_AND_FINISH. The subexecutor already tracks finishing of children, so we just
-    // need to know that we fire and finish if all of the children have finished.
-    subExecutor.onTimer(e);
-    return wrapResult(subExecutor);
-  }
-
-
-  @Override
-  public void clear(Trigger.TriggerContext<W> c, W window) throws Exception {
-    SubTriggerExecutor.forWindow(subTriggers, c, window).clear();
-  }
-
-  @Override
-  public boolean willNeverFinish() {
-    // even if one of the triggers never finishes, the AfterAll could finish if it FIREs.
-    return false;
+    ExecutableTrigger<W> subTrigger = c.nextStepTowards(e.getDestinationIndex());
+    subTrigger.invokeTimer(c, e);
+    return wrapResult(c);
   }
 
   @Override
@@ -124,25 +108,5 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
       }
     }
     return deadline;
-  }
-
-  @Override
-  public boolean isCompatible(Trigger<?> other) {
-    if (!(other instanceof AfterAll)) {
-      return false;
-    }
-
-    AfterAll<?> that = (AfterAll<?>) other;
-    if (this.subTriggers.size() != that.subTriggers.size()) {
-      return false;
-    }
-
-    for (int i = 0; i < this.subTriggers.size(); i++) {
-      if (!this.subTriggers.get(i).isCompatible(that.subTriggers.get(i))) {
-        return false;
-      }
-    }
-
-    return true;
   }
 }

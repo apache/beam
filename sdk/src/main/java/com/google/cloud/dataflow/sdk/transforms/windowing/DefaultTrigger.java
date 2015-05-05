@@ -31,7 +31,9 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
 
   private static final long serialVersionUID = 0L;
 
-  private DefaultTrigger() {}
+  private DefaultTrigger() {
+    super(null);
+  }
 
   /**
    * Returns the default trigger.
@@ -47,9 +49,9 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   }
 
   @Override
-  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
     c.setTimer(e.newWindow(), e.newWindow().maxTimestamp(), TimeDomain.EVENT_TIME);
-    return TriggerResult.CONTINUE;
+    return MergeResult.CONTINUE;
   }
 
   @Override
@@ -60,11 +62,6 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   @Override
   public void clear(TriggerContext<W> c, W window) throws Exception {
     c.deleteTimer(window, TimeDomain.EVENT_TIME);
-  }
-
-  @Override
-  public boolean willNeverFinish() {
-    return true;
   }
 
   @Override

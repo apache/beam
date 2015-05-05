@@ -47,7 +47,6 @@ import org.junit.runners.JUnit4;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 /** Unit tests for {@link StreamingGroupAlsoByWindowsDoFn}. */
@@ -116,14 +115,12 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<IntervalWindow>(
-                (IntervalWindow) window(0, 10), Collections.<Integer>emptyList())),
+            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 10), 0)),
             new Instant(9), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<IntervalWindow>(
-                (IntervalWindow) window(10, 20), Collections.<Integer>emptyList())),
+            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(10, 20), 0)),
             new Instant(19), "k")));
 
     runner.finishBundle();
@@ -137,13 +134,13 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertEquals("k", item0.getValue().getKey());
     assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1", "v2"));
     assertEquals(new Instant(0), item0.getTimestamp());
-    assertThat(item0.getWindows(), Matchers.contains(window(0, 10)));
+    assertThat(item0.getWindows(), Matchers.<BoundedWindow>contains(window(0, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v3"));
     assertEquals(new Instant(13), item1.getTimestamp());
-    assertThat(item1.getWindows(), Matchers.contains(window(10, 20)));
+    assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(10, 20)));
   }
 
   @Test public void testSlidingWindows() throws Exception {
@@ -171,8 +168,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<IntervalWindow>(
-                (IntervalWindow) window(-10, 10), Collections.<Integer>emptyList())),
+            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(-10, 10), 0)),
             new Instant(9), "k")));
 
     runner.processElement(WindowedValue.of(
@@ -182,14 +178,12 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<IntervalWindow>(
-                (IntervalWindow) window(0, 20), Collections.<Integer>emptyList())),
+            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 20), 0)),
             new Instant(19), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<IntervalWindow>(
-                (IntervalWindow) window(10, 30), Collections.<Integer>emptyList())),
+            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(10, 30), 0)),
             new Instant(29), "k")));
 
     runner.finishBundle();
@@ -203,19 +197,19 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertEquals("k", item0.getValue().getKey());
     assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1"));
     assertEquals(new Instant(2), item0.getTimestamp());
-    assertThat(item0.getWindows(), Matchers.contains(window(-10, 10)));
+    assertThat(item0.getWindows(), Matchers.<BoundedWindow>contains(window(-10, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1", "v2"));
     assertEquals(new Instant(2), item1.getTimestamp());
-    assertThat(item1.getWindows(), Matchers.contains(window(0, 20)));
+    assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(0, 20)));
 
     WindowedValue<KV<String, Iterable<String>>> item2 = result.get(2);
     assertEquals("k", item2.getValue().getKey());
     assertThat(item2.getValue().getValue(), Matchers.containsInAnyOrder("v2"));
     assertEquals(new Instant(5), item2.getTimestamp());
-    assertThat(item2.getWindows(), Matchers.contains(window(10, 30)));
+    assertThat(item2.getWindows(), Matchers.<BoundedWindow>contains(window(10, 30)));
   }
 
   @Test public void testSessions() throws Exception {
@@ -252,20 +246,17 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<IntervalWindow>(
-                (IntervalWindow) window(0, 10), Collections.<Integer>emptyList())),
+            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 10), 0)),
             new Instant(9), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<IntervalWindow>(
-                (IntervalWindow) window(0, 15), Collections.<Integer>emptyList())),
+            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 15), 0)),
             new Instant(14), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<IntervalWindow>(
-                (IntervalWindow) window(15, 25), Collections.<Integer>emptyList())),
+            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(15, 25), 0)),
             new Instant(24), "k")));
 
     runner.finishBundle();
@@ -279,13 +270,13 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertEquals("k", item0.getValue().getKey());
     assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1", "v2"));
     assertEquals(new Instant(0), item0.getTimestamp());
-    assertThat(item0.getWindows(), Matchers.contains(window(0, 15)));
+    assertThat(item0.getWindows(), Matchers.<BoundedWindow>contains(window(0, 15)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v3"));
     assertEquals(new Instant(15), item1.getTimestamp());
-    assertThat(item1.getWindows(), Matchers.contains(window(15, 25)));
+    assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(15, 25)));
   }
 
   /**
@@ -358,20 +349,17 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     // and fire them as appropriate. This would essentially be the batch timer context.
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, Long>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<IntervalWindow>(
-                (IntervalWindow) window(0, 10), Collections.<Integer>emptyList())),
+            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 10), 0)),
             new Instant(9), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, Long>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<IntervalWindow>(
-                (IntervalWindow) window(0, 15), Collections.<Integer>emptyList())),
+            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 15), 0)),
             new Instant(14), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, Long>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<IntervalWindow>(
-                (IntervalWindow) window(15, 25), Collections.<Integer>emptyList())),
+            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(15, 25), 0)),
             new Instant(24), "k")));
 
     runner.finishBundle();
@@ -385,13 +373,13 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertEquals("k", item0.getValue().getKey());
     assertEquals((Long) 7L, item0.getValue().getValue());
     assertEquals(new Instant(0), item0.getTimestamp());
-    assertThat(item0.getWindows(), Matchers.contains(window(0, 15)));
+    assertThat(item0.getWindows(), Matchers.<BoundedWindow>contains(window(0, 15)));
 
     WindowedValue<KV<String, Long>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
     assertEquals((Long) 3L, item1.getValue().getValue());
     assertEquals(new Instant(15), item1.getTimestamp());
-    assertThat(item1.getWindows(), Matchers.contains(window(15, 25)));
+    assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(15, 25)));
   }
 
   private DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>, List>
@@ -428,7 +416,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
             windowingStrategy);
   }
 
-  private BoundedWindow window(long start, long end) {
+  private IntervalWindow window(long start, long end) {
     return new IntervalWindow(new Instant(start), new Instant(end));
   }
 }

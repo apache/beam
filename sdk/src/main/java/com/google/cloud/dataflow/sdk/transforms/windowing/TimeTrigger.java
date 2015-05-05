@@ -46,6 +46,7 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
 
   protected TimeTrigger(
       List<SerializableFunction<Instant, Instant>> timestampMappers) {
+    super(null);
     this.timestampMappers = timestampMappers;
   }
 

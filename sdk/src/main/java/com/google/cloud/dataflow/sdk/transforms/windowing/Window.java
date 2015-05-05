@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
+import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
@@ -214,7 +215,8 @@ public class Window {
     WindowFn<? super T, W> typedFn = (WindowFn<? super T, W>) fn;
     @SuppressWarnings("unchecked")
     Trigger<W> typedTrigger = (Trigger<W>) trigger;
-    return WindowingStrategy.of(typedFn, typedTrigger);
+
+    return WindowingStrategy.of(typedFn, ExecutableTrigger.create(typedTrigger));
   }
 
   /**

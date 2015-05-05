@@ -22,14 +22,15 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
+import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
-import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -47,6 +48,8 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class RepeatedlyTest {
   @Mock private Trigger<IntervalWindow> mockRepeated;
+  private ExecutableTrigger<IntervalWindow> executableRepeated;
+
   private TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester;
   private IntervalWindow firstWindow;
 
@@ -54,6 +57,7 @@ public class RepeatedlyTest {
     MockitoAnnotations.initMocks(this);
     Trigger<IntervalWindow> underTest = Repeatedly.forever(mockRepeated);
     tester = TriggerTester.buffering(windowFn, underTest);
+    executableRepeated = tester.getTrigger().subTriggers().get(0);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
 
@@ -97,28 +101,28 @@ public class RepeatedlyTest {
 
     injectElement(1, TriggerResult.CONTINUE);
 
-    tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, ImmutableList.of(0));
+    tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, executableRepeated);
     when(mockRepeated.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.FIRE);
     tester.advanceWatermark(new Instant(12));
 
     injectElement(2, TriggerResult.CONTINUE);
 
-    tester.setTimer(firstWindow, new Instant(12), TimeDomain.EVENT_TIME, ImmutableList.of(0));
+    tester.setTimer(firstWindow, new Instant(12), TimeDomain.EVENT_TIME, executableRepeated);
     when(mockRepeated.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
     tester.advanceWatermark(new Instant(13));
 
     injectElement(3, TriggerResult.CONTINUE);
 
-    tester.setTimer(firstWindow, new Instant(13), TimeDomain.EVENT_TIME, ImmutableList.of(0));
+    tester.setTimer(firstWindow, new Instant(13), TimeDomain.EVENT_TIME, executableRepeated);
     when(mockRepeated.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.CONTINUE);
     tester.advanceWatermark(new Instant(14));
 
     injectElement(4, TriggerResult.CONTINUE);
 
-    tester.setTimer(firstWindow, new Instant(14), TimeDomain.EVENT_TIME, ImmutableList.of(0));
+    tester.setTimer(firstWindow, new Instant(14), TimeDomain.EVENT_TIME, executableRepeated);
     when(mockRepeated.onTimer(isTriggerContext(), Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.FIRE);
     tester.advanceWatermark(new Instant(15));
@@ -140,7 +144,7 @@ public class RepeatedlyTest {
 
     when(mockRepeated.onMerge(
         isTriggerContext(),
-        Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(TriggerResult.FIRE_AND_FINISH);
+        Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(MergeResult.FIRE_AND_FINISH);
 
     // The arrival of this element should trigger merging.
     injectElement(5, TriggerResult.CONTINUE);

@@ -27,7 +27,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TriggerIdCoder;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -77,12 +76,9 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
   private WindowFn<Object, W> windowFn;
   private StubContexts stubContexts;
-
   private static final String KEY = "TEST_KEY";
-
   private boolean logInteractions = false;
-
-  private TriggerIdCoder<W> triggerIdCoder;
+  private ExecutableTrigger<W> executableTrigger;
 
   private void logInteraction(String fmt, Object... args) {
     if (logInteractions) {
@@ -122,9 +118,13 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     this.stubContexts = new StubContexts();
     AbstractWindowSet<String, InputT, OutputT, W> windowSet = windowSetFactory.create(
         KEY, windowFn.windowCoder(), stubContexts, stubContexts);
+    executableTrigger = ExecutableTrigger.create(trigger);
     this.triggerExecutor = new TriggerExecutor<>(
-        windowFn, timerManager, trigger, stubContexts, stubContexts, windowSet);
-    this.triggerIdCoder = new TriggerIdCoder<W>(windowFn.windowCoder());
+        windowFn, timerManager, executableTrigger, stubContexts, stubContexts, windowSet);
+  }
+
+  public ExecutableTrigger<W> getTrigger() {
+    return executableTrigger;
   }
 
   public void logInteractions(boolean logInteractions) {
@@ -132,7 +132,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public boolean isDone(W window) throws IOException {
-    return triggerExecutor.isRootFinished(window);
+    return triggerExecutor.lookupFinishedSet(window).get(0);
   }
 
   /**
@@ -142,18 +142,8 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     return stubContexts.getKeyedStateInUse();
   }
 
-  // TODO: Share the tag-mangling code with the TriggerExecutor.
-  public String rootFinished(W window) throws CoderException {
-    return "finished-root-"
-        + CoderUtils.encodeToBase64(triggerIdCoder,
-            new TriggerId<W>(window, Collections.<Integer>emptyList()));
-  }
-
-  public String subFinished(W window, Integer... path) throws CoderException {
-    List<Integer> pathList = new ArrayList<Integer>();
-    Collections.addAll(pathList, path);
-    return "finished-"
-        + CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<W>(window, pathList));
+  public String finishedSet(W window) throws CoderException {
+    return triggerExecutor.finishedSetTag(window).getId();
   }
 
   public String bufferTag(W window) throws IOException {
@@ -162,9 +152,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public String earliestElement(W window) throws CoderException {
-    return "earliest-element-"
-        + CoderUtils.encodeToBase64(triggerIdCoder,
-            new TriggerId<W>(window, Arrays.<Integer>asList()));
+    return triggerExecutor.earliestElementTag(window).getId();
   }
 
   /**
@@ -187,7 +175,9 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
   /** Advance the watermark to the specified time, firing any timers that should fire. */
   public void advanceWatermark(Instant newWatermark) throws Exception {
-    Preconditions.checkState(!newWatermark.isBefore(watermark));
+    Preconditions.checkState(!newWatermark.isBefore(watermark),
+        "Cannot move watermark time backwards from %s to %s",
+        watermark.getMillis(), newWatermark.getMillis());
     logInteraction("Advancing watermark to %d", newWatermark.getMillis());
     watermark = newWatermark;
     timerManager.advanceWatermark(triggerExecutor, newWatermark);
@@ -196,7 +186,9 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   /** Advance the processing time to the specified time, firing any timers that should fire. */
   public void advanceProcessingTime(
       Instant newProcessingTime) throws Exception {
-    Preconditions.checkState(!newProcessingTime.isBefore(processingTime));
+    Preconditions.checkState(!newProcessingTime.isBefore(processingTime),
+        "Cannot move processing time backwards from %s to %s",
+        processingTime.getMillis(), newProcessingTime.getMillis());
     logInteraction("Advancing processing time to %d", newProcessingTime.getMillis());
     processingTime = newProcessingTime;
     timerManager.advanceProcessingTime(triggerExecutor, newProcessingTime);
@@ -211,9 +203,10 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public void setTimer(
-      W window, Instant timestamp, TimeDomain domain, List<Integer> subTriggerPath)
+      W window, Instant timestamp, TimeDomain domain, ExecutableTrigger<W> trigger)
           throws CoderException {
-    triggerExecutor.setTimer(new TriggerId<W>(window, subTriggerPath), timestamp, domain);
+    triggerExecutor.setTimer(
+        new TriggerId<W>(window, trigger.getTriggerIndex()), timestamp, domain);
   }
 
   private class StubContexts

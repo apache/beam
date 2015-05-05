@@ -202,7 +202,6 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
       W window = (W) elem.getWindows().iterator().next();
 
       Set<Windmill.GlobalDataRequest> blocked = computeBlockedSideInputs(window);
-
       if (blocked == null) {
         fn.processElement(createProcessContext(elem));
       } else {
@@ -247,6 +246,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
         .setExistenceWatermarkDeadline(
             TimeUnit.MILLISECONDS.toMicros(view.getWindowingStrategyInternal()
                 .getTrigger()
+                .getSpec()
                 .getWatermarkCutoff(sideInputWindow)
                 .getMillis()))
         .build();

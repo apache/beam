@@ -41,9 +41,9 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   private static final long serialVersionUID = 0L;
 
   private final WindowFn<T, W> windowFn;
-  private final Trigger<W> trigger;
+  private final ExecutableTrigger<W> trigger;
 
-  private WindowingStrategy(WindowFn<T, W> windowFn, Trigger<W> trigger) {
+  private WindowingStrategy(WindowFn<T, W> windowFn, ExecutableTrigger<W> trigger) {
     this.windowFn = windowFn;
     this.trigger = trigger;
   }
@@ -57,14 +57,15 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    * {@link DefaultTrigger}.
    */
   public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(WindowFn<T, W> windowFn) {
-    return of(windowFn, DefaultTrigger.<W>of());
+    DefaultTrigger<W> defaultTrigger = DefaultTrigger.of();
+    return of(windowFn, ExecutableTrigger.create(defaultTrigger));
   }
 
   /**
    * Create a {@code WindowingStrategy} for the given {@code windowFn} and {@code trigger}.
    */
   public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(
-      WindowFn<T, W> windowFn, Trigger<W> trigger) {
+      WindowFn<T, W> windowFn, ExecutableTrigger<W> trigger) {
     return new WindowingStrategy<>(windowFn, trigger);
   }
 
@@ -72,7 +73,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return windowFn;
   }
 
-  public Trigger<W> getTrigger() {
+  public ExecutableTrigger<W> getTrigger() {
     return trigger;
   }
 }

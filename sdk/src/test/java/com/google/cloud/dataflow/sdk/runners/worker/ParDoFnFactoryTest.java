@@ -103,7 +103,7 @@ public class ParDoFnFactoryTest {
         normalParDoFn.fnFactory.createDoFnInfo().getWindowingStrategy().getWindowFn(),
         new IsInstanceOf(GlobalWindows.class));
     Assert.assertThat(
-        normalParDoFn.fnFactory.createDoFnInfo().getWindowingStrategy().getTrigger(),
+        normalParDoFn.fnFactory.createDoFnInfo().getWindowingStrategy().getTrigger().getSpec(),
         new IsInstanceOf(DefaultTrigger.class));
     TestDoFn actualTestDoFn = (TestDoFn) actualDoFn;
 

@@ -72,8 +72,15 @@ public class AfterProcessingTime<W extends BoundedWindow>
   }
 
   @Override
-  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
-    // To have gotten here, we must not have fired in any of the oldWindows.
+  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    // If the processing time timer has fired in any of the windows being merged, it would have
+    // fired at the same point if it had been added to the merged window. So, we just report it as
+    // finished.
+    if (e.finishedInAnyMergingWindow(c.current())) {
+      return MergeResult.ALREADY_FINISHED;
+    }
+
+    // Otherwise, determine the earliest delay for all of the windows, and delay to that point.
     Instant earliestTimer = BoundedWindow.TIMESTAMP_MAX_VALUE;
     for (Instant delayedUntil : c.lookup(DELAYED_UNTIL_TAG, e.oldWindows()).values()) {
       if (delayedUntil != null && delayedUntil.isBefore(earliestTimer)) {
@@ -86,7 +93,7 @@ public class AfterProcessingTime<W extends BoundedWindow>
       c.setTimer(e.newWindow(), earliestTimer, TimeDomain.PROCESSING_TIME);
     }
 
-    return TriggerResult.CONTINUE;
+    return MergeResult.CONTINUE;
   }
 
   @Override
@@ -98,11 +105,6 @@ public class AfterProcessingTime<W extends BoundedWindow>
   public void clear(TriggerContext<W> c, W window) throws Exception {
     c.remove(DELAYED_UNTIL_TAG, window);
     c.deleteTimer(window, TimeDomain.PROCESSING_TIME);
-  }
-
-  @Override
-  public boolean willNeverFinish() {
-    return false;
   }
 
   @Override

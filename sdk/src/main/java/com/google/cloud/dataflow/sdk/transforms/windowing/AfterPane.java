@@ -42,6 +42,7 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   private final int countElems;
 
   private AfterPane(int countElems) {
+    super(null);
     this.countElems = countElems;
   }
 
@@ -69,21 +70,28 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
-  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    // If we've already received enough elements and finished in some window, then this trigger
+    // is just finished.
+    if (e.finishedInAnyMergingWindow(c.current())) {
+      return MergeResult.ALREADY_FINISHED;
+    }
+
+    // Otherwise, compute the sum of elements in all the active panes
     int count = 0;
     for (Entry<W, Integer> old : c.lookup(ELEMENTS_IN_PANE_TAG, e.oldWindows()).entrySet()) {
       if (old.getValue() != null) {
         count += old.getValue();
-        c.remove(ELEMENTS_IN_PANE_TAG, old.getKey());
       }
     }
 
-    // Don't break early because we want to clean up the old keyed state.
+    // And determine the final status from that.
     if (count >= countElems) {
-      return TriggerResult.FIRE_AND_FINISH;
+      return MergeResult.FIRE_AND_FINISH;
+    } else {
+      c.store(ELEMENTS_IN_PANE_TAG, e.newWindow(), count);
+      return MergeResult.CONTINUE;
     }
-    c.store(ELEMENTS_IN_PANE_TAG, e.newWindow(), count);
-    return TriggerResult.CONTINUE;
   }
 
   @Override
@@ -97,18 +105,9 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
-  public boolean willNeverFinish() {
-    return false;
-  }
-
-  @Override
   public boolean isCompatible(Trigger<?> other) {
-    if (!(other instanceof AfterPane)) {
-      return false;
-    }
-
-    AfterPane<?> that = (AfterPane<?>) other;
-    return countElems == that.countElems;
+    return (other instanceof AfterPane)
+        && countElems == ((AfterPane<?>) other).countElems;
   }
 
   @Override

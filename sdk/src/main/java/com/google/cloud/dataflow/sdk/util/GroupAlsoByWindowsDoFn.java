@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresKeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
@@ -54,7 +53,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
   public static <K, V, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W>
   createForIterable(WindowingStrategy<?, W> windowingStrategy, Coder<V> inputCoder) {
     if (windowingStrategy.getWindowFn() instanceof NonMergingWindowFn
-        && windowingStrategy.getTrigger() instanceof DefaultTrigger) {
+        && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger) {
       return new GroupAlsoByWindowsViaIteratorsDoFn<K, V, W>();
     } else {
       return new GABWViaWindowSetDoFn<>(
@@ -83,7 +82,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
 
     private WindowFn<Object, W> windowFn;
     private AbstractWindowSet.Factory<K, InputT, OutputT, W> windowSetFactory;
-    private Trigger<W> trigger;
+    private ExecutableTrigger<W> trigger;
 
     public GABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
         AbstractWindowSet.Factory<K, InputT, OutputT, W> factory) {

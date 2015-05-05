@@ -71,9 +71,9 @@ public class AfterProcessingTimeTest {
         WindowMatchers.isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
     assertTrue(tester.isDone(new IntervalWindow(new Instant(0), new Instant(10))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.rootFinished(new IntervalWindow(new Instant(0), new Instant(10))),
-        tester.rootFinished(new IntervalWindow(new Instant(10), new Instant(20))),
-        tester.rootFinished(new IntervalWindow(new Instant(30), new Instant(40)))));
+        tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10))),
+        tester.finishedSet(new IntervalWindow(new Instant(10), new Instant(20))),
+        tester.finishedSet(new IntervalWindow(new Instant(30), new Instant(40)))));
   }
 
   @Test
@@ -104,8 +104,8 @@ public class AfterProcessingTimeTest {
 
     assertTrue(tester.isDone(new IntervalWindow(new Instant(2), new Instant(12))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.rootFinished(new IntervalWindow(new Instant(1), new Instant(11))),
-        tester.rootFinished(new IntervalWindow(new Instant(2), new Instant(12)))));
+        tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(11))),
+        tester.finishedSet(new IntervalWindow(new Instant(2), new Instant(12)))));
   }
 
   @Test

@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import org.joda.time.Instant;
 
+import java.util.Arrays;
+
 /**
  * Repeat a trigger, either until some condition is met or forever.
  *
@@ -36,7 +38,7 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
 
   private static final long serialVersionUID = 0L;
 
-  private Trigger<W> repeated;
+  private static final int REPEATED = 0;
 
   /**
    * Create a composite trigger that repeatedly executes the trigger {@code toRepeat}, firing each
@@ -51,56 +53,41 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
   }
 
   private Repeatedly(Trigger<W> repeated) {
-    this.repeated = repeated;
+    super(Arrays.asList(repeated));
   }
 
-  private TriggerResult wrap(TriggerContext<W> c, W window, TriggerResult result) throws Exception {
-    if (result.isFire() || result.isFinish()) {
-      repeated.clear(c, window);
+
+  @Override
+  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e)
+      throws Exception {
+    TriggerResult result = c.subTrigger(REPEATED).invokeElement(c, e);
+    if (result.isFinish()) {
+      c.forTrigger(c.subTrigger(REPEATED)).resetTree(e.window());
     }
     return result.isFire() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e)
-      throws Exception {
-    return wrap(c, e.window(), repeated.onElement(c, e));
-  }
-
-  @Override
-  public TriggerResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
-    return wrap(c, e.newWindow(), repeated.onMerge(c, e));
+  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    MergeResult mergeResult = c.subTrigger(REPEATED).invokeMerge(c, e);
+    if (mergeResult.isFinish()) {
+      c.forTrigger(c.subTrigger(REPEATED)).resetTree(e.newWindow());
+    }
+    return mergeResult.isFire() ? MergeResult.FIRE : MergeResult.CONTINUE;
   }
 
   @Override
   public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
-    return wrap(c, e.window(), repeated.onTimer(c, e));
-  }
-
-  @Override
-  public void clear(TriggerContext<W> c, W window) throws Exception {
-    repeated.clear(c, window);
-  }
-
-  @Override
-  public boolean willNeverFinish() {
-    // Repeatedly without an until will never finish.
-    return true;
+    TriggerResult result = c.subTrigger(REPEATED).invokeTimer(c, e);
+    if (result.isFinish()) {
+      c.forTrigger(c.subTrigger(REPEATED)).resetTree(e.window());
+    }
+    return result.isFire() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
   }
 
   @Override
   public Instant getWatermarkCutoff(W window) {
     // This trigger fires once the repeated trigger fires.
-    return repeated.getWatermarkCutoff(window);
-  }
-
-  @Override
-  public boolean isCompatible(Trigger<?> other) {
-    if (!(other instanceof Repeatedly)) {
-      return false;
-    }
-
-    Repeatedly<?> that = (Repeatedly<?>) other;
-    return repeated.isCompatible(that.repeated);
+    return subTriggers.get(REPEATED).getWatermarkCutoff(window);
   }
 }
