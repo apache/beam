@@ -16,6 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
@@ -38,8 +43,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -442,105 +445,36 @@ public class DataflowAssert {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A {@link SerializableFunction} that performs an
-   * {@code Assert.assertThat()} operation using a
-   * {@code Matcher} operation.
-   *
-   * <p> The {@code MatcherFactory} should take an {@code ExpectedT} and
-   * produce a Matcher to be used to check an {@code ActualT} value
-   * against.
+   * A {@link SerializableFunction} that verifies that an actual value is equal to an
+   * expected value.
    */
   @SuppressWarnings("serial")
-  public static class AssertThat<ActualT, ExpectedT>
-      implements SerializableFunction<ActualT, Void> {
-    final ExpectedT expected;
-    final Class<?> expectedClass;
-    final String matcherClassName;
-    final String matcherFactoryMethodName;
+  private static class AssertIsEqualTo<T> implements SerializableFunction<T, Void> {
+    private T expected;
 
-    AssertThat(ExpectedT expected,
-               Class<?> expectedClass,
-               String matcherClassName,
-               String matcherFactoryMethodName) {
+    public AssertIsEqualTo(T expected) {
       this.expected = expected;
-      this.expectedClass = expectedClass;
-      this.matcherClassName = matcherClassName;
-      this.matcherFactoryMethodName = matcherFactoryMethodName;
     }
 
     @Override
-    public Void apply(ActualT in) {
-      try {
-        Method matcherFactoryMethod = Class.forName(this.matcherClassName)
-            .getMethod(this.matcherFactoryMethodName, expectedClass);
-        Object matcher = matcherFactoryMethod.invoke(null, (Object) expected);
-        Method assertThatMethod = Class.forName("org.junit.Assert")
-            .getMethod("assertThat",
-                       Object.class,
-                       Class.forName("org.hamcrest.Matcher"));
-        assertThatMethod.invoke(null, in, matcher);
-      } catch (InvocationTargetException e) {
-        // An error in the assertThat or matcher itself.
-        throw new RuntimeException(e);
-      } catch (ReflectiveOperationException e) {
-        // An error looking up the classes and methods.
-        throw new RuntimeException(
-            "DataflowAssert requires that JUnit and Hamcrest be linked in.",
-            e);
-      }
+    public Void apply(T actual) {
+      assertThat(actual, equalTo(expected));
       return null;
     }
   }
 
   /**
-   * An {@link AssertThat} taking a single element.
-   */
-  @SuppressWarnings("serial")
-  private static class AssertThatValue<T> extends AssertThat<T, T> {
-    AssertThatValue(T expected,
-                    String matcherClassName,
-                    String matcherFactoryMethodName) {
-      super(expected, Object.class,
-            matcherClassName, matcherFactoryMethodName);
-    }
-  }
-
-  /**
-   * An {@link AssertThatValue} that verifies that an actual value is equal to an
-   * expected value.
-   */
-  @SuppressWarnings("serial")
-  private static class AssertIsEqualTo<T> extends AssertThatValue<T> {
-    public AssertIsEqualTo(T expected) {
-      super(expected, "org.hamcrest.core.IsEqual", "equalTo");
-    }
-  }
-
-  /**
-   * An {@link AssertThat} that operates on an {@code Iterable}. The
-   * underlying matcher takes a {@code T[]} of expected values, for
-   * compatibility with the corresponding Hamcrest {@code Matcher}s.
-   */
-  @SuppressWarnings("serial")
-  private static class AssertThatIterable<T> extends AssertThat<Iterable<T>, T[]> {
-    AssertThatIterable(T[] expected,
-                       String matcherClassName,
-                       String matcherFactoryMethodName) {
-      super(expected, Object[].class,
-            matcherClassName, matcherFactoryMethodName);
-    }
-  }
-
-  /**
-   * An {@link AssertThatIterable} that verifies that an {@code Iterable} contains
+   * A {@link SerializableFunction} that verifies that an {@code Iterable} contains
    * expected items in any order.
    */
   @SuppressWarnings("serial")
-  private static class AssertContainsInAnyOrder<T> extends AssertThatIterable<T> {
+  private static class AssertContainsInAnyOrder<T>
+      implements SerializableFunction<Iterable<T>, Void> {
+
+    private T[] expected;
+
     public AssertContainsInAnyOrder(T... expected) {
-      super(expected,
-            "org.hamcrest.collection.IsIterableContainingInAnyOrder",
-            "containsInAnyOrder");
+      this.expected = expected;
     }
 
     @SuppressWarnings("unchecked")
@@ -552,18 +486,24 @@ public class DataflowAssert {
     public AssertContainsInAnyOrder(Iterable<T> expected) {
       this(Lists.newArrayList(expected));
     }
+
+    @Override
+    public Void apply(Iterable<T> actual) {
+      assertThat(actual, containsInAnyOrder(expected));
+      return null;
+    }
   }
 
   /**
-   * An {@link AssertThatIterable} that verifies that an {@code Iterable} contains
+   * A {@link SerializableFunction} that verifies that an {@code Iterable} contains
    * the expected items in the provided order.
    */
   @SuppressWarnings("serial")
-  private static class AssertContainsInOrder<T> extends AssertThatIterable<T> {
+  private static class AssertContainsInOrder<T> implements SerializableFunction<Iterable<T>, Void> {
+    private T[] expected;
+
     public AssertContainsInOrder(T... expected) {
-      super(expected,
-            "org.hamcrest.collection.IsIterableContainingInOrder",
-            "contains");
+      this.expected = expected;
     }
 
     @SuppressWarnings("unchecked")
@@ -575,35 +515,42 @@ public class DataflowAssert {
     public AssertContainsInOrder(Iterable<T> expected) {
       this(Lists.newArrayList(expected));
     }
+
+    @Override
+    public Void apply(Iterable<T> actual) {
+      assertThat(actual, contains(expected));
+      return null;
+    }
   }
 
   ////////////////////////////////////////////////////////////
 
   /**
-   * A serializable function implementing a binary predicate
-   * between types {@code ActualT} and {@code ExpectedT}.
+   * A binary predicate between types {@code Actual} and {@code Expected}.
+   * Implemented as a method {@code assertFor(Expected)} which returns
+   * a {@link SerializableFunction SerializableFunction<Actual, Void>}
+   * that should verify the assertion..
    */
   public static interface AssertRelation<ActualT, ExpectedT> extends Serializable {
     public SerializableFunction<ActualT, Void> assertFor(ExpectedT input);
   }
 
   /**
-   * An {@link AssertRelation} implementing the binary predicate
-   * that two objects are equal.
+   * An {@link AssertRelation} implementing the binary predicate that two objects are equal.
    */
   private static class AssertIsEqualToRelation<T>
       implements AssertRelation<T, T> {
     private static final long serialVersionUID = 0;
 
     @Override
-    public AssertThat<T, T> assertFor(T expected) {
+    public SerializableFunction<T, Void> assertFor(T expected) {
       return new AssertIsEqualTo<T>(expected);
     }
   }
 
   /**
-   * An {@code AssertRelation} implementing the binary predicate
-   * that two collections are equal modulo reordering.
+   * An {@code AssertRelation} implementing the binary predicate that two collections are equal
+   * modulo reordering.
    */
   private static class AssertContainsInAnyOrderRelation<T>
       implements AssertRelation<Iterable<T>, Iterable<T>> {
@@ -616,8 +563,8 @@ public class DataflowAssert {
   }
 
   /**
-   * A {@code AssertRelation} implementating the binary function
-   * that two iterables have equal contents, in the same order.
+   * A {@code AssertRelation} implementating the binary function that two iterables have equal
+   * contents, in the same order.
    */
   private static class AssertContainsInOrderRelation<T>
       implements AssertRelation<Iterable<T>, Iterable<T>> {

@@ -91,6 +91,24 @@ public class TestPipeline extends Pipeline {
   }
 
   /**
+   * Runs this {@link TestPipeline}, unwrapping any {@code AssertionError}
+   * that is raised during testing.
+   */
+  @Override
+  public PipelineResult run() {
+    try {
+      return super.run();
+    } catch (RuntimeException exc) {
+      Throwable cause = exc.getCause();
+      if (cause instanceof AssertionError) {
+        throw (AssertionError) cause;
+      } else {
+        throw exc;
+      }
+    }
+  }
+
+  /**
    * Creates and returns a TestDataflowPipelineRunner based on
    * configuration via system properties.
    */

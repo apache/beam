@@ -16,9 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
+import static org.hamcrest.core.StringContains.containsString;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
@@ -178,10 +183,6 @@ public class DataflowAssertTest implements Serializable {
   @Test
   @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
   public void testContainsInAnyOrderFalse() throws Exception {
-    // The actual AssertionError is deep in the stack
-    // TODO: dig it out
-    thrown.expect(RuntimeException.class);
-
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<Integer> pcollection = pipeline
@@ -189,6 +190,29 @@ public class DataflowAssertTest implements Serializable {
 
     DataflowAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3, 7);
 
-    pipeline.run();
+    // Even though this test will succeed or fail adequately whether local or on the service,
+    // it results in a different exception depending on the runner.
+    if (pipeline.getRunner() instanceof DirectPipelineRunner) {
+      // We cannot use thrown.expect(AssertionError.class) because the AssertionError
+      // is first caught by JUnit and causes a test failure.
+      try {
+        pipeline.run();
+      } catch (AssertionError exc) {
+        assertThat(exc.getMessage(),
+            containsString("Expected: iterable over [<4>, <7>, <3>, <2>, <1>] in any order"));
+        return;
+      }
+    } else if (pipeline.getRunner() instanceof TestDataflowPipelineRunner) {
+      // Separately, if this is run on the service, then the TestDataflowPipelineRunner throws
+      // an IllegalStateException with a basic message.
+      try {
+        pipeline.run();
+      } catch (IllegalStateException exc) {
+        assertThat(exc.getMessage(),
+            containsString("The dataflow failed."));
+        return;
+      }
+    }
+    fail("assertion should have failed");
   }
 }
