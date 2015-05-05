@@ -583,6 +583,8 @@ public class StreamingDataflowWorker {
 
       if (target.equals("/healthz")) {
         responseWriter.println("ok");
+      } else if (target.equals("/threadz")) {
+        printThreads(responseWriter);
       } else {
         printHeader(responseWriter);
         printMetrics(responseWriter);
@@ -644,6 +646,18 @@ public class StreamingDataflowWorker {
       StringWriter writer = new StringWriter();
       t.printStackTrace(new PrintWriter(writer));
       response.println(writer.toString().replace("\t", "&nbsp&nbsp").replace("\n", "<br>"));
+    }
+  }
+
+  private void printThreads(PrintWriter response) {
+    Map<Thread, StackTraceElement[]> stacks = Thread.getAllStackTraces();
+    for (Map.Entry<Thread,  StackTraceElement[]> entry : stacks.entrySet()) {
+      Thread thread = entry.getKey();
+      response.println("Thread: " + thread + " State: " + thread.getState() + "<br>");
+      for (StackTraceElement element : entry.getValue()) {
+        response.println("&nbsp&nbsp" + element + "<br>");
+      }
+      response.println("<br>");
     }
   }
 }
