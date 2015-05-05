@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 /**
  * {@code WithKeys<K, V>} takes a {@code PCollection<V>}, and either a
@@ -111,7 +111,7 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
       if (keyClass == null) {
         keyCoder = coderRegistry.getDefaultOutputCoder(fn, in.getCoder());
       } else {
-        keyCoder = coderRegistry.getDefaultCoder(TypeToken.of(keyClass));
+        keyCoder = coderRegistry.getDefaultCoder(TypeDescriptor.of(keyClass));
       }
       // TODO: Remove when we can set the coder inference context.
       result.setCoder(KvCoder.of(keyCoder, in.getCoder()));

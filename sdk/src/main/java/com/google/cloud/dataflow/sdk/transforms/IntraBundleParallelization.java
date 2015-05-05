@@ -25,8 +25,8 @@ import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.base.Preconditions;
-import com.google.common.reflect.TypeToken;
 
 import org.joda.time.Instant;
 
@@ -240,13 +240,13 @@ public class IntraBundleParallelization {
     }
 
     @Override
-    protected TypeToken<InputT> getInputTypeToken() {
-      return doFn.getInputTypeToken();
+    protected TypeDescriptor<InputT> getInputTypeDescriptor() {
+      return doFn.getInputTypeDescriptor();
     }
 
     @Override
-    protected TypeToken<OutputT> getOutputTypeToken() {
-      return doFn.getOutputTypeToken();
+    protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+      return doFn.getOutputTypeDescriptor();
     }
 
     /////////////////////////////////////////////////////////////////////////////

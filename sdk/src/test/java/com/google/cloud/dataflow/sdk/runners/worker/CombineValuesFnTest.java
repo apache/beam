@@ -39,7 +39,7 @@ import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.Receiver;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -329,7 +329,7 @@ public class CombineValuesFnTest {
     MeanInts.CountSum countSum = meanInts.new CountSum(6, 27);
 
     Coder<MeanInts.CountSum> coder = meanInts.getAccumulatorCoder(
-        registry, registry.getDefaultCoder(TypeToken.of(Integer.class)));
+        registry, registry.getDefaultCoder(TypeDescriptor.of(Integer.class)));
 
     assertEquals(
         countSum,

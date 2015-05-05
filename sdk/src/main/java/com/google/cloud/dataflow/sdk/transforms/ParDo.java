@@ -749,7 +749,7 @@ public class ParDo {
       return PCollection.<OutputT>createPrimitiveOutputInternal(
               input.getPipeline(),
               input.getWindowingStrategy())
-          .setTypeTokenInternal(fn.getOutputTypeToken());
+          .setTypeDescriptorInternal(fn.getOutputTypeDescriptor());
     }
 
     @Override
@@ -757,8 +757,8 @@ public class ParDo {
     protected Coder<OutputT> getDefaultOutputCoder(PCollection<? extends InputT> input)
         throws CannotProvideCoderException {
       return input.getPipeline().getCoderRegistry().getDefaultCoder(
-          fn.getOutputTypeToken(),
-          fn.getInputTypeToken(),
+          fn.getOutputTypeDescriptor(),
+          fn.getInputTypeDescriptor(),
           ((PCollection<InputT>) input).getCoder());
     }
 
@@ -972,8 +972,8 @@ public class ParDo {
 
       // The fn will likely be an instance of an anonymous subclass
       // such as DoFn<Integer, String> { }, thus will have a high-fidelity
-      // TypeToken for the output type.
-      outputs.get(mainOutputTag).setTypeTokenInternal(fn.getOutputTypeToken());
+      // TypeDescriptor for the output type.
+      outputs.get(mainOutputTag).setTypeDescriptorInternal(fn.getOutputTypeDescriptor());
 
       return outputs;
     }

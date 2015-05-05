@@ -29,7 +29,7 @@ import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -384,18 +384,18 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Returns a {@link TypeToken} capturing what is known statically
+   * Returns a {@link TypeDescriptor} capturing what is known statically
    * about the input type of this {@code DoFn} instance's most-derived
    * class.
    *
-   * <p> See {@link #getOutputTypeToken} for more discussion.
+   * <p> See {@link #getOutputTypeDescriptor} for more discussion.
    */
-  protected TypeToken<InputT> getInputTypeToken() {
-    return new TypeToken<InputT>(getClass()) {};
+  protected TypeDescriptor<InputT> getInputTypeDescriptor() {
+    return new TypeDescriptor<InputT>(getClass()) {};
   }
 
   /**
-   * Returns a {@link TypeToken} capturing what is known statically
+   * Returns a {@link TypeDescriptor} capturing what is known statically
    * about the output type of this {@code DoFn} instance's
    * most-derived class.
    *
@@ -405,8 +405,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
    * for choosing a default output {@code Coder<OutputT>} for the output
    * {@code PCollection<OutputT>}.
    */
-  protected TypeToken<OutputT> getOutputTypeToken() {
-    return new TypeToken<OutputT>(getClass()) {};
+  protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+    return new TypeDescriptor<OutputT>(getClass()) {};
   }
 
   /**

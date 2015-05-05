@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.common.reflect.TypeToken;
 
 /**
  * A {@code TypedPValue<T>} is the abstract base class of things that
@@ -103,32 +102,32 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
     super(p);
   }
 
-  private TypeToken<T> typeToken;
+  private TypeDescriptor<T> typeDescriptor;
 
   /**
-   * Returns a {@code TypeToken<T>} with some reflective information
+   * Returns a {@code TypeDescriptor<T>} with some reflective information
    * about {@code T}, if possible. May return {@code null} if no information
    * is available. Subclasses may override this to enable better
    * {@code Coder} inference.
    */
-  public TypeToken<T> getTypeToken() {
-    return typeToken;
+  public TypeDescriptor<T> getTypeDescriptor() {
+    return typeDescriptor;
   }
 
   /**
-   * Sets the {@code TypeToken<T>} associated with this class. Better
+   * Sets the {@code TypeDescriptor<T>} associated with this class. Better
    * reflective type information will lead to better {@code Coder}
    * inference.
    */
-  public TypedPValue<T> setTypeTokenInternal(TypeToken<T> typeToken) {
-    this.typeToken = typeToken;
+  public TypedPValue<T> setTypeDescriptorInternal(TypeDescriptor<T> typeDescriptor) {
+    this.typeDescriptor = typeDescriptor;
     return this;
   }
 
   /**
    * If the coder is not explicitly set, this sets the coder for
    * this {@code TypedPValue<T>} to the best coder that can be inferred
-   * based upon the known {@code TypeToken<T>}. By default, this is null,
+   * based upon the known {@code TypeDescriptor<T>}. By default, this is null,
    * but can and should be improved by subclasses.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -137,7 +136,7 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
       return coder;
     }
 
-    TypeToken<T> token = getTypeToken();
+    TypeDescriptor<T> token = getTypeDescriptor();
     CoderRegistry registry = getPipeline().getCoderRegistry();
 
     try {

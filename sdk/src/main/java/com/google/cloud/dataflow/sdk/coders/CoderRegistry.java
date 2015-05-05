@@ -18,12 +18,13 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.google.common.reflect.TypeToken;
 
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -136,16 +137,18 @@ public class CoderRegistry implements CoderProvider {
    *
    * @throws CannotProvideCoderException if there is no default Coder.
    */
-  public <T> Coder<T> getDefaultCoder(TypeToken<T> typeToken) throws CannotProvideCoderException {
-    return getDefaultCoder(typeToken, Collections.<Type, Coder<?>>emptyMap());
+  public <T> Coder<T> getDefaultCoder(TypeDescriptor<T> typeDescriptor)
+      throws CannotProvideCoderException {
+    return getDefaultCoder(typeDescriptor, Collections.<Type, Coder<?>>emptyMap());
   }
 
   /**
-   * See {@link #getDefaultCoder(TypeToken)}.
+   * See {@link #getDefaultCoder(TypeDescriptor)}.
    */
   @Override
-  public <T> Coder<T> getCoder(TypeToken<T> typeToken) throws CannotProvideCoderException {
-    return getDefaultCoder(typeToken);
+  public <T> Coder<T> getCoder(TypeDescriptor<T> typeDescriptor)
+      throws CannotProvideCoderException {
+    return getDefaultCoder(typeDescriptor);
   }
 
   /**
@@ -155,12 +158,12 @@ public class CoderRegistry implements CoderProvider {
    * @throws CannotProvideCoderException if there is no default Coder.
    */
   public <InputT, OutputT> Coder<OutputT> getDefaultCoder(
-      TypeToken<OutputT> typeToken,
-      TypeToken<InputT> contextTypeToken,
+      TypeDescriptor<OutputT> typeDescriptor,
+      TypeDescriptor<InputT> contextTypeDescriptor,
       Coder<InputT> contextCoder)
       throws CannotProvideCoderException {
-    return getDefaultCoder(typeToken,
-                           getTypeToCoderBindings(contextTypeToken.getType(), contextCoder));
+    return getDefaultCoder(typeDescriptor,
+                           getTypeToCoderBindings(contextTypeDescriptor.getType(), contextCoder));
   }
 
   /**
@@ -359,7 +362,7 @@ public class CoderRegistry implements CoderProvider {
       Class<? extends T> subClass,
       Class<T> baseClass,
       Coder<?>[] knownCoders) {
-    Type type = TypeToken.of(subClass).getSupertype(baseClass).getType();
+    Type type = TypeDescriptor.of(subClass).getSupertype(baseClass).getType();
     if (!(type instanceof ParameterizedType)) {
       throw new IllegalArgumentException(type + " is not a ParameterizedType");
     }
@@ -404,38 +407,67 @@ public class CoderRegistry implements CoderProvider {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Returns whether the given coder can possibly encode elements
+   * Returns {@code true} if the given coder can possibly encode elements
    * of the given type.
    */
-  static boolean isCompatible(Coder<?> coder, Type type) {
-    Type coderType =
-        ((ParameterizedType)
-            TypeToken.of(coder.getClass()).getSupertype(Coder.class).getType())
-        .getActualTypeArguments()[0];
-    if (type instanceof TypeVariable) {
-      return true; // Can't rule it out.
+  static <T, CoderT extends Coder<T>, CandidateT> boolean
+      isCompatible(CoderT coder, Type candidateType) {
+
+    // Various representations of the coder's class
+    @SuppressWarnings("unchecked")
+    Class<CoderT> coderClass = (Class<CoderT>) coder.getClass();
+    TypeDescriptor<CoderT> coderDescriptor = TypeDescriptor.of(coderClass);
+
+    // Various representations of the actual coded type
+    @SuppressWarnings("unchecked")
+    TypeDescriptor<T> codedDescriptor = CoderUtils.getCodedType(coderDescriptor);
+    @SuppressWarnings("unchecked")
+    Class<T> codedClass = (Class<T>) codedDescriptor.getRawType();
+    Type codedType = codedDescriptor.getType();
+
+    // Various representations of the candidate type
+    @SuppressWarnings("unchecked")
+    TypeDescriptor<CandidateT> candidateDescriptor =
+        (TypeDescriptor<CandidateT>) TypeDescriptor.<CandidateT>of(candidateType);
+    @SuppressWarnings("unchecked")
+    Class<CandidateT> candidateClass = (Class<CandidateT>) candidateDescriptor.getRawType();
+
+    // If coder has type Coder<T> where the actual value of T is lost
+    // to erasure, then we cannot rule it out.
+    if (candidateType instanceof TypeVariable) {
+      return true;
     }
-    Class<?> coderClass = TypeToken.of(coderType).getRawType();
-    if (!coderClass.isAssignableFrom(TypeToken.of(type).getRawType())) {
+
+    // If the raw types are not compatible, we can certainly rule out
+    // coder compatibility
+    if (!codedClass.isAssignableFrom(candidateClass)) {
       return false;
     }
-    if (coderType instanceof ParameterizedType
-        && !isNullOrEmpty(coder.getCoderArguments())) {
+    // we have established that this is a covariant upcast... though
+    // coders are invariant, we are just checking one direction
+    @SuppressWarnings("unchecked")
+    TypeDescriptor<T> candidateOkDescriptor = (TypeDescriptor<T>) candidateDescriptor;
+
+    // If the coded type is a parameterized type where any of the actual
+    // type parameters are not compatible, then the whole thing is certainly not
+    // compatible.
+    if ((codedType instanceof ParameterizedType) && !isNullOrEmpty(coder.getCoderArguments())) {
       @SuppressWarnings("unchecked")
       Type[] typeArguments =
           ((ParameterizedType)
-           TypeToken.of(type).getSupertype((Class) coderClass).getType())
+           candidateOkDescriptor.getSupertype(codedClass).getType())
           .getActualTypeArguments();
       List<? extends Coder<?>> typeArgumentCoders = coder.getCoderArguments();
       assert typeArguments.length == typeArgumentCoders.size();
       for (int i = 0; i < typeArguments.length; i++) {
         if (!isCompatible(
                 typeArgumentCoders.get(i),
-                TypeToken.of(type).resolveType(typeArguments[i]).getType())) {
+                candidateDescriptor.resolveType(typeArguments[i]).getType())) {
           return false;
         }
       }
     }
+
     return true; // For all we can tell.
   }
 
@@ -477,13 +509,13 @@ public class CoderRegistry implements CoderProvider {
    * @throws CannotProvideCoderException if a coder cannot be provided
    */
   <T> Coder<T> getDefaultCoder(
-      TypeToken<T> typeToken,
+      TypeDescriptor<T> typeDescriptor,
       Map<Type, Coder<?>> typeCoderBindings)
       throws CannotProvideCoderException {
 
-    Coder<?> defaultCoder = getDefaultCoder(typeToken.getType(),
+    Coder<?> defaultCoder = getDefaultCoder(typeDescriptor.getType(),
                                             typeCoderBindings);
-    LOG.debug("Default Coder for {}: {}", typeToken, defaultCoder);
+    LOG.debug("Default Coder for {}: {}", typeDescriptor, defaultCoder);
     @SuppressWarnings("unchecked")
     Coder<T> result = (Coder<T>) defaultCoder;
     return result;
@@ -559,7 +591,7 @@ public class CoderRegistry implements CoderProvider {
 
     if (getFallbackCoderProvider() != null) {
       try {
-        return getFallbackCoderProvider().getCoder(TypeToken.of(clazz));
+        return getFallbackCoderProvider().getCoder(TypeDescriptor.<T>of(clazz));
       } catch (CannotProvideCoderException exc) {
         throw new CannotProvideCoderException(
             "Cannot provide coder for class " + clazz + " because "

@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.reflect.TypeToken;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -109,9 +108,9 @@ public class PCollectionTuple implements PInput, POutput {
           "PCollections come from different Pipelines");
     }
 
-    // The TypeToken<T> in tag will often have good
+    // The TypeDescriptor<T> in tag will often have good
     // reflective information about T
-    pc.setTypeTokenInternal(tag.getTypeToken());
+    pc.setTypeDescriptorInternal(tag.getTypeDescriptor());
     return new PCollectionTuple(pipeline,
         new ImmutableMap.Builder<TupleTag<?>, PCollection<?>>()
             .putAll(pcollectionMap)
@@ -194,16 +193,16 @@ public class PCollectionTuple implements PInput, POutput {
       }
 
       // In fact, `token` and `outputCollection` should have
-      // types TypeToken<T> and PCollection<T> for some
+      // types TypeDescriptor<T> and PCollection<T> for some
       // unknown T. It is safe to create `outputCollection`
       // with type PCollection<Object> because it has the same
       // erasure as the correct type. When a transform adds
       // elements to `outputCollection` they will be of type T.
       @SuppressWarnings("unchecked")
-      TypeToken<Object> token = (TypeToken<Object>) outputTag.getTypeToken();
+      TypeDescriptor<Object> token = (TypeDescriptor<Object>) outputTag.getTypeDescriptor();
       PCollection<Object> outputCollection = PCollection
           .createPrimitiveOutputInternal(pipeline, windowingStrategy)
-          .setTypeTokenInternal(token);
+          .setTypeDescriptorInternal(token);
 
       pcollectionMap.put(outputTag, outputCollection);
     }

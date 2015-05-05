@@ -20,7 +20,7 @@ import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.OR;
 
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.util.concurrent.AtomicDouble;
 
 import java.util.Objects;
@@ -222,7 +222,7 @@ public abstract class Counter<T> {
    * Returns the counter's type.
    */
   public Class<?> getType() {
-    return new TypeToken<T>(getClass()) {
+    return new TypeDescriptor<T>(getClass()) {
       private static final long serialVersionUID = 0;
     }.getRawType();
   }

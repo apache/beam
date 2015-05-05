@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
-import com.google.common.reflect.TypeToken;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -110,7 +109,7 @@ public class TupleTag<V> implements Serializable {
   }
 
   /**
-   * Returns a {@code TypeToken} capturing what is known statically
+   * Returns a {@code TypeDescriptor} capturing what is known statically
    * about the type of this {@code TupleTag} instance's most-derived
    * class.
    *
@@ -118,10 +117,8 @@ public class TupleTag<V> implements Serializable {
    * instance of an anonymous subclass with a trailing {@code {}},
    * e.g., {@code new TupleTag<SomeType>(){}}.
    */
-  public TypeToken<V> getTypeToken() {
-    return new TypeToken<V>(getClass()) {
-      private static final long serialVersionUID = 0;
-    };
+  public TypeDescriptor<V> getTypeDescriptor() {
+    return new TypeDescriptor<V>(getClass()) {};
   }
 
 

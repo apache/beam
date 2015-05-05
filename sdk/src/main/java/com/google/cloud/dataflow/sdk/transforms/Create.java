@@ -33,7 +33,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue.TimestampedValueCoder;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import org.joda.time.Instant;
 
@@ -286,7 +286,7 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
 
     if (elementClazz.getTypeParameters().length == 0) {
       try {
-        return coderRegistry.getDefaultCoder(TypeToken.of(elementClazz));
+        return coderRegistry.getDefaultCoder(TypeDescriptor.of(elementClazz));
       } catch (CannotProvideCoderException exc) {
         // let the next stage try
       }

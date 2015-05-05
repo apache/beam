@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
@@ -678,13 +679,13 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    protected TypeToken<InputT> getInputTypeToken() {
-      return fn.getInputTypeToken();
+    protected TypeDescriptor<InputT> getInputTypeDescriptor() {
+      return fn.getInputTypeDescriptor();
     }
 
     @Override
-    protected TypeToken<OutputT> getOutputTypeToken() {
-      return fn.getOutputTypeToken();
+    protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+      return fn.getOutputTypeDescriptor();
     }
 
     private void readObject(java.io.ObjectInputStream in)

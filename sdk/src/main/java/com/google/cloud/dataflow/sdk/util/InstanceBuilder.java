@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.api.client.util.Preconditions;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -53,11 +53,11 @@ public class InstanceBuilder<T> {
    * typically the common base type or interface for the instance to be
    * constructed.
    * <p>
-   * The TypeToken argument allows specification of generic types.  For example,
+   * The TypeDescriptor argument allows specification of generic types.  For example,
    * a {@code List<String>} return type can be specified as
-   * {@code ofType(new TypeToken<List<String>>(){})}.
+   * {@code ofType(new TypeDescriptor<List<String>>(){})}.
    */
-  public static <T> InstanceBuilder<T> ofType(TypeToken<T> token) {
+  public static <T> InstanceBuilder<T> ofType(TypeDescriptor<T> token) {
     @SuppressWarnings("unchecked")
     Class<T> type = (Class<T>) token.getRawType();
     return new InstanceBuilder<>(type);

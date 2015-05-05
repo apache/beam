@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.api.client.util.Preconditions;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -93,7 +93,7 @@ public class DefaultCoderTest {
   private void checkDefault(Class<?> valueType,
       Class<?> expectedCoder) throws Exception {
     CoderRegistry registry = new CoderRegistry();
-    Coder<?> coder = registry.getDefaultCoder(TypeToken.of(valueType));
+    Coder<?> coder = registry.getDefaultCoder(TypeDescriptor.of(valueType));
     Assert.assertThat(coder, Matchers.instanceOf(expectedCoder));
   }
 }

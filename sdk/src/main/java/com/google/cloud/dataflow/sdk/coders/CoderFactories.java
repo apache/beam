@@ -16,8 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
-import com.google.common.reflect.Invokable;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -70,11 +69,7 @@ public final class CoderFactories {
    * will produce a {@code Coder<List<X>>} for any {@code Coder Coder<X>}.
    */
   public static <T> CoderFactory fromStaticMethods(Class<T> clazz) {
-    return fromStaticMethods(TypeToken.of(clazz));
-  }
-
-  public static <T> CoderFactory fromStaticMethods(TypeToken<T> typeToken) {
-    return new CoderFactoryFromStaticMethods(typeToken);
+    return new CoderFactoryFromStaticMethods(clazz);
   }
 
   /**
@@ -146,9 +141,9 @@ public final class CoderFactories {
      * Returns a CoderFactory that invokes the given static factory method
      * to create the Coder.
      */
-    private CoderFactoryFromStaticMethods(TypeToken<?> coderType) {
-      this.factoryMethod = getFactoryMethod(coderType.getRawType());
-      this.getComponentsMethod = getInstanceComponentsMethod(coderType);
+    private CoderFactoryFromStaticMethods(Class<?> coderClazz) {
+      this.factoryMethod = getFactoryMethod(coderClazz);
+      this.getComponentsMethod = getInstanceComponentsMethod(coderClazz);
     }
 
     /**
@@ -207,8 +202,9 @@ public final class CoderFactories {
      * each corresponding to an argument of the {@code of}
      * method.
      */
-    private <T> Method getInstanceComponentsMethod(TypeToken<?> coderType) {
-      TypeToken<T> argumentType = getCodedType(coderType);
+    private <T> Method getInstanceComponentsMethod(Class<?> coderClazz) {
+      TypeDescriptor<?> coderType = TypeDescriptor.of(coderClazz);
+      TypeDescriptor<T> argumentType = getCodedType(coderType);
 
       // getInstanceComponents may be implemented in a superclass,
       // so we search them all for an applicable method. We do not
@@ -217,14 +213,10 @@ public final class CoderFactories {
       // However, subtypes are listed before supertypes (it is a
       // topological ordering) so probably the best one will be chosen
       // if there are more than one (which should be rare)
-      for (TypeToken<?> supertype : coderType.getTypes().classes()) {
+      for (TypeDescriptor<?> supertype : coderType.getClasses()) {
         for (Method method : supertype.getRawType().getDeclaredMethods()) {
           if (method.getName().equals("getInstanceComponents")) {
-            Invokable<?, ?> typedMethod = supertype.method(method);
-            TypeToken<?> formalArgumentType = supertype.resolveType(
-                typedMethod.getParameters().get(0)
-                    .getType() // A TypeToken
-                    .getType()); // A Type
+            TypeDescriptor<?> formalArgumentType = supertype.getArgumentTypes(method).get(0);
             if (formalArgumentType.getRawType().isAssignableFrom(argumentType.getRawType())) {
               return method;
             }
@@ -242,12 +234,13 @@ public final class CoderFactories {
      * If {@code coderType} is a subclass of {@link Coder<T>} for a fixed T,
      * returns {@code T.class}. Otherwise, raises IllegalArgumentException
      */
-    private <T> TypeToken<T> getCodedType(TypeToken<?> coderType) {
-      for (TypeToken<?> ifaceType : coderType.getTypes().interfaces()) {
+    private <T> TypeDescriptor<T> getCodedType(TypeDescriptor<?> coderType) {
+      for (TypeDescriptor<?> ifaceType : coderType.getInterfaces()) {
         if (ifaceType.getRawType().equals(Coder.class)) {
           ParameterizedType coderIface = (ParameterizedType) ifaceType.getType();
           @SuppressWarnings("unchecked")
-          TypeToken<T> token = (TypeToken<T>) TypeToken.of(coderIface.getActualTypeArguments()[0]);
+          TypeDescriptor<T> token =
+              (TypeDescriptor<T>) TypeDescriptor.of(coderIface.getActualTypeArguments()[0]);
           return token;
         }
       }

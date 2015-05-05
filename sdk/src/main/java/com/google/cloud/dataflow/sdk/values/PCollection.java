@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
-import com.google.common.reflect.TypeToken;
 
 /**
  * A {@code PCollection<T>} is an immutable collection of values of type
@@ -151,14 +150,14 @@ public class PCollection<T> extends TypedPValue<T> {
   }
 
   /**
-   * Sets the {@code TypeToken<T>} for this {@code PCollection<T>}, so that
+   * Sets the {@code TypeDescriptor<T>} for this {@code PCollection<T>}, so that
    * the enclosing {@code PCollectionTuple}, {@code PCollectionList<T>},
    * or {@code PTransform<?, PCollection<T>>}, etc., can provide
    * more detailed reflective information.
    */
   @Override
-  public PCollection<T> setTypeTokenInternal(TypeToken<T> typeToken) {
-    super.setTypeTokenInternal(typeToken);
+  public PCollection<T> setTypeDescriptorInternal(TypeDescriptor<T> typeDescriptor) {
+    super.setTypeDescriptorInternal(typeDescriptor);
     return this;
   }
 

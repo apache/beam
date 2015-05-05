@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -59,16 +59,6 @@ public class SerializableCoder<T extends Serializable>
     return new SerializableCoder<>(clazz);
   }
 
-  /**
-   * Returns a {@code SerializableCoder} instance for the provided element type token.
-   * @param <T> the element type
-   */
-  public static <T extends Serializable> SerializableCoder<T> of(TypeToken<T> typeToken) {
-    @SuppressWarnings("unchecked")
-    Class<T> clazz = (Class<T>) typeToken.getRawType();
-    return SerializableCoder.of(clazz);
-  }
-
   @JsonCreator
   @SuppressWarnings("unchecked")
   public static SerializableCoder<?> of(@JsonProperty("type") String classType)
@@ -87,8 +77,9 @@ public class SerializableCoder<T extends Serializable>
    */
   public static final CoderProvider PROVIDER = new CoderProvider() {
     @Override
-    public <T> Coder<T> getCoder(TypeToken<T> typeToken) throws CannotProvideCoderException {
-      Class<?> clazz = typeToken.getRawType();
+    public <T> Coder<T> getCoder(TypeDescriptor<T> typeDescriptor)
+        throws CannotProvideCoderException {
+      Class<?> clazz = typeDescriptor.getRawType();
       if (Serializable.class.isAssignableFrom(clazz)) {
         @SuppressWarnings("unchecked")
         Class<? extends Serializable> serializableClazz =
@@ -98,7 +89,7 @@ public class SerializableCoder<T extends Serializable>
         return coder;
       } else {
         throw new CannotProvideCoderException(
-            "Cannot provide SerializableCoder because " + typeToken
+            "Cannot provide SerializableCoder because " + typeDescriptor
             + " does not implement Serializable");
       }
     }

@@ -25,7 +25,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -98,7 +98,7 @@ public final class ReaderFactory {
     }
 
     try {
-      return InstanceBuilder.ofType(new TypeToken<Reader<T>>() {
+      return InstanceBuilder.ofType(new TypeDescriptor<Reader<T>>() {
           private static final long serialVersionUID = 0;
       })
           .fromClassName(sourceFactoryClassName)

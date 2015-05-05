@@ -24,7 +24,7 @@ import static org.junit.Assert.fail;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -108,13 +108,13 @@ public class CoderRegistryTest {
   @Test
   public void testParameterizedDefaultCoder() throws Exception {
     CoderRegistry registry = getStandardRegistry();
-    TypeToken<List<Integer>> listToken = new TypeToken<List<Integer>>() {};
+    TypeDescriptor<List<Integer>> listToken = new TypeDescriptor<List<Integer>>() {};
     assertEquals(ListCoder.of(VarIntCoder.of()),
                  registry.getDefaultCoder(listToken));
 
     registry.registerCoder(MyValue.class, MyValueCoder.class);
-    TypeToken<KV<String, List<MyValue>>> kvToken =
-        new TypeToken<KV<String, List<MyValue>>>() {};
+    TypeDescriptor<KV<String, List<MyValue>>> kvToken =
+        new TypeDescriptor<KV<String, List<MyValue>>>() {};
     assertEquals(KvCoder.of(StringUtf8Coder.of(),
                             ListCoder.of(MyValueCoder.of())),
                  registry.getDefaultCoder(kvToken));
@@ -124,8 +124,8 @@ public class CoderRegistryTest {
   @Test
   public void testParameterizedDefaultCoderUnknown() throws Exception {
     CoderRegistry registry = getStandardRegistry();
-    TypeToken<List<UnknownType>> listUnknownToken =
-        new TypeToken<List<UnknownType>>() {};
+    TypeDescriptor<List<UnknownType>> listUnknownToken =
+        new TypeDescriptor<List<UnknownType>>() {};
 
     thrown.expect(CannotProvideCoderException.class);
     registry.getDefaultCoder(listUnknownToken);
@@ -233,10 +233,10 @@ public class CoderRegistryTest {
         ListCoder.of(BigEndianIntegerCoder.of()), Integer.class));
     assertTrue(CoderRegistry.isCompatible(
         ListCoder.of(BigEndianIntegerCoder.of()),
-        new TypeToken<List<Integer>>() {}.getType()));
+        new TypeDescriptor<List<Integer>>() {}.getType()));
     assertFalse(CoderRegistry.isCompatible(
         ListCoder.of(BigEndianIntegerCoder.of()),
-        new TypeToken<List<String>>() {}.getType()));
+        new TypeDescriptor<List<String>>() {}.getType()));
   }
 
   static class MyGenericClass<FooT, BazT> { }

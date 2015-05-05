@@ -17,7 +17,7 @@ package com.google.cloud.dataflow.sdk.util.common;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -101,17 +101,17 @@ public class ReflectHelpersTest {
   public void testTypeFormatterWithGenerics() throws Exception {
     assertEquals("Map<Integer, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeToken<Map<Integer, String>>() {
+            new TypeDescriptor<Map<Integer, String>>() {
               private static final long serialVersionUID = 0;
             }.getType()));
     assertEquals("Map<?, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeToken<Map<?, String>>() {
+            new TypeDescriptor<Map<?, String>>() {
               private static final long serialVersionUID = 0;
             }.getType()));
     assertEquals("Map<? extends Integer, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeToken<Map<? extends Integer, String>>() {
+            new TypeDescriptor<Map<? extends Integer, String>>() {
               private static final long serialVersionUID = 0;
             }.getType()));
   }
@@ -120,7 +120,7 @@ public class ReflectHelpersTest {
   public <T> void testTypeFormatterWithWildcards() throws Exception {
     assertEquals("Map<T, T>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeToken<Map<T, T>>() {
+            new TypeDescriptor<Map<T, T>>() {
               private static final long serialVersionUID = 0;
             }.getType()));
   }
@@ -129,7 +129,7 @@ public class ReflectHelpersTest {
   public <InputT, OutputT> void testTypeFormatterWithMultipleWildcards() throws Exception {
     assertEquals("Map<? super InputT, ? extends OutputT>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeToken<Map<? super InputT, ? extends OutputT>>() {
+            new TypeDescriptor<Map<? super InputT, ? extends OutputT>>() {
               private static final long serialVersionUID = 0;
             }.getType()));
   }

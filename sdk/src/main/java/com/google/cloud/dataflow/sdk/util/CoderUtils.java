@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoderBase;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.MapCoderBase;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
@@ -41,6 +42,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.ref.SoftReference;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.TypeVariable;
 
 /**
@@ -144,6 +146,18 @@ public final class CoderUtils {
     }
   }
 
+  /**
+   * If {@code coderType} is a subclass of {@link Coder<T>} for a fixed T,
+   * returns {@code T.class}.
+   */
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public static TypeDescriptor getCodedType(TypeDescriptor coderDescriptor) {
+    ParameterizedType coderType =
+        (ParameterizedType) coderDescriptor.getSupertype(Coder.class).getType();
+    TypeDescriptor codedType = TypeDescriptor.of(coderType.getActualTypeArguments()[0]);
+    return codedType;
+  }
+
   public static CloudObject makeCloudEncoding(
       String type,
       CloudObject... componentSpecs) {
@@ -184,6 +198,7 @@ public final class CoderUtils {
         if (clazz == MapCoder.class) {
           clazz = MapCoderBase.class;
         }
+        @SuppressWarnings("rawtypes")
         TypeVariable[] tvs = clazz.getTypeParameters();
         JavaType[] types = new JavaType[tvs.length];
         for (int lupe = 0; lupe < tvs.length; lupe++) {

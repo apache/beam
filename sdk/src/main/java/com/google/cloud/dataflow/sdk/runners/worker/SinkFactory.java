@@ -23,7 +23,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -82,7 +82,7 @@ public final class SinkFactory {
     }
 
     try {
-      return InstanceBuilder.ofType(new TypeToken<Sink<T>>() {})
+      return InstanceBuilder.ofType(new TypeDescriptor<Sink<T>>() {})
           .fromClassName(className)
           .fromFactoryMethod("create")
           .withArg(PipelineOptions.class, options)

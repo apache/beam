@@ -20,7 +20,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.common.reflect.TypeToken;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -119,16 +119,6 @@ public class AvroCoder<T> extends StandardCoder<T> {
   }
 
   /**
-   * Returns an {@code AvroCoder} instance for the provided element type token.
-   * @param <T> the element type
-   */
-  public static <T> AvroCoder<T> of(TypeToken<T> typeToken) {
-    @SuppressWarnings("unchecked")
-    Class<T> clazz = (Class<T>) typeToken.getRawType();
-    return AvroCoder.of(clazz);
-  }
-
-  /**
    * Returns an {@code AvroCoder} instance for the Avro schema. The implicit
    * type is GenericRecord.
    */
@@ -160,8 +150,14 @@ public class AvroCoder<T> extends StandardCoder<T> {
 
   public static final CoderProvider PROVIDER = new CoderProvider() {
     @Override
-    public <T> Coder<T> getCoder(TypeToken<T> typeToken) {
-      return AvroCoder.of(typeToken);
+    public <T> Coder<T> getCoder(TypeDescriptor<T> typeDescriptor) {
+      // This is a downcast from `? super T` to T. However, because
+      // it comes from a TypeDescriptor<T>, the class object itself
+      // is the same so the supertype in question shares the same
+      // generated AvroCoder schema.
+      @SuppressWarnings("unchecked")
+      Class<T> rawType = (Class<T>) typeDescriptor.getRawType();
+      return AvroCoder.of(rawType);
     }
   };
 
@@ -180,7 +176,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
     this.schema = schema;
 
     nonDeterministicReasons = new AvroDeterminismChecker()
-        .check(TypeToken.of(type), schema);
+        .check(TypeDescriptor.of(type), schema);
     this.reader = createDatumReader();
     this.writer = createDatumWriter();
   }
@@ -295,7 +291,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
     // Types that are currently "open". Used to make sure we don't have any
     // recursive types. Note that we assume that all occurrences of a given type
     // are equal, rather than tracking pairs of type + schema.
-    private Set<TypeToken<?>> activeTypes = new HashSet<>();
+    private Set<TypeDescriptor<?>> activeTypes = new HashSet<>();
 
     // Similarly to how we record active types, we record the schemas we visit
     // to make sure we don't encounter recursive fields.
@@ -338,9 +334,9 @@ public class AvroCoder<T> extends StandardCoder<T> {
     /**
      * Return true if the given type token is a subtype of *any* of the listed parents.
      */
-    private static boolean isSubtypeOf(TypeToken<?> type, Class<?>... parents) {
+    private static boolean isSubtypeOf(TypeDescriptor<?> type, Class<?>... parents) {
       for (Class<?> parent : parents) {
-        if (TypeToken.of(parent).isAssignableFrom(type)) {
+        if (type.isSubtypeOf(TypeDescriptor.of(parent))) {
           return true;
         }
       }
@@ -350,14 +346,14 @@ public class AvroCoder<T> extends StandardCoder<T> {
     protected AvroDeterminismChecker() {}
 
     // The entry point for the check. Should not be recursively called.
-    public List<String> check(TypeToken<?> type, Schema schema) {
+    public List<String> check(TypeDescriptor<?> type, Schema schema) {
       recurse(type.getRawType().getName(), type, schema);
       return reasons;
     }
 
     // This is the method that should be recursively called. It sets up the path
     // and visited types correctly.
-    private void recurse(String context, TypeToken<?> type, Schema schema) {
+    private void recurse(String context, TypeDescriptor<?> type, Schema schema) {
       if (type.getRawType().isAnnotationPresent(AvroSchema.class)) {
         reportError(context, "Custom schemas are not supported -- remove @AvroSchema.");
         return;
@@ -380,7 +376,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
       activeTypes.remove(type);
     }
 
-    private void doCheck(String context, TypeToken<?> type, Schema schema) {
+    private void doCheck(String context, TypeDescriptor<?> type, Schema schema) {
       switch (schema.getType()) {
         case ARRAY:
           checkArray(context, type, schema);
@@ -424,7 +420,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
       }
     }
 
-    private void checkString(String context, TypeToken<?> type) {
+    private void checkString(String context, TypeDescriptor<?> type) {
       // For types that are encoded as strings, we need to make sure they're in an approved
       // whitelist. For other types that are annotated @Stringable, Avro will just use the
       // #toString() methods, which has no guarantees of determinism.
@@ -433,7 +429,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
       }
     }
 
-    private void checkUnion(String context, TypeToken<?> type, Schema schema) {
+    private void checkUnion(String context, TypeDescriptor<?> type, Schema schema) {
       if (!type.getRawType().isAnnotationPresent(Union.class)) {
         reportError(context, "Expected type %s to have @Union annotation", type);
         return;
@@ -445,13 +441,13 @@ public class AvroCoder<T> extends StandardCoder<T> {
       // For a union, we need to make sure that each possible instantiation is deterministic.
       for (Schema concrete : schema.getTypes()) {
         @SuppressWarnings("unchecked")
-        TypeToken<?> unionType = TypeToken.of(ReflectData.get().getClass(concrete));
+        TypeDescriptor<?> unionType = TypeDescriptor.of(ReflectData.get().getClass(concrete));
 
         recurse(baseClassContext, unionType, concrete);
       }
     }
 
-    private void checkRecord(String context, TypeToken<?> type, Schema schema) {
+    private void checkRecord(String context, TypeDescriptor<?> type, Schema schema) {
       // For a record, we want to make sure that all the fields are deterministic.
       Class<?> clazz = type.getRawType();
       for (org.apache.avro.Schema.Field fieldSchema : schema.getFields()) {
@@ -473,7 +469,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
           continue;
         }
 
-        TypeToken<?> fieldType = type.resolveType(field.getGenericType());
+        TypeDescriptor<?> fieldType = type.resolveType(field.getGenericType());
         recurse(fieldContext, fieldType, fieldSchema.schema());
       }
     }
@@ -556,7 +552,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
       activeSchemas.remove(schema);
     }
 
-    private void checkMap(String context, TypeToken<?> type, Schema schema) {
+    private void checkMap(String context, TypeDescriptor<?> type, Schema schema) {
       if (!isSubtypeOf(type, SortedMap.class)) {
         reportError(context, "%s may not be deterministically ordered", type);
       }
@@ -573,8 +569,8 @@ public class AvroCoder<T> extends StandardCoder<T> {
           schema.getValueType());
     }
 
-    private void checkArray(String context, TypeToken<?> type, Schema schema) {
-      TypeToken<?> elementType = null;
+    private void checkArray(String context, TypeDescriptor<?> type, Schema schema) {
+      TypeDescriptor<?> elementType = null;
       if (type.isArray()) {
         // The type is an array (with ordering)-> deterministic iff the element is deterministic.
         elementType = type.getComponentType();
