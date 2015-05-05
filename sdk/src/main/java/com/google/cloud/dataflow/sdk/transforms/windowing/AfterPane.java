@@ -61,12 +61,8 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
     }
     count++;
 
-    if (count >= countElems) {
-      return TriggerResult.FIRE_AND_FINISH;
-    }
-
     c.store(ELEMENTS_IN_PANE_TAG, e.window(), count);
-    return TriggerResult.CONTINUE;
+    return count >= countElems ? TriggerResult.FIRE_AND_FINISH : TriggerResult.CONTINUE;
   }
 
   @Override

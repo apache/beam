@@ -119,11 +119,14 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
         timerManager.advanceProcessingTime(triggerExecutor, Instant.now());
       }
 
+      // Merge the active windows for the current key, to fire any data-based triggers.
+      triggerExecutor.merge();
+
       // Finish any pending windows by advancing the watermark to infinity.
       timerManager.advanceWatermark(triggerExecutor, new Instant(Long.MAX_VALUE));
 
-      // Finally, advance the processing time
-      timerManager.advanceProcessingTime(triggerExecutor, Instant.now());
+      // Finally, advance the processing time to infinity to fire any timers.
+      timerManager.advanceProcessingTime(triggerExecutor, new Instant(Long.MAX_VALUE));
 
       windowSet.persist();
     }

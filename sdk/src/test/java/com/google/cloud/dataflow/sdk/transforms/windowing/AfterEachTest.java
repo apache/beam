@@ -165,6 +165,7 @@ public class AfterEachTest {
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
     injectElement(12, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
+    injectElement(5, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
     when(mockTrigger1.onMerge(
         isTriggerContext(),
@@ -174,9 +175,7 @@ public class AfterEachTest {
     when(mockTrigger2.onMerge(
         isTriggerContext(),
         Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(MergeResult.FIRE_AND_FINISH);
-
-    // The arrival of this element should trigger merging.
-    injectElement(5, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
+    tester.doMerge();
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
@@ -191,18 +190,16 @@ public class AfterEachTest {
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
     injectElement(12, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
+    injectElement(5, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
     when(mockTrigger1.onMerge(
         isTriggerContext(),
         Mockito.<OnMergeEvent<IntervalWindow>>any()))
         .thenReturn(MergeResult.ALREADY_FINISHED);
-
     when(mockTrigger2.onMerge(
         isTriggerContext(),
         Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(MergeResult.FIRE);
-
-    // The arrival of this element should trigger merging.
-    injectElement(5, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
+    tester.doMerge();
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));

@@ -141,13 +141,12 @@ public class RepeatedlyTest {
 
     injectElement(1, TriggerResult.CONTINUE);
     injectElement(12, TriggerResult.CONTINUE);
+    injectElement(5, TriggerResult.CONTINUE);
 
     when(mockRepeated.onMerge(
         isTriggerContext(),
         Mockito.<OnMergeEvent<IntervalWindow>>any())).thenReturn(MergeResult.FIRE_AND_FINISH);
-
-    // The arrival of this element should trigger merging.
-    injectElement(5, TriggerResult.CONTINUE);
+    tester.doMerge();
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));

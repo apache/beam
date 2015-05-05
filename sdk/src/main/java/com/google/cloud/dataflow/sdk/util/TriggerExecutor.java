@@ -192,12 +192,17 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       BitSet originalFinishedSet = (BitSet) finishedSet.clone();
       OnElementEvent<W> e =
           new OnElementEvent<W>(value.getValue(), value.getTimestamp(), window, status);
-      handleResult(trigger, window, originalFinishedSet, finishedSet,
-          trigger.invokeElement(context(finishedSet), e));
 
-      if (WindowStatus.NEW.equals(status)) {
-        // Attempt to merge windows before continuing.
-        windowFn.mergeWindows(mergeContext);
+      TriggerResult result = trigger.invokeElement(context(finishedSet), e);
+
+      // Make sure we merge before firing, in case a larger window is produced
+      if (result.isFire()) {
+        merge();
+      }
+
+      // Only invoke handleResult if the window is still active after merging.
+      if ((windowFn instanceof PartitioningWindowFn) || windowSet.contains(window)) {
+        handleResult(trigger, window, originalFinishedSet, finishedSet, result);
       }
     }
   }
@@ -219,7 +224,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
     // Attempt to merge windows before continuing; that may remove the current window from
     // consideration.
-    windowFn.mergeWindows(mergeContext);
+    merge();
 
     // The WindowSet used with PartitioningWindowFn doesn't support contains, but it will never
     // merge windows in a way that causes the timer to no longer be applicable. Otherwise, we
@@ -270,6 +275,10 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
         watermarkHold.clearHold(windowBeingMerged);
       }
     }
+  }
+
+  public void merge() throws Exception {
+    windowFn.mergeWindows(mergeContext);
   }
 
   private void handleResult(

@@ -95,12 +95,14 @@ public class AfterPaneTest {
 
     tester.injectElement(1, new Instant(1)); // in [1, 11)
     tester.injectElement(2, new Instant(2)); // in [2, 12)
+    tester.doMerge();
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 1, 12)));
 
-    // Because we discarded the previous window, we don't have it around to merge with.
+    // Because we closed the previous window, we don't have it around to merge with.
     tester.injectElement(3, new Instant(7)); // in [7, 17)
     tester.injectElement(4, new Instant(8)); // in [8, 18)
+    tester.doMerge();
 
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 7, 7, 18)));

@@ -77,6 +77,9 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
     private Factory<K, InputT, OutputT, W> windowSetFactory;
     private ExecutableTrigger<W> trigger;
 
+    private AbstractWindowSet<K, InputT, OutputT, W> windowSet;
+    private TriggerExecutor<K, InputT, OutputT, W> executor;
+
     public StreamingGABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
         AbstractWindowSet.Factory<K, InputT, OutputT, W> windowSetFactory) {
       this.windowSetFactory = windowSetFactory;
@@ -86,42 +89,41 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
       this.trigger = noWildcard.getTrigger();
     }
 
+    private void initForKey(ProcessContext c, K key) throws Exception{
+      if (windowSet == null) {
+        windowSet = windowSetFactory.create(
+            key, windowFn.windowCoder(), c.keyedState(), c.windowingInternals());
+        executor = new TriggerExecutor<>(
+            windowFn, new StreamingTimerManager(c), trigger, c.keyedState(),
+            c.windowingInternals(), windowSet);
+      }
+    }
+
     @Override
-    public void processElement(ProcessContext context) throws Exception {
-      if (!context.element().isTimer()) {
-        KV<K, InputT> element = context.element().element();
-        K key = element.getKey();
-        InputT value = element.getValue();
-        AbstractWindowSet<K, InputT, OutputT, W> windowSet = windowSetFactory.create(
-                key, windowFn.windowCoder(), context.keyedState(), context.windowingInternals());
-        TriggerExecutor<K, InputT, OutputT, W> executor = new TriggerExecutor<>(
-            windowFn,
-            new StreamingTimerManager(context),
-            trigger,
-            context.keyedState(),
-            context.windowingInternals(),
-            windowSet);
+    public void processElement(ProcessContext c) throws Exception {
+      @SuppressWarnings("unchecked")
+      K key = c.element().isTimer() ? (K) c.element().key() : c.element().element().getKey();
+      initForKey(c, key);
 
-        executor.onElement(WindowedValue.of(
-            value, context.timestamp(), context.windowingInternals().windows()));
-        windowSet.persist();
+      if (c.element().isTimer()) {
+        executor.onTimer(c.element().tag());
       } else {
-        TimerOrElement<KV<K, InputT>> timer = context.element();
-        @SuppressWarnings("unchecked")
-        K key = (K) timer.key();
-        AbstractWindowSet<K, InputT, OutputT, W> windowSet = windowSetFactory.create(
-            key, windowFn.windowCoder(), context.keyedState(), context.windowingInternals());
-        TriggerExecutor<K, InputT, OutputT, W> executor = new TriggerExecutor<>(
-            windowFn,
-            new StreamingTimerManager(context),
-            trigger,
-            context.keyedState(),
-            context.windowingInternals(),
-            windowSet);
+        InputT value = c.element().element().getValue();
+        executor.onElement(
+            WindowedValue.of(value, c.timestamp(), c.windowingInternals().windows()));
+      }
+    }
 
-        executor.onTimer(timer.tag());
+    @Override
+    public void finishBundle(Context c) throws Exception {
+      if (executor != null) {
+        executor.merge();
         windowSet.persist();
       }
+
+      // Prepare this DoFn for reuse.
+      executor = null;
+      windowSet = null;
     }
   }
 

@@ -85,7 +85,6 @@ public class ExecutableTriggerTest {
     assertSame(t2, executable.getSubTriggerContaining(7).getSpec());
   }
 
-
   private static class StubTrigger extends Trigger<IntervalWindow> {
 
     @SafeVarargs

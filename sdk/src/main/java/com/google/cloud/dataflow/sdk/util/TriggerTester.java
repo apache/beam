@@ -202,6 +202,10 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     triggerExecutor.onElement(WindowedValue.of(value, timestamp, windows));
   }
 
+  public void doMerge() throws Exception {
+    triggerExecutor.merge();
+  }
+
   public void setTimer(
       W window, Instant timestamp, TimeDomain domain, ExecutableTrigger<W> trigger)
           throws CoderException {
