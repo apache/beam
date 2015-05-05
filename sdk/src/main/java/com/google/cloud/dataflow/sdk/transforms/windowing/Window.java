@@ -108,7 +108,7 @@ import java.util.List;
  * <pre> {@code
  * PCollection<String> items = ...;
  * PCollection<String> windowed_items = items.apply(
- *   Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES)
+ *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))
  *      .triggering(AfterEach.inOrder(
  *          AfterWatermark.pastEndOfWindow(),
  *          Repeatedly
@@ -125,7 +125,7 @@ import java.util.List;
  *
  * <pre> {@code
  * PCollection<String> windowed_items = items.apply(
- *   Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES)
+ *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))
  *      .triggering(Repeatedly
  *              .forever(AfterProcessingTime
  *                  .pastFirstElementInPane().plusDelay(Duration.standardMinutes(1)))

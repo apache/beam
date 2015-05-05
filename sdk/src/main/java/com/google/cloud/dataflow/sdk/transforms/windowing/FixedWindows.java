@@ -28,7 +28,7 @@ import org.joda.time.Instant;
  * <pre> {@code
  * PCollection<Integer> items = ...;
  * PCollection<Integer> windowedItems = items.apply(
- *   Window.<Integer>by(FixedWindows.of(Duration.standardMinutes(10))));
+ *   Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(10))));
  * } </pre>
  */
 @SuppressWarnings("serial")

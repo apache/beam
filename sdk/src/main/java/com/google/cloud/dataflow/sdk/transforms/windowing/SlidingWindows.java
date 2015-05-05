@@ -34,7 +34,7 @@ import java.util.List;
  * <pre> {@code
  * PCollection<Integer> items = ...;
  * PCollection<Integer> windowedItems = items.apply(
- *   Window.<Integer>by(SlidingWindows.of(Duration.standardMinutes(10))));
+ *   Window.<Integer>into(SlidingWindows.of(Duration.standardMinutes(10))));
  * } </pre>
  */
 @SuppressWarnings("serial")

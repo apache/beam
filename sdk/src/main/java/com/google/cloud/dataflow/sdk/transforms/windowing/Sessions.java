@@ -32,7 +32,7 @@ import java.util.Collection;
  * <pre> {@code
  * PCollection<Integer> pc = ...;
  * PCollection<Integer> windowed_pc = pc.apply(
- *   Window.<Integer>by(Sessions.withGapDuration(Duration.standardMinutes(10))));
+ *   Window.<Integer>into(Sessions.withGapDuration(Duration.standardMinutes(10))));
  * } </pre>
  */
 public class Sessions extends WindowFn<Object, IntervalWindow> {
