@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
@@ -100,7 +101,7 @@ public class SampleTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testSample() {
     Pipeline p = TestPipeline.create();
 
@@ -115,7 +116,7 @@ public class SampleTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testSampleEmpty() {
     Pipeline p = TestPipeline.create();
 
@@ -130,7 +131,7 @@ public class SampleTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testSampleZero() {
     Pipeline p = TestPipeline.create();
 
@@ -145,7 +146,7 @@ public class SampleTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testSampleInsufficientElements() {
     Pipeline p = TestPipeline.create();
 
@@ -169,7 +170,7 @@ public class SampleTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testSampleMultiplicity() {
     Pipeline p = TestPipeline.create();
 
@@ -231,7 +232,7 @@ public class SampleTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testPickAny() {
     runPickAnyTest(LINES, 0);
     runPickAnyTest(LINES, LINES.size() / 2);
@@ -247,7 +248,7 @@ public class SampleTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testPickAnyWhenEmpty() {
     runPickAnyTest(NO_LINES, 0);
     runPickAnyTest(NO_LINES, 1);

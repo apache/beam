@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
@@ -62,7 +63,7 @@ public class ViewTest implements Serializable {
   public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testSingletonSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -142,7 +143,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testListSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -172,7 +173,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testIterableSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -200,7 +201,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testMapSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -228,7 +229,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testSingletonMapSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -254,7 +255,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCombinedMapSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -280,7 +281,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testWindowedSideInputFixedToFixed() {
     Pipeline p = TestPipeline.create();
 
@@ -313,7 +314,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testWindowedSideInputFixedToGlobal() {
     Pipeline p = TestPipeline.create();
 
@@ -346,7 +347,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testWindowedSideInputFixedToFixedWithDefault() {
     Pipeline p = TestPipeline.create();
 
@@ -377,7 +378,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testSideInputWithNullDefault() {
     Pipeline p = TestPipeline.create();
 
@@ -386,7 +387,7 @@ public class ViewTest implements Serializable {
         .apply(Combine.globally(new SerializableFunction<Iterable<Void>, Void>() {
                   @Override
                   public Void apply(Iterable<Void> input) {
-                    return (Void) null;
+                    return null;
                   }
                 }).asSingletonView());
 

@@ -36,6 +36,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.RecordingPipelineVisitor;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
@@ -123,7 +124,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testSimpleCombine() {
     runTestSimpleCombine(TABLE, 20, new KV[] {
@@ -131,7 +132,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testSimpleCombineEmpty() {
     runTestSimpleCombine(EMPTY_TABLE, 0, new KV[] { });
@@ -160,7 +161,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testBasicCombine() {
     runTestBasicCombine(TABLE, ImmutableSet.of(1, 13, 4), new KV[] {
@@ -169,7 +170,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   @SuppressWarnings("rawtypes")
   public void testBasicCombineEmpty() {
     runTestBasicCombine(EMPTY_TABLE, ImmutableSet.<Integer>of(), new KV[] { });
@@ -196,7 +197,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testFixedWindowsCombine() {
     Pipeline p = TestPipeline.create();
 
@@ -223,7 +224,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testSessionsCombine() {
     Pipeline p = TestPipeline.create();
 
@@ -249,7 +250,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testWindowedCombineEmpty() {
     Pipeline p = TestPipeline.create();
 
@@ -264,14 +265,14 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testAccumulatingCombine() {
     runTestAccumulatingCombine(TABLE, 4.0, new KV[] {
         KV.of("a", 2.0), KV.of("b", 7.0) });
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testAccumulatingCombineEmpty() {
     runTestAccumulatingCombine(EMPTY_TABLE, 0.0, new KV[] { });
   }
@@ -327,7 +328,7 @@ public class CombineTest implements Serializable {
       };
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testHotKeyCombining() {
     Pipeline p = TestPipeline.create();
     PCollection<KV<String, Integer>> input = copy(createInput(p, TABLE), 10);
@@ -403,7 +404,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCombineGloballyAsSingletonView() {
     Pipeline p = TestPipeline.create();
     final PCollectionView<Integer> view = p

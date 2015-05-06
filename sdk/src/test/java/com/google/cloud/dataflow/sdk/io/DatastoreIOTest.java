@@ -39,6 +39,7 @@ import com.google.cloud.dataflow.sdk.io.DatastoreIO.DatastoreWriter;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
@@ -99,7 +100,7 @@ public class DatastoreIOTest {
    * Test for reading one entity from kind "food".
    */
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testBuildRead() throws Exception {
     DatastoreIO.Source readQuery =
         DatastoreIO.read().withHost(this.host).withDataset(this.datasetId).withQuery(this.query);

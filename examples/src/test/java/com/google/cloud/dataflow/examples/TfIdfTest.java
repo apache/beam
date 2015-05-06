@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.examples;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringDelegateCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.Keys;
@@ -42,7 +43,7 @@ public class TfIdfTest {
 
   /** Test that the example runs. */
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testTfIdf() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 

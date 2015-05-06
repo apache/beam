@@ -36,6 +36,7 @@ import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
@@ -358,7 +359,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testParDo() {
     Pipeline p = TestPipeline.create();
 
@@ -377,7 +378,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testParDo2() {
     Pipeline p = TestPipeline.create();
 
@@ -396,7 +397,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testParDoEmpty() {
     Pipeline p = TestPipeline.create();
 
@@ -415,7 +416,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testParDoWithSideOutputs() {
     Pipeline p = TestPipeline.create();
 
@@ -458,7 +459,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testParDoWithOnlySideOutputs() {
     Pipeline p = TestPipeline.create();
 
@@ -543,7 +544,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testParDoWithSideInputs() {
     Pipeline p = TestPipeline.create();
 
@@ -640,7 +641,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testParDoKeyedState() {
     Pipeline p = TestPipeline.create();
 
@@ -664,7 +665,7 @@ public class ParDoTest implements Serializable {
 
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testParDoKeyedState2() {
     Pipeline p = TestPipeline.create();
 
@@ -1240,7 +1241,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testWindowingInStartAndFinishBundle() {
     Pipeline p = TestPipeline.create();
 

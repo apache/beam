@@ -24,6 +24,7 @@ import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES_ARRAY;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -53,7 +54,7 @@ public class CreateTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCreate() {
     Pipeline p = TestPipeline.create();
 
@@ -66,7 +67,7 @@ public class CreateTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCreateEmpty() {
     Pipeline p = TestPipeline.create();
 
@@ -122,7 +123,7 @@ public class CreateTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCreateTimestamped() {
     Pipeline p = TestPipeline.create();
 
@@ -142,7 +143,7 @@ public class CreateTest {
 
   @Test
   // This test fails when run on the service!
-  // TODO: @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  // TODO: @Category(RunnableOnService.class)
   public void testCreateTimestampedEmpty() {
     Pipeline p = TestPipeline.create();
 
@@ -174,7 +175,7 @@ public class CreateTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCreateWithVoidType() throws Exception {
     Pipeline p = TestPipeline.create();
 
@@ -187,7 +188,7 @@ public class CreateTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCreateWithKVVoidType() throws Exception {
     Pipeline p = TestPipeline.create();
 

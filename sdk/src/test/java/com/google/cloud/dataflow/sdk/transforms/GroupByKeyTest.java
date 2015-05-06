@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
@@ -59,7 +60,7 @@ public class GroupByKeyTest {
   public ExpectedException expectedEx = ExpectedException.none();
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testGroupByKey() {
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList(
         KV.of("k1", 3),
@@ -101,7 +102,7 @@ public class GroupByKeyTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testGroupByKeyAndWindows() {
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList(
         KV.of("k1", 3),  // window [0, 5)
@@ -145,7 +146,7 @@ public class GroupByKeyTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testGroupByKeyEmpty() {
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 

@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -448,7 +449,7 @@ public class CoGroupByKeyTest implements Serializable {
    */
   @SuppressWarnings("unchecked")
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCoGroupByKeyHandleResults() {
     TupleTag<String> namesTag = new TupleTag<>();
     TupleTag<String> addressesTag = new TupleTag<>();
@@ -479,7 +480,7 @@ public class CoGroupByKeyTest implements Serializable {
    */
   @SuppressWarnings("unchecked")
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCoGroupByKeyWithWindowing() {
     TupleTag<String> clicksTag = new TupleTag<>();
     TupleTag<String> purchasesTag = new TupleTag<>();

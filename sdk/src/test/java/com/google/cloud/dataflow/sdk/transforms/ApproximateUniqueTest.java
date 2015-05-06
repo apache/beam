@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -63,7 +64,7 @@ public class ApproximateUniqueTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testApproximateUniqueWithSmallInput() {
     Pipeline p = TestPipeline.create();
 

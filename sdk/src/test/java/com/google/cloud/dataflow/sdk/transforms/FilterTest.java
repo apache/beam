@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 import static com.google.cloud.dataflow.sdk.TestUtils.createInts;
 
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
@@ -44,19 +45,21 @@ public class FilterTest implements Serializable {
       this.returnVal = returnVal;
     }
 
+    @Override
     public Boolean apply(Integer elem) {
       return this.returnVal;
     }
   }
 
   static class EvenFn implements SerializableFunction<Integer, Boolean> {
+    @Override
     public Boolean apply(Integer elem) {
       return elem % 2 == 0;
     }
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testIdentityFilterBy() {
     TestPipeline p = TestPipeline.create();
 
@@ -81,7 +84,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testFilterBy() {
     TestPipeline p = TestPipeline.create();
 
@@ -94,7 +97,7 @@ public class FilterTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testFilterLessThan() {
     TestPipeline p = TestPipeline.create();
 

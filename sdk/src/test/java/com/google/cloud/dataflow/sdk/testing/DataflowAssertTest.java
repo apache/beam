@@ -107,7 +107,7 @@ public class DataflowAssertTest implements Serializable {
    * serializable.
    */
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testContainsInAnyOrderNotSerializable() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 
@@ -130,7 +130,7 @@ public class DataflowAssertTest implements Serializable {
    * though.
    */
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testSerializablePredicate() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 
@@ -146,7 +146,7 @@ public class DataflowAssertTest implements Serializable {
 
           @Override
           public Void apply(Iterable<NotSerializableObject> contents) {
-            return (Void) null; // no problem!
+            return null; // no problem!
           }
         });
 
@@ -155,7 +155,7 @@ public class DataflowAssertTest implements Serializable {
 
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testIsEqualTo() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 
@@ -168,7 +168,7 @@ public class DataflowAssertTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testContainsInAnyOrder() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 
@@ -181,7 +181,7 @@ public class DataflowAssertTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testContainsInAnyOrderFalse() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 

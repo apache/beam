@@ -32,6 +32,7 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
@@ -71,7 +72,7 @@ public class FlattenTest implements Serializable {
 
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testFlattenPCollectionList() {
     Pipeline p = TestPipeline.create();
 
@@ -87,7 +88,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testFlattenPCollectionListThenParDo() {
     Pipeline p = TestPipeline.create();
 
@@ -104,7 +105,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testFlattenPCollectionListEmpty() {
     Pipeline p = TestPipeline.create();
 
@@ -117,7 +118,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testEmptyFlattenAsSideInput() {
     Pipeline p = TestPipeline.create();
 
@@ -144,7 +145,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testFlattenPCollectionListEmptyThenParDo() {
 
     Pipeline p = TestPipeline.create();
@@ -205,7 +206,7 @@ public class FlattenTest implements Serializable {
   /////////////////////////////////////////////////////////////////////////////
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testFlattenIterables() {
     Pipeline p = TestPipeline.create();
 
@@ -223,7 +224,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testFlattenIterablesEmpty() {
     Pipeline p = TestPipeline.create();
 

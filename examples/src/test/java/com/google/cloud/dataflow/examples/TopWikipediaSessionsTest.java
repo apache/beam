@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.examples;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -33,9 +34,8 @@ import java.util.Arrays;
 /** Unit tests for {@link TopWikipediaSessions}. */
 @RunWith(JUnit4.class)
 public class TopWikipediaSessionsTest {
-
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testComputeTopUsers() {
     Pipeline p = TestPipeline.create();
 

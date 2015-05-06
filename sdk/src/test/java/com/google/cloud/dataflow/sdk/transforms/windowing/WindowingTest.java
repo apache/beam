@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -66,9 +67,9 @@ public class WindowingTest implements Serializable {
             + ":" + c.timestamp().getMillis() + ":" + c.window());
       }
     }
-    private WindowFn<Object, ?> windowFn;
+    private WindowFn<? super String, ?> windowFn;
     public WindowedCount(WindowFn<? super String, ?> windowFn) {
-      this.windowFn = (WindowFn) windowFn;
+      this.windowFn = windowFn;
     }
     @Override
     public PCollection<String> apply(PCollection<String> in) {
@@ -87,7 +88,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testPartitioningWindowing() {
     Pipeline p = TestPipeline.create();
     PCollection<String> input =
@@ -113,7 +114,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testNonPartitioningWindowing() {
     Pipeline p = TestPipeline.create();
     PCollection<String> input =
@@ -139,7 +140,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testMergingWindowing() {
     Pipeline p = TestPipeline.create();
     PCollection<String> input =
@@ -161,7 +162,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testWindowPreservation() {
     Pipeline p = TestPipeline.create();
     PCollection<String> input1 = p.apply(
@@ -189,7 +190,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testElementsSortedByTimestamp() {
     // The Windowing API does not guarantee that elements will be sorted by
     // timestamp, but the implementation currently relies on this, so it

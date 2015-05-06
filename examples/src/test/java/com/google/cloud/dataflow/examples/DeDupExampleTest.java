@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.examples;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.RemoveDuplicates;
@@ -37,7 +38,7 @@ import java.util.List;
 public class DeDupExampleTest {
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testRemoveDuplicates() {
     List<String> strings = Arrays.asList(
         "k1",
@@ -63,7 +64,7 @@ public class DeDupExampleTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testRemoveDuplicatesEmpty() {
     List<String> strings = Arrays.asList();
 

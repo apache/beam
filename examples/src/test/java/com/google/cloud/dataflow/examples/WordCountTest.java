@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.examples.WordCount.ExtractWordsFn;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
@@ -67,7 +68,7 @@ public class WordCountTest {
 
   /** Example test that tests a PTransform by using an in-memory input and inspecting the output. */
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCountWords() throws Exception {
     Pipeline p = TestPipeline.create();
 

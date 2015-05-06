@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.examples.JoinExamples.ExtractCountryInfoFn;
 import com.google.cloud.dataflow.examples.JoinExamples.ExtractEventDataFn;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
@@ -100,7 +101,7 @@ public class JoinExamplesTest {
 
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testJoin() throws java.lang.Exception {
     Pipeline p = TestPipeline.create();
     PCollection<TableRow> input1 = p.apply(Create.of(EVENT_ARRAY));

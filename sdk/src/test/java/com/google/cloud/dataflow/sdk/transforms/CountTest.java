@@ -21,6 +21,7 @@ import static com.google.cloud.dataflow.sdk.TestUtils.createStrings;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -45,7 +46,7 @@ public class CountTest {
   static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   @SuppressWarnings("unchecked")
   public void testCountPerElementBasic() {
     Pipeline p = TestPipeline.create();
@@ -67,7 +68,7 @@ public class CountTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   @SuppressWarnings("unchecked")
   public void testCountPerElementEmpty() {
     Pipeline p = TestPipeline.create();
@@ -82,7 +83,7 @@ public class CountTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCountGloballyBasic() {
     Pipeline p = TestPipeline.create();
 
@@ -97,7 +98,7 @@ public class CountTest {
   }
 
   @Test
-  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCountGloballyEmpty() {
     Pipeline p = TestPipeline.create();
 
