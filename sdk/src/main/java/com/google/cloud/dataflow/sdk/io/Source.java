@@ -122,14 +122,15 @@ public abstract class Source<T> implements Serializable {
 
     /**
      * Advances the reader to the next valid record.
-     * Invalidates the result of the previous {@link #getCurrent} call.
+     *
      * @return {@code true} if a record was read, {@code false} if we're at the end of input.
      */
     public boolean advance() throws IOException;
 
     /**
      * Returns the value of the data item that was read by the last {@link #start} or
-     * {@link #advance} call.
+     * {@link #advance} call. The returned value must be effectively immutable and remain valid
+     * indefinitely.
      *
      * @throws java.util.NoSuchElementException if the reader is at the beginning of the input and
      *         {@link #start} or {@link #advance} wasn't called, or if the last {@link #start} or
