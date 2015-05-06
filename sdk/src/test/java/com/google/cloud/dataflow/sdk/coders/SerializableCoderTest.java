@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -173,11 +174,39 @@ public class SerializableCoderTest implements Serializable {
 
     // Decode from NESTED form.
     try (ByteArrayInputStream is = new ByteArrayInputStream(nestedEncoding)) {
-      String result = coder.decode(is, Coder.Context.NESTED);
-      String result2 = coder.decode(is, Coder.Context.NESTED);
+      assertEquals(source, coder.decode(is, Coder.Context.NESTED));
+      assertEquals(source2, coder.decode(is, Coder.Context.NESTED));
       assertEquals(0, is.available());
-      assertEquals(source, result);
-      assertEquals(source2, result2);
+    }
+  }
+
+  @Test
+  public void testNullEncoding() throws Exception {
+    Coder<String> coder = SerializableCoder.of(String.class);
+    byte[] encodedBytes = CoderUtils.encodeToByteArray(coder, null);
+    assertNull(CoderUtils.decodeFromByteArray(coder, encodedBytes));
+  }
+
+  @Test
+  public void testMixedWithNullsEncoding() throws Exception {
+    Coder<String> coder = SerializableCoder.of(String.class);
+    byte[] encodedBytes;
+    try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+      coder.encode(null, os, Coder.Context.NESTED);
+      coder.encode("TestValue", os, Coder.Context.NESTED);
+      coder.encode(null, os, Coder.Context.NESTED);
+      coder.encode("TestValue2", os, Coder.Context.NESTED);
+      coder.encode(null, os, Coder.Context.NESTED);
+      encodedBytes = os.toByteArray();
+    }
+
+    try (ByteArrayInputStream is = new ByteArrayInputStream(encodedBytes)) {
+      assertNull(coder.decode(is, Coder.Context.NESTED));
+      assertEquals("TestValue", coder.decode(is,  Coder.Context.NESTED));
+      assertNull(coder.decode(is, Coder.Context.NESTED));
+      assertEquals("TestValue2", coder.decode(is,  Coder.Context.NESTED));
+      assertNull(coder.decode(is, Coder.Context.NESTED));
+      assertEquals(0, is.available());
     }
   }
 }

@@ -109,9 +109,6 @@ public class SerializableCoder<T extends Serializable>
   @Override
   public void encode(T value, OutputStream outStream, Context context)
       throws IOException, CoderException {
-    if (value == null) {
-      throw new CoderException("cannot encode a null record");
-    }
     try (ObjectOutputStream oos = new ObjectOutputStream(outStream)) {
       oos.writeObject(value);
     } catch (IOException exn) {
@@ -147,7 +144,7 @@ public class SerializableCoder<T extends Serializable>
     if (getClass() != other.getClass()) {
       return false;
     }
-    return type == ((SerializableCoder) other).type;
+    return type == ((SerializableCoder<?>) other).type;
   }
 
   @Override
