@@ -78,4 +78,9 @@ public class GcsIOChannelFactory implements IOChannelFactory {
     // TODO It is incorrect to return true here for files with content encoding set to gzip.
     return true;
   }
+
+  @Override
+  public String resolve(String path, String other) throws IOException {
+    return GcsPath.fromUri(path).resolve(other).toString();
+  }
 }

@@ -19,9 +19,6 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
 import java.text.DecimalFormat;
@@ -38,8 +35,6 @@ import java.util.regex.Pattern;
  * Provides utilities for creating read and write channels.
  */
 public class IOChannelUtils {
-  private static final Logger LOG = LoggerFactory.getLogger(IOChannelUtils.class);
-
   // TODO: add registration mechanism for adding new schemas.
   private static final Map<String, IOChannelFactory> FACTORY_MAP =
       Collections.synchronizedMap(new HashMap<String, IOChannelFactory>());
@@ -175,5 +170,21 @@ public class IOChannelUtils {
     }
 
     throw new IOException("Unable to find handler for " + spec);
+  }
+
+  /**
+   * Resolve the given {@code other} against the {@code path}.
+   * <p>
+   * If the {@code other} parameter is an absolute path then this method trivially returns other.
+   * If {@code other} is an empty path then this method trivially returns the given {@code path}.
+   * Otherwise this method considers the given {@code path} to be a directory and resolves the
+   * {@code other} path against this path. In the simplest case, the {@code other} path does not
+   * have a root component, in which case this method joins the {@code other} path to the given
+   * {@code path} and returns a resulting path that ends with the {@code other} path.
+   * Where the {@code other} path has a root component then resolution is highly implementation
+   * dependent and therefore unspecified.
+   */
+  public static String resolve(String path, String other) throws IOException {
+    return getFactory(path).resolve(path, other);
   }
 }

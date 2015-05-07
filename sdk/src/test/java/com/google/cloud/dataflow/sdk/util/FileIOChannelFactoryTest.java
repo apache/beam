@@ -124,4 +124,22 @@ public class FileIOChannelFactoryTest {
     assertThat(factory.match(temporaryFolder.getRoot().toPath().resolve("a*").toString()),
         Matchers.hasItems(expected.toArray(new String[expected.size()])));
   }
+
+  @Test
+  public void testResolve() throws Exception {
+    String expected = temporaryFolder.getRoot().toPath().resolve("aa").toString();
+    assertEquals(expected, factory.resolve(temporaryFolder.getRoot().toString(), "aa"));
+  }
+
+  @Test
+  public void testResolveOtherIsFullPath() throws Exception {
+    String expected = temporaryFolder.getRoot().getPath().toString();
+    assertEquals(expected, factory.resolve(expected, expected));
+  }
+
+  @Test
+  public void testResolveOtherIsEmptyPath() throws Exception {
+    String expected = temporaryFolder.getRoot().getPath().toString();
+    assertEquals(expected, factory.resolve(expected, ""));
+  }
 }

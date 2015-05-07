@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -24,7 +27,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
-import java.nio.channels.WritableByteChannel;
 
 /**
  * Tests for IOChannelUtils.
@@ -36,22 +38,22 @@ public class IOChannelUtilsTest {
 
   @Test
   public void testShardFormatExpansion() {
-    Assert.assertEquals("output-001-of-123.txt",
+    assertEquals("output-001-of-123.txt",
         IOChannelUtils.constructName("output", "-SSS-of-NNN",
             ".txt",
             1, 123));
 
-    Assert.assertEquals("out.txt/part-00042",
+    assertEquals("out.txt/part-00042",
         IOChannelUtils.constructName("out.txt", "/part-SSSSS", "",
             42, 100));
 
-    Assert.assertEquals("out.txt",
+    assertEquals("out.txt",
         IOChannelUtils.constructName("ou", "t.t", "xt", 1, 1));
 
-    Assert.assertEquals("out0102shard.txt",
+    assertEquals("out0102shard.txt",
         IOChannelUtils.constructName("out", "SSNNshard", ".txt", 1, 2));
 
-    Assert.assertEquals("out-2/1.part-1-of-2.txt",
+    assertEquals("out-2/1.part-1-of-2.txt",
         IOChannelUtils.constructName("out", "-N/S.part-S-of-N",
             ".txt", 1, 2));
   }
@@ -61,9 +63,8 @@ public class IOChannelUtilsTest {
     File outFolder = tmpFolder.newFolder();
     String filename = outFolder.toPath().resolve("output").toString();
 
-    WritableByteChannel output = IOChannelUtils
-        .create(filename, "", "", 2, "text");
-    Assert.fail("IOChannelUtils.create expected to fail due "
+    IOChannelUtils.create(filename, "", "", 2, "text");
+    fail("IOChannelUtils.create expected to fail due "
         + "to filename collision");
   }
 
@@ -72,5 +73,11 @@ public class IOChannelUtilsTest {
     Assert.assertEquals("out-100-of-5000.txt",
         IOChannelUtils.constructName("out", "-SS-of-NN", ".txt",
             100, 5000));
+  }
+
+  @Test
+  public void testResolve() throws Exception {
+    String expected = tmpFolder.getRoot().toPath().resolve("aa").toString();
+    assertEquals(expected, IOChannelUtils.resolve(tmpFolder.getRoot().toString(), "aa"));
   }
 }
