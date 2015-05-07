@@ -414,11 +414,7 @@ public class DataflowPipelineTranslator {
       if (options.isStreaming()) {
         // Use separate data disk for streaming.
         Disk disk = new Disk();
-        disk.setSizeGb(10);
         disk.setDiskType(options.getWorkerDiskType());
-        // TODO: introduce a separate location for Windmill binary in the
-        // TaskRunner so it wouldn't interfere with the data disk mount point.
-        disk.setMountPoint("/windmill");
         workerPool.setDataDisks(Collections.singletonList(disk));
       }
       if (!Strings.isNullOrEmpty(options.getZone())) {
