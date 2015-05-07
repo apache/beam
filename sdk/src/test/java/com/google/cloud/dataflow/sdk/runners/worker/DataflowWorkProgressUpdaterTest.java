@@ -111,12 +111,6 @@ public class DataflowWorkProgressUpdaterTest {
     }
   }
 
-  static {
-    // To shorten wait times during testing.
-    System.setProperty("minimum_worker_update_interval_millis", "100");
-    System.setProperty("worker_lease_renewal_latency_margin", "100");
-  }
-
   private static final String PROJECT_ID = "TEST_PROJECT_ID";
   private static final String JOB_ID = "TEST_JOB_ID";
   private static final String WORKER_ID = "TEST_WORKER_ID";
@@ -167,7 +161,18 @@ public class DataflowWorkProgressUpdaterTest {
     workItem.setReportStatusInterval(toCloudDuration(Duration.millis(300)));
     workItem.setInitialReportIndex(1L);
 
-    progressUpdater = new DataflowWorkProgressUpdater(workItem, worker, workUnitClient, options);
+    progressUpdater = new DataflowWorkProgressUpdater(workItem, worker, workUnitClient, options) {
+      // Shorten reporting interval boundaries for faster testing.
+      @Override
+      protected long getMinReportingInterval() {
+        return 100;
+      }
+
+      @Override
+      protected long getLeaseRenewalLatencyMargin() {
+        return 100;
+      }
+    };
   }
 
   // TODO: Remove sleeps from this test by using a mock sleeper.  This
