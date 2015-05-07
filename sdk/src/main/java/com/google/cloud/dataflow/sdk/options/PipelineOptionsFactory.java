@@ -558,9 +558,7 @@ public class PipelineOptionsFactory {
               combinedPipelineOptionsInterfaces.toArray(EMPTY_CLASS_ARRAY));
       try {
         List<PropertyDescriptor> propertyDescriptors =
-            getPropertyDescriptors(allProxyClass);
-        validateClass(iface, validatedPipelineOptionsInterfaces,
-            allProxyClass, propertyDescriptors);
+            validateClass(iface, validatedPipelineOptionsInterfaces, allProxyClass);
         COMBINED_CACHE.put(combinedPipelineOptionsInterfaces,
             new Registration<T>(allProxyClass, propertyDescriptors));
       } catch (IntrospectionException e) {
@@ -575,8 +573,7 @@ public class PipelineOptionsFactory {
           PipelineOptionsFactory.class.getClassLoader(), new Class[] {iface});
       try {
         List<PropertyDescriptor> propertyDescriptors =
-            getPropertyDescriptors(proxyClass);
-        validateClass(iface, validatedPipelineOptionsInterfaces, proxyClass, propertyDescriptors);
+            validateClass(iface, validatedPipelineOptionsInterfaces, proxyClass);
         INTERFACE_CACHE.put(iface,
             new Registration<T>(proxyClass, propertyDescriptors));
       } catch (IntrospectionException e) {
@@ -831,8 +828,20 @@ public class PipelineOptionsFactory {
         continue;
       }
       String propertyName = Introspector.decapitalize(methodName.substring(3));
+      Method getterMethod = propertyNamesToGetters.remove(propertyName);
+
+      // Validate that the getter and setter property types are the same.
+      if (getterMethod != null) {
+        Class<?> getterPropertyType = getterMethod.getReturnType();
+        Class<?> setterPropertyType = method.getParameterTypes()[0];
+        Preconditions.checkArgument(getterPropertyType == setterPropertyType,
+            "Type mismatch between getter and setter methods for property [%s]. "
+            + "Getter is of type [%s] whereas setter is of type [%s].",
+            propertyName, getterPropertyType.getName(), setterPropertyType.getName());
+      }
+
       descriptors.add(new PropertyDescriptor(
-          propertyName, propertyNamesToGetters.remove(propertyName), method));
+          propertyName, getterMethod, method));
     }
 
     // Add the remaining getters with missing setters.
@@ -882,11 +891,13 @@ public class PipelineOptionsFactory {
    * @param validatedPipelineOptionsInterfaces The set of validated pipeline options interfaces to
    *        validate against.
    * @param klass The proxy class representing the interface.
-   * @param descriptors A list of {@link PropertyDescriptor}s to use when validating.
+   * @return A list of {@link PropertyDescriptor}s representing all valid bean properties of
+   *         {@code iface}.
+   * @throws IntrospectionException if invalid property descriptors.
    */
-  private static void validateClass(Class<? extends PipelineOptions> iface,
+  private static List<PropertyDescriptor> validateClass(Class<? extends PipelineOptions> iface,
       Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces,
-      Class<?> klass, List<PropertyDescriptor> descriptors) {
+      Class<?> klass) throws IntrospectionException {
     Set<Method> methods = Sets.newHashSet(IGNORED_METHODS);
     // Ignore static methods, "equals", "hashCode", "toString" and "as" on the generated class.
     for (Method method : klass.getMethods()) {
@@ -937,6 +948,9 @@ public class PipelineOptionsFactory {
     for (Method method : allInterfaceMethods) {
       methodNameToAllMethodMap.put(MethodNameEquivalence.INSTANCE.wrap(method), method);
     }
+
+    List<PropertyDescriptor> descriptors = getPropertyDescriptors(klass);
+
     for (PropertyDescriptor descriptor : descriptors) {
       if (IGNORED_METHODS.contains(descriptor.getReadMethod())
           || IGNORED_METHODS.contains(descriptor.getWriteMethod())) {
@@ -1001,6 +1015,8 @@ public class PipelineOptionsFactory {
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
         iface.getName());
+
+    return descriptors;
   }
 
   /** A {@link Comparator} that uses the classes name to compare them. */

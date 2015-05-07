@@ -142,6 +142,22 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.as(MissingSetter.class);
   }
 
+  /** A test interface with a type mismatch between the getter and setter. */
+  public static interface GetterSetterTypeMismatch extends PipelineOptions {
+    boolean getValue();
+    void setValue(int value);
+  }
+
+  @Test
+  public void testGetterSetterTypeMismatchThrows() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Type mismatch between getter and setter methods for property [value]. Getter is of type "
+        + "[boolean] whereas setter is of type [int].");
+
+    PipelineOptionsFactory.as(GetterSetterTypeMismatch.class);
+  }
+
   /** A test interface representing a composite interface. */
   public static interface CombinedObject extends MissingGetter, MissingSetter {
   }
