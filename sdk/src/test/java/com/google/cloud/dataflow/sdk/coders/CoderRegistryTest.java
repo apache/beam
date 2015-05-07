@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.coders;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
@@ -48,9 +47,7 @@ import java.util.Map;
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class CoderRegistryTest {
-
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException expectedException = ExpectedException.none();
 
   public static CoderRegistry getStandardRegistry() {
     CoderRegistry registry = new CoderRegistry();
@@ -62,8 +59,6 @@ public class CoderRegistryTest {
   }
 
   private static class NotSerializableClass { }
-
-  private static class NotACoderProvider { }
 
   @Test
   public void testSerializableFallbackCoderProvider() throws Exception {
@@ -101,7 +96,7 @@ public class CoderRegistryTest {
   @Test
   public void testSimpleUnknownDefaultCoder() throws Exception {
     CoderRegistry registry = getStandardRegistry();
-    thrown.expect(CannotProvideCoderException.class);
+    expectedException.expect(CannotProvideCoderException.class);
     registry.getDefaultCoder(UnknownType.class);
   }
 
@@ -127,7 +122,7 @@ public class CoderRegistryTest {
     TypeDescriptor<List<UnknownType>> listUnknownToken =
         new TypeDescriptor<List<UnknownType>>() {};
 
-    thrown.expect(CannotProvideCoderException.class);
+    expectedException.expect(CannotProvideCoderException.class);
     registry.getDefaultCoder(listUnknownToken);
   }
 
@@ -166,17 +161,14 @@ public class CoderRegistryTest {
         MyValueCoder.of());
     assertEquals(listCoder, actual);
 
-    try {
-      registry.getDefaultCoder(
-          instance.getClass(),
-          MyGenericClass.class,
-          BigEndianIntegerCoder.of());
-      fail("should have failed");
-    } catch (IllegalArgumentException exn) {
-      assertEquals("Cannot encode elements of type class "
-          + "com.google.cloud.dataflow.sdk.coders.CoderRegistryTest$MyValue "
-          + "with BigEndianIntegerCoder", exn.getMessage());
-    }
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Cannot encode elements of type class "
+        + "com.google.cloud.dataflow.sdk.coders.CoderRegistryTest$MyValue "
+        + "with BigEndianIntegerCoder");
+    registry.getDefaultCoder(
+        instance.getClass(),
+        MyGenericClass.class,
+        BigEndianIntegerCoder.of());
   }
 
   @Test
@@ -279,10 +271,12 @@ public class CoderRegistryTest {
     @Override
     public void verifyDeterministic() { }
 
+    @Override
     public boolean consistentWithEquals() {
       return true;
     }
 
+    @Override
     public Object structuralValue(MyValue value) {
       return value;
     }

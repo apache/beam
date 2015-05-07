@@ -44,7 +44,6 @@ import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -72,42 +71,46 @@ import java.util.zip.GZIPOutputStream;
 @RunWith(JUnit4.class)
 @SuppressWarnings("unchecked")
 public class TextIOTest {
-
-  @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public ExpectedException expectedException = ExpectedException.none();
 
   private static class EmptySeekableByteChannel implements SeekableByteChannel {
+    @Override
     public long position() {
       return 0L;
     }
 
+    @Override
     public SeekableByteChannel position(long newPosition) {
       return this;
     }
 
+    @Override
     public long size() {
       return 0L;
     }
 
+    @Override
     public SeekableByteChannel truncate(long size) {
       return this;
     }
 
+    @Override
     public int write(ByteBuffer src) {
       return 0;
     }
 
+    @Override
     public int read(ByteBuffer dst) {
       return 0;
     }
 
+    @Override
     public boolean isOpen() {
       return true;
     }
 
+    @Override
     public void close() { }
   }
 
@@ -231,14 +234,15 @@ public class TextIOTest {
 
     p.run();
 
-    BufferedReader reader = new BufferedReader(new FileReader(tmpFile));
     List<String> actual = new ArrayList<>();
-    for (;;) {
-      String line = reader.readLine();
-      if (line == null) {
-        break;
+    try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
+      for (;;) {
+        String line = reader.readLine();
+        if (line == null) {
+          break;
+        }
+        actual.add(line);
       }
-      actual.add(line);
     }
 
     String[] expected = new String[elems.length];
@@ -316,7 +320,7 @@ public class TextIOTest {
     }
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testUnsupportedFilePattern() throws IOException {
     File outFolder = tmpFolder.newFolder();
     String filename = outFolder.toPath().resolve("output@*").toString();
@@ -327,10 +331,9 @@ public class TextIOTest {
         p.apply(Create.of(Arrays.asList(LINES_ARRAY)))
             .setCoder(StringUtf8Coder.of());
 
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Output name components are not allowed to contain");
     input.apply(TextIO.Write.to(filename));
-
-    p.run();
-    Assert.fail("Expected failure due to unsupported output pattern");
   }
 
   /**
@@ -374,8 +377,8 @@ public class TextIOTest {
     pipeline.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
 
     // Check that running does fail.
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("wildcard");
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("wildcard");
     pipeline.run();
   }
 

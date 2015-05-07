@@ -16,15 +16,12 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
-import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.common.collect.Lists;
@@ -33,7 +30,9 @@ import com.google.common.collect.Sets;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -44,13 +43,17 @@ import java.util.Set;
 /** Unit tests for {@link PipelineOptions}. */
 @RunWith(JUnit4.class)
 public class PipelineOptionsTest {
+  @Rule public ExpectedException expectedException = ExpectedException.none();
+
   /** Interfaces used for testing that {@link PipelineOptions#as(Class)} functions. */
   private static interface DerivedTestOptions extends BaseTestOptions {
     int getDerivedValue();
     void setDerivedValue(int derivedValue);
 
+    @Override
     @JsonIgnore
     Set<String> getIgnoredValue();
+    @Override
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
@@ -58,8 +61,10 @@ public class PipelineOptionsTest {
     String getDerivedValue();
     void setDerivedValue(String derivedValue);
 
+    @Override
     @JsonIgnore
     Set<String> getIgnoredValue();
+    @Override
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
@@ -106,20 +111,16 @@ public class PipelineOptionsTest {
   }
 
   @Test
-  public void testCloneAsConflicted() throws IOException {
+  public void testCloneAsConflicted() throws Exception {
     DerivedTestOptions options = PipelineOptionsFactory.create().as(DerivedTestOptions.class);
     options.setBaseValue(Lists.<Boolean>newArrayList());
     options.setIgnoredValue(Sets.<String>newHashSet());
     options.getIgnoredValue().add("ignoredString");
     options.setDerivedValue(0);
 
-    try {
-      options.cloneAs(ConflictedTestOptions.class);
-      fail("should have failed");
-    } catch (Exception e) {
-      // Expected
-      assertThat(e.toString(), containsString("incompatible return types"));
-    }
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("incompatible return types");
+    options.cloneAs(ConflictedTestOptions.class);
   }
 }
 
