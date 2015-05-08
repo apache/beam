@@ -20,6 +20,7 @@ import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -146,17 +147,22 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
    * the current element.
    */
   public void processElement(WindowedValue<InputT> elem) {
-    if (elem.getWindows().size() <= 1
-        || (!RequiresWindowAccess.class.isAssignableFrom(fn.getClass())
-            && context.sideInputReader.isEmpty())) {
-      invokeProcessElement(elem);
-    } else {
-      // We could modify the windowed value (and the processContext) to
-      // avoid repeated allocations, but this is more straightforward.
-      for (BoundedWindow window : elem.getWindows()) {
-        invokeProcessElement(WindowedValue.of(
-            elem.getValue(), elem.getTimestamp(), window, elem.getPane()));
+    DataflowWorkerLoggingMDC.setStepName(context.stepContext.getStepName());
+    try {
+      if (elem.getWindows().size() <= 1
+          || (!RequiresWindowAccess.class.isAssignableFrom(fn.getClass())
+          && context.sideInputReader.isEmpty())) {
+        invokeProcessElement(elem);
+      } else {
+        // We could modify the windowed value (and the processContext) to
+        // avoid repeated allocations, but this is more straightforward.
+        for (BoundedWindow window : elem.getWindows()) {
+          invokeProcessElement(WindowedValue.of(
+              elem.getValue(), elem.getTimestamp(), window, elem.getPane()));
+        }
       }
+    } finally {
+      DataflowWorkerLoggingMDC.setStepName(null);
     }
   }
 

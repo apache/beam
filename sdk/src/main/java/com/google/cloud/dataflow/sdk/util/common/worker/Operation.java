@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
-import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 
 /**
@@ -140,7 +139,6 @@ public abstract class Operation {
       checkUnstarted();
       initializationState = InitializationState.STARTED;
     }
-    DataflowWorkerLoggingMDC.setStepName(operationName);
   }
 
   /**
@@ -148,7 +146,6 @@ public abstract class Operation {
    * predecessor producing operations have been finished.
    */
   public void finish() throws Exception {
-    DataflowWorkerLoggingMDC.setStepName(null);
     synchronized (initializationStateLock) {
       checkStarted();
       initializationState = InitializationState.FINISHED;
