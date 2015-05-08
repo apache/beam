@@ -26,7 +26,6 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
@@ -201,7 +200,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       }
 
       // Only invoke handleResult if the window is still active after merging.
-      if ((windowFn instanceof PartitioningWindowFn) || windowSet.contains(window)) {
+      if (windowFn.isNonMerging() || windowSet.contains(window)) {
         handleResult(trigger, window, originalFinishedSet, finishedSet, result);
       }
     }
@@ -229,7 +228,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     // The WindowSet used with PartitioningWindowFn doesn't support contains, but it will never
     // merge windows in a way that causes the timer to no longer be applicable. Otherwise, we
     // confirm that the window is still in the windowSet.
-    if ((windowFn instanceof PartitioningWindowFn) || windowSet.contains(window)) {
+    if (windowFn.isNonMerging() || windowSet.contains(window)) {
       TriggerResult result = trigger.invokeTimer(
           context(finishedSet), new OnTimerEvent<W>(triggerId));
       handleResult(trigger, window, originalFinishedSet, finishedSet, result);

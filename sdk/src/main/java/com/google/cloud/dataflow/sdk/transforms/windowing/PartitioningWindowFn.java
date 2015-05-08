@@ -50,4 +50,9 @@ public abstract class PartitioningWindowFn<T, W extends BoundedWindow>
     }
     return assignWindow(window.maxTimestamp());
   }
+
+  @Override
+  public boolean assignsToSingleWindow() {
+    return true;
+  }
 }

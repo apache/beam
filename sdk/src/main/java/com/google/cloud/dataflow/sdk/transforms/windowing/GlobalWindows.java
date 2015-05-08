@@ -18,22 +18,25 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Default {@link WindowFn} where all data is in the same window.
  */
 @SuppressWarnings("serial")
-public class GlobalWindows
-    extends NonMergingWindowFn<Object, GlobalWindow> {
+public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
+
+  private static final Collection<GlobalWindow> GLOBAL_WINDOWS =
+      Collections.singletonList(GlobalWindow.INSTANCE);
+
   @Override
   public Collection<GlobalWindow> assignWindows(AssignContext c) {
-    return Arrays.asList(GlobalWindow.INSTANCE);
+    return GLOBAL_WINDOWS;
   }
 
   @Override
-  public boolean isCompatible(WindowFn o) {
+  public boolean isCompatible(WindowFn<?, ?> o) {
     return o instanceof GlobalWindows;
   }
 
@@ -45,5 +48,10 @@ public class GlobalWindows
   @Override
   public GlobalWindow getSideInputWindow(BoundedWindow window) {
     return GlobalWindow.INSTANCE;
+  }
+
+  @Override
+  public boolean assignsToSingleWindow() {
+    return true;
   }
 }

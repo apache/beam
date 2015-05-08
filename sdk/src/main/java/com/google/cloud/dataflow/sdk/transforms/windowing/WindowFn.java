@@ -123,4 +123,18 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    * <p> Authors of custom {@code WindowFn}s should override this.
    */
   public abstract W getSideInputWindow(final BoundedWindow window);
+
+  /**
+   * Returns true if this {@code WindowFn} never needs to merge any windows.
+   */
+  public boolean isNonMerging() {
+    return false;
+  }
+
+  /**
+   * Returns true if this {@code WindowFn} assigns each element to a single window.
+   */
+  public boolean assignsToSingleWindow() {
+    return false;
+  }
 }

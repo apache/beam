@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.PartitioningWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.AbstractWindowSet.Factory;
@@ -59,7 +58,8 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
   StreamingGroupAlsoByWindowsDoFn<K, InputT, Iterable<InputT>, W> createForIterable(
       final WindowingStrategy<?, W> windowingStrategy,
       final Coder<InputT> inputValueCoder) {
-    if (windowingStrategy.getWindowFn() instanceof PartitioningWindowFn
+    if (windowingStrategy.getWindowFn().assignsToSingleWindow()
+        && windowingStrategy.getWindowFn().isNonMerging()
         // TODO: Characterize the other kinds of triggers that work with the
         // PartitioningBufferingWindowSet
         && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger) {

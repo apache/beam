@@ -28,7 +28,6 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetad
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.NonMergingWindowFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.ReifyTimestampAndWindowsDoFn;
@@ -321,7 +320,7 @@ public class GroupByKey<K, V>
     public PCollection<KV<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
       WindowingStrategy<?, ?> oldWindowingStrategy = input.getWindowingStrategy();
       WindowFn<?, ?> newWindowFn = oldWindowingStrategy.getWindowFn();
-      if (!(newWindowFn instanceof NonMergingWindowFn)) {
+      if (!newWindowFn.isNonMerging()) {
         // Prevent merging windows again, without explicit user
         // involvement, e.g., by Window.into() or Window.remerge().
         newWindowFn = new InvalidWindows(
@@ -482,7 +481,7 @@ public class GroupByKey<K, V>
           + "Invalid because: " + cause);
     }
     boolean disallowCombinerLifting =
-        !(windowingStrategy.getWindowFn() instanceof NonMergingWindowFn)
+        !windowingStrategy.getWindowFn().isNonMerging()
         || (isStreaming && !fewKeys)
         // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
         || !(windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger);
