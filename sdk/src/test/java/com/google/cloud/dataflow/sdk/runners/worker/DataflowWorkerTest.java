@@ -17,6 +17,8 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.argThat;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,6 +26,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
+import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
@@ -40,6 +43,11 @@ import org.mockito.MockitoAnnotations;
 /** Unit tests for {@link DataflowWorker}. */
 @RunWith(JUnit4.class)
 public class DataflowWorkerTest {
+
+  private class WorkerException extends Exception {
+    static final long serialVersionUID = 0L;
+  }
+
   @Rule
   public FastNanoClockAndSleeper clockAndSleeper = new FastNanoClockAndSleeper();
 
@@ -48,6 +56,12 @@ public class DataflowWorkerTest {
 
   @Mock
   DataflowWorkerHarnessOptions options;
+
+  @Mock
+  DataflowWorkProgressUpdater mockProgressUpdater;
+
+  @Mock
+  WorkExecutor mockWorkExecutor;
 
   @Before
   public void setUp() {
@@ -70,6 +84,24 @@ public class DataflowWorkerTest {
 
     assertFalse(worker.getAndPerformWork());
     verify(mockWorkUnitClient).reportWorkItemStatus(argThat(cloudWorkHasErrors()));
+  }
+
+  @Test
+  public void testStartAndStopProgressReport() throws Exception {
+    DataflowWorker worker = new DataflowWorker(mockWorkUnitClient, options);
+    worker.executeWork(mockWorkExecutor, mockProgressUpdater);
+    verify(mockProgressUpdater, times(1)).startReportingProgress();
+    verify(mockProgressUpdater, times(1)).stopReportingProgress();
+  }
+
+  @Test
+  public void testStopProgressReportInCaseOfFailure() throws Exception {
+    doThrow(new WorkerException()).when(mockWorkExecutor).execute();
+    DataflowWorker worker = new DataflowWorker(mockWorkUnitClient, options);
+    try {
+      worker.executeWork(mockWorkExecutor, mockProgressUpdater);
+    } catch (WorkerException e) { /* Expected - ignore. */ }
+      verify(mockProgressUpdater, times(1)).stopReportingProgress();
   }
 
   private Matcher<WorkItemStatus> cloudWorkHasErrors() {

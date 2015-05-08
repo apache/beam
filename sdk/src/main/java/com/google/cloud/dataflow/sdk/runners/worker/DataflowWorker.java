@@ -122,12 +122,8 @@ public class DataflowWorker {
 
       DataflowWorkProgressUpdater progressUpdater =
           new DataflowWorkProgressUpdater(workItem, worker, workUnitClient, options);
-      progressUpdater.startReportingProgress();
 
-      // Blocks while executing the work.
-      // TODO: refactor to allow multiple work unit
-      // processing threads.
-      worker.execute();
+      executeWork(worker, progressUpdater);
 
       // Log all counter values for debugging purposes.
       CounterSet counters = worker.getOutputCounters();
@@ -141,12 +137,7 @@ public class DataflowWorker {
         LOG.trace("METRIC {}: {}", metric.getName(), metric.getValue());
       }
 
-      // stopReportingProgress can throw an exception if the final progress
-      // update fails. For correctness, the task must then be marked as failed.
-      progressUpdater.stopReportingProgress();
-
       // Report job success.
-
       // TODO: Find out a generic way for the WorkExecutor to report work-specific results
       // into the work update.
       SourceFormat.OperationResponse operationResponse =
@@ -174,6 +165,21 @@ public class DataflowWorker {
       }
     }
   }
+
+  /** Executes the work and report progress. For testing only. */
+  void executeWork(WorkExecutor worker, DataflowWorkProgressUpdater progressUpdater)
+      throws Exception {
+    progressUpdater.startReportingProgress();
+    // Blocks while executing the work.
+    try {
+      worker.execute();
+    } finally {
+      // stopReportingProgress can throw an exception if the final progress
+      // update fails. For correctness, the task must then be marked as failed.
+      progressUpdater.stopReportingProgress();
+    }
+  }
+
 
   /** Handles the exception thrown when reading and executing the work. */
   private void handleWorkError(WorkItem workItem, WorkExecutor worker, Throwable e)
