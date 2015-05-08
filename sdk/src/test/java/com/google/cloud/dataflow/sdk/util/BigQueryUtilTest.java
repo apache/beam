@@ -166,6 +166,49 @@ public class BigQueryUtilTest {
             )));
   }
 
+  private Table basicTableSchemaWithTime() {
+    return new Table()
+        .setSchema(new TableSchema()
+            .setFields(Arrays.asList(
+                new TableFieldSchema()
+                    .setName("name")
+                    .setType("STRING"),
+                new TableFieldSchema()
+                    .setName("time")
+                    .setType("TIMESTAMP"),
+                new TableFieldSchema()
+                    .setName("answer")
+                    .setType("INTEGER")
+            )));
+  }
+
+  @Test
+  public void testReadWithTime() throws IOException {
+    onTableGet(basicTableSchemaWithTime());
+
+    TableDataList dataList = rawDataList(rawRow("Arthur", "1.430397296789E9", 42));
+    onTableList(dataList);
+
+    BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
+        mockClient,
+        BigQueryIO.parseTableSpec("project:dataset.table"));
+
+    Assert.assertTrue(iterator.hasNext());
+    TableRow row = iterator.next();
+
+    Assert.assertTrue(row.containsKey("name"));
+    Assert.assertTrue(row.containsKey("time"));
+    Assert.assertTrue(row.containsKey("answer"));
+    Assert.assertEquals("Arthur", row.get("name"));
+    Assert.assertEquals("2015-04-30 12:34:56.789 UTC", row.get("time"));
+    Assert.assertEquals(42, row.get("answer"));
+
+    Assert.assertFalse(iterator.hasNext());
+
+    verifyTableGet();
+    verifyTabledataList();
+  }
+
   private TableRow rawRow(Object...args) {
     List<TableCell> cells = new LinkedList<>();
     for (Object a : args) {

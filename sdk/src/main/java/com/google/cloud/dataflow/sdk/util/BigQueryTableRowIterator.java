@@ -26,6 +26,9 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -82,6 +85,8 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
    *   <li> Record columns are {@link TableRow}s.
    *   <li> {@code BOOLEAN} columns are JSON booleans, hence Java {@link Boolean}s.
    *   <li> {@code FLOAT} columns are JSON floats, hence Java {@link Double}s.
+   *   <li> {@code TIMESTAMP} columns are {@link String}s that are of the format
+   *        {yyyy-MM-dd HH:mm:ss.SSS UTC}.
    *   <li> Every other atomic type is a {@link String}.
    * </ul></p>
    *
@@ -120,6 +125,14 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
 
     if (fieldSchema.getType().equals("BOOLEAN")) {
       return Boolean.parseBoolean((String) v);
+    }
+
+    if (fieldSchema.getType().equals("TIMESTAMP")) {
+      // Seconds to milliseconds
+      long milliSecs = (new Double(Double.parseDouble((String) v) * 1000)).longValue();
+      DateTimeFormatter formatter =
+          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS").withZoneUTC();
+      return formatter.print(milliSecs) + " UTC";
     }
 
     return v;
