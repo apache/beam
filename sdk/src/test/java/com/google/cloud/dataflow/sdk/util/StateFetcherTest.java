@@ -35,7 +35,6 @@ import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.View;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
@@ -318,7 +317,8 @@ public class StateFetcherTest {
              Windmill.GlobalDataRequest.newBuilder()
                  .setDataId(id)
                  .setExistenceWatermarkDeadline(
-                      TimeUnit.MILLISECONDS.toMicros(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()))
+                      TimeUnit.MILLISECONDS.toMicros(
+                          GlobalWindow.INSTANCE.maxTimestamp().getMillis()))
                  .build())
         .addGlobalDataToFetch(id)
         .build();

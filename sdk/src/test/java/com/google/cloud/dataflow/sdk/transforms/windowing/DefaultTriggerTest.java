@@ -146,7 +146,7 @@ public class DefaultTriggerTest {
   public void testFireDeadline() throws Exception {
     assertEquals(new Instant(9), DefaultTrigger.of().getWatermarkCutoff(
         new IntervalWindow(new Instant(0), new Instant(10))));
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(GlobalWindow.INSTANCE.maxTimestamp(),
         DefaultTrigger.of().getWatermarkCutoff(GlobalWindow.INSTANCE));
   }
 }

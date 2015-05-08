@@ -152,7 +152,7 @@ public class AfterWatermarkTest {
     BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
     assertEquals(new Instant(9), AfterWatermark.pastEndOfWindow().getWatermarkCutoff(window));
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
+    assertEquals(GlobalWindow.INSTANCE.maxTimestamp(),
         AfterWatermark.pastEndOfWindow().getWatermarkCutoff(GlobalWindow.INSTANCE));
     assertEquals(new Instant(19),
         AfterWatermark
