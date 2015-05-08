@@ -430,7 +430,7 @@ public class StreamingDataflowWorker {
       }
       if (commitRequestBuilder.getRequestsCount() > 0) {
         Windmill.CommitWorkRequest commitRequest = commitRequestBuilder.build();
-        LOG.debug("Commit: {}", commitRequest);
+        LOG.trace("Commit: {}", commitRequest);
         commitWork(commitRequest);
       }
       if (remainingCommitBytes > 0) {
