@@ -67,8 +67,8 @@ public class Filter<T> extends PTransform<PCollection<T>,
    *
    * <p> Example of use:
    * <pre> {@code
-   * PCollection<String> listOfNumbers = ...;
-   * PCollection<String> smallNumbers =
+   * PCollection<Integer> listOfNumbers = ...;
+   * PCollection<Integer> smallNumbers =
    *     listOfNumbers.apply(Filter.lessThan(10));
    * } </pre>
    *
@@ -100,8 +100,8 @@ public class Filter<T> extends PTransform<PCollection<T>,
    *
    * <p> Example of use:
    * <pre> {@code
-   * PCollection<String> listOfNumbers = ...;
-   * PCollection<String> largeNumbers =
+   * PCollection<Integer> listOfNumbers = ...;
+   * PCollection<Integer> largeNumbers =
    *     listOfNumbers.apply(Filter.greaterThan(1000));
    * } </pre>
    *
@@ -133,8 +133,8 @@ public class Filter<T> extends PTransform<PCollection<T>,
    *
    * <p> Example of use:
    * <pre> {@code
-   * PCollection<String> listOfNumbers = ...;
-   * PCollection<String> smallOrEqualNumbers =
+   * PCollection<Integer> listOfNumbers = ...;
+   * PCollection<Integer> smallOrEqualNumbers =
    *     listOfNumbers.apply(Filter.lessThanEq(10));
    * } </pre>
    *
@@ -166,8 +166,8 @@ public class Filter<T> extends PTransform<PCollection<T>,
    *
    * <p> Example of use:
    * <pre> {@code
-   * PCollection<String> listOfNumbers = ...;
-   * PCollection<String> largeOrEqualNumbers =
+   * PCollection<Integer> listOfNumbers = ...;
+   * PCollection<Integer> largeOrEqualNumbers =
    *     listOfNumbers.apply(Filter.greaterThanEq(1000));
    * } </pre>
    *
