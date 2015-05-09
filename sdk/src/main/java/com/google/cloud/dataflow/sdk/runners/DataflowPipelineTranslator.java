@@ -51,6 +51,7 @@ import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.CloudDebuggerOptions.DebuggerConfig;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType;
+import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.runners.dataflow.AvroIOTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.BigQueryIOTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.PubsubIOTranslator;
@@ -61,10 +62,11 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
+import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
@@ -866,24 +868,36 @@ public class DataflowPipelineTranslator {
         });
 
     registerTransformTranslator(
-        GroupByKeyOnly.class,
-        new TransformTranslator<GroupByKeyOnly>() {
+        GroupByKey.class,
+        new TransformTranslator<GroupByKey>() {
           @Override
           public void translate(
-              GroupByKeyOnly transform,
+              GroupByKey transform,
               TranslationContext context) {
             groupByKeyHelper(transform, context);
           }
 
           private <K, V> void groupByKeyHelper(
-              GroupByKeyOnly<K, V> transform,
+              GroupByKey<K, V> transform,
               TranslationContext context) {
             context.addStep(transform, "GroupByKey");
             context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
             context.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+
+            WindowingStrategy<?, ?> windowingStrategy =
+                context.getInput(transform).getWindowingStrategy();
+            boolean isStreaming =
+                context.getPipelineOptions().as(StreamingOptions.class).isStreaming();
+            boolean disallowCombinerLifting =
+                !windowingStrategy.getWindowFn().isNonMerging()
+                || (isStreaming && !transform.fewKeys())
+                // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
+                || !(windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger);
             context.addInput(
-                PropertyNames.DISALLOW_COMBINER_LIFTING, transform.disallowCombinerLifting());
-            // TODO: sortsValues
+                PropertyNames.DISALLOW_COMBINER_LIFTING, disallowCombinerLifting);
+            context.addInput(
+                PropertyNames.SERIALIZED_FN,
+                byteArrayToJsonString(serializeToByteArray(windowingStrategy)));
           }
         });
 
