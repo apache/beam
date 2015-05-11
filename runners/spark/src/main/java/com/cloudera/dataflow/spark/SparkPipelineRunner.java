@@ -24,6 +24,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import java.util.logging.Logger;
+import org.apache.spark.serializer.KryoSerializer;
 
 /**
  * The SparkPipelineRunner translate operations defined on a pipeline to a representation
@@ -98,6 +99,7 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     conf.setMaster(mOptions.getSparkMaster());
     conf.setAppName("spark pipeline job");
     conf.set("sun.io.serialization.extendeddebuginfo", "true");
+    conf.set("spark.serializer", KryoSerializer.class.getCanonicalName());
     return new JavaSparkContext(conf);
   }
 
