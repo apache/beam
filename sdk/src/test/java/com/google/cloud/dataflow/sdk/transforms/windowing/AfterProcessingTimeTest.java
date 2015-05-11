@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -42,7 +43,8 @@ public class AfterProcessingTimeTest {
         FixedWindows.of(windowDuration),
         AfterProcessingTime
             .<IntervalWindow>pastFirstElementInPane()
-            .plusDelayOf(Duration.millis(5)));
+            .plusDelayOf(Duration.millis(5)),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.advanceProcessingTime(new Instant(10));
 
@@ -83,7 +85,8 @@ public class AfterProcessingTimeTest {
         Sessions.withGapDuration(windowDuration),
         AfterProcessingTime
             .<IntervalWindow>pastFirstElementInPane()
-            .plusDelayOf(Duration.millis(5)));
+            .plusDelayOf(Duration.millis(5)),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.advanceProcessingTime(new Instant(10));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());

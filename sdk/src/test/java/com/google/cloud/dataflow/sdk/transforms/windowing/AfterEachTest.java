@@ -32,6 +32,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -58,7 +59,9 @@ public class AfterEachTest {
 
   public void setUp(WindowFn<?, IntervalWindow> windowFn) throws Exception {
     MockitoAnnotations.initMocks(this);
-    tester = TriggerTester.buffering(windowFn, AfterEach.inOrder(mockTrigger1, mockTrigger2));
+    tester = TriggerTester.buffering(
+        windowFn, AfterEach.inOrder(mockTrigger1, mockTrigger2),
+        AccumulationMode.DISCARDING_FIRED_PANES);
     executable1 = tester.getTrigger().subTriggers().get(0);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
@@ -230,7 +233,8 @@ public class AfterEachTest {
             Repeatedly.<IntervalWindow>forever(AfterEach.inOrder(
                 AfterPane.<IntervalWindow>elementCountAtLeast(2),
                 AfterPane.<IntervalWindow>elementCountAtLeast(2)))
-                .orFinally(AfterPane.<IntervalWindow>elementCountAtLeast(7))));
+                .orFinally(AfterPane.<IntervalWindow>elementCountAtLeast(7))),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     // Inject a bunch of elements
     for (int i = 0; i < 20; i++) {

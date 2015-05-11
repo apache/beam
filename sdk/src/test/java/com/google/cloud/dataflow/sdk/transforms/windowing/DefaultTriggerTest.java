@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -41,7 +42,8 @@ public class DefaultTriggerTest {
   public void testDefaultTriggerWithFixedWindow() throws Exception {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         FixedWindows.of(Duration.millis(10)),
-        DefaultTrigger.<IntervalWindow>of());
+        DefaultTrigger.<IntervalWindow>of(),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));
@@ -74,7 +76,8 @@ public class DefaultTriggerTest {
   public void testDefaultTriggerWithSessionWindow() throws Exception {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         Sessions.withGapDuration(Duration.millis(10)),
-        DefaultTrigger.<IntervalWindow>of());
+        DefaultTrigger.<IntervalWindow>of(),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));
@@ -99,7 +102,8 @@ public class DefaultTriggerTest {
   public void testDefaultTriggerWithSlidingWindow() throws Exception {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         SlidingWindows.of(Duration.millis(10)).every(Duration.millis(5)),
-        DefaultTrigger.<IntervalWindow>of());
+        DefaultTrigger.<IntervalWindow>of(),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(4));
@@ -129,7 +133,8 @@ public class DefaultTriggerTest {
   public void testDefaultTriggerWithContainedSessionWindow() throws Exception {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         Sessions.withGapDuration(Duration.millis(10)),
-        DefaultTrigger.<IntervalWindow>of());
+        DefaultTrigger.<IntervalWindow>of(),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));

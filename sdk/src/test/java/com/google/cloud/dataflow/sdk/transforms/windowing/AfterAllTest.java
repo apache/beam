@@ -33,6 +33,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -59,7 +60,8 @@ public class AfterAllTest {
 
   public void setUp(WindowFn<?, IntervalWindow> windowFn) throws Exception {
     MockitoAnnotations.initMocks(this);
-    tester = TriggerTester.buffering(windowFn, AfterAll.of(mockTrigger1, mockTrigger2));
+    tester = TriggerTester.buffering(
+        windowFn, AfterAll.of(mockTrigger1, mockTrigger2), AccumulationMode.DISCARDING_FIRED_PANES);
     executable1 = tester.getTrigger().subTriggers().get(0);
     executable2 = tester.getTrigger().subTriggers().get(1);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
@@ -198,7 +200,8 @@ public class AfterAllTest {
             AfterAll.<IntervalWindow>of(
                 AfterPane.<IntervalWindow>elementCountAtLeast(5),
                 AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
-                    .plusDelayOf(Duration.millis(5)))));
+                    .plusDelayOf(Duration.millis(5)))),
+        AccumulationMode.DISCARDING_FIRED_PANES);
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(50));
 
     tester.advanceProcessingTime(new Instant(0));

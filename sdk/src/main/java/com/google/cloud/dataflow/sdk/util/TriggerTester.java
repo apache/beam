@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -87,7 +88,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> buffering(
-      WindowFn<?, W> windowFn, Trigger<W> trigger) throws Exception {
+      WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode) throws Exception {
     @SuppressWarnings("unchecked")
     WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
 
@@ -95,11 +96,24 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         BufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
 
     return new TriggerTester<Integer, Iterable<Integer>, W>(
-        objectWindowFn, trigger, windowSetFactory);
+        objectWindowFn, trigger, windowSetFactory, mode);
+  }
+
+  public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W>
+    partitionBuffering(WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode)
+        throws Exception {
+    @SuppressWarnings("unchecked")
+    WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
+
+    AbstractWindowSet.Factory<String, Integer, Iterable<Integer>, W> windowSetFactory =
+        PartitionBufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
+
+    return new TriggerTester<Integer, Iterable<Integer>, W>(
+        objectWindowFn, trigger, windowSetFactory, mode);
   }
 
   public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> combining(
-      WindowFn<?, W> windowFn, Trigger<W> trigger) throws Exception {
+      WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode) throws Exception {
     @SuppressWarnings("unchecked")
     WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
 
@@ -107,20 +121,21 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         BufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
 
     return new TriggerTester<Integer, Iterable<Integer>, W>(
-        objectWindowFn, trigger, windowSetFactory);
+        objectWindowFn, trigger, windowSetFactory, mode);
   }
 
   private TriggerTester(
       WindowFn<Object, W> windowFn,
       Trigger<W> trigger,
-      AbstractWindowSet.Factory<String, InputT, OutputT, W> windowSetFactory) throws Exception {
+      AbstractWindowSet.Factory<String, InputT, OutputT, W> windowSetFactory,
+      AccumulationMode mode) throws Exception {
     this.windowFn = windowFn;
     this.stubContexts = new StubContexts();
     AbstractWindowSet<String, InputT, OutputT, W> windowSet = windowSetFactory.create(
         KEY, windowFn.windowCoder(), stubContexts, stubContexts);
     executableTrigger = ExecutableTrigger.create(trigger);
     this.triggerExecutor = new TriggerExecutor<>(
-        windowFn, timerManager, executableTrigger, stubContexts, stubContexts, windowSet);
+        windowFn, timerManager, executableTrigger, stubContexts, stubContexts, windowSet, mode);
   }
 
   public ExecutableTrigger<W> getTrigger() {

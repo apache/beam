@@ -37,6 +37,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -84,6 +85,8 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   private final Coder<TriggerId<W>> triggerIdCoder;
   private final WatermarkHold watermarkHold;
 
+  private AccumulationMode mode;
+
   /**
    * Methods that the system must provide in order for us to implement triggers.
    */
@@ -109,19 +112,21 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     Instant currentProcessingTime();
   }
 
-  public TriggerExecutor(
+  TriggerExecutor(
       WindowFn<Object, W> windowFn,
       TimerManager timerManager,
       ExecutableTrigger<W> trigger,
       KeyedState keyedState,
       WindowingInternals<?, KV<K, OutputT>> windowingInternals,
-      AbstractWindowSet<K, InputT, OutputT, W> windowSet) {
+      AbstractWindowSet<K, InputT, OutputT, W> windowSet,
+      AccumulationMode mode) {
     this.windowFn = windowFn;
     this.trigger = trigger;
     this.keyedState = keyedState;
     this.windowingInternals = windowingInternals;
     this.windowSet = windowSet;
     this.timerManager = timerManager;
+    this.mode = mode;
     this.mergeContext = new MergeContext();
     this.triggerIdCoder = new TriggerIdCoder<>(windowFn.windowCoder());
     this.watermarkHold = new WatermarkHold();
@@ -141,6 +146,21 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     return CodedTupleTag.of(
         CoderUtils.encodeToBase64(windowFn.windowCoder(), window) + "earliest-element",
         InstantCoder.of());
+  }
+
+  public static <K, InputT, OutputT, W extends BoundedWindow>
+  TriggerExecutor<K, InputT, OutputT, W> create(
+      K key,
+      WindowingStrategy<Object, W> windowingStrategy,
+      TimerManager timerManager,
+      AbstractWindowSet.Factory<K, InputT, OutputT, W> windowSetFactory,
+      KeyedState keyedState, WindowingInternals<?, KV<K, OutputT>> windowingInternals)
+          throws Exception {
+    AbstractWindowSet<K, InputT, OutputT, W> windowSet = windowSetFactory.create(
+        key, windowingStrategy.getWindowFn().windowCoder(), keyedState, windowingInternals);
+    return new TriggerExecutor<K, InputT, OutputT, W>(
+        windowingStrategy.getWindowFn(), timerManager, windowingStrategy.getTrigger(),
+        keyedState, windowingInternals, windowSet, windowingStrategy.getMode());
   }
 
   private TriggerContext<W> context(BitSet finishedSet) {
@@ -249,6 +269,10 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     return new OnMergeEvent<W>(toBeMerged, resultWindow, finishedSets.build());
   }
 
+  public void persistWindowSet() throws Exception {
+    windowSet.persist();
+  }
+
   private void onMerge(Collection<W> toBeMerged, W resultWindow) throws Exception {
     OnMergeEvent<W> e = createMergeEvent(toBeMerged, resultWindow);
     BitSet originalFinishedSet = lookupFinishedSet(resultWindow);
@@ -287,7 +311,8 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       emitWindow(window);
     }
 
-    if (result.isFire() || result.isFinish()) {
+    if (result.isFinish()
+        || (mode == AccumulationMode.DISCARDING_FIRED_PANES && result.isFire())) {
       // Remove the window from management (assume it is "done")
       windowSet.remove(window);
       watermarkHold.clearHold(window);

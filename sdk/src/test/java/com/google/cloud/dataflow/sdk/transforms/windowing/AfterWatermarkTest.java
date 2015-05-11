@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -42,7 +43,8 @@ public class AfterWatermarkTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         FixedWindows.of(windowDuration),
-        AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)));
+        AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 6
     tester.advanceWatermark(new Instant(5));
@@ -69,7 +71,8 @@ public class AfterWatermarkTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         Sessions.withGapDuration(windowDuration),
-        AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)));
+        AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.advanceWatermark(new Instant(1));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
@@ -97,7 +100,8 @@ public class AfterWatermarkTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         FixedWindows.of(windowDuration),
-        AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)));
+        AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 15
     tester.advanceWatermark(new Instant(11));
@@ -124,7 +128,8 @@ public class AfterWatermarkTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         Sessions.withGapDuration(windowDuration),
-        AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)));
+        AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.advanceWatermark(new Instant(1));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());

@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresKeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
 
@@ -52,7 +52,8 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
   public static <K, V, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W>
   createForIterable(WindowingStrategy<?, W> windowingStrategy, Coder<V> inputCoder) {
     if (windowingStrategy.getWindowFn().isNonMerging()
-        && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger) {
+        && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
+        && windowingStrategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES) {
       return new GroupAlsoByWindowsViaIteratorsDoFn<K, V, W>();
     } else {
       return new GABWViaWindowSetDoFn<>(
@@ -79,16 +80,14 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
   private static class GABWViaWindowSetDoFn<K, InputT, OutputT, W extends BoundedWindow>
      extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
 
-    private WindowFn<Object, W> windowFn;
     private AbstractWindowSet.Factory<K, InputT, OutputT, W> windowSetFactory;
-    private ExecutableTrigger<W> trigger;
+    private WindowingStrategy<Object, W> strategy;
 
     public GABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
         AbstractWindowSet.Factory<K, InputT, OutputT, W> factory) {
       @SuppressWarnings("unchecked")
       WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
-      this.windowFn = noWildcard.getWindowFn();
-      this.trigger = noWildcard.getTrigger();
+      this.strategy = noWildcard;
       this.windowSetFactory = factory;
     }
 
@@ -98,13 +97,9 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
         KV<K, OutputT>>.ProcessContext c)
         throws Exception {
       K key = c.element().getKey();
-      AbstractWindowSet<K, InputT, OutputT, W> windowSet = windowSetFactory.create(
-          key, windowFn.windowCoder(), c.keyedState(), c.windowingInternals());
-
       BatchTimerManager timerManager = new BatchTimerManager(Instant.now());
-      TriggerExecutor<K, InputT, OutputT, W> triggerExecutor = new TriggerExecutor<>(
-          windowFn, timerManager, trigger,
-          c.keyedState(), c.windowingInternals(), windowSet);
+      TriggerExecutor<K, InputT, OutputT, W> triggerExecutor = TriggerExecutor.create(
+          key, strategy, timerManager, windowSetFactory, c.keyedState(), c.windowingInternals());
 
       for (WindowedValue<InputT> e : c.element().getValue()) {
         // First, handle anything that needs to happen for this element
@@ -127,7 +122,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
       // Finally, advance the processing time to infinity to fire any timers.
       timerManager.advanceProcessingTime(triggerExecutor, new Instant(Long.MAX_VALUE));
 
-      windowSet.persist();
+      triggerExecutor.persistWindowSet();
     }
   }
 }

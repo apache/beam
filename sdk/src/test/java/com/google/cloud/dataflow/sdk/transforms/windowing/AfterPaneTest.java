@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -41,7 +42,8 @@ public class AfterPaneTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.combining(
         FixedWindows.of(windowDuration),
-        AfterPane.<IntervalWindow>elementCountAtLeast(2));
+        AfterPane.<IntervalWindow>elementCountAtLeast(2),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));
@@ -65,7 +67,8 @@ public class AfterPaneTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         FixedWindows.of(windowDuration),
-        AfterPane.<IntervalWindow>elementCountAtLeast(2));
+        AfterPane.<IntervalWindow>elementCountAtLeast(2),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     tester.injectElement(1, new Instant(1)); // first in window [0, 10)
     tester.injectElement(2, new Instant(9));
@@ -89,7 +92,8 @@ public class AfterPaneTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
         Sessions.withGapDuration(windowDuration),
-        AfterPane.<IntervalWindow>elementCountAtLeast(2));
+        AfterPane.<IntervalWindow>elementCountAtLeast(2),
+        AccumulationMode.DISCARDING_FIRED_PANES);
 
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 

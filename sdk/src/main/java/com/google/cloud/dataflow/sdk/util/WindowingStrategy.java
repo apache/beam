@@ -36,12 +36,21 @@ import java.io.Serializable;
  */
 public class WindowingStrategy<T, W extends BoundedWindow> implements Serializable {
 
+  /**
+   * The accumulation modes that can be used with windowing.
+   */
+  public enum AccumulationMode {
+    DISCARDING_FIRED_PANES,
+    ACCUMULATING_FIRED_PANES;
+  }
+
   private static final WindowingStrategy<Object, GlobalWindow> DEFAULT = of(new GlobalWindows());
 
   private static final long serialVersionUID = 0L;
 
   private final WindowFn<T, W> windowFn;
   private final ExecutableTrigger<W> trigger;
+  private final AccumulationMode mode = AccumulationMode.DISCARDING_FIRED_PANES;
 
   private WindowingStrategy(WindowFn<T, W> windowFn, ExecutableTrigger<W> trigger) {
     this.windowFn = windowFn;
@@ -75,5 +84,9 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   public ExecutableTrigger<W> getTrigger() {
     return trigger;
+  }
+
+  public AccumulationMode getMode() {
+    return mode;
   }
 }

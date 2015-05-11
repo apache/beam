@@ -22,7 +22,6 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.AbstractWindowSet.Factory;
 import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TimerManager;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -73,11 +72,9 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
 
   private static class StreamingGABWViaWindowSetDoFn<K, InputT, OutputT, W extends BoundedWindow>
   extends StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
-    private final WindowFn<Object, W> windowFn;
-    private Factory<K, InputT, OutputT, W> windowSetFactory;
-    private ExecutableTrigger<W> trigger;
+    private final Factory<K, InputT, OutputT, W> windowSetFactory;
+    private final WindowingStrategy<Object, W> windowingStrategy;
 
-    private AbstractWindowSet<K, InputT, OutputT, W> windowSet;
     private TriggerExecutor<K, InputT, OutputT, W> executor;
 
     public StreamingGABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
@@ -85,17 +82,15 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
       this.windowSetFactory = windowSetFactory;
       @SuppressWarnings("unchecked")
       WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
-      this.windowFn = noWildcard.getWindowFn();
-      this.trigger = noWildcard.getTrigger();
+      this.windowingStrategy = noWildcard;
     }
 
     private void initForKey(ProcessContext c, K key) throws Exception{
-      if (windowSet == null) {
-        windowSet = windowSetFactory.create(
-            key, windowFn.windowCoder(), c.keyedState(), c.windowingInternals());
-        executor = new TriggerExecutor<>(
-            windowFn, new StreamingTimerManager(c), trigger, c.keyedState(),
-            c.windowingInternals(), windowSet);
+      if (executor == null) {
+        TimerManager timerManager = new StreamingTimerManager(c);
+        executor = TriggerExecutor.create(
+          key, windowingStrategy, timerManager, windowSetFactory,
+          c.keyedState(), c.windowingInternals());
       }
     }
 
@@ -117,13 +112,13 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
     @Override
     public void finishBundle(Context c) throws Exception {
       if (executor != null) {
+        // Merge before finishing the bundle in case it causes triggers to fire.
         executor.merge();
-        windowSet.persist();
+        executor.persistWindowSet();
       }
 
       // Prepare this DoFn for reuse.
       executor = null;
-      windowSet = null;
     }
   }
 

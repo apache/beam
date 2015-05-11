@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -56,7 +57,7 @@ public class RepeatedlyTest {
   public void setUp(WindowFn<?, IntervalWindow> windowFn) throws Exception {
     MockitoAnnotations.initMocks(this);
     Trigger<IntervalWindow> underTest = Repeatedly.forever(mockRepeated);
-    tester = TriggerTester.buffering(windowFn, underTest);
+    tester = TriggerTester.buffering(windowFn, underTest, AccumulationMode.DISCARDING_FIRED_PANES);
     executableRepeated = tester.getTrigger().subTriggers().get(0);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
