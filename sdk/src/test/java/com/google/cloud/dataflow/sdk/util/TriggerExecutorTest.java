@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
@@ -75,7 +76,11 @@ public class TriggerExecutorTest {
     setUpBuffering(FixedWindows.of(Duration.millis(10)), AccumulationMode.DISCARDING_FIRED_PANES);
 
     injectElement(1, TriggerResult.CONTINUE);
+    assertTrue(tester.isWindowActive(firstWindow));
+
     injectElement(2, TriggerResult.FIRE);
+    assertFalse(tester.isWindowActive(firstWindow));
+
     injectElement(3, TriggerResult.FIRE_AND_FINISH);
 
     // This element shouldn't be seen, because the trigger has finished
@@ -86,6 +91,7 @@ public class TriggerExecutorTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
+    assertFalse(tester.isWindowActive(firstWindow));
   }
 
   @Test
@@ -93,7 +99,11 @@ public class TriggerExecutorTest {
     setUpBuffering(FixedWindows.of(Duration.millis(10)), AccumulationMode.ACCUMULATING_FIRED_PANES);
 
     injectElement(1, TriggerResult.CONTINUE);
+    assertTrue(tester.isWindowActive(firstWindow));
+
     injectElement(2, TriggerResult.FIRE);
+    assertTrue(tester.isWindowActive(firstWindow));
+
     injectElement(3, TriggerResult.FIRE_AND_FINISH);
 
     // This element shouldn't be seen, because the trigger has finished
@@ -104,5 +114,6 @@ public class TriggerExecutorTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
+    assertFalse(tester.isWindowActive(firstWindow));
   }
 }

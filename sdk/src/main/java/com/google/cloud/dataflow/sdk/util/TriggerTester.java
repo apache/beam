@@ -71,12 +71,13 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
   private Instant watermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
-  private BatchTimerManager timerManager = new LoggingBatchTimerManager(processingTime);
 
-  private TriggerExecutor<String, InputT, OutputT, W> triggerExecutor;
+  private final BatchTimerManager timerManager = new LoggingBatchTimerManager(processingTime);
+  private final TriggerExecutor<String, InputT, OutputT, W> triggerExecutor;
+  private final WindowFn<Object, W> windowFn;
+  private final StubContexts stubContexts;
+  private final AbstractWindowSet<String, InputT, OutputT, W> windowSet;
 
-  private WindowFn<Object, W> windowFn;
-  private StubContexts stubContexts;
   private static final String KEY = "TEST_KEY";
   private boolean logInteractions = false;
   private ExecutableTrigger<W> executableTrigger;
@@ -131,7 +132,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
       AccumulationMode mode) throws Exception {
     this.windowFn = windowFn;
     this.stubContexts = new StubContexts();
-    AbstractWindowSet<String, InputT, OutputT, W> windowSet = windowSetFactory.create(
+    this.windowSet = windowSetFactory.create(
         KEY, windowFn.windowCoder(), stubContexts, stubContexts);
     executableTrigger = ExecutableTrigger.create(trigger);
     this.triggerExecutor = new TriggerExecutor<>(
@@ -168,6 +169,10 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
   public String earliestElement(W window) throws CoderException {
     return triggerExecutor.earliestElementTag(window).getId();
+  }
+
+  public boolean isWindowActive(W window) {
+    return windowSet.contains(window);
   }
 
   /**
