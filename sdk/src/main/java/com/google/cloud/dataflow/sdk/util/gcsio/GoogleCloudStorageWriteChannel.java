@@ -112,7 +112,7 @@ public class GoogleCloudStorageWriteChannel
   // Chunk size to use. Limit the amount of memory used in low memory
   // environments such as small AppEngine instances.
   private static final int UPLOAD_CHUNK_SIZE_DEFAULT =
-      Runtime.getRuntime().totalMemory() < 512 * 1024 * 1024
+      Runtime.getRuntime().maxMemory() < 512 * 1024 * 1024
       ? GCS_UPLOAD_GRANULARITY : 8 * GCS_UPLOAD_GRANULARITY;
 
   // If true, we get very high write throughput but writing files larger than UPLOAD_MAX_SIZE
