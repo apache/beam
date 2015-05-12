@@ -16,13 +16,13 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.util.StreamUtils;
 import com.google.cloud.dataflow.sdk.util.VarInt;
 import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.StructuralByteArray;
 import com.google.common.io.ByteStreams;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -63,9 +63,7 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   public byte[] decode(InputStream inStream, Context context)
       throws IOException, CoderException {
     if (context.isWholeStream) {
-      ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-      ByteStreams.copy(inStream, outStream);
-      return outStream.toByteArray();
+      return StreamUtils.getBytes(inStream);
     } else {
       int length = VarInt.decodeInt(inStream);
       if (length < 0) {
