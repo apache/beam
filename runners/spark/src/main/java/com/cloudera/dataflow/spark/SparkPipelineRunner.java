@@ -16,6 +16,9 @@
 package com.cloudera.dataflow.spark;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -76,6 +79,14 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     return new SparkPipelineRunner(options);
   }
 
+  /**
+   * Constructs a SparkPipelineRunner from the given options.
+   */
+  public static SparkPipelineRunner fromOptions(PipelineOptions options) {
+    SparkPipelineOptions sparkOptions =
+        PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
+    return new SparkPipelineRunner(sparkOptions);
+  }
 
   /**
    * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single

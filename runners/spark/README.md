@@ -57,3 +57,21 @@ would do the following:
     options.setSparkMaster("spark://host:port");
     EvaluationResult result = SparkPipelineRunner.create(options).run(p);
 
+## Word Count Example
+
+First download a text document to use as input:
+
+    curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > /tmp/kinglear.txt
+
+Then run the [word count example][wc] from the SDK using a single threaded Spark instance
+in local mode:
+
+    mvn exec:exec -Dclass=com.google.cloud.dataflow.examples.WordCount \
+      -Dinput=/tmp/kinglear.txt -Doutput=/tmp/out -Drunner=SparkPipelineRunner \
+      -DsparkMaster=local
+
+Check the output by running:
+
+    head /tmp/out/part-00000
+
+[wc]: https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/WordCount.java
