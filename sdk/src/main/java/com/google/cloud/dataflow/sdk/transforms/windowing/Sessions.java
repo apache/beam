@@ -84,4 +84,8 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
   public IntervalWindow getSideInputWindow(BoundedWindow window) {
     throw new UnsupportedOperationException("Sessions is not allowed in side inputs");
   }
+
+  public Duration getGapDuration() {
+    return gapDuration;
+  }
 }

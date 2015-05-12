@@ -163,4 +163,17 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
     }
     return Duration.millis(1);
   }
+
+  public Duration getPeriod() {
+    return period;
+  }
+
+  public Duration getSize() {
+    return size;
+  }
+
+  public Duration getOffset() {
+    return offset;
+  }
+
 }
