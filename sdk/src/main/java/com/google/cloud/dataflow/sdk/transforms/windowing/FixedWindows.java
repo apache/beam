@@ -91,4 +91,13 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
         && (size.equals(((FixedWindows) other).size))
         && (offset.equals(((FixedWindows) other).offset));
   }
+
+  public Duration getSize() {
+    return size;
+  }
+
+  public Duration getOffset() {
+    return offset;
+  }
+
 }
