@@ -24,6 +24,7 @@ import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Preconditions;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
+import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.dataflow.sdk.util.ApiErrorExtractor;
 
 import org.slf4j.Logger;
@@ -77,7 +78,6 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
 
   // Size of the object being read.
   private long size = -1;
-  private boolean isCompressedStream;
 
   // Maximum number of automatic retries when reading from the underlying channel without making
   // progress; each time at least one byte is successfully read, the counter of attempted retries
@@ -123,6 +123,13 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   // without having to calculate the summation of a series of exponentiated intervals while
   // accounting for the randomization of backoff intervals.
   public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS = 2 * 60 * 1000;
+
+  // For files that have Content-Encoding: gzip set in the file metadata, the size of the response
+  // from GCS is the size of the compressed file. However, the HTTP client wraps the content
+  // in a GZIPInputStream, so the number of bytes that can be read from the stream may be greater
+  // than the size of the response. In this case, we allow the position in the stream to be greater
+  // than size when the position is validated.
+  private FileEncoding fileEncoding = FileEncoding.UNINITIALIZED;
 
   // ClientRequestHelper to be used instead of calling final methods in client requests.
   private static ClientRequestHelper clientRequestHelper = new ClientRequestHelper();
@@ -262,7 +269,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
           // bytes read against the stream size. Unfortunately we don't have information about the
           // actual size of the data stream when stream compression is used, so we can only ignore
           // this case here.
-          checkIOPrecondition(isCompressedStream || currentPosition == size,
+          checkIOPrecondition(fileEncoding == FileEncoding.GZIPPED || currentPosition == size,
               String.format(
                   "Received end of stream result before all the file data has been received; "
                   + "totalBytesRead: %s, currentPosition: %s, size: %s",
@@ -350,7 +357,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       // Check that we didn't get a premature End of Stream signal by checking the number of bytes
       // read against the stream size. Unfortunately we don't have information about the actual size
       // of the data stream when stream compression is used, so we can only ignore this case here.
-      checkIOPrecondition(isCompressedStream || currentPosition == size,
+      checkIOPrecondition(fileEncoding == FileEncoding.GZIPPED || currentPosition == size,
           String.format("Failed to read any data before all the file data has been received; "
               + "currentPosition: %s, size: %s", currentPosition, size));
       return -1;
@@ -494,11 +501,13 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     // this channel has been computed by a prior call. This means that position could be
     // potentially set to an invalid value (>= size) by position(long). However, that error
     // gets caught during lazy seek.
-    if ((size >= 0) && (newPosition >= size)) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Invalid seek offset: position value (%d) must be between 0 and %d",
-              newPosition, size));
+    // If a file is gzip encoded, the size of the response may be less than the number of bytes
+    // that can be read. In this case, the new position may be a valid offset, and we proceed.
+    // If not, then the size of the response is the number of bytes that can be read and we throw
+    // an exception for an invalid seek.
+    if ((size >= 0) && (newPosition >= size) && (fileEncoding != FileEncoding.GZIPPED)) {
+      throw new IllegalArgumentException(String.format(
+          "Invalid seek offset: position value (%d) must be between 0 and %d", newPosition, size));
     }
   }
 
@@ -521,26 +530,100 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     // Close the underlying channel if it is open.
     closeReadChannel();
 
-    InputStream objectContentStream = openStreamAndSetSize(currentPosition);
+    // Open the stream and create the channel.
+    InputStream objectContentStream = openStreamAndSetMetadata(currentPosition);
     readChannel = Channels.newChannel(objectContentStream);
+
     lazySeekPending = false;
   }
 
   /**
-   * Opens the underlying stream, sets its position to the given value and sets size based on
-   * stream content size.
+   * Retrieve the object's metadata from GCS.
+   *
+   * @throws IOException on IO error.
+   */
+  protected StorageObject getMetadata() throws IOException {
+    Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
+    try {
+      StorageObject response = getObject.execute();
+      return response;
+    } catch (IOException e) {
+      if (errorExtractor.itemNotFound(e)) {
+        throw GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, objectName);
+      }
+      String msg =
+          "Error reading " + StorageResourceId.createReadableString(bucketName, objectName);
+      throw new IOException(msg, e);
+    }
+  }
+
+  /**
+   * Returns the FileEncoding of a file given its metadata. Currently supports GZIPPED and OTHER.
+   *
+   * @param metadata the object's metadata.
+   * @return FileEncoding.GZIPPED if the response from GCS will have gzip encoding or
+   *         FileEncoding.OTHER otherwise.
+   */
+  protected FileEncoding getEncoding(StorageObject metadata) {
+    String contentEncoding = metadata.getContentEncoding();
+    return contentEncoding != null && contentEncoding.contains("gzip") ? FileEncoding.GZIPPED
+        : FileEncoding.OTHER;
+  }
+
+  /**
+   * Set the size of the content.
+   *
+   * <p>First, we look at the object's metadata.  If no value exists, then we
+   * examine the Content-Length header.  If neither exists, we then look for and parse the
+   * Content-Range header. If there is no way to determine the content length, an exception
+   * is thrown. If the Content-Length header is present, then the offset is added to this
+   * value (i.e., offset is the number of bytes that were not requested).
+   *
+   * @param response response to parse.
+   * @param offset the number of bytes that were not requested.
+   * @throws IOException on IO error.
+   */
+  protected void setSize(StorageObject metadata, HttpResponse response, long offset)
+      throws IOException {
+    String contentRange = response.getHeaders().getContentRange();
+    if (metadata.getSize() != null) {
+      size = metadata.getSize().longValue();
+    } else if (response.getHeaders().getContentLength() != null) {
+      size = response.getHeaders().getContentLength() + offset;
+    } else if (contentRange != null) {
+      String sizeStr = SLASH.split(contentRange)[1];
+      try {
+        size = Long.parseLong(sizeStr);
+      } catch (NumberFormatException e) {
+        throw new IOException(
+            "Could not determine size from response from Content-Range: " + contentRange, e);
+      }
+    } else {
+      throw new IOException("Could not determine size of response");
+    }
+  }
+
+  /**
+   * Opens the underlying stream, sets its position to the given value and initializes the object's
+   * metadata (size and encoding).
+   *
+   * <p>If the file encoding in GCS is gzip (and therefore the HTTP client will attempt to
+   * decompress it), the entire file is always requested and we seek to the position requested. If
+   * the file encoding is not gzip, only the remaining bytes to be read are requested from GCS.
    *
    * @param newPosition position to seek into the new stream.
    * @throws IOException on IO error
    */
-  protected InputStream openStreamAndSetSize(long newPosition)
+  protected InputStream openStreamAndSetMetadata(long newPosition)
       throws IOException {
+    StorageObject metadata = getMetadata();
+    fileEncoding = getEncoding(metadata);
     validatePosition(newPosition);
     Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
     // Set the range on the existing request headers that may have been initialized with things
-    // like user-agent already.
-    clientRequestHelper.getRequestHeaders(getObject)
-        .setRange(String.format("bytes=%d-", newPosition));
+    // like user-agent already. If the file is gzip encoded, request the entire file.
+    clientRequestHelper.getRequestHeaders(getObject).setRange(
+        String.format("bytes=%d-", fileEncoding == FileEncoding.GZIPPED ? 0 : newPosition));
     HttpResponse response;
     try {
       response = getObject.executeMedia();
@@ -567,27 +650,13 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       throw r;
     }
 
-    // If the content is compressed, content length reported in the header is counting the number of
-    // compressed bytes. That means that we cannot rely on the reported content length to check that
-    // we have received all the data from the data stream.
-    String contentEncoding = response.getContentEncoding();
-    isCompressedStream = (contentEncoding != null && contentEncoding.contains("gzip"));
+    InputStream content = response.getContent();
+    // If the file is gzip encoded, we requested the entire file and need to seek in the content
+    // to the desired position.  If it is not, we only requested the bytes we haven't read.
+    setSize(metadata, response, fileEncoding == FileEncoding.GZIPPED ? 0 : newPosition);
+    content.skip(fileEncoding == FileEncoding.GZIPPED ? newPosition : 0);
 
-    String contentRange = response.getHeaders().getContentRange();
-    if (response.getHeaders().getContentLength() != null) {
-      size = response.getHeaders().getContentLength() + newPosition;
-    } else if (contentRange != null) {
-      String sizeStr = SLASH.split(contentRange)[1];
-      try {
-        size = Long.parseLong(sizeStr);
-      } catch (NumberFormatException e) {
-        throw new IOException(
-            "Could not determine size from response from Content-Range: " + contentRange, e);
-      }
-    } else {
-      throw new IOException("Could not determine size of response");
-    }
-    return response.getContent();
+    return content;
   }
 
   /**
@@ -611,5 +680,9 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     if (!precondition) {
       throw new IOException(errorMessage);
     }
+  }
+
+  private static enum FileEncoding {
+    UNINITIALIZED, GZIPPED, OTHER;
   }
 }
