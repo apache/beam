@@ -294,6 +294,19 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         JavaRDDLike<T, ?> last = (JavaRDDLike<T, ?>) context.getInputRDD(transform);
         String pattern = transform.getFilenamePrefix();
+        if (transform.getNumShards() > 0) {
+          last = last.mapToPair(new PairFunction<T, T, Void>() {
+              @Override
+              public Tuple2<T, Void> call(T t) throws Exception {
+                return new Tuple2<>(t, null);
+              }})
+            .repartition(transform.getNumShards())
+            .map(new Function<Tuple2<T, Void>, T>() {
+              @Override
+              public T call(Tuple2<T, Void> tuple) throws Exception {
+                return tuple._1();
+              }});
+        }
         last.saveAsTextFile(pattern);
       }
     };
