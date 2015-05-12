@@ -29,6 +29,8 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.cloud.dataflow.sdk.options.GcsOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.common.collect.ImmutableList;
@@ -70,6 +72,11 @@ public class PackageUtilTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+
+    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    pipelineOptions.setGcsUtil(mockGcsUtil);
+
+    IOChannelUtils.registerStandardIOFactories(pipelineOptions);
   }
 
   @Test
@@ -78,10 +85,11 @@ public class PackageUtilTest {
     Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
-    DataflowPackage target = PackageUtil.createPackage(tmpFile.getAbsolutePath(), gcsStaging, null);
+    DataflowPackage target =
+        PackageUtil.createPackage(tmpFile.getAbsolutePath(), gcsStaging.toString(), null);
 
     assertEquals("file-SAzzqSB2zmoIgNHC9A2G0A.txt", target.getName());
-    assertEquals("storage.googleapis.com/somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A.txt",
+    assertEquals("gs://somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A.txt",
         target.getLocation());
   }
 
@@ -91,10 +99,11 @@ public class PackageUtilTest {
     Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
-    DataflowPackage target = PackageUtil.createPackage(tmpFile.getAbsolutePath(), gcsStaging, null);
+    DataflowPackage target =
+        PackageUtil.createPackage(tmpFile.getAbsolutePath(), gcsStaging.toString(), null);
 
     assertEquals("file-SAzzqSB2zmoIgNHC9A2G0A", target.getName());
-    assertEquals("storage.googleapis.com/somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A",
+    assertEquals("gs://somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A",
         target.getLocation());
   }
 
@@ -106,10 +115,10 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
     DataflowPackage target =
-        PackageUtil.createPackage(tmpDirectory.getAbsolutePath(), gcsStaging, null);
+        PackageUtil.createPackage(tmpDirectory.getAbsolutePath(), gcsStaging.toString(), null);
 
     assertEquals("folder-9MHI5fxducQ06t3IG9MC-g.zip", target.getName());
-    assertEquals("storage.googleapis.com/somebucket/base/path/folder-9MHI5fxducQ06t3IG9MC-g.zip",
+    assertEquals("gs://somebucket/base/path/folder-9MHI5fxducQ06t3IG9MC-g.zip",
                  target.getLocation());
   }
 
@@ -128,9 +137,9 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
     DataflowPackage target1 =
-        PackageUtil.createPackage(tmpDirectory1.getAbsolutePath(), gcsStaging, null);
+        PackageUtil.createPackage(tmpDirectory1.getAbsolutePath(), gcsStaging.toString(), null);
     DataflowPackage target2 =
-        PackageUtil.createPackage(tmpDirectory2.getAbsolutePath(), gcsStaging, null);
+        PackageUtil.createPackage(tmpDirectory2.getAbsolutePath(), gcsStaging.toString(), null);
 
     assertFalse(target1.getName().equals(target2.getName()));
     assertFalse(target1.getLocation().equals(target2.getLocation()));
@@ -150,9 +159,9 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
     DataflowPackage target1 =
-        PackageUtil.createPackage(tmpDirectory1.getAbsolutePath(), gcsStaging, null);
+        PackageUtil.createPackage(tmpDirectory1.getAbsolutePath(), gcsStaging.toString(), null);
     DataflowPackage target2 =
-        PackageUtil.createPackage(tmpDirectory2.getAbsolutePath(), gcsStaging, null);
+        PackageUtil.createPackage(tmpDirectory2.getAbsolutePath(), gcsStaging.toString(), null);
 
     assertFalse(target1.getName().equals(target2.getName()));
     assertFalse(target1.getLocation().equals(target2.getLocation()));
@@ -167,8 +176,8 @@ public class PackageUtilTest {
     when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
-    List<DataflowPackage> targets = PackageUtil.stageClasspathElementsToGcs(mockGcsUtil,
-        ImmutableList.of(tmpFile.getAbsolutePath()), gcsStaging);
+    List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
+        ImmutableList.of(tmpFile.getAbsolutePath()), gcsStaging.toString());
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
@@ -176,7 +185,7 @@ public class PackageUtilTest {
     verifyNoMoreInteractions(mockGcsUtil);
 
     assertEquals("file-SAzzqSB2zmoIgNHC9A2G0A.txt", target.getName());
-    assertEquals("storage.googleapis.com/somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A.txt",
+    assertEquals("gs://somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A.txt",
         target.getLocation());
     assertEquals("This is a test!",
         new LineReader(Channels.newReader(pipe.source(), "UTF-8")).readLine());
@@ -197,8 +206,8 @@ public class PackageUtilTest {
     when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
-    PackageUtil.stageClasspathElementsToGcs(mockGcsUtil,
-        ImmutableList.of(tmpDirectory.getAbsolutePath()), gcsStaging);
+    PackageUtil.stageClasspathElements(
+        ImmutableList.of(tmpDirectory.getAbsolutePath()), gcsStaging.toString());
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
     verify(mockGcsUtil).create(any(GcsPath.class), anyString());
@@ -224,8 +233,8 @@ public class PackageUtilTest {
     when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
-    List<DataflowPackage> targets = PackageUtil.stageClasspathElementsToGcs(mockGcsUtil,
-        ImmutableList.of(tmpDirectory.getAbsolutePath()), gcsStaging);
+    List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
+        ImmutableList.of(tmpDirectory.getAbsolutePath()), gcsStaging.toString());
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
@@ -233,7 +242,7 @@ public class PackageUtilTest {
     verifyNoMoreInteractions(mockGcsUtil);
 
     assertEquals("folder-wstW9MW_ZW-soJhufroDCA.zip", target.getName());
-    assertEquals("storage.googleapis.com/somebucket/base/path/folder-wstW9MW_ZW-soJhufroDCA.zip",
+    assertEquals("gs://somebucket/base/path/folder-wstW9MW_ZW-soJhufroDCA.zip",
         target.getLocation());
     assertNull(new ZipInputStream(Channels.newInputStream(pipe.source())).getNextEntry());
   }
@@ -248,8 +257,9 @@ public class PackageUtilTest {
         .thenThrow(new IOException("Fake Exception: Upload error"));
 
     try {
-      PackageUtil.stageClasspathElementsToGcs(mockGcsUtil,
-          ImmutableList.of(tmpFile.getAbsolutePath()), gcsStaging, fastNanoClockAndSleeper);
+      PackageUtil.stageClasspathElements(
+          ImmutableList.of(tmpFile.getAbsolutePath()),
+          gcsStaging.toString(), fastNanoClockAndSleeper);
     } finally {
       verify(mockGcsUtil).fileSize(any(GcsPath.class));
       verify(mockGcsUtil, times(5)).create(any(GcsPath.class), anyString());
@@ -269,9 +279,9 @@ public class PackageUtilTest {
         .thenReturn(pipe.sink());                               // second attempt succeeds
 
     try {
-      PackageUtil.stageClasspathElementsToGcs(mockGcsUtil,
+      PackageUtil.stageClasspathElements(
                                               ImmutableList.of(tmpFile.getAbsolutePath()),
-                                              gcsStaging,
+                                              gcsStaging.toString(),
                                               fastNanoClockAndSleeper);
     } finally {
       verify(mockGcsUtil).fileSize(any(GcsPath.class));
@@ -287,8 +297,8 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
     when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(tmpFile.length());
 
-    PackageUtil.stageClasspathElementsToGcs(mockGcsUtil,
-        ImmutableList.of(tmpFile.getAbsolutePath()), gcsStaging);
+    PackageUtil.stageClasspathElements(
+        ImmutableList.of(tmpFile.getAbsolutePath()), gcsStaging.toString());
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
     verifyNoMoreInteractions(mockGcsUtil);
@@ -308,8 +318,8 @@ public class PackageUtilTest {
     when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(Long.MAX_VALUE);
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
-    PackageUtil.stageClasspathElementsToGcs(mockGcsUtil,
-        ImmutableList.of(tmpDirectory.getAbsolutePath()), gcsStaging);
+    PackageUtil.stageClasspathElements(
+        ImmutableList.of(tmpDirectory.getAbsolutePath()), gcsStaging.toString());
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
     verify(mockGcsUtil).create(any(GcsPath.class), anyString());
@@ -327,8 +337,8 @@ public class PackageUtilTest {
     when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
-    List<DataflowPackage> targets = PackageUtil.stageClasspathElementsToGcs(mockGcsUtil,
-        ImmutableList.of(overriddenName + "=" + tmpFile.getAbsolutePath()), gcsStaging);
+    List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
+        ImmutableList.of(overriddenName + "=" + tmpFile.getAbsolutePath()), gcsStaging.toString());
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
@@ -336,7 +346,7 @@ public class PackageUtilTest {
     verifyNoMoreInteractions(mockGcsUtil);
 
     assertEquals(overriddenName, target.getName());
-    assertEquals("storage.googleapis.com/somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A.txt",
+    assertEquals("gs://somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A.txt",
         target.getLocation());
   }
 

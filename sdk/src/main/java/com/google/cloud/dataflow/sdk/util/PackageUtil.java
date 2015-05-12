@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
-import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.common.collect.TreeTraverser;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.Hasher;
@@ -65,13 +64,13 @@ public class PackageUtil {
    * staged.
    *
    * @param classpathElement The local path for the classpath element.
-   * @param stagingDirectory The base location in GCS for staged classpath elements.
+   * @param stagingPath The base location in for staged classpath elements.
    * @param overridePackageName If non-null, use the given value as the package name
    *                            instead of generating one automatically.
    * @return The package.
    */
   public static DataflowPackage createPackage(String classpathElement,
-      GcsPath stagingDirectory, String overridePackageName) {
+      String stagingPath, String overridePackageName) {
     try {
       File file = new File(classpathElement);
       String contentHash = computeContentHash(file);
@@ -79,11 +78,11 @@ public class PackageUtil {
       // Drop the directory prefixes, and form the filename + hash + extension.
       String uniqueName = getUniqueContentName(file, contentHash);
 
-      GcsPath stagingPath = stagingDirectory.resolve(uniqueName);
+      String resourcePath = IOChannelUtils.resolve(stagingPath, uniqueName);
 
       DataflowPackage target = new DataflowPackage();
       target.setName(overridePackageName != null ? overridePackageName : uniqueName);
-      target.setLocation(stagingPath.toResourceName());
+      target.setLocation(resourcePath);
       return target;
     } catch (IOException e) {
       throw new RuntimeException("Package setup failure for " + classpathElement, e);
@@ -91,33 +90,28 @@ public class PackageUtil {
   }
 
   /**
-   * Transfers the classpath elements to GCS.
+   * Transfers the classpath elements to the staging location.
    *
-   * @param gcsUtil GCS utility.
-   * @param classpathElements The elements to stage onto GCS.
-   * @param gcsStaging The path on GCS to stage the classpath elements to.
+   * @param classpathElements The elements to stage.
+   * @param stagingPath The base location to stage the elements to.
    * @return A list of cloud workflow packages, each representing a classpath element.
    */
-  public static List<DataflowPackage> stageClasspathElementsToGcs(
-      GcsUtil gcsUtil,
-      Collection<String> classpathElements,
-      GcsPath gcsStaging) {
-    return stageClasspathElementsToGcs(gcsUtil, classpathElements, gcsStaging, Sleeper.DEFAULT);
+  public static List<DataflowPackage> stageClasspathElements(
+      Collection<String> classpathElements, String stagingPath) {
+    return stageClasspathElements(classpathElements, stagingPath, Sleeper.DEFAULT);
   }
 
   // Visible for testing.
-  static List<DataflowPackage> stageClasspathElementsToGcs(
-      GcsUtil gcsUtil,
-      Collection<String> classpathElements,
-      GcsPath gcsStaging,
+  static List<DataflowPackage> stageClasspathElements(
+      Collection<String> classpathElements, String stagingPath,
       Sleeper retrySleeper) {
-    LOG.info("Uploading {} files from PipelineOptions.filesToStage to GCS to prepare for execution "
-        + "in the cloud.", classpathElements.size());
+    LOG.info("Uploading {} files from PipelineOptions.filesToStage to staging location to "
+        + "prepare for execution.", classpathElements.size());
     ArrayList<DataflowPackage> packages = new ArrayList<>();
 
-    if (gcsStaging == null) {
+    if (stagingPath == null) {
       throw new IllegalArgumentException(
-          "Can't stage classpath elements on GCS because no GCS location has been provided");
+          "Can't stage classpath elements on because no staging location has been provided");
     }
 
     int numUploaded = 0;
@@ -131,17 +125,17 @@ public class PackageUtil {
       }
 
       DataflowPackage workflowPackage = createPackage(
-          classpathElement, gcsStaging, packageName);
+          classpathElement, stagingPath, packageName);
 
       packages.add(workflowPackage);
-      GcsPath target = GcsPath.fromResourceName(workflowPackage.getLocation());
+      String target = workflowPackage.getLocation();
 
       // TODO: Should we attempt to detect the Mime type rather than
       // always using MimeTypes.BINARY?
       try {
-        long remoteLength = gcsUtil.fileSize(target);
+        long remoteLength = IOChannelUtils.getSizeBytes(target);
         if (remoteLength >= 0 && remoteLength == getClasspathElementLength(classpathElement)) {
-          LOG.debug("Skipping classpath element already on gcs: {} at {}",
+          LOG.debug("Skipping classpath element already staged: {} at {}",
               classpathElement, target);
           numCached++;
           continue;
@@ -154,7 +148,7 @@ public class PackageUtil {
         while (true) {
           try {
             LOG.debug("Uploading classpath element {} to {}", classpathElement, target);
-            try (WritableByteChannel writer = gcsUtil.create(target, MimeTypes.BINARY)) {
+            try (WritableByteChannel writer = IOChannelUtils.create(target, MimeTypes.BINARY)) {
               copyContent(classpathElement, writer);
             }
             numUploaded++;

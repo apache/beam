@@ -207,11 +207,11 @@ public class DataflowPipelineRunnerTest {
     temp2.deleteOnExit();
 
     DataflowPackage expectedPackage1 = PackageUtil.createPackage(
-        temp1.getAbsolutePath(), gcsStaging, null);
+        temp1.getAbsolutePath(), gcsStaging.toString(), null);
 
     String overridePackageName = "alias.txt";
     DataflowPackage expectedPackage2 = PackageUtil.createPackage(
-        temp2.getAbsolutePath(), gcsStaging, overridePackageName);
+        temp2.getAbsolutePath(), gcsStaging.toString(), overridePackageName);
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);

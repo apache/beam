@@ -19,6 +19,8 @@ package com.google.cloud.dataflow.sdk.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import com.google.common.io.Files;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -27,6 +29,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Tests for IOChannelUtils.
@@ -73,6 +76,14 @@ public class IOChannelUtilsTest {
     Assert.assertEquals("out-100-of-5000.txt",
         IOChannelUtils.constructName("out", "-SS-of-NN", ".txt",
             100, 5000));
+  }
+
+  @Test
+  public void testGetSizeBytes() throws Exception {
+    String data = "TestData";
+    File file = tmpFolder.newFile();
+    Files.write(data, file, StandardCharsets.UTF_8);
+    assertEquals(data.length(), IOChannelUtils.getSizeBytes(file.getPath()));
   }
 
   @Test

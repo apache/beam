@@ -106,6 +106,15 @@ public class IOChannelUtils {
   }
 
   /**
+   * Returns the size in bytes for the given specification.
+   *
+   * <p>The specification is not expanded; it is used verbatim.
+   */
+  public static long getSizeBytes(String spec) throws IOException {
+    return getFactory(spec).getSizeBytes(spec);
+  }
+
+  /**
    * Constructs a fully qualified name from components.
    *
    * <p> The name is built from a prefix, shard template (with shard numbers
