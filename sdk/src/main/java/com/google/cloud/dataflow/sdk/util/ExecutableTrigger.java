@@ -84,6 +84,11 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
     return subTriggers;
   }
 
+  @Override
+  public String toString() {
+    return trigger.toString();
+  }
+
   /**
    * Return the underlying trigger specification corresponding to this {@code ExecutableTrigger}.
    */

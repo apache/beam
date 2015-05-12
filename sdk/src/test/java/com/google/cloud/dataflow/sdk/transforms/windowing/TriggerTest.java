@@ -331,4 +331,11 @@ public class TriggerTest {
     tester.injectElement(102, new Instant(1));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
   }
+
+  @Test
+  public void testTriggerToString() throws Exception {
+    assertEquals("AfterWatermark.FromEndOfWindow", AfterWatermark.pastEndOfWindow().toString());
+    assertEquals("Repeatedly(AfterWatermark.FromEndOfWindow)",
+        Repeatedly.forever(AfterWatermark.pastEndOfWindow()).toString());
+  }
 }

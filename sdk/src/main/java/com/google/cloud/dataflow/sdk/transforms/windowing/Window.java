@@ -281,8 +281,9 @@ public class Window {
       return "Window.Into("
           + StringUtils.approximateSimpleName(windowingStrategy.getWindowFn().getClass())
           + ", "
-          // TODO: Add support for describing triggers.
-          + StringUtils.approximateSimpleName(windowingStrategy.getTrigger().getClass())
+          + windowingStrategy.getTrigger()
+          + ", "
+          + windowingStrategy.getMode()
           + ")";
     }
   }
