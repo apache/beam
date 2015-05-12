@@ -207,19 +207,19 @@ public class CoderRegistry implements CoderProvider {
   public <T, OutputT> Coder<OutputT> getDefaultCoder(
       Class<? extends T> subClass,
       Class<T> baseClass,
-      Map<String, ? extends Coder<?>> knownCoders,
-      String paramName)
+      Map<Type, ? extends Coder<?>> knownCoders,
+      TypeVariable<?> param)
       throws CannotProvideCoderException {
 
-    Map<String, Coder<?>> inferredCoders = getDefaultCoders(subClass, baseClass, knownCoders);
+    Map<Type, Coder<?>> inferredCoders = getDefaultCoders(subClass, baseClass, knownCoders);
 
     @SuppressWarnings("unchecked")
-    Coder<OutputT> paramCoderOrNull = (Coder<OutputT>) inferredCoders.get(paramName);
+    Coder<OutputT> paramCoderOrNull = (Coder<OutputT>) inferredCoders.get(param);
     if (paramCoderOrNull != null) {
       return paramCoderOrNull;
     } else {
       throw new CannotProvideCoderException(
-          "Cannot infer coder for type parameter " + paramName);
+          "Cannot infer coder for type parameter " + param.getName());
     }
   }
 
@@ -301,21 +301,21 @@ public class CoderRegistry implements CoderProvider {
    * @param knownCoders a map corresponding to the set of known coders indexed
    *        by parameter name
    */
-  public <T> Map<String, Coder<?>> getDefaultCoders(
+  public <T> Map<Type, Coder<?>> getDefaultCoders(
       Class<? extends T> subClass,
       Class<T> baseClass,
-      Map<String, ? extends Coder<?>> knownCoders) {
+      Map<Type, ? extends Coder<?>> knownCoders) {
     TypeVariable<Class<T>>[] typeParams = baseClass.getTypeParameters();
     Coder<?>[] knownCodersArray = new Coder<?>[typeParams.length];
     for (int i = 0; i < typeParams.length; i++) {
-      knownCodersArray[i] = knownCoders.get(typeParams[i].getName());
+      knownCodersArray[i] = knownCoders.get(typeParams[i]);
     }
     Coder<?>[] resultArray = getDefaultCoders(
       subClass, baseClass, knownCodersArray);
-    Map<String, Coder<?>> result = new HashMap<>();
+    Map<Type, Coder<?>> result = new HashMap<>();
     for (int i = 0; i < typeParams.length; i++) {
       if (resultArray[i] != null) {
-        result.put(typeParams[i].getName(), resultArray[i]);
+        result.put(typeParams[i], resultArray[i]);
       }
     }
     return result;

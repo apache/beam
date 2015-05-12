@@ -23,6 +23,7 @@ import com.google.common.reflect.TypeToken;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.List;
 
 /**
@@ -132,9 +133,32 @@ public abstract class TypeDescriptor<T> {
   }
 
   /**
-   * Returns a new {@link TypeDescriptor} with the provided binding
-   * for the type parameters.
+   * Returns a {@code TypeVariable} for the named type parameter. Throws
+   * {@code IllegalArgumentException} if a type variable by the requested type parameter is not
+   * found.
+   *
+   * <p>For example, {@code new TypeDescriptor<List>(){}.getTypeParameter("T")} returns a
+   * {@code TypeVariable<? super List>} representing the formal type parameter {@code T}.
+   *
+   * <p>Do not mistake the type parameters (formal type argument list) with the actual
+   * type arguments. For example, if a class {@code Foo} extends {@code List<String>}, it
+   * does not make sense to ask for a type parameter, because {@code Foo} does not have any.
    */
+  public final TypeVariable<Class<? super T>> getTypeParameter(String paramName) {
+    // Cannot convert TypeVariable<Class<? super T>>[] to TypeVariable<Class<? super T>>[]
+    // due to how they are used here, so the result of getTypeParameters() cannot be used
+    // without upcast.
+    Class<?> rawType = getRawType();
+    for (TypeVariable<?> param : rawType.getTypeParameters()) {
+      if (param.getName().equals(paramName)) {
+        @SuppressWarnings("unchecked")
+        TypeVariable<Class<? super T>> typedParam = (TypeVariable<Class<? super T>>) param;
+        return typedParam;
+      }
+    }
+     throw new IllegalArgumentException(
+         "No type parameter named " + paramName + " found on " + getRawType());
+  }
 
   /**
    * Returns true if this type is assignable from the given type.

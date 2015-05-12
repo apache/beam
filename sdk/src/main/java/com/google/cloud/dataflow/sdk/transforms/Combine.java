@@ -37,6 +37,7 @@ import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -45,6 +46,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -379,6 +382,27 @@ public class Combine {
       return extractOutput(accum);
     }
 
+    @SuppressWarnings("unchecked")
+    private TypeVariable<Class<CombineFn<?, ?, ?>>> getInputTVariable() {
+      return (TypeVariable<Class<CombineFn<?, ?, ?>>>)
+          new TypeDescriptor<InputT>(CombineFn.class) {}
+          .getType();
+    }
+
+    @SuppressWarnings("unchecked")
+    private TypeVariable<Class<CombineFn<?, ?, ?>>> getAccumTVariable() {
+      return (TypeVariable<Class<CombineFn<?, ?, ?>>>)
+          new TypeDescriptor<AccumT>(CombineFn.class) {}
+          .getType();
+    }
+
+    @SuppressWarnings("unchecked")
+    private TypeVariable<Class<CombineFn<?, ?, ?>>> getOutputTVariable() {
+      return (TypeVariable<Class<CombineFn<?, ?, ?>>>)
+          new TypeDescriptor<OutputT>(CombineFn.class) {}
+          .getType();
+    }
+
     /**
      * Returns the {@code Coder} to use for accumulator {@code AccumT}
      * values, or null if it is not able to be inferred.
@@ -394,11 +418,9 @@ public class Combine {
      */
     public Coder<AccumT> getAccumulatorCoder(
         CoderRegistry registry, Coder<InputT> inputCoder) throws CannotProvideCoderException {
-      return registry.getDefaultCoder(
-          getClass(),
-          CombineFn.class,
-          ImmutableMap.of("InputT", inputCoder),
-          "AccumT");
+      return registry.getDefaultCoder(getClass(), CombineFn.class,
+          ImmutableMap.<Type, Coder<?>>of(getInputTVariable(), inputCoder),
+          getAccumTVariable());
     }
 
     /**
@@ -412,12 +434,11 @@ public class Combine {
      */
     public Coder<OutputT> getDefaultOutputCoder(
         CoderRegistry registry, Coder<InputT> inputCoder) throws CannotProvideCoderException {
-      return registry.getDefaultCoder(
-          getClass(),
-          CombineFn.class,
-          ImmutableMap.of("InputT", inputCoder,
-                          "AccumT", getAccumulatorCoder(registry, inputCoder)),
-          "OutputT");
+      return registry.getDefaultCoder(getClass(), CombineFn.class,
+          ImmutableMap.<Type, Coder<?>>of(
+              getInputTVariable(), inputCoder,
+              getAccumTVariable(), getAccumulatorCoder(registry, inputCoder)),
+          getOutputTVariable());
     }
 
     /**
@@ -1069,11 +1090,11 @@ public class Combine {
     public Coder<AccumT> getAccumulatorCoder(
         CoderRegistry registry, Coder<K> keyCoder, Coder<InputT> inputCoder)
         throws CannotProvideCoderException {
-      return registry.getDefaultCoder(
-          getClass(),
-          KeyedCombineFn.class,
-          ImmutableMap.of("K", keyCoder, "InputT", inputCoder),
-          "AccumT");
+      return registry.getDefaultCoder(getClass(), KeyedCombineFn.class,
+          ImmutableMap.<Type, Coder<?>>of(
+              getKTypeVariable(), keyCoder,
+              getInputTVariable(), inputCoder),
+          getAccumTVariable());
     }
 
     /**
@@ -1088,14 +1109,40 @@ public class Combine {
     public Coder<OutputT> getDefaultOutputCoder(
         CoderRegistry registry, Coder<K> keyCoder, Coder<InputT> inputCoder)
         throws CannotProvideCoderException {
-      return registry.getDefaultCoder(
-          getClass(),
-          KeyedCombineFn.class,
-          ImmutableMap.of(
-              "K", keyCoder,
-              "InputT", inputCoder,
-              "AccumT", getAccumulatorCoder(registry, keyCoder, inputCoder)),
-          "OutputT");
+      return registry.getDefaultCoder(getClass(), KeyedCombineFn.class,
+          ImmutableMap.<Type, Coder<?>>of(
+              getKTypeVariable(), keyCoder,
+              getInputTVariable(), inputCoder,
+              getAccumTVariable(), getAccumulatorCoder(registry, keyCoder, inputCoder)),
+          getOutputTVariable());
+    }
+
+    @SuppressWarnings("unchecked")
+    private TypeVariable<Class<KeyedCombineFn<?, ?, ?, ?>>> getKTypeVariable() {
+      return (TypeVariable<Class<KeyedCombineFn<?, ?, ?, ?>>>)
+          new TypeDescriptor<K>(KeyedCombineFn.class) {}
+          .getType();
+    }
+
+    @SuppressWarnings("unchecked")
+    private TypeVariable<Class<KeyedCombineFn<?, ?, ?, ?>>> getInputTVariable() {
+      return (TypeVariable<Class<KeyedCombineFn<?, ?, ?, ?>>>)
+          new TypeDescriptor<InputT>(KeyedCombineFn.class) {}
+          .getType();
+    }
+
+    @SuppressWarnings("unchecked")
+    private TypeVariable<Class<KeyedCombineFn<?, ?, ?, ?>>> getAccumTVariable() {
+      return (TypeVariable<Class<KeyedCombineFn<?, ?, ?, ?>>>)
+          new TypeDescriptor<AccumT>(KeyedCombineFn.class) {}
+          .getType();
+    }
+
+    @SuppressWarnings("unchecked")
+    private TypeVariable<Class<KeyedCombineFn<?, ?, ?, ?>>> getOutputTVariable() {
+      return (TypeVariable<Class<KeyedCombineFn<?, ?, ?, ?>>>)
+          new TypeDescriptor<OutputT>(KeyedCombineFn.class) {}
+          .getType();
     }
   }
 

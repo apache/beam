@@ -35,11 +35,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Tests for CoderRegistry.
@@ -127,39 +127,61 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testTypeParameterInference() throws Exception {
+  public void testTypeParameterInferenceForward() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     MyGenericClass<MyValue, List<MyValue>> instance =
         new MyGenericClass<MyValue, List<MyValue>>() {};
-    Coder<List<MyValue>> listCoder = ListCoder.of(MyValueCoder.of());
 
-    // The map method operates on parameter names.
-    Map<String, Coder<?>> coderMap = registry.getDefaultCoders(
+    Coder<?> bazCoder = registry.getDefaultCoder(
         instance.getClass(),
         MyGenericClass.class,
-        Collections.singletonMap("FooT", MyValueCoder.of()));
-    assertEquals(listCoder, coderMap.get("BazT"));
+        Collections.<Type, Coder<?>>singletonMap(
+            TypeDescriptor.of(MyGenericClass.class).getTypeParameter("FooT"), MyValueCoder.of()),
+        TypeDescriptor.of(MyGenericClass.class).getTypeParameter("BazT"));
 
-    // Check we can infer the other direction as well.
-    Map<String, Coder<?>> coderMap2 = registry.getDefaultCoders(
+    assertEquals(ListCoder.of(MyValueCoder.of()), bazCoder);
+  }
+
+  @Test
+  public void testTypeParameterInferenceBackward() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    MyGenericClass<MyValue, List<MyValue>> instance =
+        new MyGenericClass<MyValue, List<MyValue>>() {};
+
+    Coder<?> fooCoder = registry.getDefaultCoder(
         instance.getClass(),
         MyGenericClass.class,
-        Collections.singletonMap("BazT", listCoder));
-    assertEquals(MyValueCoder.of(), coderMap2.get("FooT"));
+        Collections.<Type, Coder<?>>singletonMap(
+            TypeDescriptor.of(MyGenericClass.class).getTypeParameter("BazT"),
+            ListCoder.of(MyValueCoder.of())),
+        TypeDescriptor.of(MyGenericClass.class).getTypeParameter("FooT"));
 
-    // The array interface operates on position.
-    Coder<?>[] coders = registry.getDefaultCoders(
-        instance.getClass(),
-        MyGenericClass.class,
-        new Coder<?>[] { MyValueCoder.of(), null });
-    assertEquals(listCoder, coders[1]);
+    assertEquals(MyValueCoder.of(), fooCoder);
+  }
 
-    // The "last argument" coder handles a common case.
+  @Test
+  public void testTypeParameterInferenceLast() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    MyGenericClass<MyValue, List<MyValue>> instance =
+        new MyGenericClass<MyValue, List<MyValue>>() {};
+
     Coder<List<MyValueCoder>> actual = registry.getDefaultCoder(
         instance.getClass(),
         MyGenericClass.class,
         MyValueCoder.of());
-    assertEquals(listCoder, actual);
+
+    assertEquals(ListCoder.of(MyValueCoder.of()), actual);
+  }
+
+  /**
+   * Tests sanity checking of the not-type-safe {@code Map<TypeVariable, Coder>}
+   * that the user can provide to {@code getDefaultCoder}.
+   */
+  @Test
+  public void testTypeParameterInferenceIncompatibleMap() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    MyGenericClass<MyValue, List<MyValue>> instance =
+        new MyGenericClass<MyValue, List<MyValue>>() {};
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Cannot encode elements of type class "

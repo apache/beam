@@ -20,11 +20,14 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.reflect.TypeToken;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.TypeVariable;
 import java.util.List;
 import java.util.Set;
 
@@ -34,6 +37,9 @@ import java.util.Set;
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class TypeDescriptorTest {
+
+  @Rule
+  public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testTypeDescriptorOfRawType() throws Exception {
@@ -123,5 +129,22 @@ public class TypeDescriptorTest {
         new TypeRemembererer<List<String>, Set<Integer>>(){};
     assertEquals(genericRemembererer.token1.getType(), genericRemembererer.descriptor1.getType());
     assertEquals(genericRemembererer.token2.getType(), genericRemembererer.descriptor2.getType());
+  }
+
+  private static class GenericClass<BizzleT> { }
+
+  @Test
+  public void testGetTypeParameterGood() throws Exception {
+    @SuppressWarnings("rawtypes")
+    TypeVariable<Class<? super GenericClass>> bizzleT =
+        TypeDescriptor.of(GenericClass.class).getTypeParameter("BizzleT");
+    assertEquals(GenericClass.class.getTypeParameters()[0], bizzleT);
+  }
+
+  @Test
+  public void testGetTypeParameterBad() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("MerpleT"); // just check that the message gives actionable details
+    TypeDescriptor.of(GenericClass.class).getTypeParameter("MerpleT");
   }
 }
