@@ -40,6 +40,19 @@ abstract class AbstractWindowSet<K, InputT, OutputT, W extends BoundedWindow> {
         WindowingInternals<?, ?> windowingInternals) throws Exception;
   }
 
+  /**
+   * Return the {@code AbstractWindowSet.Factory} that will produce the appropriate kind of window
+   * set for the given windowing strategy.
+   */
+  public static <K, V, W extends BoundedWindow> Factory<K, V, Iterable<V>, W> factoryFor(
+      WindowingStrategy<?, W> windowingStrategy, Coder<V> inputCoder) {
+    if (windowingStrategy.getWindowFn().isNonMerging()) {
+      return NonMergingBufferingWindowSet.<K, V, W>factory(inputCoder);
+    } else {
+      return BufferingWindowSet.<K, V, W>factory(inputCoder);
+    }
+  }
+
   protected final K key;
   protected final Coder<W> windowCoder;
   protected final Coder<InputT> inputCoder;

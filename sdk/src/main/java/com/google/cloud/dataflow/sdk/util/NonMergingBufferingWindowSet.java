@@ -86,7 +86,8 @@ class NonMergingBufferingWindowSet<K, V, W extends BoundedWindow>
 
   @Override
   public boolean contains(W window) {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException(
+        "NonMergingBufferingWindowSet does not supporting reading the active window set.");
   }
 
   @Override

@@ -64,7 +64,8 @@ public class TriggerTest {
     Trigger<IntervalWindow> underTest =
         new OrFinallyTrigger<IntervalWindow>(mockActual, mockUntil);
 
-    tester = TriggerTester.buffering(windowFn, underTest, AccumulationMode.DISCARDING_FIRED_PANES);
+    tester = TriggerTester.nonCombining(
+        windowFn, underTest, AccumulationMode.DISCARDING_FIRED_PANES);
     executableUntil = tester.getTrigger().subTriggers().get(1);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
@@ -279,7 +280,7 @@ public class TriggerTest {
   @Test
   public void testOrFinallyRealTriggersFixedWindow() throws Exception {
     // Test an orFinally with a composite trigger, and make sure it properly resets state, etc.
-    tester = TriggerTester.buffering(FixedWindows.of(Duration.millis(50)),
+    tester = TriggerTester.nonCombining(FixedWindows.of(Duration.millis(50)),
         Repeatedly.<IntervalWindow>forever(
             // This element count should never fire because the orFinally fires sooner, every time
             AfterPane.<IntervalWindow>elementCountAtLeast(12)

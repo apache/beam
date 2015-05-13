@@ -52,17 +52,12 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
             combineFn, keyCoder, inputValueCoder));
   }
 
-  public static <K, InputT, W extends BoundedWindow>
-  StreamingGroupAlsoByWindowsDoFn<K, InputT, Iterable<InputT>, W> createForIterable(
+  public static <K, V, W extends BoundedWindow>
+  StreamingGroupAlsoByWindowsDoFn<K, V, Iterable<V>, W> createForIterable(
       final WindowingStrategy<?, W> windowingStrategy,
-      final Coder<InputT> inputValueCoder) {
-    if (windowingStrategy.getWindowFn().isNonMerging()) {
-      return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
-          NonMergingBufferingWindowSet.<K, InputT, W>factory(inputValueCoder));
-    } else {
-      return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
-          BufferingWindowSet.<K, InputT, W>factory(inputValueCoder));
-    }
+      final Coder<V> inputCoder) {
+    return new StreamingGABWViaWindowSetDoFn<>(
+        windowingStrategy, AbstractWindowSet.<K, V, W>factoryFor(windowingStrategy, inputCoder));
   }
 
   private static class StreamingGABWViaWindowSetDoFn<K, InputT, OutputT, W extends BoundedWindow>

@@ -39,7 +39,7 @@ public class AfterProcessingTimeTest {
   @Test
   public void testAfterProcessingTimeWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(windowDuration),
         AfterProcessingTime
             .<IntervalWindow>pastFirstElementInPane()
@@ -81,7 +81,7 @@ public class AfterProcessingTimeTest {
   @Test
   public void testAfterProcessingTimeWithMergingWindowAlreadyFired() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         AfterProcessingTime
             .<IntervalWindow>pastFirstElementInPane()

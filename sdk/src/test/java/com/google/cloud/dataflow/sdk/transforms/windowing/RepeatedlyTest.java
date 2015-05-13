@@ -57,7 +57,8 @@ public class RepeatedlyTest {
   public void setUp(WindowFn<?, IntervalWindow> windowFn) throws Exception {
     MockitoAnnotations.initMocks(this);
     Trigger<IntervalWindow> underTest = Repeatedly.forever(mockRepeated);
-    tester = TriggerTester.buffering(windowFn, underTest, AccumulationMode.DISCARDING_FIRED_PANES);
+    tester = TriggerTester.nonCombining(
+        windowFn, underTest, AccumulationMode.DISCARDING_FIRED_PANES);
     executableRepeated = tester.getTrigger().subTriggers().get(0);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }

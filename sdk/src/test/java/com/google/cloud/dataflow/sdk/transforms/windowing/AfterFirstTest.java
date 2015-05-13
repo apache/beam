@@ -61,7 +61,7 @@ public class AfterFirstTest {
 
   public void setUp(WindowFn<?, IntervalWindow> windowFn) throws Exception {
     MockitoAnnotations.initMocks(this);
-    tester = TriggerTester.buffering(
+    tester = TriggerTester.nonCombining(
         windowFn, AfterFirst.of(mockTrigger1, mockTrigger2),
         AccumulationMode.DISCARDING_FIRED_PANES);
     executable1 = tester.getTrigger().subTriggers().get(0);
@@ -191,7 +191,7 @@ public class AfterFirstTest {
 
   @Test
   public void testAfterFirstRealTriggersFixedWindow() throws Exception {
-    tester = TriggerTester.buffering(FixedWindows.of(Duration.millis(50)),
+    tester = TriggerTester.nonCombining(FixedWindows.of(Duration.millis(50)),
         Repeatedly.<IntervalWindow>forever(
             AfterFirst.<IntervalWindow>of(
                 AfterPane.<IntervalWindow>elementCountAtLeast(5),

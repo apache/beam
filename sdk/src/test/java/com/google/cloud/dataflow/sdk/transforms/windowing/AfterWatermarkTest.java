@@ -41,7 +41,7 @@ public class AfterWatermarkTest {
   @Test
   public void testFirstInPaneWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(windowDuration),
         AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)),
         AccumulationMode.DISCARDING_FIRED_PANES);
@@ -69,7 +69,7 @@ public class AfterWatermarkTest {
   @Test
   public void testFirstInPaneWithMerging() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)),
         AccumulationMode.DISCARDING_FIRED_PANES);
@@ -98,7 +98,7 @@ public class AfterWatermarkTest {
   @Test
   public void testEndOfWindowFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(windowDuration),
         AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)),
         AccumulationMode.DISCARDING_FIRED_PANES);
@@ -126,7 +126,7 @@ public class AfterWatermarkTest {
   @Test
   public void testEndOfWindowWithMerging() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)),
         AccumulationMode.DISCARDING_FIRED_PANES);

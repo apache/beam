@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum.SumIntegerFn;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
@@ -45,7 +46,8 @@ public class AfterPaneTest {
         FixedWindows.of(windowDuration),
         AfterPane.<IntervalWindow>elementCountAtLeast(2),
         AccumulationMode.DISCARDING_FIRED_PANES,
-        new SumIntegerFn().<String>asKeyedFn());
+        new SumIntegerFn().<String>asKeyedFn(),
+        VarIntCoder.of());
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));
@@ -67,7 +69,7 @@ public class AfterPaneTest {
   @Test
   public void testAfterPaneWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(windowDuration),
         AfterPane.<IntervalWindow>elementCountAtLeast(2),
         AccumulationMode.DISCARDING_FIRED_PANES);
@@ -92,7 +94,7 @@ public class AfterPaneTest {
   @Test
   public void testAfterPaneWithMerging() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         AfterPane.<IntervalWindow>elementCountAtLeast(2),
         AccumulationMode.DISCARDING_FIRED_PANES);

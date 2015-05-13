@@ -54,7 +54,7 @@ public class TriggerExecutorTest {
   public void setUpBuffering(
       WindowFn<?, IntervalWindow> windowFn, AccumulationMode mode) throws Exception {
     MockitoAnnotations.initMocks(this);
-    tester = TriggerTester.buffering(windowFn, mockTrigger, mode);
+    tester = TriggerTester.nonCombining(windowFn, mockTrigger, mode);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
 

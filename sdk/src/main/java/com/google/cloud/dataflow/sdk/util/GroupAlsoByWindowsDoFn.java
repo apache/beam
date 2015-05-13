@@ -55,13 +55,10 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
         && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
         && windowingStrategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES) {
       return new GroupAlsoByWindowsViaIteratorsDoFn<K, V, W>();
-    } else if (windowingStrategy.getWindowFn().isNonMerging()) {
-      return new GABWViaWindowSetDoFn<>(
-          windowingStrategy, NonMergingBufferingWindowSet.<K, V, W>factory(inputCoder));
-    } else {
-      return new GABWViaWindowSetDoFn<>(
-          windowingStrategy, BufferingWindowSet.<K, V, W>factory(inputCoder));
     }
+
+    return new GABWViaWindowSetDoFn<>(
+        windowingStrategy, AbstractWindowSet.<K, V, W>factoryFor(windowingStrategy, inputCoder));
   }
 
   /**

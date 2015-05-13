@@ -40,7 +40,7 @@ public class DefaultTriggerTest {
 
   @Test
   public void testDefaultTriggerWithFixedWindow() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(Duration.millis(10)),
         DefaultTrigger.<IntervalWindow>of(),
         AccumulationMode.DISCARDING_FIRED_PANES);
@@ -74,7 +74,7 @@ public class DefaultTriggerTest {
 
   @Test
   public void testDefaultTriggerWithSessionWindow() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(Duration.millis(10)),
         DefaultTrigger.<IntervalWindow>of(),
         AccumulationMode.DISCARDING_FIRED_PANES);
@@ -100,7 +100,7 @@ public class DefaultTriggerTest {
 
   @Test
   public void testDefaultTriggerWithSlidingWindow() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         SlidingWindows.of(Duration.millis(10)).every(Duration.millis(5)),
         DefaultTrigger.<IntervalWindow>of(),
         AccumulationMode.DISCARDING_FIRED_PANES);
@@ -131,7 +131,7 @@ public class DefaultTriggerTest {
 
   @Test
   public void testDefaultTriggerWithContainedSessionWindow() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.buffering(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(Duration.millis(10)),
         DefaultTrigger.<IntervalWindow>of(),
         AccumulationMode.DISCARDING_FIRED_PANES);

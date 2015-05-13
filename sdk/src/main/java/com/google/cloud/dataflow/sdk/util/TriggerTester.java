@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.IterableCoder;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
@@ -80,6 +82,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   private final WindowFn<Object, W> windowFn;
   private final StubContexts stubContexts;
   private final AbstractWindowSet<String, InputT, OutputT, W> windowSet;
+  private final Coder<OutputT> outputCoder;
 
   private static final String KEY = "TEST_KEY";
   private boolean logInteractions = false;
@@ -91,26 +94,25 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
-  public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> buffering(
+  public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> nonCombining(
       WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode) throws Exception {
     @SuppressWarnings("unchecked")
     WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
 
-    AbstractWindowSet.Factory<String, Integer, Iterable<Integer>, W> windowSetFactory;
-    if (windowFn.isNonMerging()) {
-      windowSetFactory = NonMergingBufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
-    } else {
-      windowSetFactory = BufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
-    }
+    WindowingStrategy<?, W> strategy =
+        WindowingStrategy.of(windowFn).withTrigger(trigger).withMode(mode);
+    AbstractWindowSet.Factory<String, Integer, Iterable<Integer>, W> windowSetFactory =
+        AbstractWindowSet.<String, Integer, W>factoryFor(strategy, VarIntCoder.of());
 
     return new TriggerTester<Integer, Iterable<Integer>, W>(
-        objectWindowFn, trigger, windowSetFactory, mode);
+        objectWindowFn, trigger, windowSetFactory, mode, IterableCoder.of(VarIntCoder.of()));
   }
 
   public static <W extends BoundedWindow, AccumT, OutputT>
       TriggerTester<Integer, OutputT, W> combining(
           WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode,
-          KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn) throws Exception {
+          KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn,
+          Coder<OutputT> outputCoder) throws Exception {
     @SuppressWarnings("unchecked")
     WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
 
@@ -119,18 +121,20 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
             combineFn, StringUtf8Coder.of(), VarIntCoder.of());
 
     return new TriggerTester<Integer, OutputT, W>(
-        objectWindowFn, trigger, windowSetFactory, mode);
+        objectWindowFn, trigger, windowSetFactory, mode, outputCoder);
   }
 
   private TriggerTester(
       WindowFn<Object, W> windowFn,
       Trigger<W> trigger,
       AbstractWindowSet.Factory<String, InputT, OutputT, W> windowSetFactory,
-      AccumulationMode mode) throws Exception {
+      AccumulationMode mode,
+      Coder<OutputT> outputCoder) throws Exception {
     this.windowFn = windowFn;
     this.stubContexts = new StubContexts();
     this.windowSet = windowSetFactory.create(
         KEY, windowFn.windowCoder(), stubContexts, stubContexts);
+    this.outputCoder = outputCoder;
     executableTrigger = ExecutableTrigger.create(trigger);
     this.triggerExecutor = new TriggerExecutor<>(
         windowFn, timerManager, executableTrigger, stubContexts, stubContexts, windowSet, mode);
@@ -244,7 +248,10 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     @Override
     public void outputWindowedValue(KV<String, OutputT> output, Instant timestamp,
         Collection<? extends BoundedWindow> windows) {
-      WindowedValue<KV<String, OutputT>> value = WindowedValue.of(output, timestamp, windows);
+      // Copy the output value (using coders) before capturing it.
+      KV<String, OutputT> copy = SerializableUtils.<KV<String, OutputT>>ensureSerializableByCoder(
+          KvCoder.of(StringUtf8Coder.of(), outputCoder), output, "outputForWindow");
+      WindowedValue<KV<String, OutputT>> value = WindowedValue.of(copy, timestamp, windows);
       logInteraction("Outputting: %s", value);
       outputs.add(value);
     }
