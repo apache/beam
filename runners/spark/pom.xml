@@ -216,6 +216,14 @@ License.
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.10</artifactId>
             <version>1.2.0</version>
+            <exclusions>
+                <!-- JUL is used by Google Dataflow as the backend logger, so exclude
+                 jul-to-slf4j to avoid a loop -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jul-to-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
