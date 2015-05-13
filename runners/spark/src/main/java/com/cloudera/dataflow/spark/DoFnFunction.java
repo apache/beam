@@ -21,10 +21,9 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.collect.ImmutableList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -153,8 +152,13 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     }
 
     @Override
-    public Collection<? extends BoundedWindow> windows() {
-      return ImmutableList.of();
+    public BoundedWindow window() {
+      return null;
+    }
+
+    @Override
+    public WindowingInternals<I, O> windowingInternals() {
+      return null;
     }
   }
 }

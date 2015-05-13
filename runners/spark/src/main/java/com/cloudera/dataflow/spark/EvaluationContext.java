@@ -16,6 +16,7 @@
 package com.cloudera.dataflow.spark;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
@@ -176,5 +177,10 @@ public class EvaluationContext implements EvaluationResult {
   @Override
   public void close() {
     jsc.stop();
+  }
+
+  @Override
+  public State getState() {
+    return State.UNKNOWN;
   }
 }

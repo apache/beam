@@ -233,12 +233,12 @@ License.
         <dependency>
             <groupId>com.google.cloud.dataflow</groupId>
             <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-            <version>0.3.150326</version>
+            <version>0.4.150414</version>
         </dependency>
         <dependency>
             <groupId>com.google.cloud.dataflow</groupId>
             <artifactId>google-cloud-dataflow-java-examples-all</artifactId>
-            <version>0.3.150326</version>
+            <version>0.4.150414</version>
         </dependency>
         <dependency>
             <groupId>org.apache.avro</groupId>
