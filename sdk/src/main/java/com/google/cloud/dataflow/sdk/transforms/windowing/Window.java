@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -25,10 +26,10 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
-import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
@@ -205,18 +206,8 @@ public class Window {
      * but more properties can still be specified.
      */
     public <T> Bound<T> into(WindowFn<? super T, ?> fn) {
-      return new Bound<>(name, createWindowingStrategy(fn, DefaultTrigger.of()));
+      return new Bound<>(name, WindowingStrategy.of(fn));
     }
-  }
-
-  private static <T, W extends BoundedWindow> WindowingStrategy<? super T, ?>
-    createWindowingStrategy(WindowFn<? super T, ?> fn, Trigger<?> trigger) {
-    @SuppressWarnings("unchecked")
-    WindowFn<? super T, W> typedFn = (WindowFn<? super T, W>) fn;
-    @SuppressWarnings("unchecked")
-    Trigger<W> typedTrigger = (Trigger<W>) trigger;
-
-    return WindowingStrategy.of(typedFn, ExecutableTrigger.create(typedTrigger));
   }
 
   /**
@@ -258,8 +249,7 @@ public class Window {
      */
     @Experimental(Experimental.Kind.TRIGGER)
     public Triggering<T> triggering(Trigger<?> trigger) {
-      return new Triggering<T>(name,
-          createWindowingStrategy(windowingStrategy.getWindowFn(), trigger));
+      return new Triggering<T>(name, windowingStrategy.withTrigger(trigger));
     }
 
     @Override
@@ -319,7 +309,21 @@ public class Window {
      * specified to be applied, but more properties can still be specified.
      */
     public Bound<T> discardingFiredPanes() {
-      return new Bound<>(name, windowingStrategy);
+      return new Bound<>(
+          name, windowingStrategy.withMode(AccumulationMode.DISCARDING_FIRED_PANES));
+    }
+
+    /**
+     * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
+     * Triggering behavior, and that accumulates elements in a pane after they are triggered.
+     *
+     * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
+     * specified to be applied, but more properties can still be specified.
+     */
+    @Experimental(Kind.TRIGGER)
+    public Bound<T> accumulatingFiredPanes() {
+      return new Bound<>(
+          name, windowingStrategy.withMode(AccumulationMode.ACCUMULATING_FIRED_PANES));
     }
   }
 
@@ -358,8 +362,7 @@ public class Window {
       if (inputStrategy.getWindowFn() instanceof InvalidWindows) {
         @SuppressWarnings("unchecked")
         InvalidWindows<W> invalidWindows = (InvalidWindows<W>) inputStrategy.getWindowFn();
-        return WindowingStrategy.of(
-            invalidWindows.getOriginalWindowFn(), inputStrategy.getTrigger());
+        return inputStrategy.withWindowFn(invalidWindows.getOriginalWindowFn());
       } else {
         return inputStrategy;
       }

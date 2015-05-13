@@ -50,11 +50,13 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   private final WindowFn<T, W> windowFn;
   private final ExecutableTrigger<W> trigger;
-  private final AccumulationMode mode = AccumulationMode.DISCARDING_FIRED_PANES;
+  private final AccumulationMode mode;
 
-  private WindowingStrategy(WindowFn<T, W> windowFn, ExecutableTrigger<W> trigger) {
+  private WindowingStrategy(
+      WindowFn<T, W> windowFn, ExecutableTrigger<W> trigger, AccumulationMode mode) {
     this.windowFn = windowFn;
     this.trigger = trigger;
+    this.mode = mode;
   }
 
   public static WindowingStrategy<Object, GlobalWindow> globalDefault() {
@@ -66,16 +68,25 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    * {@link DefaultTrigger}.
    */
   public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(WindowFn<T, W> windowFn) {
-    DefaultTrigger<W> defaultTrigger = DefaultTrigger.of();
-    return of(windowFn, ExecutableTrigger.create(defaultTrigger));
+    ExecutableTrigger<W> defaultTrigger = ExecutableTrigger.create(DefaultTrigger.<W>of());
+    return new WindowingStrategy<>(
+        windowFn, defaultTrigger, AccumulationMode.DISCARDING_FIRED_PANES);
   }
 
-  /**
-   * Create a {@code WindowingStrategy} for the given {@code windowFn} and {@code trigger}.
-   */
-  public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(
-      WindowFn<T, W> windowFn, ExecutableTrigger<W> trigger) {
-    return new WindowingStrategy<>(windowFn, trigger);
+  public WindowingStrategy<T, W> withTrigger(Trigger<?> wildcardTrigger) {
+    @SuppressWarnings("unchecked")
+    Trigger<W> trigger = (Trigger<W>) wildcardTrigger;
+    return new WindowingStrategy<T, W>(windowFn, ExecutableTrigger.create(trigger), mode);
+  }
+
+  public WindowingStrategy<T, W> withMode(AccumulationMode mode) {
+    return new WindowingStrategy<T, W>(windowFn, trigger, mode);
+  }
+
+  public <T> WindowingStrategy<T, W> withWindowFn(WindowFn<?, ?> wildcardWindowFn) {
+    @SuppressWarnings("unchecked")
+    WindowFn<T, W> windowFn = (WindowFn<T, W>) wildcardWindowFn;
+    return new WindowingStrategy<T, W>(windowFn, trigger, mode);
   }
 
   public WindowFn<T, W> getWindowFn() {

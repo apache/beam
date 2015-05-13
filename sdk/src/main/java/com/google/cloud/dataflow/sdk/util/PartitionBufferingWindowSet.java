@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.common.collect.ImmutableList;
 
 import java.util.Collection;
 
@@ -99,6 +100,6 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
       return null;
     }
 
-    return result;
+    return ImmutableList.copyOf(result);
   }
 }

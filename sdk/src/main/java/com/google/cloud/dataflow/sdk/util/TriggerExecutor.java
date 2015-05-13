@@ -212,15 +212,19 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       OnElementEvent<W> e =
           new OnElementEvent<W>(value.getValue(), value.getTimestamp(), window, status);
 
+      // Update the trigger state as appropriate for the arrival of the element.
+      // Must come before merge so the state is updated (for merging).
       TriggerResult result = trigger.invokeElement(context(finishedSet), e);
 
       // Make sure we merge before firing, in case a larger window is produced
+      boolean stillExists = true;
       if (result.isFire()) {
-        merge();
+        stillExists = mergeIfAppropriate(window);
       }
 
-      // Only invoke handleResult if the window is still active after merging.
-      if (windowFn.isNonMerging() || windowSet.contains(window)) {
+      // Only invoke handleResult if the window is still active after merging. If not, the
+      // merge should have taken care of any firing behaviors that needed to happen.
+      if (stillExists) {
         handleResult(trigger, window, originalFinishedSet, finishedSet, result);
       }
     }
@@ -243,12 +247,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
     // Attempt to merge windows before continuing; that may remove the current window from
     // consideration.
-    merge();
-
-    // The WindowSet used with PartitioningWindowFn doesn't support contains, but it will never
-    // merge windows in a way that causes the timer to no longer be applicable. Otherwise, we
-    // confirm that the window is still in the windowSet.
-    if (windowFn.isNonMerging() || windowSet.contains(window)) {
+    if (mergeIfAppropriate(window)) {
       TriggerResult result = trigger.invokeTimer(
           context(finishedSet), new OnTimerEvent<W>(triggerId));
       handleResult(trigger, window, originalFinishedSet, finishedSet, result);
@@ -300,8 +299,22 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
+  /**
+   * Invoke merge if the windowFn supports it, and return a boolean indicating whether the window
+   * still exists.
+   */
+  private boolean mergeIfAppropriate(W window) throws Exception {
+    if (windowFn.isNonMerging()) {
+      // These never merge so the window won't disappear.
+      return true;
+    } else {
+      windowFn.mergeWindows(mergeContext);
+      return window != null && windowSet.contains(window);
+    }
+  }
+
   public void merge() throws Exception {
-    windowFn.mergeWindows(mergeContext);
+    mergeIfAppropriate(null);
   }
 
   private void handleResult(
@@ -309,13 +322,15 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       BitSet originalFinishedSet, BitSet finishedSet, TriggerResult result) throws Exception {
     if (result.isFire()) {
       emitWindow(window);
+
+      // Clear the hold each time we fire, so that the hold is based on elements in the pane.
+      watermarkHold.clearHold(window);
     }
 
     if (result.isFinish()
         || (mode == AccumulationMode.DISCARDING_FIRED_PANES && result.isFire())) {
       // Remove the window from management (assume it is "done")
       windowSet.remove(window);
-      watermarkHold.clearHold(window);
     }
 
     // If the trigger is finished, we can clear out its state as long as we keep the
@@ -360,7 +375,10 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   private class WatermarkHold {
 
     public Instant lookupEarliestElement(W window) throws IOException {
-      return keyedState.lookup(earliestElementTag(window));
+      // Normally, output at the earliest element in the pane.
+      // If the pane is empty, window.maxTimestamp.
+      Instant earliest = keyedState.lookup(earliestElementTag(window));
+      return earliest == null ? window.maxTimestamp() : earliest;
     }
 
     public void updateHoldForElement(W window, Instant timestamp) throws IOException {
