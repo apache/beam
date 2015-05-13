@@ -111,7 +111,8 @@ public class FileIOChannelFactoryTest {
     temporaryFolder.newFile("aa");
     temporaryFolder.newFile("ab");
 
-    assertThat(factory.match(temporaryFolder.getRoot().toPath().resolve("b*").toString()),
+    // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
+    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "b") + "*"),
         Matchers.hasItems(expected.toArray(new String[expected.size()])));
   }
 
@@ -121,7 +122,9 @@ public class FileIOChannelFactoryTest {
         temporaryFolder.newFile("aa").toString(), temporaryFolder.newFile("ab").toString());
     temporaryFolder.newFile("ba");
     temporaryFolder.newFile("bb");
-    assertThat(factory.match(temporaryFolder.getRoot().toPath().resolve("a*").toString()),
+
+    // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
+    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a") + "*"),
         Matchers.hasItems(expected.toArray(new String[expected.size()])));
   }
 

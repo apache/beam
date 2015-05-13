@@ -323,7 +323,8 @@ public class TextIOTest {
   @Test
   public void testUnsupportedFilePattern() throws IOException {
     File outFolder = tmpFolder.newFolder();
-    String filename = outFolder.toPath().resolve("output@*").toString();
+    // Windows doesn't like resolving paths with * in them.
+    String filename = outFolder.toPath().resolve("output@5").toString();
 
     Pipeline p = TestPipeline.create();
 
