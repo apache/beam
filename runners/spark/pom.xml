@@ -245,6 +245,13 @@ License.
             <artifactId>avro-mapred</artifactId>
             <version>1.7.7</version>
             <classifier>hadoop2</classifier>
+            <exclusions>
+                <!-- exclude old Jetty version of servlet API -->
+                <exclusion>
+                    <groupId>org.mortbay.jetty</groupId>
+                    <artifactId>servlet-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- test dependencies -->
