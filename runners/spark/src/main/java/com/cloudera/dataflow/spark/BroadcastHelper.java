@@ -16,16 +16,16 @@
 package com.cloudera.dataflow.spark;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.logging.Logger;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.broadcast.Broadcast;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class BroadcastHelper<T> implements Serializable {
-  private static Logger LOG = Logger.getLogger(BroadcastHelper.class.getName());
+  private static Logger LOG = LoggerFactory.getLogger(BroadcastHelper.class);
   private Broadcast<byte[]> bcast;
   private final Coder<T> coder;
   private transient T value;
@@ -52,7 +52,7 @@ class BroadcastHelper<T> implements Serializable {
       val = coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
     } catch (IOException ioe) {
       // this should not ever happen, log it if it does.
-      LOG.warning(ioe.getMessage());
+      LOG.warn(ioe.getMessage());
       val = null;
     }
     return val;

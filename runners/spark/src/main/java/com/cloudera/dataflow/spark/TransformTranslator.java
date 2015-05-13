@@ -37,6 +37,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.Map;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
@@ -49,20 +52,16 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Tuple2;
-
-import java.lang.reflect.Field;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Logger;
 
 /**
  * Supports translation between a DataFlow transform, and Spark's operations on RDDs.
  */
 public final class TransformTranslator {
-  private static final Logger LOG = Logger.getLogger(TransformTranslator.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(TransformTranslator.class);
 
   private TransformTranslator() {
   }

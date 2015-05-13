@@ -21,19 +21,18 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.AggregatorImpl;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
-import org.apache.spark.api.java.function.FlatMapFunction;
-import org.joda.time.Instant;
-
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
+import org.apache.spark.api.java.function.FlatMapFunction;
+import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Dataflow's Do functions correspond to Spark's FlatMap functions.
@@ -42,7 +41,7 @@ import java.util.logging.Logger;
  * @param <O> Output element type.
  */
 class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
-  private static final Logger LOG = Logger.getLogger(DoFnFunction.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(DoFnFunction.class);
 
   private final DoFn<I, O> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
@@ -107,7 +106,7 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
       String message = "sideOutput is an unsupported operation for doFunctions, use a " +
           "MultiDoFunction instead.";
-      LOG.warning(message);
+      LOG.warn(message);
       throw new UnsupportedOperationException(message);
     }
 
@@ -115,7 +114,7 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     public <T> void sideOutputWithTimestamp(TupleTag<T> tupleTag, T t, Instant instant) {
       String message = "sideOutputWithTimestamp is an unsupported operation for doFunctions, use a " +
               "MultiDoFunction instead.";
-      LOG.warning(message);
+      LOG.warn(message);
       throw new UnsupportedOperationException(message);
     }
 

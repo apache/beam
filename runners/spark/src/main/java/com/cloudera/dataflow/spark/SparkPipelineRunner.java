@@ -16,7 +16,6 @@
 package com.cloudera.dataflow.spark;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
@@ -25,9 +24,9 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
-
-import java.util.logging.Logger;
 import org.apache.spark.serializer.KryoSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The SparkPipelineRunner translate operations defined on a pipeline to a representation
@@ -52,7 +51,7 @@ import org.apache.spark.serializer.KryoSerializer;
  */
 public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
-  private static final Logger LOG = Logger.getLogger(SparkPipelineRunner.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(SparkPipelineRunner.class);
   /**
    * Options used in this pipeline runner.
    */
@@ -143,10 +142,9 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
       if (node.getTransform() != null
           && TransformTranslator.hasTransformEvaluator(node.getTransform().getClass())) {
-        LOG.info(String.format(
-            "Entering directly-translatable composite transform: '%s'", node.getFullName()));
-        LOG.fine(String.format(
-            "Composite transform class: '%s'", node.getTransform().getClass()));
+        LOG.info("Entering directly-translatable composite transform: '{}'",
+            node.getFullName());
+        LOG.debug("Composite transform class: '{}'", node.getTransform().getClass());
         currentTranslatedCompositeNode = node;
       }
     }
@@ -157,8 +155,8 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
       // objects for which Object.equals() returns true iff they are the same logical node
       // within the tree.
       if (inTranslatedCompositeNode() && node.equals(currentTranslatedCompositeNode)) {
-        LOG.info(String.format(
-            "Post-visiting directly-translatable composite transform: '%s'", node.getFullName()));
+        LOG.info("Post-visiting directly-translatable composite transform: '{}'",
+            node.getFullName());
         doVisitTransform(node.getTransform());
         currentTranslatedCompositeNode = null;
       }
@@ -167,8 +165,7 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     @Override
     public void visitTransform(TransformTreeNode node) {
       if (inTranslatedCompositeNode()) {
-        LOG.info(String.format(
-            "Skipping '%s'; already in composite transform.", node.getFullName()));
+        LOG.info("Skipping '{}'; already in composite transform.", node.getFullName());
         return;
       }
       doVisitTransform(node.getTransform());
