@@ -26,6 +26,8 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -343,6 +345,19 @@ public final class TransformTranslator {
     };
   }
 
+  private static <T> TransformEvaluator<Window.Bound<T>> window() {
+    return new TransformEvaluator<Window.Bound<T>>() {
+      @Override
+      public void evaluate(Window.Bound<T> transform, EvaluationContext context) {
+        if (transform.getWindowingStrategy().getWindowFn() instanceof GlobalWindows) {
+          context.setOutputRDD(transform, context.getInputRDD(transform));
+        } else {
+          throw new UnsupportedOperationException("Non-global windowing not supported");
+        }
+      }
+    };
+  }
+
   private static <T> TransformEvaluator<Create<T>> create() {
     return new TransformEvaluator<Create<T>>() {
       @Override
@@ -452,6 +467,7 @@ public final class TransformTranslator {
     mEvaluators.put(View.AsSingleton.class, viewAsSingleton());
     mEvaluators.put(View.AsIterable.class, viewAsIter());
     mEvaluators.put(View.CreatePCollectionView.class, createPCollView());
+    mEvaluators.put(Window.Bound.class, window());
   }
 
   public static <PT extends PTransform> boolean hasTransformEvaluator(Class<PT> clazz) {

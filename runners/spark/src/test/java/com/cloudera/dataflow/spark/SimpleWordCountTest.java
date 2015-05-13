@@ -17,7 +17,7 @@ package com.cloudera.dataflow.spark;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -28,13 +28,10 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.ImmutableSet;
-import org.junit.Assert;
-import org.junit.Test;
-
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.junit.Test;
 
 public class SimpleWordCountTest {
   private static final String[] WORDS_ARRAY = {
@@ -46,20 +43,17 @@ public class SimpleWordCountTest {
 
   @Test
   public void testRun() throws Exception {
-    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
-    PCollection<String> inputWords = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
+    SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
+    options.setRunner(SparkPipelineRunner.class);
+    Pipeline p = Pipeline.create(options);
+    PCollection<String> inputWords = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder
+        .of());
     PCollection<String> output = inputWords.apply(new CountWords());
-    EvaluationResult res = SparkPipelineRunner.create().run(p);
-    Set<String> actualCountSet = new HashSet<>();
-    for (String s : res.get(output)) {
-      actualCountSet.add(s);
-    }
 
-    Assert.assertEquals(String.format("Actual counts of words [%s] does not equal expected " +
-                "count[%s].",
-            actualCountSet, EXPECTED_COUNT_SET),
-        EXPECTED_COUNT_SET, actualCountSet);
-    res.close();
+    DataflowAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
+
+    p.run();
+
   }
 
   /**
