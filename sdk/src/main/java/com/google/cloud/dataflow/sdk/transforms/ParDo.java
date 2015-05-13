@@ -528,44 +528,6 @@ public class ParDo {
     return new Unbound().of(fn);
   }
 
-  /**
-   * Creates a {@code ParDo} {@link PTransform} that will invoke the
-   * given {@link MapFn} function.
-   *
-   * <p> This is a specialized {@code ParDo} that has no startBundle or finishBundle,
-   * and which exclusively transforms the input {@code PCollection<InputT>} to an
-   * output {@code PCollection<OutputT>} based on the apply method of the
-   * {@code MapFn<InputT, OutputT>}.
-   *
-   * <p> The resulting {@code PTransform}'s types have been bound, with the
-   * input being a {@code PCollection<InputT>} and the output a
-   * {@code PCollection<OutputT>}, inferred from the types of the argument
-   * {@code MapFn<InputT, OutputT>}.  It is ready to be applied, or further
-   * properties can be set on it first.
-   */
-  public static <InputT, OutputT> Bound<InputT, OutputT> map(MapFn<InputT, OutputT> fn) {
-    return of(fn);
-  }
-
-  /**
-   * Creates a {@code ParDo} {@link PTransform} that will invoke the
-   * given {@link FlatMapFn} function.
-   *
-   * <p> This is a specialized {@code ParDo} that has no startBundle or finishBundle,
-   * and which exclusively transforms the input {@code PCollection<InputT>} to an
-   * output {@code PCollection<OutputT>} based on the apply method of the
-   * {@code FlatMapFn<InputT, OutputT>}.
-   *
-   * <p> The resulting {@code PTransform}'s types have been bound, with the
-   * input being a {@code PCollection<InputT>} and the output a
-   * {@code PCollection<OutputT>}, inferred from the types of the argument
-   * {@code FlatMapFn<InputT, OutputT>}.  It is ready to be applied, or further
-   * properties can be set on it first.
-   */
-  public static <InputT, OutputT> Bound<InputT, OutputT> flatMap(FlatMapFn<InputT, OutputT> fn) {
-    return of(fn);
-  }
-
   private static <InputT, OutputT> DoFn<InputT, OutputT>
       adapt(DoFnWithContext<InputT, OutputT> fn) {
     return DoFnReflector.of(fn.getClass()).toDoFn(fn);
@@ -699,31 +661,6 @@ public class ParDo {
      */
     public <InputT, OutputT> Bound<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
       return of(adapt(fn));
-    }
-
-    /**
-     * Returns a new {@code ParDo} {@code PTransform} that's like this
-     * transform but that will invoke the given {@link MapFn}
-     * function, and that has its input and output types bound.  Does
-     * not modify this transform.  The resulting {@code PTransform} is
-     * sufficiently specified to be applied, but more properties can
-     * still be specified.
-     */
-
-    public <InputT, OutputT> Bound<InputT, OutputT> map(MapFn<InputT, OutputT> fn) {
-      return of(fn);
-    }
-
-    /**
-     * Returns a new {@code ParDo} {@code PTransform} that's like this
-     * transform but that will invoke the given {@link FlatMapFn}
-     * function, and that has its input and output types bound.  Does
-     * not modify this transform.  The resulting {@code PTransform} is
-     * sufficiently specified to be applied, but more properties can
-     * still be specified.
-     */
-    public <InputT, OutputT> Bound<InputT, OutputT> flatMap(FlatMapFn<InputT, OutputT> fn) {
-      return of(fn);
     }
   }
 

@@ -398,48 +398,6 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testMapAppliesMapFn() {
-    Pipeline p = TestPipeline.create();
-
-    PCollection<Integer> result =
-        p.apply(Create.<String>of("o", "tw", "thr", "four"))
-        .apply(ParDo.map(new MapFn<String, Integer>() {
-          @Override
-          public Integer apply(String input) {
-            return input.length();
-          }
-        }));
-
-    DataflowAssert.that(result).containsInAnyOrder(1, 2, 3, 4);
-
-    p.run();
-  }
-
-  @Test
-  @Category(RunnableOnService.class)
-  public void testFlatMapAppliesFlatMapFn() {
-    Pipeline p = TestPipeline.create();
-
-    PCollection<Character> result =
-        p.apply(Create.of("foo", "bar", "BAZ"))
-        .apply(ParDo.flatMap(new FlatMapFn<String, Character>() {
-          @Override
-          public Iterable<Character> apply(String input) {
-            List<Character> chars = new ArrayList<>();
-            for (char c : input.toCharArray()) {
-              chars.add(c);
-            }
-            return chars;
-          }
-        }));
-
-    DataflowAssert.that(result).containsInAnyOrder('f', 'o', 'o', 'b', 'a', 'r', 'B', 'A', 'Z');
-
-    p.run();
-  }
-
-  @Test
-  @Category(RunnableOnService.class)
   public void testParDoEmpty() {
     Pipeline p = TestPipeline.create();
 
