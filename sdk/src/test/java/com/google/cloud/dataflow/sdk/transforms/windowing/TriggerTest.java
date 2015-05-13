@@ -159,7 +159,8 @@ public class TriggerTest {
     tester.advanceWatermark(new Instant(13));
 
     assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
+        isSingleWindowedValue(Matchers.emptyIterable(), 9, 0, 10)));
     assertTrue(tester.isDone(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         tester.finishedSet(firstWindow)));

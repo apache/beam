@@ -18,8 +18,10 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
@@ -49,6 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
@@ -93,35 +96,29 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     @SuppressWarnings("unchecked")
     WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
 
-    AbstractWindowSet.Factory<String, Integer, Iterable<Integer>, W> windowSetFactory =
-        BufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
+    AbstractWindowSet.Factory<String, Integer, Iterable<Integer>, W> windowSetFactory;
+    if (windowFn.isNonMerging()) {
+      windowSetFactory = NonMergingBufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
+    } else {
+      windowSetFactory = BufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
+    }
 
     return new TriggerTester<Integer, Iterable<Integer>, W>(
         objectWindowFn, trigger, windowSetFactory, mode);
   }
 
-  public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W>
-    partitionBuffering(WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode)
-        throws Exception {
+  public static <W extends BoundedWindow, AccumT, OutputT>
+      TriggerTester<Integer, OutputT, W> combining(
+          WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode,
+          KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn) throws Exception {
     @SuppressWarnings("unchecked")
     WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
 
-    AbstractWindowSet.Factory<String, Integer, Iterable<Integer>, W> windowSetFactory =
-        PartitionBufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
+    AbstractWindowSet.Factory<String, Integer, OutputT, W> windowSetFactory =
+        CombiningWindowSet.<String, Integer, AccumT, OutputT, W>factory(
+            combineFn, StringUtf8Coder.of(), VarIntCoder.of());
 
-    return new TriggerTester<Integer, Iterable<Integer>, W>(
-        objectWindowFn, trigger, windowSetFactory, mode);
-  }
-
-  public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> combining(
-      WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode) throws Exception {
-    @SuppressWarnings("unchecked")
-    WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
-
-    AbstractWindowSet.Factory<String, Integer, Iterable<Integer>, W> windowSetFactory =
-        BufferingWindowSet.<String, Integer, W>factory(VarIntCoder.of());
-
-    return new TriggerTester<Integer, Iterable<Integer>, W>(
+    return new TriggerTester<Integer, OutputT, W>(
         objectWindowFn, trigger, windowSetFactory, mode);
   }
 
@@ -171,8 +168,9 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     return triggerExecutor.earliestElementTag(window).getId();
   }
 
-  public boolean isWindowActive(W window) {
-    return windowSet.contains(window);
+  public boolean isWindowActive(W window) throws IOException {
+    return stubContexts.getKeyedStateInUse()
+        .contains(WindowUtils.bufferTag(window, windowFn.windowCoder(), VarIntCoder.of()).getId());
   }
 
   /**
@@ -251,7 +249,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
       outputs.add(value);
     }
 
-    public Iterable<String> getKeyedStateInUse() {
+    public Set<String> getKeyedStateInUse() {
       return FluentIterable
           .from(tagListValues.keySet())
           .append(tagValues.keySet())

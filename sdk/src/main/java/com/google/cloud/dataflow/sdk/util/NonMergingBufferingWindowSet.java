@@ -28,14 +28,11 @@ import com.google.common.collect.ImmutableList;
 import java.util.Collection;
 
 /**
- * A WindowSet where each value is placed in exactly one window,
- * and windows are never merged, deleted, or flushed early, and the
- * WindowSet itself is never exposed to user code, allowing
- * a much simpler (and cheaper) implementation.
- *
- * <p>This WindowSet only works with {@link StreamingGroupAlsoByWindowsDoFn}.
+ * A WindowSet where windows are never merged or deleted. This allows us to improve upon the default
+ * {@link BufferingWindowSet} by not maintaining a merge tree (or the list of active windows at all)
+ * and by blindly using tag lists to store elements.
  */
-class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
+class NonMergingBufferingWindowSet<K, V, W extends BoundedWindow>
     extends AbstractWindowSet<K, V, Iterable<V>, W> {
 
   public static <K, V, W extends BoundedWindow>
@@ -48,13 +45,13 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
       public AbstractWindowSet<K, V, Iterable<V>, W> create(K key,
           Coder<W> windowFn, KeyedState keyedState,
           WindowingInternals<?, ?> windowingInternals) throws Exception {
-        return new PartitionBufferingWindowSet<>(
+        return new NonMergingBufferingWindowSet<>(
             key, windowFn, inputCoder, keyedState, windowingInternals);
       }
     };
   }
 
-  private PartitionBufferingWindowSet(
+  private NonMergingBufferingWindowSet(
       K key,
       Coder<W> windowCoder,
       Coder<V> inputCoder,
@@ -100,6 +97,8 @@ class PartitionBufferingWindowSet<K, V, W extends BoundedWindow>
       return null;
     }
 
+    // Create a copy here, since otherwise we may return the same list object from readTagList, and
+    // that may be mutated later, which would lead to mutation of output values.
     return ImmutableList.copyOf(result);
   }
 }

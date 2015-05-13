@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.util.AbstractWindowSet.Factory;
 import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TimerManager;
@@ -57,13 +56,9 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
   StreamingGroupAlsoByWindowsDoFn<K, InputT, Iterable<InputT>, W> createForIterable(
       final WindowingStrategy<?, W> windowingStrategy,
       final Coder<InputT> inputValueCoder) {
-    if (windowingStrategy.getWindowFn().assignsToSingleWindow()
-        && windowingStrategy.getWindowFn().isNonMerging()
-        // TODO: Characterize the other kinds of triggers that work with the
-        // PartitioningBufferingWindowSet
-        && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger) {
+    if (windowingStrategy.getWindowFn().isNonMerging()) {
       return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
-          PartitionBufferingWindowSet.<K, InputT, W>factory(inputValueCoder));
+          NonMergingBufferingWindowSet.<K, InputT, W>factory(inputValueCoder));
     } else {
       return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
           BufferingWindowSet.<K, InputT, W>factory(inputValueCoder));

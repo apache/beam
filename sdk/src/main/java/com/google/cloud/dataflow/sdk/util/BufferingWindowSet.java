@@ -186,6 +186,7 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
         })
         .toList();
 
+    // The FluentIterable#toList creates a copy, so the result will never be mutated.
     List<V> toEmit = FluentIterable
         .from(windowingInternals.readTagList(bufferTags).values())
         .transformAndConcat(Functions.<Iterable<V>>identity())

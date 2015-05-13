@@ -86,8 +86,7 @@ public class CombiningWindowSet<K, InputT, AccumT, OutputT, W extends BoundedWin
     super(key, windowCoder, inputValueCoder, keyedState, windowingInternals);
     this.combineFn = combineFn;
     liveWindows = new HashSet<W>();
-    Iterators.addAll(liveWindows,
-                     emptyIfNull(keyedState.lookup(windowListTag)).iterator());
+    Iterators.addAll(liveWindows, emptyIfNull(keyedState.lookup(windowListTag)).iterator());
     liveWindowsModified = false;
     // TODO: Use the pipeline's registry once the TODO in GroupByKey is resolved.
     CoderRegistry coderRegistry = new CoderRegistry();
