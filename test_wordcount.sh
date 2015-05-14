@@ -102,13 +102,6 @@ function check_for_jar_file {
   fi
 }
 
-# NOTE: We could still test via mvn exec if this fails for some reason.  Perhaps
-# we ought to do that.
-echo "Generating bundled JAR file" >&2
-# NOTE: If this fails, run "mvn clean install" and try again.
-mvn bundle:bundle -f $TOPDIR/pom.xml -pl examples
-check_for_jar_file
-
 run_all_ways wordcount1 "LICENSE" c5350a5ad4bb51e3e018612b4b044097
 run_all_ways wordcount2 "./LICENSE" c5350a5ad4bb51e3e018612b4b044097
 run_all_ways wordcount3 "$PWD/LICENSE" c5350a5ad4bb51e3e018612b4b044097
