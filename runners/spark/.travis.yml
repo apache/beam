@@ -7,9 +7,6 @@ matrix:
    # Covers Java 7, Open JDK, and code coverage
    - jdk: openjdk7
      env: JACOCO=-Pjacoco
-   # Covers Spark 1.3
-   - jdk: openjdk7
-     env: SPARK=-Dspark.version=1.3.1
    # Covers Java 8, Oracle JDK
    - jdk: oraclejdk8
      env: JAVA=-Djava.version=1.8
