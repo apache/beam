@@ -1,0 +1,19 @@
+language: java
+sudo: false
+install: mvn ${JAVA} ${SPARK} -DskipTests=true -Dmaven.javadoc.skip=true -B -V install
+script: mvn ${JAVA} ${SPARK} ${JACOCO} -Dmaven.javadoc.skip=true -B verify
+matrix:
+ include:
+   # Covers Java 7, Open JDK, and code coverage
+   - jdk: openjdk7
+     env: JACOCO=-Pjacoco
+   # Covers Spark 1.3
+   - jdk: openjdk7
+     env: SPARK=-Dspark.version=1.3.1
+   # Covers Java 8, Oracle JDK
+   - jdk: oraclejdk8
+     env: JAVA=-Djava.version=1.8
+cache:
+  directories:
+    - $HOME/.m2
+after_success: bash <(curl -s https://codecov.io/bash)
