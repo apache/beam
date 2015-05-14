@@ -15,6 +15,11 @@
 
 package com.cloudera.dataflow.spark;
 
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -24,10 +29,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -80,7 +81,7 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     private final List<O> outputs = new LinkedList<>();
     private I element;
 
-    public ProcCtxt(DoFn<I, O> fn) {
+    ProcCtxt(DoFn<I, O> fn) {
       fn.super();
     }
 
@@ -111,8 +112,9 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tupleTag, T t, Instant instant) {
-      String message = "sideOutputWithTimestamp is an unsupported operation for doFunctions, use a " +
-              "MultiDoFunction instead.";
+      String message =
+          "sideOutputWithTimestamp is an unsupported operation for doFunctions, use a " +
+          "MultiDoFunction instead.";
       LOG.warn(message);
       throw new UnsupportedOperationException(message);
     }

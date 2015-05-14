@@ -15,17 +15,20 @@
 
 package com.cloudera.dataflow.spark;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
+
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class BroadcastHelper<T> implements Serializable {
-  private static Logger LOG = LoggerFactory.getLogger(BroadcastHelper.class);
+
+  private static final Logger LOG = LoggerFactory.getLogger(BroadcastHelper.class);
+
   private Broadcast<byte[]> bcast;
   private final Coder<T> coder;
   private transient T value;

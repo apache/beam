@@ -36,6 +36,7 @@ public final class CoderHelpers {
    *
    * @param value Value to serialize.
    * @param coder Coder to serialize with.
+   * @param <T> type of value that is serialized
    * @return Byte array representing serialized object.
    */
   static <T> byte[] toByteArray(T value, Coder<T> coder) {
@@ -53,6 +54,7 @@ public final class CoderHelpers {
    *
    * @param values Values to serialize.
    * @param coder  Coder to serialize with.
+   * @param <T> type of value that is serialized
    * @return List of bytes representing serialized objects.
    */
   static <T> List<byte[]> toByteArrays(Iterable<T> values, Coder<T> coder) {

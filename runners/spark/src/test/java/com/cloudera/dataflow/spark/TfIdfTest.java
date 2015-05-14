@@ -34,8 +34,8 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import org.junit.Before;
 import org.junit.Rule;
@@ -52,11 +52,11 @@ import static org.junit.Assert.fail;
  */
 public class TfIdfTest {
 
-  private transient File inputDir;
-  private transient File outputDir;
+  private File inputDir;
+  private File outputDir;
 
   @Rule
-  public transient TemporaryFolder tmpDir = new TemporaryFolder();
+  public final TemporaryFolder tmpDir = new TemporaryFolder();
 
   @Before
   public void setUp() throws IOException {
@@ -67,7 +67,7 @@ public class TfIdfTest {
     outputDir.delete();
   }
 
-  private void copy(String resourceName, File dir) throws IOException {
+  private static void copy(String resourceName, File dir) throws IOException {
     File dest = new File(dir, resourceName);
     Resources.copy(Resources.getResource(resourceName), Files.asByteSink(dest).openStream());
   }
@@ -101,8 +101,7 @@ public class TfIdfTest {
     fail("Could not find 'love' in output.");
   }
 
-  public Set<URI> listInputDocuments()
-      throws URISyntaxException, IOException {
+  public Set<URI> listInputDocuments() {
     Set<URI> uris = new HashSet<>();
     File directory = inputDir;
     for (String entry : directory.list()) {
@@ -118,9 +117,8 @@ public class TfIdfTest {
    */
   public static class ReadDocuments
       extends PTransform<PInput, PCollection<KV<URI, String>>> {
-    private static final long serialVersionUID = 0;
 
-    private Iterable<URI> uris;
+    private final Iterable<URI> uris;
 
     public ReadDocuments(Iterable<URI> uris) {
       this.uris = uris;
@@ -143,9 +141,9 @@ public class TfIdfTest {
       // TextIO.Read supports:
       //  - file: URIs and paths locally
       //  - gs: URIs on the service
-      for (final URI uri : uris) {
+      for (URI uri : uris) {
         String uriString;
-        if (uri.getScheme().equals("file")) {
+        if ("file".equals(uri.getScheme())) {
           uriString = new File(uri).getPath();
         } else {
           uriString = uri.toString();
@@ -171,9 +169,6 @@ public class TfIdfTest {
    */
   public static class ComputeTfIdf
       extends PTransform<PCollection<KV<URI, String>>, PCollection<KV<String, KV<URI, Double>>>> {
-    private static final long serialVersionUID = 0;
-
-    public ComputeTfIdf() { }
 
     @Override
     public PCollection<KV<String, KV<URI, Double>>> apply(
@@ -194,20 +189,20 @@ public class TfIdfTest {
       PCollection<KV<URI, String>> uriToWords = uriToContent
           .apply(ParDo.named("SplitWords").of(
               new DoFn<KV<URI, String>, KV<URI, String>>() {
-                private static final long serialVersionUID = 0;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey();
                   String line = c.element().getValue();
                   for (String word : line.split("\\W+")) {
-                    // Log INFO messages when the word “love” is found.
-                    if (word.toLowerCase().equals("love")) {
-                      LOG.info("Found {}", word.toLowerCase());
+                    if (LOG.isDebugEnabled()) {
+                      // Log messages when the word "love" is found.
+                      if ("love".equals(word.toLowerCase(Locale.ENGLISH))) {
+                        LOG.debug("Found {}", word.toLowerCase(Locale.ENGLISH));
+                      }
                     }
 
                     if (!word.isEmpty()) {
-                      c.output(KV.of(uri, word.toLowerCase()));
+                      c.output(KV.of(uri, word.toLowerCase(Locale.ENGLISH)));
                     }
                   }
                 }
@@ -239,8 +234,6 @@ public class TfIdfTest {
       PCollection<KV<URI, KV<String, Long>>> uriToWordAndCount = uriAndWordToCount
           .apply(ParDo.named("ShiftKeys").of(
               new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
-                private static final long serialVersionUID = 0;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey().getKey();
@@ -256,8 +249,8 @@ public class TfIdfTest {
       // a tuple tag. Each input must have the same key type, URI
       // in this case. The type parameter of the tuple tag matches
       // the types of the values for each collection.
-      final TupleTag<Long> wordTotalsTag = new TupleTag<Long>();
-      final TupleTag<KV<String, Long>> wordCountsTag = new TupleTag<KV<String, Long>>();
+      final TupleTag<Long> wordTotalsTag = new TupleTag<>();
+      final TupleTag<KV<String, Long>> wordCountsTag = new TupleTag<>();
       KeyedPCollectionTuple<URI> coGbkInput = KeyedPCollectionTuple
           .of(wordTotalsTag, uriToWordTotal)
           .and(wordCountsTag, uriToWordAndCount);
@@ -280,8 +273,6 @@ public class TfIdfTest {
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTf = uriToWordAndCountAndTotal
           .apply(ParDo.named("ComputeTermFrequencies").of(
               new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-                private static final long serialVersionUID = 0;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey();
@@ -308,8 +299,6 @@ public class TfIdfTest {
               .named("ComputeDocFrequencies")
               .withSideInputs(totalDocuments)
               .of(new DoFn<KV<String, Long>, KV<String, Double>>() {
-                private static final long serialVersionUID = 0;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   String word = c.element().getKey();
@@ -324,8 +313,8 @@ public class TfIdfTest {
 
       // Join the term frequency and document frequency
       // collections, each keyed on the word.
-      final TupleTag<KV<URI, Double>> tfTag = new TupleTag<KV<URI, Double>>();
-      final TupleTag<Double> dfTag = new TupleTag<Double>();
+      final TupleTag<KV<URI, Double>> tfTag = new TupleTag<>();
+      final TupleTag<Double> dfTag = new TupleTag<>();
       PCollection<KV<String, CoGbkResult>> wordToUriAndTfAndDf = KeyedPCollectionTuple
           .of(tfTag, wordToUriAndTf)
           .and(dfTag, wordToDf)
@@ -336,11 +325,10 @@ public class TfIdfTest {
       // ("term frequency - inverse document frequency") score;
       // here we use a basic version that is the term frequency
       // divided by the log of the document frequency.
-      PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = wordToUriAndTfAndDf
+
+      return wordToUriAndTfAndDf
           .apply(ParDo.named("ComputeTfIdf").of(
               new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-                private static final long serialVersionUID = 0;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   String word = c.element().getKey();
@@ -354,8 +342,6 @@ public class TfIdfTest {
                   }
                 }
               }));
-
-      return wordToUriAndTfIdf;
     }
 
     // Instantiate Logger.
@@ -370,9 +356,8 @@ public class TfIdfTest {
    */
   public static class WriteTfIdf
       extends PTransform<PCollection<KV<String, KV<URI, Double>>>, PDone> {
-    private static final long serialVersionUID = 0;
 
-    private String output;
+    private final String output;
 
     public WriteTfIdf(String output) {
       this.output = output;
@@ -381,10 +366,7 @@ public class TfIdfTest {
     @Override
     public PDone apply(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
       return wordToUriAndTfIdf
-          .apply(ParDo.named("Format").of(new DoFn<KV<String, KV<URI, Double>>, String>
-              () {
-            private static final long serialVersionUID = 0;
-
+          .apply(ParDo.named("Format").of(new DoFn<KV<String, KV<URI, Double>>, String>() {
             @Override
             public void processElement(ProcessContext c) {
               c.output(String.format("%s,\t%s,\t%f",

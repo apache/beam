@@ -15,8 +15,13 @@
 
 package com.cloudera.dataflow.spark;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
@@ -32,14 +37,8 @@ import com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 /**
- * Evaluation context allows us to define how pipeline instructions
+ * Evaluation context allows us to define how pipeline instructions.
  */
 public class EvaluationContext implements EvaluationResult {
   private final JavaSparkContext jsc;
@@ -86,12 +85,6 @@ public class EvaluationContext implements EvaluationResult {
     return defaultCoder;
   }
 
-  /**
-   * Coder<Iterable<Object>> getDefaultIterableCoder(Iterables iter) {
-   * <p/>
-   * }
-   */
-
   <I extends PInput> I getInput(PTransform<I, ?> transform) {
     @SuppressWarnings("unchecked")
     I input = (I) pipeline.getInput(transform);
@@ -133,8 +126,7 @@ public class EvaluationContext implements EvaluationResult {
 
 
   <T> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
-    Iterable<WindowedValue<?>> value = pview.get(view);
-    return value;
+    return pview.get(view);
   }
 
   @Override
@@ -169,7 +161,7 @@ public class EvaluationContext implements EvaluationResult {
     return Iterables.transform(clientBytes, new Function<byte[], T>() {
       @Override
       public T apply(byte[] bytes) {
-        return (T) CoderHelpers.fromByteArray(bytes, coder);
+        return CoderHelpers.fromByteArray(bytes, coder);
       }
     });
   }

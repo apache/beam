@@ -41,11 +41,11 @@ import static org.junit.Assert.assertEquals;
 
 public class AvroPipelineTest {
 
-  private transient File inputFile;
-  private transient File outputDir;
+  private File inputFile;
+  private File outputDir;
 
   @Rule
-  public transient TemporaryFolder tmpDir = new TemporaryFolder();
+  public final TemporaryFolder tmpDir = new TemporaryFolder();
 
   @Before
   public void setUp() throws IOException {
@@ -75,28 +75,26 @@ public class AvroPipelineTest {
 
   private void populateGenericFile(List<GenericRecord> genericRecords, Schema schema) throws IOException {
     FileOutputStream outputStream = new FileOutputStream(this.inputFile);
-    GenericDatumWriter<GenericRecord> genericDatumWriter = new GenericDatumWriter<GenericRecord>(schema);
+    GenericDatumWriter<GenericRecord> genericDatumWriter = new GenericDatumWriter<>(schema);
 
-    DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<GenericRecord>(genericDatumWriter);
-    dataFileWriter.create(schema, outputStream);
-
-    for (GenericRecord record : genericRecords) {
-      dataFileWriter.append(record);
+    try (DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(genericDatumWriter)) {
+      dataFileWriter.create(schema, outputStream);
+      for (GenericRecord record : genericRecords) {
+        dataFileWriter.append(record);
+      }
     }
-
-    dataFileWriter.close();
     outputStream.close();
   }
 
   private List<GenericRecord> readGenericFile() throws IOException {
     List<GenericRecord> records = Lists.newArrayList();
-    GenericDatumReader<GenericRecord> genericDatumReader = new GenericDatumReader<GenericRecord>();
-    DataFileReader<GenericRecord> dataFileReader = new DataFileReader<GenericRecord>
-        (new File(outputDir, "part-r-00000.avro"), genericDatumReader);
-    for (GenericRecord record : dataFileReader) {
-      records.add(record);
+    GenericDatumReader<GenericRecord> genericDatumReader = new GenericDatumReader<>();
+    try (DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>
+        (new File(outputDir, "part-r-00000.avro"), genericDatumReader)) {
+      for (GenericRecord record : dataFileReader) {
+        records.add(record);
+      }
     }
-    dataFileReader.close();
     return records;
   }
 

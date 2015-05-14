@@ -20,7 +20,11 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.transforms.*;
+import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.ImmutableList;
@@ -33,8 +37,8 @@ import java.util.Map;
 
 public class CombinePerKeyTest {
 
-    private List<String> WORDS = ImmutableList.of("the", "quick", "brown", "fox", "jumped",
-            "over", "the", "lazy", "dog");
+    private static final List<String> WORDS =
+        ImmutableList.of("the", "quick", "brown", "fox", "jumped", "over", "the", "lazy", "dog");
     @Test
     public void testRun() {
         Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
@@ -51,6 +55,7 @@ public class CombinePerKeyTest {
     }
 
     private static class SumPerKey<T> extends PTransform<PCollection<T>, PCollection<KV<T, Long>>> {
+      @Override
       public PCollection<KV<T, Long>> apply(PCollection<T> pcol) {
           PCollection<KV<T, Long>> withLongs = pcol.apply(ParDo.of(new DoFn<T, KV<T, Long>>() {
               @Override

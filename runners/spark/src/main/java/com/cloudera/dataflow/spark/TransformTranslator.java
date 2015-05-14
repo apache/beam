@@ -15,6 +15,11 @@
 
 package com.cloudera.dataflow.spark;
 
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.Map;
+
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
@@ -38,10 +43,6 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.List;
-import java.util.Map;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
@@ -52,18 +53,16 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /**
  * Supports translation between a DataFlow transform, and Spark's operations on RDDs.
  */
 public final class TransformTranslator {
-  private static final Logger LOG = LoggerFactory.getLogger(TransformTranslator.class);
 
   private TransformTranslator() {
   }
@@ -305,13 +304,18 @@ public final class TransformTranslator {
       @Override
       public void evaluate(AvroIO.Read.Bound<T> transform, EvaluationContext context) {
         String pattern = transform.getFilepattern();
-        JavaRDD<?> rdd = context.getSparkContext()
-            .newAPIHadoopFile(pattern, AvroKeyInputFormat.class, AvroKey.class,
-                NullWritable.class, new Configuration())
-            .map(new Function<Tuple2<AvroKey, NullWritable>, Object>() {
+        JavaSparkContext jsc = context.getSparkContext();
+        @SuppressWarnings("unchecked")
+        JavaRDD<AvroKey<T>> avroFile = (JavaRDD<AvroKey<T>>) (JavaRDD<?>)
+            jsc.newAPIHadoopFile(pattern,
+                                 AvroKeyInputFormat.class,
+                                 AvroKey.class, NullWritable.class,
+                                 new Configuration()).keys();
+        JavaRDD<T> rdd = avroFile.map(
+            new Function<AvroKey<T>, T>() {
               @Override
-              public Object call(Tuple2<AvroKey, NullWritable> t) throws Exception {
-                return t._1().datum();
+              public T call(AvroKey<T> key) {
+                return key.datum();
               }
             });
         context.setOutputRDD(transform, rdd);
@@ -323,14 +327,14 @@ public final class TransformTranslator {
     return new TransformEvaluator<AvroIO.Write.Bound<T>>() {
       @Override
       public void evaluate(AvroIO.Write.Bound<T> transform, EvaluationContext context) {
-        @SuppressWarnings("unchecked")
         String pattern = transform.getFilenamePrefix();
+        @SuppressWarnings("unchecked")
         JavaRDDLike<T, ?> last = (JavaRDDLike<T, ?>) context.getInputRDD(transform);
         Job job;
         try {
           job = Job.getInstance();
         } catch (IOException e) {
-          throw new RuntimeException(e);
+          throw new IllegalStateException(e);
         }
         AvroJob.setOutputKeySchema(job, transform.getSchema());
         last.mapToPair(new PairFunction<T, AvroKey<T>, NullWritable>() {
@@ -398,12 +402,9 @@ public final class TransformTranslator {
   private static <R, W> TransformEvaluator<View.CreatePCollectionView<R, W>> createPCollView() {
     return new TransformEvaluator<View.CreatePCollectionView<R, W>>() {
       @Override
-      public void evaluate(View.CreatePCollectionView<R, W> transform, EvaluationContext
-          context) {
-        Iterable<WindowedValue<?>> iter = Iterables.transform(context.get(context.getInput
-                (transform)), new WindowingFunction<R>()
-        );
-
+      public void evaluate(View.CreatePCollectionView<R, W> transform, EvaluationContext context) {
+        Iterable<WindowedValue<?>> iter = Iterables.transform(
+            context.get(context.getInput(transform)), new WindowingFunction<R>());
         context.setPView(context.getOutput(transform), iter);
       }
     };
@@ -417,7 +418,9 @@ public final class TransformTranslator {
     }
   }
 
-  private static class TupleTagFilter<V> implements Function<Tuple2<TupleTag<V>, Object>, Boolean> {
+  private static final class TupleTagFilter<V>
+      implements Function<Tuple2<TupleTag<V>, Object>, Boolean> {
+
     private final TupleTag<V> tag;
 
     private TupleTagFilter(TupleTag<V> tag) {
@@ -449,35 +452,35 @@ public final class TransformTranslator {
     }
   }
 
-  private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> mEvaluators = Maps
+  private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS = Maps
       .newHashMap();
 
   static {
-    mEvaluators.put(TextIO.Read.Bound.class, readText());
-    mEvaluators.put(TextIO.Write.Bound.class, writeText());
-    mEvaluators.put(AvroIO.Read.Bound.class, readAvro());
-    mEvaluators.put(AvroIO.Write.Bound.class, writeAvro());
-    mEvaluators.put(ParDo.Bound.class, parDo());
-    mEvaluators.put(ParDo.BoundMulti.class, multiDo());
-    mEvaluators.put(GroupByKey.GroupByKeyOnly.class, gbk());
-    mEvaluators.put(Combine.GroupedValues.class, grouped());
-    mEvaluators.put(Combine.PerKey.class, combinePerKey());
-    mEvaluators.put(Flatten.FlattenPCollectionList.class, flattenPColl());
-    mEvaluators.put(Create.class, create());
-    mEvaluators.put(View.AsSingleton.class, viewAsSingleton());
-    mEvaluators.put(View.AsIterable.class, viewAsIter());
-    mEvaluators.put(View.CreatePCollectionView.class, createPCollView());
-    mEvaluators.put(Window.Bound.class, window());
+    EVALUATORS.put(TextIO.Read.Bound.class, readText());
+    EVALUATORS.put(TextIO.Write.Bound.class, writeText());
+    EVALUATORS.put(AvroIO.Read.Bound.class, readAvro());
+    EVALUATORS.put(AvroIO.Write.Bound.class, writeAvro());
+    EVALUATORS.put(ParDo.Bound.class, parDo());
+    EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
+    EVALUATORS.put(GroupByKey.GroupByKeyOnly.class, gbk());
+    EVALUATORS.put(Combine.GroupedValues.class, grouped());
+    EVALUATORS.put(Combine.PerKey.class, combinePerKey());
+    EVALUATORS.put(Flatten.FlattenPCollectionList.class, flattenPColl());
+    EVALUATORS.put(Create.class, create());
+    EVALUATORS.put(View.AsSingleton.class, viewAsSingleton());
+    EVALUATORS.put(View.AsIterable.class, viewAsIter());
+    EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());
+    EVALUATORS.put(Window.Bound.class, window());
   }
 
   public static <PT extends PTransform> boolean hasTransformEvaluator(Class<PT> clazz) {
-    return mEvaluators.containsKey(clazz);
+    return EVALUATORS.containsKey(clazz);
   }
 
   public static <PT extends PTransform> TransformEvaluator<PT> getTransformEvaluator(Class<PT>
                                                                                          clazz) {
     @SuppressWarnings("unchecked")
-    TransformEvaluator<PT> transform = (TransformEvaluator<PT>) mEvaluators.get(clazz);
+    TransformEvaluator<PT> transform = (TransformEvaluator<PT>) EVALUATORS.get(clazz);
     if (transform == null) {
       throw new IllegalStateException("No TransformEvaluator registered for " + clazz);
     }

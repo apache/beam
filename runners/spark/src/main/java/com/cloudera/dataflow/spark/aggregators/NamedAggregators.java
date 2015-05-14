@@ -15,19 +15,19 @@
 
 package com.cloudera.dataflow.spark.aggregators;
 
-import com.cloudera.dataflow.spark.SparkRuntimeContext;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.transforms.Combine;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.common.collect.ImmutableList;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
+
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.common.collect.ImmutableList;
+
+import com.cloudera.dataflow.spark.SparkRuntimeContext;
 
 /**
  * This class wraps a map of named aggregators. Spark expects that all accumulators be declared
@@ -108,36 +108,36 @@ public class NamedAggregators implements Serializable {
   }
 
   /**
-   * @param <In>    Input data type
-   * @param <Inter> Intermediate data type (useful for averages)
-   * @param <Out>   Output data type
+   * @param <IN>    Input data type
+   * @param <INTER> Intermediate data type (useful for averages)
+   * @param <OUT>   Output data type
    */
-  public interface State<In, Inter, Out> extends Serializable {
+  public interface State<IN, INTER, OUT> extends Serializable {
     /**
      * @param element new element to update state
      */
-    void update(In element);
+    void update(IN element);
 
-    State<In, Inter, Out> merge(State<In, Inter, Out> other);
+    State<IN, INTER, OUT> merge(State<IN, INTER, OUT> other);
 
-    Inter current();
+    INTER current();
 
-    Out render();
+    OUT render();
   }
 
   /**
    * =&gt; combineFunction in data flow.
    */
-  public static class CombineFunctionState<In, Inter, Out> implements State<In, Inter, Out> {
+  public static class CombineFunctionState<IN, INTER, OUT> implements State<IN, INTER, OUT> {
 
-    private Combine.CombineFn<In, Inter, Out> combineFn;
-    private Coder<In> inCoder;
+    private Combine.CombineFn<IN, INTER, OUT> combineFn;
+    private Coder<IN> inCoder;
     private SparkRuntimeContext ctxt;
-    private transient Inter state;
+    private transient INTER state;
 
     public CombineFunctionState(
-        Combine.CombineFn<In, Inter, Out> combineFn,
-        Coder<In> inCoder,
+        Combine.CombineFn<IN, INTER, OUT> combineFn,
+        Coder<IN> inCoder,
         SparkRuntimeContext ctxt) {
       this.combineFn = combineFn;
       this.inCoder = inCoder;
@@ -146,23 +146,23 @@ public class NamedAggregators implements Serializable {
     }
 
     @Override
-    public void update(In element) {
+    public void update(IN element) {
       combineFn.addInput(state, element);
     }
 
     @Override
-    public State<In, Inter, Out> merge(State<In, Inter, Out> other) {
+    public State<IN, INTER, OUT> merge(State<IN, INTER, OUT> other) {
       this.state = combineFn.mergeAccumulators(ImmutableList.of(current(), other.current()));
       return this;
     }
 
     @Override
-    public Inter current() {
+    public INTER current() {
       return state;
     }
 
     @Override
-    public Out render() {
+    public OUT render() {
       return combineFn.extractOutput(state);
     }
 
@@ -170,55 +170,58 @@ public class NamedAggregators implements Serializable {
       oos.writeObject(ctxt);
       oos.writeObject(combineFn);
       oos.writeObject(inCoder);
-      combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder).encode(state, oos, Coder.Context.NESTED);
+      combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
+          .encode(state, oos, Coder.Context.NESTED);
     }
 
+    @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
       ctxt = (SparkRuntimeContext) ois.readObject();
-      combineFn = (Combine.CombineFn) ois.readObject();
-      inCoder = (Coder) ois.readObject();
-      state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder).decode(ois, Coder.Context.NESTED);
+      combineFn = (Combine.CombineFn<IN, INTER, OUT>) ois.readObject();
+      inCoder = (Coder<IN>) ois.readObject();
+      state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
+          .decode(ois, Coder.Context.NESTED);
     }
   }
 
   /**
    * states correspond to dataflow objects. this one =&gt; serializable function
    */
-  public static class SerFunctionState<In, Out> implements State<In, Out, Out> {
+  public static class SerFunctionState<IN, OUT> implements State<IN, OUT, OUT> {
 
-    private final SerializableFunction<Iterable<In>, Out> sfunc;
-    private Out state;
+    private final SerializableFunction<Iterable<IN>, OUT> sfunc;
+    private OUT state;
 
-    public SerFunctionState(SerializableFunction<Iterable<In>, Out> sfunc) {
+    public SerFunctionState(SerializableFunction<Iterable<IN>, OUT> sfunc) {
       this.sfunc = sfunc;
-      this.state = sfunc.apply(ImmutableList.<In>of());
+      this.state = sfunc.apply(ImmutableList.<IN>of());
     }
 
     @Override
-    public void update(In element) {
+    public void update(IN element) {
       @SuppressWarnings("unchecked")
-      In thisState = (In) state;
+      IN thisState = (IN) state;
       this.state = sfunc.apply(ImmutableList.of(element, thisState));
     }
 
     @Override
-    public State<In, Out, Out> merge(State<In, Out, Out> other) {
+    public State<IN, OUT, OUT> merge(State<IN, OUT, OUT> other) {
       // Add exception catching and logging here.
       @SuppressWarnings("unchecked")
-      In thisState = (In) state;
+      IN thisState = (IN) state;
       @SuppressWarnings("unchecked")
-      In otherCurrent = (In) other.current();
+      IN otherCurrent = (IN) other.current();
       this.state = sfunc.apply(ImmutableList.of(thisState, otherCurrent));
       return this;
     }
 
     @Override
-    public Out current() {
+    public OUT current() {
       return state;
     }
 
     @Override
-    public Out render() {
+    public OUT render() {
       return state;
     }
   }

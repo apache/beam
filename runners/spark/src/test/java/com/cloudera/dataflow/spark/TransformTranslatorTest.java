@@ -15,6 +15,7 @@
 
 package com.cloudera.dataflow.spark;
 
+import com.google.api.client.repackaged.com.google.common.base.Joiner;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -35,9 +36,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 
-import static com.google.api.client.repackaged.com.google.common.base.Joiner.on;
-import static java.io.File.separator;
-
 /**
  * A test for the transforms registered in TransformTranslator.
  * Builds a regular Dataflow pipeline with each of the mapped
@@ -46,7 +44,8 @@ import static java.io.File.separator;
  */
 public class TransformTranslatorTest {
 
-  @Rule public TestName name = new TestName();
+  @Rule
+  public TestName name = new TestName();
 
   private Pipeline testPipeline;
   private DirectPipelineRunner directRunner;
@@ -59,7 +58,8 @@ public class TransformTranslatorTest {
     testPipeline = Pipeline.create(PipelineOptionsFactory.create());
     sparkRunner = SparkPipelineRunner.create();
     directRunner = DirectPipelineRunner.createForTest();
-    testDataDirName = on(separator).join("target", "test-data", name.getMethodName()) + separator;
+    testDataDirName = Joiner.on(File.separator).join("target", "test-data", name.getMethodName())
+        + File.separator;
     FileUtils.deleteDirectory(new File(testDataDirName));
     new File(testDataDirName).mkdirs();
   }
@@ -74,19 +74,20 @@ public class TransformTranslatorTest {
    * in DirectPipelineRunner and on SparkPipelineRunner, with the mapped dataflow-to-spark
    * transforms. Finally it makes sure that the results are the same for both runs.
    */
-  @Test public void testTextIOReadAndWriteTransforms() throws IOException {
-    String outFile = on(separator).join(testDataDirName, "test_text_out");
+  @Test
+  public void testTextIOReadAndWriteTransforms() throws IOException {
+    String outFile = Joiner.on(File.separator).join(testDataDirName, "test_text_out");
     PCollection<String> lines =  testPipeline
         .apply(TextIO.Read.from("src/test/resources/test_text.txt"));
     lines.apply(TextIO.Write.to(outFile));
     run();
 
-    List<String> directOutput = Files.readAllLines(Paths.get(outFile + "-00000-of-00001"),
-        Charsets.UTF_8);
+    List<String> directOutput =
+        Files.readAllLines(Paths.get(outFile + "-00000-of-00001"), Charsets.UTF_8);
 
-    List<String> sparkOutput = Files.readAllLines(Paths.get(
-            on(separator).join(outFile, "part-00000")),
-        Charsets.UTF_8);
+    List<String> sparkOutput =
+        Files.readAllLines(Paths.get(Joiner.on(File.separator).join(outFile, "part-00000")),
+                           Charsets.UTF_8);
 
     Assert.assertArrayEquals(directOutput.toArray(), sparkOutput.toArray());
   }

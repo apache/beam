@@ -15,7 +15,6 @@
 
 package com.cloudera.dataflow.spark;
 
-import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -25,6 +24,7 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;

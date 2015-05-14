@@ -29,7 +29,6 @@ import com.google.cloud.dataflow.sdk.transforms.Max;
 import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
-import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.common.reflect.TypeToken;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -78,17 +77,17 @@ public class SparkRuntimeContext implements Serializable {
    *
    * @param named Name of aggregator.
    * @param sfunc Serializable function used in aggregation.
-   * @param <In>  Type of inputs to aggregator.
-   * @param <Out> Type of aggregator outputs.
+   * @param <IN>  Type of inputs to aggregator.
+   * @param <OUT> Type of aggregator outputs.
    * @return Specified aggregator
    */
-  public synchronized <In, Out> Aggregator<In> createAggregator(
+  public synchronized <IN, OUT> Aggregator<IN> createAggregator(
       String named,
-      SerializableFunction<Iterable<In>, Out> sfunc) {
+      SerializableFunction<Iterable<IN>, OUT> sfunc) {
     @SuppressWarnings("unchecked")
-    Aggregator<In> aggregator = (Aggregator<In>) aggregators.get(named);
+    Aggregator<IN> aggregator = (Aggregator<IN>) aggregators.get(named);
     if (aggregator == null) {
-      NamedAggregators.SerFunctionState<In, Out> state = new NamedAggregators
+      NamedAggregators.SerFunctionState<IN, OUT> state = new NamedAggregators
           .SerFunctionState<>(sfunc);
       accum.add(new NamedAggregators(named, state));
       aggregator = new SparkAggregator<>(state);
@@ -102,19 +101,23 @@ public class SparkRuntimeContext implements Serializable {
    *
    * @param named     Name of aggregator.
    * @param combineFn Combine function used in aggregation.
-   * @param <In>      Type of inputs to aggregator.
-   * @param <Out>     Type of aggregator outputs.
+   * @param <IN>      Type of inputs to aggregator.
+   * @param <INTER>   Intermediate data type
+   * @param <OUT>     Type of aggregator outputs.
    * @return Specified aggregator
    */
-  public synchronized <In, Inter, Out> Aggregator<In> createAggregator(
+  public synchronized <IN, INTER, OUT> Aggregator<IN> createAggregator(
       String named,
-      Combine.CombineFn<? super In, Inter, Out> combineFn) {
+      Combine.CombineFn<? super IN, INTER, OUT> combineFn) {
     @SuppressWarnings("unchecked")
-    Aggregator<In> aggregator = (Aggregator<In>) aggregators.get(named);
+    Aggregator<IN> aggregator = (Aggregator<IN>) aggregators.get(named);
     if (aggregator == null) {
       @SuppressWarnings("unchecked")
-      NamedAggregators.CombineFunctionState<In, Inter, Out> state = new NamedAggregators
-          .CombineFunctionState<>((Combine.CombineFn<In, Inter, Out>) combineFn, (Coder<In>) getCoder(combineFn), this);
+      NamedAggregators.CombineFunctionState<IN, INTER, OUT> state =
+          new NamedAggregators.CombineFunctionState<>(
+              (Combine.CombineFn<IN, INTER, OUT>) combineFn,
+              (Coder<IN>) getCoder(combineFn),
+              this);
       accum.add(new NamedAggregators(named, state));
       aggregator = new SparkAggregator<>(state);
       aggregators.put(named, aggregator);
@@ -158,17 +161,17 @@ public class SparkRuntimeContext implements Serializable {
   /**
    * Initialize spark aggregators exactly once.
    *
-   * @param <In> Type of element fed in to aggregator.
+   * @param <IN> Type of element fed in to aggregator.
    */
-  private static class SparkAggregator<In> implements Aggregator<In>, Serializable {
-    private final NamedAggregators.State<In, ?, ?> state;
+  private static class SparkAggregator<IN> implements Aggregator<IN>, Serializable {
+    private final NamedAggregators.State<IN, ?, ?> state;
 
-    SparkAggregator(NamedAggregators.State<In, ?, ?> state) {
+    SparkAggregator(NamedAggregators.State<IN, ?, ?> state) {
       this.state = state;
     }
 
     @Override
-    public void addValue(In elem) {
+    public void addValue(IN elem) {
       state.update(elem);
     }
   }

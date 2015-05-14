@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  * EvaluationResult result = SparkPipelineRunner.create(options).run(p);
  * }
  */
-public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
+public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkPipelineRunner.class);
   /**
@@ -79,7 +79,10 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
   }
 
   /**
-   * Constructs a SparkPipelineRunner from the given options.
+   * Creates and returns a new SparkPipelineRunner with specified options.
+   *
+   * @param options The PipelineOptions to use when executing the job.
+   * @return A pipeline runner that will execute with specified options.
    */
   public static SparkPipelineRunner fromOptions(PipelineOptions options) {
     SparkPipelineOptions sparkOptions =
@@ -113,13 +116,13 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
     return new JavaSparkContext(conf);
   }
 
-  private static class Evaluator implements Pipeline.PipelineVisitor {
+  private static final class Evaluator implements Pipeline.PipelineVisitor {
 
     private final EvaluationContext ctxt;
 
     // Set upon entering a composite node which can be directly mapped to a single
     // TransformEvaluator.
-    private TransformTreeNode currentTranslatedCompositeNode = null;
+    private TransformTreeNode currentTranslatedCompositeNode;
 
     private Evaluator(EvaluationContext ctxt) {
       this.ctxt = ctxt;
@@ -175,7 +178,7 @@ public class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
       @SuppressWarnings("unchecked")
       TransformEvaluator<PT> evaluator = (TransformEvaluator<PT>)
           TransformTranslator.getTransformEvaluator(transform.getClass());
-      LOG.info("Evaluating " + transform);
+      LOG.info("Evaluating {}", transform);
       evaluator.evaluate(transform, ctxt);
     }
 
