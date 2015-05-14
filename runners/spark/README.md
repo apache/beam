@@ -75,3 +75,6 @@ Check the output by running:
     head /tmp/out/part-00000
 
 [wc]: https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/WordCount.java
+
+[![Build Status](https://travis-ci.org/cloudera/spark-dataflow.png?branch=master)](https://travis-ci.org/cloudera/spark-dataflow)
+[![codecov.io](https://codecov.io/github/cloudera/spark-dataflow/coverage.svg?branch=master)](https://codecov.io/github/cloudera/spark-dataflow?branch=master)
