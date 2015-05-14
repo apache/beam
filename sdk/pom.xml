@@ -104,21 +104,19 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-          <executions>
-            <execution>
-              <id>dataflow-sdk-compile</id>
-              <phase>compile</phase>
-              <goals>
-                <goal>jar</goal>
-              </goals>
-            </execution>
-            <execution>
-              <id>dataflow-sdk-test-compile</id>
-              <phase>test-compile</phase>
-              <goals>
-                <goal>test-jar</goal>
-              </goals>
-            </execution>
+        <executions>
+          <execution>
+            <id>default-jar</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>default-test-jar</id>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
         </executions>
       </plugin>
 
@@ -146,23 +144,79 @@
       </plugin>
 
       <plugin>
-        <groupId>org.apache.felix</groupId>
-        <artifactId>maven-bundle-plugin</artifactId>
-        <extensions>true</extensions>
-        <configuration>
-          <finalName>${project.artifactId}-bundled-${project.version}</finalName>
-          <instructions>
-            <Include-Resource>META-INF=target/classes/META-INF</Include-Resource>
-            <Export-Package>
-              !${dataflow}.sdk.runners.worker.*,
-              !${dataflow}.sdk.streaming.*,
-              !${dataflow}.sdk.util.gcsio,
-              ${dataflow}.*
-            </Export-Package>
-            <Embed-Transitive>true</Embed-Transitive>
-            <Embed-Dependency>*;scope=compile|runtime;inline=true</Embed-Dependency>
-          </instructions>
-        </configuration>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.3</version>
+        <executions>
+          <!-- In the first phase, we pick dependencies and relocate them. -->
+          <execution>
+            <id>bundle-and-repackage</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <shadeTestJar>true</shadeTestJar>
+              <artifactSet>
+                <includes>
+                  <include>com.google.guava:guava</include>
+                </includes>
+              </artifactSet>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+              <relocations>
+                <!-- TODO: Once ready, change the following pattern to 'com'
+                     only, exclude 'com.google.cloud.dataflow.**', and remove
+                     the second relocation. -->
+                <relocation>
+                  <pattern>com.google.common</pattern>
+                  <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.common</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.thirdparty</pattern>
+                  <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.thirdparty</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
+          </execution>
+
+          <!-- In the second phase, we pick remaining dependencies and bundle
+               them without repackaging. -->
+          <execution>
+            <id>bundle-rest-without-repackaging</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <shadeTestJar>true</shadeTestJar>
+              <finalName>${project.artifactId}-bundled-${project.version}</finalName>
+              <artifactSet>
+                <excludes>
+                  <exclude>com.google.guava:guava</exclude>
+                </excludes>
+              </artifactSet>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
 
       <!-- Coverage analysis for unit tests. -->
