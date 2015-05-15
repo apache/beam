@@ -96,12 +96,6 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   String getServiceAccountName();
   void setServiceAccountName(String value);
 
-  @JsonIgnore
-  @Description("The path to the gcloud binary. "
-      + " Default is to search the system path.")
-  String getGCloudPath();
-  void setGCloudPath(String value);
-
   /**
    * This option controls which file to use when attempting to create the credentials
    * using the OAuth 2 webflow. After the OAuth2 webflow, the credentials will be stored

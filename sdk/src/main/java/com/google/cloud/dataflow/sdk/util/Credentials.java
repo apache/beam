@@ -28,7 +28,6 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.Preconditions;
-import com.google.api.client.util.Strings;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 
@@ -50,14 +49,15 @@ public class Credentials {
 
   private static final Logger LOG = LoggerFactory.getLogger(Credentials.class);
 
-  /** OAuth 2.0 scopes used by a local worker (not on GCE).
-   *  The scope cloud-platform provides access to all Cloud Platform resources.
-   *  cloud-platform isn't sufficient yet for talking to datastore so we request
-   *  those resources separately.
-   *
-   *  Note that trusted scope relationships don't apply to OAuth tokens, so for
-   *  services we access directly (GCS) as opposed to through the backend
-   *  (BigQuery, GCE), we need to explicitly request that scope.
+  /**
+   * OAuth 2.0 scopes used by a local worker (not on GCE).
+   * The scope cloud-platform provides access to all Cloud Platform resources.
+   * cloud-platform isn't sufficient yet for talking to datastore so we request
+   * those resources separately.
+   * <p>
+   * Note that trusted scope relationships don't apply to OAuth tokens, so for
+   * services we access directly (GCS) as opposed to through the backend
+   * (BigQuery, GCE), we need to explicitly request that scope.
    */
   private static final List<String> SCOPES = Arrays.asList(
       "https://www.googleapis.com/auth/cloud-platform",
@@ -74,18 +74,13 @@ public class Credentials {
 
   /**
    * Initializes OAuth2 credentials.
-   *
-   * <p> This can use 4 different mechanisms for obtaining a credential:
+   * <p>
+   * This can use 3 different mechanisms for obtaining a credential:
    * <ol>
    *   <li>
    *     It can fetch the
    *     <a href="https://developers.google.com/accounts/docs/application-default-credentials">
    *     application default credentials</a>.
-   *   </li>
-   *   <li>
-   *     It can run the gcloud tool in a subprocess to obtain a credential.
-   *     This is the preferred mechanism.  The property "gcloud_path" can be
-   *     used to specify where we search for gcloud data.
    *   </li>
    *   <li>
    *     The user can specify a client secrets file and go through the OAuth2
@@ -101,8 +96,8 @@ public class Credentials {
    * </ol>
    * The default mechanism is to use the
    * <a href="https://developers.google.com/accounts/docs/application-default-credentials">
-   * application default credentials</a> falling back to gcloud. The other options can be
-   * used by providing the corresponding properties.
+   * application default credentials</a>. The other options can be used by providing the
+   * corresponding properties.
    */
   public static Credential getCredential(GcpOptions options)
       throws IOException, GeneralSecurityException {
@@ -124,11 +119,12 @@ public class Credentials {
     try {
       return GoogleCredential.getApplicationDefault().createScoped(SCOPES);
     } catch (IOException e) {
-      LOG.debug("Failed to get application default credentials, falling back to gcloud.");
+      throw new RuntimeException("Unable to get application default credentials. Please see "
+          + "https://developers.google.com/accounts/docs/application-default-credentials "
+          + "for details on how to specify credentials. This version of the SDK is "
+          + "dependent on the gcloud core component version 2015.02.05 or newer to "
+          + "be able to get credentials from the currently authorized user via gcloud auth.", e);
     }
-
-    String gcloudPath = options.getGCloudPath();
-    return getCredentialFromGCloud(gcloudPath);
   }
 
   /**
@@ -146,29 +142,6 @@ public class Credentials {
         .build();
 
     LOG.info("Created credential from file {}", keyFile);
-    return credential;
-  }
-
-  /**
-   * Loads OAuth2 credential from GCloud utility.
-   */
-  private static Credential getCredentialFromGCloud(String gcloudPath)
-      throws IOException, GeneralSecurityException {
-    GCloudCredential credential;
-    HttpTransport transport = GoogleNetHttpTransport.newTrustedTransport();
-    if (Strings.isNullOrEmpty(gcloudPath)) {
-      credential = new GCloudCredential(transport);
-    } else {
-      credential = new GCloudCredential(gcloudPath, transport);
-    }
-
-    try {
-      credential.refreshToken();
-    } catch (IOException e) {
-      throw new RuntimeException("Could not obtain credential using gcloud", e);
-    }
-
-    LOG.info("Got user credential from GCloud");
     return credential;
   }
 
