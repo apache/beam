@@ -39,6 +39,7 @@ import com.google.common.base.Preconditions;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -294,15 +295,19 @@ public class StreamingDataflowWorker {
         backoff = Math.min(1000, backoff * 2);
       } while (running.get());
       for (final Windmill.ComputationWorkItems computationWork : workResponse.getWorkList()) {
+        final String computation = computationWork.getComputationId();
+        if (!instructionMap.containsKey(computation)) {
+          getConfig(computation);
+        }
+
+        long watermarkMicros = computationWork.getInputDataWatermark();
+        final Instant inputDataWatermark = new Instant(watermarkMicros / 1000);
+
         for (final Windmill.WorkItem work : computationWork.getWorkList()) {
-          final String computation = computationWork.getComputationId();
-          if (!instructionMap.containsKey(computation)) {
-            getConfig(computation);
-          }
           executor.execute(new Runnable() {
               @Override
               public void run() {
-                process(computation, work);
+                process(computation, inputDataWatermark, work);
               }
             });
         }
@@ -312,7 +317,9 @@ public class StreamingDataflowWorker {
   }
 
   private void process(
-      final String computation, final Windmill.WorkItem work) {
+      final String computation,
+      final Instant inputDataWatermark,
+      final Windmill.WorkItem work) {
     LOG.debug("Starting processing for {}:\n{}", computation, work);
 
     MapTask mapTask = instructionMap.get(computation);
@@ -348,7 +355,7 @@ public class StreamingDataflowWorker {
         context = workerAndContext.getContext();
       }
 
-      context.start(work, outputBuilder);
+      context.start(work, inputDataWatermark, outputBuilder);
 
       // Blocks while executing work.
       worker.execute();
@@ -391,7 +398,7 @@ public class StreamingDataflowWorker {
           executor.forceExecute(new Runnable() {
               @Override
               public void run() {
-                process(computation, work);
+                process(computation, inputDataWatermark, work);
               }
             });
         } else {

@@ -44,6 +44,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class StreamingModeExecutionContext extends ExecutionContext {
   private String computation;
+  private Instant inputDataWatermark;
   private Windmill.WorkItem work;
   private StateFetcher stateFetcher;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
@@ -52,12 +53,17 @@ public class StreamingModeExecutionContext extends ExecutionContext {
   public StreamingModeExecutionContext(String computation, StateFetcher stateFetcher) {
     this.computation = computation;
     this.stateFetcher = stateFetcher;
+    this.sideInputCache = new HashMap<>();
   }
 
-  public void start(Windmill.WorkItem work, Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+  public void start(
+      Windmill.WorkItem work,
+      Instant inputDataWatermark,
+      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.work = work;
     this.outputBuilder = outputBuilder;
-    this.sideInputCache = new HashMap<>();
+    this.sideInputCache.clear();
+    this.inputDataWatermark = inputDataWatermark;
   }
 
   @Override
@@ -193,6 +199,10 @@ public class StreamingModeExecutionContext extends ExecutionContext {
     for (Windmill.GlobalDataRequest sideInput : sideInputs) {
       addBlockingSideInput(sideInput);
     }
+  }
+
+  public Instant getInputDataWatermark() {
+    return inputDataWatermark;
   }
 
   public ByteString getSerializedKey() {
