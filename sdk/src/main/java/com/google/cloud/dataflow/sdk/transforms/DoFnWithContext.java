@@ -97,6 +97,9 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
     /**
      * Adds the given element to the main output {@code PCollection}.
      *
+     * <p> Once passed to {@code output} the element should not be modified in
+     * any way.
+     *
      * <p> If invoked from {@link ProcessElement}, the output
      * element will have the same timestamp and be in the same windows
      * as the input element passed to the method annotated with
@@ -116,6 +119,9 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
      * Adds the given element to the main output {@code PCollection},
      * with the given timestamp.
      *
+     * <p> Once passed to {@code outputWithTimestamp} the element should not be
+     * modified in any way.
+     *
      * <p> If invoked from {@link ProcessElement}), the timestamp
      * must not be older than the input element's timestamp minus
      * {@link DoFn#getAllowedTimestampSkew}.  The output element will
@@ -134,6 +140,9 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
     /**
      * Adds the given element to the side output {@code PCollection} with the
      * given tag.
+     *
+     * <p> Once passed to {@code sideOutput} the element should not be modified
+     * in any way.
      *
      * <p> The caller of {@code ParDo} uses {@link ParDo#withOutputTags} to
      * specify the tags of side outputs that it consumes. Non-consumed side
@@ -160,6 +169,9 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
     /**
      * Adds the given element to the specified side output {@code PCollection},
      * with the given timestamp.
+     *
+     * <p> Once passed to {@code sideOutputWithTimestamp} the element should not be
+     * modified in any way.
      *
      * <p> If invoked from {@link ProcessElement}), the timestamp
      * must not be older than the input element's timestamp minus
@@ -189,6 +201,9 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
 
     /**
      * Returns the input element to be processed.
+     *
+     * <p> The element will not be changed -- it is safe to cache, etc.
+     * without copying.
      */
     public abstract InputT element();
 
