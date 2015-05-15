@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
@@ -70,13 +69,6 @@ public final class Serializer {
 
       return m;
     }
-  }
-
-  /**
-   * Registers a module to use during object deserialization.
-   */
-  public static void registerModule(Module module) {
-    SingletonHelper.OBJECT_MAPPER.registerModule(module);
   }
 
   /**
