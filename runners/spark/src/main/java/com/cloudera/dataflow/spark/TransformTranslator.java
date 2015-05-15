@@ -49,6 +49,7 @@ import org.apache.avro.mapreduce.AvroKeyInputFormat;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -292,22 +293,34 @@ public final class TransformTranslator {
       @Override
       public void evaluate(TextIO.Write.Bound<T> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
-        JavaRDDLike<T, ?> last = (JavaRDDLike<T, ?>) context.getInputRDD(transform);
-        String pattern = transform.getFilenamePrefix();
-        if (transform.getNumShards() > 0) {
-          last = last.mapToPair(new PairFunction<T, T, Void>() {
+        JavaPairRDD<T, Void> last = ((JavaRDDLike<T, ?>) context.getInputRDD(transform))
+            .mapToPair(new PairFunction<T, T,
+                Void>() {
               @Override
               public Tuple2<T, Void> call(T t) throws Exception {
                 return new Tuple2<>(t, null);
-              }})
-            .repartition(transform.getNumShards())
-            .map(new Function<Tuple2<T, Void>, T>() {
-              @Override
-              public T call(Tuple2<T, Void> tuple) throws Exception {
-                return tuple._1();
-              }});
+              }
+            });
+        int shardCount = transform.getNumShards();
+        if (shardCount == 0) {
+          // use default number of shards, but find the actual number for the template
+          shardCount = last.partitions().size();
+        } else {
+          // number of shards was set explicitly, so repartition
+          last = last.repartition(transform.getNumShards());
         }
-        last.saveAsTextFile(pattern);
+
+        String template = ShardNameBuilder.replaceShardCount(transform.getShardTemplate(),
+            shardCount);
+        String outputDir = ShardNameBuilder.getOutputDirectory(transform.getFilenamePrefix(),
+            template, transform.getFilenameSuffix());
+        String fileTemplate = ShardNameBuilder.getOutputFile(transform.getFilenamePrefix(),
+            template, transform.getFilenameSuffix());
+
+        Configuration conf = new Configuration();
+        conf.set(TemplatedTextOutputFormat.OUTPUT_FILE_TEMPLATE, fileTemplate);
+        last.saveAsNewAPIHadoopFile(outputDir, Text.class, NullWritable.class,
+            TemplatedTextOutputFormat.class, conf);
       }
     };
   }

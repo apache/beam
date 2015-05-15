@@ -100,9 +100,10 @@ public class TfIdfTest {
 
     SparkPipelineRunner.create().run(pipeline);
 
-    for (File f : outputDir.listFiles(new FileFilter() {
-      @Override public boolean accept(File pathname) {
-        return pathname.getName().startsWith("part-");
+    for (File f : tmpDir.getRoot().listFiles(new FileFilter() {
+      @Override
+      public boolean accept(File pathname) {
+        return pathname.getName().startsWith("out-");
       }
     })) {
       for (String line : Files.readLines(f, Charsets.UTF_8)) {

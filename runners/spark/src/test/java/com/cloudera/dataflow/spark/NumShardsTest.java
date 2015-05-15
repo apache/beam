@@ -63,14 +63,14 @@ public class NumShardsTest {
     Pipeline p = Pipeline.create(options);
     PCollection<String> inputWords = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
     PCollection<String> output = inputWords.apply(new WordCount.CountWords());
-    output.apply(TextIO.Write.to(outputDir.getAbsolutePath()).withNumShards(3));
+    output.apply(TextIO.Write.to(outputDir.getAbsolutePath()).withNumShards(3).withSuffix(".txt"));
     p.run();
 
     int count = 0;
     Set<String> expected = Sets.newHashSet("hi: 5", "there: 1", "sue: 2", "bob: 2");
-    for (File f : outputDir.listFiles(new FileFilter() {
+    for (File f : tmpDir.getRoot().listFiles(new FileFilter() {
       @Override public boolean accept(File pathname) {
-        return pathname.getName().startsWith("part-");
+        return pathname.getName().matches("out-.*\\.txt");
       }
     })) {
       count++;
