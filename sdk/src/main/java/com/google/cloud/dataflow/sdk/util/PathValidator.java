@@ -16,18 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-
 /**
  * Interface for controlling validation of paths.
  */
 public interface PathValidator {
-  /**
-   * Validates paths in the current {@link PipelineOptions} object. May modify the
-   * options object.
-   */
-  public void validateAndUpdateOptions();
-
   /**
    * Validate that a file pattern is conforming.
    *
@@ -45,10 +37,10 @@ public interface PathValidator {
   public String validateOutputFilePrefixSupported(String filePrefix);
 
   /**
-   * Validate that a GCS path is conforming.
+   * Validate that a path is conforming.
    *
-   * @param path The GCS path to verify.
+   * @param path The path to verify.
    * @return The post-validation path.
    */
-  public String verifyGcsPath(String path);
+  public String verifyPath(String path);
 }

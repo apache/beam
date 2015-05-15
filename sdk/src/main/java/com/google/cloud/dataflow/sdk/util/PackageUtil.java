@@ -41,6 +41,7 @@ import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -69,14 +70,13 @@ public class PackageUtil {
    *                            instead of generating one automatically.
    * @return The package.
    */
-  public static DataflowPackage createPackage(String classpathElement,
+  public static DataflowPackage createPackage(File classpathElement,
       String stagingPath, String overridePackageName) {
     try {
-      File file = new File(classpathElement);
-      String contentHash = computeContentHash(file);
+      String contentHash = computeContentHash(classpathElement);
 
       // Drop the directory prefixes, and form the filename + hash + extension.
-      String uniqueName = getUniqueContentName(file, contentHash);
+      String uniqueName = getUniqueContentName(classpathElement, contentHash);
 
       String resourcePath = IOChannelUtils.resolve(stagingPath, uniqueName);
 
@@ -124,8 +124,15 @@ public class PackageUtil {
         classpathElement = components[1];
       }
 
+      File file = new File(classpathElement);
+      if (!file.exists()) {
+        LOG.warn("Skipping non-existent classpath element {} that was specified.",
+            classpathElement);
+        continue;
+      }
+
       DataflowPackage workflowPackage = createPackage(
-          classpathElement, stagingPath, packageName);
+          file, stagingPath, packageName);
 
       packages.add(workflowPackage);
       String target = workflowPackage.getLocation();
@@ -133,12 +140,16 @@ public class PackageUtil {
       // TODO: Should we attempt to detect the Mime type rather than
       // always using MimeTypes.BINARY?
       try {
-        long remoteLength = IOChannelUtils.getSizeBytes(target);
-        if (remoteLength >= 0 && remoteLength == getClasspathElementLength(classpathElement)) {
-          LOG.debug("Skipping classpath element already staged: {} at {}",
-              classpathElement, target);
-          numCached++;
-          continue;
+        try {
+          long remoteLength = IOChannelUtils.getSizeBytes(target);
+          if (remoteLength == getClasspathElementLength(classpathElement)) {
+            LOG.debug("Skipping classpath element already staged: {} at {}",
+                classpathElement, target);
+            numCached++;
+            continue;
+          }
+        } catch (NoSuchFileException expected) {
+          // If the file doesn't exist, it means we need to upload it.
         }
 
         // Upload file, retrying on failure.

@@ -52,7 +52,9 @@ import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.Pipe;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -86,7 +88,7 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
     DataflowPackage target =
-        PackageUtil.createPackage(tmpFile.getAbsolutePath(), gcsStaging.toString(), null);
+        PackageUtil.createPackage(tmpFile, gcsStaging.toString(), null);
 
     assertEquals("file-SAzzqSB2zmoIgNHC9A2G0A.txt", target.getName());
     assertEquals("gs://somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A.txt",
@@ -100,7 +102,7 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
     DataflowPackage target =
-        PackageUtil.createPackage(tmpFile.getAbsolutePath(), gcsStaging.toString(), null);
+        PackageUtil.createPackage(tmpFile, gcsStaging.toString(), null);
 
     assertEquals("file-SAzzqSB2zmoIgNHC9A2G0A", target.getName());
     assertEquals("gs://somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A",
@@ -115,7 +117,7 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
     DataflowPackage target =
-        PackageUtil.createPackage(tmpDirectory.getAbsolutePath(), gcsStaging.toString(), null);
+        PackageUtil.createPackage(tmpDirectory, gcsStaging.toString(), null);
 
     assertEquals("folder-9MHI5fxducQ06t3IG9MC-g.zip", target.getName());
     assertEquals("gs://somebucket/base/path/folder-9MHI5fxducQ06t3IG9MC-g.zip",
@@ -137,9 +139,9 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
     DataflowPackage target1 =
-        PackageUtil.createPackage(tmpDirectory1.getAbsolutePath(), gcsStaging.toString(), null);
+        PackageUtil.createPackage(tmpDirectory1, gcsStaging.toString(), null);
     DataflowPackage target2 =
-        PackageUtil.createPackage(tmpDirectory2.getAbsolutePath(), gcsStaging.toString(), null);
+        PackageUtil.createPackage(tmpDirectory2, gcsStaging.toString(), null);
 
     assertFalse(target1.getName().equals(target2.getName()));
     assertFalse(target1.getLocation().equals(target2.getLocation()));
@@ -159,9 +161,9 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
     DataflowPackage target1 =
-        PackageUtil.createPackage(tmpDirectory1.getAbsolutePath(), gcsStaging.toString(), null);
+        PackageUtil.createPackage(tmpDirectory1, gcsStaging.toString(), null);
     DataflowPackage target2 =
-        PackageUtil.createPackage(tmpDirectory2.getAbsolutePath(), gcsStaging.toString(), null);
+        PackageUtil.createPackage(tmpDirectory2, gcsStaging.toString(), null);
 
     assertFalse(target1.getName().equals(target2.getName()));
     assertFalse(target1.getLocation().equals(target2.getLocation()));
@@ -173,7 +175,8 @@ public class PackageUtilTest {
     File tmpFile = tmpFolder.newFile("file.txt");
     Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
-    when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
+    when(mockGcsUtil.fileSize(any(GcsPath.class)))
+        .thenThrow(new NoSuchFileException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
@@ -203,7 +206,8 @@ public class PackageUtilTest {
     Files.write("This is also a test!", tmpFile2, StandardCharsets.UTF_8);
 
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
-    when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
+    when(mockGcsUtil.fileSize(any(GcsPath.class)))
+        .thenThrow(new NoSuchFileException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     PackageUtil.stageClasspathElements(
@@ -230,7 +234,8 @@ public class PackageUtilTest {
     File tmpDirectory = tmpFolder.newFolder("folder");
 
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
-    when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
+    when(mockGcsUtil.fileSize(any(GcsPath.class)))
+        .thenThrow(new NoSuchFileException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
@@ -252,7 +257,8 @@ public class PackageUtilTest {
     File tmpFile = tmpFolder.newFile("file.txt");
     Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
-    when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
+    when(mockGcsUtil.fileSize(any(GcsPath.class)))
+        .thenThrow(new NoSuchFileException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .thenThrow(new IOException("Fake Exception: Upload error"));
 
@@ -273,7 +279,8 @@ public class PackageUtilTest {
     File tmpFile = tmpFolder.newFile("file.txt");
     Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
-    when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
+    when(mockGcsUtil.fileSize(any(GcsPath.class)))
+        .thenThrow(new NoSuchFileException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .thenThrow(new IOException("Fake Exception: 410 Gone")) // First attempt fails
         .thenReturn(pipe.sink());                               // second attempt succeeds
@@ -334,7 +341,8 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
     final String overriddenName = "alias.txt";
 
-    when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(-1L);
+    when(mockGcsUtil.fileSize(any(GcsPath.class)))
+        .thenThrow(new NoSuchFileException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
@@ -350,4 +358,12 @@ public class PackageUtilTest {
         target.getLocation());
   }
 
+  @Test
+  public void testPackageUploadIsSkippedWithNonExistentResource() throws Exception {
+    String nonExistentFile =
+        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "non-existent-file");
+    GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
+    assertEquals(Collections.EMPTY_LIST, PackageUtil.stageClasspathElements(
+        ImmutableList.of(nonExistentFile), gcsStaging.toString()));
+  }
 }

@@ -143,7 +143,7 @@ public class DataflowPipelineRunnerTest {
       ArgumentCaptor<Job> jobCaptor) throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setProject("someProject");
-    options.setTempLocation(GcsPath.fromComponents("somebucket", "some/path").toString());
+    options.setTempLocation("gs://somebucket/some/path");
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
     options.setFilesToStage(new LinkedList<String>());
     options.setDataflowClient(buildMockDataflow(jobCaptor));
@@ -194,10 +194,8 @@ public class DataflowPipelineRunnerTest {
     // Test that the function DataflowPipelineRunner.stageFiles works as
     // expected.
     GcsUtil mockGcsUtil = buildMockGcsUtil();
-    final GcsPath gcsStaging =
-        GcsPath.fromComponents("somebucket", "some/path");
-    final GcsPath gcsTemp =
-        GcsPath.fromComponents("somebucket", "some/temp/path");
+    final String gcsStaging = "gs://somebucket/some/path";
+    final String gcsTemp = "gs://somebucket/some/temp/path";
     final String cloudDataflowDataset = "somedataset";
 
     // Create some temporary files.
@@ -207,19 +205,19 @@ public class DataflowPipelineRunnerTest {
     temp2.deleteOnExit();
 
     DataflowPackage expectedPackage1 = PackageUtil.createPackage(
-        temp1.getAbsolutePath(), gcsStaging.toString(), null);
+        temp1, gcsStaging, null);
 
     String overridePackageName = "alias.txt";
     DataflowPackage expectedPackage2 = PackageUtil.createPackage(
-        temp2.getAbsolutePath(), gcsStaging.toString(), overridePackageName);
+        temp2, gcsStaging, overridePackageName);
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setFilesToStage(ImmutableList.of(
         temp1.getAbsolutePath(),
         overridePackageName + "=" + temp2.getAbsolutePath()));
-    options.setStagingLocation(gcsStaging.toString());
-    options.setTempLocation(gcsTemp.toString());
+    options.setStagingLocation(gcsStaging);
+    options.setTempLocation(gcsTemp);
     options.setTempDatasetId(cloudDataflowDataset);
     options.setProject("someProject");
     options.setJobName("job");
@@ -248,7 +246,7 @@ public class DataflowPipelineRunnerTest {
     assertEquals(expectedPackage2.getLocation(), workflowPackage2.getLocation());
 
     assertEquals(
-        gcsTemp.toResourceName(),
+        "storage.googleapis.com/somebucket/some/temp/path",
         workflowJob.getEnvironment().getTempStoragePrefix());
     assertEquals(
         cloudDataflowDataset,
@@ -308,12 +306,11 @@ public class DataflowPipelineRunnerTest {
   @Test
   public void testGcsStagingLocationInitialization() {
     // Test that the staging location is initialized correctly.
-    GcsPath gcsTemp = GcsPath.fromComponents("somebucket",
-        "some/temp/path");
+    String gcsTemp = "gs://somebucket/some/temp/path";
 
     // Set temp location (required), and check that staging location is set.
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setTempLocation(gcsTemp.toString());
+    options.setTempLocation(gcsTemp);
     options.setProject("testProject");
     options.setGcpCredential(new TestCredential());
     DataflowPipelineRunner.fromOptions(options);

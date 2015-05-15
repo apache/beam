@@ -26,13 +26,9 @@ public class NoopPathValidator implements PathValidator {
   private NoopPathValidator() {
   }
 
-  public static PathValidator fromOptions(PipelineOptions options) {
+  public static PathValidator fromOptions(
+      @SuppressWarnings("unused") PipelineOptions options) {
     return new NoopPathValidator();
-  }
-
-  @Override
-  public void validateAndUpdateOptions() {
-    return;
   }
 
   @Override
@@ -46,7 +42,7 @@ public class NoopPathValidator implements PathValidator {
   }
 
   @Override
-  public String verifyGcsPath(String path) {
+  public String verifyPath(String path) {
     return path;
   }
 }

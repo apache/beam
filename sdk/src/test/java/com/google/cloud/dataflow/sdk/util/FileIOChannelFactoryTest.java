@@ -37,6 +37,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -144,5 +145,19 @@ public class FileIOChannelFactoryTest {
   public void testResolveOtherIsEmptyPath() throws Exception {
     String expected = temporaryFolder.getRoot().getPath().toString();
     assertEquals(expected, factory.resolve(expected, ""));
+  }
+
+  @Test
+  public void testGetSizeBytes() throws Exception {
+    String data = "TestData!!!";
+    File file = temporaryFolder.newFile();
+    Files.write(data, file, StandardCharsets.UTF_8);
+    assertEquals(data.length(), factory.getSizeBytes(file.getPath()));
+  }
+
+  @Test(expected = NoSuchFileException.class)
+  public void testGetSizeBytesForNonExistentFile() throws Exception {
+    factory.getSizeBytes(
+        factory.resolve(temporaryFolder.getRoot().getPath(), "non-existent-file"));
   }
 }

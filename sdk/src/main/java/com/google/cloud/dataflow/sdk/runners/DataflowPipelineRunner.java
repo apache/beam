@@ -93,6 +93,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * @return The newly created runner.
    */
   public static DataflowPipelineRunner fromOptions(PipelineOptions options) {
+    // (Re-)register standard IO factories. Clobbers any prior credentials.
+    IOChannelUtils.registerStandardIOFactories(options);
+
     DataflowPipelineOptions dataflowOptions =
         PipelineOptionsValidator.validate(DataflowPipelineOptions.class, options);
     ArrayList<String> missing = new ArrayList<>();
@@ -109,7 +112,26 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     }
 
     PathValidator validator = dataflowOptions.getPathValidator();
-    validator.validateAndUpdateOptions();
+    Preconditions.checkArgument(!(Strings.isNullOrEmpty(dataflowOptions.getTempLocation())
+        && Strings.isNullOrEmpty(dataflowOptions.getStagingLocation())),
+        "Missing required value: at least one of tempLocation or stagingLocation must be set.");
+    if (dataflowOptions.getStagingLocation() != null) {
+      validator.verifyPath(dataflowOptions.getStagingLocation());
+    }
+    if (dataflowOptions.getTempLocation() != null) {
+      validator.verifyPath(dataflowOptions.getTempLocation());
+    }
+    if (Strings.isNullOrEmpty(dataflowOptions.getTempLocation())) {
+      dataflowOptions.setTempLocation(dataflowOptions.getStagingLocation());
+    } else if (Strings.isNullOrEmpty(dataflowOptions.getStagingLocation())) {
+      try {
+        dataflowOptions.setStagingLocation(
+            IOChannelUtils.resolve(dataflowOptions.getTempLocation(), "staging"));
+      } catch (IOException e) {
+        throw new IllegalArgumentException("Unable to resolve PipelineOptions.stagingLocation "
+            + "from PipelineOptions.tempLocation. Please set the staging location explicitly.", e);
+      }
+    }
 
     if (dataflowOptions.getFilesToStage() == null) {
       dataflowOptions.setFilesToStage(detectClassPathResourcesToStage(
@@ -136,9 +158,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     this.options = options;
     this.dataflowClient = options.getDataflowClient();
     this.translator = DataflowPipelineTranslator.fromOptions(options);
-
-    // (Re-)register standard IO factories. Clobbers any prior credentials.
-    IOChannelUtils.registerStandardIOFactories(options);
   }
 
   @Override
@@ -174,7 +193,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     if (!Strings.isNullOrEmpty(options.getTempLocation())) {
       DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
       newJob.getEnvironment().setTempStoragePrefix(
-          dataflowOptions.getPathValidator().verifyGcsPath(options.getTempLocation()));
+          dataflowOptions.getPathValidator().verifyPath(options.getTempLocation()));
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
     newJob.getEnvironment().setClusterManagerApiService(

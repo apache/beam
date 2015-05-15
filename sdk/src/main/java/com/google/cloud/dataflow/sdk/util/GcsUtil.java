@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.NoSuchFileException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -175,7 +176,8 @@ public class GcsUtil {
   }
 
   /**
-   * Returns the file size from GCS, or -1 if the file does not exist.
+   * Returns the file size from GCS or throws {@link NoSuchFileException}
+   * if the resource does not exist.
    */
   public long fileSize(GcsPath path) throws IOException {
     try {
@@ -186,7 +188,7 @@ public class GcsUtil {
       return object.getSize().longValue();
     } catch (IOException e) {
       if (errorExtractor.itemNotFound(e)) {
-        return -1;
+        throw new NoSuchFileException(path.toString());
       }
 
       // Re-throw any other error.

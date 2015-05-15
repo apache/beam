@@ -24,7 +24,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.http.HttpStatusCodes;
+import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.client.util.Throwables;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Objects;
@@ -43,7 +45,9 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -67,14 +71,14 @@ public class GcsUtilTest {
   @Test
   public void testCreationWithDefaultOptions() {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(Mockito.mock(Credential.class));
+    pipelineOptions.setGcpCredential(new TestCredential());
     assertNotNull(pipelineOptions.getGcpCredential());
   }
 
   @Test
   public void testCreationWithExecutorServiceProvided() {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(Mockito.mock(Credential.class));
+    pipelineOptions.setGcpCredential(new TestCredential());
     pipelineOptions.setExecutorService(Executors.newCachedThreadPool());
     assertSame(pipelineOptions.getExecutorService(), pipelineOptions.getGcsUtil().executorService);
   }
@@ -123,7 +127,7 @@ public class GcsUtilTest {
   @Test
   public void testGlobExpansion() throws IOException {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(Mockito.mock(Credential.class));
+    pipelineOptions.setGcpCredential(new TestCredential());
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
     Storage mockStorage = Mockito.mock(Storage.class);
@@ -205,7 +209,7 @@ public class GcsUtilTest {
   @Test
   public void testRecursiveGlobExpansionFails() throws IOException {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(Mockito.mock(Credential.class));
+    pipelineOptions.setGcpCredential(new TestCredential());
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GcsPath pattern = GcsPath.fromUri("gs://testbucket/test**");
 
@@ -219,7 +223,7 @@ public class GcsUtilTest {
   @Test
   public void testNonExistent() throws IOException {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(Mockito.mock(Credential.class));
+    pipelineOptions.setGcpCredential(new TestCredential());
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
     Storage mockStorage = Mockito.mock(Storage.class);
@@ -254,6 +258,44 @@ public class GcsUtilTest {
 
       assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
     }
+  }
+
+  @Test
+  public void testGetSizeBytes() throws Exception {
+    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Get mockStorageGet = Mockito.mock(Storage.Objects.Get.class);
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket", "testobject")).thenReturn(mockStorageGet);
+    when(mockStorageGet.execute()).thenReturn(
+        new StorageObject().setSize(BigInteger.valueOf(1000)));
+
+    assertEquals(1000, gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject")));
+  }
+
+  @Test(expected = NoSuchFileException.class)
+  public void testGetSizeBytesWhenFileNotFound() throws Exception {
+    MockLowLevelHttpResponse notFoundResponse = new MockLowLevelHttpResponse();
+    notFoundResponse.setContent("");
+    notFoundResponse.setStatusCode(HttpStatusCodes.STATUS_CODE_NOT_FOUND);
+
+    MockHttpTransport mockTransport =
+        new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
+
+    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    gcsUtil.setStorageClient(new Storage(mockTransport, Transport.getJsonFactory(), null));
+
+    gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject"));
   }
 
   @Test
