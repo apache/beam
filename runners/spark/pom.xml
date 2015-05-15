@@ -223,6 +223,33 @@ License.
                         </execution>
                     </executions>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>2.3</version>
+                    <executions>
+                        <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>shade</goal>
+                            </goals>
+                            <configuration>
+                                <relocations>
+                                    <!-- relocate Guava used by Dataflow (v18) since it conflicts with version used by Hadoop (v11) -->
+                                    <relocation>
+                                        <pattern>com.google.common</pattern>
+                                        <shadedPattern>com.cloudera.dataflow.spark.relocated.com.google.common</shadedPattern>
+                                    </relocation>
+                                </relocations>
+                                <shadedArtifactAttached>true</shadedArtifactAttached>
+                                <shadedClassifierName>spark-app</shadedClassifierName>
+                                <transformers>
+                                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                </transformers>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -242,6 +269,10 @@ License.
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+            </plugin>
         </plugins>
     </build>
 
@@ -250,14 +281,7 @@ License.
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.10</artifactId>
             <version>${spark.version}</version>
-            <exclusions>
-                <!-- JUL is used by Google Dataflow as the backend logger, so exclude
-                 jul-to-slf4j to avoid a loop -->
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>jul-to-slf4j</artifactId>
-                </exclusion>
-            </exclusions>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -268,11 +292,25 @@ License.
             <groupId>com.google.cloud.dataflow</groupId>
             <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
             <version>0.4.150414</version>
+            <exclusions>
+                <!-- Use Hadoop/Spark's backend logger -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-jdk14</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.google.cloud.dataflow</groupId>
             <artifactId>google-cloud-dataflow-java-examples-all</artifactId>
             <version>0.4.150414</version>
+            <exclusions>
+                <!-- Use Hadoop/Spark's backend logger -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-jdk14</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.avro</groupId>

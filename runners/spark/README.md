@@ -74,7 +74,31 @@ Check the output by running:
 
     head /tmp/out/part-00000
 
+__Note: running examples using `mvn exec:exec` only works for Spark local mode at the
+moment. See the next section for how to run on a cluster.__
+
 [wc]: https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/WordCount.java
+
+## Running on a Cluster
+
+Spark Dataflow pipelines can be run on a cluster using the `spark-submit` command.
+
+First copy a text document to HDFS:
+
+    curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt | hadoop fs -put - kinglear.txt
+
+Then run the word count example using Spark submit with the `yarn-client` master
+(`yarn-cluster` works just as well):
+
+    spark-submit \
+      --class com.google.cloud.dataflow.examples.WordCount \
+      --master yarn-client \
+      target/spark-dataflow-*-spark-app.jar \
+        --input=kinglear.txt --output=out --runner=SparkPipelineRunner --sparkMaster=yarn-client
+
+Check the output by running:
+
+    hadoop fs -tail out/part-00000
 
 [![Build Status](https://travis-ci.org/cloudera/spark-dataflow.png?branch=master)](https://travis-ci.org/cloudera/spark-dataflow)
 [![codecov.io](https://codecov.io/github/cloudera/spark-dataflow/coverage.svg?branch=master)](https://codecov.io/github/cloudera/spark-dataflow?branch=master)
