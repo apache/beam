@@ -453,8 +453,8 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    * in the merging windows. Composite triggers should determine their result by calling
    * {@link ExecutableTrigger#invokeMerge} on their sub-triggers, and applying appropriate logic.
    *
-   * <p> A trigger can only return {@link MergeResult#FINISHED} if it is marked as finished in
-   * at least one of the windows being merged.
+   * <p> A trigger can only return {@link MergeResult#ALREADY_FINISHED} if it is marked as finished
+   * in at least one of the windows being merged.
    *
    * <p>The implementation does not need to clear out any state associated with the old windows.
    *

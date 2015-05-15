@@ -393,8 +393,8 @@ public class DatastoreIO {
   }
 
   /**
-   * A {@link Sink} that writes a {@link PCollection PCollection<Entity>} containing
-   * entities to a Datastore kind.
+   * A {@link Sink} that writes a {@link PCollection} containing
+   * {@link Entity Entities} to a Datastore kind.
    *
    */
   public static class Sink extends com.google.cloud.dataflow.sdk.io.Sink<Entity> {

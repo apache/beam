@@ -33,9 +33,9 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * An immutable tuple of keyed {@link PCollection}s
+ * An immutable tuple of keyed {@link PCollection PCollections}
  * with key type K.
- * ({@link PCollection}s containing values of type
+ * ({@link PCollection PCollections} containing values of type
  * {@code KV<K, ?>})
  *
  * @param <K> the type of key shared by all constituent PCollections
@@ -89,9 +89,8 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Returns a list of {@link TaggedKeyedPCollection}s for the
-   * {@link PCollection}s contained in
-   * this {@link KeyedPCollectionTuple KeyedPCollectionTuple<K>}.
+   * Returns a list of {@link TaggedKeyedPCollection TaggedKeyedPCollections} for the
+   * {@link PCollection PCollections} contained in this {@link KeyedPCollectionTuple}.
    */
   public List<TaggedKeyedPCollection<K, ?>> getKeyedCollections() {
     return keyedCollections;
@@ -106,8 +105,8 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Expands the component {@link PCollection}s, stripping off any tag-specific
-   * information.
+   * Expands the component {@link PCollection PCollections}, stripping off
+   * any tag-specific information.
    */
   @Override
   public Collection<? extends PValue> expand() {
@@ -119,7 +118,7 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Returns the key {@link Coder} for all {@link PCollection}s
+   * Returns the key {@link Coder} for all {@link PCollection PCollections}
    * in this {@link KeyedPCollectionTuple}.
    */
   public Coder<K> getKeyCoder() {

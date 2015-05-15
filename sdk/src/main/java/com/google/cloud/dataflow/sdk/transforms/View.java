@@ -76,7 +76,7 @@ import java.util.NoSuchElementException;
  * }
  * </pre>
  *
- * <p> To access a {@link PCollection PCollection<K, V>} as a
+ * <p> To access a {@link PCollection} of {@code KV<K, V>} as a
  * {@code Map<K, Iterable<V>>} side input, use {@link View#asMap()}:
  *
  * <pre>
@@ -86,7 +86,7 @@ import java.util.NoSuchElementException;
  * }
  * </pre>
  *
- * <p> If a {@link PCollection PCollection<K, V>} is known to
+ * <p> If a {@link PCollection} of {@code KV<K, V>} is known to
  * have a single value for each key, then use
  * {@code View.AsMultimap#withSingletonValues View.asMap().withSingletonValues()}
  * to view it as a {@code Map<K, V>}:

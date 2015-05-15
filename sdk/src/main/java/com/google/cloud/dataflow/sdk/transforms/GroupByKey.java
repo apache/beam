@@ -103,7 +103,8 @@ import java.util.Map;
  * corresponding to the new, merged window will be created. The items in this pane
  * will be emitted when a trigger fires. By default this will be when the input
  * sources estimate there will be no more data for the window. See
- * {@link windowing.AfterWatermark} for details on the estimation.
+ * {@link com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark}
+ * for details on the estimation.
  *
  * <p>The timestamp for each emitted pane is the earliest event time among all elements in
  * the pane. The output {@code PCollection} will have the same {@link WindowFn}

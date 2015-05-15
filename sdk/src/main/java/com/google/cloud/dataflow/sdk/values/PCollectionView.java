@@ -23,9 +23,9 @@ import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import java.io.Serializable;
 
 /**
- * A {@link PCollectionView PCollectionView<T>} is an immutable view of a {@link PCollection} as a
- * value of type {@code T} that can be accessed e.g. as a side input to a
- * {@link com.google.cloud.dataflow.sdk.transforms.DoFn}.
+ * A {@link PCollectionView PCollectionView&lt;T&gt;} is an immutable view of a
+ * {@link PCollection} as a value of type {@code T} that can be accessed e.g. as
+ * a side input to a {@link com.google.cloud.dataflow.sdk.transforms.DoFn}.
  *
  * <p>A {@code PCollectionView} should always be the output of a
  * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}. It is the joint responsibility of

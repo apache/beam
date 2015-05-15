@@ -34,7 +34,7 @@ public final class CoderFactories {
 
   /**
    * Creates a {@link CoderFactory} built from particular static methods of a class that
-   * implements {@link Coder Coder<T>} for some {@code T}.
+   * implements {@link Coder}.
    *
    * <p> The class must have the following static methods:
    *
@@ -48,7 +48,7 @@ public final class CoderFactories {
    * </ul>
    *
    * <p> The {@code of(...)} method will be used to construct a
-   * {@link Coder Coder<T>} from component {@link Coder}s.
+   * {@code Coder<T>} from component {@link Coder}s.
    * It must accept one {@link Coder} argument for each
    * generic type parameter of {@code T}. If {@code T} takes no generic
    * type parameters, then the {@code of()} factory method should take
@@ -231,8 +231,8 @@ public final class CoderFactories {
     }
 
     /**
-     * If {@code coderType} is a subclass of {@link Coder<T>} for a fixed T,
-     * returns {@code T.class}. Otherwise, raises IllegalArgumentException
+     * If {@code coderType} is a subclass of {@link Coder} for a specific
+     * type {@code T}, returns {@code T.class}. Otherwise, raises IllegalArgumentException.
      */
     private <T> TypeDescriptor<T> getCodedType(TypeDescriptor<?> coderType) {
       for (TypeDescriptor<?> ifaceType : coderType.getInterfaces()) {

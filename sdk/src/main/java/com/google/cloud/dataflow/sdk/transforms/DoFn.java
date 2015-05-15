@@ -217,11 +217,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * window of the main input element.
      *
      * <p> See
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn#getSideInputTWindow}
+     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn#getSideInputWindow}
      * for how this corresponding window is determined.
      *
      * @throws IllegalArgumentException if this is not a side input
-     * @see ParDo#withSideInputTs
+     * @see ParDo#withSideInputs
      */
     public abstract <T> T sideInput(PCollectionView<T> view);
 
@@ -301,9 +301,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   public interface RequiresWindowAccess {}
 
   /**
-   * A {@code KeyedState} is a mutable mapping
-   * from {@link CodedTupleTag CodedTupleTag<T>}
-   * to {@code T}.
+   * {@code KeyedState} maps {@link CodedTupleTag CodedTupleTags} to
+   * associated values.  The storage is persistent across bundles, and
+   * stored per-key. Specifically, for a given {@code CodedTupleTag<T>},
+   * each key will store a distinct {@code T} value.
    */
   @Experimental
   public interface KeyedState {

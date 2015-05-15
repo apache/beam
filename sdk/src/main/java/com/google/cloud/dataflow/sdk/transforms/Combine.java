@@ -1153,8 +1153,8 @@ public class Combine {
    * {@code Combine.Globally<InputT, OutputT>} takes a {@code PCollection<InputT>}
    * and returns a {@code PCollection<OutputT>} whose elements are the result of
    * combining all the elements in each window of the input {@code PCollection},
-   * using a specified {@link CombineFn CombineFn<InputT, AccumT, OutputT>}.  It is common
-   * for {@code InputT == OutputT}, but not required.  Common combining
+   * using a specified {@link CombineFn CombineFn&lt;InputT, AccumT, OutputT&gt;}.
+   * It is common for {@code InputT == OutputT}, but not required.  Common combining
    * functions include sums, mins, maxes, and averages of numbers,
    * conjunctions and disjunctions of booleans, statistical
    * aggregations, etc.
@@ -1302,8 +1302,8 @@ public class Combine {
    * {@code Combine.GloballyAsSingletonView<InputT, OutputT>} takes a {@code PCollection<InputT>}
    * and returns a {@code PCollectionView<OutputT>} whose elements are the result of
    * combining all the elements in each window of the input {@code PCollection},
-   * using a specified {@link CombineFn CombineFn<InputT, AccumT, OutputT>}. It is common for
-   * {@code InputT == OutputT}, but not required. Common combining
+   * using a specified {@link CombineFn CombineFn&lt;InputT, AccumT, OutputT&gt;}.
+   * It is common for {@code InputT == OutputT}, but not required. Common combining
    * functions include sums, mins, maxes, and averages of numbers,
    * conjunctions and disjunctions of booleans, statistical
    * aggregations, etc.

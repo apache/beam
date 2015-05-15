@@ -22,12 +22,12 @@ import java.io.OutputStream;
 import java.io.Serializable;
 
 /**
- * A {@code DelegateCoder<T, IntermediateT>} wraps a {@link Coder Coder&lt;IntermediateT&gt;} and
+ * A {@code DelegateCoder<T, IntermediateT>} wraps a {@link Coder} for {@code IntermediateT} and
  * encodes/decodes values of type {@code T}s by converting
- * to/from {@code DT} and then encoding/decoding using the underlying
- * {@link Coder Coder&lt;DT&gt;}.
+ * to/from {@code IntermediateT} and then encoding/decoding using the underlying
+ * {@code Coder<IntermediateT>}.
  *
- * <p> The conversions from {@code T} to {@code DT} and vice versa
+ * <p> The conversions from {@code T} to {@code IntermediateT} and vice versa
  * must be supplied as {@link CodingFunction}, a serializable
  * function that may throw any {@code Exception}. If a thrown
  * exception is an instance of {@link CoderException} or

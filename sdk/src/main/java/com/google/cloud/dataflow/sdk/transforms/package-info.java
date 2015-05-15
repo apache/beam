@@ -21,7 +21,7 @@
  * <p>A {@link com.google.cloud.dataflow.sdk.transforms.PTransform} is an operation that takes an
  * {@code InputT} (some subtype of {@link com.google.cloud.dataflow.sdk.values.PInput})
  * and produces an
- * {@code OutputT} (some subtype of {@link com.google.cloud.dataflow.sdk.values.POutputT}).
+ * {@code OutputT} (some subtype of {@link com.google.cloud.dataflow.sdk.values.POutput}).
  *
  * <p> Common PTransforms include root PTransforms like
  * {@link com.google.cloud.dataflow.sdk.io.TextIO.Read} and

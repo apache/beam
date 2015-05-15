@@ -225,8 +225,9 @@ public class OrderedCode {
    * internal encoded byte array store.
    * <p>
    * Note that the specified long is treated like a uint64, e.g.
-   * {@code new OrderedCode().writeNumIncreasing(-1L).getEncodedBytes() &gt;
-   * new OrderedCode().writeNumIncreasing(Long.MAX_VALUE).getEncodedBytes()}.
+   * {@code new OrderedCode().writeNumIncreasing(-1L).getEncodedBytes()}
+   * is greater than
+   * {@code new OrderedCode().writeNumIncreasing(Long.MAX_VALUE).getEncodedBytes()}.
    *
    * @see #readNumIncreasing()
    */
@@ -270,8 +271,9 @@ public class OrderedCode {
    * internal encoded byte array store.
    * <p>
    * Note that the specified long is treated like an int64, i.e.
-   * {@code new OrderedCode().writeNumIncreasing(-1L).getEncodedBytes() &lt;
-   * new OrderedCode().writeNumIncreasing(0L).getEncodedBytes()}.
+   * {@code new OrderedCode().writeNumIncreasing(-1L).getEncodedBytes()}
+   * is less than
+   * {@code new OrderedCode().writeNumIncreasing(0L).getEncodedBytes()}.
    *
    * @see #readSignedNumIncreasing()
    */

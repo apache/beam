@@ -147,8 +147,8 @@ public final class CoderUtils {
   }
 
   /**
-   * If {@code coderType} is a subclass of {@link Coder<T>} for a fixed T,
-   * returns {@code T.class}.
+   * If {@code coderType} is a subclass of {@code Coder<T>} for a specific
+   * type {@code T}, returns {@code T.class}.
    */
   @SuppressWarnings({"rawtypes", "unchecked"})
   public static TypeDescriptor getCodedType(TypeDescriptor coderDescriptor) {

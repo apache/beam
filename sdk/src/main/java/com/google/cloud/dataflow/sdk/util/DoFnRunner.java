@@ -193,7 +193,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
   }
 
   /**
-   * A concrete implementation of {@link DoFn<InputT, OutputT>.Context} used for running
+   * A concrete implementation of {@link DoFn.Context} used for running
    * a {@link DoFn}.
    *
    * @param <InputT> the type of the DoFn's (main) input elements
@@ -392,8 +392,8 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
   }
 
   /**
-   * A concrete implementation of {@link DoFn<InputT, OutputT>.ProcessContext} used for running
-   * a {@link DoFn} over a single element.
+   * A concrete implementation of {@link DoFn.ProcessContext} used for
+   * running a {@link DoFn} over a single element.
    *
    * @param <InputT> the type of the DoFn's (main) input elements
    * @param <OutputT> the type of the DoFn's (main) output elements

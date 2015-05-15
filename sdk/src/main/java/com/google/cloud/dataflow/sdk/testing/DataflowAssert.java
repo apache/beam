@@ -87,7 +87,7 @@ public class DataflowAssert {
 
   /**
    * Constructs an {@link IterableAssert} for the elements of the provided
-   * {@link PCollection PCollection&lt;T&gt;}.
+   * {@link PCollection}.
    */
   public static <T> IterableAssert<T> that(PCollection<T> actual) {
     return
@@ -97,8 +97,8 @@ public class DataflowAssert {
 
   /**
    * Constructs an {@link IterableAssert} for the value of the provided
-   * {@link PCollection PCollection&lt;Iterable&lt;T&gt;&gt;}, which must be a
-   * singleton.
+   * {@link PCollection} which must contain a single {@code Iterable<T>}
+   * value.
    */
   public static <T> IterableAssert<T>
       thatSingletonIterable(PCollection<? extends Iterable<T>> actual) {
@@ -141,8 +141,7 @@ public class DataflowAssert {
   }
 
   /**
-   * Constructs a {@link SingletonAssert SingletonAssert<Map<K, Iterable<V>>>}
-   * for the value of the provided {@link PCollection PCollection<KV<K, V>>}
+   * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection}.
    *
    * <p> Note that the actual value must be coded by a {@link KvCoder},
    * not just any {@code Coder<K, V>}.
@@ -156,10 +155,9 @@ public class DataflowAssert {
   }
 
   /**
-   * Constructs a {@link SingletonAssert SingletonAssert<Map<K, V>>} for the value of the provided
-   * {@link PCollection PCollection<KV<K, V>>}, which must have at
-   * most one value per key.
-
+   * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection},
+   * which must have at most one value per key.
+   *
    * <p> Note that the actual value must be coded by a {@link KvCoder},
    * not just any {@code Coder<K, V>}.
    */
@@ -174,8 +172,7 @@ public class DataflowAssert {
   ////////////////////////////////////////////////////////////
 
   /**
-   * An assertion about the contents of a
-   * {@link PCollectionView PCollectionView&lt;Iterable&lt;T&gt;&gt;}.
+   * An assertion about the contents of a {@link PCollectionView}.
    */
   @SuppressWarnings("serial")
   public static class IterableAssert<T> implements Serializable {
@@ -264,7 +261,7 @@ public class DataflowAssert {
 
   /**
    * An assertion about the single value of type {@code T}
-   * associated with a {@link PCollectionView PCollectionView&lt;T&gt;}.
+   * associated with a {@link PCollectionView}.
    */
   @SuppressWarnings("serial")
   public static class SingletonAssert<T> implements Serializable {
@@ -363,8 +360,10 @@ public class DataflowAssert {
   }
 
   /**
-   * An assertion checker that takes a single {@link PCollectionView PCollectionView&lt;A&gt;}
-   * and an assertion over {@code A}, and checks it within a dataflow pipeline.
+   * An assertion checker that takes a single
+   * {@link PCollectionView PCollectionView&lt;ActualT&gt;}
+   * and an assertion over {@code ActualT}, and checks it within a dataflow
+   * pipeline.
    *
    * <p> Note that the entire assertion must be serializable. If
    * you need to make assertions involving multiple inputs
@@ -401,8 +400,8 @@ public class DataflowAssert {
   }
 
   /**
-   * An assertion checker that takes a {@link PCollectionView PCollectionView&lt;A&gt;},
-   * a {@link PCollectionView PCollectionView&lt;B&gt;}, a relation
+   * An assertion checker that takes a {@link PCollectionView PCollectionView&lt;ActualT&gt;},
+   * a {@link PCollectionView PCollectionView&lt;ExpectedT&gt;}, a relation
    * over {@code A} and {@code B}, and checks that the relation holds
    * within a dataflow pipeline.
    *
@@ -528,7 +527,7 @@ public class DataflowAssert {
   /**
    * A binary predicate between types {@code Actual} and {@code Expected}.
    * Implemented as a method {@code assertFor(Expected)} which returns
-   * a {@link SerializableFunction SerializableFunction<Actual, Void>}
+   * a {@code SerializableFunction<Actual, Void>}
    * that should verify the assertion..
    */
   public static interface AssertRelation<ActualT, ExpectedT> extends Serializable {

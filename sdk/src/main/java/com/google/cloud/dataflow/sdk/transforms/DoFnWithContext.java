@@ -70,7 +70,7 @@ import java.util.Map;
  * PCollection<String> lines = ... ;
  * PCollection<String> words =
  *     lines.apply(ParDo.of(new DoFnWithContext<String, String>() {
- *         @ProcessElement
+ *         {@literal @}ProcessElement
  *         public void processElement(ProcessContext c, BoundedWindow window) {
  *
  *         }}));
@@ -99,7 +99,8 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
      *
      * <p> If invoked from {@link ProcessElement}, the output
      * element will have the same timestamp and be in the same windows
-     * as the input element passed to {@link @ProcessElement}).
+     * as the input element passed to the method annotated with
+     * {@code @ProcessElement}.
      *
      * <p> If invoked from {@link StartBundle} or {@link FinishBundle},
      * this will attempt to use the
@@ -312,7 +313,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
    *   <li>It must have at least one argument.
    *   <li>Its first argument must be a {@link DoFnWithContext.ProcessContext}.
    *   <li>Its remaining arguments must be {@link KeyedState}, {@link BoundedWindow}, or
-   *   {@link WindowingInternals WindowingInternals<InputT, OutputT>}.
+   *   {@link WindowingInternals WindowingInternals&lt;InputT, OutputT&gt;}.
    * </ul>
    */
   @Documented

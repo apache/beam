@@ -44,7 +44,7 @@ public interface PInput {
 
   /**
    * <p> After building, finalizes this {@code PInput} to make it ready for
-   * being used as an input to a {@link PTransform}.
+   * being used as an input to a {@link com.google.cloud.dataflow.sdk.transforms.PTransform}.
    *
    * <p> Automatically invoked whenever {@code apply()} is invoked on
    * this {@code PInput}, so users do not normally call this explicitly.
