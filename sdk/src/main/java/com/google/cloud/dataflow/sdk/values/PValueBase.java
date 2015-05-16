@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 
 import java.util.Collection;
@@ -98,23 +98,23 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   private boolean finishedSpecifying = false;
 
   @Override
-  public void recordAsOutput(PTransform<?, ?> transform) {
+  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {
     recordAsOutput(transform, "out");
   }
 
   /**
    * Records that this {@code POutputValueBase} is an output with the
-   * given name of the given {@code PTransform} in the given
+   * given name of the given {@code AppliedPTransform} in the given
    * {@code Pipeline}.
    *
    * <p> To be invoked only by {@link POutput#recordAsOutput}
    * implementations.  Not to be invoked directly by user code.
    */
-  protected void recordAsOutput(PTransform<?, ?> transform,
-                             String outName) {
+  protected void recordAsOutput(AppliedPTransform<?, ?, ?> transform,
+                                String outName) {
     super.recordAsOutput(transform);
     if (name == null) {
-      name = getPipeline().getFullName(transform) + "." + outName;
+      name = transform.getFullName() + "." + outName;
     }
   }
 
@@ -135,7 +135,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
 
   @Override
   public void finishSpecifying() {
-    getProducingTransformInternal().finishSpecifyingInternal();
+    finishSpecifyingOutput();
     finishedSpecifying = true;
   }
 

@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import com.google.cloud.dataflow.sdk.values.TypedPValue;
 import com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
@@ -982,6 +983,13 @@ public class ParDo {
     protected Coder<OutputT> getDefaultOutputCoder() {
       throw new RuntimeException(
           "internal error: shouldn't be calling this on a multi-output ParDo");
+    }
+
+    @Override
+    public <T> Coder<T> getDefaultOutputCoder(
+        PCollection<? extends InputT> input, TypedPValue<T> output)
+        throws CannotProvideCoderException {
+      throw new CannotProvideCoderException("default coder not provided");
     }
 
     @Override

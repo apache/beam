@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 
 /**
@@ -147,7 +148,8 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
         // try the next thing
     }
 
-    return ((PTransform) getProducingTransformInternal()).getDefaultOutputCoder(
-        getPipeline().getInput(getProducingTransformInternal()), this);
+    AppliedPTransform<?, ?, ?> application = getProducingTransformInternal();
+    return ((PTransform) application.getTransform()).getDefaultOutputCoder(
+        application.getInput(), this);
   }
 }

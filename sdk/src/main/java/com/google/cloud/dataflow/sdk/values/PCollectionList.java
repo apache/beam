@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.common.collect.ImmutableList;
 
@@ -198,7 +199,7 @@ public class PCollectionList<T> implements PInput, POutput {
   }
 
   @Override
-  public void recordAsOutput(PTransform<?, ?> transform) {
+  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {
     int i = 0;
     for (PCollection<T> pc : pcollections) {
       pc.recordAsOutput(transform, "out" + i);

@@ -296,10 +296,10 @@ public class CombineTest implements Serializable {
 
     p.traverseTopologically(new RecordingPipelineVisitor());
 
-    assertThat(p.getFullName(min), Matchers.startsWith("Min"));
-    assertThat(p.getFullName(max), Matchers.startsWith("Max"));
-    assertThat(p.getFullName(mean), Matchers.startsWith("Mean"));
-    assertThat(p.getFullName(sum), Matchers.startsWith("Sum"));
+    assertThat(p.getFullNameForTesting(min), Matchers.startsWith("Min"));
+    assertThat(p.getFullNameForTesting(max), Matchers.startsWith("Max"));
+    assertThat(p.getFullNameForTesting(mean), Matchers.startsWith("Mean"));
+    assertThat(p.getFullNameForTesting(sum), Matchers.startsWith("Sum"));
   }
 
   @Test

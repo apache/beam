@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 
 import java.util.Collection;
@@ -56,12 +57,11 @@ public interface POutput {
    * is automatically invoked as part of applying the
    * producing {@code PTransform}.
    */
-  public void recordAsOutput(PTransform<?, ?> transform);
+  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform);
 
   /**
-   * As part of finishing the producing {@code PTransform}, finalizes this
-   * {@code PTransform} output to make it ready for being used as an input and
-   * for running.
+   * As part of applying the producing {@code PTransform}, finalizes this
+   * output to make it ready for being used as an input and for running.
    *
    * <p> This includes ensuring that all {@code PCollection}s
    * have {@code Coder}s specified or defaulted.

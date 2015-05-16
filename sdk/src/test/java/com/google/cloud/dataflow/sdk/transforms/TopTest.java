@@ -211,7 +211,7 @@ public class TopTest {
 
     p.traverseTopologically(new RecordingPipelineVisitor());
     // Check that the transform is named "Top" rather than "Combine".
-    assertThat(p.getFullName(top), Matchers.startsWith("Top"));
+    assertThat(p.getFullNameForTesting(top), Matchers.startsWith("Top"));
   }
 
   static class OrderByLength implements Comparator<String>, Serializable {

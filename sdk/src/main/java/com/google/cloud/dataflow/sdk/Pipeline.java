@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformHierarchy;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.values.PBegin;
@@ -29,6 +30,9 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Multimap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -230,6 +234,8 @@ public class Pipeline {
   private Collection<PValue> values = new ArrayList<>();
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
+  private Multimap<PTransform<?, ?>, AppliedPTransform<?, ?, ?>> transformApplicationsForTesting =
+      HashMultimap.create();
 
   /**
    * @deprecated replaced by {@link #Pipeline(PipelineRunner, PipelineOptions)}
@@ -278,7 +284,6 @@ public class Pipeline {
 
     transforms.addInput(child, input);
 
-    transform.setPipeline(this);
     LOG.debug("Adding {} to {}", transform, this);
     try {
       transforms.pushNode(child);
@@ -286,8 +291,11 @@ public class Pipeline {
       OutputT output = runner.apply(transform, input);
       transforms.setOutput(child, output);
 
+      AppliedPTransform<?, ?, ?> applied = AppliedPTransform.of(
+          child.getFullName(), input, output, transform);
+      transformApplicationsForTesting.put(transform, applied);
       // recordAsOutput is a NOOP if already called;
-      output.recordAsOutput(child.getTransform());
+      output.recordAsOutput(applied);
       verifyOutputState(output, child);
       return output;
     } finally {
@@ -299,10 +307,10 @@ public class Pipeline {
    * Returns all producing transforms for the {@link PValue PValues} contained
    * in {@code output}.
    */
-  private List<PTransform<?, ?>> getProducingTransforms(POutput output) {
-    List<PTransform<?, ?>> producingTransforms = new ArrayList<>();
+  private List<AppliedPTransform<?, ?, ?>> getProducingTransforms(POutput output) {
+    List<AppliedPTransform<?, ?, ?>> producingTransforms = new ArrayList<>();
     for (PValue value : output.expand()) {
-      PTransform<?, ?> transform = value.getProducingTransformInternal();
+      AppliedPTransform<?, ?, ?> transform = value.getProducingTransformInternal();
       if (transform != null) {
         producingTransforms.add(transform);
       }
@@ -325,12 +333,11 @@ public class Pipeline {
   private void verifyOutputState(POutput output, TransformTreeNode node) {
     if (!node.isCompositeNode()) {
       PTransform<?, ?> thisTransform = node.getTransform();
-      List<PTransform<?, ?>> producingTransforms = getProducingTransforms(output);
-      for (PTransform<?, ?> producingTransform : producingTransforms) {
-
+      List<AppliedPTransform<?, ?, ?>> producingTransforms = getProducingTransforms(output);
+      for (AppliedPTransform<?, ?, ?> producingTransform : producingTransforms) {
         // Using != because object identity indicates that the transforms
         // are the same node in the pipeline
-        if (thisTransform != producingTransform) {
+        if (thisTransform != producingTransform.getTransform()) {
           throw new IllegalArgumentException("Output of non-composite transform "
               + thisTransform + " is registered as being produced by"
               + " a different transform: " + producingTransform);
@@ -338,12 +345,11 @@ public class Pipeline {
       }
     } else {
       PTransform<?, ?> thisTransform = node.getTransform();
-      List<PTransform<?, ?>> producingTransforms = getProducingTransforms(output);
-      for (PTransform<?, ?> producingTransform : producingTransforms) {
-
+      List<AppliedPTransform<?, ?, ?>> producingTransforms = getProducingTransforms(output);
+      for (AppliedPTransform<?, ?, ?> producingTransform : producingTransforms) {
         // Using == because object identity indicates that the transforms
         // are the same node in the pipeline
-        if (thisTransform == producingTransform) {
+        if (thisTransform == producingTransform.getTransform()) {
           throw new IllegalStateException("Output of composite transform "
               + thisTransform + " is registered as being produced by it,"
               + " but the output of every composite transform should be"
@@ -368,41 +374,18 @@ public class Pipeline {
   }
 
   /**
-   * Returns the output associated with a transform.
+   * Returns the fully qualified name of a transform for testing.
    *
-   * @throws IllegalStateException if the transform has not been applied to the pipeline.
+   * @throws IllegalStateException if the transform has not been applied to the pipeline
+   * or was applied multiple times.
    */
   @Deprecated
-  public POutput getOutput(PTransform<?, ?> transform) {
-    TransformTreeNode node = transforms.getNode(transform);
-    Preconditions.checkState(node != null,
-                             "Unknown transform: " + transform);
-    return node.getOutput();
-  }
-
-  /**
-   * Returns the input associated with a transform.
-   *
-   * @throws IllegalStateException if the transform has not been applied to the pipeline.
-   */
-  @Deprecated
-  public PInput getInput(PTransform<?, ?> transform) {
-    TransformTreeNode node = transforms.getNode(transform);
-    Preconditions.checkState(node != null,
-                             "Unknown transform: " + transform);
-    return node.getInput();
-  }
-
-  /**
-   * Returns the fully qualified name of a transform.
-   *
-   * @throws IllegalStateException if the transform has not been applied to the pipeline.
-   */
-  public String getFullName(PTransform<?, ?> transform) {
-    TransformTreeNode node = transforms.getNode(transform);
-    Preconditions.checkState(node != null,
-                             "Unknown transform: " + transform);
-    return node.getFullName();
+  public String getFullNameForTesting(PTransform<?, ?> transform) {
+    Collection<AppliedPTransform<?, ?, ?>> uses =
+        transformApplicationsForTesting.get(transform);
+    Preconditions.checkState(uses.size() > 0, "Unknown transform: " + transform);
+    Preconditions.checkState(uses.size() <= 1, "Transform used multiple times: " + transform);
+    return Iterables.getOnlyElement(uses).getFullName();
   }
 
   /**

@@ -188,7 +188,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    */
   public OutputT apply(InputT input) {
     throw new IllegalArgumentException(
-        "Runner " + getPipeline().getRunner()
+        "Runner " + input.getPipeline().getRunner()
             + " has not registered an implementation for the required primitive operation "
             + this);
   }
@@ -228,33 +228,6 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     return name != null ? name : getDefaultName();
   }
 
-  /**
-   * Returns the owning {@link Pipeline} of this {@code PTransform}.
-   *
-   * @throws IllegalStateException if the owning {@code Pipeline} hasn't been
-   * set yet
-   */
-  @Deprecated
-  private Pipeline getPipeline() {
-    if (pipeline == null) {
-      throw new IllegalStateException("owning pipeline not set");
-    }
-    return pipeline;
-  }
-
-  /**
-   * Returns the output of this transform.
-   *
-   * @throws IllegalStateException if this PTransform hasn't been applied yet
-   */
-  @Deprecated
-  private OutputT getOutput() {
-    @SuppressWarnings("unchecked")
-    OutputT output = (OutputT) getPipeline().getOutput(this);
-    return output;
-  }
-
-
   /////////////////////////////////////////////////////////////////////////////
 
   // See the note about about PTransform's fake Serializability, to
@@ -267,35 +240,12 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    */
   protected transient String name;
 
-  /**
-   * The {@link Pipeline} that owns this {@code PTransform}, or {@code null}
-   * if not yet set.
-   */
-  private transient Pipeline pipeline;
-
   protected PTransform() {
     this.name = null;
   }
 
   protected PTransform(String name) {
     this.name = name;
-  }
-
-  /**
-   * Associates this {@code PTransform} with the given {@code Pipeline}.
-   *
-   * <p> For internal use only.
-   *
-   * @throws IllegalArgumentException if this transform has already
-   * been associated with a pipeline
-   */
-  @Deprecated
-  public void setPipeline(Pipeline pipeline) {
-    if (this.pipeline != null) {
-      throw new IllegalStateException(
-          "internal error: transform already initialized");
-    }
-    this.pipeline = pipeline;
   }
 
   @Override
@@ -344,17 +294,6 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   }
 
   /**
-   * After building, finalizes this {@code PTransform} to
-   * make it ready for running.  Called automatically when its
-   * output(s) are finished.
-   *
-   * <p> Not normally called by user code.
-   */
-  public void finishSpecifyingInternal() {
-    getOutput().finishSpecifyingOutput();
-  }
-
-  /**
    * Returns the default {@code Coder} to use for the output of this
    * single-output {@code PTransform}.
    *
@@ -369,33 +308,30 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
 
   /**
    * Returns the default {@code Coder} to use for the output of this
-   * single-output {@code PTransform}.
+   * single-output {@code PTransform} when applied to the given input.
    *
    * @throws CannotProvideCoderException if none can be inferred.
    *
    * <p> By default, always throws.
    */
-  protected Coder<?> getDefaultOutputCoder(InputT input) throws CannotProvideCoderException {
+  protected Coder<?> getDefaultOutputCoder(@SuppressWarnings("unused") InputT input)
+      throws CannotProvideCoderException {
     return getDefaultOutputCoder();
   }
 
   /**
    * Returns the default {@code Coder} to use for the given output of
-   * this single-output {@code PTransform}.
+   * this single-output {@code PTransform} when applied to the given input.
    *
    * @throws CannotProvideCoderException if none can be inferred.
    *
    * <p> By default, always throws.
    */
-  public <T> Coder<T> getDefaultOutputCoder(InputT input, TypedPValue<T> output)
+  public <T> Coder<T> getDefaultOutputCoder(
+      InputT input, @SuppressWarnings("unused") TypedPValue<T> output)
       throws CannotProvideCoderException {
-    if (output != getOutput()) {
-      throw new CannotProvideCoderException(
-          "Attempt to get default output coder from PTransform for a POutput it did not produce");
-    } else {
-      @SuppressWarnings("unchecked")
-      Coder<T> defaultOutputCoder = (Coder<T>) getDefaultOutputCoder(input);
-      return defaultOutputCoder;
-    }
+    @SuppressWarnings("unchecked")
+    Coder<T> defaultOutputCoder = (Coder<T>) getDefaultOutputCoder(input);
+    return defaultOutputCoder;
   }
 }

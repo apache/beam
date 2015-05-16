@@ -23,10 +23,21 @@ import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.Flatten;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
+import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.common.collect.ImmutableList;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -70,7 +81,7 @@ public class PipelineTest {
 
     // Check pipeline runner correctly catches user errors.
     try {
-      Object results = p.run();
+      p.run();
       fail("Should have thrown an exception.");
     } catch (RuntimeException exn) {
       // Make sure users don't have to worry about the
@@ -91,7 +102,7 @@ public class PipelineTest {
 
     // Check pipeline runner correctly catches SDK errors.
     try {
-      Object results = p.run();
+      p.run();
       fail("Should have thrown an exception.");
     } catch (RuntimeException exn) {
       // Make sure the exception isn't a UserCodeException.
@@ -101,5 +112,36 @@ public class PipelineTest {
       // RuntimeException should be IllegalStateException.
       Assert.assertThat(exn, instanceOf(IllegalStateException.class));
     }
+  }
+
+  @Test
+  @Category(com.google.cloud.dataflow.sdk.testing.RunnableOnService.class)
+  public void testMultipleApply() {
+    PTransform<PCollection<? extends String>, PCollection<String>> myTransform =
+        addSuffix("+");
+
+    Pipeline p = TestPipeline.create();
+    PCollection<String> input = p.apply(Create.<String>of(ImmutableList.of("a", "b")));
+
+    PCollection<String> left = input.apply(myTransform).apply(myTransform);
+    PCollection<String> right = input.apply(myTransform);
+
+    PCollection<String> both = PCollectionList.of(left).and(right)
+        .apply(Flatten.<String>pCollections());
+
+    DataflowAssert.that(both).containsInAnyOrder("a++", "b++", "a+", "b+");
+
+    p.run();
+  }
+
+  private static PTransform<PCollection<? extends String>, PCollection<String>> addSuffix(
+      final String suffix) {
+    return ParDo.of(new DoFn<String, String>() {
+      private static final long serialVersionUID = 0;
+      @Override
+      public void processElement(DoFn<String, String>.ProcessContext c) {
+        c.output(c.element() + suffix);
+      }
+    });
   }
 }

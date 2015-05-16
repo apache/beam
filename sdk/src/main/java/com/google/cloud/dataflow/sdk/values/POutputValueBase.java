@@ -17,14 +17,14 @@
 package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 
 /**
  * A {@code POutputValueBase} is the abstract base class of
  * {@code PTransform} outputs.
  *
  * <p> A {@code PValueBase} that adds tracking of its producing
- * {@code PTransform}.
+ * {@code AppliedPTransform}.
  *
  * <p> For internal use.
  */
@@ -51,23 +51,24 @@ public abstract class POutputValueBase implements POutput {
   }
 
   /**
-   * Returns the {@code PTransform} that this {@code POutputValueBase}
+   * Returns the {@code AppliedPTransform} that this {@code POutputValueBase}
    * is an output of.
    *
    * <p> For internal use only.
    */
-  public PTransform<?, ?> getProducingTransformInternal() {
+  public AppliedPTransform<?, ?, ?> getProducingTransformInternal() {
     return producingTransform;
   }
 
   /**
    * Records that this {@code POutputValueBase} is an output with the
-   * given name of the given {@code PTransform} in the given
+   * given name of the given {@code AppliedPTransform}.
    *
    * <p> To be invoked only by {@link POutput#recordAsOutput}
    * implementations.  Not to be invoked directly by user code.
    */
-  public void recordAsOutput(PTransform<?, ?> transform) {
+  @Override
+  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {
     if (producingTransform != null) {
       // Already used this POutput as a PTransform output.  This can
       // happen if the POutput is an output of a transform within a
@@ -95,5 +96,5 @@ public abstract class POutputValueBase implements POutput {
   /**
    * The {@code PTransform} that produces this {@code POutputValueBase}.
    */
-  private PTransform<?, ?> producingTransform = null;
+  private AppliedPTransform<?, ?, ?> producingTransform;
 }

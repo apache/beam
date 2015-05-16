@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.runners;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
@@ -36,7 +35,6 @@ import java.util.Set;
 public class TransformHierarchy {
   private final Deque<TransformTreeNode> transformStack = new LinkedList<>();
   private final Map<PInput, TransformTreeNode> producingTransformNode = new HashMap<>();
-  private final Map<PTransform<?, ?>, TransformTreeNode> transformToNode = new HashMap<>();
 
   public TransformHierarchy() {
     // First element in the stack is the root node, holding all child nodes.
@@ -55,7 +53,6 @@ public class TransformHierarchy {
    */
   public void pushNode(TransformTreeNode current) {
     transformStack.push(current);
-    transformToNode.put(current.getTransform(), current);
   }
 
   /**
@@ -92,13 +89,6 @@ public class TransformHierarchy {
     for (PValue o : output.expand()) {
       producingTransformNode.put(o, producer);
     }
-  }
-
-  /**
-   * Returns the TransformTreeNode associated with a given transform.
-   */
-  public TransformTreeNode getNode(PTransform<?, ?> transform) {
-    return transformToNode.get(transform);
   }
 
   /**

@@ -636,16 +636,16 @@ public class DirectPipelineRunner
 
     @Override
     public <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform) {
-      checkArgument(currentTransform != null && currentTransform.transform == transform,
+      checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
           "can only be called with current transform");
-      return (InputT) currentTransform.input;
+      return (InputT) currentTransform.getInput();
     }
 
     @Override
     public <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform) {
-      checkArgument(currentTransform != null && currentTransform.transform == transform,
+      checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
           "can only be called with current transform");
-      return (OutputT) currentTransform.output;
+      return (OutputT) currentTransform.getOutput();
     }
 
     @Override
@@ -668,7 +668,7 @@ public class DirectPipelineRunner
       }
       LOG.debug("Evaluating {}", transform);
       currentTransform = AppliedPTransform.of(
-          node.getInput(), node.getOutput(), (PTransform) transform);
+          node.getFullName(), node.getInput(), node.getOutput(), (PTransform) transform);
       evaluator.evaluate(transform, this);
       currentTransform = null;
     }

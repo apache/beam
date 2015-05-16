@@ -214,6 +214,11 @@ public class DataflowPipelineTranslator {
     <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform);
 
     /**
+     * Returns the full name of the currently being translated transform.
+     */
+    String getFullName(PTransform<?, ?> transform);
+
+    /**
      * Adds a step to the Dataflow workflow for the given transform, with
      * the given Dataflow step type.
      * This step becomes "current" for the purpose of {@link #addInput} and
@@ -323,9 +328,9 @@ public class DataflowPipelineTranslator {
     private Step currentStep;
 
     /**
-     * A Map from PTransforms to their unique Dataflow step names.
+     * A Map from AppliedPTransform to their unique Dataflow step names.
      */
-    private final Map<PTransform, String> stepNames = new HashMap<>();
+    private final Map<AppliedPTransform, String> stepNames = new HashMap<>();
 
     /**
      * A Map from PValues to their output names used by their producer
@@ -448,16 +453,24 @@ public class DataflowPipelineTranslator {
 
     @Override
     public <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform) {
-      checkArgument(currentTransform != null && currentTransform.transform == transform,
-          "can only be called with current transform");
-      return (InputT) currentTransform.input;
+      return (InputT) getCurrentTransform(transform).getInput();
     }
 
     @Override
     public <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform) {
-      checkArgument(currentTransform != null && currentTransform.transform == transform,
+      return (OutputT) getCurrentTransform(transform).getOutput();
+    }
+
+    @Override
+    public String getFullName(PTransform<?, ?> transform) {
+      return getCurrentTransform(transform).getFullName();
+    }
+
+    private AppliedPTransform<?, ?, ?> getCurrentTransform(PTransform<?, ?> transform) {
+      checkArgument(
+          currentTransform != null && currentTransform.getTransform() == transform,
           "can only be called with current transform");
-      return (OutputT) currentTransform.output;
+      return currentTransform;
     }
 
     @Override
@@ -480,7 +493,7 @@ public class DataflowPipelineTranslator {
       }
       LOG.debug("Translating {}", transform);
       currentTransform = AppliedPTransform.of(
-          node.getInput(), node.getOutput(), (PTransform) transform);
+          node.getFullName(), node.getInput(), node.getOutput(), (PTransform) transform);
       translator.translate(transform, this);
       currentTransform = null;
     }
@@ -502,7 +515,7 @@ public class DataflowPipelineTranslator {
     @Override
     public void addStep(PTransform<?, ?> transform, String type) {
       String stepName = genStepName();
-      if (stepNames.put(transform, stepName) != null) {
+      if (stepNames.put(getCurrentTransform(transform), stepName) != null) {
         throw new IllegalArgumentException(
             transform + " already has a name specified");
       }
@@ -517,14 +530,14 @@ public class DataflowPipelineTranslator {
       currentStep.setName(stepName);
       currentStep.setKind(type);
       steps.add(currentStep);
-      addInput(PropertyNames.USER_NAME, pipeline.getFullName(transform));
+      addInput(PropertyNames.USER_NAME, getFullName(transform));
     }
 
     @Override
     public void addStep(PTransform<?, ? extends PValue> transform, Step original) {
       Step step = original.clone();
       String stepName = step.getName();
-      if (stepNames.put(transform, stepName) != null) {
+      if (stepNames.put(getCurrentTransform(transform), stepName) != null) {
         throw new IllegalArgumentException(transform + " already has a name specified");
       }
 
@@ -549,7 +562,7 @@ public class DataflowPipelineTranslator {
             name = null;
           }
           if (name != null) {
-            registerOutputName(pipeline.getOutput(transform), name);
+            registerOutputName(getOutput(transform), name);
           }
         }
       }
@@ -696,7 +709,7 @@ public class DataflowPipelineTranslator {
 
     @Override
     public OutputReference asOutputReference(PValue value) {
-      PTransform<?, ?> transform =
+      AppliedPTransform<?, ?, ?> transform =
           value.getProducingTransformInternal();
       String stepName = stepNames.get(transform);
       if (stepName == null) {
