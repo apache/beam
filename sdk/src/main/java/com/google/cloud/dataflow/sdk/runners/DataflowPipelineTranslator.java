@@ -149,10 +149,12 @@ public class DataflowPipelineTranslator {
     return translator.translate(packages);
   }
 
-  public static String jobToString(Job job)
-      throws JsonProcessingException {
-    return new ObjectMapper().writerWithDefaultPrettyPrinter()
-        .writeValueAsString(job);
+  public static String jobToString(Job job) {
+    try {
+      return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(job);
+    } catch (JsonProcessingException exc) {
+      throw new IllegalStateException("Failed to render Job as String.", exc);
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -394,7 +396,7 @@ public class DataflowPipelineTranslator {
         }
 
         try {
-          metadata.put("debugger", debuggerConfig.computeMetadataString());
+          metadata.put("debugger", computeMetadataString(debuggerConfig));
         } catch (JsonProcessingException e) {
           throw new IllegalArgumentException("Cannot format Debugger version.", e);
         }
@@ -1060,5 +1062,17 @@ public class DataflowPipelineTranslator {
       PCollection<?> output = entry.getValue();
       context.addOutput(tag.getId(), output);
     }
+  }
+
+  /**
+   * Serialize the provided {@link DebuggerConfig} to a JSON string.
+   *
+   * @return JSON string of Debugger config metadata.
+   * @throws JsonProcessingException when converting to Json fails.
+   */
+  private String computeMetadataString(DebuggerConfig config)
+      throws JsonProcessingException {
+    String debuggerConfigString = MAPPER.writeValueAsString(config);
+    return debuggerConfigString;
   }
 }

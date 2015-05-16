@@ -18,9 +18,6 @@ package com.google.cloud.dataflow.sdk.options;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 /**
  * Options for controlling Cloud Debugger.
  */
@@ -49,17 +46,6 @@ public interface CloudDebuggerOptions {
     }
     public void setVersion(String version) {
       this.version = version;
-    }
-
-    /**
-     * Compute the string of Debugger config.
-     * @return JSON string of Debugger config metadata.
-     * @throws JsonProcessingException when converting to Json fails.
-     */
-    public String computeMetadataString() throws JsonProcessingException {
-      ObjectMapper mapper = new ObjectMapper();
-      String debuggerConfigString = mapper.writeValueAsString(this);
-      return debuggerConfigString;
     }
   }
 }

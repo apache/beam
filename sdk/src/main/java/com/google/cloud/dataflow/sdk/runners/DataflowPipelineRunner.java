@@ -45,8 +45,6 @@ import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -222,7 +220,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
         printWriter.print(workSpecJson);
         LOG.info("Printed workflow specification to {}", options.getDataflowJobFile());
-      } catch (JsonProcessingException ex) {
+      } catch (IllegalStateException ex) {
         LOG.warn("Cannot translate workflow spec to json for debug.");
       } catch (FileNotFoundException ex) {
         LOG.warn("Cannot create workflow spec output file.");
