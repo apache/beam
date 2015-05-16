@@ -553,7 +553,7 @@ public class ApiSurface {
         .pruningPrefix("org.apache.avro")
         .pruningPrefix("org.junit")
         .pruningPrefix("org.hamcrest")
-        .pruningPrefix("com.fasterxml.jackson");
+        .pruningPrefix("com.fasterxml.jackson.annotation");
   }
 
   public static void main(String[] args) throws Exception {
