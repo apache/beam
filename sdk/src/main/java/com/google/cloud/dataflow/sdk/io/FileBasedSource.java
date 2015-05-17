@@ -202,11 +202,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
           + (System.currentTimeMillis() - startTime) + " ms");
       return splitResults;
     } else {
-      // We split a file-based source into subranges only if the file is seekable. If a file is not
-      // seekable it will be highly inefficient to create and read a source based on a subrange of
-      // that file.
-      IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec);
-      if (factory.isReadSeekEfficient(fileOrPatternSpec)) {
+      if (isSplittable()) {
         List<FileBasedSource<T>> splitResults = new ArrayList<>();
         for (ByteOffsetBasedSource<T> split :
             super.splitIntoBundles(desiredBundleSizeBytes, options)) {
@@ -219,6 +215,20 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
         return ImmutableList.of(this);
       }
     }
+  }
+
+  /**
+   * Determines whether a file represented by this source is can be split into bundles.
+   *
+   * <p>By default, a file is splittable if it is on a file system that supports efficient read
+   * seeking. Subclasses may override to provide different behavior.
+   */
+  protected boolean isSplittable() throws Exception {
+    // We split a file-based source into subranges only if the file is efficiently seekable.
+    // If a file is not efficiently seekable it would be highly inefficient to create and read a
+    // source based on a subrange of that file.
+    IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec);
+    return factory.isReadSeekEfficient(fileOrPatternSpec);
   }
 
   @Override
