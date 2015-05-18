@@ -145,6 +145,55 @@
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>2.10.3</version>
+
+        <configuration>
+          <windowtitle>Google Cloud Dataflow SDK ${project.version} API</windowtitle>
+          <doctitle>Google Cloud Dataflow SDK ${project.version} API</doctitle>
+          <overview>../overview.html</overview>
+
+          <subpackages>com.google.cloud.dataflow.sdk</subpackages>
+          <additionalparam>-exclude com.google.cloud.dataflow.sdk.runners.worker:com.google.cloud.dataflow.sdk.runners.dataflow:com.google.cloud.dataflow.sdk.util</additionalparam>
+          <use>false</use>
+          <bottom><![CDATA[<br>]]></bottom>
+
+          <offlineLinks>
+            <offlineLink>
+              <url>http://docs.guava-libraries.googlecode.com/git-history/release18/javadoc/</url>
+              <location>${basedir}/../javadoc/guava-docs</location>
+            </offlineLink>
+            <offlineLink>
+              <url>http://www.joda.org/joda-time/apidocs</url>
+              <location>${basedir}/../javadoc/joda-docs</location>
+            </offlineLink>
+            <offlineLink>
+              <url>https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/</url>
+              <location>${basedir}/../javadoc//bq-docs</location>
+            </offlineLink>
+            <offlineLink>
+              <url>http://fasterxml.github.io/jackson-databind/javadoc/2.4/</url>
+              <location>${basedir}/../javadoc/jackson-databind-docs</location>
+            </offlineLink>
+            <offlineLink>
+              <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.4/</url>
+              <location>${basedir}/../javadoc/jackson-annotations-docs</location>
+            </offlineLink>
+          </offlineLinks>
+        </configuration>
+
+        <executions>
+          <execution>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <phase>package</phase>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <version>2.3</version>
         <executions>
