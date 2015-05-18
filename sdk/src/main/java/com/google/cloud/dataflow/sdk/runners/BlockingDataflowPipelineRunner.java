@@ -80,6 +80,11 @@ public class BlockingDataflowPipelineRunner extends
   public DataflowPipelineJob run(Pipeline p) {
     final DataflowPipelineJob job = dataflowPipelineRunner.run(p);
 
+    // We ignore the potential race condition here (Ctrl-C after job submission but before the
+    // shutdown hook is registered). Even if we tried to do something smarter (eg., SettableFuture)
+    // the run method (which produces the job) could fail or be Ctrl-C'd before it had returned a
+    // job. The display of the command to cancel the job is best-effort anyways -- RPC's could fail,
+    // etc. If the user wants to verify the job was cancelled they should look at the job status.
     Thread shutdownHook = new Thread() {
       @Override
       public void run() {
