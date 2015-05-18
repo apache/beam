@@ -78,31 +78,46 @@ public class BlockingDataflowPipelineRunner extends
 
   @Override
   public DataflowPipelineJob run(Pipeline p) {
-    DataflowPipelineJob job = dataflowPipelineRunner.run(p);
+    final DataflowPipelineJob job = dataflowPipelineRunner.run(p);
 
-    @Nullable
-    State result;
+    Thread shutdownHook = new Thread() {
+      @Override
+      public void run() {
+        LOG.warn("Job is already running in Google Cloud Platform, Ctrl-C will not cancel it.\n"
+            + "To cancel the job in the cloud, run:\n> {}",
+            MonitoringUtil.getGcloudCancelCommand(job.getProjectId(), job.getJobId()));
+      }
+    };
+
     try {
-      result = job.waitToFinish(
-          BUILTIN_JOB_TIMEOUT_SEC, TimeUnit.SECONDS, jobMessagesHandler);
-    } catch (IOException | InterruptedException ex) {
-      throw new RuntimeException("Exception caught during job execution", ex);
-    }
+      Runtime.getRuntime().addShutdownHook(shutdownHook);
 
-    if (result == null) {
-      throw new RuntimeException("No result provided: "
-          + "possible error requesting job status.");
-    }
+      @Nullable
+      State result;
+      try {
+        result = job.waitToFinish(
+            BUILTIN_JOB_TIMEOUT_SEC, TimeUnit.SECONDS, jobMessagesHandler);
+      } catch (IOException | InterruptedException ex) {
+        throw new RuntimeException("Exception caught during job execution", ex);
+      }
 
-    LOG.info("Job finished with status {}", result);
-    if (result.isTerminal()) {
-      return job;
-    }
+      if (result == null) {
+        throw new RuntimeException("No result provided: "
+            + "possible error requesting job status.");
+      }
 
-    // TODO: introduce an exception that can wrap a JobState,
-    // so that detailed error information can be retrieved.
-    throw new RuntimeException(
-        "Failed to wait for the job to finish. Returned result: " + result);
+      LOG.info("Job finished with status {}", result);
+      if (result.isTerminal()) {
+        return job;
+      }
+
+      // TODO: introduce an exception that can wrap a JobState,
+      // so that detailed error information can be retrieved.
+      throw new RuntimeException(
+          "Failed to wait for the job to finish. Returned result: " + result);
+    } finally {
+      Runtime.getRuntime().removeShutdownHook(shutdownHook);
+    }
   }
 
   @Override

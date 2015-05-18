@@ -43,6 +43,9 @@ import javax.annotation.Nullable;
  * A helper class for monitoring jobs submitted to the service.
  */
 public final class MonitoringUtil {
+
+  private static final String GCLOUD_DATAFLOW_PREFIX = "gcloud alpha dataflow";
+
   private static final Map<String, State> DATAFLOW_STATE_TO_JOB_STATE =
       ImmutableMap
           .<String, State>builder()
@@ -201,6 +204,11 @@ public final class MonitoringUtil {
       // Should never happen.
       throw new AssertionError("UTF-8 encoding is not supported by the environment", e);
     }
+  }
+
+  public static String getGcloudCancelCommand(String projectName, String jobId) {
+    return String.format("%s jobs --project=%s cancel %s",
+        GCLOUD_DATAFLOW_PREFIX, projectName, jobId);
   }
 
   public static State toState(String stateName) {

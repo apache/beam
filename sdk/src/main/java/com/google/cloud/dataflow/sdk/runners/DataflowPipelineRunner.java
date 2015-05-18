@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.runners;
 
-import static com.google.cloud.dataflow.sdk.PipelineResult.State;
-
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.Joiner;
 import com.google.api.services.dataflow.Dataflow;
@@ -25,6 +23,7 @@ import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult.State;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -253,10 +252,16 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         MonitoringUtil.getJobMonitoringPageURL(options.getProject(), jobResult.getId()));
     System.out.println("Submitted job: " + jobResult.getId());
 
+    LOG.info("To cancel the job using the 'gcloud' tool, run:\n > {}",
+        MonitoringUtil.getGcloudCancelCommand(jobResult.getProjectId(), jobResult.getId()));
+
     // Use a raw client for post-launch monitoring, as status calls may fail
     // regularly and need not be retried automatically.
-    return new DataflowPipelineJob(options.getProject(), jobResult.getId(),
-        Transport.newRawDataflowClient(options).build());
+    DataflowPipelineJob dataflowPipelineJob =
+        new DataflowPipelineJob(options.getProject(), jobResult.getId(),
+            Transport.newRawDataflowClient(options).build());
+
+    return dataflowPipelineJob;
   }
 
   /**
