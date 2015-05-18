@@ -247,7 +247,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
             TimeUnit.MILLISECONDS.toMicros(view.getWindowingStrategyInternal()
                 .getTrigger()
                 .getSpec()
-                .getWatermarkCutoff(sideInputWindow)
+                .getWatermarkThatGuaranteesFiring(sideInputWindow)
                 .getMillis()))
         .build();
   }

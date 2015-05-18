@@ -121,7 +121,7 @@ public class ExecutableTriggerTest {
     }
 
     @Override
-    public Instant getWatermarkCutoff(IntervalWindow window) {
+    public Instant getWatermarkThatGuaranteesFiring(IntervalWindow window) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
 

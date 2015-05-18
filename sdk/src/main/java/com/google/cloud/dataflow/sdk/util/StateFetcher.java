@@ -234,7 +234,7 @@ public class StateFetcher {
                 .setExistenceWatermarkDeadline(
                      TimeUnit.MILLISECONDS.toMicros(view.getWindowingStrategyInternal()
                          .getTrigger().getSpec()
-                         .getWatermarkCutoff(window)
+                         .getWatermarkThatGuaranteesFiring(window)
                          .getMillis()))
                 .build();
 

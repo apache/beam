@@ -161,16 +161,17 @@ public class RepeatedlyTest {
     BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
     assertEquals(new Instant(9),
-        Repeatedly.forever(AfterWatermark.pastEndOfWindow()).getWatermarkCutoff(window));
+        Repeatedly.forever(AfterWatermark.pastEndOfWindow())
+        .getWatermarkThatGuaranteesFiring(window));
     assertEquals(new Instant(9), Repeatedly.forever(AfterWatermark.pastEndOfWindow())
         .orFinally(AfterPane.elementCountAtLeast(1))
-        .getWatermarkCutoff(window));
+        .getWatermarkThatGuaranteesFiring(window));
     assertEquals(new Instant(9), Repeatedly.forever(AfterPane.elementCountAtLeast(1))
         .orFinally(AfterWatermark.pastEndOfWindow())
-        .getWatermarkCutoff(window));
+        .getWatermarkThatGuaranteesFiring(window));
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
         Repeatedly.forever(AfterPane.elementCountAtLeast(1))
         .orFinally(AfterPane.elementCountAtLeast(10))
-        .getWatermarkCutoff(window));
+        .getWatermarkThatGuaranteesFiring(window));
   }
 }

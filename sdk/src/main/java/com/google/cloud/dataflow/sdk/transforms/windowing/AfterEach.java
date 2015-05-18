@@ -125,9 +125,9 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
   }
 
   @Override
-  public Instant getWatermarkCutoff(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(W window) {
     // This trigger will fire at least once when the first trigger in the sequence
     // fires at least once.
-    return subTriggers.get(0).getWatermarkCutoff(window);
+    return subTriggers.get(0).getWatermarkThatGuaranteesFiring(window);
   }
 }

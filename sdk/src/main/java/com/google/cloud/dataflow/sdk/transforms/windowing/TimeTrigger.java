@@ -39,8 +39,10 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
 
   private static final long serialVersionUID = 0L;
 
-  protected static final List<SerializableFunction<Instant, Instant>> IDENTITY =
-      ImmutableList.<SerializableFunction<Instant, Instant>>of();
+  protected static final List<SerializableFunction<Instant, Instant>> IDENTITY;
+  static {
+    IDENTITY = ImmutableList.<SerializableFunction<Instant, Instant>>of();
+  }
 
   private final List<SerializableFunction<Instant, Instant>> timestampMappers;
 

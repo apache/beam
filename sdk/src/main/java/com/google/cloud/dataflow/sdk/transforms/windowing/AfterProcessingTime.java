@@ -108,7 +108,7 @@ public class AfterProcessingTime<W extends BoundedWindow>
   }
 
   @Override
-  public Instant getWatermarkCutoff(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(W window) {
     return BoundedWindow.TIMESTAMP_MAX_VALUE;
   }
 }

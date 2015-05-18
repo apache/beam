@@ -140,7 +140,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    public Instant getWatermarkCutoff(W window) {
+    public Instant getWatermarkThatGuaranteesFiring(W window) {
       return computeTargetTimestamp(window.maxTimestamp());
     }
 
@@ -195,7 +195,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    public Instant getWatermarkCutoff(W window) {
+    public Instant getWatermarkThatGuaranteesFiring(W window) {
       return computeTargetTimestamp(window.maxTimestamp());
     }
 

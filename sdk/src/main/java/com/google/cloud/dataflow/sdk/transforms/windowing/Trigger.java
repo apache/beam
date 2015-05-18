@@ -523,8 +523,11 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    *
    * <p> For triggers that do not fire based on the watermark advancing, returns
    * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
+   *
+   * <p> This estimate is used to determine that there are no elements in a side-input window, which
+   * causes the default value to be used instead.
    */
-  public abstract Instant getWatermarkCutoff(W window);
+  public abstract Instant getWatermarkThatGuaranteesFiring(W window);
 
   /**
    * Returns whether this performs the same triggering as the given {@code Trigger}.
@@ -679,10 +682,10 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     }
 
     @Override
-    public Instant getWatermarkCutoff(W window) {
+    public Instant getWatermarkThatGuaranteesFiring(W window) {
       // This trigger fires once either the trigger or the until trigger fires.
-      Instant actualDeadline = subTriggers.get(ACTUAL).getWatermarkCutoff(window);
-      Instant untilDeadline = subTriggers.get(UNTIL).getWatermarkCutoff(window);
+      Instant actualDeadline = subTriggers.get(ACTUAL).getWatermarkThatGuaranteesFiring(window);
+      Instant untilDeadline = subTriggers.get(UNTIL).getWatermarkThatGuaranteesFiring(window);
       return actualDeadline.isBefore(untilDeadline) ? actualDeadline : untilDeadline;
     }
   }

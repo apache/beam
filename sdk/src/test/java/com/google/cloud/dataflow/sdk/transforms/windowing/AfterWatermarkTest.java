@@ -156,12 +156,13 @@ public class AfterWatermarkTest {
   public void testFireDeadline() throws Exception {
     BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
-    assertEquals(new Instant(9), AfterWatermark.pastEndOfWindow().getWatermarkCutoff(window));
+    assertEquals(new Instant(9), AfterWatermark.pastEndOfWindow()
+        .getWatermarkThatGuaranteesFiring(window));
     assertEquals(GlobalWindow.INSTANCE.maxTimestamp(),
-        AfterWatermark.pastEndOfWindow().getWatermarkCutoff(GlobalWindow.INSTANCE));
+        AfterWatermark.pastEndOfWindow().getWatermarkThatGuaranteesFiring(GlobalWindow.INSTANCE));
     assertEquals(new Instant(19),
         AfterWatermark
             .pastEndOfWindow()
-            .plusDelayOf(Duration.millis(10)).getWatermarkCutoff(window));
+            .plusDelayOf(Duration.millis(10)).getWatermarkThatGuaranteesFiring(window));
   }
 }
