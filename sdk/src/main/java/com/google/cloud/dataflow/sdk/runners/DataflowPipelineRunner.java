@@ -252,8 +252,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         MonitoringUtil.getJobMonitoringPageURL(options.getProject(), jobResult.getId()));
     System.out.println("Submitted job: " + jobResult.getId());
 
-    LOG.info("To cancel the job using the 'gcloud' tool, run:\n > {}",
-        MonitoringUtil.getGcloudCancelCommand(jobResult.getProjectId(), jobResult.getId()));
+    LOG.info("To cancel the job using the 'gcloud' tool, run:\n> {}",
+        MonitoringUtil.getGcloudCancelCommand(options.getProject(), jobResult.getId()));
 
     // Use a raw client for post-launch monitoring, as status calls may fail
     // regularly and need not be retried automatically.
