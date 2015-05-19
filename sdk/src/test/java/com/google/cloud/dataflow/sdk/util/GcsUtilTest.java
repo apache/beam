@@ -96,7 +96,7 @@ public class GcsUtilTest {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
     ExecutorService executorService = pipelineOptions.getExecutorService();
 
-    int numThreads = 1000;
+    int numThreads = 100;
     final CountDownLatch[] countDownLatches = new CountDownLatch[numThreads];
     for (int i = 0; i < numThreads; i++) {
       final int currentLatch = i;
