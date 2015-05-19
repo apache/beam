@@ -212,8 +212,7 @@ public class CombineValuesFnTest {
   public void testCombineValuesFnAll() throws Exception {
     TestReceiver receiver = new TestReceiver();
 
-    Combine.KeyedCombineFn<String, Integer,
-        MeanInts.CountSum, String> combiner =
+    Combine.KeyedCombineFn<String, Integer, MeanInts.CountSum, String> combiner =
         (new MeanInts()).asKeyedFn();
 
     ParDoFn combineParDoFn = createCombineValuesFn(
@@ -229,9 +228,9 @@ public class CombineValuesFnTest {
     combineParDoFn.finishBundle();
 
     Object[] expectedReceivedElems = {
-      WindowedValue.valueInGlobalWindow(KV.of("a", "6.0")),
-      WindowedValue.valueInGlobalWindow(KV.of("b", "3.7")),
-      WindowedValue.valueInGlobalWindow(KV.of("c", "6.5")),
+      WindowedValue.valueInGlobalWindow(KV.of("a", String.format("%.1f", 6.0))),
+      WindowedValue.valueInGlobalWindow(KV.of("b", String.format("%.1f", 3.7))),
+      WindowedValue.valueInGlobalWindow(KV.of("c", String.format("%.1f", 6.5))),
     };
     assertArrayEquals(expectedReceivedElems, receiver.receivedElems.toArray());
   }
@@ -315,8 +314,8 @@ public class CombineValuesFnTest {
     combineParDoFn.finishBundle();
 
     assertArrayEquals(
-        new Object[]{ WindowedValue.valueInGlobalWindow(KV.of("a", "4.5")),
-                      WindowedValue.valueInGlobalWindow(KV.of("b", "7.0")) },
+        new Object[]{ WindowedValue.valueInGlobalWindow(KV.of("a", String.format("%.1f", 4.5))),
+                      WindowedValue.valueInGlobalWindow(KV.of("b", String.format("%.1f", 7.0))) },
         receiver.receivedElems.toArray());
   }
 

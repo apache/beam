@@ -54,10 +54,12 @@ public class LoggingMediaHttpUploaderProgressListenerTest {
   public void testLoggingProgressAfterSixtySeconds() {
     listener.progressChanged(mockLogger, UploadState.MEDIA_IN_PROGRESS, 10485760L, 60001L);
     listener.progressChanged(mockLogger, UploadState.MEDIA_IN_PROGRESS, 104857600L, 120002L);
-    verify(mockLogger).debug(
-        "Uploading: NAME Average Rate: 0.167 MiB/s, Current Rate: 0.167 MiB/s, Total: 10.000 MiB");
-    verify(mockLogger).debug(
-        "Uploading: NAME Average Rate: 0.833 MiB/s, Current Rate: 1.500 MiB/s, Total: 100.000 MiB");
+    verify(mockLogger).debug(String.format(
+        "Uploading: NAME Average Rate: %.3f MiB/s, Current Rate: %.3f MiB/s, Total: %.3f MiB",
+        0.167, 0.167, 10.0));
+    verify(mockLogger).debug(String.format(
+        "Uploading: NAME Average Rate: %.3f MiB/s, Current Rate: %.3f MiB/s, Total: %.3f MiB",
+        0.833, 1.5, 100.0));
     verifyNoMoreInteractions(mockLogger);
   }
 
