@@ -24,7 +24,6 @@ import java.util.Set;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -67,22 +66,6 @@ public class EvaluationContext implements EvaluationResult {
 
   SparkRuntimeContext getRuntimeContext() {
     return runtime;
-  }
-
-  <T> Coder<T> getDefaultCoder(T example) {
-    Coder<T> defaultCoder = registry.getDefaultCoder(example);
-    if (defaultCoder == null) {
-      if (example instanceof Iterable) {
-        Object first = ((Iterable<?>) example).iterator().next();
-        @SuppressWarnings("unchecked")
-        Coder<T> coder = (Coder<T>) IterableCoder.of(getDefaultCoder(first));
-        return coder;
-      } else {
-        throw new IllegalStateException(String.format("Couldn't determine the default coder for " +
-            "an example  of class [%s]", example.getClass()));
-      }
-    }
-    return defaultCoder;
   }
 
   <I extends PInput> I getInput(PTransform<I, ?> transform) {

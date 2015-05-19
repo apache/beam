@@ -473,9 +473,9 @@ public final class TransformTranslator {
     } else {
       Map<TupleTag<?>, BroadcastHelper<?>> sideInputs = Maps.newHashMap();
       for (PCollectionView<?> view : views) {
-        Object sideinput = view.fromIterableInternal(context.getPCollectionView(view));
-        Coder<Object> coder = context.getDefaultCoder(sideinput);
-        BroadcastHelper<?> helper = new BroadcastHelper<>(sideinput, coder);
+        Iterable<WindowedValue<?>> collectionView = context.getPCollectionView(view);
+        Coder<Iterable<WindowedValue<?>>> coderInternal = view.getCoderInternal();
+        BroadcastHelper<?> helper = new BroadcastHelper<>(collectionView, coderInternal);
         //broadcast side inputs
         helper.broadcast(context.getSparkContext());
         sideInputs.put(view.getTagInternal(), helper);

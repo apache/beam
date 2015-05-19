@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -97,9 +98,11 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
+      BroadcastHelper<?> broadcastHelper = mSideInputs.get(view.getTagInternal());
       @SuppressWarnings("unchecked")
-      T value = (T) mSideInputs.get(view.getTagInternal()).getValue();
-      return value;
+      Iterable<WindowedValue<?>> contents =
+          (Iterable<WindowedValue<?>>) broadcastHelper.getValue();
+      return view.fromIterableInternal(contents);
     }
 
     @Override
