@@ -24,9 +24,13 @@ import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
+import static com.cloudera.dataflow.spark.ShardNameBuilder.replaceShardNumber;
+
 public class TemplatedTextOutputFormat<K, V> extends TextOutputFormat<K, V> {
 
+  public static final String OUTPUT_FILE_PREFIX = "spark.dataflow.textoutputformat.prefix";
   public static final String OUTPUT_FILE_TEMPLATE = "spark.dataflow.textoutputformat.template";
+  public static final String OUTPUT_FILE_SUFFIX = "spark.dataflow.textoutputformat.suffix";
 
   @Override
   public void checkOutputSpecs(JobContext job) {
@@ -45,7 +49,10 @@ public class TemplatedTextOutputFormat<K, V> extends TextOutputFormat<K, V> {
   private String getOutputFile(TaskAttemptContext context) {
     TaskID taskId = context.getTaskAttemptID().getTaskID();
     int partition = taskId.getId();
-    String outputFileTemplate = context.getConfiguration().get(OUTPUT_FILE_TEMPLATE);
-    return ShardNameBuilder.replaceShardNumber(outputFileTemplate, partition);
+
+    String filePrefix = context.getConfiguration().get(OUTPUT_FILE_PREFIX);
+    String fileTemplate = context.getConfiguration().get(OUTPUT_FILE_TEMPLATE);
+    String fileSuffix = context.getConfiguration().get(OUTPUT_FILE_SUFFIX);
+    return filePrefix + replaceShardNumber(fileTemplate, partition) + fileSuffix;
   }
 }

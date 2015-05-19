@@ -18,7 +18,8 @@ package com.cloudera.dataflow.spark;
 import org.junit.Test;
 
 import static com.cloudera.dataflow.spark.ShardNameBuilder.getOutputDirectory;
-import static com.cloudera.dataflow.spark.ShardNameBuilder.getOutputFile;
+import static com.cloudera.dataflow.spark.ShardNameBuilder.getOutputFilePrefix;
+import static com.cloudera.dataflow.spark.ShardNameBuilder.getOutputFileTemplate;
 import static com.cloudera.dataflow.spark.ShardNameBuilder.replaceShardCount;
 import static com.cloudera.dataflow.spark.ShardNameBuilder.replaceShardNumber;
 import static org.junit.Assert.assertEquals;
@@ -47,24 +48,35 @@ public class ShardNameBuilderTest {
 
   @Test
      public void testGetOutputDirectory() {
-    assertEquals("./", getOutputDirectory("foo", "-S-of-N", ""));
-    assertEquals("foo", getOutputDirectory("foo/bar", "-S-of-N", ""));
-    assertEquals("/foo", getOutputDirectory("/foo/bar", "-S-of-N", ""));
-    assertEquals("hdfs://foo/", getOutputDirectory("hdfs://foo/bar", "-S-of-N", ".txt"));
-    assertEquals("foo/bar", getOutputDirectory("foo/bar", "/part-SSSSS", ""));
-    assertEquals("/foo/bar", getOutputDirectory("/foo/bar", "/part-SSSSS", ""));
-    assertEquals("hdfs://foo/bar", getOutputDirectory("hdfs://foo/bar", "/part-SSSSS", ".txt"));
+    assertEquals("./", getOutputDirectory("foo", "-S-of-N"));
+    assertEquals("foo", getOutputDirectory("foo/bar", "-S-of-N"));
+    assertEquals("/foo", getOutputDirectory("/foo/bar", "-S-of-N"));
+    assertEquals("hdfs://foo/", getOutputDirectory("hdfs://foo/bar", "-S-of-N"));
+    assertEquals("foo/bar", getOutputDirectory("foo/bar", "/part-SSSSS"));
+    assertEquals("/foo/bar", getOutputDirectory("/foo/bar", "/part-SSSSS"));
+    assertEquals("hdfs://foo/bar", getOutputDirectory("hdfs://foo/bar", "/part-SSSSS"));
   }
 
   @Test
-  public void testGetOutputFile() {
-    assertEquals("foo-S-of-N", getOutputFile("foo", "-S-of-N", ""));
-    assertEquals("bar-S-of-N", getOutputFile("foo/bar", "-S-of-N", ""));
-    assertEquals("bar-S-of-N", getOutputFile("/foo/bar", "-S-of-N", ""));
-    assertEquals("bar-S-of-N.txt", getOutputFile("hdfs://foo/bar", "-S-of-N", ".txt"));
-    assertEquals("part-SSSSS", getOutputFile("foo/bar", "/part-SSSSS", ""));
-    assertEquals("part-SSSSS", getOutputFile("/foo/bar", "/part-SSSSS", ""));
-    assertEquals("part-SSSSS.txt", getOutputFile("hdfs://foo/bar", "/part-SSSSS", ".txt"));
+  public void testGetOutputFilePrefix() {
+    assertEquals("foo", getOutputFilePrefix("foo", "-S-of-N"));
+    assertEquals("bar", getOutputFilePrefix("foo/bar", "-S-of-N"));
+    assertEquals("bar", getOutputFilePrefix("/foo/bar", "-S-of-N"));
+    assertEquals("bar", getOutputFilePrefix("hdfs://foo/bar", "-S-of-N"));
+    assertEquals("", getOutputFilePrefix("foo/bar", "/part-SSSSS"));
+    assertEquals("", getOutputFilePrefix("/foo/bar", "/part-SSSSS"));
+    assertEquals("", getOutputFilePrefix("hdfs://foo/bar", "/part-SSSSS"));
+  }
+
+  @Test
+  public void testGetOutputFileTemplate() {
+    assertEquals("-S-of-N", getOutputFileTemplate("foo", "-S-of-N"));
+    assertEquals("-S-of-N", getOutputFileTemplate("foo/bar", "-S-of-N"));
+    assertEquals("-S-of-N", getOutputFileTemplate("/foo/bar", "-S-of-N"));
+    assertEquals("-S-of-N", getOutputFileTemplate("hdfs://foo/bar", "-S-of-N"));
+    assertEquals("part-SSSSS", getOutputFileTemplate("foo/bar", "/part-SSSSS"));
+    assertEquals("part-SSSSS", getOutputFileTemplate("/foo/bar", "/part-SSSSS"));
+    assertEquals("part-SSSSS", getOutputFileTemplate("hdfs://foo/bar", "/part-SSSSS"));
   }
 
 }

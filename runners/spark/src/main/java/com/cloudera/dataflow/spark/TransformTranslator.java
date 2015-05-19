@@ -60,6 +60,11 @@ import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
 
+import static com.cloudera.dataflow.spark.ShardNameBuilder.getOutputDirectory;
+import static com.cloudera.dataflow.spark.ShardNameBuilder.getOutputFilePrefix;
+import static com.cloudera.dataflow.spark.ShardNameBuilder.getOutputFileTemplate;
+import static com.cloudera.dataflow.spark.ShardNameBuilder.replaceShardCount;
+
 /**
  * Supports translation between a DataFlow transform, and Spark's operations on RDDs.
  */
@@ -310,15 +315,16 @@ public final class TransformTranslator {
           last = last.repartition(transform.getNumShards());
         }
 
-        String template = ShardNameBuilder.replaceShardCount(transform.getShardTemplate(),
-            shardCount);
-        String outputDir = ShardNameBuilder.getOutputDirectory(transform.getFilenamePrefix(),
-            template, transform.getFilenameSuffix());
-        String fileTemplate = ShardNameBuilder.getOutputFile(transform.getFilenamePrefix(),
-            template, transform.getFilenameSuffix());
+        String template = replaceShardCount(transform.getShardTemplate(), shardCount);
+        String outputDir = getOutputDirectory(transform.getFilenamePrefix(), template);
+        String filePrefix = getOutputFilePrefix(transform.getFilenamePrefix(), template);
+        String fileTemplate = getOutputFileTemplate(transform.getFilenamePrefix(), template);
+        String fileSuffix = transform.getFilenameSuffix();
 
         Configuration conf = new Configuration();
+        conf.set(TemplatedTextOutputFormat.OUTPUT_FILE_PREFIX, filePrefix);
         conf.set(TemplatedTextOutputFormat.OUTPUT_FILE_TEMPLATE, fileTemplate);
+        conf.set(TemplatedTextOutputFormat.OUTPUT_FILE_SUFFIX, fileSuffix);
         last.saveAsNewAPIHadoopFile(outputDir, Text.class, NullWritable.class,
             TemplatedTextOutputFormat.class, conf);
       }

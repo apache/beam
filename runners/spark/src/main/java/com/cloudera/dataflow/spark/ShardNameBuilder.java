@@ -65,12 +65,10 @@ final class ShardNameBuilder {
   /**
    * @param pathPrefix a relative or absolute path
    * @param template a template string
-   * @param suffix a filename suffix
    * @return the output directory for the given prefix, template and suffix
    */
-  public static String getOutputDirectory(String pathPrefix, String template,
-      String suffix) {
-    String out = new Path(pathPrefix + template + suffix).getParent().toString();
+  public static String getOutputDirectory(String pathPrefix, String template) {
+    String out = new Path(pathPrefix + template).getParent().toString();
     if (out.isEmpty()) {
       return "./";
     }
@@ -80,11 +78,29 @@ final class ShardNameBuilder {
   /**
    * @param pathPrefix a relative or absolute path
    * @param template a template string
-   * @param suffix a filename suffix
-   * @return the output filename for the given prefix, template and suffix
+   * @return the prefix of the output filename for the given path prefix and template
    */
-  public static String getOutputFile(String pathPrefix, String template,
-      String suffix) {
-    return new Path(pathPrefix + template + suffix).getName();
+  public static String getOutputFilePrefix(String pathPrefix, String template) {
+    String name = new Path(pathPrefix + template).getName();
+    if (name.endsWith(template)) {
+      return name.substring(0, name.length() - template.length());
+    } else {
+      return "";
+    }
+  }
+
+  /**
+   * @param pathPrefix a relative or absolute path
+   * @param template a template string
+   * @return the template for the output filename for the given path prefix and
+   * template
+   */
+  public static String getOutputFileTemplate(String pathPrefix, String template) {
+    String name = new Path(pathPrefix + template).getName();
+    if (name.endsWith(template)) {
+      return template;
+    } else {
+      return name;
+    }
   }
 }
