@@ -20,13 +20,9 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.util.AbstractWindowSet.Factory;
-import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TimerManager;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
-
-import org.joda.time.Instant;
 
 /**
  * DoFn that merges windows and groups elements in those windows.
@@ -77,7 +73,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
 
     private void initForKey(ProcessContext c, K key) throws Exception{
       if (executor == null) {
-        TimerManager timerManager = new StreamingTimerManager(c);
+        TimerManager timerManager = c.windowingInternals().getTimerManager();
         executor = TriggerExecutor.create(
           key, windowingStrategy, timerManager, windowSetFactory,
           c.keyedState(), c.windowingInternals());
@@ -109,30 +105,6 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
 
       // Prepare this DoFn for reuse.
       executor = null;
-    }
-  }
-
-  private static class StreamingTimerManager implements TimerManager {
-
-    private DoFn<?, ?>.ProcessContext context;
-
-    public StreamingTimerManager(DoFn<?, ?>.ProcessContext context) {
-      this.context = context;
-    }
-
-    @Override
-    public void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain) {
-      context.windowingInternals().setTimer(timer, timestamp, domain);
-    }
-
-    @Override
-    public void deleteTimer(String timer, Trigger.TimeDomain domain) {
-      context.windowingInternals().deleteTimer(timer, domain);
-    }
-
-    @Override
-    public Instant currentProcessingTime() {
-      return Instant.now();
     }
   }
 }

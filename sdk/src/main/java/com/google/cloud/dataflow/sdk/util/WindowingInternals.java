@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -91,16 +90,10 @@ public interface WindowingInternals<InputT, OutputT> {
       List<CodedTupleTag<T>> tags) throws IOException;
 
   /**
-   * Writes out a timer to be fired when the watermark reaches the given
-   * timestamp.  Timers are identified by their name, and can be moved
-   * by calling {@code setTimer} again, or deleted with {@link #deleteTimer}.
+   * Return the timer manager provided by the underlying system, or null if Timers need
+   * to be emulated.
    */
-  void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain);
-
-  /**
-   * Deletes the given timer.
-   */
-  void deleteTimer(String timer, Trigger.TimeDomain domain);
+  TimerManager getTimerManager();
 
   /**
    * Access the windows the element is being processed in without "exploding" it.

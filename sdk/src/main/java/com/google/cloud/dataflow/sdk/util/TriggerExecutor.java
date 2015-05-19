@@ -26,7 +26,6 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
@@ -86,31 +85,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   private final WatermarkHold watermarkHold;
 
   private AccumulationMode mode;
-
-  /**
-   * Methods that the system must provide in order for us to implement triggers.
-   */
-  public interface TimerManager {
-
-    /**
-     * Writes out a timer to be fired when the watermark reaches the given
-     * timestamp.  Timers are identified by their name, and can be moved
-     * by calling {@code setTimer} again, or deleted with {@link #deleteTimer}.
-     */
-    void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain);
-
-    /**
-     * Deletes the given timer.
-     */
-    void deleteTimer(String timer, Trigger.TimeDomain domain);
-
-    /**
-     * @return the current timestamp in the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain#PROCESSING_TIME}
-     * time domain.
-     */
-    Instant currentProcessingTime();
-  }
 
   TriggerExecutor(
       WindowFn<Object, W> windowFn,

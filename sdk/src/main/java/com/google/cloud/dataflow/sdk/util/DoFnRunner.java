@@ -29,7 +29,6 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -564,18 +563,13 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         }
 
         @Override
-        public void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain) {
-          context.stepContext.getExecutionContext().setTimer(timer, timestamp, domain);
-        }
-
-        @Override
-        public void deleteTimer(String timer, Trigger.TimeDomain domain) {
-          context.stepContext.getExecutionContext().deleteTimer(timer, domain);
-        }
-
-        @Override
         public Collection<? extends BoundedWindow> windows() {
           return windowedValue.getWindows();
+        }
+
+        @Override
+        public TimerManager getTimerManager() {
+          return context.stepContext.getExecutionContext().getTimerManager();
         }
 
         @Override

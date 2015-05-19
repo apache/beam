@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -69,13 +68,8 @@ public class BatchModeExecutionContext extends ExecutionContext {
   }
 
   @Override
-  public void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain) {
-    throw new UnsupportedOperationException("setTimer is not supported in batch mode");
-  }
-
-  @Override
-  public void deleteTimer(String timer, Trigger.TimeDomain domain) {
-    throw new UnsupportedOperationException("deleteTimer is not supported in batch mode");
+  public TimerManager getTimerManager() {
+    return null;
   }
 
   @Override

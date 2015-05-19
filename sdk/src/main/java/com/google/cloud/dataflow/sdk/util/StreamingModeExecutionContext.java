@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
@@ -72,23 +73,33 @@ public class StreamingModeExecutionContext extends ExecutionContext {
   }
 
   @Override
-  public void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain) {
-    long timestampMicros = TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis());
-    outputBuilder.addOutputTimers(
-        Windmill.Timer.newBuilder()
-        .setTimestamp(timestampMicros)
-        .setTag(ByteString.copyFromUtf8(timer))
-        .setType(timerType(domain))
-        .build());
-  }
+  public TimerManager getTimerManager() {
+    return new TimerManager() {
+      @Override
+      public void setTimer(String timer, Instant timestamp, TimeDomain domain) {
+        long timestampMicros = TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis());
+        outputBuilder.addOutputTimers(
+            Windmill.Timer.newBuilder()
+            .setTimestamp(timestampMicros)
+            .setTag(ByteString.copyFromUtf8(timer))
+            .setType(timerType(domain))
+            .build());
+      }
 
-  @Override
-  public void deleteTimer(String timer, Trigger.TimeDomain domain) {
-    outputBuilder.addOutputTimers(
-        Windmill.Timer.newBuilder()
-        .setTag(ByteString.copyFromUtf8(timer))
-        .setType(timerType(domain))
-        .build());
+      @Override
+      public void deleteTimer(String timer, TimeDomain domain) {
+        outputBuilder.addOutputTimers(
+            Windmill.Timer.newBuilder()
+            .setTag(ByteString.copyFromUtf8(timer))
+            .setType(timerType(domain))
+            .build());
+      }
+
+      @Override
+      public Instant currentProcessingTime() {
+        return Instant.now();
+      }
+    };
   }
 
   private Windmill.Timer.Type timerType(Trigger.TimeDomain domain) {
@@ -141,7 +152,7 @@ public class StreamingModeExecutionContext extends ExecutionContext {
             "Expected side input to be cached. Tag: "
             + view.getTagInternal().getId());
       }
-      T typed = (T) stateFetcher.fetchSideInput(view, sideInputWindow, state);
+      T typed = stateFetcher.fetchSideInput(view, sideInputWindow, state);
       sideInput = typed;
       if (sideInput != null) {
         tagCache.put(sideInputWindow, sideInput);
@@ -315,7 +326,7 @@ public class StreamingModeExecutionContext extends ExecutionContext {
     @Override
     public <T> Map<CodedTupleTag<T>, Iterable<T>> readTagLists(Iterable<CodedTupleTag<T>> tags)
         throws IOException {
-      @SuppressWarnings({"unchecked"})
+      @SuppressWarnings({"unchecked", "rawtypes"})
       Iterable<CodedTupleTag<?>> wildcardTags = (Iterable) tags;
       Map<CodedTupleTag<?>, Iterable<?>> wildcardMap = tagCache.readTagLists(wildcardTags);
       @SuppressWarnings({"unchecked", "rawtypes"})

@@ -30,7 +30,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TriggerIdCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -44,6 +43,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,14 +58,17 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   CounterSet counters;
   TupleTag<KV<String, Iterable<String>>> outputTag;
 
-  @Before public void setUp() {
-    execContext = new DirectModeExecutionContext() {
-        @Override
-        public void setTimer(String tag, Instant timestamp, Trigger.TimeDomain domain) {}
+  @Mock
+  private TimerManager mockTimerManager;
 
-        @Override
-        public void deleteTimer(String tag, Trigger.TimeDomain domain) {}
-      };
+  @Before public void setUp() {
+    MockitoAnnotations.initMocks(this);
+    execContext = new DirectModeExecutionContext() {
+      @Override
+      public TimerManager getTimerManager() {
+        return mockTimerManager;
+      }
+    };
     counters = new CounterSet();
     outputTag = new TupleTag<>();
   }
