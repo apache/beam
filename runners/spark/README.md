@@ -72,7 +72,7 @@ in local mode:
 
 Check the output by running:
 
-    head /tmp/out/part-00000
+    head /tmp/out-00000-of-00001
 
 __Note: running examples using `mvn exec:exec` only works for Spark local mode at the
 moment. See the next section for how to run on a cluster.__
@@ -98,7 +98,7 @@ Then run the word count example using Spark submit with the `yarn-client` master
 
 Check the output by running:
 
-    hadoop fs -tail out/part-00000
+    hadoop fs -tail out-00000-of-00002
 
 [![Build Status](https://travis-ci.org/cloudera/spark-dataflow.png?branch=master)](https://travis-ci.org/cloudera/spark-dataflow)
 [![codecov.io](https://codecov.io/github/cloudera/spark-dataflow/coverage.svg?branch=master)](https://codecov.io/github/cloudera/spark-dataflow?branch=master)

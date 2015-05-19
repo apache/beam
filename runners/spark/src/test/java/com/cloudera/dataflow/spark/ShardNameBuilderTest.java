@@ -47,6 +47,7 @@ public class ShardNameBuilderTest {
 
   @Test
      public void testGetOutputDirectory() {
+    assertEquals("./", getOutputDirectory("foo", "-S-of-N", ""));
     assertEquals("foo", getOutputDirectory("foo/bar", "-S-of-N", ""));
     assertEquals("/foo", getOutputDirectory("/foo/bar", "-S-of-N", ""));
     assertEquals("hdfs://foo/", getOutputDirectory("hdfs://foo/bar", "-S-of-N", ".txt"));
@@ -57,6 +58,7 @@ public class ShardNameBuilderTest {
 
   @Test
   public void testGetOutputFile() {
+    assertEquals("foo-S-of-N", getOutputFile("foo", "-S-of-N", ""));
     assertEquals("bar-S-of-N", getOutputFile("foo/bar", "-S-of-N", ""));
     assertEquals("bar-S-of-N", getOutputFile("/foo/bar", "-S-of-N", ""));
     assertEquals("bar-S-of-N.txt", getOutputFile("hdfs://foo/bar", "-S-of-N", ".txt"));

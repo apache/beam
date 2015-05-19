@@ -193,6 +193,7 @@ License.
                     <version>1.4.0</version>
                     <configuration>
                         <executable>java</executable>
+                        <classpathScope>test</classpathScope> <!-- include provided deps -->
                         <arguments>
                             <argument>-classpath</argument>
                             <classpath />

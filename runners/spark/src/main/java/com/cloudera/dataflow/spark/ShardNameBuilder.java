@@ -70,7 +70,11 @@ final class ShardNameBuilder {
    */
   public static String getOutputDirectory(String pathPrefix, String template,
       String suffix) {
-    return new Path(pathPrefix + template + suffix).getParent().toString();
+    String out = new Path(pathPrefix + template + suffix).getParent().toString();
+    if (out.isEmpty()) {
+      return "./";
+    }
+    return out;
   }
 
   /**
