@@ -98,10 +98,10 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
-      BroadcastHelper<?> broadcastHelper = mSideInputs.get(view.getTagInternal());
       @SuppressWarnings("unchecked")
-      Iterable<WindowedValue<?>> contents =
-          (Iterable<WindowedValue<?>>) broadcastHelper.getValue();
+      BroadcastHelper<Iterable<WindowedValue<?>>> broadcastHelper =
+          (BroadcastHelper<Iterable<WindowedValue<?>>>) mSideInputs.get(view.getTagInternal());
+      Iterable<WindowedValue<?>> contents = broadcastHelper.getValue();
       return view.fromIterableInternal(contents);
     }
 
