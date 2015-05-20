@@ -39,9 +39,9 @@ import javax.annotation.Nullable;
 
 /**
  * {@code Trigger}s control when the elements for a specific key and window are output. As elements
- * arrive, they are put into one or more windows by the {@code Window} by the {@link WindowFn}, and
- * then passed to the associated {@code Trigger} to determine if the {@code Window}s contents should
- * be output.
+ * arrive, they are put into one or more windows by a {@link Window} transform and its associated
+ * {@link WindowFn}, and then passed to the associated {@code Trigger} to determine if the
+ * {@code Window}s contents should be output.
  *
  * <p> See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} and {@link Window}
  * for more information about how grouping with windows works.
