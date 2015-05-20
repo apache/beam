@@ -177,7 +177,6 @@ public class DataflowPipelineTranslator {
    * Returns the {@link TransformTranslator} to use for instances of the
    * specified PTransform class, or null if none registered.
    */
-  @SuppressWarnings("unchecked")
   public <TransformT extends PTransform>
       TransformTranslator<TransformT> getTransformTranslator(Class<TransformT> transformClass) {
     return transformTranslators.get(transformClass);
@@ -483,7 +482,6 @@ public class DataflowPipelineTranslator {
     public void leaveCompositeTransform(TransformTreeNode node) {
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void visitTransform(TransformTreeNode node) {
       PTransform<?, ?> transform = node.getTransform();
@@ -548,7 +546,6 @@ public class DataflowPipelineTranslator {
         @Nullable List<Map<String, Object>> outputInfoList = null;
         try {
           // TODO: This should be done via a Structs accessor.
-          @SuppressWarnings("unchecked")
           @Nullable List<Map<String, Object>> list =
               (List<Map<String, Object>>) properties.get(PropertyNames.OUTPUT_INFO);
           outputInfoList = list;
@@ -676,7 +673,6 @@ public class DataflowPipelineTranslator {
      * Dataflow step, producing the specified output {@code PValue}
      * with the given {@code Coder} (if not {@code null}).
      */
-    @SuppressWarnings("unchecked")
     private void addOutput(String name, PValue value, Coder<?> valueCoder) {
       registerOutputName(value, name);
 
@@ -791,7 +787,6 @@ public class DataflowPipelineTranslator {
     DataflowPipelineTranslator.registerTransformTranslator(
         Combine.GroupedValues.class,
         new DataflowPipelineTranslator.TransformTranslator<Combine.GroupedValues>() {
-          @SuppressWarnings("unchecked")
           @Override
           public void translate(
               Combine.GroupedValues transform,

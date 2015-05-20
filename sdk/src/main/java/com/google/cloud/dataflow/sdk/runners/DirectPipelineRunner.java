@@ -132,7 +132,6 @@ public class DirectPipelineRunner
    * Returns the TransformEvaluator to use for instances of the
    * specified PTransform class, or null if none registered.
    */
-  @SuppressWarnings("unchecked")
   public <TransformT extends PTransform<?, ?>>
       TransformEvaluator<TransformT> getTransformEvaluator(Class<TransformT> transformClass) {
     TransformEvaluator<TransformT> transformEvaluator =
@@ -208,7 +207,6 @@ public class DirectPipelineRunner
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
     if (transform instanceof Combine.GroupedValues) {
@@ -254,7 +252,6 @@ public class DirectPipelineRunner
     private final Coder<AccumT> accumCoder;
     private final boolean testSerializability;
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public static <K, InputT, AccumT, OutputT> TestCombineDoFn<K, InputT, AccumT, OutputT> create(
         Combine.GroupedValues<K, InputT, OutputT> transform,
         PCollection<KV<K, Iterable<InputT>>> input,
@@ -656,7 +653,6 @@ public class DirectPipelineRunner
     public void leaveCompositeTransform(TransformTreeNode node) {
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void visitTransform(TransformTreeNode node) {
       PTransform<?, ?> transform = node.getTransform();
@@ -789,7 +785,6 @@ public class DirectPipelineRunner
 
     @Override
     public <T> List<ValueWithMetadata<T>> getPCollectionValuesWithMetadata(PCollection<T> pc) {
-      @SuppressWarnings("unchecked")
       List<ValueWithMetadata<T>> elements = (List<ValueWithMetadata<T>>) getPValue(pc);
       elements = randomizeIfUnordered(elements, false /* not inPlaceAllowed */);
       LOG.debug("Getting {} = {}", pc, elements);
@@ -812,7 +807,6 @@ public class DirectPipelineRunner
      */
     @Override
     public <T, WindowedT> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
-      @SuppressWarnings("unchecked")
       Iterable<WindowedValue<?>> value = (Iterable<WindowedValue<?>>) getPValue(view);
       LOG.debug("Getting {} = {}", view, value);
       return value;
