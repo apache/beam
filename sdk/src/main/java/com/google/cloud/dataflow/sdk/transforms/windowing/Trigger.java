@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
+import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
@@ -101,24 +102,6 @@ import javax.annotation.Nullable;
 public abstract class Trigger<W extends BoundedWindow> implements Serializable {
 
   private static final long serialVersionUID = 0L;
-
-  /**
-   * {@code TimeDomain} specifies whether an operation is based on
-   * timestamps of elements or current "real-world" time as reported while processing.
-   */
-  public enum TimeDomain {
-    /**
-     * The {@code EVENT_TIME} domain corresponds to the timestamps on the elemnts. Time advances
-     * on the system watermark advances.
-     */
-    EVENT_TIME,
-
-    /**
-     * The {@code PROCESSING_TIME} domain corresponds to the current to the current (system) time.
-     * This is advanced during exeuction of the Dataflow pipeline.
-     */
-    PROCESSING_TIME;
-  }
 
   /**
    * {@code WindowStatus} indicates the status of the window that an element is being processed in.

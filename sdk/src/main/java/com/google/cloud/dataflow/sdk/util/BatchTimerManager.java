@@ -16,8 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 
 import org.joda.time.Instant;
 
@@ -39,12 +38,12 @@ public class BatchTimerManager implements TimerManager {
 
   private Instant processingTime;
 
-  private PriorityQueue<BatchTimerManager.BatchTimer> queue(Trigger.TimeDomain domain) {
-    return Trigger.TimeDomain.EVENT_TIME.equals(domain) ? watermarkTimers : processingTimers;
+  private PriorityQueue<BatchTimerManager.BatchTimer> queue(TimerManager.TimeDomain domain) {
+    return TimeDomain.EVENT_TIME.equals(domain) ? watermarkTimers : processingTimers;
   }
 
-  private Map<String, BatchTimer> map(Trigger.TimeDomain domain) {
-    return Trigger.TimeDomain.EVENT_TIME.equals(domain)
+  private Map<String, BatchTimer> map(TimeDomain domain) {
+    return TimeDomain.EVENT_TIME.equals(domain)
         ? watermarkTagToTimer : processingTagToTimer;
   }
 
@@ -53,7 +52,7 @@ public class BatchTimerManager implements TimerManager {
   }
 
   @Override
-  public void setTimer(String tag, Instant timestamp, Trigger.TimeDomain domain) {
+  public void setTimer(String tag, Instant timestamp, TimeDomain domain) {
     BatchTimerManager.BatchTimer newTimer = new BatchTimerManager.BatchTimer(tag, timestamp);
 
     BatchTimerManager.BatchTimer oldTimer = map(domain).put(tag, newTimer);
@@ -64,7 +63,7 @@ public class BatchTimerManager implements TimerManager {
   }
 
   @Override
-  public void deleteTimer(String tag, Trigger.TimeDomain domain) {
+  public void deleteTimer(String tag, TimeDomain domain) {
     queue(domain).remove(map(domain).get(tag));
   }
 

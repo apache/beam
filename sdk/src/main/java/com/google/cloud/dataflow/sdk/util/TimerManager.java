@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
-
 import org.joda.time.Instant;
 
 /**
@@ -29,21 +27,37 @@ import org.joda.time.Instant;
 public interface TimerManager {
 
   /**
+   * {@code TimeDomain} specifies whether an operation is based on
+   * timestamps of elements or current "real-world" time as reported while processing.
+   */
+  public enum TimeDomain {
+    /**
+     * The {@code EVENT_TIME} domain corresponds to the timestamps on the elemnts. Time advances
+     * on the system watermark advances.
+     */
+    EVENT_TIME,
+
+    /**
+     * The {@code PROCESSING_TIME} domain corresponds to the current to the current (system) time.
+     * This is advanced during exeuction of the Dataflow pipeline.
+     */
+    PROCESSING_TIME;
+  }
+
+  /**
    * Writes out a timer to be fired when the watermark reaches the given
    * timestamp.  Timers are identified by their name, and can be moved
    * by calling {@code setTimer} again, or deleted with {@link #deleteTimer}.
    */
-  void setTimer(String timer, Instant timestamp, Trigger.TimeDomain domain);
+  void setTimer(String timer, Instant timestamp, TimeDomain domain);
 
   /**
    * Deletes the given timer.
    */
-  void deleteTimer(String timer, Trigger.TimeDomain domain);
+  void deleteTimer(String timer, TimeDomain domain);
 
   /**
-   * @return the current timestamp in the
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain#PROCESSING_TIME}
-   * time domain.
+   * @return the current timestamp in the {@link TimeDomain#PROCESSING_TIME} time domain.
    */
   Instant currentProcessingTime();
 }

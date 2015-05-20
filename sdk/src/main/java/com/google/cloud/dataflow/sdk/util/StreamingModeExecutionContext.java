@@ -19,9 +19,8 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
+import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -102,8 +101,8 @@ public class StreamingModeExecutionContext extends ExecutionContext {
     };
   }
 
-  private Windmill.Timer.Type timerType(Trigger.TimeDomain domain) {
-    return domain == Trigger.TimeDomain.EVENT_TIME
+  private Windmill.Timer.Type timerType(TimeDomain domain) {
+    return domain == TimeDomain.EVENT_TIME
         ? Windmill.Timer.Type.WATERMARK
         : Windmill.Timer.Type.REALTIME;
   }

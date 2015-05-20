@@ -28,9 +28,9 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TimeDomain;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
@@ -385,7 +385,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public void deleteTimer(String tag, Trigger.TimeDomain domain) {
+    public void deleteTimer(String tag, TimeDomain domain) {
       logInteraction("Delete timer '%s' in domain %s", tag, domain);
       super.deleteTimer(tag, domain);
     }
