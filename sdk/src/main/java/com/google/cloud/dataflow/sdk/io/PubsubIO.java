@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
@@ -370,7 +371,8 @@ public class PubsubIO {
         }
         return PCollection.<T>createPrimitiveOutputInternal(
                 input.getPipeline(),
-                WindowingStrategy.globalDefault())
+                WindowingStrategy.globalDefault(),
+                IsBounded.UNBOUNDED)
             .setCoder(coder);
       }
 

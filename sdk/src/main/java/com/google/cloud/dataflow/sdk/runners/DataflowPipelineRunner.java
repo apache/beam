@@ -162,10 +162,12 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
     if (transform instanceof Combine.GroupedValues || transform instanceof GroupByKey) {
+      PCollection<?> pc = (PCollection<?>) input;
       // TODO: Redundant with translator registration?
       return (OutputT) PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(),
-          ((PCollection<?>) input).getWindowingStrategy());
+          pc.getPipeline(),
+          pc.getWindowingStrategy(),
+          pc.isBounded());
     } else if (transform instanceof Create) {
       return (OutputT) ((Create) transform).applyHelper(input, options.isStreaming());
     } else {

@@ -254,7 +254,8 @@ public class Window {
 
     @Override
     public PCollection<T> apply(PCollection<T> input) {
-      return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(), windowingStrategy);
+      return PCollection.<T>createPrimitiveOutputInternal(
+          input.getPipeline(), windowingStrategy, input.isBounded());
     }
 
     @Override

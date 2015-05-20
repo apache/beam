@@ -25,6 +25,8 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
+import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
@@ -35,6 +37,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -382,6 +385,14 @@ public class GroupByKey<K, V>
                          PCollection<KV<K, Iterable<V>>>> {
     @Override
     public void validate(PCollection<KV<K, V>> input) {
+      WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+      if (windowingStrategy.getWindowFn() instanceof GlobalWindows
+          && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
+          && input.isBounded() != IsBounded.BOUNDED) {
+        throw new IllegalStateException("Non-bounded PCollection cannot be "
+            + "processed with GlobalWindow and DefaultTrigger for GroupByKey."
+            + "Use Window.into transform prior to GroupByKey.");
+      }
       // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
       // the key coder is deterministic.
       Coder<K> keyCoder = getKeyCoder(input.getCoder());
@@ -408,7 +419,7 @@ public class GroupByKey<K, V>
       // We also return to the default trigger.
       WindowingStrategy<?, ?> newWindowingStrategy = WindowingStrategy.of(newWindowFn);
       return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
-          input.getPipeline(), newWindowingStrategy);
+          input.getPipeline(), newWindowingStrategy, input.isBounded());
     }
 
     /**

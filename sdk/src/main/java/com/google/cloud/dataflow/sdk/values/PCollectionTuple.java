@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.Collection;
@@ -185,7 +186,8 @@ public class PCollectionTuple implements PInput, POutput {
   public static PCollectionTuple ofPrimitiveOutputsInternal(
       Pipeline pipeline,
       TupleTagList outputTags,
-      WindowingStrategy<?, ?> windowingStrategy) {
+      WindowingStrategy<?, ?> windowingStrategy,
+      IsBounded isBounded) {
     Map<TupleTag<?>, PCollection<?>> pcollectionMap = new LinkedHashMap<>();
     for (TupleTag<?> outputTag : outputTags.tupleTags) {
       if (pcollectionMap.containsKey(outputTag)) {
@@ -202,7 +204,7 @@ public class PCollectionTuple implements PInput, POutput {
       @SuppressWarnings("unchecked")
       TypeDescriptor<Object> token = (TypeDescriptor<Object>) outputTag.getTypeDescriptor();
       PCollection<Object> outputCollection = PCollection
-          .createPrimitiveOutputInternal(pipeline, windowingStrategy)
+          .createPrimitiveOutputInternal(pipeline, windowingStrategy, isBounded)
           .setTypeDescriptorInternal(token);
 
       pcollectionMap.put(outputTag, outputCollection);

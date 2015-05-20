@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 
 import java.util.ArrayList;
@@ -110,6 +111,7 @@ public class Flatten {
     @Override
     public PCollection<T> apply(PCollectionList<T> inputs) {
       WindowingStrategy<?, ?> windowingStrategy;
+      IsBounded isBounded = IsBounded.BOUNDED;
       if (!inputs.getAll().isEmpty()) {
         windowingStrategy = inputs.get(0).getWindowingStrategy();
         for (PCollection<?> input : inputs.getAll()) {
@@ -126,6 +128,7 @@ public class Flatten {
                 "Inputs to Flatten had incompatible triggers: "
                 + windowingStrategy.getTrigger() + ", " + other.getTrigger());
           }
+          isBounded = isBounded.and(input.isBounded());
         }
       } else {
         windowingStrategy = WindowingStrategy.globalDefault();
@@ -133,7 +136,8 @@ public class Flatten {
 
       return PCollection.<T>createPrimitiveOutputInternal(
           inputs.getPipeline(),
-          windowingStrategy);
+          windowingStrategy,
+          isBounded);
     }
 
     @Override

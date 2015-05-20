@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
@@ -292,7 +293,8 @@ public class AvroIO {
         // format specified by the Read transform.
         return PCollection.<T>createPrimitiveOutputInternal(
             input.getPipeline(),
-            WindowingStrategy.globalDefault())
+            WindowingStrategy.globalDefault(),
+            IsBounded.BOUNDED)
             .setCoder(getDefaultOutputCoder());
       }
 

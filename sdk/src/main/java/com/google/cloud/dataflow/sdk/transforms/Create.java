@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue.TimestampedValueCoder;
@@ -223,7 +224,8 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
     } else {
       return PCollection.<T>createPrimitiveOutputInternal(
           input.getPipeline(),
-          WindowingStrategy.globalDefault());
+          WindowingStrategy.globalDefault(),
+          IsBounded.BOUNDED);
     }
   }
 

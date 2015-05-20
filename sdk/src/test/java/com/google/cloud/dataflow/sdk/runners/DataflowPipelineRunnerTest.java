@@ -475,7 +475,8 @@ public class DataflowPipelineRunnerTest {
     public PCollection<Integer> apply(PCollection<Integer> input) {
       return PCollection.<Integer>createPrimitiveOutputInternal(
           input.getPipeline(),
-          WindowingStrategy.globalDefault());
+          WindowingStrategy.globalDefault(),
+          input.isBounded());
     }
 
     @Override

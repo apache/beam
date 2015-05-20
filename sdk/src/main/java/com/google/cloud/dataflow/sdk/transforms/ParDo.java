@@ -749,7 +749,8 @@ public class ParDo {
       }
       return PCollection.<OutputT>createPrimitiveOutputInternal(
               input.getPipeline(),
-              input.getWindowingStrategy())
+              input.getWindowingStrategy(),
+              input.isBounded())
           .setTypeDescriptorInternal(fn.getOutputTypeDescriptor());
     }
 
@@ -969,7 +970,8 @@ public class ParDo {
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
-          input.getWindowingStrategy());
+          input.getWindowingStrategy(),
+          input.isBounded());
 
       // The fn will likely be an instance of an anonymous subclass
       // such as DoFn<Integer, String> { }, thus will have a high-fidelity

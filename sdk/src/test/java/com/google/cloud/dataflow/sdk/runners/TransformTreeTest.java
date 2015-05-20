@@ -76,7 +76,8 @@ public class TransformTreeTest {
       return PCollectionList.of(
           Arrays.asList(result, PCollection.<String>createPrimitiveOutputInternal(
               b.getPipeline(),
-              WindowingStrategy.globalDefault())));
+              WindowingStrategy.globalDefault(),
+              result.isBounded())));
     }
   }
 

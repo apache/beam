@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFor
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.base.Preconditions;
 
@@ -101,7 +102,8 @@ public class Read {
       source.validate();
       return PCollection.<T>createPrimitiveOutputInternal(
           input.getPipeline(),
-          WindowingStrategy.globalDefault())
+          WindowingStrategy.globalDefault(),
+          IsBounded.BOUNDED)
           .setCoder(getDefaultOutputCoder());
     }
 

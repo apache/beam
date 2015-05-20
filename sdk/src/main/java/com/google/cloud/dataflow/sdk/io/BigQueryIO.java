@@ -38,6 +38,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
@@ -291,7 +292,8 @@ public class BigQueryIO {
         }
         return PCollection.<TableRow>createPrimitiveOutputInternal(
             input.getPipeline(),
-            WindowingStrategy.globalDefault())
+            WindowingStrategy.globalDefault(),
+            IsBounded.BOUNDED)
             // Force the output's Coder to be what the read is using, and
             // unchangeable later, to ensure that we read the input in the
             // format specified by the Read transform.

@@ -86,6 +86,7 @@ public class DataflowPipelineTranslatorTest {
   // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
   private static class IsValidCreateRequest extends ArgumentMatcher<Job> {
+    @Override
     public boolean matches(Object o) {
       Job job = (Job) o;
       return job.getId() == null
@@ -333,7 +334,8 @@ public class DataflowPipelineTranslatorTest {
     public PCollection<String> apply(PCollection<String> input) {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
-          WindowingStrategy.globalDefault());
+          WindowingStrategy.globalDefault(),
+          input.isBounded());
     }
 
     @Override
@@ -416,7 +418,8 @@ public class DataflowPipelineTranslatorTest {
       return PCollectionTuple.of(sumTag, sum)
           .and(doneTag, PCollection.<Void>createPrimitiveOutputInternal(
               input.getPipeline(),
-              WindowingStrategy.globalDefault()));
+              WindowingStrategy.globalDefault(),
+              input.isBounded()));
     }
   }
 
