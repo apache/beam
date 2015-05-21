@@ -53,19 +53,29 @@ import java.util.List;
  * table.
  *
  * <p> To execute this pipeline locally, specify general pipeline configuration:
- *   --project=<PROJECT ID>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ * }
+ * </pre>
  * and the BigQuery table for the output:
- *   --output=<project_id>:<dataset_id>.<table_id>
+ * <pre>{@code
+ *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
+ * }</pre>
  *
  * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=<PROJECT ID>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://<STAGING DIRECTORY>
  *   --runner=BlockingDataflowPipelineRunner
+ * }
+ * </pre>
  * and the BigQuery table for the output:
- *   --output=<project_id>:<dataset_id>.<table_id>
+ * <pre>{@code
+ *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
+ * }</pre>
  *
- * <p> The BigQuery input table defaults to publicdata:samples.shakespeare and can
- * be overridden with --input.
+ * <p> The BigQuery input table defaults to {@code publicdata:samples.shakespeare} and can
+ * be overridden with {@code --input}.
  */
 public class CombinePerKeyExamples {
   // Use the shakespeare public BigQuery sample
@@ -75,7 +85,7 @@ public class CombinePerKeyExamples {
   private static final int MIN_WORD_LENGTH = 9;
 
   /**
-   * Examines each row in the input table. If the word is >= MIN_WORD_LENGTH,
+   * Examines each row in the input table. If the word is greater than or equal to MIN_WORD_LENGTH,
    * outputs word, play_name.
    */
   static class ExtractLargeWordsFn extends DoFn<TableRow, KV<String, String>> {

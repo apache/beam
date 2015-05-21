@@ -32,22 +32,22 @@ import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
  * duplicate lines across all the files. (The output does not preserve any input order).
  *
  * <p> Concepts: the RemoveDuplicates transform, and how to wire transforms together.
- * Demonstrates TextIO.Read/RemoveDuplicates/TextIO.Write.
+ * Demonstrates {@link TextIO.Read}/{@link RemoveDuplicates}/{@link TextIO.Write}.
  *
  * <p> To execute this pipeline locally, specify general pipeline configuration:
- *   --project=<PROJECT ID>
+ *   --project=YOUR_PROJECT_ID
  * and a local output file or output prefix on GCS:
- *   --output=[<LOCAL FILE> | gs://<OUTPUT PREFIX>]
+ *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  *
  * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=<PROJECT ID>
- *   --stagingLocation=gs://<STAGING DIRECTORY>
+ *   --project=YOUR_PROJECT_ID
+ *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
  * and an output prefix on GCS:
- *   --output=gs://<OUTPUT PREFIX>
+ *   --output=gs://YOUR_OUTPUT_PREFIX
  *
- * <p> The input defaults to gs://dataflow-samples/shakespeare/* and can be
- * overridden with --input.
+ * <p> The input defaults to {@code gs://dataflow-samples/shakespeare/*} and can be
+ * overridden with {@code --input}.
  */
 public class DeDupExample {
 

@@ -45,9 +45,9 @@ import java.util.UUID;
  * data to Datastore, which may incur charge for Datastore operations.
  *
  * <p> To run this example, users need to use gcloud to get credential for Datastore:
- * <pre>
+ * <pre>{@code
  * $ gcloud auth login
- * </pre>
+ * }</pre>
  *
  * <p> Note that the environment variable CLOUDSDK_EXTRA_SCOPES must be set
  * to the same value when executing a Datastore pipeline, as the local auth
@@ -55,9 +55,9 @@ import java.util.UUID;
  *
  * <p> To run this pipeline locally, the following options must be provided:
  * <pre>{@code
- *   --project=<PROJECT ID>
- *   --dataset=<DATASET ID>
- *   --output=[<LOCAL FILE> | gs://<OUTPUT PATH>]
+ *   --project=YOUR_PROJECT_ID
+ *   --dataset=YOUR_DATASET_ID
+ *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PATH]
  * }</pre>
  *
  * <p> To run this example using Dataflow service, you must additionally

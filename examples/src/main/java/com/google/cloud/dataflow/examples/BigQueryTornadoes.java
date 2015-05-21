@@ -46,19 +46,29 @@ import java.util.List;
  * table.
  *
  * <p> To execute this pipeline locally, specify general pipeline configuration:
- *   --project=<PROJECT ID>
- * and the BigQuery table for the output:
- *   --output=<project_id>:<dataset_id>.<table_id>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ * }
+ * </pre>
+ * and the BigQuery table for the output, with the form
+ * <pre>{@code
+ *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
+ * }</pre>
  *
  * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=<PROJECT ID>
- *   --stagingLocation=gs://<STAGING DIRECTORY>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
+ * }
+ * </pre>
  * and the BigQuery table for the output:
- *   --output=<project_id>:<dataset_id>.<table_id>
+ * <pre>{@code
+ *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
+ * }</pre>
  *
- * <p> The BigQuery input table defaults to clouddataflow-readonly:samples.weather_stations and can
- * be overridden with --input.
+ * <p> The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations}
+ * and can be overridden with {@code --input}.
  */
 public class BigQueryTornadoes {
   // Default to using a 1000 row subset of the public weather station table publicdata:samples.gsod.

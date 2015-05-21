@@ -67,18 +67,25 @@ import java.util.Set;
  * <p> Concepts: joining data; side inputs; logging
  *
  * <p> To execute this pipeline locally, specify general pipeline configuration:
- *   --project=<PROJECT ID>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ * }</pre>
  * and a local output file or output prefix on GCS:
- *   --output=[<LOCAL FILE> | gs://<OUTPUT PREFIX>]
+ * <pre>{@code
+ *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
+ * }</pre>
  *
  * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=<PROJECT ID>
- *   --stagingLocation=gs://<STAGING DIRECTORY>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
  * and an output prefix on GCS:
- *   --output=gs://<OUTPUT PREFIX>
+ *   --output=gs://YOUR_OUTPUT_PREFIX
+ * }</pre>
  *
- * <p> The default input is gs://dataflow-samples/shakespeare/ and can be overridden with --input.
+ * <p> The default input is {@code gs://dataflow-samples/shakespeare/} and can be overridden with
+ * {@code --input}.
  */
 public class TfIdf {
   /**

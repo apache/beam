@@ -41,16 +41,26 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
  * <p> Concepts: Join operation; multiple input sources.
  *
  * <p> To execute this pipeline locally, specify general pipeline configuration:
- *   --project=<PROJECT ID>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ * }
+ * </pre>
  * and a local output file or output prefix on GCS:
- *   --output=[<LOCAL FILE> | gs://<OUTPUT PREFIX>]
+ * <pre>{@code
+ *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
+ * }</pre>
  *
  * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=<PROJECT ID>
- *   --stagingLocation=gs://<STAGING DIRECTORY>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
+ * }
+ * </pre>
  * and an output prefix on GCS:
- *   --output=gs://<OUTPUT PREFIX>
+ * <pre>{@code
+ *   --output=gs://YOUR_OUTPUT_PREFIX
+ * }</pre>
  */
 public class JoinExamples {
 

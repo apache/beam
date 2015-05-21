@@ -55,23 +55,35 @@ import java.util.logging.Logger;
  * table.
  *
  * <p> To execute this pipeline locally, specify general pipeline configuration:
- *   --project=<PROJECT ID>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ * }
+ * </pre>
  * and the BigQuery table for the output:
- *   --output=<project_id>:<dataset_id>.<table_id>
+ * <pre>{@code
+ *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  *   [--monthFilter=<month_number>]
- * where optional parameter --monthFilter is set to a number 1-12.
+ * }
+ * </pre>
+ * where optional parameter {@code --monthFilter} is set to a number 1-12.
  *
  * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=<PROJECT ID>
- *   --stagingLocation=gs://<STAGING DIRECTORY>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
+ * }
+ * </pre>
  * and the BigQuery table for the output:
- *   --output=<project_id>:<dataset_id>.<table_id>
+ * <pre>{@code
+ *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  *   [--monthFilter=<month_number>]
- * where optional parameter --monthFilter is set to a number 1-12.
+ * }
+ * </pre>
+ * where optional parameter {@code --monthFilter} is set to a number 1-12.
  *
- * <p> The BigQuery input table defaults to clouddataflow-readonly:samples.weather_stations and can
- * be overridden with --input.
+ * <p> The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations}
+ * and can be overridden with {@code --input}.
  */
 public class FilterExamples {
   // Default to using a 1000 row subset of the public weather station table publicdata:samples.gsod.

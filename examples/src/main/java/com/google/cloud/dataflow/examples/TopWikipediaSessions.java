@@ -55,19 +55,27 @@ import java.util.List;
  * data.
  *
  * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=<PROJECT ID>
- *   --stagingLocation=gs://<STAGING DIRECTORY>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
+ * }
+ * </pre>
  * and an output prefix on GCS:
- *   --output=gs://<OUTPUT PREFIX>
+ * <pre>{@code
+ *   --output=gs://YOUR_OUTPUT_PREFIX
+ * }</pre>
  *
- * <p> The default input is gs://dataflow-samples/wikipedia_edits/*.json and can be overridden with
- * --input.
+ * <p> The default input is {@code gs://dataflow-samples/wikipedia_edits/*.json} and can be
+ * overridden with {@code --input}.
  *
  * <p> The input for this example is large enough that it's a good place to enable (experimental)
  * autoscaling:
+ * <pre>{@code
  *   --autoscalingAlgorithm=BASIC
  *   --maxNumWorkers=20
+ * }
+ * </pre>
  * This will automatically scale the number of workers up over time until the job completes.
  */
 public class TopWikipediaSessions {

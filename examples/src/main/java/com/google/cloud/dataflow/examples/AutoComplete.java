@@ -76,18 +76,22 @@ import java.util.regex.Pattern;
  *
  * <p> To execute this pipeline using the Dataflow service in batch mode,
  * specify pipeline configuration:
- *   --project=<PROJECT ID>
- *   --stagingLocation=gs://<STAGING DIRECTORY>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
  *   --runner=DataflowPipelineRunner
  *   --inputFile=gs://path/to/input*.txt
+ * }</pre>
  *
  * <p> To execute this pipeline using the Dataflow service in streaming mode,
  * specify pipeline configuration:
- *   --project=<PROJECT ID>
- *   --stagingLocation=gs://<STAGING DIRECTORY>
+ * <pre>{@code
+ *   --project=YOUR_PROJECT_ID
+ *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
  *   --runner=DataflowPipelineRunner
- *   --inputFile=gs://path/to/input*.txt
+ *   --inputFile=gs://YOUR_INPUT_DIRECTORY/*.txt
  *   --streaming
+ * }</pre>
  *
  * <p> This will update the datastore every 10 seconds based on the last
  * 30 minutes of data received.
