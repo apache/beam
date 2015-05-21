@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.ProcessContext;
 import com.google.cloud.dataflow.sdk.transforms.Filter;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -60,7 +59,7 @@ public class AutoCompleteTest implements Serializable {
   }
 
   @Parameterized.Parameters
-  public static Collection<Object[]> primeNumbers() {
+  public static Collection<Object[]> testRecursive() {
     return Arrays.asList(new Object[][] {
         { true },
         { false }
