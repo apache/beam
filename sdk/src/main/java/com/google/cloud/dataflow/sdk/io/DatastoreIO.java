@@ -434,7 +434,8 @@ public class DatastoreIO {
       Preconditions.checkNotNull(
           host, "Host is a required parameter. Please use withHost to set the host.");
       Preconditions.checkNotNull(
-          datasetId, "Dataset id is a required parameter. Please use to to set the datasetId.");
+          datasetId,
+          "Dataset ID is a required parameter. Please use withDataset to to set the datasetId.");
     }
 
     @Override
