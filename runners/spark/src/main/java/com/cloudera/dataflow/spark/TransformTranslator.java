@@ -22,6 +22,7 @@ import java.util.Map;
 
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -118,7 +119,16 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         JavaRDDLike<KV<K, V>, ?> inRDD =
             (JavaRDDLike<KV<K, V>, ?>) context.getInputRDD(transform);
-        context.setOutputRDD(transform, fromPair(toPair(inRDD).groupByKey()));
+        @SuppressWarnings("unchecked")
+        KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
+        final Coder<K> keyCoder = coder.getKeyCoder();
+        final Coder<V> valueCoder = coder.getValueCoder();
+
+        JavaRDDLike<KV<K, Iterable<V>>, ?> outRDD = fromPair(toPair(inRDD)
+            .mapToPair(CoderHelpers.toByteFunction(keyCoder, valueCoder))
+            .groupByKey()
+            .mapToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, valueCoder)));
+        context.setOutputRDD(transform, outRDD);
       }
     };
   }
@@ -150,6 +160,15 @@ public final class TransformTranslator {
         JavaRDDLike<KV<K, VI>, ?> inRdd =
             (JavaRDDLike<KV<K, VI>, ?>) context.getInputRDD(transform);
 
+        @SuppressWarnings("unchecked")
+        KvCoder<K, VI> inputCoder = (KvCoder<K, VI>) context.getInput(transform).getCoder();
+        Coder<K> keyCoder = inputCoder.getKeyCoder();
+        Coder<VI> viCoder = inputCoder.getValueCoder();
+        Coder<VA> vaCoder = keyed.getAccumulatorCoder(
+            context.getPipeline().getCoderRegistry(), keyCoder, viCoder);
+        final Coder<KV<K, VI>> kviCoder = KvCoder.of(keyCoder, viCoder);
+        final Coder<KV<K, VA>> kvaCoder = KvCoder.of(keyCoder, vaCoder);
+
         // We need to duplicate K as both the key of the JavaPairRDD as well as inside the value,
         // since the functions passed to combineByKey don't receive the associated key of each
         // value, and we need to map back into methods in Combine.KeyedCombineFn, which each
@@ -164,42 +183,54 @@ public final class TransformTranslator {
               }
             });
 
+        JavaPairRDD<ByteArray, byte[]> inRddDuplicatedKeyPairBytes = inRddDuplicatedKeyPair
+            .mapToPair(CoderHelpers.toByteFunction(keyCoder, kviCoder));
+
         // The output of combineByKey will be "VA" (accumulator) types rather than "VO" (final
         // output types) since Combine.CombineFn only provides ways to merge VAs, and no way
         // to merge VOs.
-        JavaPairRDD<K, KV<K, VA>> accumulated = inRddDuplicatedKeyPair.combineByKey(
-            new Function<KV<K, VI>, KV<K, VA>>() {
+        JavaPairRDD</*K*/ ByteArray, /*KV<K, VA>*/ byte[]> accumulatedBytes =
+            inRddDuplicatedKeyPairBytes.combineByKey(
+            new Function</*KV<K, VI>*/ byte[], /*KV<K, VA>*/ byte[]>() {
               @Override
-              public KV<K, VA> call(KV<K, VI> input) {
-                VA acc = keyed.createAccumulator(input.getKey());
-                keyed.addInput(input.getKey(), acc, input.getValue());
-                return KV.of(input.getKey(), acc);
+              public /*KV<K, VA>*/ byte[] call(/*KV<K, VI>*/ byte[] input) {
+                KV<K, VI> kvi = CoderHelpers.fromByteArray(input, kviCoder);
+                VA va = keyed.createAccumulator(kvi.getKey());
+                keyed.addInput(kvi.getKey(), va, kvi.getValue());
+                return CoderHelpers.toByteArray(KV.of(kvi.getKey(), va), kvaCoder);
               }
             },
-            new Function2<KV<K, VA>, KV<K, VI>, KV<K, VA>>() {
+            new Function2</*KV<K, VA>*/ byte[], /*KV<K, VI>*/ byte[], /*KV<K, VA>*/ byte[]>() {
               @Override
-              public KV<K, VA> call(KV<K, VA> acc, KV<K, VI> input) {
-                keyed.addInput(acc.getKey(), acc.getValue(), input.getValue());
-                return acc;
+              public /*KV<K, VA>*/ byte[] call(/*KV<K, VA>*/ byte[] acc,
+                  /*KV<K, VI>*/ byte[] input) {
+                KV<K, VA> kva = CoderHelpers.fromByteArray(acc, kvaCoder);
+                KV<K, VI> kvi = CoderHelpers.fromByteArray(input, kviCoder);
+                keyed.addInput(kva.getKey(), kva.getValue(), kvi.getValue());
+                return CoderHelpers.toByteArray(KV.of(kva.getKey(), kva.getValue()), kvaCoder);
               }
             },
-            new Function2<KV<K, VA>, KV<K, VA>, KV<K, VA>>() {
+            new Function2</*KV<K, VA>*/ byte[], /*KV<K, VA>*/ byte[], /*KV<K, VA>*/ byte[]>() {
               @Override
-              public KV<K, VA> call(KV<K, VA> acc1, KV<K, VA> acc2) {
-                return KV.of(
-                    acc1.getKey(),
-                    keyed.mergeAccumulators(
-                        acc1.getKey(), ImmutableList.of(acc1.getValue(), acc2.getValue())));
+              public /*KV<K, VA>*/ byte[] call(/*KV<K, VA>*/ byte[] acc1,
+                  /*KV<K, VA>*/ byte[] acc2) {
+                KV<K, VA> kva1 = CoderHelpers.fromByteArray(acc1, kvaCoder);
+                KV<K, VA> kva2 = CoderHelpers.fromByteArray(acc2, kvaCoder);
+                VA va = keyed.mergeAccumulators(kva1.getKey(),
+                    ImmutableList.of(kva1.getValue(), kva2.getValue()));
+                return CoderHelpers.toByteArray(KV.of(kva1.getKey(), va), kvaCoder);
               }
             });
 
-        JavaPairRDD<K, VO> extracted = accumulated.mapValues(
-            new Function<KV<K, VA>, VO>() {
-              @Override
-              public VO call(KV<K, VA> acc) {
-                return keyed.extractOutput(acc.getKey(), acc.getValue());
-              }
-            });
+        JavaPairRDD<K, VO> extracted = accumulatedBytes
+            .mapToPair(CoderHelpers.fromByteFunction(keyCoder, kvaCoder))
+            .mapValues(
+                new Function<KV<K, VA>, VO>() {
+                  @Override
+                  public VO call(KV<K, VA> acc) {
+                    return keyed.extractOutput(acc.getKey(), acc.getValue());
+                  }
+                });
         context.setOutputRDD(transform, fromPair(extracted));
       }
     };

@@ -22,7 +22,10 @@ import java.util.LinkedList;
 import java.util.List;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.common.collect.Iterables;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.PairFunction;
+import scala.Tuple2;
 
 /**
  * Serialization utility class.
@@ -110,6 +113,72 @@ public final class CoderHelpers {
       @Override
       public T call(byte[] bytes) throws Exception {
         return fromByteArray(bytes, coder);
+      }
+    };
+  }
+
+  /**
+   * A function wrapper for converting a key-value pair to a byte array pair.
+   *
+   * @param keyCoder Coder to serialize keys.
+   * @param valueCoder Coder to serialize values.
+   * @param <K>   The type of the key being serialized.
+   * @param <V>   The type of the value being serialized.
+   * @return A function that accepts a key-value pair and returns a pair of byte arrays.
+   */
+  static <K, V> PairFunction<Tuple2<K, V>, ByteArray, byte[]> toByteFunction(
+      final Coder<K> keyCoder, final Coder<V> valueCoder) {
+    return new PairFunction<Tuple2<K, V>, ByteArray, byte[]>() {
+      @Override
+      public Tuple2<ByteArray, byte[]> call(Tuple2<K, V> kv) {
+        return new Tuple2<>(new ByteArray(toByteArray(kv._1(), keyCoder)), toByteArray(kv._2(),
+            valueCoder));
+      }
+    };
+  }
+
+  /**
+   * A function wrapper for converting a byte array pair to a key-value pair.
+   *
+   * @param keyCoder Coder to deserialize keys.
+   * @param valueCoder Coder to deserialize values.
+   * @param <K>   The type of the key being deserialized.
+   * @param <V>   The type of the value being deserialized.
+   * @return A function that accepts a pair of byte arrays and returns a key-value pair.
+   */
+  static <K, V> PairFunction<Tuple2<ByteArray, byte[]>, K, V> fromByteFunction(
+      final Coder<K> keyCoder, final Coder<V> valueCoder) {
+    return new PairFunction<Tuple2<ByteArray, byte[]>, K, V>() {
+      @Override
+      public Tuple2<K, V> call(Tuple2<ByteArray, byte[]> tuple) {
+        return new Tuple2<>(fromByteArray(tuple._1().getValue(), keyCoder),
+            fromByteArray(tuple._2(), valueCoder));
+      }
+    };
+  }
+
+  /**
+   * A function wrapper for converting a byte array pair to a key-value pair, where
+   * values are <code>Iterable</code>.
+   *
+   * @param keyCoder Coder to deserialize keys.
+   * @param valueCoder Coder to deserialize values.
+   * @param <K>   The type of the key being deserialized.
+   * @param <V>   The type of the value being deserialized.
+   * @return A function that accepts a pair of byte arrays and returns a key-value pair.
+   */
+  static <K, V> PairFunction<Tuple2<ByteArray, Iterable<byte[]>>, K, Iterable<V>>
+      fromByteFunctionIterable(final Coder<K> keyCoder, final Coder<V> valueCoder) {
+    return new PairFunction<Tuple2<ByteArray, Iterable<byte[]>>, K, Iterable<V>>() {
+      @Override
+      public Tuple2<K, Iterable<V>> call(Tuple2<ByteArray, Iterable<byte[]>> tuple) {
+        return new Tuple2<>(fromByteArray(tuple._1().getValue(), keyCoder),
+          Iterables.transform(tuple._2(), new com.google.common.base.Function<byte[], V>() {
+            @Override
+            public V apply(byte[] bytes) {
+              return fromByteArray(bytes, valueCoder);
+            }
+          }));
       }
     };
   }
