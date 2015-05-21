@@ -26,6 +26,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Collections2;
@@ -140,7 +141,8 @@ public class PipelineOptionsFactory {
    * <p>
    * By default, strict parsing is enabled and arguments must conform to be either
    * {@code --booleanArgName} or {@code --argName=argValue}. Strict parsing can be disabled with
-   * {@link Builder#withoutStrictParsing()}.
+   * {@link Builder#withoutStrictParsing()}. Empty or null arguments will be ignored whether
+   * or not strict parsing is enabled.
    * <p>
    * Help information can be output to {@link System#out} by specifying {@code --help} as an
    * argument. After help is printed, the application will exit. Specifying only {@code --help}
@@ -206,7 +208,8 @@ public class PipelineOptionsFactory {
      * <p>
      * By default, strict parsing is enabled and arguments must conform to be either
      * {@code --booleanArgName} or {@code --argName=argValue}. Strict parsing can be disabled with
-     * {@link Builder#withoutStrictParsing()}.
+     * {@link Builder#withoutStrictParsing()}. Empty or null arguments will be ignored whether
+     * or not strict parsing is enabled.
      * <p>
      * Help information can be output to {@link System#out} by specifying {@code --help} as an
      * argument. After help is printed, the application will exit. Specifying only {@code --help}
@@ -1112,12 +1115,16 @@ public class PipelineOptionsFactory {
    * {@code String[]}, and {@code List<String>}.
    *
    * <p> If strict parsing is enabled, options must start with '--', and not have an empty argument
-   * name or value based upon the positioning of the '='.
+   * name or value based upon the positioning of the '='. Empty or null arguments will be ignored
+   * whether or not strict parsing is enabled.
    */
   private static ListMultimap<String, String> parseCommandLine(
       String[] args, boolean strictParsing) {
     ImmutableListMultimap.Builder<String, String> builder = ImmutableListMultimap.builder();
     for (String arg : args) {
+      if (Strings.isNullOrEmpty(arg)) {
+        continue;
+      }
       try {
         Preconditions.checkArgument(arg.startsWith("--"),
             "Argument '%s' does not begin with '--'", arg);

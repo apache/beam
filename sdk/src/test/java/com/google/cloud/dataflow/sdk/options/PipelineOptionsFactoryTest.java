@@ -630,6 +630,18 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
+  public void testEmptyArgumentIsIgnored() {
+    String[] args = new String[] {"", "--diskSizeGb=100", "", "", "--runner=DirectPipelineRunner"};
+    PipelineOptionsFactory.fromArgs(args).create();
+  }
+
+  @Test
+  public void testNullArgumentIsIgnored() {
+    String[] args = new String[] {"--diskSizeGb=100", null, null, "--runner=DirectPipelineRunner"};
+    PipelineOptionsFactory.fromArgs(args).create();
+  }
+
+  @Test
   public void testUsingArgumentWithInvalidNameIsNotAllowed() {
     String[] args = new String[] {"--=100"};
     expectedException.expect(IllegalArgumentException.class);
