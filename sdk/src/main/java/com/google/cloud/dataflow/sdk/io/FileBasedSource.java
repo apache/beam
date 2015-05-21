@@ -307,7 +307,9 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
 
   private static Collection<String> expandFilePattern(String fileOrPatternSpec) throws IOException {
     IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec);
-    return factory.match(fileOrPatternSpec);
+    Collection<String> matches = factory.match(fileOrPatternSpec);
+    LOG.info("Matched {} files for pattern {}", matches.size(), fileOrPatternSpec);
+    return matches;
   }
 
   /**
