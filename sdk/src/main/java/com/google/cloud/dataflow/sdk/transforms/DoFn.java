@@ -30,14 +30,19 @@ import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import com.google.common.base.MoreObjects;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 /**
  * The argument to {@link ParDo} providing the code to use to process
@@ -472,6 +477,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   }
 
   /**
+   * Returns the {@link Aggregator Aggregators} created by this {@code DoFn}.
+   */
+  Collection<Aggregator<?, ?>> getAggregators() {
+    return Collections.<Aggregator<?, ?>>unmodifiableCollection(aggregators.values());
+  }
+
+  /**
    * An {@link Aggregator} that delegates calls to addValue to another
    * aggregator.
    *
@@ -482,6 +494,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
       Aggregator<AggInputT, AggOutputT>, Serializable {
     private static final long serialVersionUID = 0L;
 
+    private final UUID id;
+
     private final String name;
 
     private final CombineFn<AggInputT, ?, AggOutputT> combineFn;
@@ -490,11 +504,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
 
     public DelegatingAggregator(String name,
         CombineFn<? super AggInputT, ?, AggOutputT> combiner) {
-      this.name = name;
+      this.id = UUID.randomUUID();
+      this.name = checkNotNull(name, "name cannot be null");
       // Safe contravariant cast
       @SuppressWarnings("unchecked")
       CombineFn<AggInputT, ?, AggOutputT> specificCombiner =
-          (CombineFn<AggInputT, ?, AggOutputT>) combiner;
+          (CombineFn<AggInputT, ?, AggOutputT>) checkNotNull(combiner, "combineFn cannot be null");
       this.combineFn = specificCombiner;
     }
 
@@ -525,6 +540,42 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      */
     public void setDelegate(Aggregator<AggInputT, ?> delegate) {
       this.delegate = delegate;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("name", name)
+          .add("combineFn", combineFn)
+          .toString();
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(id, name, combineFn.getClass());
+    }
+
+    /**
+     * Indicates whether some other object is "equal to" this one.
+     *
+     * <p>{@code DelegatingAggregator} instances are equal if they have the same name, their
+     * CombineFns are the same class, and they have identical IDs.
+     */
+    @Override
+    public boolean equals(Object o) {
+      if (o == this) {
+        return true;
+      }
+      if (o == null) {
+        return false;
+      }
+      if (o instanceof DelegatingAggregator) {
+        DelegatingAggregator<?, ?> that = (DelegatingAggregator<?, ?>) o;
+        return Objects.equals(this.id, that.id)
+            && Objects.equals(this.name, that.name)
+            && Objects.equals(this.combineFn.getClass(), that.combineFn.getClass());
+      }
+      return false;
     }
   }
 }
