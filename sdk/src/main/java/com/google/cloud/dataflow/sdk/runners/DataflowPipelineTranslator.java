@@ -142,11 +142,30 @@ public class DataflowPipelineTranslator {
   }
 
   /**
-   * Translates a {@link Pipeline} into a {@code Job}.
+   * Translates a {@link Pipeline} into a {@code JobSpecification}.
    */
-  public Job translate(Pipeline pipeline, List<DataflowPackage> packages) {
+  public JobSpecification translate(Pipeline pipeline, List<DataflowPackage> packages) {
     Translator translator = new Translator(pipeline);
-    return translator.translate(packages);
+    Job result = translator.translate(packages);
+    return new JobSpecification(result);
+  }
+
+  /**
+   * The result of a job translation.
+   *
+   * <p>Used to pass the result {@link Job} and any state that was used to construct the job that
+   * may be of use to other classes (eg the {@link PTransform} to StepName mapping).
+   */
+  public static class JobSpecification {
+    private final Job job;
+
+    public JobSpecification(Job job) {
+      this.job = job;
+    }
+
+    public Job getJob() {
+      return job;
+    }
   }
 
   public static String jobToString(Job job) {

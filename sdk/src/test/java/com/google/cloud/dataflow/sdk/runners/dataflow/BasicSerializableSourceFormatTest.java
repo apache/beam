@@ -525,7 +525,7 @@ public class BasicSerializableSourceFormatTest {
     Pipeline p = Pipeline.create(options);
     p.begin().apply(Read.from(io));
 
-    Job workflow = translator.translate(p, new ArrayList<DataflowPackage>());
+    Job workflow = translator.translate(p, new ArrayList<DataflowPackage>()).getJob();
     Step step = workflow.getSteps().get(0);
 
     return stepToCloudSource(step);

@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.JobSpecification;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
@@ -181,7 +182,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         + "related to Google Compute Engine usage and other Google Cloud Services.");
 
     List<DataflowPackage> packages = options.getStager().stageFiles();
-    Job newJob = translator.translate(pipeline, packages);
+    JobSpecification jobSpecification = translator.translate(pipeline, packages);
+    Job newJob = jobSpecification.getJob();
 
     String version = DataflowReleaseInfo.getReleaseInfo().getVersion();
     System.out.println("Dataflow SDK version: " + version);
