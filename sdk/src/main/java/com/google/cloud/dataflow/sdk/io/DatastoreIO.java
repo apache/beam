@@ -690,7 +690,7 @@ public class DatastoreIO {
     private Entity currentEntity;
 
     /**
-     * Returns a DatastoreIterator with query and Datastore object set.
+     * Returns a DatastoreReader with Source and Datastore object set.
      *
      * @param datastore a datastore connection to use.
      */
