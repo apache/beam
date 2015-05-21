@@ -22,11 +22,14 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * A starter example for writing Google Cloud Dataflow programs.
  *
  * <p>The example takes two strings, converts them to their upper-case
- * representation and prints them on the console.
+ * representation and logs them.
  *
  * <p>To run this starter example locally using DirectPipelineRunner, just
  * execute it without any additional parameters from your favorite development
@@ -42,6 +45,7 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
  */
 @SuppressWarnings("serial")
 public class StarterPipeline {
+  private static final Logger LOG = LoggerFactory.getLogger(StarterPipeline.class);
 
   public static void main(String[] args) {
     Pipeline p = Pipeline.create(
@@ -57,7 +61,7 @@ public class StarterPipeline {
     .apply(ParDo.of(new DoFn<String, Void>() {
       @Override
       public void processElement(ProcessContext c)  {
-        System.out.println(c.element());
+        LOG.info(c.element());
       }
     }));
 
