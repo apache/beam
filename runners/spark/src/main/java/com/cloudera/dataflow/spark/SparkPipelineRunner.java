@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.serializer.KryoSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,7 +111,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
     SparkConf conf = new SparkConf();
     conf.setMaster(mOptions.getSparkMaster());
     conf.setAppName("spark pipeline job");
-    conf.set("sun.io.serialization.extendeddebuginfo", "true");
+    conf.set("spark.serializer", KryoSerializer.class.getCanonicalName());
     return new JavaSparkContext(conf);
   }
 
