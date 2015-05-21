@@ -167,6 +167,39 @@ public class DatastoreIOTest {
     }
   }
 
+  @Test
+  public void testQuerySplitWithSmallDataset() throws Exception {
+    String dataset = "mydataset";
+    DatastoreV1.KindExpression mykind =
+        DatastoreV1.KindExpression.newBuilder().setName("mykind").build();
+    Query query = Query.newBuilder().addKind(mykind).build();
+
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    options.setGcpCredential(new TestCredential());
+
+    List<Query> mockSplits = Lists.newArrayList(
+        Query.newBuilder()
+            .addKind(mykind)
+            .build());
+
+    QuerySplitter splitter = mock(QuerySplitter.class);
+    when(splitter.getSplits(any(Query.class), eq(1), any(Datastore.class))).thenReturn(mockSplits);
+
+    DatastoreIO.Source io =
+        DatastoreIO.read()
+            .withDataset(dataset)
+            .withQuery(query)
+            .withMockSplitter(splitter)
+            .withMockEstimateSizeBytes(1L);
+
+    List<DatastoreIO.Source> bundles = io.splitIntoBundles(1024, options);
+    assertEquals(1, bundles.size());
+    DatastoreIO.Source bundle = bundles.get(0);
+    Query bundleQuery = bundle.query;
+    assertEquals("mykind", bundleQuery.getKind(0).getName());
+  }
+
   /**
    * Test building a Sink using builder methods.
    */

@@ -293,7 +293,8 @@ public class DatastoreIO {
       DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
       long numSplits;
       try {
-        numSplits = getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
+        numSplits = Math.max(
+            Math.round(((double) getEstimatedSizeBytes(options)) / desiredBundleSizeBytes), 1);
       } catch (Exception e) {
         LOG.warn("Estimated size unavailable, using number of workers", e);
         // Fallback in case estimated size is unavailable.
