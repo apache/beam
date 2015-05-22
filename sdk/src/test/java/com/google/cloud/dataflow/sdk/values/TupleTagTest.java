@@ -16,8 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.values;
 
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,10 +63,25 @@ public class TupleTagTest {
         AnotherClass.anotherTag.getId());
   }
 
+  private TupleTag<Object> createNonstaticTupleTag() {
+    return new TupleTag<Object>();
+  }
+
   @Test
   public void testNonstaticTupleTag() {
-    assertEquals("com.google.cloud.dataflow.sdk.values.TupleTagTest.testNonstaticTupleTag:65",
-                 new TupleTag<Object>().getId().split("#")[0]);
     assertNotEquals(new TupleTag<Object>().getId(), new TupleTag<Object>().getId());
+    assertNotEquals(createNonstaticTupleTag(), createNonstaticTupleTag());
+
+    TupleTag<Object> tag = createNonstaticTupleTag();
+
+    // Check that the name is derived from the method it is created in.
+    assertThat(tag.getId().split("#")[0],
+        startsWith("com.google.cloud.dataflow.sdk.values.TupleTagTest.createNonstaticTupleTag"));
+
+    // Check that after the name there is a ':' followed by a line number, and just make
+    // sure the line number is big enough to be reasonable, so superficial changes don't break
+    // the test.
+    assertThat(Integer.parseInt(tag.getId().split("#")[0].split(":")[1]),
+        greaterThan(15));
   }
 }
