@@ -138,6 +138,8 @@ public class EvaluationContext implements EvaluationResult {
   public <T> Iterable<T> get(PCollection<T> pcollection) {
     @SuppressWarnings("unchecked")
     JavaRDDLike<T, ?> rdd = (JavaRDDLike<T, ?>) getRDD(pcollection);
+    // Use a coder to convert the objects in the PCollection to byte arrays, so they
+    // can be transferred over the network.
     final Coder<T> coder = pcollection.getCoder();
     JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(coder));
     List<byte[]> clientBytes = bytesRDD.collect();

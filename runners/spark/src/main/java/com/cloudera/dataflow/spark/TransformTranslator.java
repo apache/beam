@@ -124,6 +124,8 @@ public final class TransformTranslator {
         final Coder<K> keyCoder = coder.getKeyCoder();
         final Coder<V> valueCoder = coder.getValueCoder();
 
+        // Use coders to convert objects in the PCollection to byte arrays, so they
+        // can be transferred over the network for the shuffle.
         JavaRDDLike<KV<K, Iterable<V>>, ?> outRDD = fromPair(toPair(inRDD)
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, valueCoder))
             .groupByKey()
@@ -183,6 +185,8 @@ public final class TransformTranslator {
               }
             });
 
+        // Use coders to convert objects in the PCollection to byte arrays, so they
+        // can be transferred over the network for the shuffle.
         JavaPairRDD<ByteArray, byte[]> inRddDuplicatedKeyPairBytes = inRddDuplicatedKeyPair
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, kviCoder));
 
@@ -430,6 +434,8 @@ public final class TransformTranslator {
       @Override
       public void evaluate(Create<T> transform, EvaluationContext context) {
         Iterable<T> elems = transform.getElements();
+        // Use a coder to convert the objects in the PCollection to byte arrays, so they
+        // can be transferred over the network.
         Coder<T> coder = context.getOutput(transform).getCoder();
         JavaRDD<byte[]> rdd = context.getSparkContext().parallelize(
             CoderHelpers.toByteArrays(elems, coder));
