@@ -539,4 +539,15 @@ public class DataflowPipelineRunnerTest {
     translator.translate(p, Collections.<DataflowPackage>emptyList());
     assertTrue(transform.translated);
   }
+
+  @Test
+  public void testToString() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setJobName("TestJobName");
+    options.setProject("TestProject");
+    options.setTempLocation("gs://test/temp/location");
+    options.setGcpCredential(new TestCredential());
+    assertEquals("DataflowPipelineRunner#TestJobName",
+        DataflowPipelineRunner.fromOptions(options).toString());
+  }
 }

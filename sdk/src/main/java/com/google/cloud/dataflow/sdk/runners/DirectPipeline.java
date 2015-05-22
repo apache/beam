@@ -47,4 +47,9 @@ public class DirectPipeline extends Pipeline {
   public DirectPipelineRunner getRunner() {
     return (DirectPipelineRunner) super.getRunner();
   }
+
+  @Override
+  public String toString() {
+    return "DirectPipeline#" + hashCode();
+  }
 }

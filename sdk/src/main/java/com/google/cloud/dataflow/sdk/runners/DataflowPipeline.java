@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.runners;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 
 /**
  * A {@link DataflowPipeline} is a {@link Pipeline} that returns a
@@ -49,5 +50,10 @@ public class DataflowPipeline extends Pipeline {
   @Override
   public DataflowPipelineRunner getRunner() {
     return (DataflowPipelineRunner) super.getRunner();
+  }
+
+  @Override
+  public String toString() {
+    return "DataflowPipeline#" + getOptions().as(DataflowPipelineOptions.class).getJobName();
   }
 }

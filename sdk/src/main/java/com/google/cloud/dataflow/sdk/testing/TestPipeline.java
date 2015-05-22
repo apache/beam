@@ -18,11 +18,11 @@ package com.google.cloud.dataflow.sdk.testing;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
+import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 
@@ -82,6 +82,7 @@ public class TestPipeline extends Pipeline {
       return new TestPipeline(createRunner(options), options);
     } else {
       DirectPipelineRunner directRunner = DirectPipelineRunner.createForTest();
+      directRunner.getPipelineOptions().setAppName(getAppName());
       return new TestPipeline(directRunner, directRunner.getPipelineOptions());
     }
   }
@@ -108,6 +109,11 @@ public class TestPipeline extends Pipeline {
     }
   }
 
+  @Override
+  public String toString() {
+    return "TestPipeline#" + getOptions().as(ApplicationNameOptions.class).getAppName();
+  }
+
   /**
    * Creates and returns a TestDataflowPipelineRunner based on
    * configuration via system properties.
@@ -117,8 +123,7 @@ public class TestPipeline extends Pipeline {
 
     DataflowPipelineRunner dataflowRunner = DataflowPipelineRunner
         .fromOptions(options);
-    return new TestDataflowPipelineRunner(dataflowRunner,
-        new MonitoringUtil.PrintHandler(options.getJobMessageOutput()));
+    return new TestDataflowPipelineRunner(dataflowRunner, options);
   }
 
   /**

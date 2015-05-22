@@ -52,14 +52,14 @@ public class BlockingDataflowPipelineRunner extends
   // TODO: make this configurable after removal of option map.
   private static final long BUILTIN_JOB_TIMEOUT_SEC = -1L;
 
-  private DataflowPipelineRunner dataflowPipelineRunner = null;
-  private MonitoringUtil.JobMessagesHandler jobMessagesHandler;
+  private final DataflowPipelineRunner dataflowPipelineRunner;
+  private final BlockingDataflowPipelineOptions options;
 
   protected BlockingDataflowPipelineRunner(
       DataflowPipelineRunner internalRunner,
-      MonitoringUtil.JobMessagesHandler jobMessagesHandler) {
+      BlockingDataflowPipelineOptions options) {
     this.dataflowPipelineRunner = internalRunner;
-    this.jobMessagesHandler = jobMessagesHandler;
+    this.options = options;
   }
 
   /**
@@ -72,8 +72,7 @@ public class BlockingDataflowPipelineRunner extends
     DataflowPipelineRunner dataflowPipelineRunner =
         DataflowPipelineRunner.fromOptions(dataflowOptions);
 
-    return new BlockingDataflowPipelineRunner(dataflowPipelineRunner,
-        new MonitoringUtil.PrintHandler(dataflowOptions.getJobMessageOutput()));
+    return new BlockingDataflowPipelineRunner(dataflowPipelineRunner, dataflowOptions);
   }
 
   @Override
@@ -101,7 +100,8 @@ public class BlockingDataflowPipelineRunner extends
       State result;
       try {
         result = job.waitToFinish(
-            BUILTIN_JOB_TIMEOUT_SEC, TimeUnit.SECONDS, jobMessagesHandler);
+            BUILTIN_JOB_TIMEOUT_SEC, TimeUnit.SECONDS,
+            new MonitoringUtil.PrintHandler(options.getJobMessageOutput()));
       } catch (IOException | InterruptedException ex) {
         throw new RuntimeException("Exception caught during job execution", ex);
       }
@@ -137,5 +137,10 @@ public class BlockingDataflowPipelineRunner extends
   @Experimental
   public void setHooks(DataflowPipelineRunnerHooks hooks) {
     this.dataflowPipelineRunner.setHooks(hooks);
+  }
+
+  @Override
+  public String toString() {
+    return "BlockingDataflowPipelineRunner#" + options.getJobName();
   }
 }

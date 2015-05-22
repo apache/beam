@@ -288,7 +288,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   @Override
   public String toString() {
-    return "DataflowPipelineRunner#" + hashCode();
+    return "DataflowPipelineRunner#" + options.getJobName();
   }
 
   /**

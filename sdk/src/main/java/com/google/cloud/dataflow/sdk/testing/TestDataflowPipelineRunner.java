@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.PipelineResult.State;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineJob;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
-import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
 
 /**
  * {@link TestDataflowPipelineRunner} is a pipeline runner that wraps a
@@ -30,10 +29,14 @@ import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
  * @see TestPipeline
  */
 public class TestDataflowPipelineRunner extends BlockingDataflowPipelineRunner {
+
+  private final TestDataflowPipelineOptions options;
+
   TestDataflowPipelineRunner(
       DataflowPipelineRunner internalRunner,
-      MonitoringUtil.JobMessagesHandler jobMessagesHandler) {
-    super(internalRunner, jobMessagesHandler);
+      TestDataflowPipelineOptions options) {
+    super(internalRunner, options);
+    this.options = options;
   }
 
   @Override
@@ -44,5 +47,10 @@ public class TestDataflowPipelineRunner extends BlockingDataflowPipelineRunner {
       throw new IllegalStateException("The dataflow failed.");
     }
     return state;
+  }
+
+  @Override
+  public String toString() {
+    return "TestDataflowPipelineRunner#" + options.getAppName();
   }
 }

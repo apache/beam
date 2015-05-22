@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.runners;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyLong;
@@ -25,8 +26,12 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
+import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
+import com.google.cloud.dataflow.sdk.util.TestCredential;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -110,7 +115,7 @@ public class BlockingDataflowPipelineRunnerTest {
     final BlockingDataflowPipelineRunner blockingRunner =
         new BlockingDataflowPipelineRunner(
             mockDataflowPipelineRunner,
-            new MonitoringUtil.PrintHandler(System.out));
+            PipelineOptionsFactory.as(TestDataflowPipelineOptions.class));
 
     final NotificationHelper executionStarted = new NotificationHelper();
     final NotificationHelper jobCompleted = new NotificationHelper();
@@ -136,5 +141,16 @@ public class BlockingDataflowPipelineRunnerTest {
     mockWait.signalJobComplete();
     assertTrue("run() should return after job completion is mocked.",
         jobCompleted.waitTillSet(2000));
+  }
+
+  @Test
+  public void testToString() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setJobName("TestJobName");
+    options.setProject("TestProject");
+    options.setTempLocation("gs://test/temp/location");
+    options.setGcpCredential(new TestCredential());
+    assertEquals("BlockingDataflowPipelineRunner#TestJobName",
+        BlockingDataflowPipelineRunner.fromOptions(options).toString());
   }
 }

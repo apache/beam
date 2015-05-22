@@ -19,9 +19,12 @@ package com.google.cloud.dataflow.sdk;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.hamcrest.core.IsNot.not;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -143,5 +146,13 @@ public class PipelineTest {
         c.output(c.element() + suffix);
       }
     });
+  }
+
+  @Test
+  public void testToString() {
+    PipelineOptions options = PipelineOptionsFactory.as(PipelineOptions.class);
+    options.setRunner(DirectPipelineRunner.class);
+    Pipeline pipeline = Pipeline.create(options);
+    assertEquals("Pipeline#" + pipeline.hashCode(), pipeline.toString());
   }
 }

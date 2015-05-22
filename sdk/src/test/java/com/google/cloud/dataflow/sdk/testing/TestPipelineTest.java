@@ -87,4 +87,9 @@ public class TestPipelineTest {
     assertThat(options.getJobName(), startsWith(
         "testpipelinetest0testcreationofpipelineoptionsfrom"));
   }
+
+  @Test
+  public void testToString() {
+    assertEquals("TestPipeline#TestPipelineTest-testToString", TestPipeline.create().toString());
+  }
 }
