@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.Reiterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.BatchingShuffleEntryReader;
@@ -39,6 +40,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.KeyGroupedShuffleEntries
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntryReader;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import org.slf4j.Logger;
@@ -157,24 +159,42 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
     /** The next group to be consumed, if available. */
     private KeyGroupedShuffleEntries nextGroup = null;
 
+    protected StateSampler stateSampler = null;
+    protected int readState;
+
     public GroupingShuffleReaderIterator(ShuffleEntryReader reader) {
+      if (GroupingShuffleReader.this.stateSampler == null) {
+        CounterSet counterSet = new CounterSet();
+        this.stateSampler = new StateSampler("local", counterSet.getAddCounterMutator());
+        this.readState = stateSampler.stateForName("shuffle");
+      } else {
+        checkNotNull(GroupingShuffleReader.this.stateSamplerOperationName);
+        this.stateSampler = GroupingShuffleReader.this.stateSampler;
+        this.readState = stateSampler.stateForName(
+            GroupingShuffleReader.this.stateSamplerOperationName + "-process");
+      }
       promisedPosition = ByteArrayShufflePosition.fromBase64(startShufflePosition);
       if (promisedPosition == null) {
         promisedPosition = new ByteArrayShufflePosition(new byte[0]);
       }
       stopPosition = ByteArrayShufflePosition.fromBase64(stopShufflePosition);
-      this.groups = new GroupingShuffleEntryIterator(reader.read(promisedPosition, stopPosition)) {
-        @Override
-        protected void notifyElementRead(long byteSize) {
-          GroupingShuffleReader.this.notifyElementRead(byteSize);
-        }
-      };
+      try (StateSampler.ScopedState read = stateSampler.scopedState(readState)) {
+        this.groups = new GroupingShuffleEntryIterator(
+            reader.read(promisedPosition, stopPosition)) {
+          @Override
+          protected void notifyElementRead(long byteSize) {
+            GroupingShuffleReader.this.notifyElementRead(byteSize);
+          }
+        };
+      }
     }
 
     private void advanceIfNecessary() {
-      if (nextGroup == null && groups.hasNext()) {
-        nextGroup = groups.next();
-        promisedPosition = ByteArrayShufflePosition.of(nextGroup.position);
+      try (StateSampler.ScopedState read = stateSampler.scopedState(readState)) {
+        if (nextGroup == null && groups.hasNext()) {
+          nextGroup = groups.next();
+          promisedPosition = ByteArrayShufflePosition.of(nextGroup.position);
+        }
       }
     }
 
@@ -302,16 +322,24 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
 
       @Override
       public boolean hasNext() {
-        return base.hasNext();
+        try (StateSampler.ScopedState read =
+            GroupingShuffleReaderIterator.this.stateSampler.scopedState(
+                GroupingShuffleReaderIterator.this.readState)) {
+          return base.hasNext();
+        }
       }
 
       @Override
       public V next() {
-        ShuffleEntry entry = base.next();
-        try {
-          return CoderUtils.decodeFromByteArray(valueCoder, entry.getValue());
-        } catch (IOException exn) {
-          throw new RuntimeException(exn);
+        try (StateSampler.ScopedState read =
+            GroupingShuffleReaderIterator.this.stateSampler.scopedState(
+                GroupingShuffleReaderIterator.this.readState)) {
+          ShuffleEntry entry = base.next();
+          try {
+            return CoderUtils.decodeFromByteArray(valueCoder, entry.getValue());
+          } catch (IOException exn) {
+            throw new RuntimeException(exn);
+          }
         }
       }
 

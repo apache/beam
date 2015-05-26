@@ -77,9 +77,6 @@ public class ReadOperationTest {
                 Counter.longs("test-ReadOperation-start-msecs", SUM)
                     .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
                                        "test-ReadOperation-start-msecs")).getAggregate()),
-                Counter.longs("test-ReadOperation-read-msecs", SUM)
-                    .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                                       "test-ReadOperation-read-msecs")).getAggregate()),
                 Counter.longs("test-ReadOperation-process-msecs", SUM)
                     .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
                                        "test-ReadOperation-process-msecs")).getAggregate()),

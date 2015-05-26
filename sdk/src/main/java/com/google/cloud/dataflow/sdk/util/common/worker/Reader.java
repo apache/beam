@@ -30,6 +30,30 @@ import java.util.Observable;
  */
 public abstract class Reader<T> extends Observable {
   /**
+   * StateSampler object for readers interested in further breaking
+   * down of the state space at a finer granularity.
+   */
+  protected StateSampler stateSampler = null;
+
+  /**
+   * Name to be used as a prefix with {@code stateSampler}.
+   */
+  protected String stateSamplerOperationName = null;
+
+  /**
+   * Sets the state sampler and the state sampler operation name.
+   *
+   * @param stateSampler the {@link StateSampler} object
+   * @param stateSamplerOperationName the operation name to be used by
+   * the state sampler
+   */
+  public void setStateSamplerAndOperationName(StateSampler stateSampler,
+      String stateSamplerOperationName) {
+    this.stateSampler = stateSampler;
+    this.stateSamplerOperationName = stateSamplerOperationName;
+  }
+
+  /**
    * Returns a ReaderIterator that allows reading from this source.
    */
   public abstract ReaderIterator<T> iterator() throws IOException;

@@ -110,7 +110,6 @@ public class MapTaskExecutorFactoryTest {
             Counter.longs("read_output_name-MeanByteCount", MEAN).resetMeanToValue(0, 0L),
             Counter.longs("Read-ByteCount", SUM).resetToValue(0L),
             Counter.longs("test-Read-start-msecs", SUM).resetToValue(0L),
-            Counter.longs("test-Read-read-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Read-process-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Read-finish-msecs", SUM).resetToValue(0L),
             Counter.longs("DoFn1_output-ElementCount", SUM).resetToValue(0L),
@@ -207,7 +206,6 @@ public class MapTaskExecutorFactoryTest {
             Counter.longs("read_output_name-MeanByteCount", MEAN).resetMeanToValue(0, 0L),
             Counter.longs("Read-ByteCount", SUM).resetToValue(0L),
             Counter.longs("test-Read-finish-msecs", SUM).resetToValue(0L),
-            Counter.longs("test-Read-read-msecs", SUM),
             Counter.longs("test-Read-process-msecs", SUM),
             Counter.longs("read_output_name-ElementCount", SUM).resetToValue(0L)),
         counterSet);

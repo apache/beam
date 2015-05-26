@@ -47,9 +47,6 @@ public class ReadOperation extends Operation {
   /** The total byte counter for all data read by this operation. */
   final Counter<Long> byteCount;
 
-  /** StateSampler state for advancing the ReaderIterator. */
-  private final int readState;
-
   /**
    * The Reader's iterator this operation reads from, created by start().
    * Guarded by sourceIteratorLock.
@@ -85,8 +82,8 @@ public class ReadOperation extends Operation {
     this.reader = reader;
     this.byteCount = addCounterMutator.addCounter(
         Counter.longs(bytesCounterName(counterPrefix, operationName), SUM));
-    readState = stateSampler.stateForName(operationName + "-read");
     reader.addObserver(new ReaderObserver());
+    reader.setStateSamplerAndOperationName(stateSampler, operationName);
   }
 
   /** Invoked by tests. */
@@ -168,17 +165,14 @@ public class ReadOperation extends Operation {
           Object value;
           // Stop position update request comes concurrently.
           // Accesses to iterator need to be synchronized.
-          try (StateSampler.ScopedState read = stateSampler.scopedState(readState)) {
-            assert read != null;
-            synchronized (sourceIteratorLock) {
-              if (!readerIterator.hasNext()) {
-                break;
-              }
-              value = readerIterator.next();
+          synchronized (sourceIteratorLock) {
+            if (!readerIterator.hasNext()) {
+              break;
+            }
+            value = readerIterator.next();
 
-              if (isProgressUpdateRequested.getAndSet(false) || progressUpdatePeriodMs == 0) {
-                setProgressFromIterator();
-              }
+            if (isProgressUpdateRequested.getAndSet(false) || progressUpdatePeriodMs == 0) {
+              setProgressFromIterator();
             }
           }
           receiver.process(value);
