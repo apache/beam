@@ -1523,7 +1523,7 @@ public class Combine {
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(
         SerializableFunction<? super K, Integer> hotKeyFanout) {
-      return new PerKeyWithHotKeyFanout<K, InputT, OutputT>(fn, hotKeyFanout).withName(name);
+      return new PerKeyWithHotKeyFanout<K, InputT, OutputT>(fn, hotKeyFanout).setName(name);
     }
 
     /**
@@ -1590,8 +1590,15 @@ public class Combine {
 
     @Override
     @SuppressWarnings("unchecked")
+    public PerKeyWithHotKeyFanout<K, InputT, OutputT> setName(String name) {
+      return (PerKeyWithHotKeyFanout<K, InputT, OutputT>) super.setName(name);
+    }
+
+    @Override
+    @Deprecated
+    @SuppressWarnings("unchecked")
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withName(String name) {
-      return (PerKeyWithHotKeyFanout<K, InputT, OutputT>) super.withName(name);
+      return setName(name);
     }
 
     @Override
@@ -1695,7 +1702,7 @@ public class Combine {
                 }
               })
           .withOutputTags(cold, TupleTagList.of(hot))
-          .withName("AddNonce"));
+          .setName("AddNonce"));
 
       // Combine the hot and cold keys separately.
       PCollection<KV<K, OutputT>> combinedHot = split
@@ -1709,7 +1716,7 @@ public class Combine {
                 public void processElement(ProcessContext c) {
                   c.output(KV.of(c.element().getKey().getKey(), c.element().getValue()));
                 }
-              }).withName("StripNonce"))
+              }).setName("StripNonce"))
           .apply(Window.<KV<K, AccumT>>remerge())
           .apply(Combine.perKey(hotPostCombine).withName("PostCombineHot"));
       PCollection<KV<K, OutputT>> combinedCold = split
