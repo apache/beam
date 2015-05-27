@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.examples;
 
 import com.google.api.services.pubsub.Pubsub;
+import com.google.api.services.pubsub.model.Label;
 import com.google.api.services.pubsub.model.PublishRequest;
 import com.google.api.services.pubsub.model.PubsubMessage;
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -29,6 +30,7 @@ import com.google.cloud.dataflow.sdk.options.Validation;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.IntraBundleParallelization;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
 
@@ -36,7 +38,7 @@ import java.io.IOException;
  * A batch Dataflow pipeline for injecting a set of GCS files into
  * a PubSub topic line by line.
  *
- * <p>  This is useful for testing streaming
+ * <p> This is useful for testing streaming
  * pipelines. Note that since batch pipelines might retry chunks, this
  * does _not_ guarantee exactly-once injection of file data. Some lines may
  * be published multiple times.
@@ -44,15 +46,40 @@ import java.io.IOException;
  */
 public class PubsubFileInjector {
 
+  /**
+   * An incomplete {@code PubsubFileInjector} transform with unbound output topic.
+   */
+  public static class Unbound {
+    private final String timestampLabelKey;
+
+    Unbound() {
+      this.timestampLabelKey = null;
+    }
+
+    Unbound(String timestampLabelKey) {
+      this.timestampLabelKey = timestampLabelKey;
+    }
+
+    Unbound withTimestampLabelKey(String timestampLabelKey) {
+      return new Unbound(timestampLabelKey);
+    }
+
+    public Bound publish(String outputTopic) {
+      return new Bound(outputTopic, timestampLabelKey);
+    }
+  }
+
   /** A DoFn that publishes lines to Google Cloud PubSub. */
-  public static class Publish extends DoFn<String, Void> {
+  public static class Bound extends DoFn<String, Void> {
     private static final long serialVersionUID = 0;
 
-    private String outputTopic;
+    private final String outputTopic;
+    private final String timestampLabelKey;
     public transient Pubsub pubsub;
 
-    public Publish(String outputTopic) {
+    public Bound(String outputTopic, String timestampLabelKey) {
       this.outputTopic = outputTopic;
+      this.timestampLabelKey = timestampLabelKey;
     }
 
     @Override
@@ -66,10 +93,30 @@ public class PubsubFileInjector {
     public void processElement(ProcessContext c) throws IOException {
       PubsubMessage pubsubMessage = new PubsubMessage();
       pubsubMessage.encodeData(c.element().getBytes());
+      if (timestampLabelKey != null) {
+        Label timestampLabel = new Label();
+        timestampLabel.setKey(timestampLabelKey);
+        timestampLabel.setNumValue(c.timestamp().getMillis());
+        pubsubMessage.setLabel(ImmutableList.of(timestampLabel));
+      }
       PublishRequest publishRequest = new PublishRequest();
       publishRequest.setTopic(outputTopic).setMessage(pubsubMessage);
       this.pubsub.topics().publish(publishRequest).execute();
     }
+  }
+
+  /**
+   * Creates a {@code PubsubFileInjector} transform with the given timestamp label key.
+   */
+  public static Unbound withTimestampLabelKey(String timestampLabelKey) {
+    return new Unbound(timestampLabelKey);
+  }
+
+  /**
+   * Creates a {@code PubsubFileInjector} transform that publishes to the given output topic.
+   */
+  public static Bound publish(String outputTopic) {
+    return new Unbound().publish(outputTopic);
   }
 
   /**
@@ -99,7 +146,7 @@ public class PubsubFileInjector {
 
     pipeline
         .apply(TextIO.Read.from(options.getInput()))
-        .apply(IntraBundleParallelization.of(new Publish(options.getOutputTopic()))
+        .apply(IntraBundleParallelization.of(PubsubFileInjector.publish(options.getOutputTopic()))
             .withMaxParallelism(20));
 
     pipeline.run();

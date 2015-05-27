@@ -61,7 +61,6 @@ public class DataflowExampleUtils {
   private Bigquery bigQueryClient = null;
   private Pubsub pubsubClient = null;
   private Dataflow dataflowClient = null;
-  private Pipeline injectorPipeline = null;
   private Set<DataflowPipelineJob> jobsToCancel = Sets.newHashSet();
   private List<String> pendingMessages = Lists.newArrayList();
 
@@ -216,11 +215,19 @@ public class DataflowExampleUtils {
     copiedOptions.setStreaming(false);
     copiedOptions.setNumWorkers(
         options.as(ExamplePubsubTopicOptions.class).getInjectorNumWorkers());
-    injectorPipeline = Pipeline.create(copiedOptions);
+    Pipeline injectorPipeline = Pipeline.create(copiedOptions);
     injectorPipeline.apply(TextIO.Read.from(inputFile))
                     .apply(IntraBundleParallelization
-                        .of(new PubsubFileInjector.Publish(topic))
+                        .of(PubsubFileInjector.publish(topic))
                         .withMaxParallelism(20));
+    DataflowPipelineJob injectorJob = (DataflowPipelineJob) injectorPipeline.run();
+    jobsToCancel.add(injectorJob);
+  }
+
+  /**
+   * Runs the provided injector pipeline for the streaming pipeline.
+   */
+  public void runInjectorPipeline(Pipeline injectorPipeline) {
     DataflowPipelineJob injectorJob = (DataflowPipelineJob) injectorPipeline.run();
     jobsToCancel.add(injectorJob);
   }
