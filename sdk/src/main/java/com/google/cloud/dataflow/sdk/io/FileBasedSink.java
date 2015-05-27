@@ -272,7 +272,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      *
      * <p>Finalization may be overridden by subclass implementations to perform customized
      * finalization (e.g., initiating some operation on output bundles, merging them, etc.).
-     * bundleResults contains the filenames of written bundles.
+     * {@code writerResults} contains the filenames of written bundles.
      *
      * <p>If subclasses override this method, they must guarantee that its implementation is
      * idempotent, as it may be executed multiple times in the case of failure or for redundancy. It
@@ -286,8 +286,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       // Collect names of temporary files and rename them.
       List<String> files = new ArrayList<>();
       for (FileResult result : writerResults) {
-        LOG.debug("Temporary bundle output file {} will be copied.", result.filename);
-        files.add(result.filename);
+        LOG.debug("Temporary bundle output file {} will be copied.", result.getFilename());
+        files.add(result.getFilename());
       }
       copyToOutputFiles(files, options);
 
@@ -498,7 +498,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         writeFooter();
       }
       FileResult result = new FileResult(filename);
-      LOG.debug("Result for bundle {}: {}", this.id, result.filename);
+      LOG.debug("Result for bundle {}: {}", this.id, filename);
       return result;
     }
 
@@ -514,13 +514,17 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * Result of a single bundle write. Contains the filename of the bundle.
    */
-  static final class FileResult implements Serializable {
+  public static final class FileResult implements Serializable {
     private static final long serialVersionUID = 0;
 
-    final String filename;
+    private final String filename;
 
     public FileResult(String filename) {
       this.filename = filename;
+    }
+
+    public String getFilename() {
+      return filename;
     }
   }
 

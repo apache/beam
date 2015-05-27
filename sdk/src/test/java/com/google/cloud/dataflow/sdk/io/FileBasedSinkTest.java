@@ -93,7 +93,7 @@ public class FileBasedSinkTest {
     }
     FileResult result = writer.close();
 
-    assertEquals(expectedFilename, result.filename);
+    assertEquals(expectedFilename, result.getFilename());
     assertFileContains(expected, expectedFilename);
   }
 
