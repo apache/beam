@@ -147,7 +147,7 @@ public class DataflowPipelineTranslator {
   public JobSpecification translate(Pipeline pipeline, List<DataflowPackage> packages) {
     Translator translator = new Translator(pipeline);
     Job result = translator.translate(packages);
-    return new JobSpecification(result);
+    return new JobSpecification(result, Collections.unmodifiableMap(translator.stepNames));
   }
 
   /**
@@ -158,13 +158,23 @@ public class DataflowPipelineTranslator {
    */
   public static class JobSpecification {
     private final Job job;
+    private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
 
-    public JobSpecification(Job job) {
+    public JobSpecification(Job job, Map<AppliedPTransform<?, ?, ?>, String> stepNames) {
       this.job = job;
+      this.stepNames = stepNames;
     }
 
     public Job getJob() {
       return job;
+    }
+
+    /**
+     * Returns the mapping of {@link AppliedPTransform AppliedPTransforms} to the internal step
+     * name for that {@code AppliedPTransform}.
+     */
+    public Map<AppliedPTransform<?, ?, ?>, String> getStepNames() {
+      return stepNames;
     }
   }
 
@@ -350,7 +360,7 @@ public class DataflowPipelineTranslator {
     /**
      * A Map from AppliedPTransform to their unique Dataflow step names.
      */
-    private final Map<AppliedPTransform, String> stepNames = new HashMap<>();
+    private final Map<AppliedPTransform<?, ?, ?>, String> stepNames = new HashMap<>();
 
     /**
      * A Map from PValues to their output names used by their producer

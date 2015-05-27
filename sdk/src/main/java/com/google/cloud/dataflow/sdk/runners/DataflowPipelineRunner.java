@@ -29,6 +29,8 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.JobSpecification;
+import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowAggregatorTransforms;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
@@ -56,6 +58,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -259,11 +262,20 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     LOG.info("To cancel the job using the 'gcloud' tool, run:\n> {}",
         MonitoringUtil.getGcloudCancelCommand(options.getProject(), jobResult.getId()));
 
+    // Obtain all of the extractors from the PTransforms used in the pipeline so the
+    // DataflowPipelineJob has access to them.
+    AggregatorPipelineExtractor aggregatorExtractor = new AggregatorPipelineExtractor(pipeline);
+    Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
+        aggregatorExtractor.getAggregatorSteps();
+
+    DataflowAggregatorTransforms aggregatorTransforms =
+        new DataflowAggregatorTransforms(aggregatorSteps, jobSpecification.getStepNames());
+
     // Use a raw client for post-launch monitoring, as status calls may fail
     // regularly and need not be retried automatically.
     DataflowPipelineJob dataflowPipelineJob =
         new DataflowPipelineJob(options.getProject(), jobResult.getId(),
-            Transport.newRawDataflowClient(options).build());
+            Transport.newRawDataflowClient(options).build(), aggregatorTransforms);
 
     return dataflowPipelineJob;
   }

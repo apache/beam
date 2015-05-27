@@ -25,7 +25,13 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
+import com.google.api.services.dataflow.model.JobMetrics;
+import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.PipelineResult;
+import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowAggregatorTransforms;
+import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowMetricUpdateExtractor;
+import com.google.cloud.dataflow.sdk.runners.dataflow.MapAggregatorValues;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.util.AttemptAndTimeBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
@@ -38,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
@@ -70,6 +77,13 @@ public class DataflowPipelineJob implements PipelineResult {
    */
   private State terminalState;
 
+  private DataflowAggregatorTransforms aggregatorTransforms;
+
+  /**
+   * The Metric Updates retrieved after the job was in a terminal state.
+   */
+  private List<MetricUpdate> terminalMetricUpdates;
+
   /**
    * The polling interval for job status and messages information.
    */
@@ -89,11 +103,12 @@ public class DataflowPipelineJob implements PipelineResult {
    * @param jobId the job id
    * @param client the workflow client
    */
-  public DataflowPipelineJob(
-      String projectId, String jobId, Dataflow client) {
+  public DataflowPipelineJob(String projectId, String jobId, Dataflow client,
+      DataflowAggregatorTransforms aggregatorTransforms) {
     project = projectId;
     this.jobId = jobId;
     dataflowClient = client;
+    this.aggregatorTransforms = aggregatorTransforms;
   }
 
   public String getJobId() {
@@ -263,5 +278,40 @@ public class DataflowPipelineJob implements PipelineResult {
       }
     } while (shouldRetry);
     return State.UNKNOWN;
+  }
+
+  @Override
+  public <OutputT> AggregatorValues<OutputT> getAggregatorValues(Aggregator<?, OutputT> aggregator)
+      throws AggregatorRetrievalException {
+    try {
+      return new MapAggregatorValues<>(fromMetricUpdates(aggregator));
+    } catch (IOException e) {
+      throw new AggregatorRetrievalException(
+          "IOException when retrieving Aggregator values for Aggregator " + aggregator, e);
+    }
+  }
+
+  private <OutputT> Map<String, OutputT> fromMetricUpdates(Aggregator<?, OutputT> aggregator)
+      throws IOException {
+    if (aggregatorTransforms.contains(aggregator)) {
+      List<MetricUpdate> metricUpdates;
+      if (terminalMetricUpdates != null) {
+        metricUpdates = terminalMetricUpdates;
+      } else {
+        boolean terminal = getState().isTerminal();
+        JobMetrics jobMetrics =
+            dataflowClient.v1b3().projects().jobs().getMetrics(project, jobId).execute();
+        metricUpdates = jobMetrics.getMetrics();
+        if (terminal && jobMetrics.getMetrics() != null) {
+          terminalMetricUpdates = metricUpdates;
+        }
+      }
+
+      return DataflowMetricUpdateExtractor.fromMetricUpdates(
+          aggregator, aggregatorTransforms, metricUpdates);
+    } else {
+      throw new IllegalArgumentException(
+          "Aggregator " + aggregator + " is not used in this pipeline");
+    }
   }
 }

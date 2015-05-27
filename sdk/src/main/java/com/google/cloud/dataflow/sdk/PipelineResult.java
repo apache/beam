@@ -16,6 +16,10 @@
 
 package com.google.cloud.dataflow.sdk;
 
+import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
+import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
+
 /**
  * Result of {@link com.google.cloud.dataflow.sdk.Pipeline#run()}.
  */
@@ -27,8 +31,18 @@ public interface PipelineResult {
    * @return the {@link State} representing the state of this pipeline.
    */
   State getState();
-  // TODO: method to retrieve error messages.
 
+  /**
+   * Retrieves the current value of the provided {@link Aggregator}.
+   *
+   * @param aggregator the Aggregator to retrieve values for
+   * @return the current values of the aggregator, which may be empty if there are no values yet
+   * @throws AggregatorRetrievalException if the aggregator values could not be retrieved
+   */
+  <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
+      throws AggregatorRetrievalException;
+
+  // TODO: method to retrieve error messages.
 
   /** Named constants for common values for the job state. */
   public enum State {

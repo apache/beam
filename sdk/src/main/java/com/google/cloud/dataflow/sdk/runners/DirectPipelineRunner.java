@@ -28,6 +28,8 @@ import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
+import com.google.cloud.dataflow.sdk.runners.dataflow.MapAggregatorValues;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
@@ -610,10 +612,22 @@ public class DirectPipelineRunner
   /////////////////////////////////////////////////////////////////////////////
 
   class Evaluator implements PipelineVisitor, EvaluationContext {
-    private final Map<PTransform, String> stepNames = new HashMap<>();
+    /**
+     * A map from PTransform to the step name of that transform. This is the internal name for the
+     * transform (e.g. "s2").
+     */
+    private final Map<PTransform<?, ?>, String> stepNames = new HashMap<>();
     private final Map<PValue, Object> store = new HashMap<>();
     private final CounterSet counters = new CounterSet();
     private AppliedPTransform<?, ?, ?> currentTransform;
+
+    private Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps = null;
+
+    /**
+     * A map from PTransform to the full name of that transform. This is the user name of the
+     * transform (e.g. "RemoveDuplicates/Combine/GroupByKey").
+     */
+    private final Map<PTransform<?, ?>, String> fullNames = new HashMap<>();
 
     // Use a random number generator with a fixed seed, so execution
     // using this evaluator is deterministic.  (If the user-defined
@@ -624,6 +638,7 @@ public class DirectPipelineRunner
 
     public void run(Pipeline pipeline) {
       pipeline.traverseTopologically(this);
+      aggregatorSteps = new AggregatorPipelineExtractor(pipeline).getAggregatorSteps();
     }
 
     @Override
@@ -656,6 +671,7 @@ public class DirectPipelineRunner
     @Override
     public void visitTransform(TransformTreeNode node) {
       PTransform<?, ?> transform = node.getTransform();
+      fullNames.put(transform, node.getFullName());
       TransformEvaluator evaluator =
           getTransformEvaluator(transform.getClass());
       if (evaluator == null) {
@@ -906,8 +922,23 @@ public class DirectPipelineRunner
     public State getState() {
       return State.DONE;
     }
-  }
 
+    @Override
+    public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator) {
+      Map<String, T> stepValues = new HashMap<>();
+      for (PTransform<?, ?> step : aggregatorSteps.get(aggregator)) {
+        String stepName = String.format("user-%s-%s", stepNames.get(step), aggregator.getName());
+        String fullName = fullNames.get(step);
+        Counter<?> counter = counters.getExistingCounter(stepName);
+        if (counter == null) {
+          throw new IllegalArgumentException(
+              "Aggregator " + aggregator + " is not used in this pipeline");
+        }
+        stepValues.put(fullName, (T) counter.getAggregate());
+      }
+      return new MapAggregatorValues<>(stepValues);
+    }
+  }
 
   /////////////////////////////////////////////////////////////////////////////
 

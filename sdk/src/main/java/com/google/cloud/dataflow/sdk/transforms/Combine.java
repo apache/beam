@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
@@ -380,6 +381,19 @@ public class Combine {
         accum = addInput(accum, input);
       }
       return extractOutput(accum);
+    }
+
+    /**
+     * Returns a {@link TypeDescriptor} capturing what is known statically
+     * about the output type of this {@code CombineFn} instance's
+     * most-derived class.
+     *
+     * <p> In the normal case of a concrete {@code CombineFn} subclass with
+     * no generic type parameters of its own, this will be a complete
+     * non-generic type.
+     */
+    public TypeDescriptor<OutputT> getOutputType() {
+      return new TypeDescriptor<OutputT>(getClass()) {};
     }
 
     @SuppressWarnings("unchecked")
