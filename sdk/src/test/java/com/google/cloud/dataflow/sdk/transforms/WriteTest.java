@@ -33,8 +33,11 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
+import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -61,7 +64,7 @@ public class WriteTest {
   public void testWrite() {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
-    runWrite(inputs);
+    runWrite(inputs, /* not windowed */ false);
   }
 
   /**
@@ -70,7 +73,17 @@ public class WriteTest {
   @Test
   public void testWriteWithEmptyPCollection() {
     List<String> inputs = new ArrayList<>();
-    runWrite(inputs);
+    runWrite(inputs, /* not windowed */ false);
+  }
+
+  /**
+   * Test a Write with a windowed PCollection.
+   */
+  @Test
+  public void testWriteWindowed() {
+    List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
+        "Intimidating pigeon", "Pedantic gull", "Frisky finch");
+    runWrite(inputs, /* windowed */ true);
   }
 
   /**
@@ -78,7 +91,7 @@ public class WriteTest {
    * a test sink in the correct order, as well as verifies that the elements of a PCollection are
    * written to the sink.
    */
-  public void runWrite(List<String> inputs) {
+  public void runWrite(List<String> inputs, boolean windowed) {
     // Flag to validate that the pipeline options are passed to the Sink
     String[] args = {"--testFlag=test_value"};
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(WriteOptions.class);
@@ -88,7 +101,17 @@ public class WriteTest {
     sinkContents.clear();
 
     // Construct the input PCollection and test Sink.
-    PCollection<String> input = createStrings(p, inputs);
+    PCollection<String> input;
+    if (windowed) {
+      List<Long> timestamps = new ArrayList<>();
+      for (long i = 0; i < inputs.size(); i++) {
+        timestamps.add(i + 1);
+      }
+      input = p.apply(Create.timestamped(inputs, timestamps))
+               .apply(Window.<String>into(FixedWindows.of(new Duration(2))));
+    } else {
+      input = createStrings(p, inputs);
+    }
     TestSink sink = new TestSink();
 
     input.apply(Write.to(sink));

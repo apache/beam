@@ -23,9 +23,13 @@ import com.google.cloud.dataflow.sdk.io.Sink.WriteOperation;
 import com.google.cloud.dataflow.sdk.io.Sink.Writer;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PDone;
+
+import org.joda.time.Instant;
 
 import java.util.UUID;
 
@@ -145,43 +149,46 @@ public class Write {
       // as a side input) and collect the results of the writes in a PCollection.
       // There is a dependency between this ParDo and the first (the WriteOperation PCollection
       // as a side input), so this will happen after the initial ParDo.
-      PCollection<WriteT> results = input.apply(ParDo.of(new DoFn<T, WriteT>() {
-        private static final long serialVersionUID = 0;
+      PCollection<WriteT> results =
+          input.apply(ParDo.of(new DoFn<T, WriteT>() {
+            private static final long serialVersionUID = 0;
 
-        // Writer that will write the records in this bundle. Lazily
-        // initialized in processElement.
-        private Writer<T, WriteT> writer = null;
+            // Writer that will write the records in this bundle. Lazily
+            // initialized in processElement.
+            private Writer<T, WriteT> writer = null;
 
-        @Override
-        public void processElement(ProcessContext c) throws Exception {
-          // Lazily initialize the Writer
-          if (writer == null) {
-            WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
-            writer = writeOperation.createWriter(c.getPipelineOptions());
-            writer.open(UUID.randomUUID().toString());
-          }
-          try {
-            writer.write(c.element());
-          } catch (Exception e) {
-            // Discard write result and close the write.
-            try {
-              writer.close();
-            } catch (Exception closeException) {
-              // Do not mask the exception that caused the write to fail.
+            @Override
+            public void processElement(ProcessContext c) throws Exception {
+              // Lazily initialize the Writer
+              if (writer == null) {
+                WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
+                writer = writeOperation.createWriter(c.getPipelineOptions());
+                writer.open(UUID.randomUUID().toString());
+              }
+              try {
+                writer.write(c.element());
+              } catch (Exception e) {
+                // Discard write result and close the write.
+                try {
+                  writer.close();
+                } catch (Exception closeException) {
+                  // Do not mask the exception that caused the write to fail.
+                }
+                throw e;
+              }
             }
-            throw e;
-          }
-        }
 
-        @Override
-        public void finishBundle(Context c) throws Exception {
-          if (writer != null) {
-            WriteT result = writer.close();
-            // Output the result of the write.
-            c.output(result);
-          }
-        }
-      }).withSideInputs(writeOperationView)).setCoder(writeOperation.getWriterResultCoder());
+            @Override
+            public void finishBundle(Context c) throws Exception {
+              if (writer != null) {
+                WriteT result = writer.close();
+                // Output the result of the write.
+                c.outputWithTimestamp(result, Instant.now());
+              }
+            }
+          }).withSideInputs(writeOperationView))
+          .setCoder(writeOperation.getWriterResultCoder())
+          .apply(Window.<WriteT>into(new GlobalWindows()));
 
       final PCollectionView<Iterable<WriteT>> resultsView =
           results.apply(View.<WriteT>asIterable());
