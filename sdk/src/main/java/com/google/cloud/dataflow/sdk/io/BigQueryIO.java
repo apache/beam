@@ -29,8 +29,17 @@ import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.BigQueryReader;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.Flatten;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.Values;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterFirst;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterProcessingTime;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
 import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.Transport;
@@ -42,6 +51,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -647,7 +657,7 @@ public class BigQueryIO {
    * Implementation of DoFn to perform streaming BigQuery write.
    */
   private static class StreamingWriteFn
-      extends DoFn<KV<Integer, KV<String, TableRow>>, Void> implements DoFn.RequiresKeyedState {
+      extends DoFn<KV<String, TableRow>, Void> {
     private static final long serialVersionUID = 0;
 
     /** TableReference in JSON.  Use String to make the class Serializable. */
@@ -714,8 +724,8 @@ public class BigQueryIO {
     /** Accumulates the input into JsonTableRows and uniqueIdsForTableRows. */
     @Override
     public void processElement(ProcessContext context) {
-      KV<Integer, KV<String, TableRow>> kv = context.element();
-      addRow(kv.getValue().getValue(), kv.getValue().getKey());
+      KV<String, TableRow> kv = context.element();
+      addRow(kv.getValue(), kv.getKey());
     }
 
     /** Writes the accumulated rows into BigQuery with streaming API. */
@@ -786,6 +796,10 @@ public class BigQueryIO {
   private static class StreamWithDeDup extends PTransform<PCollection<TableRow>, PDone> {
     private static final long serialVersionUID = 0;
 
+    // TODO: Consider making these configurable.
+    private static final int WRITE_BUFFER_COUNT = 100;
+    private static final Duration WRITE_BUFFER_WAIT = Duration.standardSeconds(1);
+
     private final TableReference tableReference;
     private final TableSchema tableSchema;
 
@@ -803,7 +817,7 @@ public class BigQueryIO {
     @Override
     public PDone apply(PCollection<TableRow> input) {
       // A naive implementation would be to simply stream data directly to BigQuery.
-      // However, this could occassionally lead to duplicated data, e.g., when
+      // However, this could occasionally lead to duplicated data, e.g., when
       // a VM that runs this code is restarted and the code is re-run.
 
       // The above risk is mitigated in this implementation by relying on
@@ -817,8 +831,19 @@ public class BigQueryIO {
 
       // To prevent having the same TableRow processed more than once with regenerated
       // different unique ids, this implementation relies on "checkpointing", which is
-      // achieved as a side effect of having StreamingWriteFn implement RequiresKeyedState.
-      tagged.apply(ParDo.of(new StreamingWriteFn(tableReference, tableSchema)));
+      // achieved as a side effect of having StreamingWriteFn immediately follow a GBK.
+      tagged
+          .apply(Window.<KV<Integer, KV<String, TableRow>>>into(new GlobalWindows())
+                       .triggering(Repeatedly.forever(
+                           AfterFirst.of(
+                               AfterProcessingTime.pastFirstElementInPane()
+                                                  .plusDelayOf(WRITE_BUFFER_WAIT),
+                               AfterPane.elementCountAtLeast(WRITE_BUFFER_COUNT))))
+                       .discardingFiredPanes())
+          .apply(GroupByKey.<Integer, KV<String, TableRow>>create())
+          .apply(Values.<Iterable<KV<String, TableRow>>>create())
+          .apply(Flatten.<KV<String, TableRow>>iterables())
+          .apply(ParDo.of(new StreamingWriteFn(tableReference, tableSchema)));
 
       // Note that the implementation to return PDone here breaks the
       // implicit assumption about the job execution order.  If a user

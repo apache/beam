@@ -16,9 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
@@ -39,6 +41,58 @@ import java.util.Map;
  * @param <OutputT> output type
  */
 public interface WindowingInternals<InputT, OutputT> {
+
+  /**
+   * {@code KeyedState} maps {@link CodedTupleTag CodedTupleTags} to
+   * associated values.  The storage is persistent across bundles, and
+   * stored per-key. Specifically, for a given {@code CodedTupleTag<T>},
+   * each key will store a distinct {@code T} value.
+   */
+  @Experimental
+  public interface KeyedState {
+    /**
+     * Updates this {@code KeyedState} in place so that the given tag maps to the given value.
+     *
+     * @throws IOException if encoding the given value fails
+     */
+    public <T> void store(CodedTupleTag<T> tag, T value) throws IOException;
+
+    /**
+     * Removes the data associated with the given tag from {@code KeyedState}.
+     */
+    public <T> void remove(CodedTupleTag<T> tag);
+
+    /**
+     * Returns the value associated with the given tag in this
+     * {@code KeyedState}, or {@code null} if the tag has no asssociated
+     * value.
+     *
+     * <p> See {@link #lookup(Iterable)} to look up multiple tags at
+     * once.  It is significantly more efficient to look up multiple
+     * tags all at once rather than one at a time.
+     *
+     * @throws IOException if decoding the requested value fails
+     */
+    public <T> T lookup(CodedTupleTag<T> tag) throws IOException;
+
+    /**
+     * Returns a map from the given tags to the values associated with
+     * those tags in this {@code KeyedState}.  A tag will map to null if
+     * the tag had no associated value.
+     *
+     * <p> See {@link #lookup(CodedTupleTag)} to look up a single
+     * tag.
+     *
+     * @throws IOException if decoding any of the requested values fails, often
+     * a {@link com.google.cloud.dataflow.sdk.coders.CoderException}.
+     */
+    public CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags) throws IOException;
+  }
+
+  /**
+   * Returns the persistent state associated with this key.
+   */
+  public WindowingInternals.KeyedState keyedState();
 
   /**
    * Updates the {@code KeyedState} in place so that the given tag maps to the given value.

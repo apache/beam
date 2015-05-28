@@ -21,7 +21,6 @@ import static com.google.cloud.dataflow.sdk.util.WindowUtils.bufferTag;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.SetCoder;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
@@ -54,7 +53,7 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
 
       @Override
       public AbstractWindowSet<K, V, Iterable<V>, W> create(K key,
-          Coder<W> windowCoder, KeyedState keyedState,
+          Coder<W> windowCoder, WindowingInternals.KeyedState keyedState,
           WindowingInternals<?, ?> windowingInternals) throws Exception {
         return new BufferingWindowSet<>(
             key, windowCoder, inputCoder, keyedState, windowingInternals);
@@ -89,7 +88,7 @@ class BufferingWindowSet<K, V, W extends BoundedWindow>
       K key,
       Coder<W> windowCoder,
       Coder<V> inputCoder,
-      KeyedState keyedState,
+      WindowingInternals.KeyedState keyedState,
       WindowingInternals<?, ?> windowingInternals) throws Exception {
     super(key, windowCoder, inputCoder, keyedState, windowingInternals);
 

@@ -27,7 +27,6 @@ import com.google.cloud.dataflow.examples.common.ExamplePubsubTopicOptions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
-import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
@@ -42,10 +41,9 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.common.base.MoreObjects;
+import com.google.common.collect.Lists;
 
 import org.apache.avro.reflect.Nullable;
 import org.joda.time.Duration;
@@ -55,6 +53,8 @@ import org.joda.time.format.DateTimeFormatter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -63,13 +63,12 @@ import java.util.Map;
  * A Dataflow Example that runs in both batch and streaming modes with traffic sensor data.
  * You can configure the running mode by setting {@literal --streaming} to true or false.
  *
- * <p>Concepts: The batch and streaming runners, GroupByKey, keyed state, sliding windows, and
+ * <p>Concepts: The batch and streaming runners, GroupByKey, sliding windows, and
  * Google Cloud Pub/Sub topic injection.
  *
  * <p> This example analyzes traffic sensor data using SlidingWindows. For each window,
  * it calculates the average speed over the window for some small set of predefined 'routes',
- * and looks for 'slowdowns' in those routes. It uses keyed state to track slowdown information
- * across successive sliding windows. It writes its results to a BigQuery table.
+ * and looks for 'slowdowns' in those routes. It writes its results to a BigQuery table.
  *
  * <p> In batch mode, the pipeline reads traffic sensor data from {@literal --inputFile}.
  *
@@ -104,15 +103,17 @@ public class TrafficRoutes {
    * This class holds information about a station reading's average speed.
    */
   @DefaultCoder(AvroCoder.class)
-  static class StationSpeed {
+  static class StationSpeed implements Comparable<StationSpeed> {
     @Nullable String stationId;
     @Nullable Double avgSpeed;
+    @Nullable Long timestamp;
 
     public StationSpeed() {}
 
-    public StationSpeed(String stationId, Double avgSpeed) {
+    public StationSpeed(String stationId, Double avgSpeed, Long timestamp) {
       this.stationId = stationId;
       this.avgSpeed = avgSpeed;
+      this.timestamp = timestamp;
     }
 
     public String getStationId() {
@@ -120,6 +121,11 @@ public class TrafficRoutes {
     }
     public Double getAvgSpeed() {
       return this.avgSpeed;
+    }
+
+    @Override
+    public int compareTo(StationSpeed other) {
+      return Long.compare(this.timestamp, other.timestamp);
     }
   }
 
@@ -178,13 +184,17 @@ public class TrafficRoutes {
         String stationId = tryParseStationId(items);
         // For this simple example, filter out everything but some hardwired routes.
         if (avgSpeed != null && stationId != null && sdStations.containsKey(stationId)) {
-          StationSpeed stationSpeed = new StationSpeed(stationId, avgSpeed);
+          Instant timestamp;
+          if (outputTimestamp) {
+            timestamp = new Instant(dateTimeFormat.parseMillis(tryParseTimestamp(items)));
+          } else {
+            timestamp = c.timestamp();
+          }
+          StationSpeed stationSpeed = new StationSpeed(stationId, avgSpeed, timestamp.getMillis());
           // The tuple key is the 'route' name stored in the 'sdStations' hash.
           KV<String, StationSpeed> outputValue = KV.of(sdStations.get(stationId), stationSpeed);
           if (outputTimestamp) {
-            String timestamp = tryParseTimestamp(items);
-            c.outputWithTimestamp(outputValue,
-                                  new Instant(dateTimeFormat.parseMillis(timestamp)));
+            c.outputWithTimestamp(outputValue, timestamp);
           } else {
             c.output(outputValue);
           }
@@ -194,59 +204,49 @@ public class TrafficRoutes {
   }
 
   /**
-   * For a given route, track average speed for the window. Calculate whether traffic is currently
-   * slowing down, via a predefined threshold. Use keyed state to keep a count of the speed drops,
-   * with at least 3 in a row constituting a 'slowdown'.
+   * For a given route, track average speed for the window. Calculate whether
+   * traffic is currently slowing down, via a predefined threshold. If a supermajority of
+   * speeds in this sliding window are less than the previous reading we call this a 'slowdown'.
    * Note: these calculations are for example purposes only, and are unrealistic and oversimplified.
    */
-  static class GatherStats extends DoFn<KV<String, Iterable<StationSpeed>>, KV<String, RouteInfo>>
-    implements DoFn.RequiresKeyedState {
+  static class GatherStats
+      extends DoFn<KV<String, Iterable<StationSpeed>>, KV<String, RouteInfo>> {
     private static final long serialVersionUID = 0;
-
-    static final int SLOWDOWN_THRESH = 67;
-    static final int SLOWDOWN_COUNT_CAP = 3;
 
     @Override
     public void processElement(ProcessContext c) throws IOException {
       String route = c.element().getKey();
-      CodedTupleTag<Integer> tag = CodedTupleTag.of(route, BigEndianIntegerCoder.of());
-      // For the given key (a route), get the keyed state.
-      Integer slowdownCount = MoreObjects.firstNonNull(c.keyedState().lookup(tag), 0);
-      Double speedSum = 0.0;
-      Integer scount = 0;
-      Iterable<StationSpeed> infoList = c.element().getValue();
+      double speedSum = 0.0;
+      int speedCount = 0;
+      int speedups = 0;
+      int slowdowns = 0;
+      List<StationSpeed> infoList = Lists.newArrayList(c.element().getValue());
+      // StationSpeeds sort by embedded timestamp.
+      Collections.sort(infoList);
+      Map<String, Double> prevSpeeds = new HashMap<>();
       // For all stations in the route, sum (non-null) speeds. Keep a count of the non-null speeds.
       for (StationSpeed item : infoList) {
         Double speed = item.getAvgSpeed();
         if (speed != null) {
           speedSum += speed;
-          scount++;
+          speedCount++;
+          Double lastSpeed = prevSpeeds.get(item.getStationId());
+          if (lastSpeed != null) {
+            if (lastSpeed < speed) {
+              speedups += 1;
+            } else {
+              slowdowns += 1;
+            }
+          }
+          prevSpeeds.put(item.getStationId(), speed);
         }
       }
-      // calculate average speed.
-      if (scount == 0) {
+      if (speedCount == 0) {
+        // No average to compute.
         return;
       }
-      Double speedAvg = speedSum / scount;
-      Boolean slowdownEvent = false;
-      if (speedAvg != null) {
-        // see if the speed falls below defined threshold. If it does, increment the count of
-        // slow readings, as retrieved from the keyed state, up to the defined cap.
-        if (speedAvg < SLOWDOWN_THRESH) {
-          if (slowdownCount < SLOWDOWN_COUNT_CAP) {
-            slowdownCount++;
-          }
-        } else if (slowdownCount > 0) {
-          // if speed is not below threshold, then decrement the count of slow readings.
-          slowdownCount--;
-        }
-        // if our count of slowdowns has reached its cap, we consider this a 'slowdown event'
-        if (slowdownCount >= SLOWDOWN_COUNT_CAP) {
-          slowdownEvent = true;
-        }
-      }
-      // store the new slowdownCount in the keyed state for the route key.
-      c.keyedState().store(tag, slowdownCount);
+      double speedAvg = speedSum / speedCount;
+      boolean slowdownEvent = slowdowns >= 2 * speedups;
       RouteInfo routeInfo = new RouteInfo(route, speedAvg, slowdownEvent);
       c.output(KV.of(route, routeInfo));
     }
@@ -285,8 +285,8 @@ public class TrafficRoutes {
 
   /**
    * This PTransform extracts speed info from traffic station readings.
-   * It groups the readings by 'route' and analyzes traffic slowdown for that route, using keyed
-   * state to retain previous slowdown information. Then, it formats the results for BigQuery.
+   * It groups the readings by 'route' and analyzes traffic slowdown for that route.
+   * Lastly, it formats the results for BigQuery.
    */
   static class TrackSpeed extends
       PTransform<PCollection<KV<String, StationSpeed>>, PCollection<TableRow>> {

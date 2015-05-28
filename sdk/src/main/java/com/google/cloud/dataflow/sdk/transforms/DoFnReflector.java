@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ExtraContextFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.FinishBundle;
 import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ProcessElement;
@@ -78,19 +77,6 @@ public abstract class DoFnReflector {
   private static final Map<Class<?>, ExtraContextInfo> EXTRA_PROCESS_CONTEXTS =
       ImmutableMap.<Class<?>, ExtraContextInfo>builder()
       .putAll(EXTRA_CONTEXTS)
-      .put(KeyedState.class, new ExtraContextInfo() {
-        @Override
-        public <InputT, OutputT> Object
-            createInstance(ExtraContextFactory<InputT, OutputT> factory) {
-          return factory.keyedState();
-        }
-
-        @Override
-        public <InputT, OutputT> TypeToken<?>
-            tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
-          return TypeToken.of(KeyedState.class);
-        }
-      })
       .put(BoundedWindow.class, new ExtraContextInfo() {
         @Override
         public <InputT, OutputT> Object
@@ -122,11 +108,6 @@ public abstract class DoFnReflector {
         }
       })
       .build();
-
-  /**
-   * @return true if the reflected {@link DoFnWithContext} uses Keyed State.
-   */
-  public abstract boolean usesKeyedState();
 
   /**
    * @return true if the reflected {@link DoFnWithContext} uses a Single Window.
@@ -191,11 +172,7 @@ public abstract class DoFnReflector {
    * Create a {@link DoFn} that the {@link DoFnWithContext}.
    */
   public <InputT, OutputT> DoFn<InputT, OutputT> toDoFn(DoFnWithContext<InputT, OutputT> fn) {
-    if (usesKeyedState() && usesSingleWindow()) {
-      return new WindowAndKeyedStateDoFnAdapter<InputT, OutputT>(this, fn);
-    } else if (usesKeyedState()) {
-      return new KeyedStateDoFnAdapter<InputT, OutputT>(this, fn);
-    } else if (usesSingleWindow()) {
+    if (usesSingleWindow()) {
       return new WindowDoFnAdapter<InputT, OutputT>(this, fn);
     } else {
       return new SimpleDoFnAdapter<InputT, OutputT>(this, fn);
@@ -438,11 +415,6 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public boolean usesKeyedState() {
-      return usesContext(DoFn.KeyedState.class);
-    }
-
-    @Override
     public boolean usesSingleWindow() {
       return usesContext(BoundedWindow.class);
     }
@@ -548,13 +520,6 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public KeyedState keyedState() {
-      // The DoFnWithContext doesn't allow us to ask for these outside ProcessElements, so this
-      // should be unreachable.
-      throw new UnsupportedOperationException("Can only get keyedState in ProcessElements");
-    }
-
-    @Override
     public BoundedWindow window() {
       // The DoFnWithContext doesn't allow us to ask for these outside ProcessElements, so this
       // should be unreachable.
@@ -624,11 +589,6 @@ public abstract class DoFnReflector {
     }
 
     @Override
-    public KeyedState keyedState() {
-      return context.keyedState();
-    }
-
-    @Override
     public BoundedWindow window() {
       return context.window();
     }
@@ -695,31 +655,11 @@ public abstract class DoFnReflector {
     }
   }
 
-  private static class KeyedStateDoFnAdapter<InputT, OutputT>
-      extends SimpleDoFnAdapter<InputT, OutputT> implements DoFn.RequiresKeyedState {
-
-    private static final long serialVersionUID = 0;
-    private KeyedStateDoFnAdapter(DoFnReflector reflector, DoFnWithContext<InputT, OutputT> fn) {
-      super(reflector, fn);
-    }
-  }
-
   private static class WindowDoFnAdapter<InputT, OutputT>
   extends SimpleDoFnAdapter<InputT, OutputT> implements DoFn.RequiresWindowAccess {
 
     private static final long serialVersionUID = 0;
     private WindowDoFnAdapter(DoFnReflector reflector, DoFnWithContext<InputT, OutputT> fn) {
-      super(reflector, fn);
-    }
-  }
-
-  private static class WindowAndKeyedStateDoFnAdapter<InputT, OutputT>
-      extends SimpleDoFnAdapter<InputT, OutputT>
-      implements DoFn.RequiresKeyedState, DoFn.RequiresWindowAccess {
-
-    private static final long serialVersionUID = 0;
-    private WindowAndKeyedStateDoFnAdapter(
-        DoFnReflector reflector, DoFnWithContext<InputT, OutputT> fn) {
       super(reflector, fn);
     }
   }

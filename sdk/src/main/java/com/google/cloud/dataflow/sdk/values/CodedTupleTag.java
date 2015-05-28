@@ -23,7 +23,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
  * values associated with the tag.
  *
  * <p> Used as tags in
- * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState}.
+ * {@link com.google.cloud.dataflow.sdk.util.WindowingInternals.KeyedState}.
  *
  * @param <T> the type of the values associated with this tag
  */

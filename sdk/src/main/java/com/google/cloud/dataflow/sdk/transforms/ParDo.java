@@ -19,15 +19,12 @@ package com.google.cloud.dataflow.sdk.transforms;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresKeyedState;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
-import com.google.cloud.dataflow.sdk.util.TimerOrElement.TimerOrElementCoder;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -545,28 +542,11 @@ public class ParDo {
    * properties can be set on it first.
    *
    * <p> {@link DoFnWithContext} is an experimental alternative to
-   * {@link DoFn} which simplifies accessing {@code KeyedState} and
-   * the window of the element.
+   * {@link DoFn} which simplifies accessing the window of the element.
    */
   @Experimental
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
     return of(adapt(fn));
-  }
-
-  private static <InputT> void validateCoder(
-      DoFn<InputT, ?> fn, PCollection<? extends InputT> input) {
-    if (RequiresKeyedState.class.isAssignableFrom(fn.getClass())
-        && !isKvEquivalentCoder(input.getCoder())) {
-      throw new UnsupportedOperationException(
-          "KeyedState is only available in DoFn's with keyed inputs, but input coder "
-          + input.getCoder() + " is not keyed.");
-    }
-  }
-
-  private static boolean isKvEquivalentCoder(Coder<?> coder) {
-    return (coder instanceof KvCoder)
-        || (coder instanceof TimerOrElementCoder
-            && ((TimerOrElementCoder<?>) coder).getElementCoder() instanceof KvCoder);
   }
 
   /**
@@ -785,12 +765,6 @@ public class ParDo {
 
     public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
-    }
-
-    @Override
-    public void validate(PCollection<? extends InputT> input) {
-      super.validate(input);
-      ParDo.validateCoder(fn, input);
     }
   }
 
@@ -1019,12 +993,6 @@ public class ParDo {
     public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
     }
-
-    @Override
-    public void validate(PCollection<? extends InputT> input) {
-      super.validate(input);
-      ParDo.validateCoder(fn, input);
-    }
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -1135,12 +1103,9 @@ public class ParDo {
 
     for (DirectPipelineRunner.ValueWithMetadata<? extends InputT> elem
              : context.getPCollectionValuesWithMetadata(input)) {
-      if (doFn instanceof DoFn.RequiresKeyedState) {
-        // If the DoFn needs keyed state, set the implicit keys to the keys in the input elements.
-        if (!(elem.getValue() instanceof KV)) {
-          throw new IllegalStateException(
-              name + " marked as 'RequiresKeyedState' but input elements were not of type KV.");
-        }
+      if (elem.getValue() instanceof KV) {
+        // In case the DoFn needs keyed state, set the implicit keys to the keys
+        // in the input elements.
         executionContext.setKey(((KV) elem.getValue()).getKey());
       } else {
         executionContext.setKey(elem.getKey());

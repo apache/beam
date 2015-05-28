@@ -19,13 +19,13 @@ package com.google.cloud.dataflow.sdk.util;
 import static com.google.cloud.dataflow.sdk.util.WindowUtils.bufferTag;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.common.collect.ImmutableList;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * A WindowSet where windows are never merged or deleted. This allows us to improve upon the default
@@ -43,7 +43,7 @@ class NonMergingBufferingWindowSet<K, V, W extends BoundedWindow>
 
       @Override
       public AbstractWindowSet<K, V, Iterable<V>, W> create(K key,
-          Coder<W> windowFn, KeyedState keyedState,
+          Coder<W> windowFn, WindowingInternals.KeyedState keyedState,
           WindowingInternals<?, ?> windowingInternals) throws Exception {
         return new NonMergingBufferingWindowSet<>(
             key, windowFn, inputCoder, keyedState, windowingInternals);
@@ -55,7 +55,7 @@ class NonMergingBufferingWindowSet<K, V, W extends BoundedWindow>
       K key,
       Coder<W> windowCoder,
       Coder<V> inputCoder,
-      KeyedState keyedState,
+      WindowingInternals.KeyedState keyedState,
       WindowingInternals<?, ?> windowingInternals) {
     super(key, windowCoder, inputCoder, keyedState, windowingInternals);
   }
@@ -100,6 +100,10 @@ class NonMergingBufferingWindowSet<K, V, W extends BoundedWindow>
 
     // Create a copy here, since otherwise we may return the same list object from readTagList, and
     // that may be mutated later, which would lead to mutation of output values.
-    return ImmutableList.copyOf(result);
+    List<V> copy = new ArrayList<>();
+    for (V item : result) {
+      copy.add(item);
+    }
+    return copy;
   }
 }

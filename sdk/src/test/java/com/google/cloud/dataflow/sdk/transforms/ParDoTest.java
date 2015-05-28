@@ -33,18 +33,14 @@ import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
-import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -246,41 +242,6 @@ public class ParDoTest implements Serializable {
     @Override
     public void finishBundle(Context c) {
       throw new RuntimeException("test error in finalize");
-    }
-  }
-
-  /**
-   * Output the keys that have appeared at least three times.
-   */
-  static class TestKeyedStateCountAtLeastThreeDoFn
-      extends DoFn<KV<String, Integer>, String> implements DoFn.RequiresKeyedState{
-    @Override
-    public void processElement(ProcessContext c) throws IOException {
-      String key = c.element().getKey();
-      CodedTupleTag<Long> tag = CodedTupleTag.of(key, BigEndianLongCoder.of());
-      Long result = c.keyedState().lookup(tag);
-      long count = result == null ? 0 : result;
-      c.keyedState().store(tag, ++count);
-      if (count == 3) {
-        c.output(key);
-      }
-    }
-  }
-
-  static class TestUnexpectedKeyedStateDoFn extends DoFn<KV<String, Integer>, String> {
-    @Override
-    public void processElement(ProcessContext c) {
-      // Will fail since this DoFn doesn't implement RequiresKeyedState.
-      c.keyedState();
-    }
-  }
-
-  static class TestKeyedStateDoFnWithNonKvInput
-      extends DoFn<Integer, String> implements DoFn.RequiresKeyedState {
-    @Override
-    public void processElement(ProcessContext c) {
-      // Will fail since this DoFn's input isn't KV.
-      c.keyedState();
     }
   }
 
@@ -638,118 +599,6 @@ public class ParDoTest implements Serializable {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("test error in finalize");
     p.run();
-  }
-
-  @Test
-  @Category(RunnableOnService.class)
-  public void testParDoKeyedState() {
-    Pipeline p = TestPipeline.create();
-
-    List<String> inputs = Arrays.asList(
-        "A", "A", "B", "C", "B", "A", "D", "D", "D", "D");
-
-    PCollection<String> output =
-        p.apply(Create.of(inputs))
-         .apply(ParDo.named("ToKv")
-                     .of(new DoFn<String, KV<String, Integer>>() {
-                         @Override
-                         public void processElement(ProcessContext c) {
-                           c.output(KV.of(c.element(), 1));
-                         }
-                     }))
-     .apply(ParDo.of(new TestKeyedStateCountAtLeastThreeDoFn()));
-
-    DataflowAssert.that(output).containsInAnyOrder("A", "D");
-    p.run();
-  }
-
-
-  @Test
-  @Category(RunnableOnService.class)
-  public void testParDoKeyedState2() {
-    Pipeline p = TestPipeline.create();
-
-    List<String> inputs = Arrays.asList(
-        "A", "A", "B", "C", "B", "A", "D", "D", "D", "D");
-
-    PCollection<String> output =
-        p.apply(Create.of(inputs))
-         .apply(ParDo.named("ToKv")
-                     .of(new DoFn<String, KV<String, Integer>>() {
-                         @Override
-                         public void processElement(ProcessContext c) {
-                           c.output(KV.of(c.element(), 1));
-                         }
-                     }))
-     .apply(ParDo.of(new DoFnWithContext<KV<String, Integer>, String>() {
-       @ProcessElement
-       public void processElement(ProcessContext c, KeyedState keyedState) throws IOException {
-         String key = c.element().getKey();
-         CodedTupleTag<Long> tag = CodedTupleTag.of(key, BigEndianLongCoder.of());
-         Long result = keyedState.lookup(tag);
-         long count = result == null ? 0 : result;
-         keyedState.store(tag, ++count);
-         if (count == 3) {
-           c.output(key);
-         }
-       }
-     }));
-
-    DataflowAssert.that(output).containsInAnyOrder("A", "D");
-    p.run();
-  }
-
-  @Test
-  public void testParDoWithUnexpectedKeyedState() {
-    Pipeline p = TestPipeline.create();
-
-    List<KV<String, Integer>> inputs = Arrays.asList(
-        KV.of("a", 1));
-
-    PCollection<KV<String, Integer>> input = p.apply(Create.of(inputs));
-
-    input
-        .apply(ParDo.of(new TestUnexpectedKeyedStateDoFn()));
-
-    thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Keyed state is only available");
-    p.run();
-  }
-
-  @Test
-  public void testParDoKeyedStateDoFnWithNonKvInput() {
-    Pipeline p = TestPipeline.create();
-
-    List<Integer> inputs = Arrays.asList(3, -42, 666);
-
-    PCollection<Integer> input = createInts(p, inputs);
-
-    thrown.expect(RuntimeException.class);
-    thrown.expectMessage(
-        "KeyedState is only available in DoFn's with keyed inputs, but "
-        + "input coder BigEndianIntegerCoder is not keyed.");
-
-    input.apply(ParDo.of(new TestKeyedStateDoFnWithNonKvInput())).finishSpecifying();
-  }
-
-  @Test
-  public void testParDoKeyedStateDoFnWithContextWithNonKvInput() {
-    Pipeline p = TestPipeline.create();
-
-    List<Integer> inputs = Arrays.asList(3, -42, 666);
-
-    PCollection<Integer> input = createInts(p, inputs);
-
-    thrown.expect(RuntimeException.class);
-    thrown.expectMessage(
-        "KeyedState is only available in DoFn's with keyed inputs, but "
-            + "input coder BigEndianIntegerCoder is not keyed.");
-
-    input.apply(ParDo.of(new DoFnWithContext<Integer, String>() {
-      @SuppressWarnings("unused")
-      @ProcessElement
-      public void process(ProcessContext c, KeyedState keyedState) {}
-    })).finishSpecifying();
   }
 
   @Test
@@ -1278,7 +1127,7 @@ public class ParDoTest implements Serializable {
   public void testWindowingInStartBundleException() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
+    p
         .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
         .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
         .apply(ParDo.of(new DoFn<String, String>() {

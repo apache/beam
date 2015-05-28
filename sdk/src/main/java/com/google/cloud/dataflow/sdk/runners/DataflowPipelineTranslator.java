@@ -70,7 +70,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
-import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.OutputReference;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
@@ -1069,12 +1068,6 @@ public class DataflowPipelineTranslator {
         PropertyNames.SERIALIZED_FN,
         byteArrayToJsonString(serializeToByteArray(
             new DoFnInfo(fn, windowingStrategy, sideInputs, inputCoder))));
-    if (fn instanceof DoFn.RequiresKeyedState
-        // Adjust requires keyed state property for the Dataflow Service.
-        // TODO: Remove when this is performed by the service.
-        && !(fn instanceof GroupAlsoByWindowsDoFn)) {
-      context.addInput(PropertyNames.USES_KEYED_STATE, "true");
-    }
   }
 
   private static void translateOutputs(

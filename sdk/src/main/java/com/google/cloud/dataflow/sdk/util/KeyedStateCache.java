@@ -26,7 +26,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -36,6 +35,7 @@ import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -275,7 +275,7 @@ class KeyedStateCache {
       added.add(TimestampedValue.of(value, timestamp));
     }
 
-    private Iterable<T> getAddedItems() {
+    private List<T> getAddedItems() {
       List<T> addedItems = Lists.newArrayList();
       for (TimestampedValue<T> item : added) {
         addedItems.add(item.getValue());
@@ -286,7 +286,11 @@ class KeyedStateCache {
     public List<T> mergeWith(List<?> wildcardValue) {
       @SuppressWarnings("unchecked")
       List<T> value = (List<T>) wildcardValue;
-      return ImmutableList.<T>builder().addAll(value).addAll(getAddedItems()).build();
+      List<T> addedItems = getAddedItems();
+      List<T> all = new ArrayList<>(wildcardValue.size() + addedItems.size());
+      all.addAll(value);
+      all.addAll(addedItems);
+      return Collections.unmodifiableList(all);
     }
 
     private void flushTo(

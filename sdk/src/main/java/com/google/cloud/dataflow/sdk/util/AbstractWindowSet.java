@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 
@@ -36,7 +35,7 @@ abstract class AbstractWindowSet<K, InputT, OutputT, W extends BoundedWindow> {
     public AbstractWindowSet<K, InputT, OutputT, W> create(
         K key,
         Coder<W> windowCoder,
-        KeyedState keyedState,
+        WindowingInternals.KeyedState keyedState,
         WindowingInternals<?, ?> windowingInternals) throws Exception;
   }
 
@@ -56,14 +55,14 @@ abstract class AbstractWindowSet<K, InputT, OutputT, W extends BoundedWindow> {
   protected final K key;
   protected final Coder<W> windowCoder;
   protected final Coder<InputT> inputCoder;
-  protected final KeyedState keyedState;
+  protected final WindowingInternals.KeyedState keyedState;
   protected final WindowingInternals<?, ?> windowingInternals;
 
   protected AbstractWindowSet(
       K key,
       Coder<W> windowCoder,
       Coder<InputT> inputCoder,
-      KeyedState keyedState,
+      WindowingInternals.KeyedState keyedState,
       WindowingInternals<?, ?> windowingInternals) {
     this.key = key;
     this.windowCoder = windowCoder;

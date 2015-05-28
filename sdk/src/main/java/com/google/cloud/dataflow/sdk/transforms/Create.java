@@ -21,12 +21,13 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -208,7 +209,14 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
               c.output(KV.of((Void) null, (Void) null));
             }
           }))
-          .apply(ParDo.of(new OutputOnceDoFn<>(elems)));
+          .apply(Window.<KV<Void, Void>>into(new GlobalWindows())
+                       .triggering(AfterPane.elementCountAtLeast(1))
+                       .discardingFiredPanes()
+                       .setName("GlobalSingleton"))
+          .apply(GroupByKey.<Void, Void>create())
+          // Can't do this after the ParDo due to lazy coder inference.
+          .apply(Window.<KV<Void, Iterable<Void>>>into(new GlobalWindows()))
+          .apply(ParDo.of(new OutputElements<>(elems)));
 
       // Best effort attempt to set the coder for the user on the output of the
       // "Create". ParDo has a different way in which it attempts to get
@@ -229,26 +237,19 @@ public class Create<T> extends PTransform<PInput, PCollection<T>> {
     }
   }
 
-  private static class OutputOnceDoFn<T> extends DoFn<KV<Void, Void>, T>
-      implements DoFn.RequiresKeyedState {
+  private static class OutputElements<T> extends DoFn<Object, T> {
     private static final long serialVersionUID = 0;
 
-    private final CodedTupleTag<String> outputOnceTag =
-        CodedTupleTag.of("outputOnce", StringUtf8Coder.of());
     private final Iterable<T> elems;
 
-    public OutputOnceDoFn(Iterable<T> elems) {
+    public OutputElements(Iterable<T> elems) {
       this.elems = elems;
     }
 
     @Override
     public void processElement(ProcessContext c) throws IOException {
-      String state = c.keyedState().lookup(outputOnceTag);
-      if (state == null || state.isEmpty()) {
-        for (T t : elems) {
-          c.output(t);
-        }
-        c.keyedState().store(outputOnceTag, "done");
+      for (T t : elems) {
+        c.output(t);
       }
     }
   }

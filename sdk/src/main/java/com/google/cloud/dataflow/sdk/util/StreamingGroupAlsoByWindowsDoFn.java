@@ -34,7 +34,7 @@ import com.google.common.base.Preconditions;
  */
 @SuppressWarnings("serial")
 public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends BoundedWindow>
-    extends DoFn<TimerOrElement<KV<K, InputT>>, KV<K, OutputT>> implements DoFn.RequiresKeyedState {
+    extends DoFn<TimerOrElement<KV<K, InputT>>, KV<K, OutputT>> {
 
   public static <K, InputT, AccumT, OutputT, W extends BoundedWindow>
       StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W> create(
@@ -75,8 +75,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
       if (executor == null) {
         TimerManager timerManager = c.windowingInternals().getTimerManager();
         executor = TriggerExecutor.create(
-          key, windowingStrategy, timerManager, windowSetFactory,
-          c.keyedState(), c.windowingInternals());
+          key, windowingStrategy, timerManager, windowSetFactory, c.windowingInternals());
       }
     }
 

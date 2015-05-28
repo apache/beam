@@ -23,8 +23,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresKeyedState;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
@@ -397,7 +395,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
    * @param <InputT> the type of the DoFn's (main) input elements
    * @param <OutputT> the type of the DoFn's (main) output elements
    */
-  private static class DoFnProcessContext<InputT, OutputT>
+  static class DoFnProcessContext<InputT, OutputT>
       extends DoFn<InputT, OutputT>.ProcessContext {
 
 
@@ -446,18 +444,6 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         }
       }
       return context.sideInput(view, window);
-    }
-
-    @Override
-    public KeyedState keyedState() {
-      if (!(fn instanceof RequiresKeyedState)
-          || !equivalentToKV(element())) {
-        throw new UnsupportedOperationException(
-            "Keyed state is only available in the context of a keyed DoFn "
-            + "marked as requiring state");
-      }
-
-      return context.stepContext;
     }
 
     @Override
@@ -587,6 +573,11 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         @Override
         public <T> void store(CodedTupleTag<T> tag, T value, Instant timestamp) throws IOException {
           context.stepContext.store(tag, value, timestamp);
+        }
+
+        @Override
+        public WindowingInternals.KeyedState keyedState() {
+          return context.stepContext;
         }
       };
     }

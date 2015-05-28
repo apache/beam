@@ -25,8 +25,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
@@ -35,7 +33,6 @@ import com.google.common.base.MoreObjects;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
@@ -61,9 +58,8 @@ import java.util.UUID;
  * can be done via the {@link DoFnTester} harness.
  *
  * <p> {@link DoFnWithContext} (currently experimental) offers an alternative
- * mechanism for accessing {@link ProcessContext#keyedState} and
- * {@link ProcessContext#window()} without the need to implement
- * {@link RequiresKeyedState} or {@link RequiresWindowAccess}.
+ * mechanism for accessing {@link ProcessContext#window()} without the need
+ * to implement {@link RequiresWindowAccess}.
  *
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
@@ -246,27 +242,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
     public abstract <T> T sideInput(PCollectionView<T> view);
 
     /**
-     * Returns this {@code DoFn}'s state associated with the input
-     * element's key.  This state can be used by the {@code DoFn} to
-     * store whatever information it likes with that key.  Unlike
-     * {@code DoFn} instance variables, this state is persistent and
-     * can be arbitrarily large; it is more expensive than instance
-     * variable state, however.  It is particularly intended for
-     * streaming computations.
-     *
-     * <p> Requires that this {@code DoFn} implements
-     * {@link RequiresKeyedState}.
-     *
-     * <p> Each {@link ParDo} invocation with this {@code DoFn} as an
-     * argument will maintain its own {@code KeyedState} maps, one per
-     * key.
-     *
-     * @throws UnsupportedOperationException if this {@link DoFn} does
-     * not implement {@link RequiresKeyedState}.
-     */
-    public abstract KeyedState keyedState();
-
-    /**
      * Returns the timestamp of the input element.
      *
      * <p> See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window}
@@ -306,66 +281,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   }
 
   /**
-   * Interface for signaling that a {@link DoFn} needs to maintain
-   * per-key state, accessed via
-   * {@link DoFn.ProcessContext#keyedState}.
-   */
-  @Experimental
-  public interface RequiresKeyedState {}
-
-  /**
    * Interface for signaling that a {@link DoFn} needs to access the window the
    * element is being processed in, via {@link DoFn.ProcessContext#window}.
    */
   @Experimental
   public interface RequiresWindowAccess {}
-
-  /**
-   * {@code KeyedState} maps {@link CodedTupleTag CodedTupleTags} to
-   * associated values.  The storage is persistent across bundles, and
-   * stored per-key. Specifically, for a given {@code CodedTupleTag<T>},
-   * each key will store a distinct {@code T} value.
-   */
-  @Experimental
-  public interface KeyedState {
-    /**
-     * Updates this {@code KeyedState} in place so that the given tag maps to the given value.
-     *
-     * @throws IOException if encoding the given value fails
-     */
-    public <T> void store(CodedTupleTag<T> tag, T value) throws IOException;
-
-    /**
-     * Removes the data associated with the given tag from {@code KeyedState}.
-     */
-    public <T> void remove(CodedTupleTag<T> tag);
-
-    /**
-     * Returns the value associated with the given tag in this
-     * {@code KeyedState}, or {@code null} if the tag has no asssociated
-     * value.
-     *
-     * <p> See {@link #lookup(Iterable)} to look up multiple tags at
-     * once.  It is significantly more efficient to look up multiple
-     * tags all at once rather than one at a time.
-     *
-     * @throws IOException if decoding the requested value fails
-     */
-    public <T> T lookup(CodedTupleTag<T> tag) throws IOException;
-
-    /**
-     * Returns a map from the given tags to the values associated with
-     * those tags in this {@code KeyedState}.  A tag will map to null if
-     * the tag had no associated value.
-     *
-     * <p> See {@link #lookup(CodedTupleTag)} to look up a single
-     * tag.
-     *
-     * @throws IOException if decoding any of the requested values fails, often
-     * a {@link com.google.cloud.dataflow.sdk.coders.CoderException}.
-     */
-    public CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags) throws IOException;
-  }
 
   public DoFn() {
     this(new HashMap<String, DelegatingAggregator<?, ?>>());

@@ -20,7 +20,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.Context;
 import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ExtraContextFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ProcessContext;
@@ -56,9 +55,6 @@ public class DoFnReflectorTest {
 
   @Mock
   private DoFnWithContext<String, String>.ProcessContext mockContext;
-
-  @Mock
-  private KeyedState mockKeyedState;
   @Mock
   private BoundedWindow mockWindow;
   @Mock
@@ -70,11 +66,6 @@ public class DoFnReflectorTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     this.extraContextFactory = new ExtraContextFactory<String, String>() {
-      @Override
-      public KeyedState keyedState() {
-        return mockKeyedState;
-      }
-
       @Override
       public BoundedWindow window() {
         return mockWindow;
@@ -124,7 +115,6 @@ public class DoFnReflectorTest {
       }
     });
 
-    assertFalse(reflector.usesKeyedState());
     assertFalse(reflector.usesSingleWindow());
 
     checkInvokeProcessElementWorks(reflector);
@@ -153,7 +143,6 @@ public class DoFnReflectorTest {
   @Test
   public void testDoFnWithProcessElementInterface() throws Exception {
     DoFnReflector reflector = underTest(new IdentityUsingInterfaceWithProcessElement());
-    assertFalse(reflector.usesKeyedState());
     assertFalse(reflector.usesSingleWindow());
     checkInvokeProcessElementWorks(reflector);
   }
@@ -175,7 +164,6 @@ public class DoFnReflectorTest {
   @Test
   public void testDoFnWithMethodInSuperclass() throws Exception {
     DoFnReflector reflector = underTest(new IdentityChild());
-    assertFalse(reflector.usesKeyedState());
     assertFalse(reflector.usesSingleWindow());
     checkInvokeProcessElementWorks(reflector);
   }
@@ -195,29 +183,6 @@ public class DoFnReflectorTest {
       }
     });
 
-    assertFalse(reflector.usesKeyedState());
-    assertTrue(reflector.usesSingleWindow());
-
-    checkInvokeProcessElementWorks(reflector);
-  }
-
-  @Test
-  public void testDoFnWithWindowAndKeyedState() throws Exception {
-    DoFnReflector reflector = underTest(new DoFnWithContext<String, String>() {
-
-      private static final long serialVersionUID = 0;
-
-      @ProcessElement
-      public void processElement(ProcessContext c, BoundedWindow w, KeyedState k)
-          throws Exception {
-        wasProcessElementInvoked = true;
-        assertSame(c, mockContext);
-        assertSame(w, mockWindow);
-        assertSame(k, mockKeyedState);
-      }
-    });
-
-    assertTrue(reflector.usesKeyedState());
     assertTrue(reflector.usesSingleWindow());
 
     checkInvokeProcessElementWorks(reflector);
@@ -238,7 +203,6 @@ public class DoFnReflectorTest {
       }
     });
 
-    assertFalse(reflector.usesKeyedState());
     assertFalse(reflector.usesSingleWindow());
 
     checkInvokeProcessElementWorks(reflector);
@@ -434,7 +398,7 @@ public class DoFnReflectorTest {
     thrown.expectMessage(
         "Integer is not a valid context parameter for method "
         + getClass().getName() + "#badExtraProcessContext(ProcessContext, Integer)"
-        + ". Should be one of [BoundedWindow, KeyedState, WindowingInternals<Integer, String>]");
+        + ". Should be one of [BoundedWindow, WindowingInternals<Integer, String>]");
 
     DoFnReflector.verifyProcessMethodArguments(
         getClass().getDeclaredMethod("badExtraProcessContext",

@@ -97,11 +97,6 @@ class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
     }
 
     @Override
-    public com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState keyedState() {
-      return null;
-    }
-
-    @Override
     public Instant timestamp() {
       return null;
     }

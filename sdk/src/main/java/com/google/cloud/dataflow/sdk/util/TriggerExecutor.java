@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
@@ -79,7 +78,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   private final AbstractWindowSet<K, InputT, OutputT, W> windowSet;
   private final WindowFn<Object, W> windowFn;
   private final TimerManager timerManager;
-  private final KeyedState keyedState;
+  private final WindowingInternals.KeyedState keyedState;
   private final MergeContext mergeContext;
   private final Coder<TriggerId<W>> triggerIdCoder;
   private final WatermarkHold watermarkHold;
@@ -90,7 +89,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       WindowFn<Object, W> windowFn,
       TimerManager timerManager,
       ExecutableTrigger<W> trigger,
-      KeyedState keyedState,
+      WindowingInternals.KeyedState keyedState,
       WindowingInternals<?, KV<K, OutputT>> windowingInternals,
       AbstractWindowSet<K, InputT, OutputT, W> windowSet,
       AccumulationMode mode) {
@@ -128,13 +127,15 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       WindowingStrategy<Object, W> windowingStrategy,
       TimerManager timerManager,
       AbstractWindowSet.Factory<K, InputT, OutputT, W> windowSetFactory,
-      KeyedState keyedState, WindowingInternals<?, KV<K, OutputT>> windowingInternals)
+      WindowingInternals<?, KV<K, OutputT>> windowingInternals)
           throws Exception {
     AbstractWindowSet<K, InputT, OutputT, W> windowSet = windowSetFactory.create(
-        key, windowingStrategy.getWindowFn().windowCoder(), keyedState, windowingInternals);
+        key, windowingStrategy.getWindowFn().windowCoder(),
+        windowingInternals.keyedState(), windowingInternals);
     return new TriggerExecutor<K, InputT, OutputT, W>(
         windowingStrategy.getWindowFn(), timerManager, windowingStrategy.getTrigger(),
-        keyedState, windowingInternals, windowSet, windowingStrategy.getMode());
+        windowingInternals.keyedState(), windowingInternals, windowSet,
+        windowingStrategy.getMode());
   }
 
   private TriggerContext<W> context(BitSet finishedSet) {

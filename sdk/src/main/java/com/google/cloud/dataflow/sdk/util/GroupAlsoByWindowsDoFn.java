@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresKeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
@@ -39,8 +38,7 @@ import org.joda.time.Instant;
  */
 @SuppressWarnings("serial")
 public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends BoundedWindow>
-    extends DoFn<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>>
-    implements RequiresKeyedState {
+    extends DoFn<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> {
 
   /**
    * Create a {@link GroupAlsoByWindowsDoFn} without a combine function. Depending on the
@@ -99,7 +97,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
       K key = c.element().getKey();
       BatchTimerManager timerManager = new BatchTimerManager(Instant.now());
       TriggerExecutor<K, InputT, OutputT, W> triggerExecutor = TriggerExecutor.create(
-          key, strategy, timerManager, windowSetFactory, c.keyedState(), c.windowingInternals());
+          key, strategy, timerManager, windowSetFactory, c.windowingInternals());
 
       for (WindowedValue<InputT> e : c.element().getValue()) {
         // First, handle anything that needs to happen for this element

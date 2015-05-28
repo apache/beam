@@ -24,7 +24,6 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
@@ -236,7 +235,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   private class StubContexts
-      implements WindowingInternals<InputT, KV<String, OutputT>>, DoFn.KeyedState {
+      implements WindowingInternals<InputT, KV<String, OutputT>>, WindowingInternals.KeyedState {
 
     private Map<CodedTupleTag<?>, List<?>> tagListValues = new HashMap<>();
     private Map<CodedTupleTag<?>, Object> tagValues = new HashMap<>();
@@ -368,6 +367,11 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         Coder<T> elemCoder) throws IOException {
       throw new UnsupportedOperationException(
           "Testing triggers should not use writePCollectionViewData from WindowingInternals.");
+    }
+
+    @Override
+    public WindowingInternals.KeyedState keyedState() {
+      return this;
     }
   }
 

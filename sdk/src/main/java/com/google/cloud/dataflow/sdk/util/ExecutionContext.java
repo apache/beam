@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
@@ -103,7 +102,7 @@ public abstract class ExecutionContext {
   /**
    * Per-step, per-key context used for retrieving state.
    */
-  public abstract class StepContext implements DoFn.KeyedState {
+  public abstract class StepContext implements WindowingInternals.KeyedState {
     private final String stepName;
 
     public StepContext(String stepName) {

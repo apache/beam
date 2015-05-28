@@ -268,11 +268,6 @@ public class IntraBundleParallelization {
       }
 
       @Override
-      public KeyedState keyedState() {
-        return context.keyedState();
-      }
-
-      @Override
       public PipelineOptions getPipelineOptions() {
         return context.getPipelineOptions();
       }

@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.DelegatingAggregator;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -280,15 +279,6 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
    */
   public interface ExtraContextFactory<InputT, OutputT> {
     /**
-     * Construct the {@link KeyedState} interface for use within a {@link DoFnWithContext} that
-     * needs it. This is called if the {@link ProcessElement} method has a parameter of type
-     * {@link KeyedState}.
-     *
-     * @return {@link KeyedState} interface for interacting with keyed state.
-     */
-    KeyedState keyedState();
-
-    /**
      * Construct the {@link BoundedWindow} to use within a {@link DoFnWithContext} that
      * needs it. This is called if the {@link ProcessElement} method has a parameter of type
      * {@link BoundedWindow}.
@@ -327,7 +317,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
    * <ul>
    *   <li>It must have at least one argument.
    *   <li>Its first argument must be a {@link DoFnWithContext.ProcessContext}.
-   *   <li>Its remaining arguments must be {@link KeyedState}, {@link BoundedWindow}, or
+   *   <li>Its remaining arguments must be {@link BoundedWindow}, or
    *   {@link WindowingInternals WindowingInternals&lt;InputT, OutputT&gt;}.
    * </ul>
    */

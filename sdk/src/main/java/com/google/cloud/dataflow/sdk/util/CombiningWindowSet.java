@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
@@ -59,7 +58,7 @@ public class CombiningWindowSet<K, InputT, AccumT, OutputT, W extends BoundedWin
 
       @Override
       public AbstractWindowSet<K, InputT, OutputT, W> create(K key,
-          Coder<W> windowCoder, KeyedState keyedState,
+          Coder<W> windowCoder, WindowingInternals.KeyedState keyedState,
           WindowingInternals<?, ?> windowingInternals) throws Exception {
         return new CombiningWindowSet<>(
             key, windowCoder, combineFn, keyCoder, inputCoder, keyedState, windowingInternals);
@@ -81,7 +80,7 @@ public class CombiningWindowSet<K, InputT, AccumT, OutputT, W extends BoundedWin
       KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn,
       Coder<K> keyCoder,
       Coder<InputT> inputValueCoder,
-      KeyedState keyedState,
+      WindowingInternals.KeyedState keyedState,
       WindowingInternals<?, ?> windowingInternals) throws Exception {
     super(key, windowCoder, inputValueCoder, keyedState, windowingInternals);
     this.combineFn = combineFn;
