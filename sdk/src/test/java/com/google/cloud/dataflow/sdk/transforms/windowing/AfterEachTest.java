@@ -61,7 +61,8 @@ public class AfterEachTest {
     MockitoAnnotations.initMocks(this);
     tester = TriggerTester.nonCombining(
         windowFn, AfterEach.inOrder(mockTrigger1, mockTrigger2),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
     executable1 = tester.getTrigger().subTriggers().get(0);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
@@ -104,7 +105,7 @@ public class AfterEachTest {
     injectElement(4, null, TriggerResult.FIRE_AND_FINISH);
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(4), 4, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
+    assertTrue(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
   }
 
@@ -114,7 +115,7 @@ public class AfterEachTest {
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.FIRE);
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    assertFalse(tester.isDone(firstWindow));
+    assertFalse(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         // Buffering element 1; Ignored the trigger for T2 since we aren't there yet.
         tester.bufferTag(firstWindow),
@@ -136,7 +137,8 @@ public class AfterEachTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
-    assertFalse("Should still be waiting for the second trigger.", tester.isDone(firstWindow));
+    assertFalse("Should still be waiting for the second trigger.",
+        tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 
@@ -157,8 +159,8 @@ public class AfterEachTest {
 
     injectElement(2, null, TriggerResult.FIRE_AND_FINISH);
     assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(2), 2, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(2), 9, 0, 10)));
+    assertTrue(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
   }
 
@@ -182,7 +184,7 @@ public class AfterEachTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(22)))));
   }
@@ -206,7 +208,7 @@ public class AfterEachTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(22)))));
   }
@@ -234,7 +236,8 @@ public class AfterEachTest {
                 AfterPane.<IntervalWindow>elementCountAtLeast(2),
                 AfterPane.<IntervalWindow>elementCountAtLeast(2)))
                 .orFinally(AfterPane.<IntervalWindow>elementCountAtLeast(7))),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     // Inject a bunch of elements
     for (int i = 0; i < 20; i++) {
@@ -247,7 +250,7 @@ public class AfterEachTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(12, 13), 12, 0, 50),
         isSingleWindowedValue(Matchers.containsInAnyOrder(14, 15), 14, 0, 50),
         isSingleWindowedValue(Matchers.containsInAnyOrder(16), 16, 0, 50)));
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(0), new Instant(50))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(50))));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(50)))));
   }

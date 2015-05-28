@@ -44,7 +44,8 @@ public class AfterWatermarkTest {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(windowDuration),
         AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 6
     tester.advanceWatermark(new Instant(5));
@@ -60,8 +61,8 @@ public class AfterWatermarkTest {
     tester.injectElement(6, new Instant(2));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(0), new Instant(10))));
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(10), new Instant(20))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10)))));
   }
@@ -72,7 +73,8 @@ public class AfterWatermarkTest {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.advanceWatermark(new Instant(1));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
@@ -87,9 +89,9 @@ public class AfterWatermarkTest {
 
     tester.advanceWatermark(new Instant(100));
     assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 2, 2, 12)));
+        WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 11, 2, 12)));
 
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(2), new Instant(12))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(2), new Instant(12))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(11))),
         tester.finishedSet(new IntervalWindow(new Instant(2), new Instant(12)))));
@@ -101,7 +103,8 @@ public class AfterWatermarkTest {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(windowDuration),
         AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 15
     tester.advanceWatermark(new Instant(11));
@@ -117,8 +120,8 @@ public class AfterWatermarkTest {
     tester.injectElement(6, new Instant(2));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(0), new Instant(10))));
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(10), new Instant(20))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10)))));
   }
@@ -129,7 +132,8 @@ public class AfterWatermarkTest {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.advanceWatermark(new Instant(1));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
@@ -144,9 +148,9 @@ public class AfterWatermarkTest {
 
     tester.advanceWatermark(new Instant(100));
     assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 2, 2, 12)));
+        WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 11, 2, 12)));
 
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(2), new Instant(12))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(2), new Instant(12))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(11))),
         tester.finishedSet(new IntervalWindow(new Instant(2), new Instant(12)))));

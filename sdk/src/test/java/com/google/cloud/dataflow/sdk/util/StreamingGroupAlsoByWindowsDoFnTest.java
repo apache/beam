@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -96,6 +97,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         new TriggerIdCoder<IntervalWindow>(windowCoder);
 
     runner.startBundle();
+    when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v1")),
@@ -159,6 +161,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         new TriggerIdCoder<IntervalWindow>(windowCoder);
 
     runner.startBundle();
+    when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v1")),
@@ -227,6 +230,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         new TriggerIdCoder<IntervalWindow>(windowCoder);
 
     runner.startBundle();
+    when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v1")),
@@ -328,6 +332,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         new TriggerIdCoder<IntervalWindow>(windowCoder);
 
     runner.startBundle();
+    when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", 1L)),

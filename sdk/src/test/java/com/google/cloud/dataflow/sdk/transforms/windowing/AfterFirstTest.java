@@ -63,7 +63,8 @@ public class AfterFirstTest {
     MockitoAnnotations.initMocks(this);
     tester = TriggerTester.nonCombining(
         windowFn, AfterFirst.of(mockTrigger1, mockTrigger2),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
     executable1 = tester.getTrigger().subTriggers().get(0);
     executable2 = tester.getTrigger().subTriggers().get(1);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
@@ -98,7 +99,7 @@ public class AfterFirstTest {
     injectElement(2, TriggerResult.FIRE_AND_FINISH, TriggerResult.CONTINUE);
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
+    assertTrue(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
   }
 
@@ -111,7 +112,7 @@ public class AfterFirstTest {
     injectElement(2, TriggerResult.CONTINUE, TriggerResult.FIRE_AND_FINISH);
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
+    assertTrue(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
   }
 
@@ -129,7 +130,7 @@ public class AfterFirstTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
+    assertTrue(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
   }
 
@@ -148,7 +149,7 @@ public class AfterFirstTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
 
-    assertTrue(tester.isDone(firstWindow));
+    assertTrue(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
   }
 
@@ -171,7 +172,7 @@ public class AfterFirstTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(22)))));
   }
@@ -197,7 +198,8 @@ public class AfterFirstTest {
                 AfterPane.<IntervalWindow>elementCountAtLeast(5),
                 AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
                     .plusDelayOf(Duration.millis(5)))),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.advanceProcessingTime(new Instant(0));
     // 5 elements -> after pane fires
@@ -232,7 +234,7 @@ public class AfterFirstTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(9, 10, 11, 12, 13), 6, 0, 50)));
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(0), new Instant(50))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(50))));
     // Because none of the triggers every stay finished (we always immediately reset) there is no
     // persisted keyed state.
     assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());

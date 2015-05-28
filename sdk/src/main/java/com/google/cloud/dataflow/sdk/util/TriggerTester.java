@@ -40,6 +40,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -59,7 +60,8 @@ import javax.annotation.Nullable;
 
 /**
  * Test utility that runs a {@link WindowFn}, {@link Trigger} and {@link AbstractWindowSet} using
- * stub implementations of everything under the hood.
+ * in-memory stub implementations to provide the {@link TimerManager}, {@link KeyedState}, and
+ * {@link WindowingInternals} needed by {@link TriggerExecutor}.
  *
  * <p>To have all interactions between the trigger and underlying components logged, call
  * {@link #logInteractions(boolean)}.
@@ -94,7 +96,8 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> nonCombining(
-      WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode) throws Exception {
+      WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode,
+      Duration allowedDataLateness) throws Exception {
     @SuppressWarnings("unchecked")
     WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
 
@@ -104,14 +107,17 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         AbstractWindowSet.<String, Integer, W>factoryFor(strategy, VarIntCoder.of());
 
     return new TriggerTester<Integer, Iterable<Integer>, W>(
-        objectWindowFn, trigger, windowSetFactory, mode, IterableCoder.of(VarIntCoder.of()));
+        objectWindowFn, trigger, windowSetFactory, mode,
+        IterableCoder.of(VarIntCoder.of()),
+        allowedDataLateness);
   }
 
   public static <W extends BoundedWindow, AccumT, OutputT>
       TriggerTester<Integer, OutputT, W> combining(
           WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode,
           KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn,
-          Coder<OutputT> outputCoder) throws Exception {
+          Coder<OutputT> outputCoder,
+          Duration allowedDataLateness) throws Exception {
     @SuppressWarnings("unchecked")
     WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
 
@@ -120,7 +126,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
             combineFn, StringUtf8Coder.of(), VarIntCoder.of());
 
     return new TriggerTester<Integer, OutputT, W>(
-        objectWindowFn, trigger, windowSetFactory, mode, outputCoder);
+        objectWindowFn, trigger, windowSetFactory, mode, outputCoder, allowedDataLateness);
   }
 
   private TriggerTester(
@@ -128,7 +134,8 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
       Trigger<W> trigger,
       AbstractWindowSet.Factory<String, InputT, OutputT, W> windowSetFactory,
       AccumulationMode mode,
-      Coder<OutputT> outputCoder) throws Exception {
+      Coder<OutputT> outputCoder,
+      Duration allowedDataLateness) throws Exception {
     this.windowFn = windowFn;
     this.stubContexts = new StubContexts();
     this.windowSet = windowSetFactory.create(
@@ -136,7 +143,8 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     this.outputCoder = outputCoder;
     executableTrigger = ExecutableTrigger.create(trigger);
     this.triggerExecutor = new TriggerExecutor<>(
-        windowFn, timerManager, executableTrigger, stubContexts, stubContexts, windowSet, mode);
+        windowFn, timerManager, executableTrigger, stubContexts, stubContexts, windowSet, mode,
+        allowedDataLateness);
   }
 
   public ExecutableTrigger<W> getTrigger() {
@@ -147,7 +155,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     this.logInteractions = logInteractions;
   }
 
-  public boolean isDone(W window) throws IOException {
+  public boolean isMarkedFinished(W window) throws IOException {
     return triggerExecutor.lookupFinishedSet(window).get(0);
   }
 
@@ -169,6 +177,10 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
   public String earliestElement(W window) throws CoderException {
     return triggerExecutor.earliestElementTag(window).getId();
+  }
+
+  public Instant getWatermarkHold() {
+    return stubContexts.minTagTimestamp.peek();
   }
 
   public boolean isWindowActive(W window) throws IOException {

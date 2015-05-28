@@ -44,7 +44,8 @@ public class AfterProcessingTimeTest {
         AfterProcessingTime
             .<IntervalWindow>pastFirstElementInPane()
             .plusDelayOf(Duration.millis(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.advanceProcessingTime(new Instant(10));
 
@@ -71,7 +72,7 @@ public class AfterProcessingTimeTest {
     assertThat(tester.extractOutput(), Matchers.containsInAnyOrder(
         WindowMatchers.isSingleWindowedValue(Matchers.contains(4), 19, 10, 20),
         WindowMatchers.isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10))),
         tester.finishedSet(new IntervalWindow(new Instant(10), new Instant(20))),
@@ -86,7 +87,8 @@ public class AfterProcessingTimeTest {
         AfterProcessingTime
             .<IntervalWindow>pastFirstElementInPane()
             .plusDelayOf(Duration.millis(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.advanceProcessingTime(new Instant(10));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
@@ -105,7 +107,7 @@ public class AfterProcessingTimeTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 2, 2, 12)));
 
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(2), new Instant(12))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(2), new Instant(12))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(11))),
         tester.finishedSet(new IntervalWindow(new Instant(2), new Instant(12)))));

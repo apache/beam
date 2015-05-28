@@ -98,6 +98,11 @@ public class StreamingModeExecutionContext extends ExecutionContext {
       public Instant currentProcessingTime() {
         return Instant.now();
       }
+
+      @Override
+      public Instant currentWatermarkTime() {
+        return inputDataWatermark;
+      }
     };
   }
 
@@ -209,10 +214,6 @@ public class StreamingModeExecutionContext extends ExecutionContext {
     for (Windmill.GlobalDataRequest sideInput : sideInputs) {
       addBlockingSideInput(sideInput);
     }
-  }
-
-  public Instant getInputDataWatermark() {
-    return inputDataWatermark;
   }
 
   public ByteString getSerializedKey() {

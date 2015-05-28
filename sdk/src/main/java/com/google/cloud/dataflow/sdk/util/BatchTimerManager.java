@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 
 import org.joda.time.Instant;
@@ -36,6 +37,7 @@ public class BatchTimerManager implements TimerManager {
   private PriorityQueue<BatchTimerManager.BatchTimer> processingTimers = new PriorityQueue<>(11);
   private Map<String, BatchTimerManager.BatchTimer> processingTagToTimer = new HashMap<>();
 
+  private Instant watermarkTime;
   private Instant processingTime;
 
   private PriorityQueue<BatchTimerManager.BatchTimer> queue(TimerManager.TimeDomain domain) {
@@ -49,6 +51,7 @@ public class BatchTimerManager implements TimerManager {
 
   public BatchTimerManager(Instant processingTime) {
     this.processingTime = processingTime;
+    this.watermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
   }
 
   @Override
@@ -73,6 +76,11 @@ public class BatchTimerManager implements TimerManager {
   }
 
   @Override
+  public Instant currentWatermarkTime() {
+    return watermarkTime;
+  }
+
+  @Override
   public String toString() {
     StringBuilder builder = new StringBuilder("BatchTimerManager [");
     for (BatchTimer timer : watermarkTimers) {
@@ -88,6 +96,7 @@ public class BatchTimerManager implements TimerManager {
   public void advanceWatermark(TriggerExecutor<?, ?, ?, ?> triggerExecutor, Instant newWatermark)
       throws Exception {
     advance(triggerExecutor, newWatermark, TimeDomain.EVENT_TIME);
+    this.watermarkTime = newWatermark;
   }
 
   public void advanceProcessingTime(

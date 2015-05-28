@@ -65,7 +65,8 @@ public class TriggerTest {
         new OrFinallyTrigger<IntervalWindow>(mockActual, mockUntil);
 
     tester = TriggerTester.nonCombining(
-        windowFn, underTest, AccumulationMode.DISCARDING_FIRED_PANES);
+        windowFn, underTest, AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
     executableUntil = tester.getTrigger().subTriggers().get(1);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
@@ -103,7 +104,7 @@ public class TriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(2), 2, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
+    assertTrue(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         // We're storing that the root trigger has finished.
         tester.finishedSet(firstWindow)));
@@ -118,7 +119,7 @@ public class TriggerTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
+    assertTrue(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         // We're storing that the root trigger has finished.
         tester.finishedSet(firstWindow)));
@@ -133,7 +134,7 @@ public class TriggerTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
+    assertTrue(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         // We're storing that the root trigger has finished.
         tester.finishedSet(firstWindow)));
@@ -160,9 +161,8 @@ public class TriggerTest {
     tester.advanceWatermark(new Instant(13));
 
     assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
-        isSingleWindowedValue(Matchers.emptyIterable(), 9, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
+    assertTrue(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         tester.finishedSet(firstWindow)));
   }
@@ -198,8 +198,8 @@ public class TriggerTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
-    assertTrue(tester.isDone(firstWindow));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(3), 9, 0, 10)));
+    assertTrue(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         tester.finishedSet(firstWindow)));
   }
@@ -223,7 +223,7 @@ public class TriggerTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
     assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 
@@ -248,7 +248,7 @@ public class TriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     // the until fired during the merge
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(1), new Instant(22))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         // We're storing that the root has finished
         tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(22)))));
@@ -289,7 +289,8 @@ public class TriggerTest {
                     AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
                         .plusDelayOf(Duration.millis(5)),
                     AfterPane.<IntervalWindow>elementCountAtLeast(5)))),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(50));
 

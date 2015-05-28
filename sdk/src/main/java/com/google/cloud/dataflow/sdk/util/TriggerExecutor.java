@@ -48,6 +48,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -73,17 +74,20 @@ import java.util.Set;
  */
 public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
+  private static final int FINAL_CLEANUP_PSEUDO_ID = -1;
+
+  private final WindowFn<Object, W> windowFn;
   private final ExecutableTrigger<W> trigger;
+  private AccumulationMode mode;
+  private Duration allowedLateness;
+
   private final WindowingInternals<?, KV<K, OutputT>> windowingInternals;
   private final AbstractWindowSet<K, InputT, OutputT, W> windowSet;
-  private final WindowFn<Object, W> windowFn;
   private final TimerManager timerManager;
   private final WindowingInternals.KeyedState keyedState;
   private final MergeContext mergeContext;
   private final Coder<TriggerId<W>> triggerIdCoder;
   private final WatermarkHold watermarkHold;
-
-  private AccumulationMode mode;
 
   TriggerExecutor(
       WindowFn<Object, W> windowFn,
@@ -92,7 +96,8 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       WindowingInternals.KeyedState keyedState,
       WindowingInternals<?, KV<K, OutputT>> windowingInternals,
       AbstractWindowSet<K, InputT, OutputT, W> windowSet,
-      AccumulationMode mode) {
+      AccumulationMode mode,
+      Duration allowedLateness) {
     this.windowFn = windowFn;
     this.trigger = trigger;
     this.keyedState = keyedState;
@@ -103,6 +108,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     this.mergeContext = new MergeContext();
     this.triggerIdCoder = new TriggerIdCoder<>(windowFn.windowCoder());
     this.watermarkHold = new WatermarkHold();
+    this.allowedLateness = allowedLateness;
   }
 
   private boolean isRootFinished(BitSet bitSet) {
@@ -135,7 +141,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     return new TriggerExecutor<K, InputT, OutputT, W>(
         windowingStrategy.getWindowFn(), timerManager, windowingStrategy.getTrigger(),
         windowingInternals.keyedState(), windowingInternals, windowSet,
-        windowingStrategy.getMode());
+        windowingStrategy.getMode(), windowingStrategy.getAllowedLateness());
   }
 
   private TriggerContext<W> context(BitSet finishedSet) {
@@ -166,7 +172,17 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     keyedState.lookup(tags);
   }
 
+  private TriggerId<W> cleanupTimer(W window) {
+    return new TriggerId<W>(window, FINAL_CLEANUP_PSEUDO_ID);
+  }
+
   public void onElement(WindowedValue<InputT> value) throws Exception {
+    Instant minimumAllowedTimestamp = timerManager.currentWatermarkTime().minus(allowedLateness);
+    if (minimumAllowedTimestamp.isAfter(value.getTimestamp())) {
+      // TODO: Count the number of elements discarded because they are too late.
+      return;
+    }
+
     @SuppressWarnings("unchecked")
     Collection<W> windows = (Collection<W>) value.getWindows();
 
@@ -176,12 +192,23 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       BitSet finishedSet = lookupFinishedSet(window);
       if (isRootFinished(finishedSet)) {
         // If the trigger was already finished in that window, don't bother passing the element down
-        // TODO: Log the fact that we're discarding an element for a closed window.
+        // TODO: Count the number of elements discarded because the window is closed.
         continue;
       }
 
       WindowStatus status = windowSet.put(window, value.getValue());
-      watermarkHold.updateHoldForElement(window, value.getTimestamp());
+      if (status != WindowStatus.EXISTING) {
+        // Set the timer for final cleanup. We add an extra millisecond since
+        // maxTimestamp will be the maximum timestamp in the window, and we
+        // want the maximum timestamp of an element outside the window.
+        Instant cleanupTime = window.maxTimestamp()
+            .plus(allowedLateness)
+            .plus(Duration.millis(1));
+        setTimer(cleanupTimer(window), cleanupTime, TimeDomain.EVENT_TIME);
+      }
+
+      watermarkHold.updateHoldForElement(window, value.getTimestamp(),
+          value.getTimestamp().isBefore(timerManager.currentWatermarkTime()));
 
       BitSet originalFinishedSet = (BitSet) finishedSet.clone();
       OnElementEvent<W> e =
@@ -209,6 +236,21 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     TriggerId<W> triggerId = CoderUtils.decodeFromBase64(triggerIdCoder, timerTag);
     W window = triggerId.window();
     BitSet finishedSet = lookupFinishedSet(window);
+
+    if (triggerId.getTriggerIdx() == FINAL_CLEANUP_PSEUDO_ID) {
+      // If there are pending elements in the pane, emit it:
+      if (watermarkHold.holdingForElements(window)) {
+        if (mergeIfAppropriate(window)) {
+          emitWindow(window);
+        }
+      }
+
+      // Perform final cleanup.
+      windowSet.remove(window);
+      trigger.invokeClear(context(finishedSet), window);
+      keyedState.remove(finishedSetTag(window));
+      return;
+    }
 
     // If we receive a timer for an already finished trigger tree, we can ignore it. Once the
     // trigger is finished, it has reached a terminal state, and the trigger shouldn't be allowed
@@ -297,9 +339,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       BitSet originalFinishedSet, BitSet finishedSet, TriggerResult result) throws Exception {
     if (result.isFire()) {
       emitWindow(window);
-
-      // Clear the hold each time we fire, so that the hold is based on elements in the pane.
-      watermarkHold.clearHold(window);
     }
 
     if (result.isFinish()
@@ -320,6 +359,11 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private void emitWindow(W window) throws Exception {
+    if (!watermarkHold.holdingForElements(window)) {
+      // No elements to emit.
+      return;
+    }
+
     OutputT finalValue = windowSet.finalValue(window);
 
     // If there were any contents to output in the window, do so.
@@ -329,8 +373,10 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
       // Output the windowed value.
       windowingInternals.outputWindowedValue(
-          value, watermarkHold.lookupEarliestElement(window), Arrays.asList(window));
+          value, watermarkHold.timestampToEmit(window), Arrays.asList(window));
     }
+
+    watermarkHold.clearHold(window);
   }
 
   @VisibleForTesting void setTimer(TriggerId<W> triggerId, Instant timestamp, TimeDomain domain)
@@ -344,30 +390,52 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
-   * Helper class for managing the keyed state that tracks the earliest element in the active pane,
-   * and holds up the watermark accordingly.
+   * Manages the time to which the watermark is held, specifically, we hold it to earliest non-late
+   * timestamp as elements arrive.
+   *
+   * <p>When windows merge, {@link #updateHoldForMerge} determines the earliest non-late element
+   * across all those windows.
    */
   private class WatermarkHold {
 
-    public Instant lookupEarliestElement(W window) throws IOException {
-      // Normally, output at the earliest element in the pane.
-      // If the pane is empty, window.maxTimestamp.
+    /**
+     * Return true if there is an active hold for elements in the given window.
+     */
+    public boolean holdingForElements(W window) throws IOException {
+      return keyedState.lookup(earliestElementTag(window)) != null;
+    }
+
+    /**
+     * Determine the timestamp to emit the current values at.
+     */
+    public Instant timestampToEmit(W window) throws IOException {
+      // Normally, output at the earliest non-late element in the pane.
+      // If the pane is empty or all the elements were late, output at window.maxTimestamp().
       Instant earliest = keyedState.lookup(earliestElementTag(window));
-      return earliest == null ? window.maxTimestamp() : earliest;
+      return earliest == null || earliest.isAfter(window.maxTimestamp())
+          ? window.maxTimestamp() : earliest;
     }
 
-    public void updateHoldForElement(W window, Instant timestamp) throws IOException {
+    public void updateHoldForElement(
+        W window, Instant timestamp, boolean wasLate) throws IOException {
       CodedTupleTag<Instant> earliestElementTag = earliestElementTag(window);
-      Instant oldHold = keyedState.lookup(earliestElementTag);
-      if (oldHold == null || oldHold.isAfter(timestamp)) {
-        windowingInternals.store(earliestElementTag(window), timestamp, timestamp);
+      Instant earliestElement = keyedState.lookup(earliestElementTag);
+
+      if (earliestElement == null && wasLate) {
+        // If the element was late, then we want to put a hold in at the maxTimestamp for the end
+        // of the window plus the allowed lateness to ensure that we don't output something
+        // that is dropably late.
+        earliestElement = window.maxTimestamp().plus(allowedLateness);
+      } else if (earliestElement == null
+          || (!wasLate && timestamp.isBefore(earliestElement))) {
+        earliestElement = timestamp;
       }
+      windowingInternals.store(earliestElementTag, earliestElement, earliestElement);
     }
 
-    public void updateHoldForMerge(Iterable<W> oldWindows, W newWindow) throws IOException {
-      Instant earliestElement = BoundedWindow.TIMESTAMP_MAX_VALUE;
-      Iterable<Instant> instants = lookupKeyedState(
-          oldWindows, new Function<W, CodedTupleTag<Instant>>() {
+    public void updateHoldForMerge(Iterable<W> mergingWindows, W newWindow) throws IOException {
+      Iterable<Instant> mergingEarliestElements = lookupKeyedState(
+          mergingWindows, new Function<W, CodedTupleTag<Instant>>() {
         @Override
         public CodedTupleTag<Instant> apply(W window) {
           try {
@@ -378,12 +446,16 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
         }
       }).values();
 
-      for (Instant old : instants) {
-        if (old != null && old.isBefore(earliestElement)) {
-          earliestElement = old;
+      // If any of the merging windows had a hold, we should too.
+      // That hold should be at the earliest hold that any of the merging windows had in place.
+      Instant result = newWindow.maxTimestamp().plus(allowedLateness);
+      for (Instant earliestElement : mergingEarliestElements) {
+        if (earliestElement != null && result.isAfter(earliestElement)) {
+          result = earliestElement;
         }
       }
-      windowingInternals.store(earliestElementTag(newWindow), earliestElement, earliestElement);
+
+      windowingInternals.store(earliestElementTag(newWindow), result, result);
     }
 
     public void clearHold(W window) throws IOException {

@@ -57,7 +57,12 @@ public interface TimerManager {
   void deleteTimer(String timer, TimeDomain domain);
 
   /**
-   * @return the current timestamp in the {@link TimeDomain#PROCESSING_TIME} time domain.
+   * Returns the current timestamp in the {@link TimeDomain#PROCESSING_TIME} time domain.
    */
   Instant currentProcessingTime();
+
+  /**
+   * Returns an estimate of the current timestamp in the {@link TimeDomain#EVENT_TIME} time domain.
+   */
+  Instant currentWatermarkTime();
 }

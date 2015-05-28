@@ -58,7 +58,9 @@ public class RepeatedlyTest {
     MockitoAnnotations.initMocks(this);
     Trigger<IntervalWindow> underTest = Repeatedly.forever(mockRepeated);
     tester = TriggerTester.nonCombining(
-        windowFn, underTest, AccumulationMode.DISCARDING_FIRED_PANES);
+        windowFn, underTest,
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
     executableRepeated = tester.getTrigger().subTriggers().get(0);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
@@ -90,7 +92,7 @@ public class RepeatedlyTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
-    assertFalse(tester.isDone(firstWindow));
+    assertFalse(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.contains(
         tester.bufferTag(firstWindow),
         // Holding the earliest not-yet-output element (4) waiting to fire.
@@ -131,9 +133,9 @@ public class RepeatedlyTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(2), 2, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 3, 0, 10)));
-    assertFalse(tester.isDone(firstWindow));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(2), 9, 0, 10),
+        isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 9, 0, 10)));
+    assertFalse(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 
@@ -152,7 +154,7 @@ public class RepeatedlyTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
-    assertFalse(tester.isDone(firstWindow));
+    assertFalse(tester.isMarkedFinished(firstWindow));
     assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 

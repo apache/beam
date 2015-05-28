@@ -659,6 +659,7 @@ public class StreamingDataflowWorkerTest {
     server.addWorkToOffer(buildInput(
         "work {" +
         "  computation_id: \"computation\"" +
+        "  input_data_watermark: 0" +
         "  work {" +
         "    key: \"key\"" +
         "    work_token: 0" +
@@ -691,6 +692,11 @@ public class StreamingDataflowWorkerTest {
         "key: \"key\" " +
         "work_token: 0 " +
         "output_timers {" +
+        "  tag: \"gAAAAAAAAAD/////Dw==\"" +
+        "  timestamp: 1000000" +
+        "  type: WATERMARK" +
+        "}" +
+        "output_timers {" +
         "  tag: \"gAAAAAAAAAAA\"" +
         "  timestamp: 999000" +
         "  type: WATERMARK" +
@@ -714,6 +720,7 @@ public class StreamingDataflowWorkerTest {
     server.addWorkToOffer(buildTimerInput(
         "work {" +
         "  computation_id: \"computation\"" +
+        "  input_data_watermark: 0" +
         "  work {" +
         "    key: \"key\"" +
         "    work_token: 1" +
@@ -727,6 +734,20 @@ public class StreamingDataflowWorkerTest {
         "}"));
     server.addDataToOffer(buildData(
         "data {" +
+            "  computation_id: \"computation\"" +
+            "  data {" +
+            "    key: \"key\"" +
+            "    values {" +
+            "      tag: \"12:MergeWindowsgAAAAAAAAAA=earliest-element\"" +
+            "      value {" +
+            "        timestamp: 0" +
+            "        data: \"\\200\\000\\000\\000\\000\\000\\000\\000\"" +
+            "      }" +
+            "    }" +
+            "  }" +
+        "}"));
+    server.addDataToOffer(buildData(
+        "data {" +
         "  computation_id: \"computation\"" +
         "  data {" +
         "    key: \"key\"" +
@@ -735,20 +756,6 @@ public class StreamingDataflowWorkerTest {
         "      values {" +
         "        timestamp: 0" +
         "        data: \"\000data0\"" +
-        "      }" +
-        "    }" +
-        "  }" +
-        "}"));
-    server.addDataToOffer(buildData(
-        "data {" +
-        "  computation_id: \"computation\"" +
-        "  data {" +
-        "    key: \"key\"" +
-        "    values {" +
-        "      tag: \"12:MergeWindowsgAAAAAAAAAA=earliest-element\"" +
-        "      value {" +
-        "        timestamp: 0" +
-        "        data: \"\\200\\000\\000\\000\\000\\000\\000\\000\"" +
         "      }" +
         "    }" +
         "  }" +

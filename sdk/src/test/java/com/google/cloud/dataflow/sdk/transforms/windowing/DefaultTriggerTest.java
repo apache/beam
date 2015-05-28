@@ -43,7 +43,8 @@ public class DefaultTriggerTest {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(Duration.millis(10)),
         DefaultTrigger.<IntervalWindow>of(),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));
@@ -68,7 +69,7 @@ public class DefaultTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 15, 10, 20),
         isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(30), new Instant(40))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(30), new Instant(40))));
     assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 
@@ -77,7 +78,8 @@ public class DefaultTriggerTest {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(Duration.millis(10)),
         DefaultTrigger.<IntervalWindow>of(),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));
@@ -93,8 +95,8 @@ public class DefaultTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 1, 25),
         isSingleWindowedValue(Matchers.contains(4), 30, 30, 40)));
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(1), new Instant(25))));
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(30), new Instant(40))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(25))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(30), new Instant(40))));
     assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 
@@ -103,7 +105,8 @@ public class DefaultTriggerTest {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         SlidingWindows.of(Duration.millis(10)).every(Duration.millis(5)),
         DefaultTrigger.<IntervalWindow>of(),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(4));
@@ -120,11 +123,11 @@ public class DefaultTriggerTest {
     // Late data means the merge tree might be empty
     tester.advanceWatermark(new Instant(101));
     assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(4), 8, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(4), 8, 5, 15)));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(4), 9, 0, 10),
+        isSingleWindowedValue(Matchers.containsInAnyOrder(4), 14, 5, 15)));
 
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(1), new Instant(10))));
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(5), new Instant(15))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(10))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(5), new Instant(15))));
     assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
 
@@ -134,7 +137,8 @@ public class DefaultTriggerTest {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(Duration.millis(10)),
         DefaultTrigger.<IntervalWindow>of(),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));

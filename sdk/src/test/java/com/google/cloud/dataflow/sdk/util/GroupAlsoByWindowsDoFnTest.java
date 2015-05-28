@@ -19,6 +19,8 @@ package com.google.cloud.dataflow.sdk.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
+import com.google.cloud.dataflow.sdk.TestUtils.KvMatcher;
+import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -277,19 +279,13 @@ public class GroupAlsoByWindowsDoFnTest {
 
     List<WindowedValue<KV<String, Long>>> result = runner.getReceiver(outputTag);
 
-    assertEquals(2, result.size());
-
-    WindowedValue<KV<String, Long>> item0 = result.get(0);
-    assertEquals("k", item0.getValue().getKey());
-    assertEquals(3L, item0.getValue().getValue().longValue());
-    assertEquals(new Instant(0), item0.getTimestamp());
-    assertThat(item0.getWindows(), Matchers.contains(window(0, 15)));
-
-    WindowedValue<KV<String, Long>> item1 = result.get(1);
-    assertEquals("k", item1.getValue().getKey());
-    assertEquals(4L, item1.getValue().getValue().longValue());
-    assertEquals(new Instant(15), item1.getTimestamp());
-    assertThat(item1.getWindows(), Matchers.contains(window(15, 25)));
+    assertThat(result, Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(
+            KvMatcher.isKv(Matchers.equalTo("k"), Matchers.equalTo(3L)),
+            0, 0, 15),
+        WindowMatchers.isSingleWindowedValue(
+            KvMatcher.isKv(Matchers.equalTo("k"), Matchers.equalTo(4L)),
+            15, 15, 25)));
   }
 
   private DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,

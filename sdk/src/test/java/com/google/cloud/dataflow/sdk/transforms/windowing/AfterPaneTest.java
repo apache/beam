@@ -47,7 +47,8 @@ public class AfterPaneTest {
         AfterPane.<IntervalWindow>elementCountAtLeast(2),
         AccumulationMode.DISCARDING_FIRED_PANES,
         new SumIntegerFn().<String>asKeyedFn(),
-        VarIntCoder.of());
+        VarIntCoder.of(),
+        Duration.millis(100));
 
     tester.injectElement(1, new Instant(1));
     tester.injectElement(2, new Instant(9));
@@ -60,8 +61,8 @@ public class AfterPaneTest {
     tester.injectElement(6, new Instant(2));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(0), new Instant(10))));
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(10), new Instant(20))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10)))));
   }
@@ -72,7 +73,8 @@ public class AfterPaneTest {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(windowDuration),
         AfterPane.<IntervalWindow>elementCountAtLeast(2),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     tester.injectElement(1, new Instant(1)); // first in window [0, 10)
     tester.injectElement(2, new Instant(9));
@@ -85,8 +87,8 @@ public class AfterPaneTest {
     tester.injectElement(6, new Instant(2));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(0), new Instant(10))));
-    assertFalse(tester.isDone(new IntervalWindow(new Instant(10), new Instant(20))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10)))));
   }
@@ -97,7 +99,8 @@ public class AfterPaneTest {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         AfterPane.<IntervalWindow>elementCountAtLeast(2),
-        AccumulationMode.DISCARDING_FIRED_PANES);
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
 
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
@@ -115,7 +118,7 @@ public class AfterPaneTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 7, 7, 18)));
 
-    assertTrue(tester.isDone(new IntervalWindow(new Instant(1), new Instant(12))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(12))),
         tester.finishedSet(new IntervalWindow(new Instant(7), new Instant(18)))));
