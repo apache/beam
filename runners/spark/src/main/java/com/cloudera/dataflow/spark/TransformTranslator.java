@@ -66,6 +66,8 @@ import static com.cloudera.dataflow.spark.ShardNameBuilder.getOutputFilePrefix;
 import static com.cloudera.dataflow.spark.ShardNameBuilder.getOutputFileTemplate;
 import static com.cloudera.dataflow.spark.ShardNameBuilder.replaceShardCount;
 
+import com.cloudera.dataflow.hadoop.HadoopIO;
+
 /**
  * Supports translation between a DataFlow transform, and Spark's operations on RDDs.
  */
@@ -416,6 +418,28 @@ public final class TransformTranslator {
     };
   }
 
+  private static <K, V> TransformEvaluator<HadoopIO.Read.Bound<K, V>> readHadoop() {
+    return new TransformEvaluator<HadoopIO.Read.Bound<K, V>>() {
+      @Override
+      public void evaluate(HadoopIO.Read.Bound<K, V> transform, EvaluationContext context) {
+        String pattern = transform.getFilepattern();
+        JavaSparkContext jsc = context.getSparkContext();
+        @SuppressWarnings ("unchecked")
+        JavaPairRDD<K, V> file = jsc.newAPIHadoopFile(pattern,
+            transform.getFormatClass(),
+            transform.getKeyClass(), transform.getValueClass(),
+            new Configuration());
+        JavaRDD<KV<K, V>> rdd = file.map(new Function<Tuple2<K, V>, KV<K, V>>() {
+          @Override
+          public KV<K, V> call(Tuple2<K, V> t2) throws Exception {
+            return KV.of(t2._1(), t2._2());
+          }
+        });
+        context.setOutputRDD(transform, rdd);
+      }
+    };
+  }
+
   private static <T> TransformEvaluator<Window.Bound<T>> window() {
     return new TransformEvaluator<Window.Bound<T>>() {
       @Override
@@ -529,6 +553,7 @@ public final class TransformTranslator {
     EVALUATORS.put(TextIO.Write.Bound.class, writeText());
     EVALUATORS.put(AvroIO.Read.Bound.class, readAvro());
     EVALUATORS.put(AvroIO.Write.Bound.class, writeAvro());
+    EVALUATORS.put(HadoopIO.Read.Bound.class, readHadoop());
     EVALUATORS.put(ParDo.Bound.class, parDo());
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
     EVALUATORS.put(GroupByKey.GroupByKeyOnly.class, gbk());
