@@ -215,18 +215,6 @@ public class PubsubIO {
     }
 
     /**
-     * If true, then late-arriving data from this source will be dropped.
-     *
-     * <p> If late data is not dropped, data for a window can arrive after that window has already
-     * been closed.  This relaxes the semantics of {@code GroupByKey}; see
-     * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
-     * for additional information on late data and windowing.
-     */
-    public static Bound<String> dropLateData(boolean dropLateData) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).dropLateData(dropLateData);
-    }
-
-    /**
      * Creates and returns a PubSubIO.Read PTransform where unique record identifiers are
      * expected to be provided using the PubSub labeling API. The {@code <idLabel>} parameter
      * specifies the label name. The label value sent to PubSub can be any string value that
@@ -266,8 +254,6 @@ public class PubsubIO {
       String subscription;
       /** The Pubsub label to read timestamps from. */
       String timestampLabel;
-      /** If true, late data will be dropped. */
-      Boolean dropLateData;
       /** The Pubsub label to read ids from. */
       String idLabel;
       /** The coder used to decode each record. */
@@ -275,12 +261,11 @@ public class PubsubIO {
       final Coder<T> coder;
 
       Bound(Coder<T> coder) {
-        this.dropLateData = true;
         this.coder = coder;
       }
 
       Bound(String name, String subscription, String topic, String timestampLabel,
-          boolean dropLateData, Coder<T> coder, String idLabel) {
+          Coder<T> coder, String idLabel) {
         super(name);
         if (subscription != null) {
           Validator.validateSubscriptionName(subscription);
@@ -291,7 +276,6 @@ public class PubsubIO {
         this.subscription = subscription;
         this.topic = topic;
         this.timestampLabel = timestampLabel;
-        this.dropLateData = dropLateData;
         this.coder = coder;
         this.idLabel = idLabel;
       }
@@ -301,8 +285,7 @@ public class PubsubIO {
        * step name. Does not modify the object.
        */
       public Bound<T> named(String name) {
-        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData,
-            coder, idLabel);
+        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
       }
 
       /**
@@ -310,7 +293,7 @@ public class PubsubIO {
        * given subscription. Does not modify the object.
        */
       public Bound<T> subscription(String subscription) {
-        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
+        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
       }
 
       /**
@@ -318,7 +301,7 @@ public class PubsubIO {
        * give topic. Does not modify the object.
        */
       public Bound<T> topic(String topic) {
-        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
+        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
       }
 
       /**
@@ -326,15 +309,7 @@ public class PubsubIO {
        * from the given PubSub label. Does not modify the object.
        */
       public Bound<T> timestampLabel(String timestampLabel) {
-        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
-      }
-
-      /**
-       * Returns a new PubsubIO.Read PTransform that's like this one but with the specified
-       * setting for dropLateData. Does not modify the object.
-       */
-      public Bound<T> dropLateData(boolean dropLateData) {
-        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
+        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
       }
 
       /**
@@ -342,7 +317,7 @@ public class PubsubIO {
        * from the given PubSub label. Does not modify the object.
        */
       public Bound<T> idLabel(String idLabel) {
-        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
+        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
       }
 
       /**
@@ -354,7 +329,7 @@ public class PubsubIO {
        * elements of the resulting PCollection.
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(name, subscription, topic, timestampLabel, dropLateData, coder, idLabel);
+        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
       }
 
       @Override
@@ -396,10 +371,6 @@ public class PubsubIO {
 
       public String getTimestampLabel() {
         return timestampLabel;
-      }
-
-      public boolean getDropLateData() {
-        return dropLateData;
       }
 
       public String getIdLabel() {

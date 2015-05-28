@@ -56,7 +56,6 @@ public class PubsubIOTranslator {
       if (transform.getTimestampLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL, transform.getTimestampLabel());
       }
-      context.addInput(PropertyNames.PUBSUB_DROP_LATE_DATA, transform.getDropLateData());
       if (transform.getIdLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_ID_LABEL, transform.getIdLabel());
       }
