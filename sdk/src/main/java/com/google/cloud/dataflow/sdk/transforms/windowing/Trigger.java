@@ -81,7 +81,7 @@ import javax.annotation.Nullable;
  *   with it anywhere in the system. A trigger moves to the executing state as soon as it
  *   processes in the current pane.
  *   <li> Executing - while the trigger is receiving items and may fire. While it is in this state,
- *   it may persist book-keeping information to {@link WindowingInternals.KeyedState},
+ *   it may persist book-keeping information to {@code WindowingInternals.KeyedState},
  *   set timers, etc.
  *   <li> Finished - after a trigger finishes, all of its book-keeping data is cleaned up, and the
  *   system remembers only that it is finished. Entering this state causes us to discard any
@@ -93,7 +93,7 @@ import javax.annotation.Nullable;
  *
  * <p> Triggers should not build up any state internally since they may be recreated
  * between invocations of the callbacks. All important values should be persisted to
- * {@link WindowingInternals.KeyedState} before the callback returns.
+ * {@code WindowingInternals.KeyedState} before the callback returns.
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
  *            {@code Trigger}

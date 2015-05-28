@@ -21,9 +21,6 @@ import java.util.Map;
 
 /**
  * A mapping of {@link CodedTupleTag}s to associated values.
- *
- * <p> Returned by
- * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.KeyedState#lookup(java.lang.Iterable)}.
  */
 public class CodedTupleTagMap {
 
