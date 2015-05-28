@@ -19,11 +19,19 @@ import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.common.base.Preconditions;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
-public class HadoopIO {
+public final class HadoopIO {
 
-  public static class Read {
+  private HadoopIO() {
+  }
+
+  public static final class Read {
+
+    private Read() {
+    }
+
     public static Bound from(String filepattern) {
       return new Bound().from(filepattern);
     }
@@ -40,7 +48,6 @@ public class HadoopIO {
       return new Bound().withValueClass(value);
     }
 
-
     public static class Bound<K, V> extends PTransform<PInput, PCollection<KV<K, V>>> {
 
       private final String filepattern;
@@ -48,11 +55,11 @@ public class HadoopIO {
       private final Class<K> keyClass;
       private final Class<V> valueClass;
 
-      public Bound() {
+      Bound() {
         this(null, null, null, null);
       }
 
-      public Bound(String filepattern, Class<? extends FileInputFormat<K, V>> format, Class<K> key,
+      Bound(String filepattern, Class<? extends FileInputFormat<K, V>> format, Class<K> key,
           Class<V> value) {
         this.filepattern = filepattern;
         this.formatClass = format;
@@ -94,25 +101,16 @@ public class HadoopIO {
 
       @Override
       public PCollection<KV<K, V>> apply(PInput input) {
-        if (filepattern == null) {
-          throw new IllegalStateException(
-              "need to set the filepattern of an HadoopIO.Read transform");
-        }
-        if (formatClass == null) {
-          throw new IllegalStateException(
-              "need to set the format class of an HadoopIO.Read transform");
-        }
-        if (keyClass == null) {
-          throw new IllegalStateException(
-              "need to set the key class of an HadoopIO.Read transform");
-        }
-        if (valueClass == null) {
-          throw new IllegalStateException(
-              "need to set the value class of an HadoopIO.Read transform");
-        }
+        Preconditions.checkNotNull(filepattern,
+            "need to set the filepattern of an HadoopIO.Read transform");
+        Preconditions.checkNotNull(formatClass,
+            "need to set the format class of an HadoopIO.Read transform");
+        Preconditions.checkNotNull(keyClass,
+            "need to set the key class of an HadoopIO.Read transform");
+        Preconditions.checkNotNull(valueClass,
+            "need to set the value class of an HadoopIO.Read transform");
 
-        return PCollection.createPrimitiveOutputInternal(WindowingStrategy
-            .globalDefault());
+        return PCollection.createPrimitiveOutputInternal(WindowingStrategy.globalDefault());
       }
 
     }
