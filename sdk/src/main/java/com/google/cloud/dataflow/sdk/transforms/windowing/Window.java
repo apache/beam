@@ -21,17 +21,19 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.PTuple;
-import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+
+import org.joda.time.Duration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -252,8 +254,29 @@ public class Window {
       return new Triggering<T>(name, windowingStrategy.withTrigger(trigger));
     }
 
+    /**
+     * Override the amount of lateness allowed for data elements in the pipeline. Like
+     * the other properties on this {@link Window} operation, this will be applied at
+     * the next {@link GroupByKey}. Any elements that are later than this as decided by
+     * the system-maintained watermark will be dropped.
+     *
+     * <p>This value also determines how long state will be kept around for old windows.
+     * Once no elements will be added to a window (because this duration has passed) any state
+     * associated with the window will be cleaned up.
+     */
+    @Experimental(Experimental.Kind.TRIGGER)
+    public Bound<T> withAllowedLateness(Duration allowedLateness) {
+      return new Bound<>(name, windowingStrategy.withAllowedLateness(allowedLateness));
+    }
+
     @Override
     public PCollection<T> apply(PCollection<T> input) {
+      // Propagate the allowed lateness unless it was explicitly set.
+      if (windowingStrategy.isDefaultAllowedLateness()) {
+        windowingStrategy = windowingStrategy.withAllowedLateness(
+            input.getWindowingStrategy().getAllowedLateness());
+      }
+
       return PCollection.<T>createPrimitiveOutputInternal(
           input.getPipeline(), windowingStrategy, input.isBounded());
     }
@@ -269,13 +292,7 @@ public class Window {
 
     @Override
     protected String getKindString() {
-      return "Window.Into("
-          + StringUtils.approximateSimpleName(windowingStrategy.getWindowFn().getClass())
-          + ", "
-          + windowingStrategy.getTrigger()
-          + ", "
-          + windowingStrategy.getMode()
-          + ")";
+      return "Window.Into(" + windowingStrategy + ")";
     }
   }
 

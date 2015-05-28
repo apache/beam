@@ -23,6 +23,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 
+import org.joda.time.Duration;
+
 import java.io.Serializable;
 
 /**
@@ -44,6 +46,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     ACCUMULATING_FIRED_PANES;
   }
 
+  private static final Duration DEFAULT_ALLOWED_LATENESS = Duration.ZERO;
   private static final WindowingStrategy<Object, GlobalWindow> DEFAULT = of(new GlobalWindows());
 
   private static final long serialVersionUID = 0L;
@@ -51,12 +54,15 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   private final WindowFn<T, W> windowFn;
   private final ExecutableTrigger<W> trigger;
   private final AccumulationMode mode;
+  private final Duration allowedLateness;
 
   private WindowingStrategy(
-      WindowFn<T, W> windowFn, ExecutableTrigger<W> trigger, AccumulationMode mode) {
+      WindowFn<T, W> windowFn, ExecutableTrigger<W> trigger, AccumulationMode mode,
+      Duration allowedLateness) {
     this.windowFn = windowFn;
     this.trigger = trigger;
     this.mode = mode;
+    this.allowedLateness = allowedLateness;
   }
 
   public static WindowingStrategy<Object, GlobalWindow> globalDefault() {
@@ -70,23 +76,28 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(WindowFn<T, W> windowFn) {
     ExecutableTrigger<W> defaultTrigger = ExecutableTrigger.create(DefaultTrigger.<W>of());
     return new WindowingStrategy<>(
-        windowFn, defaultTrigger, AccumulationMode.DISCARDING_FIRED_PANES);
+        windowFn, defaultTrigger, AccumulationMode.DISCARDING_FIRED_PANES, null);
   }
 
   public WindowingStrategy<T, W> withTrigger(Trigger<?> wildcardTrigger) {
     @SuppressWarnings("unchecked")
     Trigger<W> trigger = (Trigger<W>) wildcardTrigger;
-    return new WindowingStrategy<T, W>(windowFn, ExecutableTrigger.create(trigger), mode);
+    return new WindowingStrategy<T, W>(
+        windowFn, ExecutableTrigger.create(trigger), mode, allowedLateness);
   }
 
   public WindowingStrategy<T, W> withMode(AccumulationMode mode) {
-    return new WindowingStrategy<T, W>(windowFn, trigger, mode);
+    return new WindowingStrategy<T, W>(windowFn, trigger, mode, allowedLateness);
   }
 
-  public <T> WindowingStrategy<T, W> withWindowFn(WindowFn<?, ?> wildcardWindowFn) {
+  public WindowingStrategy<T, W> withWindowFn(WindowFn<?, ?> wildcardWindowFn) {
     @SuppressWarnings("unchecked")
     WindowFn<T, W> windowFn = (WindowFn<T, W>) wildcardWindowFn;
-    return new WindowingStrategy<T, W>(windowFn, trigger, mode);
+    return new WindowingStrategy<T, W>(windowFn, trigger, mode, allowedLateness);
+  }
+
+  public WindowingStrategy<T, W> withAllowedLateness(Duration allowedLateness) {
+    return new WindowingStrategy<T, W>(windowFn, trigger, mode, allowedLateness);
   }
 
   public WindowFn<T, W> getWindowFn() {
@@ -97,7 +108,24 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return trigger;
   }
 
+  public Duration getAllowedLateness() {
+    return allowedLateness == null ? DEFAULT_ALLOWED_LATENESS : allowedLateness;
+  }
+
+  public boolean isDefaultAllowedLateness() {
+    return allowedLateness == null;
+  }
+
   public AccumulationMode getMode() {
     return mode;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("%s, %s, %s, %s",
+        StringUtils.approximateSimpleName(windowFn.getClass()),
+        trigger.toString(),
+        mode.toString(),
+        allowedLateness);
   }
 }
