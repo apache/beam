@@ -38,7 +38,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * Number of workers to use when executing the Dataflow job.
    */
   @Description("Number of workers to use when executing the Dataflow job. Note that "
-      + "selection of an autoscaling algorithm other then \"NONE\" will effect the "
+      + "selection of an autoscaling algorithm other then \"NONE\" will affect the "
       + "size of the worker pool.")
   @Default.Integer(3)
   int getNumWorkers();
