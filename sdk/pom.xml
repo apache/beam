@@ -179,6 +179,14 @@
               <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.4/</url>
               <location>${basedir}/../javadoc/jackson-annotations-docs</location>
             </offlineLink>
+            <offlineLink>
+              <url>http://hamcrest.org/JavaHamcrest/javadoc/1.3/</url>
+              <location>${basedir}/../javadoc/hamcrest-docs</location>
+            </offlineLink>
+            <offlineLink>
+              <url>http://junit.sourceforge.net/javadoc/</url>
+              <location>${basedir}/../javadoc/junit-docs</location>
+            </offlineLink>
           </offlineLinks>
         </configuration>
 
