@@ -577,8 +577,8 @@ public class PipelineOptionsFactoryTest {
     String[] args = new String[] {
         "--diskSizeGb=100",
         "--diskSizeGb=200"};
-    expectedLogs.expectWarn("Strict parsing is disabled, ignoring option");
     PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
+    expectedLogs.verifyWarn("Strict parsing is disabled, ignoring option");
   }
 
   @Test
@@ -610,8 +610,8 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testUsingArgumentWithUnknownPropertyIsIgnoredWithoutStrictParsing() {
     String[] args = new String[] {"--unknownProperty=value"};
-    expectedLogs.expectWarn("missing a property named 'unknownProperty'");
     PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
+    expectedLogs.verifyWarn("missing a property named 'unknownProperty'");
   }
 
   @Test
@@ -625,8 +625,8 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testUsingArgumentStartingWithIllegalCharacterIsIgnoredWithoutStrictParsing() {
     String[] args = new String[] {" --diskSizeGb=100"};
-    expectedLogs.expectWarn("Strict parsing is disabled, ignoring option");
     PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
+    expectedLogs.verifyWarn("Strict parsing is disabled, ignoring option");
   }
 
   @Test
@@ -652,8 +652,8 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testUsingArgumentWithInvalidNameIsIgnoredWithoutStrictParsing() {
     String[] args = new String[] {"--=100"};
-    expectedLogs.expectWarn("Strict parsing is disabled, ignoring option");
     PipelineOptionsFactory.fromArgs(args).withoutStrictParsing().create();
+    expectedLogs.verifyWarn("Strict parsing is disabled, ignoring option");
   }
 
   @Test

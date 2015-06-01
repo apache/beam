@@ -100,7 +100,6 @@ public class BlockingDataflowPipelineRunnerTest {
 
   @Test
   public void testJobWaitComplete() throws IOException, InterruptedException {
-    expectedLogs.expectInfo("Job finished with status DONE");
 
     DataflowPipelineRunner mockDataflowPipelineRunner = mock(DataflowPipelineRunner.class);
     DataflowPipelineJob mockJob = mock(DataflowPipelineJob.class);
@@ -141,6 +140,7 @@ public class BlockingDataflowPipelineRunnerTest {
     mockWait.signalJobComplete();
     assertTrue("run() should return after job completion is mocked.",
         jobCompleted.waitTillSet(2000));
+    expectedLogs.verifyInfo("Job finished with status DONE");
   }
 
   @Test

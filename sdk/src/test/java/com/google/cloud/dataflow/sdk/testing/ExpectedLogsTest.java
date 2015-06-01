@@ -16,7 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -24,6 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
@@ -35,74 +37,89 @@ import java.util.concurrent.Executors;
 public class ExpectedLogsTest {
   private static final Logger LOG = LoggerFactory.getLogger(ExpectedLogsTest.class);
 
-  private ExpectedLogs expectedLogs;
+  private Random random = new Random();
 
-  @Before
-  public void setUp() {
-    expectedLogs = ExpectedLogs.none(ExpectedLogsTest.class);
-  }
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(ExpectedLogsTest.class);
 
   @Test
   public void testWhenNoExpectations() throws Throwable {
-    expectedLogs.before();
     LOG.error(generateRandomString());
-    expectedLogs.after();
   }
 
   @Test
-  public void testWhenExpectationIsMatchedFully() throws Throwable {
+  public void testVerifyWhenMatchedFully() throws Throwable {
     String expected = generateRandomString();
-    expectedLogs.before();
-    expectedLogs.expectError(expected);
+
     LOG.error(expected);
-    expectedLogs.after();
+    expectedLogs.verifyError(expected);
   }
 
   @Test
-  public void testWhenExpectationIsMatchedPartially() throws Throwable {
+  public void testVerifyWhenMatchedPartially() throws Throwable {
     String expected = generateRandomString();
-    expectedLogs.before();
-    expectedLogs.expectError(expected);
     LOG.error("Extra stuff around expected " + expected + " blah");
-    expectedLogs.after();
+    expectedLogs.verifyError(expected);
   }
 
   @Test
-  public void testWhenExpectationIsMatchedWithExceptionBeingLogged() throws Throwable {
+  public void testVerifyWhenMatchedWithExceptionBeingLogged() throws Throwable {
     String expected = generateRandomString();
-    expectedLogs.before();
-    expectedLogs.expectError(expected);
     LOG.error(expected, new IOException("Fake Exception"));
-    expectedLogs.after();
+    expectedLogs.verifyError(expected);
   }
 
   @Test(expected = AssertionError.class)
-  public void testWhenExpectationIsNotMatched() throws Throwable {
+  public void testVerifyWhenNotMatched() throws Throwable {
     String expected = generateRandomString();
-    expectedLogs.before();
-    expectedLogs.expectError(expected);
-    expectedLogs.after();
+
+    expectedLogs.verifyError(expected);
+  }
+
+  @Test(expected = AssertionError.class)
+  public void testVerifyNotLoggedWhenMatchedFully() throws Throwable {
+    String expected = generateRandomString();
+
+    LOG.error(expected);
+    expectedLogs.verifyNotLogged(expected);
+  }
+
+  @Test(expected = AssertionError.class)
+  public void testVerifyNotLoggedWhenMatchedPartially() throws Throwable {
+    String expected = generateRandomString();
+    LOG.error("Extra stuff around expected " + expected + " blah");
+    expectedLogs.verifyNotLogged(expected);
+  }
+
+  @Test(expected = AssertionError.class)
+  public void testVerifyNotLoggedWhenMatchedWithException() throws Throwable {
+    String expected = generateRandomString();
+    LOG.error(expected, new IOException("Fake Exception"));
+    expectedLogs.verifyNotLogged(expected);
+  }
+
+  @Test
+  public void testVerifyNotLoggedWhenNotMatched() throws Throwable {
+    String expected = generateRandomString();
+    expectedLogs.verifyNotLogged(expected);
   }
 
   @Test
   public void testLogCaptureOccursAtLowestLogLevel() throws Throwable {
     String expected = generateRandomString();
-    expectedLogs.before();
-    expectedLogs.expectTrace(expected);
     LOG.trace(expected);
-    expectedLogs.after();
+    expectedLogs.verifyTrace(expected);
   }
 
   @Test
   public void testThreadSafetyOfLogSaver() throws Throwable {
-    expectedLogs.before();
-
     CompletionService<Void> completionService =
         new ExecutorCompletionService<>(Executors.newCachedThreadPool());
     final long scheduledLogTime = System.currentTimeMillis() + 500L;
+
+    List<String> expectedStrings = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
       final String expected = generateRandomString();
-      expectedLogs.expectTrace(expected);
+      expectedStrings.add(expected);
       completionService.submit(new Callable<Void>() {
         @Override
         public Void call() throws Exception {
@@ -119,12 +136,13 @@ public class ExpectedLogsTest {
       completionService.take();
     }
 
-    expectedLogs.after();
+    for (String expected : expectedStrings) {
+      expectedLogs.verifyTrace(expected);
+    }
   }
 
   // Generates a random fake error message.
-  private static String generateRandomString() {
-    Random random = new Random();
+  private String generateRandomString() {
     return "Fake error message: " + random.nextInt();
   }
 }
