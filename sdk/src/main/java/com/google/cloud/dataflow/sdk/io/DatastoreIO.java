@@ -293,13 +293,13 @@ public class DatastoreIO {
       DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
       long numSplits;
       try {
-        numSplits = Math.max(
-            Math.round(((double) getEstimatedSizeBytes(options)) / desiredBundleSizeBytes), 1);
+        numSplits = Math.round(((double) getEstimatedSizeBytes(options)) / desiredBundleSizeBytes);
       } catch (Exception e) {
         LOG.warn("Estimated size unavailable, using number of workers", e);
         // Fallback in case estimated size is unavailable.
         numSplits = dataflowOptions.getNumWorkers();
       }
+      numSplits = Math.max(numSplits, 1);
       List<Query> splitQueries;
       if (mockSplitter == null) {
         splitQueries = DatastoreHelper.getQuerySplitter().getSplits(
