@@ -26,6 +26,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import static com.google.cloud.dataflow.sdk.util.Structs.addStringList;
 import static com.google.cloud.dataflow.sdk.util.Structs.getBoolean;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
+import static com.google.cloud.dataflow.sdk.util.Structs.getListOfMaps;
 import static com.google.cloud.dataflow.sdk.util.Structs.getLong;
 import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
@@ -170,6 +171,23 @@ public class StructsTest {
     } catch (Exception exn) {
       Assert.assertThat(exn.toString(),
                         Matchers.containsString("not an int"));
+    }
+  }
+
+  @Test
+  public void testGetListOfMaps() throws Exception {
+    Map<String, Object> o = makeCloudDictionary();
+
+    Assert.assertEquals(
+        makeCloudObjects(),
+        getListOfMaps(o, "multipleObjectsKey", null));
+
+    try {
+      getListOfMaps(o, "singletonLongKey", null);
+      Assert.fail("should have thrown an exception");
+    } catch (Exception exn) {
+      Assert.assertThat(exn.toString(),
+                        Matchers.containsString("not a list"));
     }
   }
 

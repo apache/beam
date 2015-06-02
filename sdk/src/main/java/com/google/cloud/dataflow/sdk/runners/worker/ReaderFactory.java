@@ -78,6 +78,7 @@ public final class ReaderFactory {
         PubsubReader.class.getName());
     predefinedReaderFactories.put(
         "PubsubReader", PubsubReader.class.getName());
+    predefinedReaderFactories.put(ConcatReader.SOURCE_NAME, ConcatReaderFactory.class.getName());
   }
 
   /**
@@ -89,14 +90,20 @@ public final class ReaderFactory {
   public static <T> Reader<T> create(@Nullable PipelineOptions options, Source cloudSource,
       @Nullable ExecutionContext executionContext) throws Exception {
     cloudSource = CloudSourceUtils.flattenBaseSpecs(cloudSource);
-    Coder<T> coder = Serializer.deserialize(cloudSource.getCodec(), Coder.class);
+
     CloudObject object = CloudObject.fromSpec(cloudSource.getSpec());
 
-    String sourceFactoryClassName = predefinedReaderFactories.get(object.getClassName());
+    String objClassName = object.getClassName();
+    String sourceFactoryClassName = predefinedReaderFactories.get(objClassName);
     if (sourceFactoryClassName == null) {
       sourceFactoryClassName = object.getClassName();
     }
 
+    @SuppressWarnings("rawtypes")
+    Coder coder = null;
+    if (cloudSource.getCodec() != null) {
+      coder = Serializer.deserialize(cloudSource.getCodec(), Coder.class);
+    }
     try {
       return InstanceBuilder.ofType(new TypeDescriptor<Reader<T>>() {
           private static final long serialVersionUID = 0;

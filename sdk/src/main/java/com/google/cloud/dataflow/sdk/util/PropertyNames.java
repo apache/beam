@@ -32,6 +32,8 @@ public class PropertyNames {
   public static final String COMPONENT_ENCODINGS = "component_encodings";
   public static final String COMPRESSION_TYPE = "compression_type";
   public static final String CUSTOM_SOURCE_FORMAT = "custom_source";
+  public static final String CONCAT_SOURCE_SOURCES = "sources";
+  public static final String CONCAT_SOURCE_BASE_SPECS = "base_specs";
   public static final String SOURCE_STEP_INPUT = "custom_source_step_input";
   public static final String SOURCE_SPEC = "spec";
   public static final String SOURCE_METADATA = "metadata";

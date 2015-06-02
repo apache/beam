@@ -163,6 +163,39 @@ public final class Structs {
     return mapValue;
   }
 
+  @Nullable
+  public static List<Map<String, Object>> getListOfMaps(Map<String, Object> map, String name,
+      @Nullable List<Map<String, Object>> defaultValue) throws Exception {
+    @Nullable
+    Object value = map.get(name);
+    if (value == null) {
+      if (map.containsKey(name)) {
+        throw new IncorrectTypeException(name, map, "a list");
+      }
+      return defaultValue;
+    }
+    if (Data.isNull(value)) {
+      // This is a JSON literal null.  When represented as a list,
+      // this is an empty list.
+      return Collections.<Map<String, Object>>emptyList();
+    }
+
+    if (!(value instanceof List)) {
+      throw new IncorrectTypeException(name, map, "a list");
+    }
+
+    List<?> elements = (List<?>) value;
+    for (Object elem : elements) {
+      if (!(elem instanceof Map)) {
+        throw new IncorrectTypeException(name, map, "a list of Map objects");
+      }
+    }
+
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> result = (List<Map<String, Object>>) elements;
+    return result;
+  }
+
   public static Map<String, Object> getDictionary(
       Map<String, Object> map, String name) throws Exception {
     @Nullable Object value = map.get(name);

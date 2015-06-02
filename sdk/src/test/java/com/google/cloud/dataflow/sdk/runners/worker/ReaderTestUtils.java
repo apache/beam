@@ -22,6 +22,10 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator;
+
+import java.io.IOException;
+import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -77,5 +81,21 @@ public class ReaderTestUtils {
 
   public static Reader.DynamicSplitRequest splitRequestAtFraction(float fraction) {
     return toDynamicSplitRequest(approximateProgressAtFraction(fraction));
+  }
+
+  /**
+   * Creates an {@link ReaderIterator} from the given {@code Reader} and reads it to the end.
+   *
+   * @param reader {@code Reader} to read from
+   * @param results elements that are read are added to this list. Will contain partially read
+   * results if an exception is thrown
+   * @throws IOException
+   */
+  public static <T> void readFully(Reader<T> reader, List<T> results) throws IOException {
+    try (ReaderIterator<T> iterator = reader.iterator()) {
+      while (iterator.hasNext()) {
+        results.add(iterator.next());
+      }
+    }
   }
 }
