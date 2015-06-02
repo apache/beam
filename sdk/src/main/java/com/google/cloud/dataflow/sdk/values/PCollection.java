@@ -152,11 +152,22 @@ public class PCollection<T> extends TypedPValue<T> {
   }
 
   /**
-   * Applies the given PTransform to this input PCollection, and
-   * returns the PTransform's Output.
+   * Like {@link IsBounded#apply(String, PTransform)} but defaulting to the name
+   * of the {@link PTransform}.
    */
   public <OutputT extends POutput> OutputT apply(PTransform<? super PCollection<T>, OutputT> t) {
     return Pipeline.applyTransform(this, t);
+  }
+
+  /**
+   * Applies the given {@code PTransform} to this input {@code PCollection<T>},
+   * using {@code name} to identify this specific application of the transform.
+   * This name is used in various places, including the monitoring UI, logging,
+   * and to stably identify this application node in the job graph.
+   */
+  public <OutputT extends POutput> OutputT apply(
+      String name, PTransform<? super PCollection<T>, OutputT> t) {
+    return Pipeline.applyTransform(name, this, t);
   }
 
   /**

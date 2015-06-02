@@ -129,15 +129,26 @@ public class Pipeline {
   }
 
   /**
-   * Starts using this pipeline with a root PTransform such as
-   * {@code TextIO.Read} or
-   * {@link com.google.cloud.dataflow.sdk.transforms.Create}.
-   *
-   * <p> Alias for {@code begin().apply(root)}.
+   * Like {@link #apply(String, PTransform)} but defaulting to the name
+   * of the {@code PTransform}.
    */
   public <OutputT extends POutput> OutputT apply(
       PTransform<? super PBegin, OutputT> root) {
     return begin().apply(root);
+  }
+
+  /**
+   * Starts using this pipeline with a root {@code PTransform} such as
+   * {@code TextIO.READ} or {@link com.google.cloud.dataflow.sdk.transforms.Create}.
+   * This specific call to {@code apply} is identified by the provided {@code name}.
+   * This name is used in various places, including the monitoring UI, logging,
+   * and to stably identify this application node in the job graph.
+   *
+   * <p> Alias for {@code begin().apply(name, root)}.
+   */
+  public <OutputT extends POutput> OutputT apply(
+      String name, PTransform<? super PBegin, OutputT> root) {
+    return begin().apply(name, root);
   }
 
   /**
@@ -214,15 +225,27 @@ public class Pipeline {
   }
 
   /**
-   * Applies the given {@link PTransform} to the given {@code InputT},
-   * and returns its {@code OutputT}.
+   * Like {@link #applyTransform(String, PInput, PTransform)} but defaulting to the name
+   * provided by the {@link PTransform}.
+   */
+  public static <InputT extends PInput, OutputT extends POutput>
+  OutputT applyTransform(InputT input,
+      PTransform<? super InputT, OutputT> transform) {
+    return input.getPipeline().applyInternal(transform.getName(), input, transform);
+  }
+
+  /**
+   * Applies the given {@code PTransform} to this input {@code InputT} and returns
+   * its {@code OutputT}. This uses {@code name} to identify this specific application
+   * of the transform. This name is used in various places, including the monitoring UI,
+   * logging, and to stably identify this application node in the job graph.
    *
    * <p> Called by {@link PInput} subclasses in their {@code apply} methods.
    */
   public static <InputT extends PInput, OutputT extends POutput>
-  OutputT applyTransform(InputT input,
-                        PTransform<? super InputT, OutputT> transform) {
-    return input.getPipeline().applyInternal(input, transform);
+  OutputT applyTransform(String name, InputT input,
+      PTransform<? super InputT, OutputT> transform) {
+    return input.getPipeline().applyInternal(name, input, transform);
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -261,14 +284,13 @@ public class Pipeline {
    * @see Pipeline#apply
    */
   private <InputT extends PInput, OutputT extends POutput>
-  OutputT applyInternal(InputT input,
+  OutputT applyInternal(String name, InputT input,
       PTransform<? super InputT, OutputT> transform) {
     input.finishSpecifying();
 
     TransformTreeNode parent = transforms.getCurrent();
     String namePrefix = parent.getFullName();
 
-    String name = transform.getName();
     String fullName = uniquifyInternal(namePrefix, name);
 
     boolean nameIsUnique = fullName.equals(buildName(namePrefix, name));
