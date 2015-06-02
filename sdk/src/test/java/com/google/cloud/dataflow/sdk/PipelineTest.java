@@ -23,10 +23,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -39,8 +41,10 @@ import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -49,6 +53,9 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class PipelineTest {
+
+  @Rule public ExpectedLogs logged = ExpectedLogs.none(Pipeline.class);
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   static class PipelineWrapper extends Pipeline {
     protected PipelineWrapper(PipelineRunner<?> runner) {
@@ -154,5 +161,38 @@ public class PipelineTest {
     options.setRunner(DirectPipelineRunner.class);
     Pipeline pipeline = Pipeline.create(options);
     assertEquals("Pipeline#" + pipeline.hashCode(), pipeline.toString());
+  }
+
+  @Test
+  public void testStableUniqueNameOff() {
+    Pipeline p = TestPipeline.create();
+    p.getOptions().setStableUniqueNames(CheckEnabled.OFF);
+
+    p.apply(Create.of(5, 6, 7));
+    p.apply(Create.of(5, 6, 7));
+
+    logged.verifyNotLogged("does not have a stable unique name.");
+  }
+
+  @Test
+  public void testStableUniqueNameWarning() {
+    Pipeline p = TestPipeline.create();
+    p.getOptions().setStableUniqueNames(CheckEnabled.WARNING);
+
+    p.apply(Create.of(5, 6, 7));
+    p.apply(Create.of(5, 6, 7));
+
+    logged.verifyWarn("does not have a stable unique name.");
+  }
+
+  @Test
+  public void testStableUniqueNameError() {
+    Pipeline p = TestPipeline.create();
+    p.getOptions().setStableUniqueNames(CheckEnabled.ERROR);
+
+    p.apply(Create.of(5, 6, 7));
+
+    thrown.expectMessage("does not have a stable unique name.");
+    p.apply(Create.of(5, 6, 7));
   }
 }

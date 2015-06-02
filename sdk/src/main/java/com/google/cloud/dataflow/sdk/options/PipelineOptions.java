@@ -220,4 +220,20 @@ public interface PipelineOptions {
   @Default.Class(DirectPipelineRunner.class)
   Class<? extends PipelineRunner<?>> getRunner();
   void setRunner(Class<? extends PipelineRunner<?>> kls);
+
+  /**
+   * Enumeration of the possible states for a given check.
+   */
+  public static enum CheckEnabled {
+    OFF,
+    WARNING,
+    ERROR;
+  }
+
+  @Validation.Required
+  @Description("Whether to check for stable unique names on each stage. This is necessary to "
+      + "support reloading streaming pipelines.")
+  @Default.Enum("WARNING")
+  CheckEnabled getStableUniqueNames();
+  void setStableUniqueNames(CheckEnabled enabled);
 }

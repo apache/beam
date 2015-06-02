@@ -165,6 +165,7 @@ public class DataflowPipelineTranslatorTest {
           .put("tempLocation", "gs://somebucket/some/path")
           .put("filesToStage", ImmutableList.of())
           .put("stagingLocation", "gs://somebucket/some/path/staging")
+          .put("stableUniqueNames", "WARNING")
           .build()),
         job.getEnvironment().getSdkPipelineOptions());
   }

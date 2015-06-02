@@ -274,8 +274,21 @@ public class Pipeline {
     boolean nameIsUnique = fullName.equals(buildName(namePrefix, name));
 
     if (!nameIsUnique) {
-      LOG.warn("Transform {} does not have a stable unique name.  "
-          + "In the future, this will prevent reloading streaming pipelines", fullName);
+      switch (getOptions().getStableUniqueNames()) {
+        case OFF:
+          break;
+        case WARNING:
+          LOG.warn("Transform {} does not have a stable unique name. "
+              + "This will prevent reloading of pipelines.", fullName);
+          break;
+        case ERROR:
+          throw new IllegalStateException(
+              "Transform " + fullName + " does not have a stable unique name. "
+              + "This will prevent reloading of pipelines.");
+        default:
+          throw new IllegalArgumentException(
+              "Unrecognized value for stable unique names: " + getOptions().getStableUniqueNames());
+      }
     }
 
     TransformTreeNode child =
