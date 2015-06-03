@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static org.mockito.Matchers.endsWith;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -296,24 +297,31 @@ public class BigQueryReaderTest {
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
+
+    // To make sure that we retry requests, each invocation below throws an IOException first time
+    // they are invoked.
     when(mockTransport.buildRequest(eq("GET"), endsWith(GET_TABLE_REQUEST_PATH)))
+        .thenThrow(new IOException())
         .thenAnswer(new Answer<LowLevelHttpRequest>() {
           @Override
           public LowLevelHttpRequest answer(InvocationOnMock invocation) throws Throwable {
-            MockLowLevelHttpResponse response = new MockLowLevelHttpResponse()
-                .setContentType(Json.MEDIA_TYPE)
-                .setContent(GET_TABLE_RESPONSE_JSON);
+            MockLowLevelHttpResponse response =
+                new MockLowLevelHttpResponse()
+                    .setContentType(Json.MEDIA_TYPE)
+                    .setContent(GET_TABLE_RESPONSE_JSON);
             return new MockLowLevelHttpRequest((String) invocation.getArguments()[1])
                 .setResponse(response);
           }
         });
     when(mockTransport.buildRequest(eq("GET"), endsWith(LIST_TABLE_DATA_REQUEST_PATH)))
+        .thenThrow(new IOException())
         .thenAnswer(new Answer<LowLevelHttpRequest>() {
           @Override
           public LowLevelHttpRequest answer(InvocationOnMock invocation) throws Throwable {
-            MockLowLevelHttpResponse response = new MockLowLevelHttpResponse()
-                .setContentType(Json.MEDIA_TYPE)
-                .setContent(LIST_TABLEDATA_RESPONSE_JSON);
+            MockLowLevelHttpResponse response =
+                new MockLowLevelHttpResponse()
+                    .setContentType(Json.MEDIA_TYPE)
+                    .setContent(LIST_TABLEDATA_RESPONSE_JSON);
             return new MockLowLevelHttpRequest((String) invocation.getArguments()[1])
                 .setResponse(response);
           }
@@ -330,11 +338,11 @@ public class BigQueryReaderTest {
   }
 
   private void verifyTableGet() throws IOException {
-    verify(mockTransport).buildRequest(eq("GET"), endsWith(GET_TABLE_REQUEST_PATH));
+    verify(mockTransport, times(2)).buildRequest(eq("GET"), endsWith(GET_TABLE_REQUEST_PATH));
   }
 
   private void verifyTabledataList() throws IOException {
-    verify(mockTransport).buildRequest(eq("GET"), endsWith(LIST_TABLE_DATA_REQUEST_PATH));
+    verify(mockTransport, times(2)).buildRequest(eq("GET"), endsWith(LIST_TABLE_DATA_REQUEST_PATH));
   }
 
   @Test

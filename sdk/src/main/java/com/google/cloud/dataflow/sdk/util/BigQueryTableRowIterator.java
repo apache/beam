@@ -16,8 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Data;
 import com.google.api.client.util.Preconditions;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataList;
@@ -28,6 +31,8 @@ import com.google.api.services.bigquery.model.TableSchema;
 
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -43,6 +48,7 @@ import java.util.Objects;
  * Iterates over all rows in a table.
  */
 public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableRowIterator.class);
 
   private final Bigquery client;
   private final TableReference ref;
@@ -51,6 +57,11 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
   private Iterator<TableRow> rowIterator;
   // Set true when the final page is seen from the service.
   private boolean lastPage = false;
+
+  // The maximum number of times a BigQuery request will be retried
+  private static final int MAX_RETRIES = 3;
+  // Initial wait time for the backoff implementation
+  private static final int INITIAL_BACKOFF_MILLIS = 1000;
 
   public BigQueryTableRowIterator(Bigquery client, TableReference ref) {
     this.client = client;
@@ -67,7 +78,7 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
       if (!rowIterator.hasNext() && !lastPage) {
         readNext();
       }
-    } catch (IOException e) {
+    } catch (IOException | InterruptedException e) {
       throw new RuntimeException(e);
     }
 
@@ -172,14 +183,31 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
     throw new UnsupportedOperationException();
   }
 
-  private void readNext() throws IOException {
+  private void readNext() throws IOException, InterruptedException {
     Bigquery.Tabledata.List list = client.tabledata()
         .list(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
     if (pageToken != null) {
       list.setPageToken(pageToken);
     }
 
-    TableDataList result = list.execute();
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backOff = new AttemptBoundedExponentialBackOff(MAX_RETRIES, INITIAL_BACKOFF_MILLIS);
+
+    TableDataList result = null;
+    while (true) {
+      try {
+        result = list.execute();
+        break;
+      } catch (IOException e) {
+        LOG.error("Error reading from BigQuery table {} of dataset {} : {}", ref.getTableId(),
+            ref.getDatasetId(), e.getMessage());
+        if (!BackOffUtils.next(sleeper, backOff)) {
+          LOG.error("Aborting after {} retries.", MAX_RETRIES);
+          throw e;
+        }
+      }
+    }
+
     pageToken = result.getPageToken();
     rowIterator = result.getRows() != null ? result.getRows().iterator() :
                   Collections.<TableRow>emptyIterator();
@@ -205,11 +233,29 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
    * Opens the table for read.
    * @throws IOException on failure
    */
-  private void open() throws IOException {
+  private void open() throws IOException, InterruptedException {
     // Get table schema.
     Bigquery.Tables.Get get = client.tables()
         .get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
-    Table table = get.execute();
+
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backOff = new AttemptBoundedExponentialBackOff(MAX_RETRIES, INITIAL_BACKOFF_MILLIS);
+    Table table = null;
+
+    while (true) {
+      try {
+        table = get.execute();
+        break;
+      } catch (IOException e) {
+        LOG.error("Error opening BigQuery table {} of dataset {} : {}", ref.getTableId(),
+            ref.getDatasetId(), e.getMessage());
+        if (!BackOffUtils.next(sleeper, backOff)) {
+          LOG.error("Aborting after {} retries.", MAX_RETRIES);
+          throw e;
+        }
+      }
+    }
+
     schema = table.getSchema();
 
     // Read the first page of results.

@@ -133,7 +133,7 @@ public class BigQueryUtilTest {
   private void verifyTableGet() throws IOException {
     verify(mockClient).tables();
     verify(mockTables).get("project", "dataset", "table");
-    verify(mockTablesGet).execute();
+    verify(mockTablesGet, atLeastOnce()).execute();
   }
 
   private void onTableList(TableDataList result) throws IOException {
