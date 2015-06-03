@@ -95,6 +95,8 @@ public final class MonitoringUtil {
           importanceString = "Error:   ";
         } else if (message.getMessageImportance().equals("JOB_MESSAGE_WARNING")) {
           importanceString = "Warning: ";
+        } else if (message.getMessageImportance().equals("JOB_MESSAGE_BASIC")) {
+          importanceString = "Basic:  ";
         } else if (message.getMessageImportance().equals("JOB_MESSAGE_DETAILED")) {
           importanceString = "Detail:  ";
         } else {
