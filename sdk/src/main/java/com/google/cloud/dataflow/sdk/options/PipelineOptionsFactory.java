@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
 import com.google.cloud.dataflow.sdk.runners.worker.DataflowWorkerHarness;
 import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
-import com.google.common.base.Equivalence;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
@@ -31,7 +30,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -40,8 +38,9 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
+import com.google.common.collect.SortedSetMultimap;
+import com.google.common.collect.TreeMultimap;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JavaType;
@@ -922,12 +921,12 @@ public class PipelineOptionsFactory {
     Iterable<Method> interfaceMethods = FluentIterable
         .from(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
         .toSortedSet(MethodComparator.INSTANCE);
-    SetMultimap<Equivalence.Wrapper<Method>, Method> methodNameToMethodMap =
-        HashMultimap.create();
+    SortedSetMultimap<Method, Method> methodNameToMethodMap =
+        TreeMultimap.create(MethodNameComparator.INSTANCE, MethodComparator.INSTANCE);
     for (Method method : interfaceMethods) {
-      methodNameToMethodMap.put(MethodNameEquivalence.INSTANCE.wrap(method), method);
+      methodNameToMethodMap.put(method, method);
     }
-    for (Map.Entry<Equivalence.Wrapper<Method>, Collection<Method>> entry
+    for (Map.Entry<Method, Collection<Method>> entry
         : methodNameToMethodMap.asMap().entrySet()) {
       Set<Class<?>> returnTypes = FluentIterable.from(entry.getValue())
           .transform(ReturnTypeFetchingFunction.INSTANCE).toSet();
@@ -935,7 +934,7 @@ public class PipelineOptionsFactory {
           .toSortedSet(MethodComparator.INSTANCE);
       Preconditions.checkArgument(returnTypes.size() == 1,
           "Method [%s] has multiple definitions %s with different return types for [%s].",
-          entry.getKey().get().getName(),
+          entry.getKey().getName(),
           collidingMethods,
           iface.getName());
     }
@@ -946,24 +945,23 @@ public class PipelineOptionsFactory {
         .from(ReflectHelpers.getClosureOfMethodsOnInterfaces(validatedPipelineOptionsInterfaces))
         .append(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
         .toSortedSet(MethodComparator.INSTANCE);
-    SetMultimap<Equivalence.Wrapper<Method>, Method> methodNameToAllMethodMap =
-        HashMultimap.create();
+    SortedSetMultimap<Method, Method> methodNameToAllMethodMap =
+        TreeMultimap.create(MethodNameComparator.INSTANCE, MethodComparator.INSTANCE);
     for (Method method : allInterfaceMethods) {
-      methodNameToAllMethodMap.put(MethodNameEquivalence.INSTANCE.wrap(method), method);
+      methodNameToAllMethodMap.put(method, method);
     }
 
     List<PropertyDescriptor> descriptors = getPropertyDescriptors(klass);
 
     for (PropertyDescriptor descriptor : descriptors) {
-      if (IGNORED_METHODS.contains(descriptor.getReadMethod())
+      if (descriptor.getReadMethod() == null
+          || descriptor.getWriteMethod() == null
+          || IGNORED_METHODS.contains(descriptor.getReadMethod())
           || IGNORED_METHODS.contains(descriptor.getWriteMethod())) {
         continue;
       }
-      Set<Method> getters =
-          methodNameToAllMethodMap.get(
-              MethodNameEquivalence.INSTANCE.wrap(descriptor.getReadMethod()));
-      Set<Method> gettersWithJsonIgnore =
-          FluentIterable.from(getters).filter(JsonIgnorePredicate.INSTANCE).toSet();
+      SortedSet<Method> getters = methodNameToAllMethodMap.get(descriptor.getReadMethod());
+      SortedSet<Method> gettersWithJsonIgnore = Sets.filter(getters, JsonIgnorePredicate.INSTANCE);
 
       Iterable<String> getterClassNames = FluentIterable.from(getters)
           .transform(MethodToDeclaringClassFunction.INSTANCE)
@@ -978,10 +976,9 @@ public class PipelineOptionsFactory {
           + "found only on %s",
           descriptor.getName(), getterClassNames, gettersWithJsonIgnoreClassNames);
 
-      Set<Method> settersWithJsonIgnore = FluentIterable.from(
-          methodNameToAllMethodMap.get(
-              MethodNameEquivalence.INSTANCE.wrap(descriptor.getWriteMethod())))
-                  .filter(JsonIgnorePredicate.INSTANCE).toSet();
+      SortedSet<Method> settersWithJsonIgnore =
+          Sets.filter(methodNameToAllMethodMap.get(descriptor.getWriteMethod()),
+              JsonIgnorePredicate.INSTANCE);
 
       Iterable<String> settersWithJsonIgnoreClassNames = FluentIterable.from(settersWithJsonIgnore)
           .transform(MethodToDeclaringClassFunction.INSTANCE)
@@ -1013,7 +1010,8 @@ public class PipelineOptionsFactory {
     }
 
     // Verify that no additional methods are on an interface that aren't a bean property.
-    Set<Method> unknownMethods = Sets.difference(Sets.newHashSet(klass.getMethods()), methods);
+    SortedSet<Method> unknownMethods = new TreeSet<>(MethodComparator.INSTANCE);
+    unknownMethods.addAll(Sets.difference(Sets.newHashSet(klass.getMethods()), methods));
     Preconditions.checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
@@ -1049,6 +1047,15 @@ public class PipelineOptionsFactory {
     }
   }
 
+  /** A {@link Comparator} that uses the methods name to compare them. */
+  private static class MethodNameComparator implements Comparator<Method> {
+    static final MethodNameComparator INSTANCE = new MethodNameComparator();
+    @Override
+    public int compare(Method o1, Method o2) {
+      return o1.getName().compareTo(o2.getName());
+    }
+  }
+
   /** A {@link Function} that gets the method's return type. */
   private static class ReturnTypeFetchingFunction implements Function<Method, Class<?>> {
     static final ReturnTypeFetchingFunction INSTANCE = new ReturnTypeFetchingFunction();
@@ -1064,20 +1071,6 @@ public class PipelineOptionsFactory {
     @Override
     public Class<?> apply(Method input) {
       return input.getDeclaringClass();
-    }
-  }
-
-  /** An {@link Equivalence} that considers two methods equivalent if they share the same name. */
-  private static class MethodNameEquivalence extends Equivalence<Method> {
-    static final MethodNameEquivalence INSTANCE = new MethodNameEquivalence();
-    @Override
-    protected boolean doEquivalent(Method a, Method b) {
-      return a.getName().equals(b.getName());
-    }
-
-    @Override
-    protected int doHash(Method t) {
-      return t.getName().hashCode();
     }
   }
 

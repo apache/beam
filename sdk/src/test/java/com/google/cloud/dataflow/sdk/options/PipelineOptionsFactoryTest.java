@@ -236,9 +236,9 @@ public class PipelineOptionsFactoryTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Expected getter for property [object] to be marked with @JsonIgnore on all [com."
-        + "google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$MissingSetter, "
-        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$GetterWithJsonIgnore], "
+        "Expected getter for property [object] to be marked with @JsonIgnore on all ["
+        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$GetterWithJsonIgnore, "
+        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$MissingSetter], "
         + "found only on [com.google.cloud.dataflow.sdk.options."
         + "PipelineOptionsFactoryTest$GetterWithJsonIgnore]");
 
