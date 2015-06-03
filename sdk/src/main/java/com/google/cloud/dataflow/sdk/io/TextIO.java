@@ -82,8 +82,12 @@ import javax.annotation.Nullable;
  * {@code "gs://<bucket>/<filepath>"}), and optionally
  * {@link TextIO.Write#named} to specify the name of the pipeline step
  * and/or {@link TextIO.Write#withCoder} to specify the Coder to use
- * to encode the Java values into text lines.  For example:
+ * to encode the Java values into text lines.
  *
+ * <p> Any existing files with the same names as generated output files
+ * will be overwritten.
+ *
+ * <p> For example:
  * <pre> {@code
  * // A simple Write to a local file (only runs locally):
  * PCollection<String> lines = ...;
