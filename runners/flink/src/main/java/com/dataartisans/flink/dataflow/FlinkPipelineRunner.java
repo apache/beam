@@ -109,6 +109,10 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 			flinkOptions.setFlinkMaster("[auto]");
 		}
 
+		if (flinkOptions.isStreaming()) {
+			throw new RuntimeException("Streaming is currently not supported.");
+		}
+
 		return new FlinkPipelineRunner(flinkOptions);
 	}
 

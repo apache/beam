@@ -21,13 +21,14 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 
 import java.util.List;
 
 /**
  * Options which can be used to configure a Flink PipelineRunner.
  */
-public interface FlinkPipelineOptions extends PipelineOptions, ApplicationNameOptions {
+public interface FlinkPipelineOptions extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
 	/**
 	 * List of local files to make available to workers.
