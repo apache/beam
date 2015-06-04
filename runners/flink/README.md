@@ -64,3 +64,7 @@ You can run your Dataflow program on a Apache Flink cluster as well. For more
 information, please visit the [Apache Flink Website](http://flink.apache.org) or
 contact the
 [Mailinglists](http://flink.apache.org/community.html#mailing-lists).
+
+# Streaming
+
+Streaming support is currently under development. See the `streaming` branch for the current version.
