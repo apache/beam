@@ -106,6 +106,8 @@ message WorkItem {
   required bytes key = 1;
   required fixed64 work_token = 2;
 
+  optional fixed64 cache_token = 7;
+
   repeated InputMessageBundle message_bundles = 3;
   optional TimerBundle timers = 4;
   repeated GlobalDataId global_data_id_notifications = 5;
