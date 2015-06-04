@@ -39,7 +39,7 @@ public class WindowTest {
   @Test
   public void testBasicWindowIntoSettings() {
     WindowingStrategy<?, ?> strategy = TestPipeline.create()
-      .apply(Create.of("hello", "world")).setCoder(StringUtf8Coder.of())
+      .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
       .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(10))))
       .getWindowingStrategy();
     assertTrue(strategy.getWindowFn() instanceof FixedWindows);
@@ -50,7 +50,7 @@ public class WindowTest {
   @Test
   public void testWindowIntoTriggersAndAccumulating() {
     WindowingStrategy<?, ?> strategy = TestPipeline.create()
-      .apply(Create.of("hello", "world")).setCoder(StringUtf8Coder.of())
+      .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
       .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(10)))
           .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))
           .accumulatingFiredPanes())
@@ -64,7 +64,7 @@ public class WindowTest {
   @Test
   public void testWindowIntoPropagatesLateness() {
     WindowingStrategy<?, ?> strategy = TestPipeline.create()
-        .apply(Create.of("hello", "world")).setCoder(StringUtf8Coder.of())
+        .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
         .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(10)))
             .withAllowedLateness(Duration.standardDays(1))
             .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))

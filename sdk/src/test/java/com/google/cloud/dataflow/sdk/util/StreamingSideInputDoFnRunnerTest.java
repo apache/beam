@@ -300,7 +300,7 @@ public class StreamingSideInputDoFnRunnerTest {
 
   private PCollectionView<String> createView() {
     return TestPipeline.create()
-        .apply(Create.<String>of()).setCoder(StringUtf8Coder.of())
+        .apply(Create.<String>of().withCoder(StringUtf8Coder.of()))
         .apply(Window.<String>into(FixedWindows.of(Duration.millis(10))))
         .apply(View.<String>asSingleton());
   }

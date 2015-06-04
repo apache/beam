@@ -105,8 +105,8 @@ public class SampleTest {
   public void testSample() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = p.apply(Create.of(DATA))
-        .setCoder(BigEndianIntegerCoder.of());
+    PCollection<Integer> input = p.apply(Create.of(DATA)
+        .withCoder(BigEndianIntegerCoder.of()));
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(3));
 
@@ -120,8 +120,8 @@ public class SampleTest {
   public void testSampleEmpty() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = p.apply(Create.of(EMPTY))
-        .setCoder(BigEndianIntegerCoder.of());
+    PCollection<Integer> input = p.apply(Create.of(EMPTY)
+        .withCoder(BigEndianIntegerCoder.of()));
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(3));
 
@@ -135,8 +135,8 @@ public class SampleTest {
   public void testSampleZero() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = p.apply(Create.of(DATA))
-        .setCoder(BigEndianIntegerCoder.of());
+    PCollection<Integer> input = p.apply(Create.of(DATA)
+        .withCoder(BigEndianIntegerCoder.of()));
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(0));
 
@@ -150,8 +150,8 @@ public class SampleTest {
   public void testSampleInsufficientElements() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = p.apply(Create.of(DATA))
-        .setCoder(BigEndianIntegerCoder.of());
+    PCollection<Integer> input = p.apply(Create.of(DATA)
+        .withCoder(BigEndianIntegerCoder.of()));
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(10));
 
@@ -164,8 +164,8 @@ public class SampleTest {
   public void testSampleNegative() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = p.apply(Create.of(DATA))
-        .setCoder(BigEndianIntegerCoder.of());
+    PCollection<Integer> input = p.apply(Create.of(DATA)
+        .withCoder(BigEndianIntegerCoder.of()));
     input.apply(Sample.<Integer>fixedSizeGlobally(-1));
   }
 
@@ -174,8 +174,8 @@ public class SampleTest {
   public void testSampleMultiplicity() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = p.apply(Create.of(REPEATED_DATA))
-        .setCoder(BigEndianIntegerCoder.of());
+    PCollection<Integer> input = p.apply(Create.of(REPEATED_DATA)
+        .withCoder(BigEndianIntegerCoder.of()));
     // At least one value must be selected with multiplicity.
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(6));
@@ -218,8 +218,8 @@ public class SampleTest {
         "Duplicates are unsupported.");
     Pipeline p = TestPipeline.create();
 
-    PCollection<String> input = p.apply(Create.of(lines))
-        .setCoder(StringUtf8Coder.of());
+    PCollection<String> input = p.apply(Create.of(lines)
+        .withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output =
         input.apply(Sample.<String>any(limit));

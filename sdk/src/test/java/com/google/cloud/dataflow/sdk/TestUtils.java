@@ -137,12 +137,12 @@ public class TestUtils {
 
   public static PCollection<String> createStrings(Pipeline p,
                                                   Iterable<String> values) {
-    return p.apply(Create.of(values)).setCoder(StringUtf8Coder.of());
+    return p.apply(Create.of(values).withCoder(StringUtf8Coder.of()));
   }
 
   public static PCollection<Integer> createInts(Pipeline p,
                                                 Iterable<Integer> values) {
-    return p.apply(Create.of(values)).setCoder(BigEndianIntegerCoder.of());
+    return p.apply(Create.of(values).withCoder(BigEndianIntegerCoder.of()));
   }
 
   public static PCollectionView<Integer>

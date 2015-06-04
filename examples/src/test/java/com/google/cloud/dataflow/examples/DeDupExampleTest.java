@@ -52,8 +52,8 @@ public class DeDupExampleTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
-        p.apply(Create.of(strings))
-        .setCoder(StringUtf8Coder.of());
+        p.apply(Create.of(strings)
+            .withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output =
         input.apply(RemoveDuplicates.<String>create());
@@ -71,8 +71,8 @@ public class DeDupExampleTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
-        p.apply(Create.of(strings))
-        .setCoder(StringUtf8Coder.of());
+        p.apply(Create.of(strings)
+            .withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output =
         input.apply(RemoveDuplicates.<String>create());

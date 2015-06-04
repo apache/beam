@@ -162,18 +162,23 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
-    if (transform instanceof Combine.GroupedValues || transform instanceof GroupByKey) {
+    if (Combine.GroupedValues.class.equals(transform.getClass())
+        || GroupByKey.class.equals(transform.getClass())) {
       PCollection<?> pc = (PCollection<?>) input;
       // TODO: Redundant with translator registration?
-      return (OutputT) PCollection.createPrimitiveOutputInternal(
+      @SuppressWarnings("unchecked")
+      OutputT outputT = (OutputT) PCollection.createPrimitiveOutputInternal(
           pc.getPipeline(),
           pc.getWindowingStrategy(),
           pc.isBounded());
-    } else if (transform instanceof Create) {
-      return (OutputT) ((Create) transform).applyHelper(input, options.isStreaming());
+      return outputT;
+    } else if (Create.Values.class.equals(transform.getClass())) {
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      OutputT output = (OutputT)
+          ((Create.Values) transform).applyHelper(input, options.isStreaming());
+      return output;
     } else {
       return super.apply(transform, input);
     }

@@ -99,8 +99,8 @@ public class CombineTest implements Serializable {
 
   PCollection<KV<String, Integer>> createInput(Pipeline p,
                                                KV<String, Integer>[] table) {
-    return p.apply(Create.of(Arrays.asList(table))).setCoder(
-        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+    return p.apply(Create.of(Arrays.asList(table)).withCoder(
+        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
 
   private void runTestSimpleCombine(KV<String, Integer>[] table,
@@ -203,8 +203,8 @@ public class CombineTest implements Serializable {
 
     PCollection<KV<String, Integer>> input =
         p.apply(Create.timestamped(Arrays.asList(TABLE),
-                                   Arrays.asList(0L, 1L, 6L, 7L, 8L)))
-         .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()))
+                                   Arrays.asList(0L, 1L, 6L, 7L, 8L))
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
          .apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(2))));
 
     PCollection<Integer> sum = input
@@ -230,8 +230,8 @@ public class CombineTest implements Serializable {
 
     PCollection<KV<String, Integer>> input =
         p.apply(Create.timestamped(Arrays.asList(TABLE),
-                                   Arrays.asList(0L, 4L, 7L, 10L, 16L)))
-         .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()))
+                                   Arrays.asList(0L, 4L, 7L, 10L, 16L))
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
          .apply(Window.<KV<String, Integer>>into(Sessions.withGapDuration(Duration.millis(5))));
 
     PCollection<Integer> sum = input
@@ -255,7 +255,7 @@ public class CombineTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<Double> mean = p
-        .apply(Create.<Integer>of()).setCoder(BigEndianIntegerCoder.of())
+        .apply(Create.<Integer>of().withCoder(BigEndianIntegerCoder.of()))
         .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(1))))
         .apply(Combine.globally(new MeanInts()).withoutDefaults());
 
@@ -408,8 +408,8 @@ public class CombineTest implements Serializable {
   public void testCombineGloballyAsSingletonView() {
     Pipeline p = TestPipeline.create();
     final PCollectionView<Integer> view = p
-        .apply(Create.<Integer>of())
-        .setCoder(BigEndianIntegerCoder.of())
+        .apply(Create.<Integer>of()
+               .withCoder(BigEndianIntegerCoder.of()))
         .apply(Sum.integersGlobally().asSingletonView());
 
     PCollection<Integer> output = p

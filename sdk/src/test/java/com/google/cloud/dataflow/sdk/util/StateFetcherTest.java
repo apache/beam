@@ -185,8 +185,8 @@ public class StateFetcherTest {
     ByteString encodedIterable = stream.toByteString();
 
     PCollectionView<String> view =
-        TestPipeline.create().apply(Create.<String>of())
-        .setCoder(StringUtf8Coder.of()).apply(View.<String>asSingleton());
+        TestPipeline.create().apply(Create.<String>of()
+            .withCoder(StringUtf8Coder.of())).apply(View.<String>asSingleton());
 
     String tag = view.getTagInternal().getId();
 
@@ -227,12 +227,12 @@ public class StateFetcherTest {
     StateFetcher fetcher = new StateFetcher(server, cache);
 
     PCollectionView<String> view1 =
-        TestPipeline.create().apply(Create.<String>of())
-        .setCoder(StringUtf8Coder.of()).apply(View.<String>asSingleton());
+        TestPipeline.create().apply(Create.<String>of()
+            .withCoder(StringUtf8Coder.of())).apply(View.<String>asSingleton());
 
     PCollectionView<String> view2 =
-        TestPipeline.create().apply(Create.<String>of())
-        .setCoder(StringUtf8Coder.of()).apply(View.<String>asSingleton());
+        TestPipeline.create().apply(Create.<String>of()
+            .withCoder(StringUtf8Coder.of())).apply(View.<String>asSingleton());
 
     String tag1 = view1.getTagInternal().getId();
     String tag2 = view2.getTagInternal().getId();
@@ -273,8 +273,8 @@ public class StateFetcherTest {
     ByteString encodedIterable = ByteString.EMPTY;
 
     PCollectionView<Long> view =
-        TestPipeline.create().apply(Create.<Long>of())
-        .setCoder(VarLongCoder.of()).apply(Sum.longsGlobally().asSingletonView());
+        TestPipeline.create().apply(Create.<Long>of()
+            .withCoder(VarLongCoder.of())).apply(Sum.longsGlobally().asSingletonView());
 
     String tag = view.getTagInternal().getId();
 

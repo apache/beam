@@ -177,7 +177,7 @@ public class BigQueryIOTest {
   @Test(expected = IllegalStateException.class)
   public void testBuildSinkWithoutTable() throws IOException {
     Pipeline p = TestPipeline.create();
-    p.apply(Create.<TableRow>of()).setCoder(TableRowJsonCoder.of())
+    p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
         .apply(BigQueryIO.Write.named("WriteMyTable"));
   }
 

@@ -76,7 +76,7 @@ import java.util.Set;
  * PCollection<String> moreLines =
  *     p.apply(TextIO.Read.from("gs://bucket/other/dir/file*.txt"));
  * PCollection<String> yetMoreLines =
- *     p.apply(Create.of("yet", "more", "lines")).setCoder(StringUtf8Coder.of());
+ *     p.apply(Create.of("yet", "more", "lines").withCoder(StringUtf8Coder.of()));
  *
  * // Further PTransforms can be applied, in an arbitrary (acyclic) graph.
  * // Subsequent PTransforms (and intermediate PCollections etc.) are

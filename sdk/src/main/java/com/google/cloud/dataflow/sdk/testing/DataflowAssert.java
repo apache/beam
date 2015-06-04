@@ -417,11 +417,11 @@ public class DataflowAssert {
 
     @Override
     public PCollectionView<ExpectedT> apply(PBegin input) {
-      PCollection<T> elemCollection = input.apply(Create.<T>of(elements));
+      Create.Values<T> createTransform = Create.<T>of(elements);
       if (coder.isPresent()) {
-        elemCollection.setCoder(coder.get());
+        createTransform = createTransform.withCoder(coder.get());
       }
-      return elemCollection.apply(view);
+      return input.apply(createTransform).apply(view);
     }
   }
 
@@ -474,7 +474,7 @@ public class DataflowAssert {
       final PCollectionView<ActualT> actual = input.apply("CreateActual", createActual);
 
       input
-          .apply(Create.<Void>of((Void) null)).setCoder(VoidCoder.of())
+          .apply(Create.<Void>of((Void) null).withCoder(VoidCoder.of()))
           .apply(ParDo.named("RunChecks").withSideInputs(actual)
               .of(new DoFn<Void, Void>() {
                 private static final long serialVersionUID = 0;
@@ -524,7 +524,7 @@ public class DataflowAssert {
       final PCollectionView<ExpectedT> expected = input.apply("CreateExpected", createExpected);
 
       input
-          .apply(Create.<Void>of((Void) null)).setCoder(VoidCoder.of())
+          .apply(Create.<Void>of((Void) null).withCoder(VoidCoder.of()))
           .apply(ParDo.named("RunChecks").withSideInputs(actual, expected)
               .of(new DoFn<Void, Void>() {
                 private static final long serialVersionUID = 0;

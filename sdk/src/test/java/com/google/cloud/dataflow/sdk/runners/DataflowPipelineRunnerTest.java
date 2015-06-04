@@ -34,6 +34,7 @@ import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -48,9 +49,12 @@ import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PValue;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -67,6 +71,7 @@ import java.net.URLClassLoader;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -512,9 +517,8 @@ public class DataflowPipelineRunnerTest {
     DataflowPipeline p = DataflowPipeline.create(options);
     TestTransform transform = new TestTransform();
 
-    p.apply(Create.of(Arrays.asList(1, 2, 3)))
-        .apply(transform)
-        .setCoder(BigEndianIntegerCoder.of());
+    p.apply(Create.of(Arrays.asList(1, 2, 3)).withCoder(BigEndianIntegerCoder.of()))
+        .apply(transform);
 
     DataflowPipelineTranslator translator = DataflowPipelineRunner
         .fromOptions(options).getTranslator();
@@ -538,6 +542,52 @@ public class DataflowPipelineRunnerTest {
 
     translator.translate(p, Collections.<DataflowPackage>emptyList());
     assertTrue(transform.translated);
+  }
+
+  /** Records all the composite transforms visited within the Pipeline. */
+  private static class CompositeTransformRecorder implements PipelineVisitor {
+    private List<PTransform<?, ?>> transforms = new ArrayList<>();
+
+    @Override
+    public void enterCompositeTransform(TransformTreeNode node) {
+      if (node.getTransform() != null) {
+        transforms.add(node.getTransform());
+      }
+    }
+
+    @Override
+    public void leaveCompositeTransform(TransformTreeNode node) {
+    }
+
+    @Override
+    public void visitTransform(TransformTreeNode node) {
+    }
+
+    @Override
+    public void visitValue(PValue value, TransformTreeNode producer) {
+    }
+
+    public List<PTransform<?, ?>> getCompositeTransforms() {
+      return transforms;
+    }
+  }
+
+  @Test
+  public void testApplyIsScopedToExactClass() throws IOException {
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    DataflowPipeline p = DataflowPipeline.create(options);
+
+    Create.TimestampedValues<String> transform =
+        Create.timestamped(Arrays.asList(TimestampedValue.of("TestString", Instant.now())));
+    p.apply(transform);
+
+    CompositeTransformRecorder recorder = new CompositeTransformRecorder();
+    p.traverseTopologically(recorder);
+
+    assertThat("Expected to have seen CreateTimestamped composite transform.",
+        recorder.getCompositeTransforms(),
+        Matchers.<PTransform<?, ?>>contains(transform));
   }
 
   @Test

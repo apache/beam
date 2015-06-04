@@ -146,7 +146,7 @@ public class Sample {
       PCollectionView<Iterable<T>> iterableView = in.apply(View.<T>asIterable());
       return
           in.getPipeline()
-          .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
+          .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
           .apply(ParDo
                  .withSideInputs(iterableView)
                  .of(new SampleAnyDoFn<>(limit, iterableView)))

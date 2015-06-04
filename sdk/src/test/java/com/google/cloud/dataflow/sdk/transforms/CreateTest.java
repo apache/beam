@@ -20,9 +20,11 @@ import static com.google.cloud.dataflow.sdk.TestUtils.LINES;
 import static com.google.cloud.dataflow.sdk.TestUtils.LINES_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -40,7 +42,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -72,12 +73,22 @@ public class CreateTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> output =
-        p.apply(Create.of(NO_LINES))
-        .setCoder(StringUtf8Coder.of());
+        p.apply(Create.of(NO_LINES)
+            .withCoder(StringUtf8Coder.of()));
 
     DataflowAssert.that(output)
         .containsInAnyOrder(NO_LINES_ARRAY);
     p.run();
+  }
+
+  @Test
+  public void testCreateEmptyInfersCoder() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<Object> output =
+        p.apply(Create.of());
+
+    assertEquals(VoidCoder.of(), output.getCoder());
   }
 
   static class Record implements Serializable {
@@ -90,7 +101,7 @@ public class CreateTest {
   public void testPolymorphicType() throws Exception {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage(
-        Matchers.containsString("Unable to infer a default Coder"));
+        Matchers.containsString("Unable to infer a coder"));
 
     Pipeline p = TestPipeline.create();
 
@@ -98,6 +109,17 @@ public class CreateTest {
     p.apply(Create.of(new Record(), new Record2()));
 
     p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testCreateWithNullsAndValues() throws Exception {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> output =
+        p.apply(Create.of(null, "test1", null, "test2", null));
+    DataflowAssert.that(output)
+        .containsInAnyOrder(null, "test1", null, "test2", null);
   }
 
   @Test
@@ -114,7 +136,6 @@ public class CreateTest {
             TimestampedValue.of("a", new Instant(0)),
             TimestampedValue.of("b", new Instant(0)));
   }
-
   private static class PrintTimestamps extends DoFn<String, String> {
     @Override
       public void processElement(ProcessContext c) {
@@ -142,14 +163,13 @@ public class CreateTest {
   }
 
   @Test
-  // This test fails when run on the service!
-  // TODO: @Category(RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testCreateTimestampedEmpty() {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> output = p
-        .apply(Create.timestamped(new ArrayList<TimestampedValue<String>>()))
-        .setCoder(StringUtf8Coder.of());
+        .apply(Create.timestamped(new ArrayList<TimestampedValue<String>>())
+            .withCoder(StringUtf8Coder.of()));
 
     DataflowAssert.that(output)
         .containsInAnyOrder();
@@ -157,10 +177,20 @@ public class CreateTest {
   }
 
   @Test
+  public void testCreateTimestampedEmptyInfersCoder() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<Object> output = p
+        .apply(Create.timestamped());
+
+    assertEquals(VoidCoder.of(), output.getCoder());
+  }
+
+  @Test
   public void testCreateTimestampedPolymorphicType() throws Exception {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage(
-        Matchers.containsString("Unable to infer a default Coder"));
+        Matchers.containsString("Unable to infer a coder"));
 
     Pipeline p = TestPipeline.create();
 

@@ -57,8 +57,8 @@ public class ValuesTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(Arrays.asList(TABLE))).setCoder(
-            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+        p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
+            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<Integer> output = input.apply(Values.<Integer>create());
 
@@ -74,8 +74,8 @@ public class ValuesTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(Arrays.asList(EMPTY_TABLE))).setCoder(
-            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+        p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
+            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<Integer> output = input.apply(Values.<Integer>create());
 

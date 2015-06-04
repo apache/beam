@@ -969,8 +969,8 @@ public class ParDoTest implements Serializable {
     final TupleTag<TestDummy> mainOutputTag = new TupleTag<TestDummy>();
     final TupleTag<TestDummy> sideOutputTag = new TupleTag<TestDummy>();
     PCollectionTuple tuple = pipeline
-        .apply(Create.of(new TestDummy()))
-        .setCoder(TestDummyCoder.of())
+        .apply(Create.of(new TestDummy())
+            .withCoder(TestDummyCoder.of()))
         .apply(ParDo
             .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
             .of(

@@ -357,7 +357,7 @@ public class DatastoreIOTest {
   public void testBuildWriteWithoutDatastoreToCatchException() throws Exception {
     // create pipeline and run the pipeline to get result
     Pipeline p = DirectPipeline.createForTest();
-    p.apply(Create.<Entity>of()).setCoder(EntityCoder.of()).apply(Write.to(DatastoreIO.sink()));
+    p.apply(Create.<Entity>of().withCoder(EntityCoder.of())).apply(Write.to(DatastoreIO.sink()));
   }
 
   /**

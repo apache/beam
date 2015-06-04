@@ -229,8 +229,8 @@ public class WindowingTest implements Serializable {
   public void testEmptyInput() {
     Pipeline p = TestPipeline.create();
     PCollection<String> input =
-        p.apply(Create.<String>timestamped())
-        .setCoder(StringUtf8Coder.of());
+        p.apply(Create.<String>timestamped()
+            .withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output =
         input

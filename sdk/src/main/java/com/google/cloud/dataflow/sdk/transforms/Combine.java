@@ -1290,7 +1290,7 @@ public class Combine {
       final PCollectionView<Iterable<OutputT>> maybeEmptyView = maybeEmpty.apply(
           View.<OutputT>asIterable());
       return maybeEmpty.getPipeline()
-          .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
+          .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
           .apply(ParDo.of(
               new DoFn<Void, OutputT>() {
                 @Override

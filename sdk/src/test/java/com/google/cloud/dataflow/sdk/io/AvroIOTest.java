@@ -252,8 +252,8 @@ public class AvroIOTest {
 
     DirectPipeline p = DirectPipeline.createForTest();
     @SuppressWarnings("unchecked")
-    PCollection<T> input = p.apply(Create.of(Arrays.asList((T[]) users)))
-                            .setCoder((Coder<T>) AvroCoder.of(User.class));
+    PCollection<T> input = p.apply(Create.of(Arrays.asList((T[]) users))
+                            .withCoder((Coder<T>) AvroCoder.of(User.class)));
     PDone output = input.apply(write.withoutSharding());
     EvaluationResults results = p.run();
     assertEquals(expectedName, write.getName());

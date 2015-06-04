@@ -128,7 +128,7 @@ public class FlattenTest implements Serializable {
         .apply(View.<String>asIterable());
 
     PCollection<String> output = p
-        .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
+        .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
         .apply(ParDo.withSideInputs(view).of(new DoFn<Void, String>() {
                   private static final long serialVersionUID = 0;
 
@@ -211,8 +211,8 @@ public class FlattenTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<Iterable<String>> input = p
-        .apply(Create.<Iterable<String>>of(LINES))
-        .setCoder(IterableCoder.of(StringUtf8Coder.of()));
+        .apply(Create.<Iterable<String>>of(LINES)
+            .withCoder(IterableCoder.of(StringUtf8Coder.of())));
 
     PCollection<String> output =
         input.apply(Flatten.<String>iterables());
@@ -229,8 +229,8 @@ public class FlattenTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<Iterable<String>> input = p
-        .apply(Create.<Iterable<String>>of(NO_LINES))
-        .setCoder(IterableCoder.of(StringUtf8Coder.of()));
+        .apply(Create.<Iterable<String>>of(NO_LINES)
+            .withCoder(IterableCoder.of(StringUtf8Coder.of())));
 
     PCollection<String> output =
         input.apply(Flatten.<String>iterables());
@@ -329,7 +329,7 @@ public class FlattenTest implements Serializable {
       List<List<T>> lists) {
     List<PCollection<T>> pcs = new ArrayList<>();
     for (List<T> list : lists) {
-      PCollection<T> pc = p.apply(Create.of(list)).setCoder(coder);
+      PCollection<T> pc = p.apply(Create.of(list).withCoder(coder));
       pcs.add(pc);
     }
     return PCollectionList.of(pcs);

@@ -122,7 +122,7 @@ public class Write {
       // A singleton collection of the WriteOperation, to be used as input to a ParDo to initialize
       // the sink.
       PCollection<WriteOperation<T, WriteT>> operationCollection =
-          p.apply(Create.<WriteOperation<T, WriteT>>of(writeOperation)).setCoder(operationCoder);
+          p.apply(Create.<WriteOperation<T, WriteT>>of(writeOperation).withCoder(operationCoder));
 
       // Initialize the resource in a do-once ParDo on the WriteOperation.
       operationCollection =

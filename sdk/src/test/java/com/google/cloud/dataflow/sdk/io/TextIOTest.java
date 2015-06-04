@@ -218,7 +218,7 @@ public class TextIOTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<T> input =
-        p.apply(Create.of(Arrays.asList(elems))).setCoder(coder);
+        p.apply(Create.of(Arrays.asList(elems)).withCoder(coder));
 
     TextIO.Write.Bound<T> write;
     if (coder.equals(StringUtf8Coder.of())) {
@@ -285,8 +285,8 @@ public class TextIOTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(LINES_ARRAY)))
-            .setCoder(StringUtf8Coder.of());
+        p.apply(Create.of(Arrays.asList(LINES_ARRAY))
+            .withCoder(StringUtf8Coder.of()));
 
     input.apply(TextIO.Write.to(filename).withNumShards(2).withSuffix(".txt"));
 
@@ -329,8 +329,8 @@ public class TextIOTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(LINES_ARRAY)))
-            .setCoder(StringUtf8Coder.of());
+        p.apply(Create.of(Arrays.asList(LINES_ARRAY))
+            .withCoder(StringUtf8Coder.of()));
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Output name components are not allowed to contain");

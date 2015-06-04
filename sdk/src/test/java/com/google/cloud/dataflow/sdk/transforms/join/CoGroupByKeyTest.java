@@ -76,15 +76,13 @@ public class CoGroupByKeyTest implements Serializable {
       Pipeline p, List<KV<Integer, String>> list, List<Long> timestamps) {
     PCollection<KV<Integer, String>> input;
     if (timestamps.isEmpty()) {
-      input = p.apply(Create.of(list));
+      input = p.apply(Create.of(list)
+          .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
     } else {
-      input = p.apply(Create.timestamped(list, timestamps));
+      input = p.apply(Create.timestamped(list, timestamps)
+          .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
     }
     return input
-            // Create doesn't infer coders for parameterized types.
-            .setCoder(
-                KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
-            // Do a dummy transform so consumers must deal with coder inference.
             .apply(ParDo.of(new DoFn<KV<Integer, String>,
                                      KV<Integer, String>>() {
               @Override

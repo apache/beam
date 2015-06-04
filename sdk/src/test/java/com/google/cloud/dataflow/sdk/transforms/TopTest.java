@@ -73,13 +73,13 @@ public class TopTest {
   };
 
   public PCollection<KV<String, Integer>> createInputTable(Pipeline p) {
-    return p.apply(Create.of(Arrays.asList(TABLE))).setCoder(
-        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+    return p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
+        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
 
   public PCollection<KV<String, Integer>> createEmptyInputTable(Pipeline p) {
-    return p.apply(Create.of(Arrays.asList(EMPTY_TABLE))).setCoder(
-        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+    return p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
+        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
 
   @Test
@@ -87,8 +87,8 @@ public class TopTest {
   public void testTop() {
     Pipeline p = TestPipeline.create();
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION)))
-                 .setCoder(StringUtf8Coder.of());
+        p.apply(Create.of(Arrays.asList(COLLECTION))
+                 .withCoder(StringUtf8Coder.of()));
 
     PCollection<List<String>> top1 = input.apply(Top.of(1, new OrderByLength()));
     PCollection<List<String>> top2 = input.apply(Top.<String>largest(2));
@@ -117,8 +117,8 @@ public class TopTest {
   public void testTopEmpty() {
     Pipeline p = TestPipeline.create();
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(EMPTY_COLLECTION)))
-                 .setCoder(StringUtf8Coder.of());
+        p.apply(Create.of(Arrays.asList(EMPTY_COLLECTION))
+                 .withCoder(StringUtf8Coder.of()));
 
     PCollection<List<String>> top1 = input.apply(Top.of(1, new OrderByLength()));
     PCollection<List<String>> top2 = input.apply(Top.<String>largest(2));
@@ -143,8 +143,8 @@ public class TopTest {
   public void testTopZero() {
     Pipeline p = TestPipeline.create();
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION)))
-                 .setCoder(StringUtf8Coder.of());
+        p.apply(Create.of(Arrays.asList(COLLECTION))
+                 .withCoder(StringUtf8Coder.of()));
 
     PCollection<List<String>> top1 = input.apply(Top.of(0, new OrderByLength()));
     PCollection<List<String>> top2 = input.apply(Top.<String>largest(0));
@@ -173,8 +173,8 @@ public class TopTest {
   @Test
   public void testPerKeySerializabilityRequirement() {
     Pipeline p = TestPipeline.create();
-    p.apply(Create.of(Arrays.asList(COLLECTION)))
-            .setCoder(StringUtf8Coder.of());
+    p.apply(Create.of(Arrays.asList(COLLECTION))
+            .withCoder(StringUtf8Coder.of()));
 
     createInputTable(p)
         .apply(Top.<String, Integer, IntegerComparator>perKey(1,
@@ -189,8 +189,8 @@ public class TopTest {
   public void testCountConstraint() {
     Pipeline p = TestPipeline.create();
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION)))
-            .setCoder(StringUtf8Coder.of());
+        p.apply(Create.of(Arrays.asList(COLLECTION))
+            .withCoder(StringUtf8Coder.of()));
 
     expectedEx.expect(IllegalArgumentException.class);
     expectedEx.expectMessage(Matchers.containsString(">= 0"));
@@ -202,8 +202,8 @@ public class TopTest {
   public void testTransformName() {
     Pipeline p = TestPipeline.create();
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION)))
-            .setCoder(StringUtf8Coder.of());
+        p.apply(Create.of(Arrays.asList(COLLECTION))
+            .withCoder(StringUtf8Coder.of()));
 
     PTransform<PCollection<String>, PCollection<List<String>>> top = Top
         .of(10, new OrderByLength());

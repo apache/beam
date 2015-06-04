@@ -92,8 +92,8 @@ public class ViewTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Integer> view = pipeline
-        .apply(Create.<Integer>of())
-        .setCoder(VarIntCoder.of())
+        .apply(Create.<Integer>of()
+            .withCoder(VarIntCoder.of()))
         .apply(View.<Integer>asSingleton());
 
     pipeline
@@ -383,7 +383,7 @@ public class ViewTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     final PCollectionView<Void> view = p
-        .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
+        .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
         .apply(Combine.globally(new SerializableFunction<Iterable<Void>, Void>() {
                   @Override
                   public Void apply(Iterable<Void> input) {

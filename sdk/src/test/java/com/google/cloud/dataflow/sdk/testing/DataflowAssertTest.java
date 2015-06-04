@@ -114,8 +114,8 @@ public class DataflowAssertTest implements Serializable {
     PCollection<NotSerializableObject> pcollection = pipeline
         .apply(Create.of(
           new NotSerializableObject(),
-          new NotSerializableObject()))
-        .setCoder(NotSerializableObjectCoder.of());
+          new NotSerializableObject())
+            .withCoder(NotSerializableObjectCoder.of()));
 
     DataflowAssert.that(pcollection).containsInAnyOrder(
       new NotSerializableObject(),
@@ -137,8 +137,8 @@ public class DataflowAssertTest implements Serializable {
     PCollection<NotSerializableObject> pcollection = pipeline
         .apply(Create.of(
           new NotSerializableObject(),
-          new NotSerializableObject()))
-        .setCoder(NotSerializableObjectCoder.of());
+          new NotSerializableObject())
+            .withCoder(NotSerializableObjectCoder.of()));
 
     DataflowAssert.that(pcollection).satisfies(
         new SerializableFunction<Iterable<NotSerializableObject>, Void>() {

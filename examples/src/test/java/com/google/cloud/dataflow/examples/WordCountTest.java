@@ -72,7 +72,7 @@ public class WordCountTest {
   public void testCountWords() throws Exception {
     Pipeline p = TestPipeline.create();
 
-    PCollection<String> input = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
+    PCollection<String> input = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output = input.apply(new CountWords());
 

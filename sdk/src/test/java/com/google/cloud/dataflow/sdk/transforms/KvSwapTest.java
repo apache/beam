@@ -57,8 +57,8 @@ public class KvSwapTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(Arrays.asList(TABLE))).setCoder(
-            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+        p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
+            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<KV<Integer, String>> output = input.apply(
         KvSwap.<String, Integer>create());
@@ -79,8 +79,8 @@ public class KvSwapTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(Arrays.asList(EMPTY_TABLE))).setCoder(
-            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+        p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
+            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<KV<Integer, String>> output = input.apply(
         KvSwap.<String, Integer>create());

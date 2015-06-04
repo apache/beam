@@ -843,17 +843,17 @@ public class DataflowPipelineTranslator {
         });
 
     registerTransformTranslator(
-        Create.class,
-        new TransformTranslator<Create>() {
+        Create.Values.class,
+        new TransformTranslator<Create.Values>() {
           @Override
           public void translate(
-              Create transform,
+              Create.Values transform,
               TranslationContext context) {
             createHelper(transform, context);
           }
 
           private <T> void createHelper(
-              Create<T> transform,
+              Create.Values<T> transform,
               TranslationContext context) {
             context.addStep(transform, "CreateCollection");
 

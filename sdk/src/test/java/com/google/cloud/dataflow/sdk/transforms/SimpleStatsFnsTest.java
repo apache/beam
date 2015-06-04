@@ -122,8 +122,8 @@ public class SimpleStatsFnsTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<KV<Long, Double>> input = p
-        .apply(Create.of(KV.of(1L, 1.5), KV.of(2L, 7.3)))
-        .setCoder(KvCoder.of(VarLongCoder.of(), DoubleCoder.of()));
+        .apply(Create.of(KV.of(1L, 1.5), KV.of(2L, 7.3))
+          .withCoder(KvCoder.of(VarLongCoder.of(), DoubleCoder.of())));
 
     input.apply(Mean.<Long, Double>perKey());
 

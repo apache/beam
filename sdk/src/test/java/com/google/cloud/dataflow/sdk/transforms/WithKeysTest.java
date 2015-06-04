@@ -65,8 +65,8 @@ public class WithKeysTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION))).setCoder(
-            StringUtf8Coder.of());
+        p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(
+            StringUtf8Coder.of()));
 
     PCollection<KV<Integer, String>> output = input.apply(WithKeys.of(
         new LengthAsKey()));
@@ -81,8 +81,8 @@ public class WithKeysTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION))).setCoder(
-            StringUtf8Coder.of());
+        p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(
+            StringUtf8Coder.of()));
 
     PCollection<KV<Integer, String>> output =
         input.apply(WithKeys.<Integer, String>of(100));
