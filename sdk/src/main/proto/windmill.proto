@@ -97,6 +97,11 @@ message GlobalData {
   optional bytes data = 3;
 }
 
+message SourceState {
+  optional bytes state = 1;
+  repeated fixed64 finalize_ids = 2;
+}
+
 message WorkItem {
   required bytes key = 1;
   required fixed64 work_token = 2;
@@ -104,6 +109,7 @@ message WorkItem {
   repeated InputMessageBundle message_bundles = 3;
   optional TimerBundle timers = 4;
   repeated GlobalDataId global_data_id_notifications = 5;
+  optional SourceState source_state = 6;
 }
 
 message ComputationWorkItems {
@@ -192,7 +198,7 @@ message GlobalDataRequest {
   optional int64 existence_watermark_deadline = 2 [default=0x7FFFFFFFFFFFFFFF];
 }
 
-// next id: 12
+// next id: 14
 message WorkItemCommitRequest {
   required bytes key = 1;
   required fixed64 work_token = 2;
@@ -204,6 +210,8 @@ message WorkItemCommitRequest {
   repeated Counter counter_updates = 8;
   repeated GlobalDataRequest global_data_requests = 11;
   repeated GlobalData global_data_updates = 10;
+  optional SourceState source_state_updates = 12;
+  optional int64 source_watermark = 13 [default=-0x8000000000000000];
 
   // DEPRECATED
   repeated GlobalDataId global_data_id_requests = 9;
