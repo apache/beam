@@ -6,6 +6,7 @@ jdk:
   - oraclejdk7
   - oraclejdk8
   - openjdk7
-  - openjdk8
+  # not supported yet :(
+  #- openjdk8
 
 script: mvn verify
