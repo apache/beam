@@ -23,10 +23,10 @@ import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
  * Translator for the {@code Read} {@code PTransform} for the Dataflow back-end.
  */
 public class ReadTranslator
-    implements DataflowPipelineTranslator.TransformTranslator<Read.Bound> {
+    implements DataflowPipelineTranslator.TransformTranslator<Read.Bound<?>> {
   @Override
   public void translate(
-      Read.Bound transform, DataflowPipelineTranslator.TranslationContext context) {
+      Read.Bound<?> transform, DataflowPipelineTranslator.TranslationContext context) {
     BasicSerializableSourceFormat.translateReadHelper(transform, context);
   }
 }

@@ -82,21 +82,21 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   /**
-   * A {@code DynamicSplitResult} specified explicitly by a pair of {@code Source}
+   * A {@code DynamicSplitResult} specified explicitly by a pair of {@code BoundedSource}
    * objects describing the primary and residual sources.
    */
-  public static final class SourceSplit<T> implements Reader.DynamicSplitResult {
-    public final Source<T> primary;
-    public final Source<T> residual;
+  public static final class BoundedSourceSplit<T> implements Reader.DynamicSplitResult {
+    public final BoundedSource<T> primary;
+    public final BoundedSource<T> residual;
 
-    public SourceSplit(Source<T> primary, Source<T> residual) {
+    public BoundedSourceSplit(BoundedSource<T> primary, BoundedSource<T> residual) {
       this.primary = primary;
       this.residual = residual;
     }
   }
 
   public static DynamicSourceSplit toSourceSplit(
-      SourceSplit<?> sourceSplitResult, PipelineOptions options) {
+      BoundedSourceSplit<?> sourceSplitResult, PipelineOptions options) {
     DynamicSourceSplit sourceSplit = new DynamicSourceSplit();
     com.google.api.services.dataflow.model.Source primarySource;
     com.google.api.services.dataflow.model.Source residualSource;
@@ -118,8 +118,9 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   /**
-   * Executes a protocol-level split {@code SourceOperationRequest} by deserializing its source
-   * to a {@code Source}, splitting it, and serializing results back.
+   * Executes a protocol-level split {@code SourceOperationRequest} for bounded sources
+   * by deserializing its source to a {@code BoundedSource}, splitting it, and
+   * serializing results back.
    */
   @Override
   public OperationResponse performSourceOperation(OperationRequest request) throws Exception {
@@ -158,7 +159,11 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   private SourceSplitResponse performSplit(SourceSplitRequest request) throws Exception {
-    Source<?> source = deserializeFromCloudSource(request.getSource().getSpec());
+    Source<?> anySource = deserializeFromCloudSource(request.getSource().getSpec());
+    if (!(anySource instanceof BoundedSource)) {
+      throw new UnsupportedOperationException("Cannot split a non-Bounded source: " + anySource);
+    }
+    BoundedSource<?> source = (BoundedSource<?>) anySource;
     LOG.debug("Splitting source: {}", source);
 
     // Produce simple independent, unsplittable bundles with no metadata attached.
@@ -170,16 +175,20 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     if (desiredBundleSizeBytes == null) {
       desiredBundleSizeBytes = DEFAULT_DESIRED_BUNDLE_SIZE_BYTES;
     }
-    List<? extends Source<?>> bundles = source.splitIntoBundles(desiredBundleSizeBytes, options);
+    List<? extends BoundedSource<?>> bundles =
+        source.splitIntoBundles(desiredBundleSizeBytes, options);
     LOG.debug("Splitting produced {} bundles", bundles.size());
-    for (Source<?> split : bundles) {
+    for (BoundedSource<?> split : bundles) {
       try {
         split.validate();
-      } catch  (Exception e) {
+      } catch (Exception e) {
         throw new IllegalArgumentException(
             "Splitting a valid source produced an invalid bundle. "
-            + "\nOriginal source: " + source
-            + "\nInvalid bundle: " + split, e);
+                + "\nOriginal source: "
+                + source
+                + "\nInvalid bundle: "
+                + split,
+            e);
       }
       DerivedSource bundle = new DerivedSource();
 
@@ -255,12 +264,18 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       Read.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
     try {
       List<DirectPipelineRunner.ValueWithMetadata<T>> output = new ArrayList<>();
-      Source<T> source = transform.getSource();
-      try (Source.Reader<T> reader = source.createReader(context.getPipelineOptions(), null)) {
+      Source<T> anySource = transform.getSource();
+      if (!(anySource instanceof BoundedSource)) {
+        throw new IllegalArgumentException("Unexpected read from a user-defined unbounded source");
+      }
+      BoundedSource<T> source = (BoundedSource<T>) anySource;
+      try (BoundedSource.BoundedReader<T> reader =
+          source.createReader(context.getPipelineOptions(), null)) {
         for (boolean available = reader.start(); available; available = reader.advance()) {
-          output.add(DirectPipelineRunner.ValueWithMetadata.of(
-              WindowedValue.of(
-                  reader.getCurrent(), reader.getCurrentTimestamp(), GlobalWindow.INSTANCE)));
+          output.add(
+              DirectPipelineRunner.ValueWithMetadata.of(
+                  WindowedValue.of(
+                      reader.getCurrent(), reader.getCurrentTimestamp(), GlobalWindow.INSTANCE)));
         }
       }
       context.setPCollectionValuesWithMetadata(context.getOutput(transform), output);
@@ -272,12 +287,16 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   public static <T> void translateReadHelper(
       Read.Bound<T> transform, DataflowPipelineTranslator.TranslationContext context) {
     try {
+      Source<T> anySource = transform.getSource();
+      if (!(anySource instanceof BoundedSource)) {
+        throw new IllegalArgumentException("Unexpected read from a user-defined unbounded source");
+      }
+      BoundedSource<T> source = (BoundedSource<T>) anySource;
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);
       context.addInput(
           PropertyNames.SOURCE_STEP_INPUT,
-          cloudSourceToDictionary(
-              serializeToCloudSource(transform.getSource(), context.getPipelineOptions())));
+          cloudSourceToDictionary(serializeToCloudSource(source, context.getPipelineOptions())));
       context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -392,7 +411,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
         return null;
       }
       // Try to catch some potential subclass implementation errors early.
-      Source<T> primary = boundedReader.getCurrentSource();
+      BoundedSource<T> primary = boundedReader.getCurrentSource();
       if (original == primary) {
         throw new IllegalStateException(
           "Successful split did not change the current source: primary is identical to original"
@@ -417,7 +436,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
             "Successful split produced an illegal residual source. "
             + "\nOriginal: " + original + "\nPrimary: " + primary + "\nResidual: " + residual);
       }
-      return new SourceSplit<T>(primary, residual);
+      return new BoundedSourceSplit<T>(primary, residual);
     }
   }
 }

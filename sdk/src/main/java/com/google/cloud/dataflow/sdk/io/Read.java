@@ -42,24 +42,23 @@ public class Read {
   /**
    * Returns a new {@code Read.Bound} {@code PTransform} with the given name.
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"rawtypes", "unchecked"})
   public static Bound<?> named(String name) {
     return new Bound(name, null);
   }
 
   /**
    * Returns a new unnamed {@code Read.Bound} {@code PTransform} reading from the given
-   * {@code Source}.
+   * {@code BoundedSource}.
    */
-  public static <T> Bound<T> from(Source<T> source) {
+  public static <T> Bound<T> from(BoundedSource<T> source) {
     return new Bound<>("", source);
   }
 
   /**
    * Implementation of the {@code Read} {@link PTransform} builder.
    */
-  public static class Bound<T>
-      extends PTransform<PInput, PCollection<T>> {
+  public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
     private static final long serialVersionUID = 0;
 
     @Nullable
@@ -116,10 +115,17 @@ public class Read {
     }
 
     static {
+      registerDefaultTransformEvaluator();
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void registerDefaultTransformEvaluator() {
       DirectPipelineRunner.registerDefaultTransformEvaluator(
-          Bound.class, new DirectPipelineRunner.TransformEvaluator<Bound>() {
+          Bound.class,
+          new DirectPipelineRunner.TransformEvaluator<Bound>() {
             @Override
-            public void evaluate(Bound transform, DirectPipelineRunner.EvaluationContext context) {
+            public void evaluate(
+                Bound transform, DirectPipelineRunner.EvaluationContext context) {
               BasicSerializableSourceFormat.evaluateReadHelper(transform, context);
             }
           });

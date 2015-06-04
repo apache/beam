@@ -21,17 +21,38 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 
 import java.io.IOException;
+import java.util.List;
 
 import javax.annotation.Nullable;
 
 /**
- * A {@link Source} that reads a bounded amount of input and, because of that, supports
- * some additional operations, e.g. size estimation, and its reader supports progress estimation.
+ * A {@link Source} that reads a finite amount of input and, because of that, supports
+ * some additional operations.
+ *
+ * <p>The operations are:
+ * <ul>
+ * <li>Splitting into bundles of given size: {@link #splitIntoBundles};
+ * <li>Size estimation: {@link #getEstimatedSizeBytes};
+ * <li>Telling whether or not this source produces key/value pairs in sorted order:
+ * {@link #producesSortedKeys};
+ * <li>The reader ({@link BoundedReader}) supports progress estimation
+ * ({@link BoundedReader#getFractionConsumed}) and dynamic splitting
+ * ({@link BoundedReader#splitAtFraction}).
+ * </ul>
+ *
+ * <p> To use this class for supporting your custom input type, derive your class
+ * class from it, and override the abstract methods. For an example, see {@link DatastoreIO}.
  *
  * @param <T> Type of records read by the source.
  */
 public abstract class BoundedSource<T> extends Source<T> {
   private static final long serialVersionUID = 0L;
+
+  /**
+   * Splits the source into bundles of approximately given size (in bytes).
+   */
+  public abstract List<? extends BoundedSource<T>> splitIntoBundles(
+      long desiredBundleSizeBytes, PipelineOptions options) throws Exception;
 
   /**
    * An estimate of the total size (in bytes) of the data that would be read from this source.
@@ -47,11 +68,8 @@ public abstract class BoundedSource<T> extends Source<T> {
   public abstract boolean producesSortedKeys(PipelineOptions options) throws Exception;
 
   @Override
-  public BoundedReader<T> createReader(
-      PipelineOptions options, @Nullable ExecutionContext executionContext)
-      throws IOException {
-    throw new UnsupportedOperationException();
-  }
+  public abstract BoundedReader<T> createReader(
+      PipelineOptions options, @Nullable ExecutionContext executionContext) throws IOException;
 
   /**
    * A {@code Reader} that reads a bounded amount of input and supports some additional

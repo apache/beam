@@ -26,7 +26,6 @@ import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.List;
 import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
@@ -36,8 +35,9 @@ import javax.annotation.Nullable;
  * into bundles (parts of the input, each of which may be processed on a different worker)
  * and creating a {@code Source} for reading the input.
  *
- * <p> To use this class for supporting your custom input type, derive your class
- * class from it, and override the abstract methods. For an example, see {@link DatastoreIO}.
+ * <p> This class is not intended to be subclassed directly. Instead, to define
+ * a bounded source (a source which produces a finite amount of input), subclass
+ * {@link BoundedSource}; user-defined unbounded sources are currently not supported.
  *
  * <p> A {@code Source} passed to a {@code Read} transform must be
  * {@code Serializable}.  This allows the {@code Source} instance
@@ -52,7 +52,7 @@ import javax.annotation.Nullable;
  * mutable fields is to cache the results of expensive operations, and such fields MUST be
  * marked {@code transient}.
  *
- * <p> {@code Source} objects should implement {@link Object#toString}, as it will be
+ * <p> {@code Source} objects should override {@link Object#toString}, as it will be
  * used in important error and debugging messages.
  *
  * @param <T> Type of elements read by the source.
@@ -62,21 +62,10 @@ public abstract class Source<T> implements Serializable {
   private static final long serialVersionUID = 0;
 
   /**
-   * Splits the source into bundles.
-   *
-   * <p> {@code PipelineOptions} can be used to get information such as
-   * credentials for accessing an external storage.
-   */
-  public abstract List<? extends Source<T>> splitIntoBundles(
-      long desiredBundleSizeBytes, PipelineOptions options) throws Exception;
-
-  /**
    * Creates a reader for this source.
    */
-  public Reader<T> createReader(
-      PipelineOptions options, @Nullable ExecutionContext executionContext) throws IOException {
-    throw new UnsupportedOperationException();
-  }
+  public abstract Reader<T> createReader(
+      PipelineOptions options, @Nullable ExecutionContext executionContext) throws IOException;
 
   /**
    * Checks that this source is valid, before it can be used in a pipeline.
@@ -106,7 +95,7 @@ public abstract class Source<T> implements Serializable {
    * }
    * </pre>
    * <p>
-   * Note: this interface is work-in-progress and may change.
+   * Note: this interface is a work-in-progress and may change.
    */
   public interface Reader<T> extends AutoCloseable {
     /**

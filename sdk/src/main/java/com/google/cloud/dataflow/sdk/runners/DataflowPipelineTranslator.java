@@ -1030,8 +1030,7 @@ public class DataflowPipelineTranslator {
     registerTransformTranslator(
         TextIO.Write.Bound.class, new TextIOTranslator.WriteTranslator());
 
-    registerTransformTranslator(
-        Read.Bound.class, new ReadTranslator());
+    registerTransformTranslator(Read.Bound.class, new ReadTranslator());
   }
 
   private static void translateInputs(

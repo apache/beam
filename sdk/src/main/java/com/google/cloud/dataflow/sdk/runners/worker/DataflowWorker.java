@@ -127,7 +127,7 @@ public class DataflowWorker {
 
       // Log all counter values for debugging purposes.
       CounterSet counters = worker.getOutputCounters();
-      for (Counter counter : counters) {
+      for (Counter<?> counter : counters) {
         LOG.trace("COUNTER {}.", counter);
       }
 
@@ -267,9 +267,10 @@ public class DataflowWorker {
       Reader.DynamicSplitResultWithPosition asPosition =
           (Reader.DynamicSplitResultWithPosition) dynamicSplitResult;
       status.setStopPosition(toCloudPosition(asPosition.getAcceptedPosition()));
-    } else if (dynamicSplitResult instanceof BasicSerializableSourceFormat.SourceSplit) {
-      status.setDynamicSourceSplit(BasicSerializableSourceFormat.toSourceSplit(
-          (BasicSerializableSourceFormat.SourceSplit) dynamicSplitResult, options));
+    } else if (dynamicSplitResult instanceof BasicSerializableSourceFormat.BoundedSourceSplit) {
+      status.setDynamicSourceSplit(
+          BasicSerializableSourceFormat.toSourceSplit(
+              (BasicSerializableSourceFormat.BoundedSourceSplit) dynamicSplitResult, options));
     } else if (dynamicSplitResult != null) {
       throw new IllegalArgumentException(
           "Unexpected type of dynamic split result: " + dynamicSplitResult);
