@@ -1,0 +1,10 @@
+sudo: false
+
+language: java
+
+matrix:
+  include:
+    - jdk: "oraclejdk7"
+    - jdk: "oraclejdk8"
+    - jdk: "openjdk6"
+    - jdk: "openjdk7"
