@@ -130,7 +130,7 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 		if (masterUrl.equals("[local]")) {
 			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 			if (options.getParallelism() != -1) {
-				env.setDegreeOfParallelism(options.getParallelism());
+				env.setParallelism(options.getParallelism());
 			}
 			return env;
 		} else if (masterUrl.equals("[collection]")) {
@@ -138,7 +138,7 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 		} else if (masterUrl.equals("[auto]")) {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			if (options.getParallelism() != -1) {
-				env.setDegreeOfParallelism(options.getParallelism());
+				env.setParallelism(options.getParallelism());
 			}
 			return env;
 		} else if (masterUrl.matches(".*:\\d*")) {
@@ -148,14 +148,14 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 					Integer.parseInt(parts[1]),
 					stagingFiles.toArray(new String[stagingFiles.size()]));
 			if (options.getParallelism() != -1) {
-				env.setDegreeOfParallelism(options.getParallelism());
+				env.setParallelism(options.getParallelism());
 			}
 			return env;
 		} else {
 			LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			if (options.getParallelism() != -1) {
-				env.setDegreeOfParallelism(options.getParallelism());
+				env.setParallelism(options.getParallelism());
 			}
 			return env;
 		}

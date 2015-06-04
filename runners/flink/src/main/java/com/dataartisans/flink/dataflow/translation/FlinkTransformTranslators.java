@@ -253,7 +253,7 @@ public class FlinkTransformTranslators {
 		@Override
 		public void translateNode(ConsoleIO.Write.Bound transform, TranslationContext context) {
 			DataSet<?> inputDataSet = context.getInputDataSet(transform.getInput());
-			inputDataSet.print().name(transform.getName());
+			inputDataSet.printOnTaskManager(transform.getName());
 		}
 	}
 
