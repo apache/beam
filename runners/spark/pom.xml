@@ -15,7 +15,7 @@ License.
     <name>Dataflow on Spark</name>
     <groupId>com.cloudera.dataflow.spark</groupId>
     <artifactId>spark-dataflow</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -241,7 +241,7 @@ License.
                                 <shadedArtifactAttached>true</shadedArtifactAttached>
                                 <shadedClassifierName>spark-app</shadedClassifierName>
                                 <transformers>
-                                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
                                 </transformers>
                             </configuration>
                         </execution>
@@ -378,7 +378,7 @@ License.
         <connection>scm:git:https://github.com/cloudera/spark-dataflow.git</connection>
         <developerConnection>scm:git:https://github.com/cloudera/spark-dataflow.git</developerConnection>
         <url>scm:git:https://github.com/cloudera/spark-dataflow.git</url>
-        <tag>HEAD</tag>
+        <tag>spark-dataflow-0.1.0</tag>
     </scm>
 
     <prerequisites>
