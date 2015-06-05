@@ -14,6 +14,7 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.argThat;
@@ -79,11 +80,15 @@ public class DataflowWorkerTest {
   @Test
   public void testWhenProcessingWorkUnitFailsWeReportStatus() throws Exception {
     DataflowWorker worker = new DataflowWorker(mockWorkUnitClient, options);
-    when(mockWorkUnitClient.getWorkItem()).thenReturn(
-        new WorkItem().setId(1L).setJobId("Expected to fail the job")).thenReturn(null);
+    // In practice this value is always 1, but for the sake of testing send a different value.
+    long initialReportIndex = 4L;
+    WorkItem workItem = new WorkItem()
+        .setId(1L).setJobId("Expected to fail the job").setInitialReportIndex(initialReportIndex);
+    when(mockWorkUnitClient.getWorkItem()).thenReturn(workItem).thenReturn(null);
 
     assertFalse(worker.getAndPerformWork());
-    verify(mockWorkUnitClient).reportWorkItemStatus(argThat(cloudWorkHasErrors()));
+    verify(mockWorkUnitClient)
+        .reportWorkItemStatus(argThat(cloudWorkHasErrors(initialReportIndex)));
   }
 
   @Test
@@ -104,7 +109,7 @@ public class DataflowWorkerTest {
       verify(mockProgressUpdater, times(1)).stopReportingProgress();
   }
 
-  private Matcher<WorkItemStatus> cloudWorkHasErrors() {
+  private Matcher<WorkItemStatus> cloudWorkHasErrors(final long expectedReportIndex) {
     return new TypeSafeMatcher<WorkItemStatus>() {
       @Override
       public void describeTo(Description description) {
@@ -113,6 +118,7 @@ public class DataflowWorkerTest {
 
       @Override
       protected boolean matchesSafely(WorkItemStatus status) {
+        assertEquals(expectedReportIndex, (long) status.getReportIndex());
         boolean returnValue = status.getCompleted() && !status.getErrors().isEmpty();
         if (returnValue) {
           assertThat(status.getErrors().get(0).getMessage(),
@@ -123,4 +129,3 @@ public class DataflowWorkerTest {
     };
   }
 }
-

@@ -104,6 +104,7 @@ public class DataflowWorker {
     LOG.debug("Executing: {}", workItem);
 
     WorkExecutor worker = null;
+    long nextReportIndex = workItem.getInitialReportIndex();
     try {
       // Populate PipelineOptions with data from work unit.
       options.setProject(workItem.getProjectId());
@@ -122,8 +123,12 @@ public class DataflowWorker {
 
       DataflowWorkProgressUpdater progressUpdater =
           new DataflowWorkProgressUpdater(workItem, worker, workUnitClient, options);
-
-      executeWork(worker, progressUpdater);
+      try {
+        executeWork(worker, progressUpdater);
+      } finally {
+        // Grab nextReportIndex so we can use it in handleWorkError if there is an exception.
+        nextReportIndex = progressUpdater.getNextReportIndex();
+      }
 
       // Log all counter values for debugging purposes.
       CounterSet counters = worker.getOutputCounters();
@@ -147,12 +152,12 @@ public class DataflowWorker {
               : null;
       reportStatus(
           options, "Success", workItem, counters, metrics, operationResponse, null/*errors*/,
-          progressUpdater.getNextReportIndex());
+          nextReportIndex);
 
       return true;
 
     } catch (Throwable e) {
-      handleWorkError(workItem, worker, e);
+      handleWorkError(workItem, worker, nextReportIndex, e);
       return false;
 
     } finally {
@@ -182,8 +187,8 @@ public class DataflowWorker {
 
 
   /** Handles the exception thrown when reading and executing the work. */
-  private void handleWorkError(WorkItem workItem, WorkExecutor worker, Throwable e)
-      throws IOException {
+  private void handleWorkError(WorkItem workItem, WorkExecutor worker, long nextReportIndex,
+      Throwable e) throws IOException {
     LOG.warn("Uncaught exception occurred during work unit execution:", e);
 
     // TODO: Look into moving the stack trace thinning
@@ -196,13 +201,13 @@ public class DataflowWorker {
 
     reportStatus(options, "Failure", workItem, worker == null ? null : worker.getOutputCounters(),
         worker == null ? null : worker.getOutputMetrics(), null/*sourceOperationResponse*/,
-        error == null ? null : Collections.singletonList(error), 0);
+        error == null ? null : Collections.singletonList(error), nextReportIndex);
   }
 
   private void reportStatus(DataflowWorkerHarnessOptions options, String status, WorkItem workItem,
       @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
       @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors,
-      long finalReportIndex)
+      long reportIndex)
       throws IOException {
     String message = "{} processing work item {}";
     if (null != errors && errors.size() > 0) {
@@ -211,7 +216,7 @@ public class DataflowWorker {
       LOG.debug(message, status, uniqueId(workItem));
     }
     WorkItemStatus workItemStatus = buildStatus(workItem, true/*completed*/, counters, metrics,
-        options, null, null, operationResponse, errors, finalReportIndex);
+        options, null, null, operationResponse, errors, reportIndex);
     workUnitClient.reportWorkItemStatus(workItemStatus);
   }
 
@@ -220,11 +225,11 @@ public class DataflowWorker {
       DataflowWorkerHarnessOptions options, @Nullable Reader.Progress progress,
       @Nullable Reader.DynamicSplitResult dynamicSplitResult,
       @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors,
-      long finalReportIndex) {
+      long reportIndex) {
     WorkItemStatus status = new WorkItemStatus();
     status.setWorkItemId(Long.toString(workItem.getId()));
     status.setCompleted(completed);
-    status.setReportIndex(finalReportIndex);
+    status.setReportIndex(reportIndex);
 
     List<MetricUpdate> counterUpdates = null;
     List<MetricUpdate> metricUpdates = null;
