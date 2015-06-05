@@ -59,9 +59,7 @@ public class Mean {
    * @param <NumT> the type of the {@code Number}s being combined
    */
   public static <NumT extends Number> Combine.Globally<NumT, Double> globally() {
-    Combine.Globally<NumT, Double> combine = Combine.globally(new MeanFn<>());
-    combine.setName("Mean");
-    return combine;
+    return Combine.<NumT, Double>globally(new MeanFn<>()).named("Mean");
   }
 
   /**
@@ -78,9 +76,7 @@ public class Mean {
    * @param <NumT> the type of the {@code Number}s being combined
    */
   public static <K, NumT extends Number> Combine.PerKey<K, NumT, Double> perKey() {
-    Combine.PerKey<K, NumT, Double> combine = Combine.perKey(new MeanFn<>());
-    combine.setName("Mean.PerKey");
-    return combine;
+    return Combine.<K, NumT, Double>perKey(new MeanFn<>()).named("Mean.PerKey");
   }
 
 

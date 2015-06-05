@@ -49,10 +49,7 @@ public class Min {
    * {@code Integer.MAX_VALUE} if there are no elements.
    */
   public static Combine.Globally<Integer, Integer> integersGlobally() {
-    Combine.Globally<Integer, Integer> combine = Combine
-        .globally(new MinIntegerFn());
-    combine.setName("Min");
-    return combine;
+    return Combine.globally(new MinIntegerFn()).named("Min");
   }
 
   /**
@@ -66,10 +63,7 @@ public class Min {
    * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    Combine.PerKey<K, Integer, Integer> combine = Combine
-        .perKey(new MinIntegerFn());
-    combine.setName("Min.PerKey");
-    return combine;
+    return Combine.<K, Integer, Integer>perKey(new MinIntegerFn()).named("Min.PerKey");
   }
 
   /**
@@ -80,9 +74,7 @@ public class Min {
    * {@code Long.MAX_VALUE} if there are no elements.
    */
   public static Combine.Globally<Long, Long> longsGlobally() {
-    Combine.Globally<Long, Long> combine = Combine.globally(new MinLongFn());
-    combine.setName("Min");
-    return combine;
+    return Combine.globally(new MinLongFn()).named("Min");
   }
 
   /**
@@ -96,10 +88,7 @@ public class Min {
    * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-    Combine.PerKey<K, Long, Long> combine = Combine
-        .perKey(new MinLongFn());
-    combine.setName("Min.PerKey");
-    return combine;
+   return Combine.<K, Long, Long>perKey(new MinLongFn()).named("Min.PerKey");
   }
 
   /**
@@ -110,10 +99,7 @@ public class Min {
    * {@code Double.POSITIVE_INFINITY} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
-    Combine.Globally<Double, Double> combine = Combine
-        .globally(new MinDoubleFn());
-    combine.setName("Min");
-    return combine;
+    return Combine.globally(new MinDoubleFn()).named("Min");
   }
 
   /**
@@ -127,10 +113,7 @@ public class Min {
    * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    Combine.PerKey<K, Double, Double> combine = Combine
-        .perKey(new MinDoubleFn());
-    combine.setName("Min.PerKey");
-    return combine;
+    return Combine.<K, Double, Double>perKey(new MinDoubleFn()).named("Min.PerKey");
   }
 
 

@@ -49,10 +49,7 @@ public class Max {
    * {@code Integer.MIN_VALUE} if there are no elements.
    */
   public static Combine.Globally<Integer, Integer> integersGlobally() {
-    Combine.Globally<Integer, Integer> combine = Combine
-        .globally(new MaxIntegerFn());
-    combine.setName("Max");
-    return combine;
+    return Combine.globally(new MaxIntegerFn()).named("Max");
   }
 
   /**
@@ -66,10 +63,7 @@ public class Max {
    * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    Combine.PerKey<K, Integer, Integer> combine = Combine
-        .perKey(new MaxIntegerFn());
-    combine.setName("Max.PerKey");
-    return combine;
+    return Combine.<K, Integer, Integer>perKey(new MaxIntegerFn()).named("Max.PerKey");
   }
 
   /**
@@ -80,9 +74,7 @@ public class Max {
    * {@code Long.MIN_VALUE} if there are no elements.
    */
   public static Combine.Globally<Long, Long> longsGlobally() {
-    Combine.Globally<Long, Long> combine = Combine.globally(new MaxLongFn());
-    combine.setName("Max");
-    return combine;
+    return Combine.globally(new MaxLongFn()).named("Max");
   }
 
   /**
@@ -96,10 +88,7 @@ public class Max {
    * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-    Combine.PerKey<K, Long, Long> combine = Combine
-        .perKey(new MaxLongFn());
-    combine.setName("Max.PerKey");
-    return combine;
+    return Combine.<K, Long, Long>perKey(new MaxLongFn()).named("Max.PerKey");
   }
 
   /**
@@ -110,10 +99,7 @@ public class Max {
    * {@code Double.NEGATIVE_INFINITY} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
-    Combine.Globally<Double, Double> combine = Combine
-        .globally(new MaxDoubleFn());
-    combine.setName("Max");
-    return combine;
+    return Combine.globally(new MaxDoubleFn()).named("Max");
   }
 
   /**
@@ -127,10 +113,7 @@ public class Max {
    * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    Combine.PerKey<K, Double, Double> combine = Combine
-        .perKey(new MaxDoubleFn());
-    combine.setName("Max.PerKey");
-    return combine;
+    return Combine.<K, Double, Double>perKey(new MaxDoubleFn()).named("Max.PerKey");
   }
 
 

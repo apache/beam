@@ -49,10 +49,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Integer, Integer> integersGlobally() {
-    Combine.Globally<Integer, Integer> combine = Combine
-        .globally(new SumIntegerFn());
-    combine.setName("Sum");
-    return combine;
+    return Combine.globally(new SumIntegerFn()).named("Sum");
   }
 
   /**
@@ -64,10 +61,7 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    Combine.PerKey<K, Integer, Integer> combine = Combine
-        .perKey(new SumIntegerFn());
-    combine.setName("Sum.PerKey");
-    return combine;
+    return Combine.<K, Integer, Integer>perKey(new SumIntegerFn()).named("Sum.PerKey");
   }
 
   /**
@@ -78,9 +72,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Long, Long> longsGlobally() {
-    Combine.Globally<Long, Long> combine = Combine.globally(new SumLongFn());
-    combine.setName("Sum");
-    return combine;
+    return Combine.globally(new SumLongFn()).named("Sum");
   }
 
   /**
@@ -92,10 +84,7 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-    Combine.PerKey<K, Long, Long> combine = Combine
-        .perKey(new SumLongFn());
-    combine.setName("Sum.PerKey");
-    return combine;
+    return Combine.<K, Long, Long>perKey(new SumLongFn()).named("Sum.PerKey");
   }
 
   /**
@@ -106,10 +95,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
-    Combine.Globally<Double, Double> combine = Combine
-        .globally(new SumDoubleFn());
-    combine.setName("Sum");
-    return combine;
+    return Combine.globally(new SumDoubleFn()).named("Sum");
   }
 
   /**
@@ -121,10 +107,7 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    Combine.PerKey<K, Double, Double> combine = Combine
-        .perKey(new SumDoubleFn());
-    combine.setName("Sum.PerKey");
-    return combine;
+    return Combine.<K, Double, Double>perKey(new SumDoubleFn()).named("Sum.PerKey");
   }
 
 

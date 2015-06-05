@@ -304,10 +304,9 @@ public class Create<T> {
                   c.output(KV.of((Void) null, (Void) null));
                 }
               }))
-              .apply(Window.<KV<Void, Void>>into(new GlobalWindows())
+              .apply("GlobalSingleton", Window.<KV<Void, Void>>into(new GlobalWindows())
                            .triggering(AfterPane.elementCountAtLeast(1))
-                           .discardingFiredPanes()
-                           .setName("GlobalSingleton"))
+                           .discardingFiredPanes())
               .apply(GroupByKey.<Void, Void>create())
               .apply(Window.<KV<Void, Iterable<Void>>>into(new GlobalWindows()))
               .apply(ParDo.of(new OutputElements<>(elems, coder)));
@@ -339,10 +338,14 @@ public class Create<T> {
      *
      * <p> The arguments should not be modified after this is called.
      */
-    private Values(Iterable<T> elems, Optional<Coder<T>> coder) {
-      super("CreateValues");
+    private Values(String name, Iterable<T> elems, Optional<Coder<T>> coder) {
+      super(name);
       this.elems = elems;
       this.coder = coder;
+    }
+
+    private Values(Iterable<T> elems, Optional<Coder<T>> coder) {
+      this("CreateValues", elems, coder);
     }
 
     /**
@@ -425,13 +428,13 @@ public class Create<T> {
 
     private TimestampedValues(Iterable<TimestampedValue<T>> elems,
         Optional<Coder<T>> coder) {
-      super(Iterables.transform(elems, new Function<TimestampedValue<T>, T>() {
-        @Override
-        public T apply(TimestampedValue<T> input) {
-          return input.getValue();
-        }
-      }), coder);
-      setName("CreateTimestmapedValues");
+      super("CreateTimestampedValues",
+          Iterables.transform(elems, new Function<TimestampedValue<T>, T>() {
+            @Override
+            public T apply(TimestampedValue<T> input) {
+              return input.getValue();
+            }
+          }), coder);
       this.elems = elems;
     }
 

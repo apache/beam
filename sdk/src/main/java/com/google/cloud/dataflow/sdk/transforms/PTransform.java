@@ -203,23 +203,6 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   public void validate(InputT input) { }
 
   /**
-   * Sets the base name of this {@code PTransform}.
-   * Returns {@code this} for method chaining.
-   */
-  public PTransform<InputT, OutputT> setName(String name) {
-    this.name = name;
-    return this;
-  }
-
-  /**
-   * @deprecated Use {@link #setName}, which has been modified to return {@code this}.
-   */
-  @Deprecated
-  public PTransform<InputT, OutputT> withName(String name) {
-    return setName(name);
-  }
-
-  /**
    * Returns the transform name.
    *
    * <p> This name is provided by the transform creator and is not required to be unique.
@@ -238,7 +221,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * {@link ParDo#named(String)}, or from defaults, or {@code null} if not
    * yet assigned.
    */
-  protected transient String name;
+  protected final transient String name;
 
   protected PTransform() {
     this.name = null;

@@ -98,7 +98,7 @@ public class Combine {
    */
   public static <InputT, OutputT> Globally<InputT, OutputT> globally(
       CombineFn<? super InputT, ?, OutputT> fn) {
-    return new Globally<>(fn, true, 0);
+    return new Globally<>("Globally", fn, true, 0);
   }
 
   /**
@@ -161,7 +161,7 @@ public class Combine {
    */
   public static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
       KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn) {
-    return new PerKey<>(fn, false /*fewKeys*/);
+    return new PerKey<>("PerKey", fn, false /*fewKeys*/);
   }
 
   /**
@@ -170,7 +170,7 @@ public class Combine {
    */
   private static <K, InputT, OutputT> PerKey<K, InputT, OutputT> fewKeys(
       KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn) {
-    return new PerKey<>(fn, true /*fewKeys*/);
+    return new PerKey<>("PerKey", fn, true /*fewKeys*/);
   }
 
   /**
@@ -1208,22 +1208,20 @@ public class Combine {
     private final boolean insertDefault;
     private final int fanout;
 
-    private Globally(CombineFn<? super InputT, ?, OutputT> fn, boolean insertDefault, int fanout) {
+    private Globally(
+        String name, CombineFn<? super InputT, ?, OutputT> fn, boolean insertDefault, int fanout) {
+      super(name);
       this.fn = fn;
       this.insertDefault = insertDefault;
       this.fanout = fanout;
     }
 
-    @Override
-    public Globally<InputT, OutputT> setName(String name) {
-      super.setName(name);
-      return this;
-    }
-
-    @Override
-    @Deprecated
-    public Globally<InputT, OutputT> withName(String name) {
-      return setName(name);
+    /**
+     * Return a new {@code Globally} transform that's like this transform but with the
+     * specified name. Does not modify this transform.
+     */
+    public Globally<InputT, OutputT> named(String name) {
+      return new Globally<>(name, fn, insertDefault, fanout);
     }
 
     /**
@@ -1242,7 +1240,7 @@ public class Combine {
      * provide a default value in the case of empty input.
      */
     public Globally<InputT, OutputT> withoutDefaults() {
-      return new Globally<>(fn, false, fanout);
+      return new Globally<>(name, fn, false, fanout);
     }
 
     /**
@@ -1253,7 +1251,7 @@ public class Combine {
      * that will be used.
      */
     public Globally<InputT, OutputT> withFanout(int fanout) {
-      return new Globally<>(fn, insertDefault, fanout);
+      return new Globally<>(name, fn, insertDefault, fanout);
     }
 
     @Override
@@ -1364,17 +1362,6 @@ public class Combine {
       this.fanout = fanout;
     }
 
-    @Override
-    public GloballyAsSingletonView<InputT, OutputT> setName(String name) {
-      super.setName(name);
-      return this;
-    }
-
-    @Override
-    @Deprecated
-    public GloballyAsSingletonView<InputT, OutputT> withName(String name) {
-      return setName(name);
-    }
 
     @Override
     public PCollectionView<OutputT> apply(PCollection<InputT> input) {
@@ -1503,10 +1490,19 @@ public class Combine {
     private final boolean fewKeys;
 
     private PerKey(
-        KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn,
+        String name, KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn,
         boolean fewKeys) {
+      super(name);
       this.fn = fn;
       this.fewKeys = fewKeys;
+    }
+
+    /**
+     * Return a new {@code Globally} transform that's like this transform but with the
+     * specified name. Does not modify this transform.
+     */
+    public PerKey<K, InputT, OutputT> named(String name) {
+      return new PerKey<K, InputT, OutputT>(name, fn, fewKeys);
     }
 
     /**
@@ -1522,7 +1518,7 @@ public class Combine {
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(
         SerializableFunction<? super K, Integer> hotKeyFanout) {
-      return new PerKeyWithHotKeyFanout<K, InputT, OutputT>(fn, hotKeyFanout).setName(name);
+      return new PerKeyWithHotKeyFanout<K, InputT, OutputT>(name, fn, hotKeyFanout);
     }
 
     /**
@@ -1537,18 +1533,6 @@ public class Combine {
               return hotKeyFanout;
             }
           });
-    }
-
-    @Override
-    public PerKey<K, InputT, OutputT> setName(String name) {
-      super.setName(name);
-      return this;
-    }
-
-    @Override
-    @Deprecated
-    public PerKey<K, InputT, OutputT> withName(String name) {
-      return setName(name);
     }
 
     /**
@@ -1580,24 +1564,12 @@ public class Combine {
     private final transient KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn;
     private final SerializableFunction<? super K, Integer> hotKeyFanout;
 
-    private PerKeyWithHotKeyFanout(
+    private PerKeyWithHotKeyFanout(String name,
         KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn,
         SerializableFunction<? super K, Integer> hotKeyFanout) {
+      super(name);
       this.fn = fn;
       this.hotKeyFanout = hotKeyFanout;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public PerKeyWithHotKeyFanout<K, InputT, OutputT> setName(String name) {
-      return (PerKeyWithHotKeyFanout<K, InputT, OutputT>) super.setName(name);
-    }
-
-    @Override
-    @Deprecated
-    @SuppressWarnings("unchecked")
-    public PerKeyWithHotKeyFanout<K, InputT, OutputT> withName(String name) {
-      return setName(name);
     }
 
     @Override
@@ -1679,7 +1651,7 @@ public class Combine {
       final TupleTag<KV<KV<K, Integer>, InputT>> hot = new TupleTag<>();
       final TupleTag<KV<K, InputT>> cold = new TupleTag<>();
       PCollectionTuple split = input.apply(
-          ParDo.of(
+          ParDo.named("AddNonce").of(
               new DoFn<KV<K, InputT>, KV<K, InputT>>() {
                 transient int counter;
                 @Override
@@ -1700,28 +1672,27 @@ public class Combine {
                   }
                 }
               })
-          .withOutputTags(cold, TupleTagList.of(hot))
-          .setName("AddNonce"));
+          .withOutputTags(cold, TupleTagList.of(hot)));
 
       // Combine the hot and cold keys separately.
       PCollection<KV<K, OutputT>> combinedHot = split
           .get(hot)
           .setCoder(KvCoder.of(KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
                                inputCoder.getValueCoder()))
-          .apply(Combine.perKey(hotPreCombine).withName("PreCombineHot"))
-          .apply(ParDo.of(
+          .apply("PreCombineHot", Combine.perKey(hotPreCombine))
+          .apply(ParDo.named("StripNonce").of(
               new DoFn<KV<KV<K, Integer>, AccumT>, KV<K, AccumT>>() {
                 @Override
                 public void processElement(ProcessContext c) {
                   c.output(KV.of(c.element().getKey().getKey(), c.element().getValue()));
                 }
-              }).setName("StripNonce"))
+              }))
           .apply(Window.<KV<K, AccumT>>remerge())
-          .apply(Combine.perKey(hotPostCombine).withName("PostCombineHot"));
+          .apply("PostCombineHot", Combine.perKey(hotPostCombine));
       PCollection<KV<K, OutputT>> combinedCold = split
           .get(cold)
           .setCoder(inputCoder)
-          .apply(Combine.perKey(fn).withName("CombineCold"));
+          .apply("CombineCold", Combine.perKey(fn));
 
       // Return the union of the hot and cold key results.
       return PCollectionList.of(combinedHot).and(combinedCold)

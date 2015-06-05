@@ -81,8 +81,7 @@ public class Top {
    */
   public static <T, ComparatorT extends Comparator<T> & Serializable>
       Combine.Globally<T, List<T>> of(int count, ComparatorT compareFn) {
-    return Combine.globally(new TopCombineFn<>(count, compareFn))
-        .setName("Top");
+    return Combine.globally(new TopCombineFn<>(count, compareFn)).named("Top");
   }
 
   /**
@@ -121,8 +120,7 @@ public class Top {
    */
   public static <T extends Comparable<T>>
       Combine.Globally<T, List<T>> smallest(int count) {
-    return Combine.globally(new TopCombineFn<>(count, new Smallest<T>()))
-        .setName("Top.Smallest");
+    return Combine.globally(new TopCombineFn<>(count, new Smallest<T>())).named("Top.Smallest");
   }
 
   /**
@@ -161,8 +159,7 @@ public class Top {
    */
   public static <T extends Comparable<T>>
       Combine.Globally<T, List<T>> largest(int count) {
-    return Combine.globally(new TopCombineFn<>(count, new Largest<T>()))
-        .setName("Top.Largest");
+    return Combine.globally(new TopCombineFn<>(count, new Largest<T>())).named("Top.Largest");
   }
 
   /**
@@ -210,8 +207,7 @@ public class Top {
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
       perKey(int count, ComparatorT compareFn) {
     return Combine.perKey(
-        new TopCombineFn<>(count, compareFn).<K>asKeyedFn())
-        .setName("Top.PerKey");
+        new TopCombineFn<>(count, compareFn).<K>asKeyedFn()).named("Top.PerKey");
   }
 
   /**
@@ -258,8 +254,7 @@ public class Top {
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
       smallestPerKey(int count) {
     return Combine.perKey(
-        new TopCombineFn<>(count, new Smallest<V>()).<K>asKeyedFn())
-        .setName("Top.SmallestPerKey");
+        new TopCombineFn<>(count, new Smallest<V>()).<K>asKeyedFn()).named("Top.SmallestPerKey");
   }
 
   /**
@@ -306,8 +301,7 @@ public class Top {
       PerKey<K, V, List<V>>
       largestPerKey(int count) {
     return Combine.perKey(
-        new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
-        .setName("Top.LargestPerKey");
+        new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn()).named("Top.LargestPerKey");
   }
 
 

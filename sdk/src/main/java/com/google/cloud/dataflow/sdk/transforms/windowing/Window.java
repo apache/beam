@@ -224,7 +224,7 @@ public class Window {
     WindowingStrategy<? super T, ?> windowingStrategy;
 
     Bound(String name, WindowingStrategy<? super T, ?> windowingStrategy) {
-      this.name = name;
+      super(name);
       this.windowingStrategy = windowingStrategy;
     }
 

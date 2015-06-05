@@ -97,11 +97,23 @@ public class KeyedPCollectionTuple<K> implements PInput {
   }
 
   /**
-   * Applies the given {@link PTransform} to this input.
+   * Like {@link #apply(String, PTransform)} but defaulting to the name
+   * provided by the {@link PTransform}.
    */
   public <OutputT extends POutput> OutputT apply(
       PTransform<KeyedPCollectionTuple<K>, OutputT> transform) {
     return Pipeline.applyTransform(this, transform);
+  }
+
+  /**
+   * Applies the given {@link PTransform} to this input {@code KeyedPCollectionTuple} and returns
+   * its {@code OutputT}. This uses {@code name} to identify the specific application of
+   * the transform. This name is used in various places, including the monitoring UI,
+   * logging, and to stably identify this application node in the job graph.
+   */
+  public <OutputT extends POutput> OutputT apply(
+      String name, PTransform<KeyedPCollectionTuple<K>, OutputT> transform) {
+    return Pipeline.applyTransform(name, this, transform);
   }
 
   /**
