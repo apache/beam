@@ -573,22 +573,18 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   /**
    * Set the size of the content.
    *
-   * <p>First, we look at the object's metadata.  If no value exists, then we
-   * examine the Content-Length header.  If neither exists, we then look for and parse the
-   * Content-Range header. If there is no way to determine the content length, an exception
-   * is thrown. If the Content-Length header is present, then the offset is added to this
+   * <p>First, we examine the Content-Length header.  If it does not exists, we then look for and
+   * parse the Content-Range header. If there is no way to determine the content length, an
+   * exception is thrown. If the Content-Length header is present, then the offset is added to this
    * value (i.e., offset is the number of bytes that were not requested).
    *
    * @param response response to parse.
    * @param offset the number of bytes that were not requested.
    * @throws IOException on IO error.
    */
-  protected void setSize(StorageObject metadata, HttpResponse response, long offset)
-      throws IOException {
+  protected void setSize(HttpResponse response, long offset) throws IOException {
     String contentRange = response.getHeaders().getContentRange();
-    if (metadata.getSize() != null) {
-      size = metadata.getSize().longValue();
-    } else if (response.getHeaders().getContentLength() != null) {
+    if (response.getHeaders().getContentLength() != null) {
       size = response.getHeaders().getContentLength() + offset;
     } else if (contentRange != null) {
       String sizeStr = SLASH.split(contentRange)[1];
@@ -616,8 +612,10 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
    */
   protected InputStream openStreamAndSetMetadata(long newPosition)
       throws IOException {
-    StorageObject metadata = getMetadata();
-    fileEncoding = getEncoding(metadata);
+    if (fileEncoding == FileEncoding.UNINITIALIZED) {
+      StorageObject metadata = getMetadata();
+      fileEncoding = getEncoding(metadata);
+    }
     validatePosition(newPosition);
     Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
     // Set the range on the existing request headers that may have been initialized with things
@@ -653,8 +651,10 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     InputStream content = response.getContent();
     // If the file is gzip encoded, we requested the entire file and need to seek in the content
     // to the desired position.  If it is not, we only requested the bytes we haven't read.
-    setSize(metadata, response, fileEncoding == FileEncoding.GZIPPED ? 0 : newPosition);
-    content.skip(fileEncoding == FileEncoding.GZIPPED ? newPosition : 0);
+    setSize(response, fileEncoding == FileEncoding.GZIPPED ? 0 : newPosition);
+    if (fileEncoding == FileEncoding.GZIPPED) {
+      content.skip(newPosition);
+    }
 
     return content;
   }
