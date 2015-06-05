@@ -34,7 +34,7 @@ The Maven coordinates of the current version of this project are:
 
     <groupId>com.cloudera.dataflow.spark</groupId>
     <artifactId>spark-dataflow</artifactId>
-    <version>0.0.1</version>
+    <version>0.1.0</version>
     
 and are hosted in Cloudera's repository at:
 
@@ -99,6 +99,15 @@ Then run the word count example using Spark submit with the `yarn-client` master
 Check the output by running:
 
     hadoop fs -tail out-00000-of-00002
+
+## How to Release
+
+Committers can release the project using the standard [Maven Release Plugin](http://maven.apache.org/maven-release/maven-release-plugin/) commands:
+
+    mvn release:prepare
+    mvn release:perform -Darguments="-Dgpg.passphrase=XXX"
+
+Note that you will need a [public GPG key](http://www.apache.org/dev/openpgp.html).
 
 [![Build Status](https://travis-ci.org/cloudera/spark-dataflow.png?branch=master)](https://travis-ci.org/cloudera/spark-dataflow)
 [![codecov.io](https://codecov.io/github/cloudera/spark-dataflow/coverage.svg?branch=master)](https://codecov.io/github/cloudera/spark-dataflow?branch=master)
