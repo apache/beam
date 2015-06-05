@@ -125,21 +125,21 @@ public class Write {
           p.apply(Create.<WriteOperation<T, WriteT>>of(writeOperation).withCoder(operationCoder));
 
       // Initialize the resource in a do-once ParDo on the WriteOperation.
-      operationCollection =
-          operationCollection
-              .apply(ParDo.of(new DoFn<WriteOperation<T, WriteT>, WriteOperation<T, WriteT>>() {
-                private static final long serialVersionUID = 0;
+      operationCollection = operationCollection
+          .apply("Initialize", ParDo.of(
+              new DoFn<WriteOperation<T, WriteT>, WriteOperation<T, WriteT>>() {
+            private static final long serialVersionUID = 0;
 
-                @Override
-                public void processElement(ProcessContext c) throws Exception {
-                  WriteOperation<T, WriteT> writeOperation = c.element();
-                  writeOperation.initialize(c.getPipelineOptions());
-                  // The WriteOperation is also the output of this ParDo, so it can have mutable
-                  // state.
-                  c.output(writeOperation);
-                }
-              }))
-              .setCoder(operationCoder);
+            @Override
+            public void processElement(ProcessContext c) throws Exception {
+              WriteOperation<T, WriteT> writeOperation = c.element();
+              writeOperation.initialize(c.getPipelineOptions());
+              // The WriteOperation is also the output of this ParDo, so it can have mutable
+              // state.
+              c.output(writeOperation);
+            }
+          }))
+          .setCoder(operationCoder);
 
       // Create a view of the WriteOperation to be used as a sideInput to the parallel write phase.
       final PCollectionView<WriteOperation<T, WriteT>> writeOperationView =
@@ -149,8 +149,8 @@ public class Write {
       // as a side input) and collect the results of the writes in a PCollection.
       // There is a dependency between this ParDo and the first (the WriteOperation PCollection
       // as a side input), so this will happen after the initial ParDo.
-      PCollection<WriteT> results =
-          input.apply(ParDo.of(new DoFn<T, WriteT>() {
+      PCollection<WriteT> results = input
+          .apply("WriteBundles", ParDo.of(new DoFn<T, WriteT>() {
             private static final long serialVersionUID = 0;
 
             // Writer that will write the records in this bundle. Lazily
@@ -199,8 +199,8 @@ public class Write {
       // ParDo. There is a dependency between this ParDo and the parallel write (the writer results
       // collection as a side input), so it will happen after the parallel write.
       @SuppressWarnings("unused")
-      final PCollection<Integer> done =
-          operationCollection.apply(ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
+      final PCollection<Integer> done = operationCollection
+          .apply("Finalize", ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
             private static final long serialVersionUID = 0;
 
             @Override

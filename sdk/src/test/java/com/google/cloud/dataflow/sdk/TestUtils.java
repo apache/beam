@@ -18,14 +18,8 @@ package com.google.cloud.dataflow.sdk;
 
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
-import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
-import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
@@ -133,22 +127,6 @@ public class TestUtils {
           .appendText(", ").appendValue(valueMatcher)
           .appendText(")");
     }
-  }
-
-  public static PCollection<String> createStrings(Pipeline p,
-                                                  Iterable<String> values) {
-    return p.apply(Create.of(values).withCoder(StringUtf8Coder.of()));
-  }
-
-  public static PCollection<Integer> createInts(Pipeline p,
-                                                Iterable<Integer> values) {
-    return p.apply(Create.of(values).withCoder(BigEndianIntegerCoder.of()));
-  }
-
-  public static PCollectionView<Integer>
-      createSingletonInt(Pipeline p, Integer value) {
-    PCollection<Integer> collection = p.apply(Create.of(value));
-    return collection.apply(View.<Integer>asSingleton());
   }
 
   ////////////////////////////////////////////////////////////////////////////

@@ -72,11 +72,13 @@ public class InnerJoinTest {
   @Test
   public void testJoinOneToManyMapping() {
     leftListOfKv.add(KV.of("Key2", 4L));
-    PCollection<KV<String, Long>> leftCollection = p.apply(Create.of(leftListOfKv));
+    PCollection<KV<String, Long>> leftCollection = p
+        .apply("CreateLeft", Create.of(leftListOfKv));
 
     listRightOfKv.add(KV.of("Key2", "bar"));
     listRightOfKv.add(KV.of("Key2", "gazonk"));
-    PCollection<KV<String, String>> rightCollection = p.apply(Create.of(listRightOfKv));
+    PCollection<KV<String, String>> rightCollection = p
+        .apply("CreateRight", Create.of(listRightOfKv));
 
     PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
       leftCollection, rightCollection);
@@ -92,10 +94,12 @@ public class InnerJoinTest {
   public void testJoinManyToOneMapping() {
     leftListOfKv.add(KV.of("Key2", 4L));
     leftListOfKv.add(KV.of("Key2", 6L));
-    PCollection<KV<String, Long>> leftCollection = p.apply(Create.of(leftListOfKv));
+    PCollection<KV<String, Long>> leftCollection = p
+        .apply("CreateLeft", Create.of(leftListOfKv));
 
     listRightOfKv.add(KV.of("Key2", "bar"));
-    PCollection<KV<String, String>> rightCollection = p.apply(Create.of(listRightOfKv));
+    PCollection<KV<String, String>> rightCollection = p
+        .apply("CreateRight", Create.of(listRightOfKv));
 
     PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
       leftCollection, rightCollection);
@@ -110,10 +114,12 @@ public class InnerJoinTest {
   @Test
   public void testJoinNoneToNoneMapping() {
     leftListOfKv.add(KV.of("Key2", 4L));
-    PCollection<KV<String, Long>> leftCollection = p.apply(Create.of(leftListOfKv));
+    PCollection<KV<String, Long>> leftCollection = p
+        .apply("CreateLeft", Create.of(leftListOfKv));
 
     listRightOfKv.add(KV.of("Key3", "bar"));
-    PCollection<KV<String, String>> rightCollection = p.apply(Create.of(listRightOfKv));
+    PCollection<KV<String, String>> rightCollection = p
+        .apply("CreateRight", Create.of(listRightOfKv));
 
     PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
       leftCollection, rightCollection);

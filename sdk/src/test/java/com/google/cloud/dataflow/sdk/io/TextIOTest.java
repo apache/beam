@@ -348,23 +348,27 @@ public class TextIOTest {
 
     Pipeline pipeline = Pipeline.create(options);
 
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/*"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/?"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/[0-9]"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/*baz*"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/*baz?"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/[0-9]baz?"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/baz/*"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/baz/*wonka*"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/*baz/wonka*"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo*/baz"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo?/baz"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo[0-9]/baz"));
+    applyRead(pipeline, "gs://bucket/foo");
+    applyRead(pipeline, "gs://bucket/foo/");
+    applyRead(pipeline, "gs://bucket/foo/*");
+    applyRead(pipeline, "gs://bucket/foo/?");
+    applyRead(pipeline, "gs://bucket/foo/[0-9]");
+    applyRead(pipeline, "gs://bucket/foo/*baz*");
+    applyRead(pipeline, "gs://bucket/foo/*baz?");
+    applyRead(pipeline, "gs://bucket/foo/[0-9]baz?");
+    applyRead(pipeline, "gs://bucket/foo/baz/*");
+    applyRead(pipeline, "gs://bucket/foo/baz/*wonka*");
+    applyRead(pipeline, "gs://bucket/foo/*baz/wonka*");
+    applyRead(pipeline, "gs://bucket/foo*/baz");
+    applyRead(pipeline, "gs://bucket/foo?/baz");
+    applyRead(pipeline, "gs://bucket/foo[0-9]/baz");
 
     // Check that running doesn't fail.
     pipeline.run();
+  }
+
+  private void applyRead(Pipeline pipeline, String path) {
+    pipeline.apply("Read(" + path + ")", TextIO.Read.from(path));
   }
 
   /**

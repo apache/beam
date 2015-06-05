@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import static com.google.cloud.dataflow.sdk.TestUtils.createInts;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -35,7 +34,6 @@ import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -65,10 +63,9 @@ public class PartitionTest implements Serializable {
   public void testEvenOddPartition() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<Integer> input =
-        createInts(p, Arrays.asList(591, 11789, 1257, 24578, 24799, 307));
-
-    PCollectionList<Integer> outputs = input.apply(Partition.of(2, new ModFn()));
+    PCollectionList<Integer> outputs = p
+        .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
+        .apply(Partition.of(2, new ModFn()));
     assertTrue(outputs.size() == 2);
     DataflowAssert.that(outputs.get(0)).containsInAnyOrder(24578);
     DataflowAssert.that(outputs.get(1)).containsInAnyOrder(591, 11789, 1257,
@@ -80,10 +77,9 @@ public class PartitionTest implements Serializable {
   public void testModPartition() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<Integer> input =
-        createInts(p, Arrays.asList(1, 2, 4, 5));
-
-    PCollectionList<Integer> outputs = input.apply(Partition.of(3, new ModFn()));
+    PCollectionList<Integer> outputs = p
+        .apply(Create.of(1, 2, 4, 5))
+        .apply(Partition.of(3, new ModFn()));
     assertTrue(outputs.size() == 3);
     DataflowAssert.that(outputs.get(0)).containsInAnyOrder();
     DataflowAssert.that(outputs.get(1)).containsInAnyOrder(1, 4);
@@ -95,9 +91,9 @@ public class PartitionTest implements Serializable {
   public void testOutOfBoundsPartitions() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = createInts(p, Arrays.asList(-1));
-
-    input.apply(Partition.of(5, new IdentityFn()));
+    p
+    .apply(Create.of(-1))
+    .apply(Partition.of(5, new IdentityFn()));
 
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage(
@@ -109,7 +105,7 @@ public class PartitionTest implements Serializable {
   public void testZeroNumPartitions() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = createInts(p, Arrays.asList(591));
+    PCollection<Integer> input = p.apply(Create.of(591));
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("numPartitions must be > 0");
@@ -120,12 +116,10 @@ public class PartitionTest implements Serializable {
   public void testDroppedPartition() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = createInts(p,
-        Arrays.asList(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12));
-
     // Compute the set of integers either 1 or 2 mod 3, the hard way.
-    PCollectionList<Integer> outputs =
-        input.apply(Partition.of(3, new ModFn()));
+    PCollectionList<Integer> outputs = p
+        .apply(Create.of(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
+        .apply(Partition.of(3, new ModFn()));
 
     List<PCollection<Integer>> outputsList = new ArrayList<>(outputs.getAll());
     outputsList.remove(0);

@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import static com.google.cloud.dataflow.sdk.TestUtils.createInts;
-
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -29,7 +27,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
-import java.util.Arrays;
 
 /**
  * Tests for {@link Filter}.
@@ -63,9 +60,9 @@ public class FilterTest implements Serializable {
   public void testIdentityFilterBy() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = createInts(p, Arrays.asList(591, 11789, 1257, 24578, 24799, 307));
-
-    PCollection<Integer> output = input.apply(Filter.by(new TrivialFn(true)));
+    PCollection<Integer> output = p
+        .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
+        .apply(Filter.by(new TrivialFn(true)));
 
     DataflowAssert.that(output).containsInAnyOrder(591, 11789, 1257, 24578, 24799, 307);
     p.run();
@@ -75,9 +72,9 @@ public class FilterTest implements Serializable {
   public void testNoFilter() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = createInts(p, Arrays.asList(1, 2, 4, 5));
-
-    PCollection<Integer> output = input.apply(Filter.by(new TrivialFn(false)));
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 4, 5))
+        .apply(Filter.by(new TrivialFn(false)));
 
     DataflowAssert.that(output).containsInAnyOrder();
     p.run();
@@ -88,9 +85,9 @@ public class FilterTest implements Serializable {
   public void testFilterBy() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = createInts(p, Arrays.asList(1, 2, 3, 4, 5, 6, 7));
-
-    PCollection<Integer> output = input.apply(Filter.by(new EvenFn()));
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
+        .apply(Filter.by(new EvenFn()));
 
     DataflowAssert.that(output).containsInAnyOrder(2, 4, 6);
     p.run();
@@ -101,9 +98,9 @@ public class FilterTest implements Serializable {
   public void testFilterLessThan() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = createInts(p, Arrays.asList(1, 2, 3, 4, 5, 6, 7));
-
-    PCollection<Integer> output = input.apply(Filter.lessThan(4));
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
+        .apply(Filter.lessThan(4));
 
     DataflowAssert.that(output).containsInAnyOrder(1, 2, 3);
     p.run();
@@ -113,9 +110,9 @@ public class FilterTest implements Serializable {
   public void testFilterGreaterThan() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = createInts(p, Arrays.asList(1, 2, 3, 4, 5, 6, 7));
-
-    PCollection<Integer> output = input.apply(Filter.greaterThan(4));
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
+        .apply(Filter.greaterThan(4));
 
     DataflowAssert.that(output).containsInAnyOrder(5, 6, 7);
     p.run();

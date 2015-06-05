@@ -172,6 +172,7 @@ public class Create<T> {
    *
    * <p> The argument should not be modified after this is called.
    */
+  @SafeVarargs
   public static <T> TimestampedValues<T> timestamped(
       @SuppressWarnings("unchecked") TimestampedValue<T>... elems) {
     return timestamped(Arrays.asList(elems));
@@ -339,6 +340,7 @@ public class Create<T> {
      * <p> The arguments should not be modified after this is called.
      */
     private Values(Iterable<T> elems, Optional<Coder<T>> coder) {
+      super("CreateValues");
       this.elems = elems;
       this.coder = coder;
     }
@@ -429,6 +431,7 @@ public class Create<T> {
           return input.getValue();
         }
       }), coder);
+      setName("CreateTimestmapedValues");
       this.elems = elems;
     }
 

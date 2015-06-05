@@ -104,8 +104,8 @@ public class JoinExamplesTest {
   @Category(RunnableOnService.class)
   public void testJoin() throws java.lang.Exception {
     Pipeline p = TestPipeline.create();
-    PCollection<TableRow> input1 = p.apply(Create.of(EVENT_ARRAY));
-    PCollection<TableRow> input2 = p.apply(Create.of(CC_ARRAY));
+    PCollection<TableRow> input1 = p.apply("CreateEvent", Create.of(EVENT_ARRAY));
+    PCollection<TableRow> input2 = p.apply("CreateCC", Create.of(CC_ARRAY));
 
     PCollection<String> output = JoinExamples.joinEvents(input1, input2);
     DataflowAssert.that(output).containsInAnyOrder(JOINED_EVENTS);

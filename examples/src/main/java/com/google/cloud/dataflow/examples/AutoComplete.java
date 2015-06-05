@@ -254,14 +254,16 @@ public class AutoComplete {
                       return c.getValue().length() == minPrefix;
                     }
                   })))
-            .apply(Flatten.<CompletionCandidate>pCollections())
+            .apply("FlattenSmall", Flatten.<CompletionCandidate>pCollections())
             // ...set the key to be the minPrefix-length prefix...
             .apply(ParDo.of(new AllPrefixes(minPrefix, minPrefix)))
             // ...and (re)apply the Top operator to all of them together.
             .apply(Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix));
-          return PCollectionList
-            .of(larger.apply(Flatten.<KV<String, List<CompletionCandidate>>>pCollections()))
-            .and(small);
+
+          PCollection<KV<String, List<CompletionCandidate>>> flattenLarger = larger
+              .apply("FlattenLarge", Flatten.<KV<String, List<CompletionCandidate>>>pCollections());
+
+          return PCollectionList.of(flattenLarger).and(small);
         }
     }
   }

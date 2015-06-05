@@ -21,7 +21,6 @@ import static com.google.cloud.dataflow.sdk.TestUtils.LINES2;
 import static com.google.cloud.dataflow.sdk.TestUtils.LINES_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES_ARRAY;
-
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.core.StringContains.containsString;
 
@@ -249,11 +248,11 @@ public class FlattenTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input1 =
-        p.apply(Create.of("Input1"))
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+        p.apply("CreateInput1", Create.of("Input1"))
+        .apply("Window1", Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
     PCollection<String> input2 =
-        p.apply(Create.of("Input2"))
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+        p.apply("CreateInput2", Create.of("Input2"))
+        .apply("Window2", Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
 
     PCollection<String> output =
         PCollectionList.of(input1).and(input2)
@@ -270,11 +269,13 @@ public class FlattenTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input1 =
-        p.apply(Create.of("Input1"))
-        .apply(Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(1))));
+        p.apply("CreateInput1", Create.of("Input1"))
+        .apply("Window1",
+            Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(1))));
     PCollection<String> input2 =
-        p.apply(Create.of("Input2"))
-        .apply(Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(2))));
+        p.apply("CreateInput2", Create.of("Input2"))
+        .apply("Window2",
+            Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(2))));
 
     PCollection<String> output =
         PCollectionList.of(input1).and(input2)
@@ -291,11 +292,11 @@ public class FlattenTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> input1 =
-        p.apply(Create.of("Input1"))
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+        p.apply("CreateInput1", Create.of("Input1"))
+        .apply("Window1", Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
     PCollection<String> input2 =
-        p.apply(Create.of("Input2"))
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(2))));
+        p.apply("CreateInput2", Create.of("Input2"))
+        .apply("Window2", Window.<String>into(FixedWindows.of(Duration.standardMinutes(2))));
 
     try {
       PCollectionList.of(input1).and(input2)
@@ -328,8 +329,9 @@ public class FlattenTest implements Serializable {
       Coder<T> coder,
       List<List<T>> lists) {
     List<PCollection<T>> pcs = new ArrayList<>();
+    int index = 0;
     for (List<T> list : lists) {
-      PCollection<T> pc = p.apply(Create.of(list).withCoder(coder));
+      PCollection<T> pc = p.apply("Create" + (index++), Create.of(list).withCoder(coder));
       pcs.add(pc);
     }
     return PCollectionList.of(pcs);

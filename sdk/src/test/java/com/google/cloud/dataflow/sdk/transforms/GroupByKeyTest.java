@@ -243,9 +243,9 @@ public class GroupByKeyTest {
             Sessions.withGapDuration(Duration.standardMinutes(1))));
 
     try {
-      PCollection<KV<String, Iterable<Iterable<Integer>>>> output = input
-          .apply(GroupByKey.<String, Integer>create())
-          .apply(GroupByKey.<String, Iterable<Integer>>create());
+      input
+          .apply("GroupByKey", GroupByKey.<String, Integer>create())
+          .apply("GroupByKeyAgain", GroupByKey.<String, Iterable<Integer>>create());
       Assert.fail("Exception should have been thrown");
     } catch (IllegalStateException e) {
       Assert.assertTrue(e.getMessage().startsWith(
@@ -266,10 +266,10 @@ public class GroupByKeyTest {
             Sessions.withGapDuration(Duration.standardMinutes(1))));
 
     PCollection<KV<String, Iterable<Iterable<Integer>>>> middle = input
-        .apply(GroupByKey.<String, Integer>create())
-        .apply(Window.<KV<String, Iterable<Integer>>>remerge())
-        .apply(GroupByKey.<String, Iterable<Integer>>create())
-        .apply(Window.<KV<String, Iterable<Iterable<Integer>>>>remerge());
+        .apply("GroupByKey", GroupByKey.<String, Integer>create())
+        .apply("Remerge", Window.<KV<String, Iterable<Integer>>>remerge())
+        .apply("GroupByKeyAgain", GroupByKey.<String, Iterable<Integer>>create())
+        .apply("RemergeAgain", Window.<KV<String, Iterable<Iterable<Integer>>>>remerge());
 
     p.run();
 

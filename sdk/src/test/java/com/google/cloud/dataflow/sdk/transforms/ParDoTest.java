@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import static com.google.cloud.dataflow.sdk.TestUtils.createInts;
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.serializeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.byteArrayToJsonString;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.jsonStringToByteArray;
@@ -31,9 +30,9 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -298,8 +297,8 @@ public class ParDoTest implements Serializable {
 
     @Override
     public PCollectionTuple apply(PCollection<Integer> input) {
-      PCollection<Integer> by2 = input.apply(ParDo.of(new FilterFn(2)));
-      PCollection<Integer> by3 = input.apply(ParDo.of(new FilterFn(3)));
+      PCollection<Integer> by2 = input.apply("Filter2s", ParDo.of(new FilterFn(2)));
+      PCollection<Integer> by3 = input.apply("Filter3s", ParDo.of(new FilterFn(3)));
       return PCollectionTuple.of(BY2, by2).and(BY3, by3);
     }
 
@@ -326,10 +325,8 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    PCollection<Integer> input = createInts(p, inputs);
-
-    PCollection<String> output =
-        input
+    PCollection<String> output = p
+        .apply(Create.of(inputs))
         .apply(ParDo.of(new TestDoFn()));
 
     DataflowAssert.that(output)
@@ -345,10 +342,8 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    PCollection<Integer> input = createInts(p, inputs);
-
-    PCollection<String> output =
-        input
+    PCollection<String> output = p
+        .apply(Create.of(inputs))
         .apply(ParDo.of(new TestDoFnWithContext()));
 
     DataflowAssert.that(output)
@@ -364,10 +359,8 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList();
 
-    PCollection<Integer> input = createInts(p, inputs);
-
-    PCollection<String> output =
-        input
+    PCollection<String> output = p
+        .apply(Create.of(inputs).withCoder(VarIntCoder.of()))
         .apply(ParDo.of(new TestDoFn()));
 
     DataflowAssert.that(output)
@@ -383,16 +376,14 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    PCollection<Integer> input = createInts(p, inputs);
-
     TupleTag<String> mainTag = new TupleTag<String>("main"){};
     TupleTag<String> sideTag1 = new TupleTag<String>("side1"){};
     TupleTag<String> sideTag2 = new TupleTag<String>("side2"){};
     TupleTag<String> sideTag3 = new TupleTag<String>("side3"){};
     TupleTag<String> sideTagUnwritten = new TupleTag<String>("sideUnwritten"){};
 
-    PCollectionTuple outputs =
-        input
+    PCollectionTuple outputs = p
+        .apply(Create.of(inputs))
         .apply(ParDo
                .of(new TestDoFn(
                    Arrays.<PCollectionView<Integer>>asList(),
@@ -426,19 +417,17 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    PCollection<Integer> input = createInts(p, inputs);
-
     final TupleTag<Void> mainTag = new TupleTag<Void>("main"){};
     final TupleTag<Integer> sideTag = new TupleTag<Integer>("side"){};
 
-    PCollectionTuple outputs = input.apply(
-        ParDo
-        .withOutputTags(mainTag, TupleTagList.of(sideTag))
-        .of(new DoFn<Integer, Void>(){
-              @Override
-              public void processElement(ProcessContext c) {
-                c.sideOutput(sideTag, c.element());
-              }}));
+    PCollectionTuple outputs = p
+        .apply(Create.of(inputs))
+        .apply(ParDo.withOutputTags(mainTag, TupleTagList.of(sideTag))
+            .of(new DoFn<Integer, Void>(){
+                @Override
+                public void processElement(ProcessContext c) {
+                  c.sideOutput(sideTag, c.element());
+                }}));
 
     DataflowAssert.that(outputs.get(mainTag)).containsInAnyOrder();
     DataflowAssert.that(outputs.get(sideTag)).containsInAnyOrder(inputs);
@@ -452,12 +441,10 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    PCollection<Integer> input = createInts(p, inputs);
-
     TupleTag<String> sideTag = new TupleTag<String>("side"){};
 
-    PCollection<String> output =
-        input
+    PCollection<String> output = p
+        .apply(Create.of(inputs))
         .apply(ParDo.of(new TestDoFn(
             Arrays.<PCollectionView<Integer>>asList(),
             Arrays.asList(sideTag))));
@@ -471,11 +458,11 @@ public class ParDoTest implements Serializable {
   @Test
   public void testParDoUndeclaredSideOutputLimit() {
     Pipeline p = TestPipeline.create();
-    PCollection<Integer> input = createInts(p, Arrays.asList(3));
+    PCollection<Integer> input = p.apply(Create.of(Arrays.asList(3)));
 
     // Success for a total of 1000 outputs.
     input
-        .apply(ParDo.of(new DoFn<Integer, String>() {
+        .apply("Success1000", ParDo.of(new DoFn<Integer, String>() {
             @Override
             public void processElement(ProcessContext c) {
               TupleTag<String> specialSideTag = new TupleTag<String>(){};
@@ -491,7 +478,7 @@ public class ParDoTest implements Serializable {
 
     // Failure for a total of 1001 outputs.
     input
-        .apply(ParDo.of(new DoFn<Integer, String>() {
+        .apply("Failure1001", ParDo.of(new DoFn<Integer, String>() {
             @Override
             public void processElement(ProcessContext c) {
               for (int i = 0; i < 1000; i++) {
@@ -511,19 +498,22 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    PCollection<Integer> input = createInts(p, inputs);
+    PCollectionView<Integer> sideInput1 = p
+        .apply("CreateSideInput1", Create.of(11))
+        .apply("ViewSideInput1", View.<Integer>asSingleton());
+    PCollectionView<Integer> sideInputUnread = p
+        .apply("CreateSideInputUnread", Create.of(-3333))
+        .apply("ViewSideInputUnread", View.<Integer>asSingleton());
+    PCollectionView<Integer> sideInput2 =         p
+        .apply("CreateSideInput2", Create.of(222))
+        .apply("ViewSideInput2", View.<Integer>asSingleton());
 
-    PCollectionView<Integer> sideInput1 = TestUtils.createSingletonInt(p, 11);
-    PCollectionView<Integer> sideInputUnread = TestUtils.createSingletonInt(p, -3333);
-    PCollectionView<Integer> sideInput2 = TestUtils.createSingletonInt(p, 222);
-
-    PCollection<String> output =
-        input
-        .apply(ParDo
-               .withSideInputs(sideInput1, sideInputUnread, sideInput2)
-               .of(new TestDoFn(
-                   Arrays.asList(sideInput1, sideInput2),
-                   Arrays.<TupleTag<String>>asList())));
+    PCollection<String> output = p
+        .apply(Create.of(inputs))
+        .apply(ParDo.withSideInputs(sideInput1, sideInputUnread, sideInput2)
+            .of(new TestDoFn(
+                Arrays.asList(sideInput1, sideInput2),
+                Arrays.<TupleTag<String>>asList())));
 
     DataflowAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput
@@ -539,11 +529,11 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    PCollection<Integer> input = createInts(p, inputs);
+    PCollectionView<Integer> sideView = p
+        .apply("Create3", Create.of(3))
+        .apply(View.<Integer>asSingleton());
 
-    PCollectionView<Integer> sideView = TestUtils.createSingletonInt(p, 3);
-
-    input
+    p.apply("CreateMain", Create.of(inputs))
         .apply(ParDo.of(new TestDoFn(
             Arrays.<PCollectionView<Integer>>asList(sideView),
             Arrays.<TupleTag<String>>asList())));
@@ -559,9 +549,7 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    PCollection<Integer> input = createInts(p, inputs);
-
-    input
+    p.apply(Create.of(inputs))
         .apply(ParDo.of(new TestStartBatchErrorDoFn()));
 
     thrown.expect(RuntimeException.class);
@@ -575,9 +563,7 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    PCollection<Integer> input = createInts(p, inputs);
-
-    input
+    p.apply(Create.of(inputs))
         .apply(ParDo.of(new TestProcessElementErrorDoFn()));
 
     thrown.expect(RuntimeException.class);
@@ -591,9 +577,7 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    PCollection<Integer> input = createInts(p, inputs);
-
-    input
+    p.apply(Create.of(inputs))
         .apply(ParDo.of(new TestFinishBatchErrorDoFn()));
 
     thrown.expect(RuntimeException.class);
@@ -606,7 +590,7 @@ public class ParDoTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<Integer> input =
-        createInts(p, Arrays.asList(3, -42, 666))
+        p.apply(Create.of(Arrays.asList(3, -42, 666)))
         .setName("MyInput");
 
     {
@@ -650,18 +634,14 @@ public class ParDoTest implements Serializable {
   public void testParDoWithSideOutputsName() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input =
-        createInts(p, Arrays.asList(3, -42, 666))
-        .setName("MyInput");
-
     TupleTag<String> mainTag = new TupleTag<String>("main"){};
     TupleTag<String> sideTag1 = new TupleTag<String>("side1"){};
     TupleTag<String> sideTag2 = new TupleTag<String>("side2"){};
     TupleTag<String> sideTag3 = new TupleTag<String>("side3"){};
     TupleTag<String> sideTagUnwritten = new TupleTag<String>("sideUnwritten"){};
 
-    PCollectionTuple outputs =
-        input
+    PCollectionTuple outputs = p
+        .apply(Create.of(Arrays.asList(3, -42, 666))).setName("MyInput")
         .apply(ParDo
                .named("MyParDo")
                .of(new TestDoFn(
@@ -686,10 +666,8 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    PCollection<Integer> input = createInts(p, inputs);
-
-    PCollection<String> output =
-        input
+    PCollection<String> output = p
+        .apply(Create.of(inputs))
         .apply(new PTransform<PCollection<Integer>, PCollection<String>>() {
             @Override
             public PCollection<String> apply(PCollection<Integer> input) {
@@ -709,17 +687,17 @@ public class ParDoTest implements Serializable {
   public void testMultiOutputChaining() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = createInts(p, Arrays.asList(3, 4, 5, 6));
-
-    PCollectionTuple filters = input.apply(new MultiFilter());
+    PCollectionTuple filters = p
+        .apply(Create.of(Arrays.asList(3, 4, 5, 6)))
+        .apply(new MultiFilter());
     PCollection<Integer> by2 = filters.get(MultiFilter.BY2);
     PCollection<Integer> by3 = filters.get(MultiFilter.BY3);
 
     // Apply additional filters to each operation.
     PCollection<Integer> by2then3 = by2
-        .apply(ParDo.of(new MultiFilter.FilterFn(3)));
+        .apply("Filter3sAgain", ParDo.of(new MultiFilter.FilterFn(3)));
     PCollection<Integer> by3then2 = by3
-        .apply(ParDo.of(new MultiFilter.FilterFn(2)));
+        .apply("Filter2sAgain", ParDo.of(new MultiFilter.FilterFn(2)));
 
     DataflowAssert.that(by2then3).containsInAnyOrder(6);
     DataflowAssert.that(by3then2).containsInAnyOrder(6);
@@ -953,8 +931,7 @@ public class ParDoTest implements Serializable {
     PCollectionTuple outputTuple = input.apply(ParDo.of(new MainOutputDummyFn(sideTag))
         .withOutputTags(mainTag, TupleTagList.of(sideTag)));
 
-    outputTuple.get(mainTag)
-        .setCoder(new TestDummyCoder());
+    outputTuple.get(mainTag).setCoder(new TestDummyCoder());
 
     pipeline.run();
   }
@@ -989,7 +966,7 @@ public class ParDoTest implements Serializable {
     PCollection<Integer> foo = tuple
         .get(mainOutputTag)
         .setCoder(TestDummyCoder.of())
-        .apply(ParDo.of(new DoFn<TestDummy, Integer>() {
+        .apply("Output1", ParDo.of(new DoFn<TestDummy, Integer>() {
           public void processElement(ProcessContext context) {
             context.output(1);
           }
@@ -1005,7 +982,7 @@ public class ParDoTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<Integer> input =
-        createInts(p, Arrays.asList(3, 42, 6));
+        p.apply(Create.of(Arrays.asList(3, 42, 6)));
 
     PCollection<String> output =
         input
@@ -1026,7 +1003,7 @@ public class ParDoTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<Integer> input =
-        createInts(p, Arrays.asList(3, 42, 6));
+        p.apply(Create.of(Arrays.asList(3, 42, 6)));
 
     final TupleTag<Integer> mainTag = new TupleTag<Integer>(){};
     final TupleTag<Integer> sideTag = new TupleTag<Integer>(){};
@@ -1057,7 +1034,7 @@ public class ParDoTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     PCollection<Integer> input =
-        createInts(p, Arrays.asList(3, 42, 6));
+        p.apply(Create.of(Arrays.asList(3, 42, 6)));
 
     PCollection<String> output =
         input
@@ -1078,7 +1055,7 @@ public class ParDoTest implements Serializable {
   public void testParDoShiftTimestampInvalid() {
     Pipeline p = TestPipeline.create();
 
-    createInts(p, Arrays.asList(3, 42, 6))
+    p.apply(Create.of(Arrays.asList(3, 42, 6)))
         .apply(ParDo.of(new TestOutputTimestampDoFn()))
         .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.millis(1000),
                                                    Duration.millis(-1001))))

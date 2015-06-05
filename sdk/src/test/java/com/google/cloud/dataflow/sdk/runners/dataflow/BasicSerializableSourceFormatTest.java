@@ -271,7 +271,8 @@ public class BasicSerializableSourceFormatTest {
   @Test
   public void testDirectPipelineWithoutTimestamps() throws Exception {
     Pipeline p = TestPipeline.create();
-    PCollection<Integer> sum = p.apply(Read.from(TestIO.fromRange(10, 20)))
+    PCollection<Integer> sum = p
+        .apply(Read.from(TestIO.fromRange(10, 20)))
         .apply(Sum.integersGlobally())
         .apply(Sample.<Integer>any(1));
 

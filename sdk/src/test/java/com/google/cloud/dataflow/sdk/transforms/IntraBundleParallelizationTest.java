@@ -23,9 +23,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 
-import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -184,9 +182,10 @@ public class IntraBundleParallelizationTest {
     }
 
     ConcurrencyMeasuringFn<Integer> downstream = new ConcurrencyMeasuringFn<>();
-    PCollection<Integer> input = TestUtils.createInts(p, data);
-    input.apply(IntraBundleParallelization.of(doFn).withMaxParallelism(maxParallelism))
-         .apply(ParDo.of(downstream));
+    p
+    .apply(Create.of(data))
+    .apply(IntraBundleParallelization.of(doFn).withMaxParallelism(maxParallelism))
+    .apply(ParDo.of(downstream));
 
     long startTime = System.currentTimeMillis();
 

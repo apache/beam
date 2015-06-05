@@ -133,8 +133,8 @@ public class PipelineTest {
     Pipeline p = TestPipeline.create();
     PCollection<String> input = p.apply(Create.<String>of(ImmutableList.of("a", "b")));
 
-    PCollection<String> left = input.apply(myTransform).apply(myTransform);
-    PCollection<String> right = input.apply(myTransform);
+    PCollection<String> left = input.apply("Left1", myTransform).apply("Left2", myTransform);
+    PCollection<String> right = input.apply("Right", myTransform);
 
     PCollection<String> both = PCollectionList.of(left).and(right)
         .apply(Flatten.<String>pCollections());

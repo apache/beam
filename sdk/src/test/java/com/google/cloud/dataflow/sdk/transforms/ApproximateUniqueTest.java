@@ -234,7 +234,7 @@ public class ApproximateUniqueTest implements Serializable {
       file.addAll(page);
     }
     assert file.size() == pages * page.size();
-    PCollection<String> words = TestUtils.createStrings(p, file);
+    PCollection<String> words = p.apply(Create.of(file));
     return words;
   }
 

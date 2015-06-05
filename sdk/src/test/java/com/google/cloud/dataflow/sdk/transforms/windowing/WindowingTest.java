@@ -165,12 +165,12 @@ public class WindowingTest implements Serializable {
   @Category(RunnableOnService.class)
   public void testWindowPreservation() {
     Pipeline p = TestPipeline.create();
-    PCollection<String> input1 = p.apply(
+    PCollection<String> input1 = p.apply("Create12",
         Create.timestamped(
             TimestampedValue.of("a", new Instant(1)),
             TimestampedValue.of("b", new Instant(2))));
 
-    PCollection<String> input2 = p.apply(
+    PCollection<String> input2 = p.apply("Create34",
         Create.timestamped(
             TimestampedValue.of("a", new Instant(3)),
             TimestampedValue.of("b", new Instant(4))));

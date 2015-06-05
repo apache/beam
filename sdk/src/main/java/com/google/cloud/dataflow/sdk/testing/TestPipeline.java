@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
@@ -79,10 +80,12 @@ public class TestPipeline extends Pipeline {
     if (Boolean.parseBoolean(System.getProperty("runIntegrationTestOnService"))) {
       TestDataflowPipelineOptions options = getPipelineOptions();
       LOG.info("Using passed in options: " + options);
+      options.setStableUniqueNames(CheckEnabled.ERROR);
       return new TestPipeline(createRunner(options), options);
     } else {
       DirectPipelineRunner directRunner = DirectPipelineRunner.createForTest();
       directRunner.getPipelineOptions().setAppName(getAppName());
+      directRunner.getPipelineOptions().setStableUniqueNames(CheckEnabled.ERROR);
       return new TestPipeline(directRunner, directRunner.getPipelineOptions());
     }
   }

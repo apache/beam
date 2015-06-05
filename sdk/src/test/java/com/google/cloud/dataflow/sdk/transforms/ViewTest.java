@@ -35,7 +35,6 @@ import com.google.common.base.Preconditions;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -68,12 +67,12 @@ public class ViewTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Integer> view = pipeline
-        .apply(Create.of(47))
+        .apply("Create47", Create.of(47))
         .apply(View.<Integer>asSingleton());
 
     PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.withSideInputs(view).of(
+        .apply("Create123", Create.of(1, 2, 3))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
             new DoFn<Integer, Integer>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -92,13 +91,12 @@ public class ViewTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Integer> view = pipeline
-        .apply(Create.<Integer>of()
-            .withCoder(VarIntCoder.of()))
+        .apply("CreateEmptyIntegers", Create.<Integer>of().withCoder(VarIntCoder.of()))
         .apply(View.<Integer>asSingleton());
 
     pipeline
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.withSideInputs(view).of(
+        .apply("Create123", Create.of(1, 2, 3))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
             new DoFn<Integer, Integer>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -119,13 +117,12 @@ public class ViewTest implements Serializable {
   public void testNonSingletonSideInput() throws Exception {
     Pipeline pipeline = TestPipeline.create();
 
-    final PCollectionView<Integer> view = pipeline
-        .apply(Create.<Integer>of(1, 2, 3))
+    PCollection<Integer> oneTwoThree = pipeline.apply(Create.<Integer>of(1, 2, 3));
+    final PCollectionView<Integer> view = oneTwoThree
         .apply(View.<Integer>asSingleton());
 
-    pipeline
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.withSideInputs(view).of(
+    oneTwoThree
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
             new DoFn<Integer, Integer>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -148,12 +145,12 @@ public class ViewTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<List<Integer>> view = pipeline
-        .apply(Create.of(11, 13, 17, 23))
+        .apply("CreateSideInput", Create.of(11, 13, 17, 23))
         .apply(View.<Integer>asList());
 
     PCollection<Integer> output = pipeline
-        .apply(Create.of(29, 31))
-        .apply(ParDo.withSideInputs(view).of(
+        .apply("CreateMainInput", Create.of(29, 31))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
             new DoFn<Integer, Integer>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -178,12 +175,12 @@ public class ViewTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Iterable<Integer>> view = pipeline
-        .apply(Create.of(11, 13, 17, 23))
+        .apply("CreateSideInput", Create.of(11, 13, 17, 23))
         .apply(View.<Integer>asIterable());
 
     PCollection<Integer> output = pipeline
-        .apply(Create.of(29, 31))
-        .apply(ParDo.withSideInputs(view).of(
+        .apply("CreateMainInput", Create.of(29, 31))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
             new DoFn<Integer, Integer>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -206,12 +203,12 @@ public class ViewTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Iterable<Integer>>> view = pipeline
-        .apply(Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
+        .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
         .apply(View.<String, Integer>asMap());
 
     PCollection<KV<String, Integer>> output = pipeline
-        .apply(Create.of("apple", "banana", "blackberry"))
-        .apply(ParDo.withSideInputs(view).of(
+        .apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
             new DoFn<String, KV<String, Integer>>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -234,12 +231,12 @@ public class ViewTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view = pipeline
-        .apply(Create.of(KV.of("a", 1), KV.of("b", 3)))
+        .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
         .apply(View.<String, Integer>asMap().withSingletonValues());
 
     PCollection<KV<String, Integer>> output = pipeline
-        .apply(Create.of("apple", "banana", "blackberry"))
-        .apply(ParDo.withSideInputs(view).of(
+        .apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
             new DoFn<String, KV<String, Integer>>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -260,12 +257,12 @@ public class ViewTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view = pipeline
-        .apply(Create.of(KV.of("a", 1), KV.of("a", 20), KV.of("b", 3)))
+        .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 20), KV.of("b", 3)))
         .apply(View.<String, Integer>asMap().withCombiner(new Sum.SumIntegerFn()));
 
     PCollection<KV<String, Integer>> output = pipeline
-        .apply(Create.of("apple", "banana", "blackberry"))
-        .apply(ParDo.withSideInputs(view).of(
+        .apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
+        .apply("Output", ParDo.withSideInputs(view).of(
             new DoFn<String, KV<String, Integer>>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -286,21 +283,21 @@ public class ViewTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     final PCollectionView<Integer> view = p
-        .apply(Create.timestamped(
+        .apply("CreateSideInput", Create.timestamped(
             TimestampedValue.of(1, new Instant(1)),
             TimestampedValue.of(2, new Instant(11)),
             TimestampedValue.of(3, new Instant(13))))
-        .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
+        .apply("WindowSideInput", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
         .apply(Sum.integersGlobally().withoutDefaults())
         .apply(View.<Integer>asSingleton());
 
     PCollection<String> output = p
-        .apply(Create.timestamped(
+        .apply("CreateMainInput", Create.timestamped(
             TimestampedValue.of("A", new Instant(4)),
             TimestampedValue.of("B", new Instant(15)),
             TimestampedValue.of("C", new Instant(7))))
-        .apply(Window.<String>into(FixedWindows.of(Duration.millis(10))))
-        .apply(ParDo.withSideInputs(view).of(
+        .apply("WindowMainInput", Window.<String>into(FixedWindows.of(Duration.millis(10))))
+        .apply("OutputMainAndSideInputs", ParDo.withSideInputs(view).of(
             new DoFn<String, String>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -319,21 +316,21 @@ public class ViewTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     final PCollectionView<Integer> view = p
-        .apply(Create.timestamped(
+        .apply("CreateSideInput", Create.timestamped(
             TimestampedValue.of(1, new Instant(1)),
             TimestampedValue.of(2, new Instant(11)),
             TimestampedValue.of(3, new Instant(13))))
-        .apply(Window.<Integer>into(new GlobalWindows()))
+        .apply("WindowSideInput", Window.<Integer>into(new GlobalWindows()))
         .apply(Sum.integersGlobally())
         .apply(View.<Integer>asSingleton());
 
     PCollection<String> output = p
-        .apply(Create.timestamped(
+        .apply("CreateMainInput", Create.timestamped(
             TimestampedValue.of("A", new Instant(4)),
             TimestampedValue.of("B", new Instant(15)),
             TimestampedValue.of("C", new Instant(7))))
-        .apply(Window.<String>into(FixedWindows.of(Duration.millis(10))))
-        .apply(ParDo.withSideInputs(view).of(
+        .apply("WindowMainInput", Window.<String>into(FixedWindows.of(Duration.millis(10))))
+        .apply("OutputMainAndSideInputs", ParDo.withSideInputs(view).of(
             new DoFn<String, String>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -352,19 +349,19 @@ public class ViewTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     final PCollectionView<Integer> view = p
-        .apply(Create.timestamped(
+        .apply("CreateSideInput", Create.timestamped(
             TimestampedValue.of(2, new Instant(11)),
             TimestampedValue.of(3, new Instant(13))))
-        .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
+        .apply("WindowSideInput", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
         .apply(Sum.integersGlobally().asSingletonView());
 
     PCollection<String> output = p
-        .apply(Create.timestamped(
+        .apply("CreateMainInput", Create.timestamped(
             TimestampedValue.of("A", new Instant(4)),
             TimestampedValue.of("B", new Instant(15)),
             TimestampedValue.of("C", new Instant(7))))
-        .apply(Window.<String>into(FixedWindows.of(Duration.millis(10))))
-        .apply(ParDo.withSideInputs(view).of(
+        .apply("WindowMainInput", Window.<String>into(FixedWindows.of(Duration.millis(10))))
+        .apply("OutputMainAndSideInputs", ParDo.withSideInputs(view).of(
             new DoFn<String, String>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -383,7 +380,7 @@ public class ViewTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     final PCollectionView<Void> view = p
-        .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
+        .apply("CreateSideInput", Create.of((Void) null).withCoder(VoidCoder.of()))
         .apply(Combine.globally(new SerializableFunction<Iterable<Void>, Void>() {
                   @Override
                   public Void apply(Iterable<Void> input) {
@@ -392,8 +389,8 @@ public class ViewTest implements Serializable {
                 }).asSingletonView());
 
     PCollection<String> output = p
-        .apply(Create.of(""))
-        .apply(ParDo.withSideInputs(view).of(
+        .apply("CreateMainInput", Create.of(""))
+        .apply("OutputMainAndSideInputs", ParDo.withSideInputs(view).of(
             new DoFn<String, String>() {
               @Override
               public void processElement(ProcessContext c) {

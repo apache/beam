@@ -14,7 +14,6 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import static com.google.cloud.dataflow.sdk.TestUtils.createStrings;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -25,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.Sink;
 import com.google.cloud.dataflow.sdk.io.Sink.WriteOperation;
 import com.google.cloud.dataflow.sdk.io.Sink.Writer;
@@ -107,10 +107,10 @@ public class WriteTest {
       for (long i = 0; i < inputs.size(); i++) {
         timestamps.add(i + 1);
       }
-      input = p.apply(Create.timestamped(inputs, timestamps))
+      input = p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
                .apply(Window.<String>into(FixedWindows.of(new Duration(2))));
     } else {
-      input = createStrings(p, inputs);
+      input = p.apply(Create.of(inputs).withCoder(StringUtf8Coder.of()));
     }
     TestSink sink = new TestSink();
 

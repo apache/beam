@@ -64,26 +64,26 @@ public class CoGroupByKeyTest implements Serializable {
    * Converts the given list into a PCollection belonging to the provided
    * Pipeline in such a way that coder inference needs to be performed.
    */
-  private PCollection<KV<Integer, String>> createInput(
+  private PCollection<KV<Integer, String>> createInput(String name,
       Pipeline p, List<KV<Integer, String>> list) {
-    return createInput(p, list,  new ArrayList<Long>());
+    return createInput(name, p, list,  new ArrayList<Long>());
   }
 
   /**
    * Converts the given list with timestamps into a PCollection.
    */
-  private PCollection<KV<Integer, String>> createInput(
+  private PCollection<KV<Integer, String>> createInput(String name,
       Pipeline p, List<KV<Integer, String>> list, List<Long> timestamps) {
     PCollection<KV<Integer, String>> input;
     if (timestamps.isEmpty()) {
-      input = p.apply(Create.of(list)
+      input = p.apply("Create" + name, Create.of(list)
           .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
     } else {
-      input = p.apply(Create.timestamped(list, timestamps)
+      input = p.apply("Create" + name, Create.timestamped(list, timestamps)
           .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
     }
     return input
-            .apply(ParDo.of(new DoFn<KV<Integer, String>,
+            .apply("Identity" + name, ParDo.of(new DoFn<KV<Integer, String>,
                                      KV<Integer, String>>() {
               @Override
               public void processElement(ProcessContext c) {
@@ -110,8 +110,8 @@ public class CoGroupByKeyTest implements Serializable {
         Arrays.asList(
             KV.of(2, "collection2-2"),
             KV.of(3, "collection2-3"));
-    PCollection<KV<Integer, String>> collection1 = createInput(p, list1);
-    PCollection<KV<Integer, String>> collection2 = createInput(p, list2);
+    PCollection<KV<Integer, String>> collection1 = createInput("CreateList1", p, list1);
+    PCollection<KV<Integer, String>> collection2 = createInput("CreateList2", p, list2);
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         KeyedPCollectionTuple.of(tag1, collection1)
             .and(tag2, collection2)
@@ -186,13 +186,13 @@ public class CoGroupByKeyTest implements Serializable {
             KV.of(20, "Joan Lichtfield"));
 
     PCollection<KV<Integer, String>> purchasesTable =
-        createInput(p, idToPurchases);
+        createInput("CreateIdToPurchases", p, idToPurchases);
 
     PCollection<KV<Integer, String>> addressTable =
-        createInput(p, idToAddress);
+        createInput("CreateIdToAddress", p, idToAddress);
 
     PCollection<KV<Integer, String>> nameTable =
-        createInput(p, idToName);
+        createInput("CreateIdToName", p, idToName);
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         KeyedPCollectionTuple.of(namesTag, nameTable)
@@ -233,19 +233,19 @@ public class CoGroupByKeyTest implements Serializable {
             KV.of(2, "House t10"));
 
     PCollection<KV<Integer, String>> clicksTable =
-        createInput(
+        createInput("CreateClicks",
             p,
             idToClick,
             Arrays.asList(0L, 2L, 4L, 6L, 8L))
-        .apply(Window.<KV<Integer, String>>into(
+        .apply("WindowClicks", Window.<KV<Integer, String>>into(
             FixedWindows.of(new Duration(4))));
 
     PCollection<KV<Integer, String>> purchasesTable =
-        createInput(
+        createInput("CreatePurchases",
             p,
             idToPurchases,
             Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L))
-        .apply(Window.<KV<Integer, String>>into(
+        .apply("WindowPurchases", Window.<KV<Integer, String>>into(
             FixedWindows.of(new Duration(4))));
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
