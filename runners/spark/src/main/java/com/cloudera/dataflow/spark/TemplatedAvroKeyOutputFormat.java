@@ -16,13 +16,14 @@
 package com.cloudera.dataflow.spark;
 
 import java.io.IOException;
+import java.io.OutputStream;
 
+import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
-public class TemplatedTextOutputFormat<K, V> extends TextOutputFormat<K, V>
+public class TemplatedAvroKeyOutputFormat<T> extends AvroKeyOutputFormat<T>
     implements ShardNameTemplateAware {
 
   @Override
@@ -31,10 +32,9 @@ public class TemplatedTextOutputFormat<K, V> extends TextOutputFormat<K, V>
   }
 
   @Override
-  public Path getDefaultWorkFile(TaskAttemptContext context,
-      String extension) throws IOException {
-    // note that the passed-in extension is ignored since it comes from the template
-    return ShardNameTemplateHelper.getDefaultWorkFile(this, context);
+  protected OutputStream getAvroFileOutputStream(TaskAttemptContext context) throws IOException {
+    Path path = ShardNameTemplateHelper.getDefaultWorkFile(this, context);
+    return path.getFileSystem(context.getConfiguration()).create(path);
   }
 
 }

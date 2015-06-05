@@ -48,11 +48,11 @@ import com.google.common.collect.Iterables;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
-import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
@@ -409,27 +409,12 @@ public final class TransformTranslator {
                 return new Tuple2<>(t, null);
               }
             });
-        int shardCount = transform.getNumShards();
-        if (shardCount == 0) {
-          // use default number of shards, but find the actual number for the template
-          shardCount = last.partitions().size();
-        } else {
-          // number of shards was set explicitly, so repartition
-          last = last.repartition(transform.getNumShards());
-        }
-
-        String template = replaceShardCount(transform.getShardTemplate(), shardCount);
-        String outputDir = getOutputDirectory(transform.getFilenamePrefix(), template);
-        String filePrefix = getOutputFilePrefix(transform.getFilenamePrefix(), template);
-        String fileTemplate = getOutputFileTemplate(transform.getFilenamePrefix(), template);
-        String fileSuffix = transform.getFilenameSuffix();
-
-        Configuration conf = new Configuration();
-        conf.set(TemplatedTextOutputFormat.OUTPUT_FILE_PREFIX, filePrefix);
-        conf.set(TemplatedTextOutputFormat.OUTPUT_FILE_TEMPLATE, fileTemplate);
-        conf.set(TemplatedTextOutputFormat.OUTPUT_FILE_SUFFIX, fileSuffix);
-        last.saveAsNewAPIHadoopFile(outputDir, Text.class, NullWritable.class,
-            TemplatedTextOutputFormat.class, conf);
+        ShardTemplateInformation shardTemplateInfo =
+            new ShardTemplateInformation(transform.getNumShards(),
+                transform.getShardTemplate(), transform.getFilenamePrefix(),
+                transform.getFilenameSuffix());
+        writeHadoopFile(last, new Configuration(), shardTemplateInfo, Text.class,
+            NullWritable.class, TemplatedTextOutputFormat.class);
       }
     };
   }
@@ -462,9 +447,6 @@ public final class TransformTranslator {
     return new TransformEvaluator<AvroIO.Write.Bound<T>>() {
       @Override
       public void evaluate(AvroIO.Write.Bound<T> transform, EvaluationContext context) {
-        String pattern = transform.getFilenamePrefix();
-        @SuppressWarnings("unchecked")
-        JavaRDDLike<T, ?> last = (JavaRDDLike<T, ?>) context.getInputRDD(transform);
         Job job;
         try {
           job = Job.getInstance();
@@ -472,14 +454,21 @@ public final class TransformTranslator {
           throw new IllegalStateException(e);
         }
         AvroJob.setOutputKeySchema(job, transform.getSchema());
-        last.mapToPair(new PairFunction<T, AvroKey<T>, NullWritable>() {
-            @Override
-            public Tuple2<AvroKey<T>, NullWritable> call(T t) throws Exception {
-              return new Tuple2<>(new AvroKey<>(t), NullWritable.get());
-            }})
-          .saveAsNewAPIHadoopFile(pattern, AvroKey.class, NullWritable.class,
-              AvroKeyOutputFormat.class, job.getConfiguration());
-
+        @SuppressWarnings("unchecked")
+        JavaPairRDD<AvroKey<T>, NullWritable> last =
+            ((JavaRDDLike<T, ?>) context.getInputRDD(transform))
+            .mapToPair(new PairFunction<T, AvroKey<T>, NullWritable>() {
+              @Override
+              public Tuple2<AvroKey<T>, NullWritable> call(T t) throws Exception {
+                return new Tuple2<>(new AvroKey<>(t), NullWritable.get());
+              }
+            });
+        ShardTemplateInformation shardTemplateInfo =
+            new ShardTemplateInformation(transform.getNumShards(),
+            transform.getShardTemplate(), transform.getFilenamePrefix(),
+            transform.getFilenameSuffix());
+        writeHadoopFile(last, job.getConfiguration(), shardTemplateInfo,
+            AvroKey.class, NullWritable.class, TemplatedAvroKeyOutputFormat.class);
       }
     };
   }
@@ -504,6 +493,87 @@ public final class TransformTranslator {
         context.setOutputRDD(transform, rdd);
       }
     };
+  }
+
+  private static <K, V> TransformEvaluator<HadoopIO.Write.Bound<K, V>> writeHadoop() {
+    return new TransformEvaluator<HadoopIO.Write.Bound<K, V>>() {
+      @Override
+      public void evaluate(HadoopIO.Write.Bound<K, V> transform, EvaluationContext context) {
+        @SuppressWarnings("unchecked")
+        JavaPairRDD<K, V> last = ((JavaRDDLike<KV<K, V>, ?>) context
+            .getInputRDD(transform))
+            .mapToPair(new PairFunction<KV<K, V>, K, V>() {
+              @Override
+              public Tuple2<K, V> call(KV<K, V> t) throws Exception {
+                return new Tuple2<>(t.getKey(), t.getValue());
+              }
+            });
+        ShardTemplateInformation shardTemplateInfo =
+            new ShardTemplateInformation(transform.getNumShards(),
+                transform.getShardTemplate(), transform.getFilenamePrefix(),
+                transform.getFilenameSuffix());
+        Configuration conf = new Configuration();
+        for (Map.Entry<String, String> e : transform.getConfigurationProperties().entrySet()) {
+          conf.set(e.getKey(), e.getValue());
+        }
+        writeHadoopFile(last, conf, shardTemplateInfo,
+            transform.getKeyClass(), transform.getValueClass(), transform.getFormatClass());
+      }
+    };
+  }
+
+  private static final class ShardTemplateInformation {
+    private final int numShards;
+    private final String shardTemplate;
+    private final String filenamePrefix;
+    private final String filenameSuffix;
+
+    private ShardTemplateInformation(int numShards, String shardTemplate, String
+        filenamePrefix, String filenameSuffix) {
+      this.numShards = numShards;
+      this.shardTemplate = shardTemplate;
+      this.filenamePrefix = filenamePrefix;
+      this.filenameSuffix = filenameSuffix;
+    }
+
+    public int getNumShards() {
+      return numShards;
+    }
+
+    public String getShardTemplate() {
+      return shardTemplate;
+    }
+
+    public String getFilenamePrefix() {
+      return filenamePrefix;
+    }
+
+    public String getFilenameSuffix() {
+      return filenameSuffix;
+    }
+  }
+
+  private static <K, V> void writeHadoopFile(JavaPairRDD<K, V> rdd, Configuration conf,
+      ShardTemplateInformation shardTemplateInfo, Class<?> keyClass, Class<?> valueClass,
+      Class<? extends FileOutputFormat> formatClass) {
+    int numShards = shardTemplateInfo.getNumShards();
+    String shardTemplate = shardTemplateInfo.getShardTemplate();
+    String filenamePrefix = shardTemplateInfo.getFilenamePrefix();
+    String filenameSuffix = shardTemplateInfo.getFilenameSuffix();
+    if (numShards != 0) {
+      // number of shards was set explicitly, so repartition
+      rdd = rdd.repartition(numShards);
+    }
+    int actualNumShards = rdd.partitions().size();
+    String template = replaceShardCount(shardTemplate, actualNumShards);
+    String outputDir = getOutputDirectory(filenamePrefix, template);
+    String filePrefix = getOutputFilePrefix(filenamePrefix, template);
+    String fileTemplate = getOutputFileTemplate(filenamePrefix, template);
+
+    conf.set(ShardNameTemplateHelper.OUTPUT_FILE_PREFIX, filePrefix);
+    conf.set(ShardNameTemplateHelper.OUTPUT_FILE_TEMPLATE, fileTemplate);
+    conf.set(ShardNameTemplateHelper.OUTPUT_FILE_SUFFIX, filenameSuffix);
+    rdd.saveAsNewAPIHadoopFile(outputDir, keyClass, valueClass, formatClass, conf);
   }
 
   private static <T> TransformEvaluator<Window.Bound<T>> window() {
@@ -613,6 +683,7 @@ public final class TransformTranslator {
     EVALUATORS.put(AvroIO.Read.Bound.class, readAvro());
     EVALUATORS.put(AvroIO.Write.Bound.class, writeAvro());
     EVALUATORS.put(HadoopIO.Read.Bound.class, readHadoop());
+    EVALUATORS.put(HadoopIO.Write.Bound.class, writeHadoop());
     EVALUATORS.put(ParDo.Bound.class, parDo());
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
     EVALUATORS.put(GroupByKey.GroupByKeyOnly.class, gbk());

@@ -20,9 +20,9 @@ import java.io.IOException;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
-public class TemplatedTextOutputFormat<K, V> extends TextOutputFormat<K, V>
+public class TemplatedSequenceFileOutputFormat<K, V> extends SequenceFileOutputFormat<K, V>
     implements ShardNameTemplateAware {
 
   @Override

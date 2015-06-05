@@ -90,8 +90,8 @@ public class AvroPipelineTest {
   private List<GenericRecord> readGenericFile() throws IOException {
     List<GenericRecord> records = Lists.newArrayList();
     GenericDatumReader<GenericRecord> genericDatumReader = new GenericDatumReader<>();
-    try (DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>
-        (new File(outputDir, "part-r-00000.avro"), genericDatumReader)) {
+    try (DataFileReader<GenericRecord> dataFileReader =
+             new DataFileReader<>(new File(outputDir + "-00000-of-00001"), genericDatumReader)) {
       for (GenericRecord record : dataFileReader) {
         records.add(record);
       }
