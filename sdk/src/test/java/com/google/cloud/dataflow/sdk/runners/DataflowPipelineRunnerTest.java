@@ -342,7 +342,7 @@ public class DataflowPipelineRunnerTest {
     p.apply(TextIO.Read.named("ReadMyNonGcsFile").from("/tmp/file"));
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("GCS URI"));
+    thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
     p.run();
     assertValidJob(jobCaptor.getValue());
   }
@@ -356,7 +356,7 @@ public class DataflowPipelineRunnerTest {
         .apply(TextIO.Write.named("WriteMyNonGcsFile").to("/tmp/file"));
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("GCS URI"));
+    thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
     p.run();
     assertValidJob(jobCaptor.getValue());
   }
@@ -398,7 +398,7 @@ public class DataflowPipelineRunnerTest {
     options.setTempLocation("file://temp/location");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("GCS URI"));
+    thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
     DataflowPipelineRunner.fromOptions(options);
     assertValidJob(jobCaptor.getValue());
   }
@@ -413,14 +413,14 @@ public class DataflowPipelineRunnerTest {
       DataflowPipelineRunner.fromOptions(options);
       fail("fromOptions should have failed");
     } catch (IllegalArgumentException e) {
-      assertThat(e.getMessage(), containsString("GCS URI"));
+      assertThat(e.getMessage(), containsString("expected a valid 'gs://' path but was given"));
     }
     options.setStagingLocation("my/staging/location");
     try {
       DataflowPipelineRunner.fromOptions(options);
       fail("fromOptions should have failed");
     } catch (IllegalArgumentException e) {
-      assertThat(e.getMessage(), containsString("GCS URI"));
+      assertThat(e.getMessage(), containsString("expected a valid 'gs://' path but was given"));
     }
   }
 

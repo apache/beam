@@ -28,7 +28,7 @@ public class DataflowPathValidator implements PathValidator {
 
   private DataflowPipelineOptions dataflowOptions;
 
-  private DataflowPathValidator(DataflowPipelineOptions options) {
+  DataflowPathValidator(DataflowPipelineOptions options) {
     this.dataflowOptions = options;
   }
 
@@ -38,7 +38,7 @@ public class DataflowPathValidator implements PathValidator {
 
   @Override
   public String validateInputFilePatternSupported(String filepattern) {
-    GcsPath gcsPath = GcsPath.fromUri(filepattern);
+    GcsPath gcsPath = getGcsPath(filepattern);
     Preconditions.checkArgument(
         dataflowOptions.getGcsUtil().isGcsPatternSupported(gcsPath.getObject()));
     return verifyPath(filepattern);
@@ -51,11 +51,21 @@ public class DataflowPathValidator implements PathValidator {
 
   @Override
   public String verifyPath(String path) {
-    GcsPath gcsPath = GcsPath.fromUri(path);
+    GcsPath gcsPath = getGcsPath(path);
     Preconditions.checkArgument(gcsPath.isAbsolute(),
         "Must provide absolute paths for Dataflow");
     Preconditions.checkArgument(!gcsPath.getObject().contains("//"),
         "Dataflow Service does not allow objects with consecutive slashes");
     return gcsPath.toResourceName();
+  }
+
+  private GcsPath getGcsPath(String path) {
+    try {
+      return GcsPath.fromUri(path);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(String.format(
+          "%s expected a valid 'gs://' path but was given '%s'",
+          dataflowOptions.getRunner().getSimpleName(), path), e);
+    }
   }
 }
