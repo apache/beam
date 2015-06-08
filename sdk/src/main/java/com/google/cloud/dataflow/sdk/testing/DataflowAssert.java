@@ -27,12 +27,15 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
@@ -44,6 +47,9 @@ import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -84,6 +90,11 @@ import java.util.NoSuchElementException;
  * <p>JUnit and Hamcrest must be linked in by any code that uses DataflowAssert.
  */
 public class DataflowAssert {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DataflowAssert.class);
+
+  static final String SUCCESS_COUNTER = "DataflowAssertSuccess";
+  static final String FAILURE_COUNTER = "DataflowAssertFailure";
 
   private static int assertCount = 0;
 
@@ -454,9 +465,8 @@ public class DataflowAssert {
    * <p> This is generally useful for assertion functions that
    * are serializable but whose underlying data may not have a coder.
    */
-  private static class OneSideInputAssert<ActualT>
+  static class OneSideInputAssert<ActualT>
       extends PTransform<PBegin, PDone> implements Serializable {
-
     private static final long serialVersionUID = 0;
 
     private final transient PTransform<PBegin, PCollectionView<ActualT>> createActual;
@@ -476,17 +486,41 @@ public class DataflowAssert {
       input
           .apply(Create.<Void>of((Void) null).withCoder(VoidCoder.of()))
           .apply(ParDo.named("RunChecks").withSideInputs(actual)
-              .of(new DoFn<Void, Void>() {
-                private static final long serialVersionUID = 0;
-
-                @Override
-                public void processElement(DoFn<Void, Void>.ProcessContext c) {
-                  ActualT actualContents = c.sideInput(actual);
-                  checkerFn.apply(actualContents);
-                }
-              }));
+              .of(new CheckerDoFn<>(checkerFn, actual)));
 
       return PDone.in(input.getPipeline());
+    }
+
+    private static class CheckerDoFn<ActualT> extends DoFn<Void, Void> {
+      private static final long serialVersionUID = 0;
+      private final SerializableFunction<ActualT, Void> checkerFn;
+      private final Aggregator<Integer, Integer> success =
+          createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
+      private final Aggregator<Integer, Integer> failure =
+          createAggregator(FAILURE_COUNTER, new Sum.SumIntegerFn());
+      private final PCollectionView<ActualT> actual;
+
+      private CheckerDoFn(final SerializableFunction<ActualT, Void> checkerFn,
+          PCollectionView<ActualT> actual) {
+        this.checkerFn = checkerFn;
+        this.actual = actual;
+      }
+
+      @Override
+      public void processElement(ProcessContext c) {
+        try {
+          ActualT actualContents = c.sideInput(actual);
+          checkerFn.apply(actualContents);
+          success.addValue(1);
+        } catch (Throwable t) {
+          LOG.error("DataflowAssert failed expectations.", t);
+          failure.addValue(1);
+          // TODO: allow for metrics to propagate on failure when running a streaming pipeline
+          if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
+            throw t;
+          }
+        }
+      }
     }
   }
 
@@ -500,7 +534,7 @@ public class DataflowAssert {
    * are not serializable, but have coders (provided
    * by the underlying {@link PCollection}s).
    */
-  private static class TwoSideInputAssert<ActualT, ExpectedT>
+  static class TwoSideInputAssert<ActualT, ExpectedT>
       extends PTransform<PBegin, PDone> implements Serializable {
 
     private static final long serialVersionUID = 0;
@@ -526,18 +560,44 @@ public class DataflowAssert {
       input
           .apply(Create.<Void>of((Void) null).withCoder(VoidCoder.of()))
           .apply(ParDo.named("RunChecks").withSideInputs(actual, expected)
-              .of(new DoFn<Void, Void>() {
-                private static final long serialVersionUID = 0;
-
-                @Override
-                public void processElement(DoFn<Void, Void>.ProcessContext c) {
-                  ActualT actualContents = c.sideInput(actual);
-                  ExpectedT expectedContents = c.sideInput(expected);
-                  relation.assertFor(expectedContents).apply(actualContents);
-                }
-              }));
+              .of(new CheckerDoFn<>(relation, actual, expected)));
 
       return PDone.in(input.getPipeline());
+    }
+
+    private static class CheckerDoFn<ActualT, ExpectedT> extends DoFn<Void, Void> {
+      private static final long serialVersionUID = 0;
+      private final Aggregator<Integer, Integer> success =
+          createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
+      private final Aggregator<Integer, Integer> failure =
+          createAggregator(FAILURE_COUNTER, new Sum.SumIntegerFn());
+      private final AssertRelation<ActualT, ExpectedT> relation;
+      private final PCollectionView<ActualT> actual;
+      private final PCollectionView<ExpectedT> expected;
+
+      private CheckerDoFn(AssertRelation<ActualT, ExpectedT> relation,
+          PCollectionView<ActualT> actual, PCollectionView<ExpectedT> expected) {
+        this.relation = relation;
+        this.actual = actual;
+        this.expected = expected;
+      }
+
+      @Override
+      public void processElement(ProcessContext c) {
+        try {
+          ActualT actualContents = c.sideInput(actual);
+          ExpectedT expectedContents = c.sideInput(expected);
+          relation.assertFor(expectedContents).apply(actualContents);
+          success.addValue(1);
+        } catch (Throwable t) {
+          LOG.error("DataflowAssert failed expectations.", t);
+          failure.addValue(1);
+          // TODO: allow for metrics to propagate on failure when running a streaming pipeline
+          if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
+            throw t;
+          }
+        }
+      }
     }
   }
 
