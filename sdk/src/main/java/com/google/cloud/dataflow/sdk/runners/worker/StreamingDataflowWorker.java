@@ -89,6 +89,19 @@ public class StreamingDataflowWorker {
     }
   }
 
+  /**
+   * Returns whether an exception was caused by a {@link KeyTokenInvalidException}.
+   */
+  private static boolean isKeyTokenInvalidException(Throwable t) {
+    while (t != null) {
+      if (t instanceof KeyTokenInvalidException) {
+        return true;
+      }
+      t = t.getCause();
+    }
+    return false;
+  }
+
   static MapTask parseMapTask(String input) throws IOException {
     return Transport.getJsonFactory()
         .fromString(input, MapTask.class);
@@ -348,8 +361,8 @@ public class StreamingDataflowWorker {
         // Disable progress updates since its results are unused for streaming
         // and involves starting a thread.
         readOperation.setProgressUpdatePeriodMs(0);
-        Preconditions.checkState(worker.supportsRestart(),
-            "Streaming runner requires all operations support restart.");
+        Preconditions.checkState(
+            worker.supportsRestart(), "Streaming runner requires all operations support restart.");
       } else {
         worker = workerAndContext.getWorker();
         context = workerAndContext.getContext();
@@ -382,25 +395,31 @@ public class StreamingDataflowWorker {
 
       t = t instanceof UserCodeException ? t.getCause() : t;
 
-      if (t instanceof KeyTokenInvalidException) {
-        LOG.debug("Execution of work for " + computation
-            + " for key " + work.getKey().toStringUtf8()
-            + " failed due to token expiration, will not retry locally.");
+      if (isKeyTokenInvalidException(t)) {
+        LOG.debug(
+            "Execution of work for "
+                + computation
+                + " for key "
+                + work.getKey().toStringUtf8()
+                + " failed due to token expiration, will not retry locally.");
       } else {
-        LOG.error("Execution of work for {} for key {} failed, retrying.",
-            computation, work.getKey().toStringUtf8());
+        LOG.error(
+            "Execution of work for {} for key {} failed, retrying.",
+            computation,
+            work.getKey().toStringUtf8());
         LOG.error("\nError: ", t);
         lastException.set(t);
         LOG.debug("Failed work: {}", work);
         if (reportFailure(computation, work, t)) {
           // Try again, after some delay and at the end of the queue to avoid a tight loop.
           sleep(10000);
-          executor.forceExecute(new Runnable() {
-              @Override
-              public void run() {
-                process(computation, inputDataWatermark, work);
-              }
-            });
+          executor.forceExecute(
+              new Runnable() {
+                @Override
+                public void run() {
+                  process(computation, inputDataWatermark, work);
+                }
+              });
         } else {
           // If we failed to report the error, the item is invalid and should
           // not be retried internally.  It will be retried at the higher level.
