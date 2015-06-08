@@ -692,7 +692,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     private static final BitSetCoder INSTANCE = new BitSetCoder();
     private static final long serialVersionUID = 1L;
 
-    private transient Coder<byte[]> byteArrayCoder = ByteArrayCoder.of();
+    private transient ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
 
     private BitSetCoder() {}
 
@@ -703,7 +703,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public void encode(BitSet value, OutputStream outStream, Context context)
         throws CoderException, IOException {
-      byteArrayCoder.encode(value.toByteArray(), outStream, context);
+      byteArrayCoder.encodeAndOwn(value.toByteArray(), outStream, context);
     }
 
     @Override

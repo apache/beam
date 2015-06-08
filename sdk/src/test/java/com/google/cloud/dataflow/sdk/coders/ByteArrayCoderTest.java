@@ -16,12 +16,20 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertThat;
+
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.common.CounterTestUtils;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 /**
  * Unit tests for {@link ByteArrayCoder}.
@@ -59,5 +67,39 @@ public class ByteArrayCoderTest {
         CoderProperties.structuralValueConsistentWithEquals(coder, value1, value2);
       }
     }
+  }
+
+  @Test
+  public void testEncodeThenMutate() throws Exception {
+    byte[] input = { 0x7, 0x3, 0xA, 0xf };
+    Coder<byte[]> coder = ByteArrayCoder.of();
+    byte[] encoded = CoderUtils.encodeToByteArray(coder, input);
+    input[1] = 0x9;
+    byte[] decoded = CoderUtils.decodeFromByteArray(coder, encoded);
+
+    // now that I have mutated the input, the output should NOT match
+    assertThat(input, not(equalTo(decoded)));
+  }
+
+  @Test
+  public void testEncodeAndOwn() throws Exception {
+    ByteArrayCoder coder = ByteArrayCoder.of();
+    for (byte[] value : TEST_VALUES) {
+      byte[] encodedSlow = CoderUtils.encodeToByteArray(coder, value);
+      byte[] encodedFast = encodeToByteArrayAndOwn(coder, value);
+      assertThat(encodedSlow, equalTo(encodedFast));
+    }
+  }
+
+  private static byte[] encodeToByteArrayAndOwn(ByteArrayCoder coder, byte[] value)
+      throws IOException {
+    return encodeToByteArrayAndOwn(coder, value, Coder.Context.OUTER);
+  }
+
+  private static byte[] encodeToByteArrayAndOwn(
+      ByteArrayCoder coder, byte[] value, Coder.Context context) throws IOException {
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    coder.encodeAndOwn(value, os, context);
+    return os.toByteArray();
   }
 }

@@ -58,6 +58,22 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
       VarInt.encode(value.length, outStream);
       outStream.write(value);
     } else {
+      outStream.write(value);
+    }
+  }
+
+  /**
+   * Encodes the provided {@code value} with the identical encoding to {@link #encode}, but with
+   * optimizations that take ownership of the value.
+   *
+   * <p>Once passed to this method, {@code value} should never be observed or mutated again.
+   */
+  public void encodeAndOwn(byte[] value, OutputStream outStream, Context context)
+      throws IOException, CoderException {
+    if (!context.isWholeStream) {
+      VarInt.encode(value.length, outStream);
+      outStream.write(value);
+    } else {
       if (outStream instanceof ExposedByteArrayOutputStream) {
         ((ExposedByteArrayOutputStream) outStream).writeAndOwn(value);
       } else {
