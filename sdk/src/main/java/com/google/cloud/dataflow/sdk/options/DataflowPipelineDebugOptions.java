@@ -169,6 +169,14 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setReload(boolean value);
 
   /**
+   * Root URL for use with the Pubsub API.
+   */
+  @Description("Root URL for use with the Pubsub API")
+  @Default.String("https://pubsub.googleapis.com")
+  String getPubsubRootUrl();
+  void setPubsubRootUrl(String value);
+
+  /**
    * Creates a {@link PathValidator} object using the class specified in
    * {@link #getPathValidatorClass()}.
    */

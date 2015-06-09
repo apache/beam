@@ -17,22 +17,22 @@
 package com.google.cloud.dataflow.examples;
 
 import com.google.api.services.pubsub.Pubsub;
-import com.google.api.services.pubsub.model.Label;
 import com.google.api.services.pubsub.model.PublishRequest;
 import com.google.api.services.pubsub.model.PubsubMessage;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.options.Validation;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.IntraBundleParallelization;
 import com.google.cloud.dataflow.sdk.util.Transport;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * A batch Dataflow pipeline for injecting a set of GCS files into
@@ -84,9 +84,9 @@ public class PubsubFileInjector {
 
     @Override
     public void startBundle(Context context) {
-      StreamingOptions options =
-          context.getPipelineOptions().as(StreamingOptions.class);
-      this.pubsub = Transport.newPubsubClient(options).build();
+      this.pubsub =
+          Transport.newPubsubClient(context.getPipelineOptions().as(DataflowPipelineOptions.class))
+              .build();
     }
 
     @Override
@@ -94,14 +94,12 @@ public class PubsubFileInjector {
       PubsubMessage pubsubMessage = new PubsubMessage();
       pubsubMessage.encodeData(c.element().getBytes());
       if (timestampLabelKey != null) {
-        Label timestampLabel = new Label();
-        timestampLabel.setKey(timestampLabelKey);
-        timestampLabel.setNumValue(c.timestamp().getMillis());
-        pubsubMessage.setLabel(ImmutableList.of(timestampLabel));
+        pubsubMessage.setAttributes(
+            ImmutableMap.of(timestampLabelKey, Long.toString(c.timestamp().getMillis())));
       }
       PublishRequest publishRequest = new PublishRequest();
-      publishRequest.setTopic(outputTopic).setMessage(pubsubMessage);
-      this.pubsub.topics().publish(publishRequest).execute();
+      publishRequest.setMessages(Arrays.asList(pubsubMessage));
+      this.pubsub.projects().topics().publish(outputTopic, publishRequest).execute();
     }
   }
 

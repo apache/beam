@@ -16,15 +16,44 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import com.google.api.services.pubsub.Pubsub;
+import com.google.api.services.pubsub.model.AcknowledgeRequest;
+import com.google.api.services.pubsub.model.PublishRequest;
+import com.google.api.services.pubsub.model.PubsubMessage;
+import com.google.api.services.pubsub.model.PullRequest;
+import com.google.api.services.pubsub.model.PullResponse;
+import com.google.api.services.pubsub.model.ReceivedMessage;
+import com.google.api.services.pubsub.model.Subscription;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.StreamingOptions;
+import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
+
+import org.joda.time.Duration;
+import org.joda.time.Instant;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,14 +63,9 @@ import javax.annotation.Nullable;
 /**
  * Read and Write {@link PTransform}s for Pub/Sub streams. These transforms create
  * and consume unbounded {@link com.google.cloud.dataflow.sdk.values.PCollection}s.
- *
- * <p> {@code PubsubIO}  is only usable
- * with the {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner}
- * and requires
- * {@link com.google.cloud.dataflow.sdk.options.StreamingOptions#setStreaming(boolean)}
- * to be enabled.
  */
 public class PubsubIO {
+  private static final Logger LOG = LoggerFactory.getLogger(PubsubIO.class);
   public static final Coder<String> DEFAULT_PUBSUB_CODER = StringUtf8Coder.of();
 
   /**
@@ -54,9 +78,15 @@ public class PubsubIO {
       Pattern.compile("[a-z][-a-z0-9:.]{4,61}[a-z0-9]");
 
   private static final Pattern SUBSCRIPTION_REGEXP =
-      Pattern.compile("/subscriptions/([^/]+)/(.+)");
+      Pattern.compile("projects/([^/]+)/subscriptions/(.+)");
 
   private static final Pattern TOPIC_REGEXP =
+      Pattern.compile("projects/([^/]+)/topics/(.+)");
+
+  private static final Pattern V1BETA1_SUBSCRIPTION_REGEXP =
+      Pattern.compile("/subscriptions/([^/]+)/(.+)");
+
+  private static final Pattern V1BETA1_TOPIC_REGEXP =
       Pattern.compile("/topics/([^/]+)/(.+)");
 
   private static final Pattern PUBSUB_NAME_REGEXP =
@@ -68,63 +98,156 @@ public class PubsubIO {
   private static final String SUBSCRIPTION_STARTING_SIGNAL = "_starting_signal/";
   private static final String TOPIC_DEV_NULL_TEST_NAME = "/topics/dev/null";
 
+  private static void validateProjectName(String project) {
+    Matcher match = PROJECT_ID_REGEXP.matcher(project);
+    if (!match.matches()) {
+      throw new IllegalArgumentException(
+          "Illegal project name specified in Pubsub subscription: " + project);
+    }
+  }
+
+  private static void validatePubsubName(String name) {
+    if (name.length() > PUBSUB_NAME_MAX_LENGTH) {
+      throw new IllegalArgumentException(
+          "Pubsub object name is longer than 255 characters: " + name);
+    }
+
+    if (name.startsWith("goog")) {
+      throw new IllegalArgumentException(
+          "Pubsub object name cannot start with goog: " + name);
+    }
+
+    Matcher match = PUBSUB_NAME_REGEXP.matcher(name);
+    if (!match.matches()) {
+      throw new IllegalArgumentException(
+          "Illegal Pubsub object name specified: " + name
+          + " Please see Javadoc for naming rules.");
+    }
+  }
+
   /**
-   * Utility class to validate topic and subscription names.
+   * Class representing a Pubsub Subscription.
    */
-  public static class Validator {
-    public static void validateTopicName(String topic) {
-      if (topic.equals(TOPIC_DEV_NULL_TEST_NAME)) {
-        return;
-      }
-      Matcher match = TOPIC_REGEXP.matcher(topic);
-      if (!match.matches()) {
-        throw new IllegalArgumentException(
-            "Pubsub topic is not in /topics/project_id/topic_name format: "
-            + topic);
-      }
-      validateProjectName(match.group(1));
-      validatePubsubName(match.group(2));
+  public static class PubsubSubscription implements Serializable {
+    private static final long serialVersionUID = 0L;
+    private enum Type { NORMAL, FAKE }
+
+    private final Type type;
+    private final String project;
+    private final String subscription;
+
+    private PubsubSubscription(Type type, String project, String subscription) {
+      this.type = type;
+      this.project = project;
+      this.subscription = subscription;
     }
 
-    public static void validateSubscriptionName(String subscription) {
-      if (subscription.startsWith(SUBSCRIPTION_RANDOM_TEST_PREFIX)
-          || subscription.startsWith(SUBSCRIPTION_STARTING_SIGNAL)) {
-        return;
+    public static PubsubSubscription fromPath(String path) {
+      if (path.startsWith(SUBSCRIPTION_RANDOM_TEST_PREFIX)
+          || path.startsWith(SUBSCRIPTION_STARTING_SIGNAL)) {
+        return new PubsubSubscription(Type.FAKE, "", path);
       }
-      Matcher match = SUBSCRIPTION_REGEXP.matcher(subscription);
-      if (!match.matches()) {
-        throw new IllegalArgumentException(
-            "Pubsub subscription is not in /subscriptions/project_id/subscription_name format: "
-            + subscription);
+
+      String projectName, subscriptionName;
+
+      Matcher v1beta1Match = V1BETA1_SUBSCRIPTION_REGEXP.matcher(path);
+      if (v1beta1Match.matches()) {
+        LOG.warn("Saw subscription in v1beta1 format. Subscriptions should be in the format "
+            + "projects/<project_id>/subscriptions/<subscription_name>");
+        projectName = v1beta1Match.group(1);
+        subscriptionName = v1beta1Match.group(2);
+      } else {
+        Matcher match = SUBSCRIPTION_REGEXP.matcher(path);
+        if (!match.matches()) {
+          throw new IllegalArgumentException(
+              "Pubsub subscription is not in "
+              + "projects/<project_id>/subscriptions/<subscription_name> format: " + path);
+        }
+        projectName = match.group(1);
+        subscriptionName = match.group(2);
       }
-      validateProjectName(match.group(1));
-      validatePubsubName(match.group(2));
+
+      validateProjectName(projectName);
+      validatePubsubName(subscriptionName);
+      return new PubsubSubscription(Type.NORMAL, projectName, subscriptionName);
     }
 
-    private static void validateProjectName(String project) {
-      Matcher match = PROJECT_ID_REGEXP.matcher(project);
-      if (!match.matches()) {
-        throw new IllegalArgumentException(
-            "Illegal project name specified in Pubsub subscription: " + project);
+    public String asV1Beta1Path() {
+      if (type == Type.NORMAL) {
+        return "/subscriptions/" + project + "/" + subscription;
+      } else {
+        return subscription;
       }
     }
 
-    private static void validatePubsubName(String name) {
-      if (name.length() > PUBSUB_NAME_MAX_LENGTH) {
-        throw new IllegalArgumentException(
-            "Pubsub object name is longer than 255 characters: " + name);
+    public String asV1Beta2Path() {
+      if (type == Type.NORMAL) {
+        return "projects/" + project + "/subscriptions/" + subscription;
+      } else {
+        return subscription;
+      }
+    }
+  }
+
+  /**
+   * Class representing a Pubsub Topic.
+   */
+  public static class PubsubTopic implements Serializable {
+    private static final long serialVersionUID = 0L;
+    private enum Type { NORMAL, FAKE }
+
+    private final Type type;
+    private final String project;
+    private final String topic;
+
+    public PubsubTopic(Type type, String project, String topic) {
+      this.type = type;
+      this.project = project;
+      this.topic = topic;
+    }
+
+    public static PubsubTopic fromPath(String path) {
+      if (path.equals(TOPIC_DEV_NULL_TEST_NAME)) {
+        return new PubsubTopic(Type.FAKE, "", path);
       }
 
-      if (name.startsWith("goog")) {
-        throw new IllegalArgumentException(
-            "Pubsub object name cannot start with goog: " + name);
+      String projectName, topicName;
+
+      Matcher v1beta1Match = V1BETA1_TOPIC_REGEXP.matcher(path);
+      if (v1beta1Match.matches()) {
+        LOG.warn("Saw topic in v1beta1 format.  Topics should be in the format "
+            + "projects/<project_id>/topics/<topic_name>");
+        projectName = v1beta1Match.group(1);
+        topicName = v1beta1Match.group(2);
+      } else {
+        Matcher match = TOPIC_REGEXP.matcher(path);
+        if (!match.matches()) {
+          throw new IllegalArgumentException(
+              "Pubsub topic is not in projects/<project_id>/topics/<topic_name> format: "
+              + path);
+        }
+        projectName = match.group(1);
+        topicName = match.group(2);
       }
 
-      Matcher match = PUBSUB_NAME_REGEXP.matcher(name);
-      if (!match.matches()) {
-        throw new IllegalArgumentException(
-            "Illegal Pubsub object name specified: " + name
-            + " Please see Javadoc for naming rules.");
+      validateProjectName(projectName);
+      validatePubsubName(topicName);
+      return new PubsubTopic(Type.NORMAL, projectName, topicName);
+    }
+
+    public String asV1Beta1Path() {
+      if (type == Type.NORMAL) {
+        return "/topics/" + project + "/" + topic;
+      } else {
+        return topic;
+      }
+    }
+
+    public String asV1Beta2Path() {
+      if (type == Type.NORMAL) {
+        return "projects/" + project + "/topics/" + topic;
+      } else {
+        return topic;
       }
     }
   }
@@ -133,6 +256,11 @@ public class PubsubIO {
    * A {@link PTransform} that continuously reads from a Pubsub stream and
    * returns a {@code PCollection<String>} containing the items from
    * the stream.
+   *
+   * <p> When running with a runner that only supports bounded {@code PCollection}s
+   * (such as DirectPipelineRunner or DataflowPipelineRunner without --streaming), only a
+   * bounded portion of the input Pubsub stream can be processed.  As such, either
+   * {@link Bound#maxNumRecords} or {@link Bound#maxReadTime} must be set.
    */
   public static class Read {
     public static Bound<String> named(String name) {
@@ -202,11 +330,6 @@ public class PubsubIO {
      * Any late data will be handled by the trigger specified with the windowing strategy -- by
      * default it will be output immediately.
      *
-     * <p> The {#dropLateData} field allows you to control what to do with late data. This relaxes
-     * the semantics of {@code GroupByKey}; see
-     * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} for additional information on
-     * late data and windowing.
-     *
      * <p> Note that the system can guarantee that no late data will ever be seen when it assigns
      * timestamps by arrival time (i.e. {@code timestampLabel} is not provided).
      */
@@ -243,15 +366,35 @@ public class PubsubIO {
     }
 
     /**
+     * Sets the maximum number of records that will be read from Pubsub.
+     *
+     * <p> Either this or {@link #maxReadTime} must be set for use as a bounded
+     * {@code PCollection}.
+     */
+    public static Bound<String> maxNumRecords(int maxNumRecords) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).maxNumRecords(maxNumRecords);
+    }
+
+    /**
+     * Sets the maximum duration during which records will be read from Pubsub.
+     *
+     * <p> Either this or {@link #maxNumRecords} must be set for use as a bounded
+     * {@code PCollection}.
+     */
+    public static Bound<String> maxReadTime(Duration maxReadTime) {
+      return new Bound<>(DEFAULT_PUBSUB_CODER).maxReadTime(maxReadTime);
+    }
+
+    /**
      * A {@link PTransform} that reads from a PubSub source and returns
      * a unbounded PCollection containing the items from the stream.
      */
     @SuppressWarnings("serial")
     public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
       /** The Pubsub topic to read from. */
-      String topic;
+      PubsubTopic topic;
       /** The Pubsub subscription to read from. */
-      String subscription;
+      PubsubSubscription subscription;
       /** The Pubsub label to read timestamps from. */
       String timestampLabel;
       /** The Pubsub label to read ids from. */
@@ -259,25 +402,30 @@ public class PubsubIO {
       /** The coder used to decode each record. */
       @Nullable
       final Coder<T> coder;
+      /** Stop after reading this many records. */
+      int maxNumRecords;
+      /** Stop after reading for this much time. */
+      Duration maxReadTime;
 
       Bound(Coder<T> coder) {
         this.coder = coder;
       }
 
-      Bound(String name, String subscription, String topic, String timestampLabel,
-          Coder<T> coder, String idLabel) {
+      Bound(String name, PubsubSubscription subscription, PubsubTopic topic, String timestampLabel,
+          Coder<T> coder, String idLabel,
+          int maxNumRecords, Duration maxReadTime) {
         super(name);
         if (subscription != null) {
-          Validator.validateSubscriptionName(subscription);
+          this.subscription = subscription;
         }
         if (topic != null) {
-          Validator.validateTopicName(topic);
+          this.topic = topic;
         }
-        this.subscription = subscription;
-        this.topic = topic;
         this.timestampLabel = timestampLabel;
         this.coder = coder;
         this.idLabel = idLabel;
+        this.maxNumRecords = maxNumRecords;
+        this.maxReadTime = maxReadTime;
       }
 
       /**
@@ -285,15 +433,21 @@ public class PubsubIO {
        * step name. Does not modify the object.
        */
       public Bound<T> named(String name) {
-        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
+        return new Bound<>(name, subscription, topic, timestampLabel,
+            coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       /**
        * Returns a new PubsubIO.Read PTransform that's like this one but reading from the
        * given subscription. Does not modify the object.
+       *
+       * <p> Multiple readers reading from the same subscription will each receive
+       * some arbirary portion of the data.  Most likely, separate readers should
+       * use their own subscriptions.
        */
       public Bound<T> subscription(String subscription) {
-        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
+        return new Bound<>(name, PubsubSubscription.fromPath(subscription), topic, timestampLabel,
+            coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       /**
@@ -301,7 +455,8 @@ public class PubsubIO {
        * give topic. Does not modify the object.
        */
       public Bound<T> topic(String topic) {
-        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
+        return new Bound<>(name, subscription, PubsubTopic.fromPath(topic), timestampLabel,
+            coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       /**
@@ -309,7 +464,8 @@ public class PubsubIO {
        * from the given PubSub label. Does not modify the object.
        */
       public Bound<T> timestampLabel(String timestampLabel) {
-        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
+        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel,
+            maxNumRecords, maxReadTime);
       }
 
       /**
@@ -317,7 +473,8 @@ public class PubsubIO {
        * from the given PubSub label. Does not modify the object.
        */
       public Bound<T> idLabel(String idLabel) {
-        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
+        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel,
+            maxNumRecords, maxReadTime);
       }
 
       /**
@@ -329,7 +486,30 @@ public class PubsubIO {
        * elements of the resulting PCollection.
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel);
+        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel,
+            maxNumRecords, maxReadTime);
+      }
+
+      /**
+       * Sets the maximum number of records that will be read from Pubsub.
+       *
+       * <p> Setting either this or {@link #maxNumRecords} will cause the output {@code PCollection}
+       * to be bounded.
+       */
+      public Bound<T> maxNumRecords(int maxNumRecords) {
+        return new Bound<>(name, subscription, topic, timestampLabel,
+            coder, idLabel, maxNumRecords, maxReadTime);
+      }
+
+      /**
+       * Sets the maximum duration during which records will be read from Pubsub.
+       *
+       * <p> Setting either this or {@link #maxNumRecords} will cause the output {@code PCollection}
+       * to be bounded.
+       */
+      public Bound<T> maxReadTime(Duration maxReadTime) {
+        return new Bound<>(name, subscription, topic, timestampLabel,
+            coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       @Override
@@ -344,11 +524,19 @@ public class PubsubIO {
               "Can't set both the topic and the subscription for a "
               + "PubsubIO.Read transform");
         }
-        return PCollection.<T>createPrimitiveOutputInternal(
-                input.getPipeline(),
-                WindowingStrategy.globalDefault(),
-                IsBounded.UNBOUNDED)
-            .setCoder(coder);
+
+        boolean boundedOutput = getMaxNumRecords() > 0 || getMaxReadTime() != null;
+
+        if (boundedOutput) {
+          return input.getPipeline().begin()
+              .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
+              .apply(ParDo.of(new PubsubReader()))
+              .setCoder(coder);
+        } else {
+          return PCollection.<T>createPrimitiveOutputInternal(
+                  input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
+              .setCoder(coder);
+        }
       }
 
       @Override
@@ -361,11 +549,11 @@ public class PubsubIO {
         return "PubsubIO.Read";
       }
 
-      public String getTopic() {
+      public PubsubTopic getTopic() {
         return topic;
       }
 
-      public String getSubscription() {
+      public PubsubSubscription getSubscription() {
         return subscription;
       }
 
@@ -373,13 +561,106 @@ public class PubsubIO {
         return timestampLabel;
       }
 
+      public Coder<T> getCoder() {
+        return coder;
+      }
+
       public String getIdLabel() {
         return idLabel;
       }
 
-      static {
-        // TODO: Figure out how to make this work under
-        // DirectPipelineRunner.
+      public int getMaxNumRecords() {
+        return maxNumRecords;
+      }
+
+      public Duration getMaxReadTime() {
+        return maxReadTime;
+      }
+
+      private class PubsubReader extends DoFn<Void, T> {
+        private static final long serialVersionUID = 0L;
+
+        @Override
+        public void processElement(ProcessContext c) throws IOException {
+          Pubsub pubsubClient =
+              Transport.newPubsubClient(c.getPipelineOptions().as(DataflowPipelineOptions.class))
+                  .build();
+
+          String subscription = getSubscription().asV1Beta2Path();
+          if (subscription == null) {
+            String topic = getTopic().asV1Beta2Path();
+            String[] split = topic.split("/");
+            subscription = "projects/" + split[1] + "/subscriptions/" + split[3]
+                + "_dataflow_" + new Random().nextLong();
+            Subscription subInfo = new Subscription()
+                .setAckDeadlineSeconds(60)
+                .setTopic(topic);
+            try {
+              pubsubClient.projects().subscriptions().create(subscription, subInfo).execute();
+            } catch (Exception e) {
+              throw new RuntimeException("Failed to create subscription: ", e);
+            }
+          }
+
+          Instant endTime = getMaxReadTime() == null
+              ? new Instant(Long.MAX_VALUE) : Instant.now().plus(getMaxReadTime());
+
+          List<PubsubMessage> messages = new ArrayList<>();
+
+          try {
+            while ((getMaxNumRecords() == 0 || messages.size() < getMaxNumRecords())
+                && Instant.now().isBefore(endTime)) {
+              PullRequest pullRequest = new PullRequest().setReturnImmediately(false);
+              if (getMaxNumRecords() > 0) {
+                pullRequest.setMaxMessages(getMaxNumRecords() - messages.size());
+              }
+
+              PullResponse pullResponse =
+                  pubsubClient.projects().subscriptions().pull(subscription, pullRequest).execute();
+              List<String> ackIds = new ArrayList<>();
+              for (ReceivedMessage received : pullResponse.getReceivedMessages()) {
+                messages.add(received.getMessage());
+                ackIds.add(received.getAckId());
+              }
+
+              if (ackIds.size() != 0) {
+                AcknowledgeRequest ackRequest = new AcknowledgeRequest().setAckIds(ackIds);
+                pubsubClient.projects()
+                    .subscriptions()
+                    .acknowledge(subscription, ackRequest)
+                    .execute();
+              }
+            }
+          } catch (IOException e) {
+            throw new RuntimeException("Unexected exception while reading from Pubsub: ", e);
+          } finally {
+            if (getTopic() != null) {
+              try {
+                pubsubClient.projects().subscriptions().delete(subscription).execute();
+              } catch (IOException e) {
+                throw new RuntimeException("Failed to delete subscription: ", e);
+              }
+            }
+          }
+
+          for (PubsubMessage message : messages) {
+            Instant timestamp;
+            if (getTimestampLabel() == null) {
+              timestamp = Instant.now();
+            } else {
+              if (message.getAttributes() == null
+                  || !message.getAttributes().containsKey(getTimestampLabel())) {
+                throw new RuntimeException(
+                    "Message from pubsub missing timestamp label: " + getTimestampLabel());
+              }
+              timestamp = new Instant(Long.parseLong(
+                      message.getAttributes().get(getTimestampLabel())));
+            }
+            c.outputWithTimestamp(
+                CoderUtils.decodeFromByteArray(getCoder(), message.decodeData()),
+                timestamp);
+          }
+        }
       }
     }
   }
@@ -444,13 +725,13 @@ public class PubsubIO {
     }
 
     /**
-     * A {@link PTransform} that writes a unbounded {@code PCollection<String>}
+     * A {@link PTransform} that writes an unbounded {@code PCollection<String>}
      * to a PubSub stream.
      */
     @SuppressWarnings("serial")
     public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
       /** The Pubsub topic to publish to. */
-      String topic;
+      PubsubTopic topic;
       String timestampLabel;
       String idLabel;
       final Coder<T> coder;
@@ -459,10 +740,9 @@ public class PubsubIO {
         this.coder = coder;
       }
 
-      Bound(String name, String topic, String timestampLabel, String idLabel, Coder<T> coder) {
+      Bound(String name, PubsubTopic topic, String timestampLabel, String idLabel, Coder<T> coder) {
         super(name);
         if (topic != null) {
-          Validator.validateTopicName(topic);
           this.topic = topic;
         }
         this.timestampLabel = timestampLabel;
@@ -483,7 +763,7 @@ public class PubsubIO {
        * topic. Does not modify the object.
        */
       public Bound<T> topic(String topic) {
-        return new Bound<>(name, topic, timestampLabel, idLabel, coder);
+        return new Bound<>(name, PubsubTopic.fromPath(topic), timestampLabel, idLabel, coder);
       }
 
       /**
@@ -520,7 +800,13 @@ public class PubsubIO {
           throw new IllegalStateException(
               "need to set the topic of a PubsubIO.Write transform");
         }
-        return PDone.in(input.getPipeline());
+
+        if (input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()) {
+          return PDone.in(input.getPipeline());
+        } else {
+          input.apply(ParDo.of(new PubsubWriter()));
+          return PDone.in(input.getPipeline());
+        }
       }
 
       @Override
@@ -533,7 +819,7 @@ public class PubsubIO {
         return "PubsubIO.Write";
       }
 
-      public String getTopic() {
+      public PubsubTopic getTopic() {
         return topic;
       }
 
@@ -549,9 +835,54 @@ public class PubsubIO {
         return coder;
       }
 
-      static {
-        // TODO: Figure out how to make this work under
-        // DirectPipelineRunner.
+      private class PubsubWriter extends DoFn<T, Void> {
+        private static final long serialVersionUID = 0L;
+        private static final int MAX_PUBLISH_BATCH_SIZE = 100;
+        private transient List<PubsubMessage> output;
+        private transient Pubsub pubsubClient;
+
+
+        @Override
+        public void startBundle(Context c) {
+          this.output = new ArrayList<>();
+          this.pubsubClient =
+              Transport.newPubsubClient(c.getPipelineOptions().as(DataflowPipelineOptions.class))
+                  .build();
+        }
+
+        @Override
+        public void processElement(ProcessContext c) throws IOException {
+          PubsubMessage message = new PubsubMessage().encodeData(
+              CoderUtils.encodeToByteArray(getCoder(), c.element()));
+          if (getTimestampLabel() != null) {
+            Map<String, String> attributes = message.getAttributes();
+            if (attributes == null) {
+              attributes = new HashMap<>();
+              message.setAttributes(attributes);
+            }
+            attributes.put(
+                getTimestampLabel(), String.valueOf(c.timestamp().getMillis()));
+          }
+          output.add(message);
+
+          if (output.size() >= MAX_PUBLISH_BATCH_SIZE) {
+            publish();
+          }
+        }
+
+        @Override
+        public void finishBundle(Context c) throws IOException {
+          if (!output.isEmpty()) {
+            publish();
+          }
+        }
+
+        private void publish() throws IOException {
+          PublishRequest publishRequest = new PublishRequest().setMessages(output);
+          pubsubClient.projects().topics()
+              .publish(getTopic().asV1Beta2Path(), publishRequest).execute();
+          output.clear();
+        }
       }
     }
   }

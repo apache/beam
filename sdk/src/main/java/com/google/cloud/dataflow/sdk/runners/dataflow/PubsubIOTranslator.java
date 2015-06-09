@@ -42,16 +42,18 @@ public class PubsubIOTranslator {
         PubsubIO.Read.Bound<T> transform,
         TranslationContext context) {
       if (!context.getPipelineOptions().isStreaming()) {
-        throw new IllegalArgumentException("PubsubIO can only be used in streaming mode.");
+        throw new IllegalArgumentException(
+            "Unbounded PubsubIO can only be used in streaming mode.");
       }
 
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, "pubsub");
       if (transform.getTopic() != null) {
-        context.addInput(PropertyNames.PUBSUB_TOPIC, transform.getTopic());
+        context.addInput(PropertyNames.PUBSUB_TOPIC, transform.getTopic().asV1Beta1Path());
       }
       if (transform.getSubscription() != null) {
-        context.addInput(PropertyNames.PUBSUB_SUBSCRIPTION, transform.getSubscription());
+        context.addInput(
+            PropertyNames.PUBSUB_SUBSCRIPTION, transform.getSubscription().asV1Beta1Path());
       }
       if (transform.getTimestampLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL, transform.getTimestampLabel());
@@ -83,7 +85,7 @@ public class PubsubIOTranslator {
 
       context.addStep(transform, "ParallelWrite");
       context.addInput(PropertyNames.FORMAT, "pubsub");
-      context.addInput(PropertyNames.PUBSUB_TOPIC, transform.getTopic());
+      context.addInput(PropertyNames.PUBSUB_TOPIC, transform.getTopic().asV1Beta1Path());
       if (transform.getTimestampLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL, transform.getTimestampLabel());
       }

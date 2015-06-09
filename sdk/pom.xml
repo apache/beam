@@ -392,7 +392,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-pubsub</artifactId>
-      <version>v1beta1-rev18-1.19.1</version>
+      <version>v1beta2-rev1-1.19.1</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->

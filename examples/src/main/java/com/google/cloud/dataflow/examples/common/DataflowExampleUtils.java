@@ -35,7 +35,6 @@ import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineJob;
 import com.google.cloud.dataflow.sdk.transforms.IntraBundleParallelization;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
@@ -183,10 +182,10 @@ public class DataflowExampleUtils {
 
   private void setupPubsubTopic(String topic) throws IOException {
     if (pubsubClient == null) {
-      pubsubClient = Transport.newPubsubClient(options.as(StreamingOptions.class)).build();
+      pubsubClient = Transport.newPubsubClient(options).build();
     }
-    if (executeNullIfNotFound(pubsubClient.topics().get(topic)) == null) {
-      pubsubClient.topics().create(new Topic().setName(topic)).execute();
+    if (executeNullIfNotFound(pubsubClient.projects().topics().get(topic)) == null) {
+      pubsubClient.projects().topics().create(topic, new Topic().setName(topic)).execute();
     }
   }
 
@@ -197,10 +196,10 @@ public class DataflowExampleUtils {
    */
   private void deletePubsubTopic(String topic) throws IOException {
     if (pubsubClient == null) {
-      pubsubClient = Transport.newPubsubClient(options.as(StreamingOptions.class)).build();
+      pubsubClient = Transport.newPubsubClient(options).build();
     }
-    if (executeNullIfNotFound(pubsubClient.topics().get(topic)) != null) {
-      pubsubClient.topics().delete(topic).execute();
+    if (executeNullIfNotFound(pubsubClient.projects().topics().get(topic)) != null) {
+      pubsubClient.projects().topics().delete(topic).execute();
     }
   }
 

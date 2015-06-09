@@ -31,7 +31,6 @@ import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
-import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.common.base.MoreObjects;
 
 import java.io.IOException;
@@ -92,9 +91,10 @@ public class Transport {
    * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
    */
   public static Pubsub.Builder
-      newPubsubClient(StreamingOptions options) {
+      newPubsubClient(DataflowPipelineOptions options) {
     return new Pubsub.Builder(getTransport(), getJsonFactory(),
         new RetryHttpRequestInitializer(options.getGcpCredential()))
+        .setRootUrl(options.getPubsubRootUrl())
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(
             new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
