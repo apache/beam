@@ -342,7 +342,6 @@ public class TextIOTest {
    */
   @Test
   public void testGoodWildcards() throws Exception {
-
     TestDataflowPipelineOptions options = buildTestPipelineOptions();
     options.setGcsUtil(buildMockGcsUtil());
 

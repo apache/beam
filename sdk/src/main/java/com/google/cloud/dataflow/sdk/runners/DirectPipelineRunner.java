@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.MapAggregatorValues;
@@ -161,6 +162,7 @@ public class DirectPipelineRunner
    */
   public static DirectPipelineRunner createForTest() {
     DirectPipelineOptions options = PipelineOptionsFactory.as(DirectPipelineOptions.class);
+    options.setStableUniqueNames(CheckEnabled.ERROR);
     options.setGcpCredential(new TestCredential());
     return new DirectPipelineRunner(options);
   }

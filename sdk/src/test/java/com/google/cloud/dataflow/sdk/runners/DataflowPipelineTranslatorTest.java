@@ -472,23 +472,27 @@ public class DataflowPipelineTranslatorTest {
     Pipeline pipeline = DataflowPipeline.create(options);
     DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(options);
 
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/*"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/?"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/[0-9]"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/*baz*"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/*baz?"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/[0-9]baz?"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/baz/*"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/baz/*wonka*"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo/*/baz*"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo*/baz"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo?/baz"));
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo[0-9]/baz"));
+    applyRead(pipeline, "gs://bucket/foo");
+    applyRead(pipeline, "gs://bucket/foo/");
+    applyRead(pipeline, "gs://bucket/foo/*");
+    applyRead(pipeline, "gs://bucket/foo/?");
+    applyRead(pipeline, "gs://bucket/foo/[0-9]");
+    applyRead(pipeline, "gs://bucket/foo/*baz*");
+    applyRead(pipeline, "gs://bucket/foo/*baz?");
+    applyRead(pipeline, "gs://bucket/foo/[0-9]baz?");
+    applyRead(pipeline, "gs://bucket/foo/baz/*");
+    applyRead(pipeline, "gs://bucket/foo/baz/*wonka*");
+    applyRead(pipeline, "gs://bucket/foo/*baz/wonka*");
+    applyRead(pipeline, "gs://bucket/foo*/baz");
+    applyRead(pipeline, "gs://bucket/foo?/baz");
+    applyRead(pipeline, "gs://bucket/foo[0-9]/baz");
 
     // Check that translation doesn't fail.
     t.translate(pipeline, Collections.<DataflowPackage>emptyList());
+  }
+
+  private void applyRead(Pipeline pipeline, String path) {
+    pipeline.apply("Read(" + path + ")", TextIO.Read.from(path));
   }
 
   /**

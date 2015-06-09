@@ -178,7 +178,7 @@ public class Flatten {
       IterableCoder<T> iterableCoder = (IterableCoder<T>) inCoder;
       Coder<T> elemCoder = iterableCoder.getElemCoder();
 
-      return in.apply(ParDo.of(
+      return in.apply(ParDo.named("FlattenIterables").of(
           new DoFn<Iterable<T>, T>() {
             @Override
             public void processElement(ProcessContext c) {
