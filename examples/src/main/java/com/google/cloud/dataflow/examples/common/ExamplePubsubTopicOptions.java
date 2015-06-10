@@ -42,8 +42,8 @@ public interface ExamplePubsubTopicOptions extends DataflowPipelineOptions {
     public String create(PipelineOptions options) {
       DataflowPipelineOptions dataflowPipelineOptions =
           options.as(DataflowPipelineOptions.class);
-      return "/topics/" + dataflowPipelineOptions.getProject()
-          + "/" + dataflowPipelineOptions.getJobName();
+      return "projects/" + dataflowPipelineOptions.getProject()
+          + "/topics/" + dataflowPipelineOptions.getJobName();
     }
   }
 }
