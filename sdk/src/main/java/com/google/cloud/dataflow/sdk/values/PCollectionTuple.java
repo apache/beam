@@ -39,7 +39,7 @@ import java.util.Map;
  * {@link com.google.cloud.dataflow.sdk.transforms.ParDo} with side
  * outputs.
  *
- * <p> PCollectionTuples can be created and accessed like follows:
+ * <p> A {@code PCollectionTuple} can be created and accessed like follows:
  * <pre> {@code
  * PCollection<String> pc1 = ...;
  * PCollection<Integer> pc2 = ...;
@@ -74,9 +74,9 @@ import java.util.Map;
  */
 public class PCollectionTuple implements PInput, POutput {
   /**
-   * Returns an empty PCollectionTuple that is part of the given Pipeline.
+   * Returns an empty {@code PCollectionTuple} that is part of the given {@link Pipeline}.
    *
-   * <p> Longer PCollectionTuples can be created by calling
+   * <p> A {@link PCollectionTuple} containing additional elements can be created by calling
    * {@link #and} on the result.
    */
   public static PCollectionTuple empty(Pipeline pipeline) {
@@ -84,10 +84,10 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
-   * Returns a singleton PCollectionTuple containing the given
-   * PCollection keyed by the given TupleTag.
+   * Returns a singleton {@link PCollectionTuple} containing the given
+   * {@link PCollection} keyed by the given {@link TupleTag}.
    *
-   * <p> Longer PCollectionTuples can be created by calling
+   * <p> A {@code PCollectionTuple} containing additional elements can be created by calling
    * {@link #and} on the result.
    */
   public static <T> PCollectionTuple of(TupleTag<T> tag, PCollection<T> pc) {
@@ -95,14 +95,15 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
-   * Returns a new PCollectionTuple that has all the PCollections and
-   * tags of this PCollectionTuple plus the given PCollection and tag.
+   * Returns a new {@link PCollectionTuple} that has each {@link PCollection} and
+   * {@link TupleTag} of this {@link PCollectionTuple} plus the given {@link PCollection}
+   * associated with the given {@link TupleTag}.
    *
-   * <p> The given TupleTag should not already be mapped to a
-   * PCollection in this PCollectionTuple.
+   * <p> The given {@link TupleTag} should not already be mapped to a
+   * {@link PCollection} in this {@link PCollectionTuple}.
    *
-   * <p> All the PCollections in the resulting PCollectionTuple must be
-   * part of the same Pipeline.
+   * <p> Each {@link PCollection} in the resulting {@link PCollectionTuple} must be
+   * part of the same {@link Pipeline}.
    */
   public <T> PCollectionTuple and(TupleTag<T> tag, PCollection<T> pc) {
     if (pc.getPipeline() != pipeline) {
@@ -121,7 +122,7 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
-   * Returns whether this PCollectionTuple contains a PCollection with
+   * Returns whether this {@link PCollectionTuple} contains a {@link PCollection} with
    * the given tag.
    */
   public <T> boolean has(TupleTag<T> tag) {
@@ -129,9 +130,9 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
-   * Returns the PCollection with the given tag in this
-   * PCollectionTuple.  Throws IllegalArgumentException if there is no
-   * such PCollection, i.e., {@code !has(tag)}.
+   * Returns the {@link PCollection} associated with the given {@link TupleTag}
+   * in this {@link PCollectionTuple}. Throws {@link IllegalArgumentException} if there is no
+   * such {@link PCollection}, i.e., {@code !has(tag)}.
    */
   public <T> PCollection<T> get(TupleTag<T> tag) {
     @SuppressWarnings("unchecked")
@@ -144,20 +145,31 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
-   * Returns an immutable Map from TupleTag to corresponding
-   * PCollection, for all the members of this PCollectionTuple.
+   * Returns an immutable Map from {@link TupleTag} to corresponding
+   * {@link PCollection}, for all the members of this {@link PCollectionTuple}.
    */
   public Map<TupleTag<?>, PCollection<?>> getAll() {
     return pcollectionMap;
   }
 
   /**
-   * Applies the given PTransform to this input PCollectionTuple, and
-   * returns the PTransform's Output.
+   * Like {@link #apply(String, PTransform)} but defaulting to the name
+   * of the {@link PTransform}.
    */
   public <OutputT extends POutput> OutputT apply(
       PTransform<PCollectionTuple, OutputT> t) {
     return Pipeline.applyTransform(this, t);
+  }
+
+  /**
+   * Applies the given {@code PTransform} to this input {@code PCollectionTuple},
+   * using {@code name} to identify this specific application of the transform.
+   * This name is used in various places, including the monitoring UI, logging,
+   * and to stably identify this application node in the job graph.
+   */
+  public <OutputT extends POutput> OutputT apply(
+      String name, PTransform<PCollectionTuple, OutputT> t) {
+    return Pipeline.applyTransform(name, this, t);
   }
 
 
@@ -178,8 +190,8 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
-   * Returns a PCollectionTuple with each of the given tags mapping to a new
-   * output PCollection.
+   * Returns a {@link PCollectionTuple} with each of the given tags mapping to a new
+   * output {@link PCollection}.
    *
    * <p> For use by primitive transformations only.
    */
