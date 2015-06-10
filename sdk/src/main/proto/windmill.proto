@@ -41,6 +41,7 @@ message Timer {
   enum Type {
     WATERMARK = 0;
     REALTIME = 1;
+    DEPENDENT_REALTIME = 2;
   }
   optional Type type = 3 [default = WATERMARK];
 }
