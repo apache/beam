@@ -199,12 +199,12 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testMapSideInput() {
+  public void testMultimapSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Iterable<Integer>>> view = pipeline
         .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
-        .apply(View.<String, Integer>asMap());
+        .apply(View.<String, Integer>asMultimap());
 
     PCollection<KV<String, Integer>> output = pipeline
         .apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
@@ -227,12 +227,12 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testSingletonMapSideInput() {
+  public void testMapSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view = pipeline
         .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
-        .apply(View.<String, Integer>asMap().withSingletonValues());
+        .apply(View.<String, Integer>asMap());
 
     PCollection<KV<String, Integer>> output = pipeline
         .apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
@@ -258,7 +258,9 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Integer>> view = pipeline
         .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 20), KV.of("b", 3)))
-        .apply(View.<String, Integer>asMap().withCombiner(new Sum.SumIntegerFn()));
+        .apply("SumIntegers",
+            Combine.perKey(new Sum.SumIntegerFn().<String>asKeyedFn()))
+        .apply(View.<String, Integer>asMap());
 
     PCollection<KV<String, Integer>> output = pipeline
         .apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))

@@ -123,7 +123,9 @@ public class DataflowAssert {
     List<? extends Coder<?>> maybeElementCoder = actual.getCoder().getCoderArguments();
     Coder<T> tCoder;
     try {
-      tCoder = (Coder<T>) Iterables.getOnlyElement(maybeElementCoder);
+      @SuppressWarnings("unchecked")
+      Coder<T> tCoderTmp = (Coder<T>) Iterables.getOnlyElement(maybeElementCoder);
+      tCoder = tCoderTmp;
     } catch (NoSuchElementException | IllegalArgumentException exc) {
       throw new IllegalArgumentException(
         "DataflowAssert.<T>thatSingletonIterable requires a PCollection<Iterable<T>>"
@@ -172,7 +174,7 @@ public class DataflowAssert {
 
     return new SingletonAssert<>(
         new CreateActual<KV<K, V>, Map<K, Iterable<V>>>(
-            actual, View.<K, V>asMap()), actual.getPipeline())
+            actual, View.<K, V>asMultimap()), actual.getPipeline())
         .setCoder(MapCoder.of(kvCoder.getKeyCoder(), IterableCoder.of(kvCoder.getValueCoder())));
   }
 

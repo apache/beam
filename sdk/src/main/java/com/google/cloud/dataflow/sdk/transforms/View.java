@@ -66,6 +66,38 @@ import java.util.NoSuchElementException;
  * }
  * </pre>
  *
+ * <p> For a small {@link PCollection} that can fit entirely in memory,
+ * use {@link View#asList()} to prepare it for use as a {@code List}.
+ * When read as a side input, the entire list will be cached in memory.
+ *
+ * <pre>
+ * {@code
+ * PCollectionView<List<T>> output =
+ *    smallPCollection.apply(View.asList());
+ * }
+ * </pre>
+ *
+ * <p> If a {@link PCollection} of {@code KV<K, V>} is known to
+ * have a single value for each key, then use {@link View#asMap()}
+ * to view it as a {@code Map<K, V>}:
+ *
+ * <pre>
+ * {@code
+ * PCollectionView<Map<K, V> output =
+ *     somePCollection.apply(View.asMap());
+ * }
+ * </pre>
+ *
+ * <p> Otherwise, to access a {@link PCollection} of {@code KV<K, V>} as a
+ * {@code Map<K, Iterable<V>>} side input, use {@link View#asMultimap()}:
+ *
+ * <pre>
+ * {@code
+ * PCollectionView<Map<K, Iterable<V>> output =
+ *     somePCollection.apply(View.asMap());
+ * }
+ * </pre>
+ *
  * <p> To iterate over an entire window of a {@link PCollection} via
  * side input, use {@link View#asIterable()}:
  *
@@ -76,27 +108,35 @@ import java.util.NoSuchElementException;
  * }
  * </pre>
  *
- * <p> To access a {@link PCollection} of {@code KV<K, V>} as a
- * {@code Map<K, Iterable<V>>} side input, use {@link View#asMap()}:
+ *
+ * <p> Both {@link View#asMultimap()} and {@link View#asMap()} are useful
+ * for implementing lookup based "joins" with the main input, when the
+ * side input is small enough to fit into memory.
+ *
+ * <p> For example, if you represent a page on a website via some {@code Page} object and
+ * have some type {@code UrlVisits} logging that a URL was visited, you could convert these
+ * to more fully structured {@code PageVisit} objects using a side input, something like the
+ * following:
  *
  * <pre>
  * {@code
- * PCollectionView<Map<K, Iterable<V>> output =
- *     somePCollection.apply(View.asMap());
- * }
- * </pre>
+ * PCollection<Page> pages = ... // pages fit into memory
+ * PCollection<UrlVisit> urlVisits = ... // very large collection
+ * final PCollectionView<Map<URL, Page>> = urlToPage
+ *     .apply(WithKeys.of( ... ) ) // extract the URL from the page
+ *     .apply(View.asMap());
  *
- * <p> If a {@link PCollection} of {@code KV<K, V>} is known to
- * have a single value for each key, then use
- * {@code View.AsMultimap#withSingletonValues View.asMap().withSingletonValues()}
- * to view it as a {@code Map<K, V>}:
- *
- * <pre>
- * {@code
- * PCollectionView<Map<K, V> output =
- *     somePCollection.apply(View.asMap().withSingletonValues());
- * }
- * </pre>
+ * PCollection PageVisits = urlVisits
+ *     .apply(ParDo.withSideInputs(urlToPage)
+ *         .of(new DoFn<UrlVisit, PageVisit>() {
+ *             @Override
+ *             void processElement(ProcessContext context) {
+ *               UrlVisit urlVisit = context.element();
+ *               Page page = urlToPage.get(urlVisit.getUrl());
+ *               c.output(new PageVisit(page, urlVisit.getVisitData()));
+ *             }
+ *         }));
+ * }</pre>
  *
  * <p> See {@link ParDo#withSideInputs} for details on how to access
  * this variable inside a {@link ParDo} over another {@link PCollection}.
@@ -110,6 +150,15 @@ public class View {
    * Returns a {@link AsSingleton} transform that takes a singleton
    * {@link PCollection} as input and produces a {@link PCollectionView}
    * of the single value, to be consumed as a side input.
+   *
+   * <pre>
+   * {@code
+   * PCollection<InputT> input = ...
+   * CombineFn<InputT, OutputT> yourCombineFn = ...
+   * PCollectionView<OutputT> output = input
+   *     .apply(Combine.globally(yourCombineFn))
+   *     .apply(View.asSingleton());
+   * }</pre>
    *
    * <p> If the input {@link PCollection} is empty,
    * throws {@link NoSuchElementException} in the consuming
@@ -146,13 +195,43 @@ public class View {
   }
 
   /**
-   * Returns an {@link AsMultimap} that takes a {@link PCollection} as input
+   * Returns an {@link AsMap} transform that takes a {@link PCollection} as input
    * and produces a {@link PCollectionView} of the values to be consumed
-   * as a {@code Map<K, Iterable<V>>} side input.
+   * as a {@code Map<K, V>} side input. It is required that each key of the input be
+   * associated with a single value. If this is not the case, precede this
+   * view with {@code Combine.perKey}, as below, or alternatively use {@link View#asMultimap()}.
+   *
+   * <pre>
+   * {@code
+   * PCollection<KV<K, V>> input = ...
+   * CombineFn<V, OutputT> yourCombineFn = ...
+   * PCollectionView<Map<K, OutputT>> output = input
+   *     .apply(Combine.perKey(yourCombineFn.<K>asKeyedFn()))
+   *     .apply(View.asMap());
+   * }</pre>
    *
    * <p> Currently, the resulting map is required to fit into memory.
    */
-  public static <K, V> AsMultimap<K, V> asMap() {
+  public static <K, V> AsMap<K, V> asMap() {
+    return new AsMap<K, V>();
+  }
+
+  /**
+   * Returns an {@link AsMultimap} transform that takes a {@link PCollection}
+   * of {@code KV<K, V>} pairs as input and produces a {@link PCollectionView} of
+   * its contents as a {@code Map<K, Iterable<V>>} for use as a side input.
+   * In contrast to {@link View#asMap()}, it is not required that the keys in the
+   * input collection be unique.
+   *
+   * <pre>
+   * {@code
+   * PCollection<KV<K, V>> input = ... // maybe more than one occurrence of a some keys
+   * PCollectionView<Map<K, V>> output = input.apply(View.asMultimap());
+   * }</pre>
+   *
+   * <p> Currently, the resulting map is required to fit into memory.
+   */
+  public static <K, V> AsMultimap<K, V> asMultimap() {
     return new AsMultimap<K, V>();
   }
 
@@ -172,8 +251,15 @@ public class View {
     public PCollectionView<Iterable<T>> apply(
         PCollection<T> input) {
       if (input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()) {
-        return input.apply((Combine.GloballyAsSingletonView<T, Iterable<T>>)
-            Combine.globally(new Concatenate()).asSingletonView());
+
+        // safe covariant cast List<T> -> Iterable<T>
+        // not expressible in java, even with unchecked casts
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        Combine.GloballyAsSingletonView<T, Iterable<T>> concatAndView =
+            (Combine.GloballyAsSingletonView)
+            Combine.globally(new Concatenate<T>()).asSingletonView();;
+
+        return input.apply(concatAndView);
       } else {
         return input.apply(
             new CreatePCollectionView<T, Iterable<T>>(
@@ -189,8 +275,7 @@ public class View {
    *
    * <p> Instantiate via {@link View#asIterable}.
    */
-  public static class AsSingleton<T>
-      extends PTransform<PCollection<T>, PCollectionView<T>> {
+  public static class AsSingleton<T> extends PTransform<PCollection<T>, PCollectionView<T>> {
     private static final long serialVersionUID = 0;
     private final T defaultValue;
     private final boolean hasDefault;
@@ -249,25 +334,6 @@ public class View {
 
     private AsMultimap() { }
 
-    /**
-     * Returns a PTransform creating a view as a {@code Map<K, V>} rather than a
-     * {@code Map<K, Iterable<V>>}. Requires that the PCollection have only
-     * one value per key.
-     */
-    public AsSingletonMap<K, V, V> withSingletonValues() {
-      return new AsSingletonMap<K, V, V>(null);
-    }
-
-    /**
-     * Returns a PTransform creating a view as a {@code Map<K, OutputT>} rather than a
-     * {@code Map<K, Iterable<V>>} by applying the given combiner to the set of
-     * values associated with each key.
-     */
-    public <OutputT> AsSingletonMap<K, V, OutputT>
-        withCombiner(CombineFn<V, ?, OutputT> combineFn) {
-      return new AsSingletonMap<K, V, OutputT>(combineFn);
-    }
-
     @Override
     public PCollectionView<Map<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
       MultimapPCollectionView<K, V> view = new MultimapPCollectionView<K, V>(
@@ -289,42 +355,50 @@ public class View {
 
   /**
    * A {@link PTransform} that produces a {@link PCollectionView} of a keyed {@link PCollection}
-   * yielding a map of keys to a single associated values.
+   * yielding a map from each key to its unique associated value. When converting
+   * a {@link PCollection} that has more than one value per key, precede this transform with a
+   * {@code Combine.perKey}:
+   *
+   * <pre>
+   * {@code
+   * PCollectionView<Map<K, OutputT>> input
+   *     .apply(Combine.perKey(myCombineFunction))
+   *     .apply(View.asMap());
+   * }</pre>
    *
    * <p> Instantiate via {@link View#asMap}.
    */
-  public static class AsSingletonMap<K, InputT, OutputT>
-      extends PTransform<PCollection<KV<K, InputT>>, PCollectionView<Map<K, OutputT>>> {
+  public static class AsMap<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
     private static final long serialVersionUID = 0;
 
-    private CombineFn<InputT, ?, OutputT> combineFn;
+    private AsMap() { }
 
-    private AsSingletonMap(CombineFn<InputT, ?, OutputT> combineFn) {
-      this.combineFn = combineFn;
+    /**
+     * @deprecated this method simply returns this AsMap unmodified
+     */
+    @Deprecated()
+    public AsMap<K, V> withSingletonValues() {
+      return this;
     }
 
     @Override
-    public PCollectionView<Map<K, OutputT>> apply(PCollection<KV<K, InputT>> input) {
-      // InputT == OutputT if combineFn is null
+    public PCollectionView<Map<K, V>> apply(PCollection<KV<K, V>> input) {
       @SuppressWarnings("unchecked")
-      PCollection<KV<K, OutputT>> combined =
-        combineFn == null
-        ? (PCollection) input
-        : input.apply(Combine.perKey(combineFn.<K>asKeyedFn()));
 
-      MapPCollectionView<K, OutputT> view = new MapPCollectionView<K, OutputT>(
-          input.getPipeline(), combined.getWindowingStrategy(), combined.getCoder());
+      MapPCollectionView<K, V> view = new MapPCollectionView<K, V>(
+          input.getPipeline(), input.getWindowingStrategy(), input.getCoder());
 
-      CreatePCollectionView<KV<K, OutputT>, Map<K, OutputT>> createView =
+      CreatePCollectionView<KV<K, V>, Map<K, V>> createView =
           new CreatePCollectionView<>(view);
 
-      if (combined.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()) {
-        return combined
-            .apply(Combine.globally(new Concatenate<KV<K, OutputT>>()).withoutDefaults())
-            .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, combined.getCoder())))
+      if (input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()) {
+        return input
+            .apply(Combine.globally(new Concatenate<KV<K, V>>()).withoutDefaults())
+            .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
             .apply(createView);
       } else {
-        return combined.apply(createView);
+        return input.apply(createView);
       }
     }
   }
@@ -380,7 +454,7 @@ public class View {
   /**
    * Creates a primitive {@link PCollectionView}.
    *
-   * <p> For internal use only.
+   * <p> For internal use only by runner implementors.
    *
    * @param <ElemT> The type of the elements of the input PCollection
    * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input
@@ -422,8 +496,10 @@ public class View {
     }
   }
 
-  private static class SingletonPCollectionView<T>
-      extends PCollectionViewBase<T> {
+  /**
+   * Private implementation of conversion {@code Iterable<WindowedValue<T>>} to {@code T}.
+   */
+  private static class SingletonPCollectionView<T> extends PCollectionViewBase<T> {
     private static final long serialVersionUID = 0;
     private byte[] encodedDefaultValue;
     private transient T defaultValue;
@@ -444,6 +520,9 @@ public class View {
       }
     }
 
+    /**
+     * Input iterable must actually be {@code Iterable<WindowedValue<T>>}.
+     */
     @SuppressWarnings("unchecked")
     @Override
     public T fromIterableInternal(Iterable<WindowedValue<?>> contents) {
@@ -471,8 +550,10 @@ public class View {
     }
   }
 
-  private static class IterablePCollectionView<T>
-      extends PCollectionViewBase<Iterable<T>> {
+  /**
+   * Private implementation of conversion {@code Iterable<WindowedValue<T>>} to {@code Iterable<T>}.
+   */
+  private static class IterablePCollectionView<T> extends PCollectionViewBase<Iterable<T>> {
     private static final long serialVersionUID = 0;
 
     public IterablePCollectionView(
@@ -480,6 +561,9 @@ public class View {
       super(pipeline, windowingStrategy, valueCoder);
     }
 
+    /**
+     * Input iterable must actually be {@code Iterable<WindowedValue<T>>}.
+     */
     @Override
     public Iterable<T> fromIterableInternal(Iterable<WindowedValue<?>> contents) {
       return Iterables.transform(contents, new Function<WindowedValue<?>, T>() {
@@ -492,6 +576,10 @@ public class View {
     }
   }
 
+  /**
+   * Private implementation of conversion {@code Iterable<WindowedValue<KV<K, V>>>}
+   * to {@code Map<K, Iterable<V>>}.
+   */
   private static class MultimapPCollectionView<K, V>
       extends PCollectionViewBase<Map<K, Iterable<V>>> {
     private static final long serialVersionUID = 0;
@@ -501,21 +589,30 @@ public class View {
       super(pipeline, windowingStrategy, valueCoder);
     }
 
+    /**
+     * Input iterable must actually be {@code Iterable<WindowedValue<KV<K, V>>>}.
+     */
     @Override
-    @SuppressWarnings("unchecked")
     public Map<K, Iterable<V>> fromIterableInternal(Iterable<WindowedValue<?>> contents) {
       Multimap<K, V> multimap = HashMultimap.create();
       for (WindowedValue<?> elem : contents) {
+        @SuppressWarnings("unchecked")
         KV<K, V> kv = (KV<K, V>) elem.getValue();
         multimap.put(kv.getKey(), kv.getValue());
       }
-      // Don't want to promise in-memory or cheap Collection.size().
-      return (Map) multimap.asMap();
+
+      // Safe covariant cast that Java cannot express without rawtypes, even with unchecked casts
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Map<K, Iterable<V>> resultMap = (Map) multimap.asMap();
+      return resultMap;
     }
   }
 
-  private static class MapPCollectionView<K, V>
-      extends PCollectionViewBase<Map<K, V>> {
+  /**
+   * Private implementation of conversion {@code Iterable<WindowedValue<KV<K, V>>} to
+   * {@code Map<K, V>}.
+   */
+  private static class MapPCollectionView<K, V> extends PCollectionViewBase<Map<K, V>> {
     private static final long serialVersionUID = 0;
 
     public MapPCollectionView(
@@ -523,6 +620,9 @@ public class View {
       super(pipeline, windowingStrategy, valueCoder);
     }
 
+    /**
+     * Input iterable must actually be {@code Iterable<WindowedValue<KV<K, V>>>}.
+     */
     @Override
     public Map<K, V> fromIterableInternal(Iterable<WindowedValue<?>> contents) {
       Map<K, V> map = new HashMap<>();
@@ -537,6 +637,15 @@ public class View {
     }
   }
 
+  /**
+   * Base class for new implementations of side input views.
+   *
+   * <p>To implement a {@code PCollectionView<ViewT>} built from a {@code PCollection<ElemT>},
+   * override {@code fromIterableInternal} with a function from
+   * {@code Iterable<WindowedValue<ElemT>>} to {@code ViewT}.
+   *
+   * <p>This base class provides initialization and getters for a few boilerplate fields.
+   */
   private abstract static class PCollectionViewBase<T>
       extends PValueBase
       implements PCollectionView<T> {
@@ -563,11 +672,22 @@ public class View {
               valueCoder, windowingStrategy.getWindowFn().windowCoder()));
     }
 
+    /**
+     * Returns a unique {@link TupleTag} identifying this {@link PCollectionView}.
+     *
+     * <p> For internal use only by runner implementors.
+     */
     @Override
     public TupleTag<Iterable<WindowedValue<?>>> getTagInternal() {
       return tag;
     }
 
+    /**
+     * Returns the {@link WindowingStrategy} of this {@link PCollectionView}, which should
+     * be that of the underlying {@link PCollection}.
+     *
+     * <p> For internal use only by runner implementors.
+     */
     @Override
     public WindowingStrategy<?, ?> getWindowingStrategyInternal() {
       return windowingStrategy;
