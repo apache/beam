@@ -38,28 +38,28 @@ import javax.annotation.concurrent.NotThreadSafe;
  * controlled by the worker service through reporting interval hints
  * sent back in the update response messages.  To avoid update storms
  * and monitoring staleness, the interval between two consecutive
- * updates is also bound by {@link #DEFAULT_MIN_REPORTING_INTERVAL_MILLIS} and
- * {@link #DEFAULT_MAX_REPORTING_INTERVAL_MILLIS}.
+ * updates is also bound by {@link #getMinReportingInterval} and
+ * {@link #getMaxReportingInterval}.
  */
 @NotThreadSafe
 public abstract class WorkProgressUpdater {
   private static final Logger LOG = LoggerFactory.getLogger(WorkProgressUpdater.class);
 
-  /** The default lease duration to request from the external worker service. */
+  /** The default lease duration to request from the external worker service (3 minutes). */
   public static final long DEFAULT_LEASE_DURATION_MILLIS = 3 * 60 * 1000;
 
-  /** The lease renewal RPC latency margin. */
+  /** The lease renewal RPC latency margin (5 seconds). */
   private static final long DEFAULT_LEASE_RENEWAL_LATENCY_MARGIN = 5000;
 
   /**
    * The minimum period between two consecutive progress updates. Ensures the
-   * {@link WorkProgressUpdater} does not generate update storms.
+   * {@link WorkProgressUpdater} does not generate update storms (5 seconds).
    */
   private static final long DEFAULT_MIN_REPORTING_INTERVAL_MILLIS = 5000;
 
   /**
    * The maximum period between two consecutive progress updates. Ensures the
-   * {@link WorkProgressUpdater} does not cause monitoring staleness.
+   * {@link WorkProgressUpdater} does not cause monitoring staleness (10 minutes).
    */
   private static final long DEFAULT_MAX_REPORTING_INTERVAL_MILLIS = 10 * 60 * 1000;
 
@@ -130,10 +130,10 @@ public abstract class WorkProgressUpdater {
 
   /**
    * Computes the time before sending the next work progress update making sure
-   * that it falls between the [{@link #DEFAULT_MIN_REPORTING_INTERVAL_MILLIS},
-   * {@link #DEFAULT_MAX_REPORTING_INTERVAL_MILLIS}) interval. Makes an attempt to bound
+   * that it falls between the [{@link #getMinReportingInterval},
+   * {@link #getMaxReportingInterval}] interval. Makes an attempt to bound
    * the result by the remaining lease time, with an RPC latency margin of
-   * {@link #DEFAULT_LEASE_RENEWAL_LATENCY_MARGIN}.
+   * {@link #getLeaseRenewalLatencyMargin}.
    *
    * @param suggestedInterval the suggested progress report interval
    * @param leaseRemainingTime milliseconds left before the work lease expires
@@ -141,9 +141,6 @@ public abstract class WorkProgressUpdater {
    */
   protected final long nextProgressReportInterval(
       long suggestedInterval, long leaseRemainingTime) {
-    // Sanitize input in case we get a negative suggested time interval.
-    suggestedInterval = Math.max(0, suggestedInterval);
-
     // Try to send the next progress update before the next lease expiration
     // allowing some RPC latency margin.
     suggestedInterval =
@@ -224,10 +221,10 @@ public abstract class WorkProgressUpdater {
   protected abstract long getWorkUnitLeaseExpirationTimestamp();
 
   /**
-   * Returns the current work item's suggested progress Reporting interval.
+   * Returns the current work item's suggested progress reporting interval.
    */
   protected long getWorkUnitSuggestedReportingInterval() {
-    return getWorkUnitLeaseExpirationTimestamp() / 2;
+    return leaseRemainingTime(getWorkUnitLeaseExpirationTimestamp()) / 2;
   }
 
   /**

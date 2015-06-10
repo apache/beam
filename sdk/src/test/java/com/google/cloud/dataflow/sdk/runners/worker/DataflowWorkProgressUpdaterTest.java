@@ -22,7 +22,6 @@ import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.posit
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 import static com.google.cloud.dataflow.sdk.util.CloudCounterUtils.extractCounter;
 import static com.google.cloud.dataflow.sdk.util.CloudMetricUtils.extractCloudMetric;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
@@ -36,6 +35,8 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
@@ -243,7 +244,7 @@ public class DataflowWorkProgressUpdaterTest {
 
     setUpProgress(approximateProgressAtIndex(4L));
 
-    // The forth update should not respect the suggested report interval.
+    // The fourth update should not respect the suggested report interval.
     // It should be sent before the lease expires
     verify(workUnitClient, timeout(900))
         .reportWorkItemStatus(argThat(
@@ -257,44 +258,42 @@ public class DataflowWorkProgressUpdaterTest {
 
   // Verifies that a last update is sent when there is an unacknowledged split request.
   @Test(timeout = 2000)
-  public void workProgressUpdaterLastUpdate() throws Exception {
+  public void workProgressUpdaterSendsLastPendingUpdateWhenStopped() throws Exception {
+    // The setup process sends one update after 300ms. Enqueue another that should be scheduled
+    // 1000ms after that.
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
-        .thenReturn(generateServiceState(nowMillis + 2000, 1000, positionAtIndex(2L), 2L))
-        .thenReturn(generateServiceState(nowMillis + 3000, 2000, null, 3L));
+        .thenReturn(generateServiceState(nowMillis + 2000, 1000, positionAtIndex(2L), 2L));
 
     setUpProgress(approximateProgressAtIndex(1L));
     progressUpdater.startReportingProgress();
+
     // The initial update should be sent after 300 msec.
-    Thread.sleep(200);
-    verify(workUnitClient, timeout(200))
+    Thread.sleep(50);
+    verifyZeroInteractions(workUnitClient);
+
+    verify(workUnitClient, timeout(350))
         .reportWorkItemStatus(argThat(
             new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(1L))));
 
-    // The first update should include the new dynamic split result.
-    // Verify that the progressUpdater has recorded it.
-    Reader.DynamicSplitResultWithPosition splitResult =
-        (Reader.DynamicSplitResultWithPosition) progressUpdater.getDynamicSplitResultToReport();
-    assertEquals(positionAtIndex(2L), toCloudPosition(splitResult.getAcceptedPosition()));
+    // The second update should be scheduled to happen after one second.
 
-    setUpProgress(approximateProgressAtIndex(2L));
-    // The second update should be sent after one second.
+    // not immediately
+    verifyNoMoreInteractions(workUnitClient);
 
-    // Not enough time for an update so the latest split result is not acknowledged.
-    Thread.sleep(200);
+    // still not yet after 50ms
+    Thread.sleep(50);
+    verifyNoMoreInteractions(workUnitClient);
 
-    // Check that the progressUpdater still has a pending split result to send
-    splitResult = (Reader.DynamicSplitResultWithPosition)
-        progressUpdater.getDynamicSplitResultToReport();
-    assertEquals(positionAtIndex(2L), toCloudPosition(splitResult.getAcceptedPosition()));
+    // Stop the progressUpdater now, and expect the last update immediately
+    progressUpdater.stopReportingProgress();
 
-    progressUpdater.stopReportingProgress(); // Should send the last update.
-    // Check that the progressUpdater is done with reporting its latest split result.
-    assertNull(progressUpdater.getDynamicSplitResultToReport());
-
-    // Verify that the last update contained the latest split result.
-    verify(workUnitClient, timeout(1000))
+    // Verify that the last update is sent immediately and contained the latest split result.
+    verify(workUnitClient)
         .reportWorkItemStatus(argThat(
             new ExpectedDataflowWorkItemStatus().withDynamicSplitAtPosition(positionAtIndex(2L))));
+
+    // And nothing happened after that.
+    verifyNoMoreInteractions(workUnitClient);
   }
 
   private void setUpCounters(int n) {
