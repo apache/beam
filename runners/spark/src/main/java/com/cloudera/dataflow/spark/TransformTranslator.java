@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.api.client.util.Maps;
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
@@ -103,7 +104,7 @@ public final class TransformTranslator {
       @SuppressWarnings("unchecked")
       @Override
       public void evaluate(Flatten.FlattenPCollectionList<T> transform, EvaluationContext context) {
-        PCollectionList<T> pcs = (PCollectionList<T>) context.getPipeline().getInput(transform);
+        PCollectionList<T> pcs = context.getInput(transform);
         JavaRDD<T>[] rdds = new JavaRDD[pcs.size()];
         for (int i = 0; i < rdds.length; i++) {
           rdds[i] = (JavaRDD<T>) context.getRDD(pcs.get(i));
@@ -168,8 +169,13 @@ public final class TransformTranslator {
         KvCoder<K, VI> inputCoder = (KvCoder<K, VI>) context.getInput(transform).getCoder();
         Coder<K> keyCoder = inputCoder.getKeyCoder();
         Coder<VI> viCoder = inputCoder.getValueCoder();
-        Coder<VA> vaCoder = keyed.getAccumulatorCoder(
-            context.getPipeline().getCoderRegistry(), keyCoder, viCoder);
+        Coder<VA> vaCoder = null;
+        try {
+          vaCoder = keyed.getAccumulatorCoder(
+              context.getPipeline().getCoderRegistry(), keyCoder, viCoder);
+        } catch (CannotProvideCoderException e) {
+          throw new IllegalStateException("Could not determine coder for accumulator", e);
+        }
         final Coder<KV<K, VI>> kviCoder = KvCoder.of(keyCoder, viCoder);
         final Coder<KV<K, VA>> kvaCoder = KvCoder.of(keyCoder, vaCoder);
 

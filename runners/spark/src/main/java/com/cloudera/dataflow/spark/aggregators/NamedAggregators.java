@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
 
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
@@ -170,8 +171,12 @@ public class NamedAggregators implements Serializable {
       oos.writeObject(ctxt);
       oos.writeObject(combineFn);
       oos.writeObject(inCoder);
-      combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
-          .encode(state, oos, Coder.Context.NESTED);
+      try {
+        combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
+            .encode(state, oos, Coder.Context.NESTED);
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalStateException("Could not determine coder for accumulator", e);
+      }
     }
 
     @SuppressWarnings("unchecked")
@@ -179,8 +184,12 @@ public class NamedAggregators implements Serializable {
       ctxt = (SparkRuntimeContext) ois.readObject();
       combineFn = (Combine.CombineFn<IN, INTER, OUT>) ois.readObject();
       inCoder = (Coder<IN>) ois.readObject();
-      state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
-          .decode(ois, Coder.Context.NESTED);
+      try {
+        state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
+            .decode(ois, Coder.Context.NESTED);
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalStateException("Could not determine coder for accumulator", e);
+      }
     }
   }
 

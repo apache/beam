@@ -78,20 +78,14 @@ public class MultiOutputWordCountTest {
    */
   static class ExtractWordsFn extends DoFn<String, String> {
 
-    private Aggregator<Integer> totalWords;
-    private Aggregator<Integer> maxWordLength;
+    private Aggregator<Integer, Integer> totalWords = createAggregator("totalWords",
+        new Sum.SumIntegerFn());
+    private Aggregator<Integer, Integer> maxWordLength = createAggregator("maxWordLength",
+        new Max.MaxIntegerFn());
     private final PCollectionView<String> regex;
 
     ExtractWordsFn(PCollectionView<String> regex) {
       this.regex = regex;
-    }
-
-    @Override
-    public void startBundle(Context ctxt) {
-      this.totalWords = ctxt.createAggregator("totalWords",
-          new Sum.SumIntegerFn());
-      this.maxWordLength = ctxt.createAggregator("maxWordLength",
-          new Max.MaxIntegerFn());
     }
 
     @Override

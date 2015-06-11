@@ -110,7 +110,8 @@ public final class HadoopIO {
         Preconditions.checkNotNull(valueClass,
             "need to set the value class of an HadoopIO.Read transform");
 
-        return PCollection.createPrimitiveOutputInternal(WindowingStrategy.globalDefault());
+        return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
+            WindowingStrategy.globalDefault(), PCollection.IsBounded.BOUNDED);
       }
 
     }

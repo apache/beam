@@ -15,19 +15,25 @@
 
 package com.cloudera.dataflow.spark;
 
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.util.TimerManager;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
+import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -43,6 +49,9 @@ import org.slf4j.LoggerFactory;
  */
 class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
   private static final Logger LOG = LoggerFactory.getLogger(DoFnFunction.class);
+
+  private static final Collection<? extends BoundedWindow> GLOBAL_WINDOWS =
+      Collections.singletonList(GlobalWindow.INSTANCE);
 
   private final DoFn<I, O> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
@@ -67,6 +76,7 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     ProcCtxt ctxt = new ProcCtxt(mFunction);
     //setup
     mFunction.startBundle(ctxt);
+    ctxt.setup();
     //operation
     while (iter.hasNext()) {
       ctxt.element = iter.next();
@@ -84,6 +94,10 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     ProcCtxt(DoFn<I, O> fn) {
       fn.super();
+    }
+
+    void setup() {
+      super.setupDelegateAggregators();
     }
 
     @Override
@@ -123,27 +137,15 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     }
 
     @Override
-    public <AI, AA, AO> Aggregator<AI> createAggregator(
+    public <AI, AO> Aggregator<AI, AO> createAggregatorInternal(
         String named,
-        Combine.CombineFn<? super AI, AA, AO> combineFn) {
+        Combine.CombineFn<AI, ?, AO> combineFn) {
       return mRuntimeContext.createAggregator(named, combineFn);
-    }
-
-    @Override
-    public <AI, AO> Aggregator<AI> createAggregator(
-        String named,
-        SerializableFunction<Iterable<AI>, AO> sfunc) {
-      return mRuntimeContext.createAggregator(named, sfunc);
     }
 
     @Override
     public I element() {
       return element;
-    }
-
-    @Override
-    public DoFn.KeyedState keyedState() {
-      throw new UnsupportedOperationException();
     }
 
     @Override
@@ -158,12 +160,77 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public BoundedWindow window() {
-      return null;
+      return GlobalWindow.INSTANCE;
     }
 
     @Override
     public WindowingInternals<I, O> windowingInternals() {
-      return null;
+      return new WindowingInternals<I, O>() {
+
+        @Override
+        public Collection<? extends BoundedWindow> windows() {
+          return GLOBAL_WINDOWS;
+        }
+
+        @Override
+        public void outputWindowedValue(O output, Instant timestamp, Collection<?
+            extends BoundedWindow> windows) {
+          output(output);
+        }
+
+        @Override
+        public KeyedState keyedState() {
+          throw new UnsupportedOperationException(
+              "WindowingInternals#keyedState() is not yet supported.");
+
+        }
+
+        @Override
+        public <T> void store(CodedTupleTag<T> tag, T value, Instant timestamp)
+            throws IOException {
+          throw new UnsupportedOperationException(
+              "WindowingInternals#store() is not yet supported.");
+        }
+
+        @Override
+        public <T> void writeToTagList(CodedTupleTag<T> tag, T value) throws IOException {
+          throw new UnsupportedOperationException(
+              "WindowingInternals#writeToTagList() is not yet supported.");
+        }
+
+        @Override
+        public <T> void deleteTagList(CodedTupleTag<T> tag) {
+          throw new UnsupportedOperationException(
+              "WindowingInternals#deleteTagList() is not yet supported.");
+        }
+
+        @Override
+        public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) throws IOException {
+          throw new UnsupportedOperationException(
+              "WindowingInternals#readTagList() is not yet supported.");
+        }
+
+        @Override
+        public <T> Map<CodedTupleTag<T>, Iterable<T>> readTagList(List<CodedTupleTag<T>> tags)
+            throws IOException {
+          throw new UnsupportedOperationException(
+              "WindowingInternals#readTagList() is not yet supported.");
+        }
+
+        @Override
+        public TimerManager getTimerManager() {
+          throw new UnsupportedOperationException(
+              "WindowingInternals#getTimerManager() is not yet supported.");
+        }
+
+        @Override
+        public <T> void writePCollectionViewData(TupleTag<?> tag,
+            Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
+          throw new UnsupportedOperationException(
+              "WindowingInternals#writePCollectionViewData() is not yet supported.");
+        }
+      };
     }
+
   }
 }

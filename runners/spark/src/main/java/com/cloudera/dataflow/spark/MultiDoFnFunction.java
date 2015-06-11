@@ -22,7 +22,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
@@ -68,6 +67,7 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
   public Iterable<Tuple2<TupleTag<?>, Object>> call(Iterator<I> iter) throws Exception {
     ProcCtxt ctxt = new ProcCtxt(mFunction);
     mFunction.startBundle(ctxt);
+    ctxt.setup();
     while (iter.hasNext()) {
       ctxt.element = iter.next();
       mFunction.processElement(ctxt);
@@ -89,6 +89,10 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
 
     ProcCtxt(DoFn<I, O> fn) {
       fn.super();
+    }
+
+    void setup() {
+      super.setupDelegateAggregators();
     }
 
     @Override
@@ -121,27 +125,15 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
     }
 
     @Override
-    public <AI, AA, AO> Aggregator<AI> createAggregator(
+    public <AI, AO> Aggregator<AI, AO> createAggregatorInternal(
         String named,
-        Combine.CombineFn<? super AI, AA, AO> combineFn) {
+        Combine.CombineFn<AI, ?, AO> combineFn) {
       return mRuntimeContext.createAggregator(named, combineFn);
-    }
-
-    @Override
-    public <AI, AO> Aggregator<AI> createAggregator(
-        String named,
-        SerializableFunction<Iterable<AI>, AO> sfunc) {
-      return mRuntimeContext.createAggregator(named, sfunc);
     }
 
     @Override
     public I element() {
       return element;
-    }
-
-    @Override
-    public DoFn.KeyedState keyedState() {
-      throw new UnsupportedOperationException();
     }
 
     @Override

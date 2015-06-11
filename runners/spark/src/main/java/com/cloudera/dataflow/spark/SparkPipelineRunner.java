@@ -20,7 +20,10 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
@@ -159,7 +162,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
       if (inTranslatedCompositeNode() && node.equals(currentTranslatedCompositeNode)) {
         LOG.info("Post-visiting directly-translatable composite transform: '{}'",
             node.getFullName());
-        doVisitTransform(node.getTransform());
+        doVisitTransform(node);
         currentTranslatedCompositeNode = null;
       }
     }
@@ -170,15 +173,21 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
         LOG.info("Skipping '{}'; already in composite transform.", node.getFullName());
         return;
       }
-      doVisitTransform(node.getTransform());
+      doVisitTransform(node);
     }
 
-    private <PT extends PTransform> void doVisitTransform(PT transform) {
+    private <PT extends PTransform> void doVisitTransform(TransformTreeNode node) {
+      PT transform = (PT) node.getTransform();
       @SuppressWarnings("unchecked")
       TransformEvaluator<PT> evaluator = (TransformEvaluator<PT>)
           TransformTranslator.getTransformEvaluator(transform.getClass());
       LOG.info("Evaluating {}", transform);
+      AppliedPTransform<PInput, POutput, ? extends PTransform> appliedTransform =
+          AppliedPTransform.of(node.getFullName(), node.getInput(), node.getOutput(),
+              (PTransform) transform);
+      ctxt.setCurrentTransform(appliedTransform);
       evaluator.evaluate(transform, ctxt);
+      ctxt.setCurrentTransform(null);
     }
 
     @Override

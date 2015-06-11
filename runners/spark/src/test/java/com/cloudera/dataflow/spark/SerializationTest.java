@@ -83,11 +83,6 @@ public class SerializationTest {
       return new StringHolder(stringUtf8Coder.decode(inStream, context));
     }
 
-    @Override
-    public boolean isDeterministic() {
-      return true;
-    }
-
     public static Coder<StringHolder> of() {
       return new StringHolderUtf8Coder();
     }
@@ -131,12 +126,8 @@ public class SerializationTest {
    * A DoFn that tokenizes lines of text into individual words.
    */
   static class ExtractWordsFn extends DoFn<StringHolder, StringHolder> {
-    private Aggregator<Long> emptyLines;
-
-    @Override
-    public void startBundle(Context c) {
-      emptyLines = c.createAggregator("emptyLines", new Sum.SumLongFn());
-    }
+    private final Aggregator<Long, Long> emptyLines =
+        createAggregator("emptyLines", new Sum.SumLongFn());
 
     @Override
     public void processElement(ProcessContext c) {

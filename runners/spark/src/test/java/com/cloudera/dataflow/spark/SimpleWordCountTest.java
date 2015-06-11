@@ -60,12 +60,8 @@ public class SimpleWordCountTest {
    * A DoFn that tokenizes lines of text into individual words.
    */
   static class ExtractWordsFn extends DoFn<String, String> {
-    private Aggregator<Long> emptyLines;
-
-    @Override
-    public void startBundle(Context c) {
-      emptyLines = c.createAggregator("emptyLines", new Sum.SumLongFn());
-    }
+    private final Aggregator<Long, Long> emptyLines =
+        createAggregator("emptyLines", new Sum.SumLongFn());
 
     @Override
     public void processElement(ProcessContext c) {
