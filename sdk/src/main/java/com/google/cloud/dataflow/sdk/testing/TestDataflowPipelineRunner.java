@@ -31,7 +31,6 @@ import com.google.cloud.dataflow.sdk.util.MonitoringUtil.JobMessagesHandler;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
 import org.slf4j.Logger;
@@ -78,9 +77,6 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
   }
 
   DataflowPipelineJob run(Pipeline pipeline, DataflowPipelineRunner runner) {
-    Preconditions.checkState(expectedNumberOfAssertions > 0,
-        "Expected non-zero number of DoFn's annotated with @IsDataflowAssert "
-        + "within the pipeline.");
 
     final JobMessagesHandler messageHandler =
         new MonitoringUtil.PrintHandler(options.getJobMessageOutput());

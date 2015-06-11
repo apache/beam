@@ -195,9 +195,28 @@ public class Pipeline {
    * transforms and values in the Pipeline.
    */
   public interface PipelineVisitor {
+    /**
+     * Called for each composite transform after all topological predecessors have been visited
+     * but before any of the component transforms.
+     */
     public void enterCompositeTransform(TransformTreeNode node);
+
+    /**
+     * Called for each composite transform after all of its component transforms and their ouputs
+     * have been visited.
+     */
     public void leaveCompositeTransform(TransformTreeNode node);
+
+    /**
+     * Called for each primitive transform after all of its topological predecessors
+     * and inputs have been visited.
+     */
     public void visitTransform(TransformTreeNode node);
+
+    /**
+     * Called for each value after the transform that produced the value has been
+     * visited.
+     */
     public void visitValue(PValue value, TransformTreeNode producer);
   }
 
@@ -360,7 +379,7 @@ public class Pipeline {
    * of its outputs registered as produced by the transform.
    *
    * <p> A composite transform must have all of its outputs
-   * registered as produced by the contains primitive transforms.
+   * registered as produced by the contained primitive transforms.
    * They have each had the above check performed already, when
    * they were applied, so the only possible failure state is
    * that the composite transform has returned a primitive output.

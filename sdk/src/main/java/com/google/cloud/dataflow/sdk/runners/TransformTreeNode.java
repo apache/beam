@@ -39,13 +39,14 @@ import javax.annotation.Nullable;
 public class TransformTreeNode {
   private final TransformTreeNode enclosingNode;
 
-  // The transform.  If composite.isEmpty(), then this is a
-  // PrimitivePTransform, otherwise a composite PTransform.
+  // The PTransform for this node, which may be a composite PTransform.
+  // The root of a TransformHierarchy is represented as a TransformTreeNode
+  // with a null transform field.
   private final PTransform<?, ?> transform;
 
   private final String fullName;
 
-  // Nodes of a composite transform.
+  // Nodes for sub-transforms of a composite transform.
   private final Collection<TransformTreeNode> parts = new ArrayList<>();
 
   // Inputs to the transform, in expanded form and mapped to the producer
@@ -110,10 +111,28 @@ public class TransformTreeNode {
   }
 
   /**
-   * Returns true if this node represents a composite transform.
+   * Returns true if this node represents a composite transform that does not perform
+   * processing of its own, but merely encapsulates a sub-pipeline (which may be empty).
+   *
+   * <p>Note that a node may be composite with no sub-transforms if it  returns its input directly
+   * extracts a component of a tuple, or other operations that occur at pipeline assembly time.
    */
   public boolean isCompositeNode() {
-    return !parts.isEmpty();
+    return !parts.isEmpty() || returnsOthersOutput() || isRootNode();
+  }
+
+  private boolean returnsOthersOutput() {
+    PTransform<?, ?> transform = getTransform();
+    for (PValue output : getExpandedOutputs()) {
+      if (!output.getProducingTransformInternal().getTransform().equals(transform)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public boolean isRootNode() {
+    return transform == null;
   }
 
   public String getFullName() {

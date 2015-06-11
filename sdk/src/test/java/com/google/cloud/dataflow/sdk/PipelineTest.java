@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -38,6 +39,10 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
+import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.cloud.dataflow.sdk.values.POutput;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Assert;
@@ -194,5 +199,113 @@ public class PipelineTest {
 
     thrown.expectMessage("does not have a stable unique name.");
     p.apply(Create.of(5, 6, 7));
+  }
+
+  /**
+   * Tests that Pipeline supports a pass-through identity function.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testIdentityTransform() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    PCollection<Integer> output = pipeline
+        .apply(Create.<Integer>of(1, 2, 3, 4))
+        .apply("IdentityTransform", new IdentityTransform<PCollection<Integer>>());
+
+    DataflowAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
+    pipeline.run();
+  }
+
+  private static class IdentityTransform<T extends PInput & POutput>
+      extends PTransform<T, T> {
+    private static final long serialVersionUID = 0L;
+
+    @Override
+    public T apply(T input) {
+      return input;
+    }
+  }
+
+  /**
+   * Tests that Pipeline supports pulling an element out of a tuple as a transform.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testTupleProjectionTransform() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    PCollection<Integer> input = pipeline
+        .apply(Create.<Integer>of(1, 2, 3, 4));
+
+    TupleTag<Integer> tag = new TupleTag<Integer>();
+    PCollectionTuple tuple = PCollectionTuple.of(tag, input);
+
+    PCollection<Integer> output = tuple
+        .apply("ProjectTag", new TupleProjectionTransform<Integer>(tag));
+
+    DataflowAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
+    pipeline.run();
+  }
+
+  private static class TupleProjectionTransform<T>
+      extends PTransform<PCollectionTuple, PCollection<T>> {
+    private static final long serialVersionUID = 0L;
+
+    private TupleTag<T> tag;
+
+    public TupleProjectionTransform(TupleTag<T> tag) {
+      this.tag = tag;
+    }
+
+    @Override
+    public PCollection<T> apply(PCollectionTuple input) {
+      return input.get(tag);
+    }
+  }
+
+  /**
+   * Tests that Pipeline supports putting an element into a tuple as a transform.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testTupleInjectionTransform() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    PCollection<Integer> input = pipeline
+        .apply(Create.<Integer>of(1, 2, 3, 4));
+
+    TupleTag<Integer> tag = new TupleTag<Integer>();
+
+    PCollectionTuple output = input
+        .apply("ProjectTag", new TupleInjectionTransform<Integer>(tag));
+
+    DataflowAssert.that(output.get(tag)).containsInAnyOrder(1, 2, 3, 4);
+    pipeline.run();
+  }
+
+  private static class TupleInjectionTransform<T>
+      extends PTransform<PCollection<T>, PCollectionTuple> {
+    private static final long serialVersionUID = 0L;
+
+    private TupleTag<T> tag;
+
+    public TupleInjectionTransform(TupleTag<T> tag) {
+      this.tag = tag;
+    }
+
+    @Override
+    public PCollectionTuple apply(PCollection<T> input) {
+      return PCollectionTuple.of(tag, input);
+    }
+  }
+
+  /**
+   * Tests that an empty pipeline runs.
+   */
+  @Test
+  public void testEmptyPipeline() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    pipeline.run();
   }
 }

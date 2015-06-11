@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 
 /**
@@ -83,5 +84,15 @@ public class AppliedPTransform
     } else {
       return false;
     }
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(getClass())
+        .add("fullName", getFullName())
+        .add("input", getInput())
+        .add("output", getOutput())
+        .add("transform", getTransform())
+        .toString();
   }
 }
