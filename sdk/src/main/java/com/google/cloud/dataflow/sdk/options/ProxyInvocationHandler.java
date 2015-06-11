@@ -342,13 +342,22 @@ class ProxyInvocationHandler implements InvocationHandler {
         throws IOException, JsonProcessingException {
       ProxyInvocationHandler handler = (ProxyInvocationHandler) Proxy.getInvocationHandler(value);
       synchronized (handler) {
-        Map<String, Object> options = Maps.<String, Object>newHashMap(handler.jsonOptions);
-        options.putAll(handler.options);
-        removeIgnoredOptions(handler.knownInterfaces, options);
-        ensureSerializable(handler.knownInterfaces, options);
+        // We first filter out any properties that have been modified since
+        // the last serialization of this PipelineOptions and then verify that
+        // they are all serializable.
+        Map<String, Object> filteredOptions = Maps.newHashMap(handler.options);
+        removeIgnoredOptions(handler.knownInterfaces, filteredOptions);
+        ensureSerializable(handler.knownInterfaces, filteredOptions);
+
+        // Now we create the map of serializable options by taking the original
+        // set of serialized options (if any) and updating them with any properties
+        // instances that have been modified since the previous serialization.
+        Map<String, Object> serializableOptions =
+            Maps.<String, Object>newHashMap(handler.jsonOptions);
+        serializableOptions.putAll(filteredOptions);
         jgen.writeStartObject();
         jgen.writeFieldName("options");
-        jgen.writeObject(options);
+        jgen.writeObject(serializableOptions);
         jgen.writeEndObject();
       }
     }
@@ -396,10 +405,16 @@ class ProxyInvocationHandler implements InvocationHandler {
 
       // Attempt to serialize and deserialize each property.
       for (Map.Entry<String, Object> entry : options.entrySet()) {
-        String serializedValue = MAPPER.writeValueAsString(entry.getValue());
-        JavaType type = MAPPER.getTypeFactory()
-            .constructType(propertyToReturnType.get(entry.getKey()));
-        MAPPER.readValue(serializedValue, type);
+        try {
+          String serializedValue = MAPPER.writeValueAsString(entry.getValue());
+          JavaType type = MAPPER.getTypeFactory()
+              .constructType(propertyToReturnType.get(entry.getKey()));
+          MAPPER.readValue(serializedValue, type);
+        } catch (Exception e) {
+          throw new IOException(String.format(
+              "Failed to serialize and deserialize property '%s' with value '%s'",
+              entry.getKey(), entry.getValue()), e);
+        }
       }
     }
   }
