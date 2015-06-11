@@ -75,6 +75,12 @@ public class BlockingDataflowPipelineRunner extends
     return new BlockingDataflowPipelineRunner(dataflowPipelineRunner, dataflowOptions);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws JobExecutionException if there is an exception during job execution.
+   * @throws ServiceException if there is an exception retrieving information about the job.
+   */
   @Override
   public DataflowPipelineJob run(Pipeline p) {
     final DataflowPipelineJob job = dataflowPipelineRunner.run(p);
@@ -103,23 +109,30 @@ public class BlockingDataflowPipelineRunner extends
             BUILTIN_JOB_TIMEOUT_SEC, TimeUnit.SECONDS,
             new MonitoringUtil.PrintHandler(options.getJobMessageOutput()));
       } catch (IOException | InterruptedException ex) {
-        throw new RuntimeException("Exception caught during job execution", ex);
+        LOG.debug("Exception caught while retrieving status for job {}", job.getJobId(), ex);
+        throw new ServiceException(
+            job, "Exception caught while retrieving status for job " + job.getJobId(), ex);
       }
 
       if (result == null) {
-        throw new RuntimeException("No result provided: "
-            + "possible error requesting job status.");
+        throw new ServiceException(
+            job, "Timed out while retrieving status for job " + job.getJobId());
       }
 
       LOG.info("Job finished with status {}", result);
-      if (result.isTerminal()) {
-        return job;
+      if (!result.isTerminal()) {
+        throw new IllegalStateException("Expected terminal state for job " + job.getJobId()
+            + ", got " + result);
       }
 
-      // TODO: introduce an exception that can wrap a JobState,
-      // so that detailed error information can be retrieved.
-      throw new RuntimeException(
-          "Failed to wait for the job to finish. Returned result: " + result);
+      if (result == State.DONE) {
+        return job;
+      } else {
+        // TODO: introduce an exception that can wrap a JobState,
+        // so that detailed error information can be retrieved.
+        throw new JobExecutionException(job, "Job " + job.getJobId()
+            + " finished unsuccessfully with status " + result);
+      }
     } finally {
       Runtime.getRuntime().removeShutdownHook(shutdownHook);
     }

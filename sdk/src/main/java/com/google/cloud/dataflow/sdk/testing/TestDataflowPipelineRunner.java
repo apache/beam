@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.PipelineResult.State;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineJob;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.JobExecutionException;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
@@ -83,7 +84,12 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
 
     final JobMessagesHandler messageHandler =
         new MonitoringUtil.PrintHandler(options.getJobMessageOutput());
-    final DataflowPipelineJob job = runner.run(pipeline);
+    final DataflowPipelineJob job;
+    try {
+      job = runner.run(pipeline);
+    } catch (JobExecutionException ex) {
+      throw new IllegalStateException("The dataflow failed.");
+    }
 
     LOG.info("Running Dataflow job {} with {} expected assertions.",
         job.getJobId(), expectedNumberOfAssertions);
