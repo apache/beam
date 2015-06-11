@@ -244,8 +244,8 @@ public class ByteOffsetBasedSourceTest {
 
     Source<Integer> residual = reader.splitAtFraction(reader.getFractionConsumed() + 0.1);
     Source<Integer> primary = reader.getCurrentSource();
-    List<Integer> primaryItems = readFromSource(primary);
-    List<Integer> residualItems = readFromSource(residual);
+    List<Integer> primaryItems = readFromSource(primary, options);
+    List<Integer> residualItems = readFromSource(residual, options);
     for (Integer item : residualItems) {
       assertTrue(item > reader.getCurrentOffset());
     }
@@ -261,12 +261,13 @@ public class ByteOffsetBasedSourceTest {
 
   @Test
   public void testSplitAtFractionExhaustive() throws IOException {
+    PipelineOptions options = PipelineOptionsFactory.create();
     CoarseByteRangeSource original = new CoarseByteRangeSource(13, 35, 1, 10);
-    int maxItems = readFromSource(original).size();
+    int maxItems = readFromSource(original, options).size();
     for (int numItems = 0; numItems <= maxItems; ++numItems) {
       for (double splitFraction = 0.0; splitFraction < 1.1; splitFraction += 0.05) {
         assertSplitAtFractionBehavior(
-            original, numItems, splitFraction, MUST_BE_CONSISTENT_IF_SUCCEEDS);
+            original, numItems, splitFraction, MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
       }
     }
   }

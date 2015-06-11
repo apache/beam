@@ -25,6 +25,8 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.Source.Reader;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -692,6 +694,7 @@ public class XmlSourceTest {
 
   @Test
   public void testSplitAtFraction() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
     String fileName = "temp.xml";
     List<Train> trains = generateRandomTrainList(100);
     File file = createRandomTrainXML(fileName, trains);
@@ -707,19 +710,20 @@ public class XmlSourceTest {
         fileSource.splitIntoBundles(file.length() / 3, null);
     for (BoundedSource<Train> splitSource : splits) {
       int items = readEverythingFromReader(splitSource.createReader(null, null)).size();
-      assertSplitAtFractionSucceedsAndConsistent(splitSource, 0, 0.7);
-      assertSplitAtFractionSucceedsAndConsistent(splitSource, 1, 0.7);
-      assertSplitAtFractionSucceedsAndConsistent(splitSource, 15, 0.7);
-      assertSplitAtFractionFails(splitSource, 0, 0.0);
-      assertSplitAtFractionFails(splitSource, 20, 0.3);
-      assertSplitAtFractionFails(splitSource, items, 1.0);
-      assertSplitAtFractionFails(splitSource, items, 0.9);
-      assertSplitAtFractionSucceedsAndConsistent(splitSource, items, 0.999);
+      assertSplitAtFractionSucceedsAndConsistent(splitSource, 0, 0.7, options);
+      assertSplitAtFractionSucceedsAndConsistent(splitSource, 1, 0.7, options);
+      assertSplitAtFractionSucceedsAndConsistent(splitSource, 15, 0.7, options);
+      assertSplitAtFractionFails(splitSource, 0, 0.0, options);
+      assertSplitAtFractionFails(splitSource, 20, 0.3, options);
+      assertSplitAtFractionFails(splitSource, items, 1.0, options);
+      assertSplitAtFractionFails(splitSource, items, 0.9, options);
+      assertSplitAtFractionSucceedsAndConsistent(splitSource, items, 0.999, options);
     }
   }
 
   @Test
   public void testSplitAtFractionExhaustive() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXMLWithAllFeatures.getBytes(StandardCharsets.UTF_8));
 
@@ -737,7 +741,7 @@ public class XmlSourceTest {
       for (int numItems = 0; numItems <= maxItems; ++numItems) {
         for (double splitFraction = 0.0; splitFraction < 1.1; splitFraction += 0.01) {
           assertSplitAtFractionBehavior(
-              splitSource, numItems, splitFraction, MUST_BE_CONSISTENT_IF_SUCCEEDS);
+              splitSource, numItems, splitFraction, MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
         }
       }
     }

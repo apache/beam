@@ -312,8 +312,8 @@ public class BasicSerializableSourceFormatTest {
       TestIO.Read residual = (TestIO.Read) reader.splitAtFraction(0.5);
       assertNotNull(residual);
       TestIO.Read primary = (TestIO.Read) reader.getCurrentSource();
-      assertThat(readFromSource(primary), contains(10, 11, 12, 13, 14));
-      assertThat(readFromSource(residual), contains(15, 16, 17, 18, 19));
+      assertThat(readFromSource(primary, options), contains(10, 11, 12, 13, 14));
+      assertThat(readFromSource(residual, options), contains(15, 16, 17, 18, 19));
     }
 
     // Range is now [10, 15) and we are at 12.
@@ -321,8 +321,8 @@ public class BasicSerializableSourceFormatTest {
       TestIO.Read residual = (TestIO.Read) reader.splitAtFraction(0.8);  // give up 14.
       assertNotNull(residual);
       TestIO.Read primary = (TestIO.Read) reader.getCurrentSource();
-      assertThat(readFromSource(primary), contains(10, 11, 12, 13));
-      assertThat(readFromSource(residual), contains(14));
+      assertThat(readFromSource(primary, options), contains(10, 11, 12, 13));
+      assertThat(readFromSource(residual, options), contains(14));
     }
 
     assertTrue(reader.advance());
@@ -360,15 +360,15 @@ public class BasicSerializableSourceFormatTest {
         (BasicSerializableSourceFormat.BoundedSourceSplit<Integer>)
             iterator.requestDynamicSplit(splitRequestAtFraction(0.5f));
     assertNotNull(sourceSplit);
-    assertThat(readFromSource(sourceSplit.primary), contains(10, 11, 12, 13, 14));
-    assertThat(readFromSource(sourceSplit.residual), contains(15, 16, 17, 18, 19));
+    assertThat(readFromSource(sourceSplit.primary, options), contains(10, 11, 12, 13, 14));
+    assertThat(readFromSource(sourceSplit.residual, options), contains(15, 16, 17, 18, 19));
 
     sourceSplit =
         (BasicSerializableSourceFormat.BoundedSourceSplit<Integer>)
             iterator.requestDynamicSplit(splitRequestAtFraction(0.8f));
     assertNotNull(sourceSplit);
-    assertThat(readFromSource(sourceSplit.primary), contains(10, 11, 12, 13));
-    assertThat(readFromSource(sourceSplit.residual), contains(14));
+    assertThat(readFromSource(sourceSplit.primary, options), contains(10, 11, 12, 13));
+    assertThat(readFromSource(sourceSplit.residual, options), contains(14));
 
     assertTrue(iterator.hasNext());
     assertEquals(valueInGlobalWindow(13), iterator.next());

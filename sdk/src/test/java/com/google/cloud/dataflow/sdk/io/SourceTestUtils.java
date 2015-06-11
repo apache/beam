@@ -16,12 +16,13 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,9 +35,9 @@ public class SourceTestUtils {
   /**
    * Reads all elements from the given {@link Source}.
    */
-  public static <T> List<T> readFromSource(Source<T> source) throws IOException {
-    return readFromUnstartedReader(source.createReader(
-        PipelineOptionsFactory.create(), null));
+  public static <T> List<T> readFromSource(Source<T> source, PipelineOptions options)
+      throws IOException {
+    return readFromUnstartedReader(source.createReader(options, null));
   }
 
   /**
@@ -69,6 +70,33 @@ public class SourceTestUtils {
   }
 
   /**
+   * Given a reference {@code Source} and a list of {@code Source}s, assert that the union of
+   * the records read from the list of sources is equal to the records read from the reference
+   * source.
+   */
+  public static <T> void assertSourcesEqualReferenceSource(Source<T> referenceSource,
+      List<? extends Source<T>> sources, PipelineOptions options) throws IOException {
+    List<T> referenceRecords = readFromSource(referenceSource, options);
+    List<T> bundleRecords = new ArrayList<>();
+    for (Source<T> source : sources) {
+      List<T> elems = readFromSource(source, options);
+      bundleRecords.addAll(elems);
+    }
+    assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
+  }
+
+  /**
+   * Assert that a {@code Reader} returns a {@code Source} that, when read from, produces the same
+   * records as the reader.
+   */
+  public static <T> void assertUnstartedReaderReadsSameAsItsSource(
+      Source.Reader<T> reader, PipelineOptions options) throws IOException {
+    List<T> expected = readFromUnstartedReader(reader);
+    List<T> actual = readFromUnstartedReader(reader.getCurrentSource().createReader(options, null));
+    assertEquals(expected, actual);
+  }
+
+  /**
    * Expected outcome of
    * {@link com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader#splitAtFraction}.
    */
@@ -92,11 +120,10 @@ public class SourceTestUtils {
    * after reading {@code numItemsToReadBeforeSplit} items, or succeeds in a way that is
    * consistent according to {@link #assertSplitAtFractionSucceedsAndConsistent}.
    */
-  public static <T> void assertSplitAtFractionBehavior(
-      BoundedSource<T> source, int numItemsToReadBeforeSplit, double splitFraction,
-      ExpectedSplitOutcome expectedOutcome) throws IOException {
-    PipelineOptions options = PipelineOptionsFactory.create();
-    List<T> expectedItems = readFromSource(source);
+  public static <T> void assertSplitAtFractionBehavior(BoundedSource<T> source,
+      int numItemsToReadBeforeSplit, double splitFraction, ExpectedSplitOutcome expectedOutcome,
+      PipelineOptions options) throws IOException {
+    List<T> expectedItems = readFromSource(source, options);
     BoundedSource.BoundedReader<T> reader = source.createReader(options, null);
     List<T> currentItems = new ArrayList<>();
     currentItems.addAll(readNItemsFromUnstartedReader(reader, numItemsToReadBeforeSplit));
@@ -117,8 +144,8 @@ public class SourceTestUtils {
     }
     if (residual != null) {
       BoundedSource<T> primary = reader.getCurrentSource();
-      List<T> primaryItems = readFromSource(primary);
-      List<T> residualItems = readFromSource(residual);
+      List<T> primaryItems = readFromSource(primary, options);
+      List<T> residualItems = readFromSource(residual, options);
       List<T> totalItems = new ArrayList<>();
       totalItems.addAll(primaryItems);
       totalItems.addAll(residualItems);
@@ -153,23 +180,21 @@ public class SourceTestUtils {
    *   assert: items in original source == items in primary + items in residual
    * </pre>
    */
-  public static <T> void assertSplitAtFractionSucceedsAndConsistent(
-      BoundedSource<T> source, int numItemsToReadBeforeSplit, double splitFraction)
+  public static <T> void assertSplitAtFractionSucceedsAndConsistent(BoundedSource<T> source,
+      int numItemsToReadBeforeSplit, double splitFraction, PipelineOptions options)
       throws IOException {
-    assertSplitAtFractionBehavior(
-        source, numItemsToReadBeforeSplit, splitFraction,
-        ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT);
+    assertSplitAtFractionBehavior(source, numItemsToReadBeforeSplit, splitFraction,
+        ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT, options);
   }
 
   /**
    * Asserts that the {@code source}'s reader fails to {@code splitAtFraction(fraction)}
    * after reading {@code numItemsToReadBeforeSplit} items.
    */
-  public static <T> void assertSplitAtFractionFails(
-      BoundedSource<T> source, int numItemsToReadBeforeSplit, double splitFraction)
+  public static <T> void assertSplitAtFractionFails(BoundedSource<T> source,
+      int numItemsToReadBeforeSplit, double splitFraction, PipelineOptions options)
       throws IOException {
     assertSplitAtFractionBehavior(
-        source, numItemsToReadBeforeSplit, splitFraction,
-        ExpectedSplitOutcome.MUST_FAIL);
+        source, numItemsToReadBeforeSplit, splitFraction, ExpectedSplitOutcome.MUST_FAIL, options);
   }
 }
