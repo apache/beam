@@ -45,6 +45,8 @@ import javax.annotation.Nullable;
 public final class MonitoringUtil {
 
   private static final String GCLOUD_DATAFLOW_PREFIX = "gcloud alpha dataflow";
+  private static final String ENDPOINT_OVERRIDE_ENV_VAR =
+      "CLOUDSDK_API_ENDPOINT_OVERRIDES_DATAFLOW";
 
   private static final Map<String, State> DATAFLOW_STATE_TO_JOB_STATE =
       ImmutableMap
@@ -206,6 +208,10 @@ public final class MonitoringUtil {
       // Should never happen.
       throw new AssertionError("UTF-8 encoding is not supported by the environment", e);
     }
+  }
+
+  public static String getEndpointOverridePrefixCommand(String endpoint) {
+    return String.format("%s=%s ", ENDPOINT_OVERRIDE_ENV_VAR, endpoint);
   }
 
   public static String getGcloudCancelCommand(String projectName, String jobId) {

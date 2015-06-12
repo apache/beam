@@ -25,6 +25,7 @@ import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
@@ -199,8 +200,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     newJob.getEnvironment().setUserAgent(DataflowReleaseInfo.getReleaseInfo());
     // The Dataflow Service may write to the temporary directory directly, so
     // must be verified.
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     if (!Strings.isNullOrEmpty(options.getTempLocation())) {
-      DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
       newJob.getEnvironment().setTempStoragePrefix(
           dataflowOptions.getPathValidator().verifyPath(options.getTempLocation()));
     }
@@ -263,7 +264,14 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         MonitoringUtil.getJobMonitoringPageURL(options.getProject(), jobResult.getId()));
     System.out.println("Submitted job: " + jobResult.getId());
 
-    LOG.info("To cancel the job using the 'gcloud' tool, run:\n> {}",
+    boolean usingCustomApiRootUrl =
+        !DataflowPipelineDebugOptions.DEFAULT_API_ROOT.equals(dataflowOptions.getApiRootUrl());
+    final String setApiEndpointCommand =
+        (usingCustomApiRootUrl
+         ? MonitoringUtil.getEndpointOverridePrefixCommand(dataflowOptions.getApiRootUrl())
+         : "");
+    LOG.info("To cancel the job using the 'gcloud' tool, run:\n> {}{}",
+        setApiEndpointCommand,
         MonitoringUtil.getGcloudCancelCommand(options.getProject(), jobResult.getId()));
 
     // Obtain all of the extractors from the PTransforms used in the pipeline so the
