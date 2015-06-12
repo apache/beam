@@ -44,14 +44,14 @@ public class MonitoringUtilTest {
 
   @Test
   public void testGetJobMessages() throws IOException {
-    Dataflow.V1b3.Projects.Jobs.Messages mockMessages =
-        mock(Dataflow.V1b3.Projects.Jobs.Messages.class);
+    Dataflow.Projects.Jobs.Messages mockMessages =
+        mock(Dataflow.Projects.Jobs.Messages.class);
 
     // Two requests are needed to get all the messages.
-    Dataflow.V1b3.Projects.Jobs.Messages.List firstRequest =
-        mock(Dataflow.V1b3.Projects.Jobs.Messages.List.class);
-    Dataflow.V1b3.Projects.Jobs.Messages.List secondRequest =
-        mock(Dataflow.V1b3.Projects.Jobs.Messages.List.class);
+    Dataflow.Projects.Jobs.Messages.List firstRequest =
+        mock(Dataflow.Projects.Jobs.Messages.List.class);
+    Dataflow.Projects.Jobs.Messages.List secondRequest =
+        mock(Dataflow.Projects.Jobs.Messages.List.class);
 
     when(mockMessages.list(PROJECT_ID, JOB_ID))
         .thenReturn(firstRequest)

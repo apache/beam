@@ -147,7 +147,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
 
   Optional<Boolean> checkForSuccess(DataflowPipelineJob job)
       throws IOException {
-    JobMetrics metrics = job.getDataflowClient().v1b3().projects().jobs()
+    JobMetrics metrics = job.getDataflowClient().projects().jobs()
         .getMetrics(job.getProjectId(), job.getJobId()).execute();
 
     if (metrics == null || metrics.getMetrics() == null) {

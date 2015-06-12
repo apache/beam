@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudTime;
 
 import com.google.api.services.dataflow.Dataflow;
-import com.google.api.services.dataflow.Dataflow.V1b3.Projects.Jobs.Messages;
+import com.google.api.services.dataflow.Dataflow.Projects.Jobs.Messages;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.ListJobMessagesResponse;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
@@ -121,7 +121,7 @@ public final class MonitoringUtil {
 
   /** Construct a helper for monitoring. */
   public MonitoringUtil(String projectId, Dataflow dataflow) {
-    this(projectId, dataflow.v1b3().projects().jobs().messages());
+    this(projectId, dataflow.projects().jobs().messages());
   }
 
   // @VisibleForTesting

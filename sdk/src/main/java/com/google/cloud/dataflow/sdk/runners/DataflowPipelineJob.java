@@ -226,7 +226,7 @@ public class DataflowPipelineJob implements PipelineResult {
     content.setProjectId(project);
     content.setId(jobId);
     content.setRequestedState("JOB_STATE_CANCELLED");
-    dataflowClient.v1b3().projects().jobs()
+    dataflowClient.projects().jobs()
         .update(project, jobId, content)
         .execute();
   }
@@ -257,7 +257,6 @@ public class DataflowPipelineJob implements PipelineResult {
     do {
       try {
         job = dataflowClient
-            .v1b3()
             .projects()
             .jobs()
             .get(project, jobId)
@@ -300,7 +299,7 @@ public class DataflowPipelineJob implements PipelineResult {
       } else {
         boolean terminal = getState().isTerminal();
         JobMetrics jobMetrics =
-            dataflowClient.v1b3().projects().jobs().getMetrics(project, jobId).execute();
+            dataflowClient.projects().jobs().getMetrics(project, jobId).execute();
         metricUpdates = jobMetrics.getMetrics();
         if (terminal && jobMetrics.getMetrics() != null) {
           terminalMetricUpdates = metricUpdates;

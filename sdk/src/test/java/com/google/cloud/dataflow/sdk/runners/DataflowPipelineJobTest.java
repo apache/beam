@@ -31,9 +31,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.Dataflow;
-import com.google.api.services.dataflow.Dataflow.V1b3.Projects.Jobs.Get;
-import com.google.api.services.dataflow.Dataflow.V1b3.Projects.Jobs.GetMetrics;
-import com.google.api.services.dataflow.Dataflow.V1b3.Projects.Jobs.Messages;
+import com.google.api.services.dataflow.Dataflow.Projects.Jobs.Get;
+import com.google.api.services.dataflow.Dataflow.Projects.Jobs.GetMetrics;
+import com.google.api.services.dataflow.Dataflow.Projects.Jobs.Messages;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
@@ -79,11 +79,9 @@ public class DataflowPipelineJobTest {
   @Mock
   private Dataflow mockWorkflowClient;
   @Mock
-  private Dataflow.V1b3 mockV1b3;
+  private Dataflow.Projects mockProjects;
   @Mock
-  private Dataflow.V1b3.Projects mockProjects;
-  @Mock
-  private Dataflow.V1b3.Projects.Jobs mockJobs;
+  private Dataflow.Projects.Jobs mockJobs;
   @Rule
   public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
 
@@ -94,8 +92,7 @@ public class DataflowPipelineJobTest {
   public void setup() {
     MockitoAnnotations.initMocks(this);
 
-    when(mockWorkflowClient.v1b3()).thenReturn(mockV1b3);
-    when(mockV1b3.projects()).thenReturn(mockProjects);
+    when(mockWorkflowClient.projects()).thenReturn(mockProjects);
     when(mockProjects.jobs()).thenReturn(mockJobs);
   }
 
@@ -126,7 +123,7 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testWaitToFinishMessagesFail() throws Exception {
-    Dataflow.V1b3.Projects.Jobs.Get statusRequest = mock(Dataflow.V1b3.Projects.Jobs.Get.class);
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_" + State.DONE.name());
@@ -134,9 +131,9 @@ public class DataflowPipelineJobTest {
     when(statusRequest.execute()).thenReturn(statusResponse);
 
     MonitoringUtil.JobMessagesHandler jobHandler = mock(MonitoringUtil.JobMessagesHandler.class);
-    Dataflow.V1b3.Projects.Jobs.Messages mockMessages =
-        mock(Dataflow.V1b3.Projects.Jobs.Messages.class);
-    Messages.List listRequest = mock(Dataflow.V1b3.Projects.Jobs.Messages.List.class);
+    Dataflow.Projects.Jobs.Messages mockMessages =
+        mock(Dataflow.Projects.Jobs.Messages.class);
+    Messages.List listRequest = mock(Dataflow.Projects.Jobs.Messages.List.class);
     when(mockJobs.messages()).thenReturn(mockMessages);
     when(mockMessages.list(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(listRequest);
     when(listRequest.execute()).thenThrow(SocketTimeoutException.class);
@@ -152,7 +149,7 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testWaitToFinish() throws Exception {
-    Dataflow.V1b3.Projects.Jobs.Get statusRequest = mock(Dataflow.V1b3.Projects.Jobs.Get.class);
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_" + State.DONE.name());
@@ -171,7 +168,7 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testWaitToFinishFail() throws Exception {
-    Dataflow.V1b3.Projects.Jobs.Get statusRequest = mock(Dataflow.V1b3.Projects.Jobs.Get.class);
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
 
     when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenThrow(IOException.class);
@@ -191,7 +188,7 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testWaitToFinishTimeFail() throws Exception {
-    Dataflow.V1b3.Projects.Jobs.Get statusRequest = mock(Dataflow.V1b3.Projects.Jobs.Get.class);
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
 
     when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenThrow(IOException.class);
@@ -210,7 +207,7 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testGetStateReturnsServiceState() throws Exception {
-    Dataflow.V1b3.Projects.Jobs.Get statusRequest = mock(Dataflow.V1b3.Projects.Jobs.Get.class);
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_" + State.RUNNING.name());
@@ -231,7 +228,7 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testGetStateWithExceptionReturnsUnknown() throws Exception {
-    Dataflow.V1b3.Projects.Jobs.Get statusRequest = mock(Dataflow.V1b3.Projects.Jobs.Get.class);
+    Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
 
     when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenThrow(IOException.class);

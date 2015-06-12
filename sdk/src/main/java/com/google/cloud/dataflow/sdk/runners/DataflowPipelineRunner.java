@@ -242,11 +242,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     if (options.getReload()) {
       reloadJobId = getJobIdFromName(options.getJobName());
     }
-
     Job jobResult;
     try {
-      Dataflow.V1b3.Projects.Jobs.Create createRequest =
-          dataflowClient.v1b3().projects().jobs()
+      Dataflow.Projects.Jobs.Create createRequest =
+          dataflowClient.projects().jobs()
           .create(options.getProject(), newJob);
       if (reloadJobId != null) {
         createRequest.setReplaceJobId(reloadJobId);
@@ -346,7 +345,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       ListJobsResponse listResult;
       String token = null;
       do {
-        listResult = dataflowClient.v1b3().projects().jobs()
+        listResult = dataflowClient.projects().jobs()
             .list(options.getProject())
             .setPageToken(token)
             .execute();

@@ -241,7 +241,7 @@ public class DataflowWorkerHarness {
 
       LOG.debug("Leasing work: {}", request);
 
-      LeaseWorkItemResponse response = dataflow.v1b3().projects().jobs().workItems().lease(
+      LeaseWorkItemResponse response = dataflow.projects().jobs().workItems().lease(
           options.getProject(), options.getJobId(), request).execute();
       LOG.debug("Lease work response: {}", response);
 
@@ -271,7 +271,7 @@ public class DataflowWorkerHarness {
       workItemStatus.setFactory(Transport.getJsonFactory());
       LOG.debug("Reporting work status: {}", workItemStatus);
       ReportWorkItemStatusResponse result =
-          dataflow.v1b3().projects().jobs().workItems().reportStatus(
+          dataflow.projects().jobs().workItems().reportStatus(
               options.getProject(), options.getJobId(),
               new ReportWorkItemStatusRequest()
               .setWorkerId(options.getWorkerId())

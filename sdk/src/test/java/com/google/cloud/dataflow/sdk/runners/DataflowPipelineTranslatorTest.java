@@ -114,14 +114,12 @@ public class DataflowPipelineTranslatorTest {
   private static Dataflow buildMockDataflow(
       ArgumentMatcher<Job> jobMatcher) throws IOException {
     Dataflow mockDataflowClient = mock(Dataflow.class);
-    Dataflow.V1b3 mockV1b3 = mock(Dataflow.V1b3.class);
-    Dataflow.V1b3.Projects mockProjects = mock(Dataflow.V1b3.Projects.class);
-    Dataflow.V1b3.Projects.Jobs mockJobs = mock(Dataflow.V1b3.Projects.Jobs.class);
-    Dataflow.V1b3.Projects.Jobs.Create mockRequest = mock(
-        Dataflow.V1b3.Projects.Jobs.Create.class);
+    Dataflow.Projects mockProjects = mock(Dataflow.Projects.class);
+    Dataflow.Projects.Jobs mockJobs = mock(Dataflow.Projects.Jobs.class);
+    Dataflow.Projects.Jobs.Create mockRequest = mock(
+        Dataflow.Projects.Jobs.Create.class);
 
-    when(mockDataflowClient.v1b3()).thenReturn(mockV1b3);
-    when(mockV1b3.projects()).thenReturn(mockProjects);
+    when(mockDataflowClient.projects()).thenReturn(mockProjects);
     when(mockProjects.jobs()).thenReturn(mockJobs);
     when(mockJobs.create(eq("someProject"), argThat(jobMatcher)))
         .thenReturn(mockRequest);
