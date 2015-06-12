@@ -460,12 +460,8 @@ public class ProxyInvocationHandlerTest {
     SimpleTypes options = PipelineOptionsFactory.as(SimpleTypes.class);
     options.setString("TestValue");
     options.setInteger(5);
-    // It is important here that our first serialization goes to our most basic
-    // type so that we handle the case when we don't know the types of certain
-    // properties because the intermediate instance of PipelineOptions never
-    // saw their interface.
     SimpleTypes options2 = serializeDeserialize(SimpleTypes.class,
-        serializeDeserialize(PipelineOptions.class, options));
+        serializeDeserialize(SimpleTypes.class, options));
     assertEquals(5, options2.getInteger());
     assertEquals("TestValue", options2.getString());
   }
@@ -618,13 +614,11 @@ public class ProxyInvocationHandlerTest {
     void setValue(NotSerializable value);
   }
 
-  @Test
+  @Test(expected = JsonMappingException.class)
   public void testJsonConversionOfNotSerializableProperty() throws Exception {
     NotSerializableProperty options = PipelineOptionsFactory.as(NotSerializableProperty.class);
     options.setValue(new NotSerializable("TestString"));
 
-    expectedException.expect(JsonMappingException.class);
-    expectedException.expectMessage("Failed to serialize and deserialize property 'value'");
     serializeDeserialize(NotSerializableProperty.class, options);
   }
 
