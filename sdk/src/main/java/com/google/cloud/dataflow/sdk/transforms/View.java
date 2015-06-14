@@ -123,20 +123,21 @@ import java.util.NoSuchElementException;
  * PCollection<Page> pages = ... // pages fit into memory
  * PCollection<UrlVisit> urlVisits = ... // very large collection
  * final PCollectionView<Map<URL, Page>> = urlToPage
- *     .apply(WithKeys.of( ... ) ) // extract the URL from the page
+ *     .apply(WithKeys.of( ... )) // extract the URL from the page
  *     .apply(View.asMap());
  *
  * PCollection PageVisits = urlVisits
  *     .apply(ParDo.withSideInputs(urlToPage)
  *         .of(new DoFn<UrlVisit, PageVisit>() {
- *             @Override
+ *             {@literal @}Override
  *             void processElement(ProcessContext context) {
  *               UrlVisit urlVisit = context.element();
  *               Page page = urlToPage.get(urlVisit.getUrl());
  *               c.output(new PageVisit(page, urlVisit.getVisitData()));
  *             }
  *         }));
- * }</pre>
+ * }
+ * </pre>
  *
  * <p> See {@link ParDo#withSideInputs} for details on how to access
  * this variable inside a {@link ParDo} over another {@link PCollection}.
