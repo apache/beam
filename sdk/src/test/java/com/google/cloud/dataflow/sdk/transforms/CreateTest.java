@@ -23,6 +23,7 @@ import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -117,9 +118,11 @@ public class CreateTest {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> output =
-        p.apply(Create.of(null, "test1", null, "test2", null));
+        p.apply(Create.of(null, "test1", null, "test2", null)
+            .withCoder(SerializableCoder.of(String.class)));
     DataflowAssert.that(output)
         .containsInAnyOrder(null, "test1", null, "test2", null);
+    p.run();
   }
 
   @Test

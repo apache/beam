@@ -41,7 +41,6 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
@@ -49,7 +48,6 @@ import com.google.common.collect.Lists;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -104,7 +102,6 @@ public class DatastoreIOTest {
    * Test for reading one entity from kind "food".
    */
   @Test
-  @Category(RunnableOnService.class)
   public void testBuildRead() throws Exception {
     DatastoreIO.Source readQuery =
         DatastoreIO.read().withHost(this.host).withDataset(this.datasetId).withQuery(this.query);

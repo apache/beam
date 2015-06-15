@@ -418,9 +418,10 @@ public class CombineTest implements Serializable {
                   public void processElement(ProcessContext c) {
                     c.output(c.sideInput(view));
                   }
-                }));
+                }).withSideInputs(view));
 
     DataflowAssert.thatSingleton(output).isEqualTo(0);
+    p.run();
   }
 
   ////////////////////////////////////////////////////////////////////////////

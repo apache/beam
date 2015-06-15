@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.common.base.Optional;
@@ -121,8 +122,8 @@ public class TestPipeline extends Pipeline {
    */
   static TestDataflowPipelineOptions getPipelineOptions() {
     try {
-      TestDataflowPipelineOptions options = MAPPER.readValue(
-          System.getProperty(PROPERTY_DATAFLOW_OPTIONS), PipelineOptions.class)
+      TestDataflowPipelineOptions options = PipelineOptionsFactory.fromArgs(
+              MAPPER.readValue(System.getProperty(PROPERTY_DATAFLOW_OPTIONS), String[].class))
           .as(TestDataflowPipelineOptions.class);
       options.setAppName(getAppName());
       return options;

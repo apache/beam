@@ -22,7 +22,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
-import com.google.common.collect.ImmutableMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -45,20 +44,18 @@ public class TestPipelineTest {
   @Test
   public void testCreationOfPipelineOptions() throws Exception {
     ObjectMapper mapper = new ObjectMapper();
-    String stringOptions = mapper.writeValueAsString(
-        ImmutableMap.of("options",
-          ImmutableMap.<String, String>builder()
-          .put("runner", DataflowPipelineRunner.class.getName())
-          .put("project", "testProject")
-          .put("apiRootUrl", "testApiRootUrl")
-          .put("dataflowEndpoint", "testDataflowEndpoint")
-          .put("tempLocation", "testTempLocation")
-          .put("serviceAccountName", "testServiceAccountName")
-          .put("serviceAccountKeyfile", "testServiceAccountKeyfile")
-          .put("zone", "testZone")
-          .put("numWorkers", "1")
-          .put("diskSizeGb", "2")
-          .build()));
+    String stringOptions = mapper.writeValueAsString(new String[]{
+      "--runner=DataflowPipelineRunner",
+      "--project=testProject",
+      "--apiRootUrl=testApiRootUrl",
+      "--dataflowEndpoint=testDataflowEndpoint",
+      "--tempLocation=testTempLocation",
+      "--serviceAccountName=testServiceAccountName",
+      "--serviceAccountKeyfile=testServiceAccountKeyfile",
+      "--zone=testZone",
+      "--numWorkers=1",
+      "--diskSizeGb=2"
+    });
     System.getProperties().put("dataflowOptions", stringOptions);
     TestDataflowPipelineOptions options = TestPipeline.getPipelineOptions();
     assertEquals(DataflowPipelineRunner.class, options.getRunner());
@@ -76,10 +73,7 @@ public class TestPipelineTest {
   @Test
   public void testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
-    String stringOptions = mapper.writeValueAsString(
-        ImmutableMap.of("options",
-          ImmutableMap.<String, String>builder()
-          .build()));
+    String stringOptions = mapper.writeValueAsString(new String[]{});
     System.getProperties().put("dataflowOptions", stringOptions);
     TestDataflowPipelineOptions options = TestPipeline.getPipelineOptions();
     assertThat(options.getAppName(), startsWith(
