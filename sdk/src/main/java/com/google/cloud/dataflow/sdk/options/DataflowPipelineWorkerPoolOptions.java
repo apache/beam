@@ -93,6 +93,16 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setDiskSizeGb(int value);
 
   /**
+   * GCE <a href="https://cloud.google.com/compute/docs/networking">network</a> for launching
+   * workers.
+   *
+   * <p> Default is up to the Dataflow service.
+   */
+  @Description("GCE network for launching workers. Default is up to the Dataflow service.")
+  String getNetwork();
+  void setNetwork(String value);
+
+  /**
    * GCE <a href="https://developers.google.com/compute/docs/zones"
    * >availability zone</a> for launching workers.
    *
