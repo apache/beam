@@ -169,6 +169,28 @@ public class DataflowPipelineRunnerTest {
   }
 
   @Test
+  public void testRunReturnDifferentRequestId() throws IOException {
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage(Matchers.containsString(
+        "If you want to submit a new job in parallel, try again with a different name."));
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    Dataflow mockDataflowClient = options.getDataflowClient();
+    Dataflow.Projects.Jobs.Create mockRequest = mock(Dataflow.Projects.Jobs.Create.class);
+    when(mockDataflowClient.projects().jobs().create(eq("someProject"), jobCaptor.capture()))
+        .thenReturn(mockRequest);
+    Job resultJob = new Job();
+    resultJob.setId("newid");
+    // Return a different request id.
+    resultJob.setClientRequestId("different_request_id");
+    when(mockRequest.execute()).thenReturn(resultJob);
+
+    DataflowPipeline p = buildDataflowPipeline(options);
+    p.run();
+  }
+
+  @Test
   public void testReload() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 

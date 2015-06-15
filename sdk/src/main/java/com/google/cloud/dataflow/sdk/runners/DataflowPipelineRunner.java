@@ -48,6 +48,9 @@ import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+import org.joda.time.DateTimeUtils;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +66,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 /**
  * A {@link PipelineRunner} that executes the operations in the
@@ -194,6 +198,18 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     JobSpecification jobSpecification = translator.translate(pipeline, packages);
     Job newJob = jobSpecification.getJob();
 
+    // Set a unique client_request_id in the CreateJob request.
+    // This is used to ensure idempotence of job creation across retried
+    // attempts to create a job. Specifically, if the service returns a job with
+    // a different client_request_id, it means the returned one is a different
+    // job previously created with the same job name, and that the job creation
+    // has been effectively rejected. The SDK should return
+    // Error::Already_Exists to user in that case.
+    int randomNum = new Random().nextInt(9000) + 1000;
+    String requestId = DateTimeFormat.forPattern("YYYYMMddHHmmssmmm").withZone(DateTimeZone.UTC)
+        .print(DateTimeUtils.currentTimeMillis()) + "_" + randomNum;
+    newJob.setClientRequestId(requestId);
+
     String version = DataflowReleaseInfo.getReleaseInfo().getVersion();
     System.out.println("Dataflow SDK version: " + version);
 
@@ -253,11 +269,20 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       }
       jobResult = createRequest.execute();
     } catch (GoogleJsonResponseException e) {
-      throw new RuntimeException(
-          "Failed to create a workflow job: "
-              + (e.getDetails() != null ? e.getDetails().getMessage() : e), e);
+        throw new RuntimeException("Failed to create a workflow job: "
+            + (e.getDetails() != null ? e.getDetails().getMessage() : e), e);
     } catch (IOException e) {
       throw new RuntimeException("Failed to create a workflow job", e);
+    }
+    // If the service returned client request id, the SDK needs to compare it
+    // with the original id generated in the request, if they are not the same
+    // (i.e., the returned job is not created by this request), throw
+    // Error::Already_Exists.
+    if (jobResult.getClientRequestId() != null && !jobResult.getClientRequestId().isEmpty()
+        && !jobResult.getClientRequestId().equals(requestId)) {
+      throw new RuntimeException("The job you are trying to create with name " + newJob.getName()
+          + " already exists and is active in system with job id: " + jobResult.getId()
+          + ". If you want to submit a new job in parallel, try again with a different name.");
     }
 
     LOG.info("To access the Dataflow monitoring console, please navigate to {}",
