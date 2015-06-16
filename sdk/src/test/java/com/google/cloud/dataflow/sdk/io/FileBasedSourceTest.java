@@ -14,6 +14,7 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionFails;
 import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.readFromSource;
@@ -776,6 +777,7 @@ public class FileBasedSourceTest {
     File file = createFileWithData("file", createStringDataset(3, 100));
 
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 1, 0, file.length(), null);
+    assertSplitAtFractionExhaustive(source, options);
     assertSplitAtFractionSucceedsAndConsistent(source, 0, 0.7, options);
     assertSplitAtFractionSucceedsAndConsistent(source, 1, 0.7, options);
     assertSplitAtFractionSucceedsAndConsistent(source, 30, 0.7, options);

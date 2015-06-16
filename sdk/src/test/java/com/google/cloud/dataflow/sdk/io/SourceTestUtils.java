@@ -116,13 +116,29 @@ public class SourceTestUtils {
   }
 
   /**
+   * Contains two values: the number of items in the primary source, and the number of items in
+   * the residual source, -1 if split failed.
+   */
+  private static class SplitAtFractionResult {
+    public int numPrimaryItems;
+    public int numResidualItems;
+
+    public SplitAtFractionResult(int numPrimaryItems, int numResidualItems) {
+      this.numPrimaryItems = numPrimaryItems;
+      this.numResidualItems = numResidualItems;
+    }
+  }
+
+  /**
    * Asserts that the {@code source}'s reader either fails to {@code splitAtFraction(fraction)}
    * after reading {@code numItemsToReadBeforeSplit} items, or succeeds in a way that is
    * consistent according to {@link #assertSplitAtFractionSucceedsAndConsistent}.
+   * <p> Returns SplitAtFractionResult.
    */
-  public static <T> void assertSplitAtFractionBehavior(BoundedSource<T> source,
-      int numItemsToReadBeforeSplit, double splitFraction, ExpectedSplitOutcome expectedOutcome,
-      PipelineOptions options) throws IOException {
+
+  public static <T> SplitAtFractionResult assertSplitAtFractionBehavior(
+      BoundedSource<T> source, int numItemsToReadBeforeSplit, double splitFraction,
+      ExpectedSplitOutcome expectedOutcome, PipelineOptions options) throws IOException {
     List<T> expectedItems = readFromSource(source, options);
     BoundedSource.BoundedReader<T> reader = source.createReader(options, null);
     List<T> currentItems = new ArrayList<>();
@@ -142,9 +158,9 @@ public class SourceTestUtils {
         // Nothing.
         break;
     }
+    BoundedSource<T> primary = reader.getCurrentSource();
+    List<T> primaryItems = readFromSource(primary, options);
     if (residual != null) {
-      BoundedSource<T> primary = reader.getCurrentSource();
-      List<T> primaryItems = readFromSource(primary, options);
       List<T> residualItems = readFromSource(residual, options);
       List<T> totalItems = new ArrayList<>();
       totalItems.addAll(primaryItems);
@@ -163,7 +179,9 @@ public class SourceTestUtils {
             + " items; original source: " + source + ", primary: " + primary
             + ", residual: " + residual,
           expectedItems, totalItems);
+      return new SplitAtFractionResult(primaryItems.size(), residualItems.size());
     }
+    return new SplitAtFractionResult(primaryItems.size(), -1);
   }
 
   /**
@@ -196,5 +214,54 @@ public class SourceTestUtils {
       throws IOException {
     assertSplitAtFractionBehavior(
         source, numItemsToReadBeforeSplit, splitFraction, ExpectedSplitOutcome.MUST_FAIL, options);
+  }
+
+  /**
+   * Asserts that given a start position,
+   * {@link BoundedSource.BoundedReader#splitAtFraction} at every interesting fraction (halfway
+   * between two fractions that differ by at least one item) can be called successfully and the
+   * results are consistent if a split succeeds.
+   */
+  public static <T> void assertSplitAtFractionBinary(
+      BoundedSource<T> source, int numItemsToBeReadBeforeSplit, double firstSplitFraction,
+      double secondSplitFraction, PipelineOptions options) throws IOException {
+    if (secondSplitFraction - firstSplitFraction < 0.0001) {
+      return;
+    }
+    double middleSplitFraction = ((secondSplitFraction - firstSplitFraction)
+        / 2) + firstSplitFraction;
+    SplitAtFractionResult splitAtFirst = assertSplitAtFractionBehavior(
+        source, numItemsToBeReadBeforeSplit, firstSplitFraction,
+        ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
+    SplitAtFractionResult splitAtMiddle = assertSplitAtFractionBehavior(
+        source, numItemsToBeReadBeforeSplit, middleSplitFraction,
+        ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
+    SplitAtFractionResult splitAtSecond = assertSplitAtFractionBehavior(
+        source, numItemsToBeReadBeforeSplit, secondSplitFraction,
+        ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
+    if (splitAtFirst.numPrimaryItems != splitAtMiddle.numPrimaryItems
+        || splitAtFirst.numResidualItems != splitAtMiddle.numResidualItems) {
+      assertSplitAtFractionBinary(source, numItemsToBeReadBeforeSplit, firstSplitFraction,
+          middleSplitFraction, options);
+    }
+    if (splitAtSecond.numPrimaryItems != splitAtMiddle.numPrimaryItems
+        || splitAtSecond.numResidualItems != splitAtMiddle.numResidualItems) {
+      assertSplitAtFractionBinary(source, numItemsToBeReadBeforeSplit, middleSplitFraction,
+          secondSplitFraction, options);
+    }
+  }
+
+  /**
+   * Asserts that for each possible start position,
+   * {@link BoundedSource.BoundedReader#splitAtFraction} at every interesting fraction (halfway
+   * between two fractions that differ by at least one item) can be called successfully and the
+   * results are consistent if a split succeeds.
+   */
+  public static <T> void assertSplitAtFractionExhaustive(
+      BoundedSource<T> source, PipelineOptions options) throws IOException {
+    List<T> expectedItems = readFromSource(source, options);
+    for (int i = 0; i < expectedItems.size(); i++) {
+      assertSplitAtFractionBinary(source, i, 0.0, 1.0, options);
+    }
   }
 }

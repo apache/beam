@@ -14,8 +14,7 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS;
-import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionBehavior;
+import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.readFromSource;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -263,12 +262,6 @@ public class ByteOffsetBasedSourceTest {
   public void testSplitAtFractionExhaustive() throws IOException {
     PipelineOptions options = PipelineOptionsFactory.create();
     CoarseByteRangeSource original = new CoarseByteRangeSource(13, 35, 1, 10);
-    int maxItems = readFromSource(original, options).size();
-    for (int numItems = 0; numItems <= maxItems; ++numItems) {
-      for (double splitFraction = 0.0; splitFraction < 1.1; splitFraction += 0.05) {
-        assertSplitAtFractionBehavior(
-            original, numItems, splitFraction, MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
-      }
-    }
+    assertSplitAtFractionExhaustive(original, options);
   }
 }

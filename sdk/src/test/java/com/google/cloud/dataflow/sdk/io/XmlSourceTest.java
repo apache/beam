@@ -14,8 +14,7 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS;
-import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionBehavior;
+import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionFails;
 import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -733,18 +732,7 @@ public class XmlSourceTest {
             .withRecordElement("train")
             .withRecordClass(Train.class)
             .withMinBundleSize(1024);
-    List<? extends FileBasedSource<Train>> splits =
-        source.splitIntoBundles(file.length() / 3, null);
-
-    for (BoundedSource<Train> splitSource : splits) {
-      int maxItems = readEverythingFromReader(splitSource.createReader(null, null)).size();
-      for (int numItems = 0; numItems <= maxItems; ++numItems) {
-        for (double splitFraction = 0.0; splitFraction < 1.1; splitFraction += 0.01) {
-          assertSplitAtFractionBehavior(
-              splitSource, numItems, splitFraction, MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
-        }
-      }
-    }
+    assertSplitAtFractionExhaustive(source, options);
   }
 
   @Test
