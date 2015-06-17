@@ -15,8 +15,8 @@
 
 package com.cloudera.dataflow.spark;
 
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,10 +44,11 @@ public class EvaluationContext implements EvaluationResult {
   private final Pipeline pipeline;
   private final SparkRuntimeContext runtime;
   private final CoderRegistry registry;
-  private final Map<PValue, JavaRDDLike<?, ?>> rdds = new HashMap<>();
-  private final Set<PValue> multireads = new HashSet<>();
-  private final Map<PValue, Object> pobjects = new HashMap<>();
-  private final Map<PValue, Iterable<WindowedValue<?>>> pview = new HashMap<>();
+  private final Map<PValue, JavaRDDLike<?, ?>> rdds = new LinkedHashMap<>();
+  private final Set<JavaRDDLike<?, ?>> leafRdds = new LinkedHashSet<>();
+  private final Set<PValue> multireads = new LinkedHashSet<>();
+  private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
+  private final Map<PValue, Iterable<WindowedValue<?>>> pview = new LinkedHashMap<>();
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
@@ -81,7 +82,7 @@ public class EvaluationContext implements EvaluationResult {
   }
 
   void setOutputRDD(PTransform<?, ?> transform, JavaRDDLike<?, ?> rdd) {
-    rdds.put((PValue) getOutput(transform), rdd);
+    setRDD((PValue) getOutput(transform), rdd);
   }
 
   void setPView(PValue view, Iterable<WindowedValue<?>> value) {
@@ -90,6 +91,7 @@ public class EvaluationContext implements EvaluationResult {
 
   JavaRDDLike<?, ?> getRDD(PValue pvalue) {
     JavaRDDLike<?, ?> rdd = rdds.get(pvalue);
+    leafRdds.remove(rdd);
     if (multireads.contains(pvalue)) {
       // Ensure the RDD is marked as cached
       rdd.rdd().cache();
@@ -101,6 +103,7 @@ public class EvaluationContext implements EvaluationResult {
 
   void setRDD(PValue pvalue, JavaRDDLike<?, ?> rdd) {
     rdds.put(pvalue, rdd);
+    leafRdds.add(rdd);
   }
 
   JavaRDDLike<?, ?> getInputRDD(PTransform transform) {
@@ -110,6 +113,18 @@ public class EvaluationContext implements EvaluationResult {
 
   <T> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
     return pview.get(view);
+  }
+
+  /**
+   * Computes the outputs for all RDDs that are leaves in the DAG and do not have any
+   * actions (like saving to a file) registered on them (i.e. they are performed for side
+   * effects).
+   */
+  void computeOutputs() {
+    for (JavaRDDLike<?, ?> rdd : leafRdds) {
+      rdd.rdd().cache(); // cache so that any subsequent get() is cheap
+      rdd.count(); // force the RDD to be computed
+    }
   }
 
   @Override

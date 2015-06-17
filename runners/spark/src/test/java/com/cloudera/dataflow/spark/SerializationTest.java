@@ -44,9 +44,25 @@ public class SerializationTest {
 
   public static class StringHolder { // not serializable
     private String string;
+
     public StringHolder(String string) {
       this.string = string;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      StringHolder that = (StringHolder) o;
+      return string.equals(that.string);
+    }
+
+    @Override
+    public int hashCode() {
+      return string.hashCode();
+    }
+
     @Override
     public String toString() {
       return string;

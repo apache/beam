@@ -101,9 +101,15 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
 
   @Override
   public EvaluationResult run(Pipeline pipeline) {
+    LOG.info("Executing pipeline using the SparkPipelineRunner.");
+
     JavaSparkContext jsc = getContext();
     EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
     pipeline.traverseTopologically(new Evaluator(ctxt));
+    ctxt.computeOutputs();
+
+    LOG.info("Pipeline execution complete.");
+
     return ctxt;
   }
 
