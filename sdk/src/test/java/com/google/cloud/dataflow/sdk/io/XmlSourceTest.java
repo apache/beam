@@ -17,7 +17,9 @@ package com.google.cloud.dataflow.sdk.io;
 import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionFails;
 import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
+import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -31,6 +33,7 @@ import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.ImmutableList;
 
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -477,8 +480,9 @@ public class XmlSourceTest {
             .withRecordClass(WrongTrainType.class);
 
     exception.expect(RuntimeException.class);
-    exception.expectMessage(
-        "unexpected element (uri:\"\", local:\"name\"). Expected elements are <{}something>");
+
+    // JAXB internationalizes the error message. So this is all we can match for.
+    exception.expectMessage(both(containsString("name")).and(Matchers.containsString("something")));
     Reader<WrongTrainType> reader = source.createReader(null, null);
 
     List<WrongTrainType> results = new ArrayList<>();
