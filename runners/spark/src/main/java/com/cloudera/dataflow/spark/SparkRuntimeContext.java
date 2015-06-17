@@ -15,10 +15,13 @@
 
 package com.cloudera.dataflow.spark;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
@@ -45,6 +48,9 @@ public class SparkRuntimeContext implements Serializable {
    * An accumulator that is a map from names to aggregators.
    */
   private final Accumulator<NamedAggregators> accum;
+
+  private final String serializedPipelineOptions;
+
   /**
    * Map fo names to dataflow aggregators.
    */
@@ -53,6 +59,23 @@ public class SparkRuntimeContext implements Serializable {
 
   SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.accum = jsc.accumulator(new NamedAggregators(), new AggAccumParam());
+    this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
+  }
+
+  private static String serializePipelineOptions(PipelineOptions pipelineOptions) {
+    try {
+      return new ObjectMapper().writeValueAsString(pipelineOptions);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Failed to serialize the pipeline options.", e);
+    }
+  }
+
+  private static PipelineOptions deserializePipelineOptions(String serializedPipelineOptions) {
+    try {
+      return new ObjectMapper().readValue(serializedPipelineOptions, PipelineOptions.class);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to deserialize the pipeline options.", e);
+    }
   }
 
   /**
@@ -68,8 +91,7 @@ public class SparkRuntimeContext implements Serializable {
   }
 
   public synchronized PipelineOptions getPipelineOptions() {
-    //TODO: Support this.
-    throw new UnsupportedOperationException("getPipelineOptions is not yet supported.");
+    return deserializePipelineOptions(serializedPipelineOptions);
   }
 
   /**
