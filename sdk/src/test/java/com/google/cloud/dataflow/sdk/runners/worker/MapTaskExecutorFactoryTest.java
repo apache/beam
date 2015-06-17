@@ -20,7 +20,8 @@ import static com.google.cloud.dataflow.sdk.util.CoderUtils.makeCloudEncoding;
 import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
@@ -64,8 +65,6 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.WriteOperation;
 
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.core.IsInstanceOf;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -95,15 +94,23 @@ public class MapTaskExecutorFactoryTest {
     try (
         MapTaskExecutor executor = MapTaskExecutorFactory.create(
             PipelineOptionsFactory.create(), mapTask, new BatchModeExecutionContext())) {
-      @SuppressWarnings("unchecked")
+      // Safe covariant cast not expressible without rawtypes.
+      @SuppressWarnings({"rawtypes", "unchecked"})
       List<Object> operations = (List) executor.operations;
       assertThat(
           operations,
-          CoreMatchers.hasItems(new IsInstanceOf(ReadOperation.class),
-              new IsInstanceOf(ParDoOperation.class), new IsInstanceOf(ParDoOperation.class),
-              new IsInstanceOf(FlattenOperation.class), new IsInstanceOf(WriteOperation.class)));
+          hasItems(
+              instanceOf(ReadOperation.class),
+              instanceOf(ParDoOperation.class),
+              instanceOf(ParDoOperation.class),
+              instanceOf(FlattenOperation.class),
+              instanceOf(WriteOperation.class)));
       counterSet = executor.getOutputCounters();
     }
+
+    @SuppressWarnings("unchecked")
+    Counter<Long> otherMsecCounter =
+        (Counter<Long>) counterSet.getExistingCounter("test-other-msecs");
 
     assertEquals(
         new CounterSet(Counter.longs("read_output_name-ElementCount", SUM).resetToValue(0L),
@@ -131,10 +138,7 @@ public class MapTaskExecutorFactoryTest {
             Counter.longs("test-Write-start-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Write-process-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Write-finish-msecs", SUM).resetToValue(0L),
-            Counter.longs("test-other-msecs", SUM)
-                .resetToValue(
-                    ((Counter<Long>)
-                        counterSet.getExistingCounter("test-other-msecs")).getAggregate())),
+            Counter.longs("test-other-msecs", SUM).resetToValue(otherMsecCounter.getAggregate())),
         counterSet);
   }
 
@@ -158,7 +162,7 @@ public class MapTaskExecutorFactoryTest {
     for (ExecutionContext.StepContext stepContext : context.getAllStepContexts()) {
       stepNames.add(stepContext.getStepName());
     }
-    assertThat(stepNames, CoreMatchers.hasItems("DoFn1", "DoFnWithContext"));
+    assertThat(stepNames, hasItems("DoFn1", "DoFnWithContext"));
   }
 
   static ParallelInstruction createReadInstruction(String name) {
@@ -192,13 +196,13 @@ public class MapTaskExecutorFactoryTest {
         createReadInstruction("Read"), new BatchModeExecutionContext(),
         Collections.<Operation>emptyList(), counterPrefix, counterSet.getAddCounterMutator(),
         stateSampler);
-    assertThat(operation, new IsInstanceOf(ReadOperation.class));
+    assertThat(operation, instanceOf(ReadOperation.class));
     ReadOperation readOperation = (ReadOperation) operation;
 
     assertEquals(readOperation.receivers.length, 1);
     assertEquals(readOperation.receivers[0].getReceiverCount(), 0);
     assertEquals(readOperation.initializationState, Operation.InitializationState.UNSTARTED);
-    assertThat(readOperation.reader, new IsInstanceOf(TestReader.class));
+    assertThat(readOperation.reader, instanceOf(TestReader.class));
 
     assertEquals(
         new CounterSet(
@@ -235,6 +239,7 @@ public class MapTaskExecutorFactoryTest {
     return instruction;
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testCreateWriteOperation() throws Exception {
     List<Operation> priorOperations = Arrays.asList(
@@ -252,12 +257,12 @@ public class MapTaskExecutorFactoryTest {
     Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
         instruction, new BatchModeExecutionContext(), priorOperations, counterPrefix,
         counterSet.getAddCounterMutator(), stateSampler);
-    assertThat(operation, new IsInstanceOf(WriteOperation.class));
+    assertThat(operation, instanceOf(WriteOperation.class));
     WriteOperation writeOperation = (WriteOperation) operation;
 
     assertEquals(writeOperation.receivers.length, 0);
     assertEquals(writeOperation.initializationState, Operation.InitializationState.UNSTARTED);
-    assertThat(writeOperation.sink, new IsInstanceOf(TestSink.class));
+    assertThat(writeOperation.sink, instanceOf(TestSink.class));
 
     assertSame(
         writeOperation,
@@ -332,23 +337,24 @@ public class MapTaskExecutorFactoryTest {
     Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
         instruction, context, priorOperations, counterPrefix, counterSet.getAddCounterMutator(),
         stateSampler);
-    assertThat(operation, new IsInstanceOf(ParDoOperation.class));
+    assertThat(operation, instanceOf(ParDoOperation.class));
     ParDoOperation parDoOperation = (ParDoOperation) operation;
 
     assertEquals(parDoOperation.receivers.length, 1);
     assertEquals(parDoOperation.receivers[0].getReceiverCount(), 0);
     assertEquals(parDoOperation.initializationState, Operation.InitializationState.UNSTARTED);
-    assertThat(parDoOperation.fn, new IsInstanceOf(NormalParDoFn.class));
+    assertThat(parDoOperation.fn, instanceOf(NormalParDoFn.class));
     NormalParDoFn normalParDoFn = (NormalParDoFn) parDoOperation.fn;
 
-    assertThat(normalParDoFn.fnFactory.createDoFnInfo().getDoFn(),
-        new IsInstanceOf(TestDoFn.class));
+    assertThat(
+        normalParDoFn.getDoFnInfo().getDoFn(),
+        instanceOf(TestDoFn.class));
 
     assertSame(
         parDoOperation,
         priorOperations.get(producerIndex).receivers[producerOutputNum].getOnlyReceiver());
 
-    assertEquals(context, normalParDoFn.executionContext);
+    assertEquals(context, normalParDoFn.getExecutionContext());
   }
 
   static ParallelInstruction createPartialGroupByKeyInstruction(
@@ -454,7 +460,7 @@ public class MapTaskExecutorFactoryTest {
     Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
         instruction, new BatchModeExecutionContext(), priorOperations, counterPrefix,
         counterSet.getAddCounterMutator(), stateSampler);
-    assertThat(operation, new IsInstanceOf(FlattenOperation.class));
+    assertThat(operation, instanceOf(FlattenOperation.class));
     FlattenOperation flattenOperation = (FlattenOperation) operation;
 
     assertEquals(flattenOperation.receivers.length, 1);

@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
@@ -41,10 +42,9 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /**
- * A wrapper around a decoded user value combining function.
+ * A {@link ParDoFn} wrapping a decoded user {@link CombineFn}.
  */
-@SuppressWarnings({"rawtypes", "serial", "unchecked"})
-public class CombineValuesFn extends NormalParDoFn {
+class CombineValuesFn extends ParDoFnBase {
   /**
    * The optimizer may split run the user combiner in 3 separate
    * phases (ADD, MERGE, and EXTRACT), on separate VMs, as it sees
@@ -61,76 +61,107 @@ public class CombineValuesFn extends NormalParDoFn {
     public static final String EXTRACT = "extract";
   }
 
-  public static CombineValuesFn create(
+  static CombineValuesFn of(
       PipelineOptions options,
-      CloudObject cloudUserFn,
+      Combine.KeyedCombineFn<?, ?, ?, ?> combineFn,
+      String phase,
       String stepName,
-      @Nullable List<SideInputInfo> sideInputInfos,
-      @Nullable List<MultiOutputInfo> multiOutputInfos,
-      Integer numOutputs,
       ExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator,
-      StateSampler stateSampler /* unused */)
+      CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
-    Object deserializedFn =
-        SerializableUtils.deserializeFromByteArray(
-            getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
-            "serialized user fn");
-    Preconditions.checkArgument(
-        deserializedFn instanceof Combine.KeyedCombineFn);
-    final Combine.KeyedCombineFn combineFn = (Combine.KeyedCombineFn) deserializedFn;
-
-    // Get the combine phase, default to ALL. (The implementation
-    // doesn't have to split the combiner).
-    final String phase = getString(cloudUserFn, PropertyNames.PHASE, CombinePhase.ALL);
-
-    Preconditions.checkArgument(
-        sideInputInfos == null || sideInputInfos.size() == 0,
-        "unexpected side inputs for CombineValuesFn");
-    Preconditions.checkArgument(
-        numOutputs == 1, "expected exactly one output for CombineValuesFn");
-
-    DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
-        @Override
-        public DoFnInfo createDoFnInfo() {
-          DoFn doFn = null;
-          switch (phase) {
-            case CombinePhase.ALL:
-              doFn = new CombineValuesDoFn(combineFn);
-              break;
-            case CombinePhase.ADD:
-              doFn = new AddInputsDoFn(combineFn);
-              break;
-            case CombinePhase.MERGE:
-              doFn = new MergeAccumulatorsDoFn(combineFn);
-              break;
-            case CombinePhase.EXTRACT:
-              doFn = new ExtractOutputDoFn(combineFn);
-              break;
-            default:
-              throw new IllegalArgumentException(
-                  "phase must be one of 'all', 'add', 'merge', 'extract'");
-          }
-          return new DoFnInfo(doFn, null);
-        }
-      };
-    return new CombineValuesFn(options, fnFactory, stepName, executionContext, addCounterMutator);
+    return new CombineValuesFn(
+        options, combineFn, phase, stepName, executionContext, addCounterMutator);
   }
+
+  /**
+   * A {@link ParDoFnFactory} to create instances of {@link CombineValuesFn} according to
+   * specifications from the Dataflow service.
+   */
+  static final class Factory implements ParDoFnFactory {
+    @Override
+    public ParDoFn create(
+        PipelineOptions options,
+        final CloudObject cloudUserFn,
+        String stepName,
+        @Nullable List<SideInputInfo> sideInputInfos,
+        @Nullable List<MultiOutputInfo> multiOutputInfos,
+        int numOutputs,
+        ExecutionContext executionContext,
+        CounterSet.AddCounterMutator addCounterMutator,
+        StateSampler stateSampler)
+            throws Exception {
+
+      Preconditions.checkArgument(
+          sideInputInfos == null || sideInputInfos.size() == 0,
+          "unexpected side inputs for CombineValuesFn");
+      Preconditions.checkArgument(
+          numOutputs == 1, "expected exactly one output for CombineValuesFn");
+
+      Object deserializedFn =
+          SerializableUtils.deserializeFromByteArray(
+              getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
+              "serialized user fn");
+      Preconditions.checkArgument(
+          deserializedFn instanceof Combine.KeyedCombineFn);
+      Combine.KeyedCombineFn<?, ?, ?, ?> combineFn =
+          (Combine.KeyedCombineFn<?, ?, ?, ?>) deserializedFn;
+
+      // Get the combine phase, default to ALL. (The implementation
+      // doesn't have to split the combiner).
+      String phase = getString(cloudUserFn, PropertyNames.PHASE, CombinePhase.ALL);
+
+      return CombineValuesFn.of(
+          options,
+          combineFn,
+          phase,
+          stepName,
+          executionContext,
+          addCounterMutator);
+    }
+  }
+
+  @Override
+  protected DoFnInfo<?, ?> getDoFnInfo() {
+    DoFn doFn = null;
+    switch (phase) {
+      case CombinePhase.ALL:
+        doFn = new CombineValuesDoFn(combineFn);
+        break;
+      case CombinePhase.ADD:
+        doFn = new AddInputsDoFn(combineFn);
+        break;
+      case CombinePhase.MERGE:
+        doFn = new MergeAccumulatorsDoFn(combineFn);
+        break;
+      case CombinePhase.EXTRACT:
+        doFn = new ExtractOutputDoFn(combineFn);
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "phase must be one of 'all', 'add', 'merge', 'extract'");
+    }
+    return new DoFnInfo<>(doFn, null);
+  }
+
+  private final String phase;
+  private final Combine.KeyedCombineFn<?, ?, ?, ?> combineFn;
 
   private CombineValuesFn(
       PipelineOptions options,
-      DoFnInfoFactory fnFactory,
+      Combine.KeyedCombineFn<?, ?, ?, ?> combineFn,
+      String phase,
       String stepName,
       ExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
         options,
-        fnFactory,
         PTuple.empty(),
         Arrays.asList("output"),
         stepName,
         executionContext,
         addCounterMutator);
+    this.phase = phase;
+    this.combineFn = combineFn;
   }
 
   /**
@@ -139,6 +170,8 @@ public class CombineValuesFn extends NormalParDoFn {
    */
   private static class CombineValuesDoFn<K, InputT, OutputT>
       extends DoFn<KV<K, Iterable<InputT>>, KV<K, OutputT>>{
+    private static final long serialVersionUID = 0L;
+
     private final Combine.KeyedCombineFn<K, InputT, ?, OutputT> combineFn;
 
     private CombineValuesDoFn(
@@ -160,6 +193,8 @@ public class CombineValuesFn extends NormalParDoFn {
    */
   private static class AddInputsDoFn<K, InputT, AccumT>
       extends DoFn<KV<K, Iterable<InputT>>, KV<K, AccumT>>{
+    private static final long serialVersionUID = 0L;
+
     private final Combine.KeyedCombineFn<K, InputT, AccumT, ?> combineFn;
 
     private AddInputsDoFn(
@@ -185,6 +220,8 @@ public class CombineValuesFn extends NormalParDoFn {
    */
   private static class MergeAccumulatorsDoFn<K, AccumT>
       extends DoFn<KV<K, Iterable<AccumT>>, KV<K, AccumT>>{
+    private static final long serialVersionUID = 0L;
+
     private final Combine.KeyedCombineFn<K, ?, AccumT, ?> combineFn;
 
     private MergeAccumulatorsDoFn(
@@ -207,6 +244,8 @@ public class CombineValuesFn extends NormalParDoFn {
    */
   private static class ExtractOutputDoFn<K, AccumT, OutputT>
       extends DoFn<KV<K, AccumT>, KV<K, OutputT>>{
+    private static final long serialVersionUID = 0L;
+
     private final Combine.KeyedCombineFn<K, ?, AccumT, OutputT> combineFn;
 
     private ExtractOutputDoFn(

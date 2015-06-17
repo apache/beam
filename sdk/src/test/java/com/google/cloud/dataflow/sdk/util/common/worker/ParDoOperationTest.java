@@ -34,7 +34,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings("unchecked")
 public class ParDoOperationTest {
-  static class TestParDoFn extends ParDoFn {
+  private static class TestParDoFn extends ParDoFn {
     final OutputReceiver outputReceiver;
 
     public TestParDoFn(OutputReceiver outputReceiver) {

@@ -148,16 +148,13 @@ public class CombineValuesFnTest {
       return (new MeanInts ()).new CountSum(count, sum);
     }
 
+    @Override
     public CloudObject asCloudObject() {
       return makeCloudEncoding(this.getClass().getName());
     }
 
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return null;
-    }
-
-    public List<Object> getInstanceComponents(MeanInts.CountSum exampleValue) {
       return null;
     }
 
@@ -184,6 +181,8 @@ public class CombineValuesFnTest {
     }
   }
 
+  private static final ParDoFnFactory parDoFnFactory = new CombineValuesFn.Factory();
+
   @SuppressWarnings("rawtypes")
   private static ParDoFn createCombineValuesFn(
       String phase, Combine.KeyedCombineFn combineFn) throws Exception {
@@ -196,7 +195,7 @@ public class CombineValuesFnTest {
         byteArrayToJsonString(serializeToByteArray(combineFn)));
     addString(spec, PropertyNames.PHASE, phase);
 
-    return CombineValuesFn.create(
+    return parDoFnFactory.create(
             PipelineOptionsFactory.create(),
             spec,
             "name",

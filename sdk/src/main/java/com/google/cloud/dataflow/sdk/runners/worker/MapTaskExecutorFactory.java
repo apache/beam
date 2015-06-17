@@ -150,15 +150,24 @@ public class MapTaskExecutorFactory {
     return operation;
   }
 
+  private static ParDoFnFactory parDoFnFactory = new ParDoFnFactory.DefaultFactory();
+
   static ParDoOperation createParDoOperation(PipelineOptions options,
       ParallelInstruction instruction, ExecutionContext executionContext,
       List<Operation> priorOperations, String counterPrefix,
       CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) throws Exception {
     ParDoInstruction parDo = instruction.getParDo();
 
-    ParDoFn fn = ParDoFnFactory.create(options, CloudObject.fromSpec(parDo.getUserFn()),
-        instruction.getSystemName(), parDo.getSideInputs(), parDo.getMultiOutputInfos(),
-        parDo.getNumOutputs(), executionContext, addCounterMutator, stateSampler);
+    ParDoFn fn = parDoFnFactory.create(
+        options,
+        CloudObject.fromSpec(parDo.getUserFn()),
+        instruction.getSystemName(),
+        parDo.getSideInputs(),
+        parDo.getMultiOutputInfos(),
+        parDo.getNumOutputs(),
+        executionContext,
+        addCounterMutator,
+        stateSampler);
 
     OutputReceiver[] receivers = createOutputReceivers(
         instruction, counterPrefix, addCounterMutator, stateSampler, parDo.getNumOutputs());

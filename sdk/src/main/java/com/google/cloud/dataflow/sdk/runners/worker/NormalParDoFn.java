@@ -20,251 +20,153 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
 
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
-import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
-import com.google.cloud.dataflow.sdk.util.DoFnRunner;
-import com.google.cloud.dataflow.sdk.util.DoFnRunner.OutputManager;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
-import com.google.cloud.dataflow.sdk.util.StreamingSideInputDoFnRunner;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.OutputReceiver;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
-import com.google.cloud.dataflow.sdk.util.common.worker.Receiver;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.base.Throwables;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.annotation.Nullable;
 
 /**
- * A wrapper around a decoded user DoFn.
+ * A wrapper around a decoded user {@link DoFn}.
  */
-@SuppressWarnings({"rawtypes", "unchecked"})
-public class NormalParDoFn extends ParDoFn {
+class NormalParDoFn extends ParDoFnBase {
 
   /**
-   * Factory for creating DoFn instances.
+   * Create a {@link NormalParDoFn}.
    */
-  protected static interface DoFnInfoFactory {
-    public DoFnInfo createDoFnInfo() throws Exception;
-  }
-
-  public static NormalParDoFn create(
+  static NormalParDoFn of(
       PipelineOptions options,
-      final CloudObject cloudUserFn,
+      DoFnInfo doFnInfo,
+      PTuple sideInputValues,
+      List<String> outputTags,
       String stepName,
-      @Nullable List<SideInputInfo> sideInputInfos,
-      @Nullable List<MultiOutputInfo> multiOutputInfos,
-      Integer numOutputs,
       ExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator,
-      StateSampler stateSampler /* ignored */)
-      throws Exception {
-    Object deserializedFnInfo =
-        SerializableUtils.deserializeFromByteArray(
-            getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
-            "serialized fn info");
-    if (!(deserializedFnInfo instanceof DoFnInfo)) {
-      throw new Exception(
-          "unexpected kind of DoFnInfo: " + deserializedFnInfo.getClass().getName());
-    }
-    DoFnInfo doFnInfo = (DoFnInfo) deserializedFnInfo;
-
-    // If the side input data has already been computed, it will be in sideInputInfo.  Otherwise,
-    // we need to look it up dynamically from the Views.
-    PTuple sideInputValues = PTuple.empty();
-    final Iterable<PCollectionView<?>> sideInputViews = doFnInfo.getSideInputViews();
-    if (sideInputInfos != null && !sideInputInfos.isEmpty()) {
-      for (SideInputInfo sideInputInfo : sideInputInfos) {
-        Object sideInputValue = SideInputUtils.readSideInput(
-            options, sideInputInfo, executionContext);
-        TupleTag<Object> tag = new TupleTag<>(sideInputInfo.getTag());
-        sideInputValues = sideInputValues.and(tag, sideInputValue);
-      }
-    } else if (sideInputViews != null) {
-      for (PCollectionView<?> view : sideInputViews) {
-        sideInputValues = sideInputValues.and(view.getTagInternal(), null);
-      }
-    }
-
-    List<String> outputTags = new ArrayList<>();
-    if (multiOutputInfos != null) {
-      for (MultiOutputInfo multiOutputInfo : multiOutputInfos) {
-        outputTags.add(multiOutputInfo.getTag());
-      }
-    }
-    if (outputTags.isEmpty()) {
-      // Legacy support: assume there's a single output tag named "output".
-      // (The output tag name will be ignored, for the main output.)
-      outputTags.add("output");
-    }
-    if (numOutputs != outputTags.size()) {
-      throw new AssertionError(
-          "unexpected number of outputTags for DoFn");
-    }
-
-    final byte[] serializedDoFn = SerializableUtils.serializeToByteArray(
-        doFnInfo.getDoFn());
-    final WindowingStrategy windowingStrategy = doFnInfo.getWindowingStrategy();
-    final Coder inputCoder = doFnInfo.getInputCoder();
-    DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
-        @Override public DoFnInfo createDoFnInfo() throws Exception {
-          // We guarantee the user a fresh DoFn object every call.  However we
-          // can avoid reparsing the other auxillary information.
-          Object deserializedDoFn = SerializableUtils.deserializeFromByteArray(
-              serializedDoFn, "serialized user fun");
-          if (!(deserializedDoFn instanceof DoFn)) {
-            throw new Exception(
-                "unexpected kind of DoFn: " + deserializedDoFn.getClass().getName());
-          }
-          return new DoFnInfo(
-              (DoFn) deserializedDoFn, windowingStrategy, sideInputViews, inputCoder);
-        }
-      };
-    return new NormalParDoFn(options, fnFactory, sideInputValues, outputTags,
-                             stepName, executionContext, addCounterMutator);
+      CounterSet.AddCounterMutator addCounterMutator) {
+    return new NormalParDoFn(
+        options,
+        doFnInfo,
+        sideInputValues,
+        outputTags,
+        stepName,
+        executionContext,
+        addCounterMutator);
   }
 
-  public final PipelineOptions options;
-  public final DoFnInfoFactory fnFactory;
-  public final PTuple sideInputValues;
-  public final TupleTag<Object> mainOutputTag;
-  public final List<TupleTag<?>> sideOutputTags;
-  public final String stepName;
-  public final ExecutionContext executionContext;
-  private final CounterSet.AddCounterMutator addCounterMutator;
+  /**
+   * A {@link ParDoFnFactory} to create instances of {@link NormalParDoFn} according to
+   * specifications from the Dataflow service.
+   */
+  static final class Factory implements ParDoFnFactory {
+    @Override
+    public ParDoFn create(
+        PipelineOptions options,
+        final CloudObject cloudUserFn,
+        String stepName,
+        @Nullable List<SideInputInfo> sideInputInfos,
+        @Nullable List<MultiOutputInfo> multiOutputInfos,
+        int numOutputs,
+        ExecutionContext executionContext,
+        CounterSet.AddCounterMutator addCounterMutator,
+        StateSampler stateSampler /* ignored */)
+            throws Exception {
 
-  /** The DoFnRunner executing a batch. Null between batches. */
-  DoFnRunner<Object, Object, Receiver> fnRunner;
-
-  public NormalParDoFn(PipelineOptions options,
-                       DoFnInfoFactory fnFactory,
-                       PTuple sideInputValues,
-                       List<String> outputTags,
-                       String stepName,
-                       ExecutionContext executionContext,
-                       CounterSet.AddCounterMutator addCounterMutator) {
-    this.options = options;
-    this.fnFactory = fnFactory;
-    this.sideInputValues = sideInputValues;
-    if (outputTags.size() < 1) {
-      throw new AssertionError("expected at least one output");
-    }
-    this.mainOutputTag = new TupleTag<>(outputTags.get(0));
-    this.sideOutputTags = new ArrayList<>();
-    if (outputTags.size() > 1) {
-      for (String tag : outputTags.subList(1, outputTags.size())) {
-        this.sideOutputTags.add(new TupleTag<Object>(tag));
+      Object deserializedFnInfo =
+          SerializableUtils.deserializeFromByteArray(
+              getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
+              "serialized fn info");
+      if (!(deserializedFnInfo instanceof DoFnInfo)) {
+        throw new Exception(
+            "unexpected kind of DoFnInfo: " + deserializedFnInfo.getClass().getName());
       }
-    }
-    this.stepName = stepName;
-    this.executionContext = executionContext;
-    this.addCounterMutator = addCounterMutator;
-  }
+      DoFnInfo<?, ?> doFnInfo = (DoFnInfo<?, ?>) deserializedFnInfo;
 
-  @Override
-  public void startBundle(final Receiver... receivers) throws Exception {
-    if (receivers.length != sideOutputTags.size() + 1) {
-      throw new AssertionError(
-          "unexpected number of receivers for DoFn");
-    }
-
-    StepContext stepContext = null;
-    if (executionContext != null) {
-      stepContext = executionContext.getStepContext(stepName);
-    }
-
-    DoFnInfo doFnInfo = fnFactory.createDoFnInfo();
-
-    OutputManager<Receiver> outputManager = new OutputManager<Receiver>() {
-      final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs =
-      new HashMap<>();
-
-      @Override
-      public Receiver initialize(TupleTag tag) {
-        // Declared outputs.
-        if (tag.equals(mainOutputTag)) {
-          return receivers[0];
-        } else if (sideOutputTags.contains(tag)) {
-          return receivers[sideOutputTags.indexOf(tag) + 1];
+      // If the side input data has already been computed, it will be in sideInputInfo.  Otherwise,
+      // we need to look it up dynamically from the Views.
+      PTuple sideInputValues = PTuple.empty();
+      final Iterable<PCollectionView<?>> sideInputViews = doFnInfo.getSideInputViews();
+      if (sideInputInfos != null && !sideInputInfos.isEmpty()) {
+        for (SideInputInfo sideInputInfo : sideInputInfos) {
+          Object sideInputValue = SideInputUtils.readSideInput(
+              options, sideInputInfo, executionContext);
+          TupleTag<Object> tag = new TupleTag<>(sideInputInfo.getTag());
+          sideInputValues = sideInputValues.and(tag, sideInputValue);
         }
-
-        // Undeclared outputs.
-        OutputReceiver receiver = undeclaredOutputs.get(tag);
-        if (receiver == null) {
-          // A new undeclared output.
-          // TODO: plumb through the operationName, so that we can
-          // name implicit outputs after it.
-          String outputName = "implicit-" + tag.getId();
-          // TODO: plumb through the counter prefix, so we can
-          // make it available to the OutputReceiver class in case
-          // it wants to use it in naming output counters.  (It
-          // doesn't today.)
-          String counterPrefix = "";
-          receiver = new OutputReceiver(
-              outputName, counterPrefix, addCounterMutator);
-          undeclaredOutputs.put(tag, receiver);
-        }
-        return receiver;
-      }
-
-      @Override
-      public void output(Receiver receiver, WindowedValue<?> output) {
-        try {
-          receiver.process(output);
-        } catch (Throwable t) {
-          throw Throwables.propagate(t);
+      } else if (sideInputViews != null) {
+        for (PCollectionView<?> view : sideInputViews) {
+          sideInputValues = sideInputValues.and(view.getTagInternal(), null);
         }
       }
-    };
 
+      List<String> outputTags = new ArrayList<>();
+      if (multiOutputInfos != null) {
+        for (MultiOutputInfo multiOutputInfo : multiOutputInfos) {
+          outputTags.add(multiOutputInfo.getTag());
+        }
+      }
+      if (outputTags.isEmpty()) {
+        // Legacy support: assume there's a single output tag named "output".
+        // (The output tag name will be ignored, for the main output.)
+        outputTags.add("output");
+      }
+      if (numOutputs != outputTags.size()) {
+        throw new AssertionError(
+            "unexpected number of outputTags for DoFn");
+      }
 
-
-    if (options.as(StreamingOptions.class).isStreaming() && !sideInputValues.getAll().isEmpty()) {
-      fnRunner = new StreamingSideInputDoFnRunner(
-          options, doFnInfo, sideInputValues, outputManager,
-          mainOutputTag, sideOutputTags, stepContext, addCounterMutator);
-    } else {
-      fnRunner = DoFnRunner.create(
+      return NormalParDoFn.of(
           options,
-          doFnInfo.getDoFn(),
+          doFnInfo,
           sideInputValues,
-          outputManager,
-          mainOutputTag,
-          sideOutputTags,
-          stepContext,
-          addCounterMutator,
-          doFnInfo.getWindowingStrategy());
+          outputTags,
+          stepName,
+          executionContext,
+          addCounterMutator);
     }
-
-    fnRunner.startBundle();
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public void processElement(Object elem) throws Exception {
-    fnRunner.processElement((WindowedValue<Object>) elem);
+  private final byte[] serializedDoFn;
+  private final DoFnInfo<?, ?> doFnInfo;
+
+  private NormalParDoFn(
+      PipelineOptions options,
+      DoFnInfo<?, ?> doFnInfo,
+      PTuple sideInputValues,
+      List<String> outputTags,
+      String stepName,
+      ExecutionContext executionContext,
+      CounterSet.AddCounterMutator addCounterMutator) {
+    super(options, sideInputValues, outputTags, stepName, executionContext, addCounterMutator);
+    // The userDoFn is serialized because a fresh copy is provided each time it is accessed.
+    this.serializedDoFn = SerializableUtils.serializeToByteArray(doFnInfo.getDoFn());
+    this.doFnInfo = doFnInfo;
   }
 
-  @Override
-  public void finishBundle() throws Exception {
-    fnRunner.finishBundle();
-    fnRunner = null;
+  /**
+   * Produces a fresh {@link DoFnInfo} containing the user's {@link DoFn}.
+   */
+  protected DoFnInfo getDoFnInfo() {
+    // This class write the serialized data in its own constructor, as a way of doing
+    // a deep copy.
+    @SuppressWarnings("unchecked")
+    DoFn<?, ?> userDoFn = (DoFn<?, ?>) SerializableUtils.deserializeFromByteArray(
+        serializedDoFn, "serialized user fun");
+    return new DoFnInfo(
+        userDoFn,
+        doFnInfo.getWindowingStrategy(),
+        doFnInfo.getSideInputViews(),
+        doFnInfo.getInputCoder());
   }
 }

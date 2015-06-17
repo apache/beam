@@ -21,6 +21,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
@@ -30,7 +31,9 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
+import com.google.common.base.Preconditions;
 
 import java.util.Arrays;
 import java.util.List;
@@ -41,55 +44,84 @@ import javax.annotation.Nullable;
  * A wrapper around an AssignWindowsDoFn.  This class is the same as
  * NormalParDoFn, except that it gets deserialized differently.
  */
-@SuppressWarnings({"rawtypes", "unchecked"})
-class AssignWindowsParDoFn extends NormalParDoFn {
-  public static AssignWindowsParDoFn create(
+class AssignWindowsParDoFn extends ParDoFnBase {
+
+  static AssignWindowsParDoFn of(
       PipelineOptions options,
-      CloudObject cloudUserFn,
+      AssignWindowsDoFn<?, ?> fn,
       String stepName,
-      @Nullable List<SideInputInfo> sideInputInfos,
-      @Nullable List<MultiOutputInfo> multiOutputInfos,
-      Integer numOutputs,
       ExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator,
-      StateSampler sampler /* unused */)
+      CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
-    final Object windowingStrategy =
-        SerializableUtils.deserializeFromByteArray(
-            getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
-            "serialized windowing strategy");
-    if (!(windowingStrategy instanceof WindowingStrategy)) {
-      throw new Exception(
-          "unexpected kind of WindowingStrategy: " + windowingStrategy.getClass().getName());
-    }
-
-    final AssignWindowsDoFn assignFn = new AssignWindowsDoFn(
-        ((WindowingStrategy) windowingStrategy).getWindowFn());
-
-    DoFnInfoFactory fnFactory = new DoFnInfoFactory() {
-        @Override
-        public DoFnInfo createDoFnInfo() {
-          return new DoFnInfo(assignFn, null);
-        }
-      };
-
-    return new AssignWindowsParDoFn(
-        options, fnFactory, stepName, executionContext, addCounterMutator);
+    return new AssignWindowsParDoFn(options, fn, stepName, executionContext, addCounterMutator);
   }
+
+  /**
+   * A {@link ParDoFnFactory} to create instances of {@link AssignWindowsParDoFn} according to
+   * specifications from the Dataflow service.
+   */
+  static final class Factory implements ParDoFnFactory {
+    @Override
+    public ParDoFn create(
+        PipelineOptions options,
+        final CloudObject cloudUserFn,
+        String stepName,
+        @Nullable List<SideInputInfo> sideInputInfos,
+        @Nullable List<MultiOutputInfo> multiOutputInfos,
+        int numOutputs,
+        ExecutionContext executionContext,
+        CounterSet.AddCounterMutator addCounterMutator,
+        StateSampler stateSampler /* ignored */)
+            throws Exception {
+
+      final Object deserializedWindowingStrategy =
+          SerializableUtils.deserializeFromByteArray(
+              getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
+              "serialized windowing strategy");
+
+      Preconditions.checkArgument(
+          deserializedWindowingStrategy instanceof WindowingStrategy,
+          "unexpected kind of WindowingStrategy: "
+          + deserializedWindowingStrategy.getClass().getName());
+
+      // We just checked the raw type, and the other types are simply required to be enforced
+      // outside of this class
+      @SuppressWarnings("unchecked")
+      final WindowingStrategy<Object, BoundedWindow> windowingStrategy =
+          (WindowingStrategy<Object, BoundedWindow>) deserializedWindowingStrategy;
+
+      final AssignWindowsDoFn<Object, BoundedWindow> assignFn =
+          new AssignWindowsDoFn<>(windowingStrategy.getWindowFn());
+
+      return AssignWindowsParDoFn.of(
+          options,
+          assignFn,
+          stepName,
+          executionContext,
+          addCounterMutator);
+    }
+  };
+
+  @Override
+  protected DoFnInfo<?, ?> getDoFnInfo() {
+    return new DoFnInfo<>(fn, null);
+  }
+
+  private final AssignWindowsDoFn<?, ?> fn;
 
   private AssignWindowsParDoFn(
       PipelineOptions options,
-      DoFnInfoFactory fnFactory,
+      AssignWindowsDoFn<?, ?> fn,
       String stepName,
       ExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
         options,
-        fnFactory,
         PTuple.empty(),
         Arrays.asList("output"),
         stepName,
         executionContext,
         addCounterMutator);
+    this.fn = fn;
   }
 }

@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
 /**
- * Abstract base class for ParDoFns, invocable by ParDoOperations.
+ * Abstract class for functions invocable by {@link ParDoOperation} instances.
  */
 public abstract class ParDoFn {
   public abstract void startBundle(Receiver... receivers) throws Exception;
