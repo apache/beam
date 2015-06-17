@@ -117,7 +117,7 @@ public class GoogleCloudStorageWriteChannel
 
   // If true, we get very high write throughput but writing files larger than UPLOAD_MAX_SIZE
   // will not succeed. Set it to false to allow larger files at lower throughput.
-  private static boolean limitFileSizeTo250Gb = true;
+  private static boolean limitFileSizeTo250Gb = false;
 
   // Chunk size to use.
   static int uploadBufferSize = UPLOAD_CHUNK_SIZE_DEFAULT;
@@ -284,6 +284,7 @@ public class GoogleCloudStorageWriteChannel
    * If enabled, we get very high write throughput but writing files larger than UPLOAD_MAX_SIZE
    * will not succeed. Set it to false to allow larger files at lower throughput.
    */
+  @Deprecated
   public static void enableFileSizeLimit250Gb(boolean enableLimit) {
     GoogleCloudStorageWriteChannel.limitFileSizeTo250Gb = enableLimit;
   }
