@@ -112,7 +112,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-
         <configuration>
           <windowtitle>Google Cloud Dataflow Examples</windowtitle>
           <doctitle>Google Cloud Dataflow Examples</doctitle>
@@ -149,7 +148,6 @@
             </offlineLink>
           </offlineLinks>
         </configuration>
-
         <executions>
           <execution>
             <goals>

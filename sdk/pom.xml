@@ -146,8 +146,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>2.10.3</version>
-
         <configuration>
           <windowtitle>Google Cloud Dataflow SDK ${project.version} API</windowtitle>
           <doctitle>Google Cloud Dataflow SDK ${project.version} API</doctitle>
@@ -189,7 +187,6 @@
             </offlineLink>
           </offlineLinks>
         </configuration>
-
         <executions>
           <execution>
             <goals>
