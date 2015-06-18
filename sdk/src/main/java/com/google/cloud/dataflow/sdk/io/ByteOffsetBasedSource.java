@@ -237,7 +237,7 @@ public abstract class ByteOffsetBasedSource<T> extends BoundedSource<T> {
       ByteOffsetBasedSource<T> primary = source.createSourceForSubrange(start, splitOffset);
       ByteOffsetBasedSource<T> residual = source.createSourceForSubrange(splitOffset, end);
       this.source = primary;
-      LOG.info("Split at fraction {} (offset {}) of [{}, {}) (current offset {})",
+      LOG.debug("Split at fraction {} (offset {}) of [{}, {}) (current offset {})",
           fraction, splitOffset, start, end, current);
       return residual;
     }
