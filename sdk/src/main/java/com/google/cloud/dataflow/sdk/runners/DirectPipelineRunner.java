@@ -237,7 +237,7 @@ public class DirectPipelineRunner
 
   /**
    * The implementation may split the {@link KeyedCombineFn} into ADD, MERGE
-   * and EXTRACT phases (see {@link com.google.cloud.dataflow.sdk.runners.worker.CombineValuesFn}).
+   * and EXTRACT phases (see {@code com.google.cloud.dataflow.sdk.runners.worker.CombineValuesFn}).
    * In order to emulate
    * this for the {@link DirectPipelineRunner} and provide an experience
    * closer to the service, go through heavy seralizability checks for
