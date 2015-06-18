@@ -384,21 +384,22 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source =
         new TestFileBasedSource(file1.getParent() + "/" + "file*", 1024, null);
-    BoundedSource.BoundedReader<String> reader = source.createReader(null, null);
-    double lastFractionConsumed = 0.0;
-    assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-    assertTrue(reader.start());
-    assertTrue(reader.advance());
-    assertTrue(reader.advance());
-    // We're inside the first file. Should be in [0, 1/3).
-    assertTrue(reader.getFractionConsumed() > 0.0);
-    assertTrue(reader.getFractionConsumed() < 1.0 / 3.0);
-    while (reader.advance()) {
-      double fractionConsumed = reader.getFractionConsumed();
-      assertTrue(fractionConsumed > lastFractionConsumed);
-      lastFractionConsumed = fractionConsumed;
+    try (BoundedSource.BoundedReader<String> reader = source.createReader(null, null)) {
+      double lastFractionConsumed = 0.0;
+      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertTrue(reader.start());
+      assertTrue(reader.advance());
+      assertTrue(reader.advance());
+      // We're inside the first file. Should be in [0, 1/3).
+      assertTrue(reader.getFractionConsumed() > 0.0);
+      assertTrue(reader.getFractionConsumed() < 1.0 / 3.0);
+      while (reader.advance()) {
+        double fractionConsumed = reader.getFractionConsumed();
+        assertTrue(fractionConsumed > lastFractionConsumed);
+        lastFractionConsumed = fractionConsumed;
+      }
+      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
     }
-    assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
   }
 
   @Test

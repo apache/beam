@@ -69,25 +69,25 @@ public class AvroReaderTest {
     OutputStream outStream =
         Channels.newOutputStream(IOChannelUtils.create(filename, MimeTypes.BINARY));
     DatumWriter<T> datumWriter = coder.createDatumWriter();
-    DataFileWriter<T> fileWriter = new DataFileWriter<>(datumWriter);
-    fileWriter.create(coder.getSchema(), outStream);
-    boolean first = true;
     List<Long> syncPoints = new ArrayList<>();
     List<Integer> expectedSizes = new ArrayList<>();
-    for (List<T> elems : elemsList) {
-      if (first) {
-        first = false;
-      } else {
-        // Ensure a block boundary here.
-        long syncPoint = fileWriter.sync();
-        syncPoints.add(syncPoint);
-      }
-      for (T elem : elems) {
-        fileWriter.append(elem);
-        expectedSizes.add(CoderUtils.encodeToByteArray(coder, elem).length);
+    try (DataFileWriter<T> fileWriter = new DataFileWriter<>(datumWriter)) {
+      fileWriter.create(coder.getSchema(), outStream);
+      boolean first = true;
+      for (List<T> elems : elemsList) {
+        if (first) {
+          first = false;
+        } else {
+          // Ensure a block boundary here.
+          long syncPoint = fileWriter.sync();
+          syncPoints.add(syncPoint);
+        }
+        for (T elem : elems) {
+          fileWriter.append(elem);
+          expectedSizes.add(CoderUtils.encodeToByteArray(coder, elem).length);
+        }
       }
     }
-    fileWriter.close();
 
     // Test reading the data back.
     List<List<T>> actualElemsList = new ArrayList<>();

@@ -37,7 +37,9 @@ public class SourceTestUtils {
    */
   public static <T> List<T> readFromSource(Source<T> source, PipelineOptions options)
       throws IOException {
-    return readFromUnstartedReader(source.createReader(options, null));
+    try (Source.Reader<T> reader = source.createReader(options, null)) {
+      return readFromUnstartedReader(reader);
+    }
   }
 
   /**
@@ -92,7 +94,7 @@ public class SourceTestUtils {
   public static <T> void assertUnstartedReaderReadsSameAsItsSource(
       Source.Reader<T> reader, PipelineOptions options) throws IOException {
     List<T> expected = readFromUnstartedReader(reader);
-    List<T> actual = readFromUnstartedReader(reader.getCurrentSource().createReader(options, null));
+    List<T> actual = readFromSource(reader.getCurrentSource(), options);
     assertEquals(expected, actual);
   }
 
@@ -140,48 +142,72 @@ public class SourceTestUtils {
       BoundedSource<T> source, int numItemsToReadBeforeSplit, double splitFraction,
       ExpectedSplitOutcome expectedOutcome, PipelineOptions options) throws IOException {
     List<T> expectedItems = readFromSource(source, options);
-    BoundedSource.BoundedReader<T> reader = source.createReader(options, null);
-    List<T> currentItems = new ArrayList<>();
-    currentItems.addAll(readNItemsFromUnstartedReader(reader, numItemsToReadBeforeSplit));
-    BoundedSource<T> residual = reader.splitAtFraction(splitFraction);
-    // Failure cases are: must succeed but fails; must fail but succeeds.
-    switch(expectedOutcome) {
-      case MUST_SUCCEED_AND_BE_CONSISTENT:
-        assertNotNull(
-            "Failed to split reader of source: " + source + " at " + splitFraction
-                + " after reading " + numItemsToReadBeforeSplit + " items", residual);
-        break;
-      case MUST_FAIL:
-        assertEquals(null, residual);
-        break;
-      case MUST_BE_CONSISTENT_IF_SUCCEEDS:
-        // Nothing.
-        break;
+    try (BoundedSource.BoundedReader<T> reader = source.createReader(options, null)) {
+      List<T> currentItems = new ArrayList<>();
+      currentItems.addAll(readNItemsFromUnstartedReader(reader, numItemsToReadBeforeSplit));
+      BoundedSource<T> residual = reader.splitAtFraction(splitFraction);
+      // Failure cases are: must succeed but fails; must fail but succeeds.
+      switch (expectedOutcome) {
+        case MUST_SUCCEED_AND_BE_CONSISTENT:
+          assertNotNull(
+              "Failed to split reader of source: "
+                  + source
+                  + " at "
+                  + splitFraction
+                  + " after reading "
+                  + numItemsToReadBeforeSplit
+                  + " items",
+              residual);
+          break;
+        case MUST_FAIL:
+          assertEquals(null, residual);
+          break;
+        case MUST_BE_CONSISTENT_IF_SUCCEEDS:
+          // Nothing.
+          break;
+      }
+      BoundedSource<T> primary = reader.getCurrentSource();
+      List<T> primaryItems = readFromSource(primary, options);
+      if (residual != null) {
+        List<T> residualItems = readFromSource(residual, options);
+        List<T> totalItems = new ArrayList<>();
+        totalItems.addAll(primaryItems);
+        totalItems.addAll(residualItems);
+        currentItems.addAll(
+            numItemsToReadBeforeSplit > 0
+                ? readFromStartedReader(reader)
+                : readFromUnstartedReader(reader));
+        assertEquals(
+            "Continued reading after split yielded different items than primary source: "
+                + " split at "
+                + splitFraction
+                + " after reading "
+                + numItemsToReadBeforeSplit
+                + " items, original source: "
+                + source
+                + ", primary source: "
+                + primary,
+            primaryItems,
+            currentItems);
+        assertEquals(
+            "Items in primary and residual sources after split do not add up "
+                + "to items in the original source. "
+                + "Split at "
+                + splitFraction
+                + " after reading "
+                + numItemsToReadBeforeSplit
+                + " items; original source: "
+                + source
+                + ", primary: "
+                + primary
+                + ", residual: "
+                + residual,
+            expectedItems,
+            totalItems);
+        return new SplitAtFractionResult(primaryItems.size(), residualItems.size());
+      }
+      return new SplitAtFractionResult(primaryItems.size(), -1);
     }
-    BoundedSource<T> primary = reader.getCurrentSource();
-    List<T> primaryItems = readFromSource(primary, options);
-    if (residual != null) {
-      List<T> residualItems = readFromSource(residual, options);
-      List<T> totalItems = new ArrayList<>();
-      totalItems.addAll(primaryItems);
-      totalItems.addAll(residualItems);
-      currentItems.addAll(numItemsToReadBeforeSplit > 0
-          ? readFromStartedReader(reader) : readFromUnstartedReader(reader));
-      assertEquals(
-          "Continued reading after split yielded different items than primary source: "
-            + " split at " + splitFraction + " after reading " + numItemsToReadBeforeSplit
-            + " items, original source: " + source + ", primary source: " + primary,
-          primaryItems, currentItems);
-      assertEquals(
-          "Items in primary and residual sources after split do not add up "
-            + "to items in the original source. "
-            + "Split at " + splitFraction + " after reading " + numItemsToReadBeforeSplit
-            + " items; original source: " + source + ", primary: " + primary
-            + ", residual: " + residual,
-          expectedItems, totalItems);
-      return new SplitAtFractionResult(primaryItems.size(), residualItems.size());
-    }
-    return new SplitAtFractionResult(primaryItems.size(), -1);
   }
 
   /**

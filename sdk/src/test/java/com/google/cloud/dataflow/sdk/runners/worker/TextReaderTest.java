@@ -88,11 +88,11 @@ public class TextReaderTest {
 
   private File initTestFile() throws IOException {
     File tmpFile = tmpFolder.newFile();
-    FileOutputStream output = new FileOutputStream(tmpFile);
-    for (String s : fileContent) {
-      output.write(s.getBytes());
+    try (FileOutputStream output = new FileOutputStream(tmpFile)) {
+      for (String s : fileContent) {
+        output.write(s.getBytes());
+      }
     }
-    output.close();
 
     return tmpFile;
   }
@@ -214,12 +214,12 @@ public class TextReaderTest {
   @Test
   public void testUtf8Handling() throws Exception {
     File tmpFile = tmpFolder.newFile();
-    FileOutputStream output = new FileOutputStream(tmpFile);
-    // first line:  €\n
-    // second line: ¢\n
-    output.write(
-        new byte[] {(byte) 0xE2, (byte) 0x82, (byte) 0xAC, '\n', (byte) 0xC2, (byte) 0xA2, '\n'});
-    output.close();
+    try (FileOutputStream output = new FileOutputStream(tmpFile)) {
+      // first line:  €\n
+      // second line: ¢\n
+      output.write(
+          new byte[] {(byte) 0xE2, (byte) 0x82, (byte) 0xAC, '\n', (byte) 0xC2, (byte) 0xA2, '\n'});
+    }
 
     {
       // 3L is after the first line if counting codepoints, but within
@@ -257,15 +257,15 @@ public class TextReaderTest {
 
   private void testNewlineHandling(String separator, boolean stripNewlines) throws Exception {
     File tmpFile = tmpFolder.newFile();
-    PrintStream writer = new PrintStream(new FileOutputStream(tmpFile));
     List<String> expected = Arrays.asList("", "  hi there  ", "bob", "", "  ", "--zowie!--", "");
     List<Integer> expectedSizes = new ArrayList<>();
-    for (String line : expected) {
-      writer.print(line);
-      writer.print(separator);
-      expectedSizes.add(line.length() + separator.length());
+    try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
+      for (String line : expected) {
+        writer.print(line);
+        writer.print(separator);
+        expectedSizes.add(line.length() + separator.length());
+      }
     }
-    writer.close();
 
     TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), stripNewlines, null, null,
         StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
@@ -296,13 +296,13 @@ public class TextReaderTest {
       throws Exception {
     File tmpFile = tmpFolder.newFile();
     List<String> expected = new ArrayList<>();
-    PrintStream writer = new PrintStream(new FileOutputStream(tmpFile));
-    for (String line : lines) {
-      writer.print(line);
-      writer.print(separator);
-      expected.add(stripNewlines ? line : line + separator);
+    try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
+      for (String line : lines) {
+        writer.print(line);
+        writer.print(separator);
+        expected.add(stripNewlines ? line : line + separator);
+      }
     }
-    writer.close();
 
     TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), stripNewlines, null, null,
         StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
@@ -321,14 +321,14 @@ public class TextReaderTest {
     boolean stripNewlines = false;
     File tmpFile = tmpFolder.newFile();
     List<String> expected = new ArrayList<>();
-    PrintStream writer = new PrintStream(new FileOutputStream(tmpFile));
-    // Write 5x the size of the buffer and 10 extra trailing bytes
-    for (long bytesWritten = 0; bytesWritten < TextReader.BUF_SIZE * 3 + 10;) {
-      writer.print(line);
-      expected.add(line);
-      bytesWritten += line.length();
+    try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
+      // Write 5x the size of the buffer and 10 extra trailing bytes
+      for (long bytesWritten = 0; bytesWritten < TextReader.BUF_SIZE * 3 + 10; ) {
+        writer.print(line);
+        expected.add(line);
+        bytesWritten += line.length();
+      }
     }
-    writer.close();
     Long fileSize = tmpFile.length();
 
     TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), stripNewlines, null,
@@ -336,9 +336,18 @@ public class TextReaderTest {
 
     List<String> actual = new ArrayList<>();
     Reader.ReaderIterator<String> iterator = textReader.iterator();
-    while (iterator.hasNext()) {
-      actual.add(iterator.next());
-      iterator = iterator.copy();
+    while (true) {
+      Reader.ReaderIterator<String> copy;
+      try {
+        if (!iterator.hasNext()) {
+          break;
+        }
+        actual.add(iterator.next());
+        copy = iterator.copy();
+      } finally {
+        iterator.close();
+      }
+      iterator = copy;
     }
     assertEquals(expected, actual);
   }
@@ -346,16 +355,16 @@ public class TextReaderTest {
   @Test
   public void testNonStringCoders() throws Exception {
     File tmpFile = tmpFolder.newFile();
-    PrintStream writer = new PrintStream(new FileOutputStream(tmpFile));
     List<Integer> expected = TestUtils.INTS;
     List<Integer> expectedSizes = new ArrayList<>();
-    for (Integer elem : expected) {
-      byte[] encodedElem = CoderUtils.encodeToByteArray(TextualIntegerCoder.of(), elem);
-      writer.print(elem);
-      writer.print("\n");
-      expectedSizes.add(1 + encodedElem.length);
+    try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
+      for (Integer elem : expected) {
+        byte[] encodedElem = CoderUtils.encodeToByteArray(TextualIntegerCoder.of(), elem);
+        writer.print(elem);
+        writer.print("\n");
+        expectedSizes.add(1 + encodedElem.length);
+      }
     }
-    writer.close();
 
     TextReader<Integer> textReader = new TextReader<>(tmpFile.getPath(), true, null, null,
         TextualIntegerCoder.of(), TextIO.CompressionType.UNCOMPRESSED);
@@ -588,12 +597,14 @@ public class TextReaderTest {
   private File createFileWithCompressionType(
       String[] lines, String filename, CompressionType compressionType) throws IOException {
     File tmpFile = tmpFolder.newFile(filename);
-    PrintStream writer = new PrintStream(
-        getOutputStreamForCompressionType(new FileOutputStream(tmpFile), compressionType));
-    for (String line : lines) {
-      writer.println(line);
+    try (PrintStream writer =
+            new PrintStream(
+                getOutputStreamForCompressionType(
+                    new FileOutputStream(tmpFile), compressionType))) {
+      for (String line : lines) {
+        writer.println(line);
+      }
     }
-    writer.close();
     return tmpFile;
   }
 
@@ -678,7 +689,7 @@ public class TextReaderTest {
     TextReader<String> textReader = new TextReader<>(
         "file-not-found", true, 0L, 100L,
         StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
-    textReader.iterator();
+    textReader.iterator().close();
   }
 
   @Test
@@ -692,7 +703,7 @@ public class TextReaderTest {
         StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("more than 1 file matched");
-    textReader.iterator();
+    textReader.iterator().close();
   }
 
   // TODO: sharded filenames

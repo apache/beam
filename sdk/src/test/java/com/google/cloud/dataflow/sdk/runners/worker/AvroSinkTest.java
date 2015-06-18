@@ -70,17 +70,15 @@ public class AvroSinkTest {
 
     DatumReader<T> datumReader = new GenericDatumReader<>(coder.getSchema());
 
-    DataFileReader<T> fileReader = new DataFileReader<>(seekableInput, datumReader);
-
     List<T> actual = new ArrayList<>();
     List<Long> expectedSizes = new ArrayList<>();
-    while (fileReader.hasNext()) {
-      T next = fileReader.next();
-      actual.add(next);
-      expectedSizes.add((long) CoderUtils.encodeToByteArray(coder, next).length);
+    try (DataFileReader<T> fileReader = new DataFileReader<>(seekableInput, datumReader)) {
+      while (fileReader.hasNext()) {
+        T next = fileReader.next();
+        actual.add(next);
+        expectedSizes.add((long) CoderUtils.encodeToByteArray(coder, next).length);
+      }
     }
-
-    fileReader.close();
 
     // Compare the expected and the actual elements.
     Assert.assertEquals(elems, actual);

@@ -62,19 +62,19 @@ public class IOFactoryTest {
   @Test
   public void testMultiFileRead() throws Exception {
     File file1 = tmpFolder.newFile("file1");
-    FileOutputStream output = new FileOutputStream(file1);
-    output.write("1\n2".getBytes());
-    output.close();
+    try (FileOutputStream output = new FileOutputStream(file1)) {
+      output.write("1\n2".getBytes());
+    }
 
     File file2 = tmpFolder.newFile("file2");
-    output = new FileOutputStream(file2);
-    output.write("3\n4\n".getBytes());
-    output.close();
+    try (FileOutputStream output = new FileOutputStream(file2)) {
+      output.write("3\n4\n".getBytes());
+    }
 
     File file3 = tmpFolder.newFile("file3");
-    output = new FileOutputStream(file3);
-    output.write("5".getBytes());
-    output.close();
+    try (FileOutputStream output = new FileOutputStream(file3)) {
+      output.write("5".getBytes());
+    }
 
 
     TextReader<String> reader = new TextReader<>(

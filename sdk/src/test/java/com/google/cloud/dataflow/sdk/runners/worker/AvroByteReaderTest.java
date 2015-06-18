@@ -66,26 +66,26 @@ public class AvroByteReaderTest {
         Channels.newOutputStream(IOChannelUtils.create(filename, MimeTypes.BINARY));
     Schema schema = Schema.create(Schema.Type.BYTES);
     DatumWriter<ByteBuffer> datumWriter = new GenericDatumWriter<>(schema);
-    DataFileWriter<ByteBuffer> fileWriter = new DataFileWriter<>(datumWriter);
-    fileWriter.create(schema, outStream);
-    boolean first = true;
     List<Long> syncPoints = new ArrayList<>();
     List<Integer> expectedSizes = new ArrayList<>();
-    for (List<T> elems : elemsList) {
-      if (first) {
-        first = false;
-      } else {
-        // Ensure a block boundary here.
-        long syncPoint = fileWriter.sync();
-        syncPoints.add(syncPoint);
-      }
-      for (T elem : elems) {
-        byte[] encodedElem = CoderUtils.encodeToByteArray(coder, elem);
-        fileWriter.append(ByteBuffer.wrap(encodedElem));
-        expectedSizes.add(encodedElem.length);
+    try (DataFileWriter<ByteBuffer> fileWriter = new DataFileWriter<>(datumWriter)) {
+      fileWriter.create(schema, outStream);
+      boolean first = true;
+      for (List<T> elems : elemsList) {
+        if (first) {
+          first = false;
+        } else {
+          // Ensure a block boundary here.
+          long syncPoint = fileWriter.sync();
+          syncPoints.add(syncPoint);
+        }
+        for (T elem : elems) {
+          byte[] encodedElem = CoderUtils.encodeToByteArray(coder, elem);
+          fileWriter.append(ByteBuffer.wrap(encodedElem));
+          expectedSizes.add(encodedElem.length);
+        }
       }
     }
-    fileWriter.close();
 
     // Test reading the data back.
     List<List<T>> actualElemsList = new ArrayList<>();

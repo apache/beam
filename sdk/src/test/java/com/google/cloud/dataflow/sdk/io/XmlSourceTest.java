@@ -234,17 +234,17 @@ public class XmlSourceTest {
 
   private File createRandomTrainXML(String fileName, List<Train> trains) throws IOException {
     File file = tempFolder.newFile(fileName);
-    BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-    writer.write("<trains>");
-    writer.newLine();
-    for (Train train : trains) {
-      String str = trainToXMLElement(train);
-      writer.write(str);
+    try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+      writer.write("<trains>");
+      writer.newLine();
+      for (Train train : trains) {
+        String str = trainToXMLElement(train);
+        writer.write(str);
+        writer.newLine();
+      }
+      writer.write("</trains>");
       writer.newLine();
     }
-    writer.write("</trains>");
-    writer.newLine();
-    writer.close();
     return file;
   }
 
@@ -483,12 +483,13 @@ public class XmlSourceTest {
 
     // JAXB internationalizes the error message. So this is all we can match for.
     exception.expectMessage(both(containsString("name")).and(Matchers.containsString("something")));
-    Reader<WrongTrainType> reader = source.createReader(null, null);
+    try (Reader<WrongTrainType> reader = source.createReader(null, null)) {
 
-    List<WrongTrainType> results = new ArrayList<>();
-    for (boolean available = reader.start(); available; available = reader.advance()) {
-      WrongTrainType train = reader.getCurrent();
-      results.add(train);
+      List<WrongTrainType> results = new ArrayList<>();
+      for (boolean available = reader.start(); available; available = reader.advance()) {
+        WrongTrainType train = reader.getCurrent();
+        results.add(train);
+      }
     }
   }
 

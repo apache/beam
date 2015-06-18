@@ -121,12 +121,13 @@ public class DatastoreReaderTest {
     q.addKindBuilder().setName(TEST_KIND);
     Query query = q.build();
 
-    DatastoreIO.DatastoreReader iterator =
-        new DatastoreIO.DatastoreReader(DatastoreIO.read().withQuery(query), datastore);
-
     List<Entity> entityResults = new ArrayList<Entity>();
-    while (iterator.advance()) {
-      entityResults.add(iterator.getCurrent());
+
+    try (DatastoreIO.DatastoreReader iterator =
+            new DatastoreIO.DatastoreReader(DatastoreIO.read().withQuery(query), datastore)) {
+      while (iterator.advance()) {
+        entityResults.add(iterator.getCurrent());
+      }
     }
 
     assertEquals(10, entityResults.size());

@@ -45,7 +45,6 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
 
-
 /**
  * Tests for XmlSink.
  */
@@ -167,11 +166,9 @@ public class XmlSinkTest {
   private <T> void runTestWrite(XmlWriter<T> writer, List<T> bundle, List<String> expected)
       throws Exception {
     File tmpFile = tmpFolder.newFile("foo.txt");
-    FileOutputStream fileOutputStream = new FileOutputStream(tmpFile);
-
-    writeBundle(writer, bundle, fileOutputStream.getChannel());
-    fileOutputStream.close();
-
+    try (FileOutputStream fileOutputStream = new FileOutputStream(tmpFile)) {
+      writeBundle(writer, bundle, fileOutputStream.getChannel());
+    }
     List<String> lines = new ArrayList<>();
     try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
       for (;;) {

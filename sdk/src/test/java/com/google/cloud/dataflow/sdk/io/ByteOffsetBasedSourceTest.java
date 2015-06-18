@@ -200,62 +200,65 @@ public class ByteOffsetBasedSourceTest {
     // in the face of that.
     PipelineOptions options = PipelineOptionsFactory.create();
     CoarseByteRangeSource source = new CoarseByteRangeSource(13, 35, 1, 10);
-    BoundedSource.BoundedReader<Integer> reader = source.createReader(options, null);
-    List<Integer> items = new ArrayList<>();
+    try (BoundedSource.BoundedReader<Integer> reader = source.createReader(options, null)) {
+      List<Integer> items = new ArrayList<>();
 
-    assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
-    assertTrue(reader.start());
-    do {
-      Double fraction = reader.getFractionConsumed();
-      assertNotNull(fraction);
-      assertTrue(fraction.toString(), fraction > 0.0);
-      assertTrue(fraction.toString(), fraction <= 1.0);
-      items.add(reader.getCurrent());
-    } while (reader.advance());
-    assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertTrue(reader.start());
+      do {
+        Double fraction = reader.getFractionConsumed();
+        assertNotNull(fraction);
+        assertTrue(fraction.toString(), fraction > 0.0);
+        assertTrue(fraction.toString(), fraction <= 1.0);
+        items.add(reader.getCurrent());
+      } while (reader.advance());
+      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
 
-    assertEquals(20, items.size());
-    assertEquals(20, items.get(0).intValue());
-    assertEquals(39, items.get(items.size() - 1).intValue());
+      assertEquals(20, items.size());
+      assertEquals(20, items.get(0).intValue());
+      assertEquals(39, items.get(items.size() - 1).intValue());
 
-    source = new CoarseByteRangeSource(13, 17, 1, 10);
-    reader = source.createReader(options, null);
-    assertFalse(reader.start());
+      source = new CoarseByteRangeSource(13, 17, 1, 10);
+    }
+    try (BoundedSource.BoundedReader<Integer> reader = source.createReader(options, null)) {
+      assertFalse(reader.start());
+    }
   }
 
   @Test
   public void testSplitAtFraction() throws IOException {
     PipelineOptions options = PipelineOptionsFactory.create();
     CoarseByteRangeSource source = new CoarseByteRangeSource(13, 35, 1, 10);
-    CoarseByteRangeReader reader =
-        (CoarseByteRangeReader) source.createReader(options, null);
-    List<Integer> originalItems = new ArrayList<>();
-    assertTrue(reader.start());
-    originalItems.add(reader.getCurrent());
-    assertTrue(reader.advance());
-    originalItems.add(reader.getCurrent());
-    assertTrue(reader.advance());
-    originalItems.add(reader.getCurrent());
-    assertTrue(reader.advance());
-    originalItems.add(reader.getCurrent());
-    assertNull(reader.splitAtFraction(0.0));
-    assertNull(reader.splitAtFraction(reader.getFractionConsumed()));
-
-    Source<Integer> residual = reader.splitAtFraction(reader.getFractionConsumed() + 0.1);
-    Source<Integer> primary = reader.getCurrentSource();
-    List<Integer> primaryItems = readFromSource(primary, options);
-    List<Integer> residualItems = readFromSource(residual, options);
-    for (Integer item : residualItems) {
-      assertTrue(item > reader.getCurrentOffset());
-    }
-    assertFalse(primaryItems.isEmpty());
-    assertFalse(residualItems.isEmpty());
-    assertTrue(primaryItems.get(primaryItems.size() - 1) <= residualItems.get(0));
-
-    while (reader.advance()) {
+    try (CoarseByteRangeReader reader =
+            (CoarseByteRangeReader) source.createReader(options, null)) {
+      List<Integer> originalItems = new ArrayList<>();
+      assertTrue(reader.start());
       originalItems.add(reader.getCurrent());
+      assertTrue(reader.advance());
+      originalItems.add(reader.getCurrent());
+      assertTrue(reader.advance());
+      originalItems.add(reader.getCurrent());
+      assertTrue(reader.advance());
+      originalItems.add(reader.getCurrent());
+      assertNull(reader.splitAtFraction(0.0));
+      assertNull(reader.splitAtFraction(reader.getFractionConsumed()));
+
+      Source<Integer> residual = reader.splitAtFraction(reader.getFractionConsumed() + 0.1);
+      Source<Integer> primary = reader.getCurrentSource();
+      List<Integer> primaryItems = readFromSource(primary, options);
+      List<Integer> residualItems = readFromSource(residual, options);
+      for (Integer item : residualItems) {
+        assertTrue(item > reader.getCurrentOffset());
+      }
+      assertFalse(primaryItems.isEmpty());
+      assertFalse(residualItems.isEmpty());
+      assertTrue(primaryItems.get(primaryItems.size() - 1) <= residualItems.get(0));
+
+      while (reader.advance()) {
+        originalItems.add(reader.getCurrent());
+      }
+      assertEquals(originalItems, primaryItems);
     }
-    assertEquals(originalItems, primaryItems);
   }
 
   @Test

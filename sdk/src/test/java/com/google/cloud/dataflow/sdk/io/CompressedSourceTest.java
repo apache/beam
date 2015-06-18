@@ -151,9 +151,9 @@ public class CompressedSourceTest {
    * Writes a single output file.
    */
   private void writeFile(File file, byte[] input, CompressionMode mode) throws IOException {
-    OutputStream os = getStreamForMode(mode, new FileOutputStream(file));
-    os.write(input);
-    os.close();
+    try (OutputStream os = getStreamForMode(mode, new FileOutputStream(file))) {
+      os.write(input);
+    }
   }
 
   /**

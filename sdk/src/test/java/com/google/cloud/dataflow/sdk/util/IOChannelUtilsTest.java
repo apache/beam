@@ -66,7 +66,7 @@ public class IOChannelUtilsTest {
     File outFolder = tmpFolder.newFolder();
     String filename = outFolder.toPath().resolve("output").toString();
 
-    IOChannelUtils.create(filename, "", "", 2, "text");
+    IOChannelUtils.create(filename, "", "", 2, "text").close();
     fail("IOChannelUtils.create expected to fail due "
         + "to filename collision");
   }

@@ -74,23 +74,22 @@ public class AvroByteSinkTest {
 
     DatumReader<ByteBuffer> datumReader = new GenericDatumReader<>(schema);
 
-    DataFileReader<ByteBuffer> fileReader = new DataFileReader<>(seekableInput, datumReader);
-
     List<T> actual = new ArrayList<>();
     List<Long> expectedSizes = new ArrayList<>();
-    ByteBuffer inBuffer = ByteBuffer.allocate(10 * 1024);
-    while (fileReader.hasNext()) {
-      inBuffer = fileReader.next(inBuffer);
-      byte[] encodedElem = new byte[inBuffer.remaining()];
-      inBuffer.get(encodedElem);
-      assert inBuffer.remaining() == 0;
-      inBuffer.clear();
-      T elem = CoderUtils.decodeFromByteArray(coder, encodedElem);
-      actual.add(elem);
-      expectedSizes.add((long) encodedElem.length);
-    }
 
-    fileReader.close();
+    try (DataFileReader<ByteBuffer> fileReader = new DataFileReader<>(seekableInput, datumReader)) {
+      ByteBuffer inBuffer = ByteBuffer.allocate(10 * 1024);
+      while (fileReader.hasNext()) {
+        inBuffer = fileReader.next(inBuffer);
+        byte[] encodedElem = new byte[inBuffer.remaining()];
+        inBuffer.get(encodedElem);
+        assert inBuffer.remaining() == 0;
+        inBuffer.clear();
+        T elem = CoderUtils.decodeFromByteArray(coder, encodedElem);
+        actual.add(elem);
+        expectedSizes.add((long) encodedElem.length);
+      }
+    }
 
     // Compare the expected and the actual elements.
     Assert.assertEquals(elems, actual);

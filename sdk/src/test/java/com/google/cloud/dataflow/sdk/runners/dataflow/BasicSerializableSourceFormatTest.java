@@ -298,38 +298,39 @@ public class BasicSerializableSourceFormatTest {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     TestIO.Read source = TestIO.fromRange(10, 20);
-    BoundedSource.BoundedReader<Integer> reader = source.createReader(options, null);
-    assertEquals(0, reader.getFractionConsumed().intValue());
-    assertTrue(reader.start());
-    assertEquals(0.1, reader.getFractionConsumed(), 1e-6);
-    assertTrue(reader.advance());
-    assertEquals(0.2, reader.getFractionConsumed(), 1e-6);
-    // Already past 0.0 and 0.1.
-    assertNull(reader.splitAtFraction(0.0));
-    assertNull(reader.splitAtFraction(0.1));
+    try (BoundedSource.BoundedReader<Integer> reader = source.createReader(options, null)) {
+      assertEquals(0, reader.getFractionConsumed().intValue());
+      assertTrue(reader.start());
+      assertEquals(0.1, reader.getFractionConsumed(), 1e-6);
+      assertTrue(reader.advance());
+      assertEquals(0.2, reader.getFractionConsumed(), 1e-6);
+      // Already past 0.0 and 0.1.
+      assertNull(reader.splitAtFraction(0.0));
+      assertNull(reader.splitAtFraction(0.1));
 
-    {
-      TestIO.Read residual = (TestIO.Read) reader.splitAtFraction(0.5);
-      assertNotNull(residual);
-      TestIO.Read primary = (TestIO.Read) reader.getCurrentSource();
-      assertThat(readFromSource(primary, options), contains(10, 11, 12, 13, 14));
-      assertThat(readFromSource(residual, options), contains(15, 16, 17, 18, 19));
+      {
+        TestIO.Read residual = (TestIO.Read) reader.splitAtFraction(0.5);
+        assertNotNull(residual);
+        TestIO.Read primary = (TestIO.Read) reader.getCurrentSource();
+        assertThat(readFromSource(primary, options), contains(10, 11, 12, 13, 14));
+        assertThat(readFromSource(residual, options), contains(15, 16, 17, 18, 19));
+      }
+
+      // Range is now [10, 15) and we are at 12.
+      {
+        TestIO.Read residual = (TestIO.Read) reader.splitAtFraction(0.8); // give up 14.
+        assertNotNull(residual);
+        TestIO.Read primary = (TestIO.Read) reader.getCurrentSource();
+        assertThat(readFromSource(primary, options), contains(10, 11, 12, 13));
+        assertThat(readFromSource(residual, options), contains(14));
+      }
+
+      assertTrue(reader.advance());
+      assertEquals(12, reader.getCurrent().intValue());
+      assertTrue(reader.advance());
+      assertEquals(13, reader.getCurrent().intValue());
+      assertFalse(reader.advance());
     }
-
-    // Range is now [10, 15) and we are at 12.
-    {
-      TestIO.Read residual = (TestIO.Read) reader.splitAtFraction(0.8);  // give up 14.
-      assertNotNull(residual);
-      TestIO.Read primary = (TestIO.Read) reader.getCurrentSource();
-      assertThat(readFromSource(primary, options), contains(10, 11, 12, 13));
-      assertThat(readFromSource(residual, options), contains(14));
-    }
-
-    assertTrue(reader.advance());
-    assertEquals(12, reader.getCurrent().intValue());
-    assertTrue(reader.advance());
-    assertEquals(13, reader.getCurrent().intValue());
-    assertFalse(reader.advance());
   }
 
   @Test
@@ -342,37 +343,42 @@ public class BasicSerializableSourceFormatTest {
         .as(DataflowPipelineOptions.class);
     Reader<WindowedValue<Integer>> reader = ReaderFactory.create(
         options, translateIOToCloudSource(TestIO.fromRange(10, 20), options), null);
-    Reader.ReaderIterator<WindowedValue<Integer>> iterator = reader.iterator();
-    assertTrue(iterator.hasNext());
-    assertEquals(0, readerProgressToCloudProgress(
-        iterator.getProgress()).getPercentComplete().intValue());
-    assertEquals(valueInGlobalWindow(10), iterator.next());
-    assertEquals(0.1, readerProgressToCloudProgress(
-        iterator.getProgress()).getPercentComplete().doubleValue(), 1e-6);
-    assertEquals(valueInGlobalWindow(11), iterator.next());
-    assertEquals(0.2, readerProgressToCloudProgress(
-        iterator.getProgress()).getPercentComplete().doubleValue(), 1e-6);
-    assertEquals(valueInGlobalWindow(12), iterator.next());
+    try (Reader.ReaderIterator<WindowedValue<Integer>> iterator = reader.iterator()) {
+      assertTrue(iterator.hasNext());
+      assertEquals(
+          0, readerProgressToCloudProgress(iterator.getProgress()).getPercentComplete().intValue());
+      assertEquals(valueInGlobalWindow(10), iterator.next());
+      assertEquals(
+          0.1,
+          readerProgressToCloudProgress(iterator.getProgress()).getPercentComplete().doubleValue(),
+          1e-6);
+      assertEquals(valueInGlobalWindow(11), iterator.next());
+      assertEquals(
+          0.2,
+          readerProgressToCloudProgress(iterator.getProgress()).getPercentComplete().doubleValue(),
+          1e-6);
+      assertEquals(valueInGlobalWindow(12), iterator.next());
 
-    assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(0)));
-    assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(0.1f)));
-    BasicSerializableSourceFormat.BoundedSourceSplit<Integer> sourceSplit =
-        (BasicSerializableSourceFormat.BoundedSourceSplit<Integer>)
-            iterator.requestDynamicSplit(splitRequestAtFraction(0.5f));
-    assertNotNull(sourceSplit);
-    assertThat(readFromSource(sourceSplit.primary, options), contains(10, 11, 12, 13, 14));
-    assertThat(readFromSource(sourceSplit.residual, options), contains(15, 16, 17, 18, 19));
+      assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(0)));
+      assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(0.1f)));
+      BasicSerializableSourceFormat.BoundedSourceSplit<Integer> sourceSplit =
+          (BasicSerializableSourceFormat.BoundedSourceSplit<Integer>)
+              iterator.requestDynamicSplit(splitRequestAtFraction(0.5f));
+      assertNotNull(sourceSplit);
+      assertThat(readFromSource(sourceSplit.primary, options), contains(10, 11, 12, 13, 14));
+      assertThat(readFromSource(sourceSplit.residual, options), contains(15, 16, 17, 18, 19));
 
-    sourceSplit =
-        (BasicSerializableSourceFormat.BoundedSourceSplit<Integer>)
-            iterator.requestDynamicSplit(splitRequestAtFraction(0.8f));
-    assertNotNull(sourceSplit);
-    assertThat(readFromSource(sourceSplit.primary, options), contains(10, 11, 12, 13));
-    assertThat(readFromSource(sourceSplit.residual, options), contains(14));
+      sourceSplit =
+          (BasicSerializableSourceFormat.BoundedSourceSplit<Integer>)
+              iterator.requestDynamicSplit(splitRequestAtFraction(0.8f));
+      assertNotNull(sourceSplit);
+      assertThat(readFromSource(sourceSplit.primary, options), contains(10, 11, 12, 13));
+      assertThat(readFromSource(sourceSplit.residual, options), contains(14));
 
-    assertTrue(iterator.hasNext());
-    assertEquals(valueInGlobalWindow(13), iterator.next());
-    assertFalse(iterator.hasNext());
+      assertTrue(iterator.hasNext());
+      assertEquals(valueInGlobalWindow(13), iterator.next());
+      assertFalse(iterator.hasNext());
+    }
   }
 
   /**

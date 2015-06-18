@@ -87,7 +87,14 @@ public class FileIOChannelFactoryTest {
 
   @Test(expected = FileNotFoundException.class)
   public void testReadNonExistentFile() throws Exception {
-    factory.open(temporaryFolder.getRoot().toPath().resolve("non-existent-file.txt").toString());
+    factory
+        .open(
+            temporaryFolder
+                .getRoot()
+                .toPath()
+                .resolve("non-existent-file.txt")
+                .toString())
+        .close();
   }
 
   @Test
