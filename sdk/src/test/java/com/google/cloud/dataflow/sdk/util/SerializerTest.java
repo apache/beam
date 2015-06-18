@@ -27,7 +27,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,7 +35,6 @@ import org.junit.runners.JUnit4;
  * Tests Serializer implementation.
  */
 @RunWith(JUnit4.class)
-@Ignore
 public class SerializerTest {
   /**
    * A POJO to use for testing serialization.
