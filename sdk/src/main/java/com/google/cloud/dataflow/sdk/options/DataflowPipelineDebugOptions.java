@@ -39,27 +39,6 @@ import java.util.List;
 public interface DataflowPipelineDebugOptions extends PipelineOptions {
 
   /**
-   * The default endpoint  to use with the Dataflow API.
-   */
-  static final String DEFAULT_API_ROOT = "https://dataflow.googleapis.com/";
-
-  /**
-   * Dataflow endpoint to use.
-   *
-   * <p> Defaults to the current version of the Google Cloud Dataflow
-   * API, at the time the current SDK version was released.
-   *
-   * <p> If the string contains "://", then this is treated as a url,
-   * otherwise {@link #getApiRootUrl()} is used as the root
-   * url.
-   */
-  @Description("The URL for the Dataflow API. If the string contains \"://\""
-      + " will be treated as the entire URL, otherwise will be treated relative to apiRootUrl.")
-  @Default.String("v1b3/projects/")
-  String getDataflowEndpoint();
-  void setDataflowEndpoint(String value);
-
-  /**
    * The list of backend experiments to enable.
    *
    * <p> Dataflow provides a number of experimental features that can be enabled
@@ -74,16 +53,32 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setExperiments(List<String> value);
 
   /**
-   * The endpoint to use with the Dataflow API. dataflowEndpoint can override this value
-   * if it contains an absolute URL, otherwise apiRootUrl will be combined with dataflowEndpoint
-   * to generate the full URL to communicate with the Dataflow API.
+   * The root URL for the Dataflow API. {@code dataflowEndpoint} can override this value
+   * if it contains an absolute URL, otherwise {@code apiRootUrl} will be combined with
+   * {@code dataflowEndpoint} to generate the full URL to communicate with the Dataflow API.
    */
-  @Description("The endpoint to use with the Dataflow API. dataflowEndpoint can override this "
+  @Description("The root URL for the Dataflow API. dataflowEndpoint can override this "
       + "value if it contains an absolute URL, otherwise apiRootUrl will be combined with "
       + "dataflowEndpoint to generate the full URL to communicate with the Dataflow API.")
-  @Default.String(DEFAULT_API_ROOT)
+  @Default.String(Dataflow.DEFAULT_ROOT_URL)
   String getApiRootUrl();
   void setApiRootUrl(String value);
+
+  /**
+   * Dataflow endpoint to use.
+   *
+   * <p> Defaults to the current version of the Google Cloud Dataflow
+   * API, at the time the current SDK version was released.
+   *
+   * <p> If the string contains "://", then this is treated as a url,
+   * otherwise {@link #getApiRootUrl()} is used as the root
+   * url.
+   */
+  @Description("The URL for the Dataflow API. If the string contains \"://\""
+      + " will be treated as the entire URL, otherwise will be treated relative to apiRootUrl.")
+  @Default.String(Dataflow.DEFAULT_SERVICE_PATH)
+  String getDataflowEndpoint();
+  void setDataflowEndpoint(String value);
 
   /**
    * The path to write the translated Dataflow job specification out to

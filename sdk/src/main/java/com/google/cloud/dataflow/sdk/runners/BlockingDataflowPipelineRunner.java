@@ -95,7 +95,7 @@ public class BlockingDataflowPipelineRunner extends
       public void run() {
         LOG.warn("Job is already running in Google Cloud Platform, Ctrl-C will not cancel it.\n"
             + "To cancel the job in the cloud, run:\n> {}",
-            MonitoringUtil.getGcloudCancelCommand(job.getProjectId(), job.getJobId()));
+            MonitoringUtil.getGcloudCancelCommand(options, job.getJobId()));
       }
     };
 

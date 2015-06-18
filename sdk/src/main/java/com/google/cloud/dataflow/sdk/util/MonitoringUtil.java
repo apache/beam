@@ -22,6 +22,7 @@ import com.google.api.services.dataflow.Dataflow.Projects.Jobs.Messages;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.ListJobMessagesResponse;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 
@@ -210,13 +211,18 @@ public final class MonitoringUtil {
     }
   }
 
-  public static String getEndpointOverridePrefixCommand(String endpoint) {
-    return String.format("%s=%s ", ENDPOINT_OVERRIDE_ENV_VAR, endpoint);
-  }
+  public static String getGcloudCancelCommand(DataflowPipelineOptions options, String jobId) {
 
-  public static String getGcloudCancelCommand(String projectName, String jobId) {
-    return String.format("%s jobs --project=%s cancel %s",
-        GCLOUD_DATAFLOW_PREFIX, projectName, jobId);
+    // If using a different Dataflow API than default, prefix command with an API override.
+    String dataflowApiOverridePrefix = "";
+    String apiUrl = options.getDataflowClient().getBaseUrl();
+    if (!apiUrl.equals(Dataflow.DEFAULT_BASE_URL)) {
+      dataflowApiOverridePrefix = String.format("%s=%s ", ENDPOINT_OVERRIDE_ENV_VAR, apiUrl);
+    }
+
+    // Assemble cancel command from optional prefix and project/job parameters.
+    return String.format("%s%s jobs --project=%s cancel %s",
+        dataflowApiOverridePrefix, GCLOUD_DATAFLOW_PREFIX, options.getProject(), jobId);
   }
 
   public static State toState(String stateName) {
