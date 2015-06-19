@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -29,6 +30,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.FileBasedSource.FileBasedReader;
 import com.google.cloud.dataflow.sdk.io.FileBasedSource.Mode;
+import com.google.cloud.dataflow.sdk.io.Source.Reader;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -369,6 +371,32 @@ public class FileBasedSourceTest {
     expectedResults.addAll(data2);
     expectedResults.addAll(data3);
     assertThat(expectedResults, containsInAnyOrder(readFromSource(source, options).toArray()));
+  }
+
+  @Test
+  public void testCloseUnstartedFilePatternReader() throws IOException {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<String> data1 = createStringDataset(3, 50);
+    File file1 = createFileWithData("file1", data1);
+
+    List<String> data2 = createStringDataset(3, 50);
+    createFileWithData("file2", data2);
+
+    List<String> data3 = createStringDataset(3, 50);
+    createFileWithData("file3", data3);
+
+    List<String> data4 = createStringDataset(3, 50);
+    createFileWithData("otherfile", data4);
+
+    TestFileBasedSource source =
+        new TestFileBasedSource(new File(file1.getParent(), "file*").getPath(), 64, null);
+    Reader<String> reader = source.createReader(options, null);
+    // Closing an unstarted FilePatternReader should not throw an exception.
+    try {
+      reader.close();
+    } catch (Exception e) {
+      fail("Closing an unstarted FilePatternReader should not throw an exception");
+    }
   }
 
   @Test

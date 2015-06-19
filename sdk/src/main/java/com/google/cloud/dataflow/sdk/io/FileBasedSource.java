@@ -571,7 +571,10 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
     @Override
     public void close() throws IOException {
       // Close all readers that may have not yet been closed.
-      currentReader.close();
+      // If this reader has not been started, currentReader is null.
+      if (currentReader != null) {
+        currentReader.close();
+      }
       while (fileReadersIterator.hasNext()) {
         fileReadersIterator.next().close();
       }
