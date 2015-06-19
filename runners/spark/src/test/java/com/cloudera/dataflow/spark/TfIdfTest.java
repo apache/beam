@@ -98,7 +98,8 @@ public class TfIdfTest {
         .apply(new ComputeTfIdf())
         .apply(new WriteTfIdf(outputDir.toURI().toString()));
 
-    SparkPipelineRunner.create().run(pipeline);
+    EvaluationResult res = SparkPipelineRunner.create().run(pipeline);
+    res.close();
 
     for (File f : tmpDir.getRoot().listFiles(new FileFilter() {
       @Override

@@ -38,8 +38,9 @@ public class EmptyInputTest {
     PCollection<String> inputWords = p.apply(Create.of(empty)).setCoder(StringUtf8Coder.of());
     PCollection<String> output = inputWords.apply(Combine.globally(new ConcatWords()));
 
-    EvaluationResult run = SparkPipelineRunner.create(options).run(p);
-    assertEquals("", Iterables.getOnlyElement(run.get(output)));
+    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    assertEquals("", Iterables.getOnlyElement(res.get(output)));
+    res.close();
   }
 
   public static class ConcatWords implements SerializableFunction<Iterable<String>, String> {

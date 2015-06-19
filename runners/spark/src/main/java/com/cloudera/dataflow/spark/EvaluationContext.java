@@ -168,7 +168,7 @@ public class EvaluationContext implements EvaluationResult {
 
   @Override
   public void close() {
-    jsc.stop();
+    SparkContextFactory.stopSparkContext(jsc);
   }
 
   @Override

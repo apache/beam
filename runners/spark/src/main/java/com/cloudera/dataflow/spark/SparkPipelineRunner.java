@@ -22,9 +22,7 @@ import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PValue;
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.serializer.KryoSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,7 +102,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
     try {
       LOG.info("Executing pipeline using the SparkPipelineRunner.");
 
-      JavaSparkContext jsc = getContext();
+      JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions.getSparkMaster());
       EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
       pipeline.traverseTopologically(new Evaluator(ctxt));
       ctxt.computeOutputs();
@@ -115,14 +113,6 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
     } catch (Exception e) {
       throw new RuntimeException(e); // wrap a SparkException in a RuntimeException
     }
-  }
-
-  private JavaSparkContext getContext() {
-    SparkConf conf = new SparkConf();
-    conf.setMaster(mOptions.getSparkMaster());
-    conf.setAppName("spark pipeline job");
-    conf.set("spark.serializer", KryoSerializer.class.getCanonicalName());
-    return new JavaSparkContext(conf);
   }
 
   private static final class Evaluator implements Pipeline.PipelineVisitor {

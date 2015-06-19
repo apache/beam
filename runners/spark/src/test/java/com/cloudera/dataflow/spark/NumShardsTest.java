@@ -64,7 +64,8 @@ public class NumShardsTest {
     PCollection<String> inputWords = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
     PCollection<String> output = inputWords.apply(new WordCount.CountWords());
     output.apply(TextIO.Write.to(outputDir.getAbsolutePath()).withNumShards(3).withSuffix(".txt"));
-    p.run();
+    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    res.close();
 
     int count = 0;
     Set<String> expected = Sets.newHashSet("hi: 5", "there: 1", "sue: 2", "bob: 2");

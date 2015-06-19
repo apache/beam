@@ -49,6 +49,7 @@ public class DeDupTest {
 
     DataflowAssert.that(output).containsInAnyOrder(EXPECTED_SET);
 
-    p.run();
+    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    res.close();
   }
 }

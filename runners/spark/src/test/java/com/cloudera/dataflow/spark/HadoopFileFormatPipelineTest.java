@@ -70,7 +70,8 @@ public class HadoopFileFormatPipelineTest {
             .withValueClass(Text.class));
     input.apply(ParDo.of(new TabSeparatedString()))
         .apply(TextIO.Write.to(outputFile.getAbsolutePath()).withoutSharding());
-    SparkPipelineRunner.create().run(p);
+    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    res.close();
 
     List<String> records = Files.readLines(outputFile, Charsets.UTF_8);
     for (int i = 0; i < 5; i++) {

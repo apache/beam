@@ -123,8 +123,8 @@ public class SerializationTest {
 
     DataflowAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
-    p.run();
-
+    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    res.close();
   }
 
   /**
