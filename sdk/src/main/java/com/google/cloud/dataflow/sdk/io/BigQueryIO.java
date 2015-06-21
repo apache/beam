@@ -17,12 +17,18 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import com.google.api.client.json.JsonFactory;
+import com.google.api.client.util.Preconditions;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
+import com.google.cloud.dataflow.sdk.coders.StandardCoder;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.TableRowJsonCoder;
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
@@ -33,14 +39,17 @@ import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.Values;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterFirst;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterProcessingTime;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
+import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -51,14 +60,22 @@ import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -119,7 +136,30 @@ import java.util.regex.Pattern;
  * <p>
  * See {@link BigQueryIO.Write} for details on how to specify if a write should
  * append to an existing table, replace the table, or verify that the table is
- * empty. Note that the dataset being written to must already exist.
+ * empty. Note that the dataset being written to must already exist. Write
+ * dispositions are not supported in streaming mode.
+ *
+ * <p><h3>Sharding BigQuery output tables</h3>
+ * A common use case is to dynamically generate BigQuery table names based on
+ * the current window. To support this,
+ * {@link BigQueryIO.Write#to(SerializableFunction)}
+ * accepts a function mapping the current window to a tablespec. For example,
+ * here's code that outputs daily tables to BigQuery:
+ * <pre>{@code
+ * PCollection<TableRow> quotes = ...
+ * quotes.apply(Window.<TableRow>info(CalendarWindows.days(1)))
+ *       .apply(BigQueryIO.Write
+ *         .named("Write")
+ *         .withSchema(schema)
+ *       .to(new SerializableFunction<BoundedWindow, String>() {
+ *             public String apply(BoundedWindow window) {
+ *               return "my-project:output.output_table-" + window.toString();
+ *             }
+ *           }));
+ *
+ * }</pre>
+ *
+ * <p> Per-window tables are not yet supported in batch mode.
  *
  * @see <a href="https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/com/google/api/services/bigquery/model/TableRow.html">TableRow</a>
  */
@@ -465,6 +505,26 @@ public class BigQueryIO {
       return new Bound().to(table);
     }
 
+    /** Creates a write transformation from a function that maps windows to table specifications.
+     * Each time a new window is encountered, this function will be called and the resulting table
+     * will be created. Records within that window will be written to the associated table.
+     * <p>
+     * See {@link #parseTableSpec(String)} for the format that tableSpecFunction should return.
+     * <p>
+     * tableSpecFunction should be determinstic. When given the same window, it should always return
+     * the same table specification.
+     */
+    public static Bound to(SerializableFunction<BoundedWindow, String> tableSpecFunction) {
+      return new Bound().to(tableSpecFunction);
+    }
+
+    /** Creates a write transformation from a function that maps windows to TableReference objects.
+     */
+    public static Bound toTableReference(
+        SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
+      return new Bound().toTableReference(tableRefFunction);
+    }
+
     /**
      * Specifies a table schema to use in table creation.
      * <p>
@@ -502,6 +562,8 @@ public class BigQueryIO {
 
       final TableReference table;
 
+      final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+
       // Table schema. The schema is required only if the table does not exist.
       final TableSchema schema;
 
@@ -516,19 +578,38 @@ public class BigQueryIO {
       // An option to indicate if table validation is desired. Default is true.
       final boolean validate;
 
+      private static class TranslateTableSpecFunction implements
+          SerializableFunction<BoundedWindow, TableReference> {
+        private static final long serialVersionUID = 0;
+
+        private SerializableFunction<BoundedWindow, String> tableSpecFunction;
+
+        TranslateTableSpecFunction(SerializableFunction<BoundedWindow, String> tableSpecFunction) {
+          this.tableSpecFunction = tableSpecFunction;
+        }
+
+        @Override
+        public TableReference apply(BoundedWindow value) {
+          return parseTableSpec(tableSpecFunction.apply(value));
+        }
+      }
+
       public Bound() {
         this.table = null;
+        this.tableRefFunction = null;
         this.schema = null;
         this.createDisposition = CreateDisposition.CREATE_IF_NEEDED;
         this.writeDisposition = WriteDisposition.WRITE_EMPTY;
         this.validate = true;
       }
 
-      Bound(String name, TableReference ref, TableSchema schema,
+      Bound(String name, TableReference ref,
+          SerializableFunction<BoundedWindow, TableReference> tableRefFunction, TableSchema schema,
           CreateDisposition createDisposition, WriteDisposition writeDisposition,
           boolean validate) {
         super(name);
         this.table = ref;
+        this.tableRefFunction = tableRefFunction;
         this.schema = schema;
         this.createDisposition = createDisposition;
         this.writeDisposition = writeDisposition;
@@ -539,7 +620,8 @@ public class BigQueryIO {
        * Sets the name associated with this transformation.
        */
       public Bound named(String name) {
-        return new Bound(name, table, schema, createDisposition, writeDisposition, validate);
+        return new Bound(name, table, tableRefFunction, schema, createDisposition,
+            writeDisposition, validate);
       }
 
       /**
@@ -555,38 +637,62 @@ public class BigQueryIO {
        * Specifies the table to be written to.
        */
       public Bound to(TableReference table) {
-        return new Bound(name, table, schema, createDisposition, writeDisposition, validate);
+        return new Bound(name, table, tableRefFunction, schema, createDisposition,
+            writeDisposition, validate);
       }
+
+      public Bound to(
+          SerializableFunction<BoundedWindow, String> tableSpecFunction) {
+        return toTableReference(new TranslateTableSpecFunction(tableSpecFunction));
+      }
+
+      public Bound toTableReference(
+          SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
+        return new Bound(name, table, tableRefFunction, schema, createDisposition,
+            writeDisposition, validate);
+      }
+
 
       /**
        * Specifies the table schema, used if the table is created.
        */
       public Bound withSchema(TableSchema schema) {
-        return new Bound(name, table, schema, createDisposition, writeDisposition, validate);
+        return new Bound(name, table, tableRefFunction, schema, createDisposition,
+            writeDisposition, validate);
       }
 
       /** Specifies options for creating the table. */
       public Bound withCreateDisposition(CreateDisposition createDisposition) {
-        return new Bound(name, table, schema, createDisposition, writeDisposition, validate);
+        return new Bound(name, table, tableRefFunction, schema, createDisposition,
+            writeDisposition, validate);
       }
 
       /** Specifies options for writing the table. */
       public Bound withWriteDisposition(WriteDisposition writeDisposition) {
-        return new Bound(name, table, schema, createDisposition, writeDisposition, validate);
+        return new Bound(name, table, tableRefFunction, schema, createDisposition,
+            writeDisposition, validate);
       }
 
       /**
        * Disable table validation.
        */
       public Bound withoutValidation() {
-        return new Bound(name, table, schema, createDisposition, writeDisposition, false);
+        return new Bound(name, table, tableRefFunction, schema, createDisposition,
+            writeDisposition, false);
       }
 
       @Override
       public PDone apply(PCollection<TableRow> input) {
-        if (table == null) {
+        BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+
+        if (table == null && tableRefFunction == null) {
           throw new IllegalStateException(
               "must set the table reference of a BigQueryIO.Write transform");
+        }
+        if (table != null && tableRefFunction != null) {
+          throw new IllegalStateException(
+              "Cannot set both a table reference and a table function for a BigQueryIO.Write "
+                + "transform");
         }
 
         if (createDisposition == CreateDisposition.CREATE_IF_NEEDED && schema == null) {
@@ -595,9 +701,19 @@ public class BigQueryIO {
         }
 
         // In streaming, BigQuery write is taken care of by StreamWithDeDup transform.
-        BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
-        if (options.isStreaming()) {
-          return input.apply(new StreamWithDeDup(table, schema));
+        // We also currently do this if a tablespec function is specified.
+        if (options.isStreaming() || tableRefFunction != null) {
+          if (createDisposition == CreateDisposition.CREATE_NEVER) {
+            throw new IllegalArgumentException("CreateDispostion.CREATE_NEVER is not "
+                + "supported for unbounded PCollections or when using tablespec functions.");
+          }
+
+          if (writeDisposition == WriteDisposition.WRITE_TRUNCATE) {
+            throw new IllegalArgumentException("WriteDisposition.WRITE_TRUNCATE is not "
+                + "supported for unbounded PCollections or when using tablespec functions.");
+          }
+
+          return input.apply(new StreamWithDeDup(table, tableRefFunction, schema));
         }
 
         return PDone.in(input.getPipeline());
@@ -656,8 +772,7 @@ public class BigQueryIO {
   /**
    * Implementation of DoFn to perform streaming BigQuery write.
    */
-  private static class StreamingWriteFn
-      extends DoFn<KV<String, TableRow>, Void> {
+  private static class StreamingWriteFn extends DoFn<TableRowInfo, Void> {
     private static final long serialVersionUID = 0;
 
     /** TableReference in JSON.  Use String to make the class Serializable. */
@@ -666,13 +781,16 @@ public class BigQueryIO {
     /** TableSchema in JSON.  Use String to make the class Serializable. */
     private final String jsonTableSchema;
 
-    private transient TableReference tableReference;
+    /** User function mapping windows to TableReference in JSON. */
+    private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+
+    private transient TableReference defaultTableReference;
 
     /** JsonTableRows to accumulate BigQuery rows. */
-    private transient List<TableRow> tableRows;
+    private transient Map<BoundedWindow, List<TableRow>> tableRows;
 
     /** The list of unique ids for each BigQuery table row. */
-    private transient List<String> uniqueIdsForTableRows;
+    private transient Map<BoundedWindow, List<String>> uniqueIdsForTableRows;
 
     /** The list of tables created so far, so we don't try the creation
         each time. */
@@ -680,9 +798,16 @@ public class BigQueryIO {
         Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
     /** Constructor. */
-    StreamingWriteFn(TableReference table, TableSchema schema) {
+    StreamingWriteFn(TableReference table,
+        SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
+        TableSchema schema) {
       try {
-        jsonTableReference = JSON_FACTORY.toString(table);
+        if (table != null) {
+          jsonTableReference = JSON_FACTORY.toString(table);
+        } else {
+          jsonTableReference = null;
+        }
+        this.tableRefFunction = tableRefFunction;
         jsonTableSchema = JSON_FACTORY.toString(schema);
       } catch (IOException e) {
         throw new RuntimeException("Cannot initialize BigQuery streaming writer.", e);
@@ -692,18 +817,53 @@ public class BigQueryIO {
     /** Prepares a target BigQuery table. */
     @Override
     public void startBundle(Context context) {
-      tableRows = new ArrayList<>();
-      uniqueIdsForTableRows = new ArrayList<>();
+      tableRows = new HashMap<>();
+      uniqueIdsForTableRows = new HashMap<>();
+    }
+
+    /** Accumulates the input into JsonTableRows and uniqueIdsForTableRows. */
+    @Override
+    public void processElement(ProcessContext context) {
+      TableRowInfo rowInfo = context.element();
+      List<TableRow> rows = getOrCreateMapListValue(tableRows, rowInfo.window);
+      rows.add(rowInfo.tableRow);
+      List<String> uniqueIds = getOrCreateMapListValue(uniqueIdsForTableRows, rowInfo.window);
+      uniqueIds.add(rowInfo.uniqueId);
+    }
+
+    /** Writes the accumulated rows into BigQuery with streaming API. */
+    @Override
+    public void finishBundle(Context context) {
       BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
 
-      // TODO: Support table sharding and the better place to initialize
-      // BigQuery table.
-      try {
-        tableReference =
-            JSON_FACTORY.fromString(jsonTableReference, TableReference.class);
-        String tableSpec = toTableSpec(tableReference);
+      for (BoundedWindow window : tableRows.keySet()) {
+        TableReference tableReference = getOrCreateTableForWindow(options, window);
+        flushRows(options, tableReference, tableRows.get(window),
+            uniqueIdsForTableRows.get(window));
+      }
+      tableRows.clear();
+      uniqueIdsForTableRows.clear();
+    }
 
-        if (!createdTables.contains(tableSpec)) {
+    public TableReference getOrCreateTableForWindow(BigQueryOptions options, BoundedWindow window) {
+     try {
+       if (defaultTableReference != null) {
+         return defaultTableReference;
+       }
+
+       TableReference tableReference;
+       if (tableRefFunction != null) {
+         tableReference = tableRefFunction.apply(window);
+       } else {
+         tableReference = JSON_FACTORY.fromString(jsonTableReference, TableReference.class);
+       }
+       String tableSpec = toTableSpec(tableReference);
+
+       if (tableReference.getProjectId() == null) {
+         tableReference.setProjectId(options.getProject());
+       }
+
+       if (!createdTables.contains(tableSpec)) {
           synchronized (createdTables) {
             // Another thread may have succeeded in creating the table in the meanwhile, so
             // check again. This check isn't needed for correctness, but we add it to prevent
@@ -717,45 +877,104 @@ public class BigQueryIO {
             }
           }
         }
+       if (tableRefFunction == null) {
+         // A constant table spec is used, and we've already created it. Cache that value so that we
+         // can elide the parsing/lookup on future calls to getOrCreateTableForWindow.
+         defaultTableReference = tableReference;
+       }
+       return tableReference;
       } catch (IOException e) {
         throw new RuntimeException(e);
-      }
-    }
-
-    /** Accumulates the input into JsonTableRows and uniqueIdsForTableRows. */
-    @Override
-    public void processElement(ProcessContext context) {
-      KV<String, TableRow> kv = context.element();
-      addRow(kv.getValue(), kv.getKey());
+     }
     }
 
     /** Writes the accumulated rows into BigQuery with streaming API. */
-    @Override
-    public void finishBundle(Context context) {
-      flushRows(context.getPipelineOptions().as(BigQueryOptions.class));
-    }
-
-    /** Accumulate a row to be written to BigQuery. */
-    private void addRow(TableRow tableRow, String uniqueId) {
-      uniqueIdsForTableRows.add(uniqueId);
-      tableRows.add(tableRow);
-    }
-
-    /** Writes the accumulated rows into BigQuery with streaming API. */
-    private void flushRows(BigQueryOptions options) {
+    private void flushRows(BigQueryOptions options, TableReference tableReference,
+        List<TableRow> tableRows, List<String> uniqueIds) {
       if (!tableRows.isEmpty()) {
         Bigquery client = Transport.newBigQueryClient(options).build();
         try {
           BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
-          inserter.insertAll(tableRows, uniqueIdsForTableRows);
+          inserter.insertAll(tableRows, uniqueIds);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
-        tableRows.clear();
-        uniqueIdsForTableRows.clear();
       }
     }
   }
+
+
+  private static class TableRowInfoCoder extends StandardCoder<TableRowInfo> {
+    private static final long serialVersionUID = 0;
+
+    public static TableRowInfoCoder of(Coder<? extends BoundedWindow> windowCoder) {
+      return new TableRowInfoCoder(windowCoder);
+    }
+
+    @JsonCreator
+    public static TableRowInfoCoder of(
+         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
+         List<Coder<? extends BoundedWindow>> components) {
+      Preconditions.checkArgument(components.size() == 1,
+          "Expecting 1 component, got " + components.size());
+      return of(components.get(0));
+    }
+
+    protected TableRowInfoCoder(Coder<? extends BoundedWindow> windowCoder) {
+      this.tableRowCoder = TableRowJsonCoder.of();
+      this.idCoder = StringUtf8Coder.of();
+      @SuppressWarnings("unchecked")
+      Coder<BoundedWindow> boundedWindowCoder = (Coder<BoundedWindow>) windowCoder;
+      this.windowCoder = boundedWindowCoder;
+    }
+
+     @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Arrays.asList(windowCoder);
+    }
+
+
+    @Override
+    public void encode(TableRowInfo value, OutputStream outStream, Context context)
+      throws IOException {
+      if (value == null) {
+        throw new CoderException("cannot encode a null value");
+      }
+      tableRowCoder.encode(value.tableRow, outStream, context.nested());
+      idCoder.encode(value.uniqueId, outStream, context.nested());
+      windowCoder.encode(value.window, outStream, context.nested());
+    }
+
+    @Override
+    public TableRowInfo decode(InputStream inStream, Context context)
+      throws IOException {
+      return new TableRowInfo(
+          tableRowCoder.decode(inStream, context.nested()),
+          idCoder.decode(inStream, context.nested()),
+          windowCoder.decode(inStream, context.nested()));
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      throw new NonDeterministicException(this, "TableRows are not deterministic.");
+    }
+
+    TableRowJsonCoder tableRowCoder;
+    StringUtf8Coder idCoder;
+    Coder<BoundedWindow> windowCoder;
+  }
+
+   private static class TableRowInfo {
+     TableRowInfo(TableRow tableRow, String uniqueId, BoundedWindow window) {
+       this.tableRow = tableRow;
+       this.uniqueId = uniqueId;
+       this.window = window;
+     }
+
+     final TableRow tableRow;
+     final String uniqueId;
+     final BoundedWindow window;
+   };
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -765,7 +984,8 @@ public class BigQueryIO {
    * a randomUUID is generated only once per bucket of data. The actual unique
    * id is created by concatenating this randomUUID with a sequential number.
    */
-  private static class TagWithUniqueIds extends DoFn<TableRow, KV<Integer, KV<String, TableRow>>> {
+  private static class TagWithUniqueIdsAndWindow extends DoFn<TableRow, KV<Integer, TableRowInfo>>
+        implements DoFn.RequiresWindowAccess {
     private static final long serialVersionUID = 0;
 
     private transient String randomUUID;
@@ -784,7 +1004,8 @@ public class BigQueryIO {
       ThreadLocalRandom randomGenerator = ThreadLocalRandom.current();
       // We output on keys 0-50 to ensure that there's enough batching for
       // BigQuery.
-      context.output(KV.of(randomGenerator.nextInt(0, 50), KV.of(uniqueId, context.element())));
+      context.output(KV.of(randomGenerator.nextInt(0, 50),
+          new TableRowInfo(context.element(), uniqueId, context.window())));
     }
   }
 
@@ -801,12 +1022,16 @@ public class BigQueryIO {
     private static final int WRITE_BUFFER_COUNT = 100;
     private static final Duration WRITE_BUFFER_WAIT = Duration.standardSeconds(1);
 
-    private final TableReference tableReference;
-    private final TableSchema tableSchema;
+    private final transient TableReference tableReference;
+    private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+    private final transient TableSchema tableSchema;
 
     /** Constructor. */
-    StreamWithDeDup(TableReference tableReference, TableSchema tableSchema) {
+    StreamWithDeDup(TableReference tableReference,
+        SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
+        TableSchema tableSchema) {
       this.tableReference = tableReference;
+      this.tableRefFunction = tableRefFunction;
       this.tableSchema = tableSchema;
     }
 
@@ -827,24 +1052,27 @@ public class BigQueryIO {
       // To use this mechanism, each input TableRow is tagged with a generated
       // unique id, which is then passed to BigQuery and used to ignore duplicates.
 
-      PCollection<KV<Integer, KV<String, TableRow>>> tagged =
-          input.apply(ParDo.of(new TagWithUniqueIds()));
+      PCollection<KV<Integer, TableRowInfo>> tagged =
+          input.apply(ParDo.of(new TagWithUniqueIdsAndWindow()));
 
       // To prevent having the same TableRow processed more than once with regenerated
       // different unique ids, this implementation relies on "checkpointing", which is
       // achieved as a side effect of having StreamingWriteFn immediately follow a GBK.
       tagged
-          .apply(Window.<KV<Integer, KV<String, TableRow>>>into(new GlobalWindows())
+          .setCoder(KvCoder.of(VarIntCoder.of(),
+              TableRowInfoCoder.of(
+              tagged.getWindowingStrategy().getWindowFn().windowCoder())))
+          .apply(Window.<KV<Integer, TableRowInfo>>into(new GlobalWindows())
                        .triggering(Repeatedly.forever(
                            AfterFirst.of(
                                AfterProcessingTime.pastFirstElementInPane()
                                                   .plusDelayOf(WRITE_BUFFER_WAIT),
                                AfterPane.elementCountAtLeast(WRITE_BUFFER_COUNT))))
                        .discardingFiredPanes())
-          .apply(GroupByKey.<Integer, KV<String, TableRow>>create())
-          .apply(Values.<Iterable<KV<String, TableRow>>>create())
-          .apply(Flatten.<KV<String, TableRow>>iterables())
-          .apply(ParDo.of(new StreamingWriteFn(tableReference, tableSchema)));
+          .apply(GroupByKey.<Integer, TableRowInfo>create())
+          .apply(Values.<Iterable<TableRowInfo>>create())
+          .apply(Flatten.<TableRowInfo>iterables())
+          .apply(ParDo.of(new StreamingWriteFn(tableReference, tableRefFunction, tableSchema)));
 
       // Note that the implementation to return PDone here breaks the
       // implicit assumption about the job execution order.  If a user
@@ -879,6 +1107,15 @@ public class BigQueryIO {
     context.setPCollectionWindowedValue(context.getOutput(transform), elems);
   }
 
+  private static <K, V> List<V> getOrCreateMapListValue(Map<K, List<V>> map, K key) {
+    List<V> value = map.get(key);
+    if (value == null) {
+      value = new ArrayList<>();
+      map.put(key, value);
+    }
+    return value;
+  }
+
   /**
    * Direct mode write evaluator.
    * <p>
@@ -889,21 +1126,34 @@ public class BigQueryIO {
       Write.Bound transform, DirectPipelineRunner.EvaluationContext context) {
     BigQueryOptions options = context.getPipelineOptions();
     Bigquery client = Transport.newBigQueryClient(options).build();
-    TableReference ref = transform.table;
-    if (ref.getProjectId() == null) {
-      ref.setProjectId(options.getProject());
-    }
-
-    LOG.info("Writing to BigQuery table {}", toTableSpec(ref));
 
     try {
-      BigQueryTableInserter inserter = new BigQueryTableInserter(client, ref);
+      Map<BoundedWindow, List<TableRow>> tableRows = new HashMap<>();
+      for (WindowedValue<TableRow> windowedValue : context.getPCollectionWindowedValues(
+          context.getInput(transform))) {
+        for (BoundedWindow window : windowedValue.getWindows()) {
+          List<TableRow> rows = getOrCreateMapListValue(tableRows, window);
+          rows.add(windowedValue.getValue());
+        }
+      }
 
-      inserter.getOrCreateTable(
-          transform.writeDisposition, transform.createDisposition, transform.schema);
+      for (BoundedWindow window : tableRows.keySet()) {
+        TableReference ref;
+        if (transform.tableRefFunction != null) {
+          ref = transform.tableRefFunction.apply(window);
+        } else {
+          ref = transform.table;
+        }
+        if (ref.getProjectId() == null) {
+          ref.setProjectId(options.getProject());
+        }
+        LOG.info("Writing to BigQuery table {}", toTableSpec(ref));
 
-      List<TableRow> tableRows = context.getPCollection(context.getInput(transform));
-      inserter.insertAll(tableRows);
+        BigQueryTableInserter inserter = new BigQueryTableInserter(client, ref);
+        inserter.getOrCreateTable(
+            transform.writeDisposition, transform.createDisposition, transform.schema);
+        inserter.insertAll(tableRows.get(window));
+      }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
