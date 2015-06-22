@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,6 +45,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Class responsible for fetching state from the windmill server.
@@ -53,6 +55,9 @@ public class StateFetcher {
 
   private WindmillServerStub server;
   private Cache<SideInputId, SideInputCacheEntry> sideInputCache;
+  private AtomicInteger tagValueOutstandingFetches;
+  private AtomicInteger tagListOutstandingFetches;
+  private AtomicInteger sideInputOutstandingFetches;
 
   public StateFetcher(WindmillServerStub server) {
     this(server, CacheBuilder
@@ -72,6 +77,9 @@ public class StateFetcher {
       WindmillServerStub server, Cache<SideInputId, SideInputCacheEntry> sideInputCache) {
     this.server = server;
     this.sideInputCache = sideInputCache;
+    this.tagValueOutstandingFetches = new AtomicInteger();
+    this.tagListOutstandingFetches = new AtomicInteger();
+    this.sideInputOutstandingFetches = new AtomicInteger();
   }
 
   public Map<CodedTupleTag<?>, Optional<?>> fetch(
@@ -95,7 +103,13 @@ public class StateFetcher {
     }
 
     Map<CodedTupleTag<?>, Optional<?>> resultMap = new HashMap<>();
-    Windmill.KeyedGetDataResponse keyResponse = getResponse(computation, key, requestBuilder);
+    tagValueOutstandingFetches.getAndIncrement();
+    Windmill.KeyedGetDataResponse keyResponse;
+    try {
+      keyResponse = getResponse(computation, key, requestBuilder);
+    } finally {
+      tagValueOutstandingFetches.getAndDecrement();
+    }
 
     for (Windmill.TagValue tv : keyResponse.getValuesList()) {
       CodedTupleTag<?> tag = tagMap.get(tv.getTag());
@@ -142,7 +156,13 @@ public class StateFetcher {
     }
 
     Map<CodedTupleTag<?>, List<?>> resultMap = new HashMap<>();
-    Windmill.KeyedGetDataResponse keyResponse = getResponse(computation, key, requestBuilder);
+    tagListOutstandingFetches.getAndIncrement();
+    Windmill.KeyedGetDataResponse keyResponse;
+    try {
+      keyResponse = getResponse(computation, key, requestBuilder);
+    } finally {
+      tagListOutstandingFetches.getAndDecrement();
+    }
     for (Windmill.TagList tagList : keyResponse.getListsList()) {
       CodedTupleTag<?> tag = tagMap.get(tagList.getTag());
       resultMap.put(tag, decodeTagList(tag, tagList));
@@ -238,11 +258,17 @@ public class StateFetcher {
                          .getMillis()))
                 .build();
 
-        Windmill.GetDataResponse response = server.getData(
-            Windmill.GetDataRequest.newBuilder()
-            .addGlobalDataFetchRequests(request)
-            .addGlobalDataToFetch(request.getDataId())
-            .build());
+        Windmill.GetDataResponse response;
+        sideInputOutstandingFetches.getAndIncrement();
+        try {
+          response = server.getData(
+              Windmill.GetDataRequest.newBuilder()
+              .addGlobalDataFetchRequests(request)
+              .addGlobalDataToFetch(request.getDataId())
+              .build());
+        } finally {
+          sideInputOutstandingFetches.getAndDecrement();
+        }
 
         Windmill.GlobalData data = response.getGlobalData(0);
 
@@ -290,6 +316,13 @@ public class StateFetcher {
       LOG.error("Fetch failed: ", e);
       throw new RuntimeException("Exception while fetching side input: ", e);
     }
+  }
+
+  public void printHtml(PrintWriter writer) {
+    writer.println("Active fetches:");
+    writer.println(" Values: " + tagValueOutstandingFetches.get());
+    writer.println(" Lists: " + tagListOutstandingFetches.get());
+    writer.println(" SideInputs: " + sideInputOutstandingFetches.get());
   }
 
   /**

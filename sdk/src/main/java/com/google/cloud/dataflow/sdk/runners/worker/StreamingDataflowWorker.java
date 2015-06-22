@@ -67,9 +67,13 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class StreamingDataflowWorker {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
-  static final int MAX_THREAD_POOL_SIZE = 100;
+  // Maximum number of threads for processing.  Currently each thread processes one key at a time.
+  static final int MAX_PROCESSING_THREADS = 300;
   static final long THREAD_EXPIRATION_TIME_SEC = 60;
-  static final int MAX_THREAD_POOL_QUEUE_SIZE = 100;
+  // Maximum work units retrieved from Windmill and queued before processing. Limiting this delays
+  // retrieving extra work from Windmill without working on it, leading to better
+  // prioritization / utilization.
+  static final int MAX_WORK_UNITS_QUEUED = 100;
   static final long MAX_COMMIT_BYTES = 32 << 20;
   static final int DEFAULT_STATUS_PORT = 8081;
   // Memory threshold over which no new work will be processed.
@@ -155,7 +159,7 @@ public class StreamingDataflowWorker {
   private ConcurrentMap<String, ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>> outputMap;
   private ConcurrentMap<String, ConcurrentLinkedQueue<WorkerAndContext>> mapTaskExecutors;
   private ThreadFactory threadFactory;
-  private BoundedQueueExecutor executor;
+  private BoundedQueueExecutor workUnitExecutor;
   private WindmillServerStub windmillServer;
   private Thread dispatchThread;
   private Thread commitThread;
@@ -183,9 +187,9 @@ public class StreamingDataflowWorker {
           return t;
         }
       };
-    this.executor = new BoundedQueueExecutor(
-        MAX_THREAD_POOL_SIZE, THREAD_EXPIRATION_TIME_SEC, TimeUnit.SECONDS,
-        MAX_THREAD_POOL_QUEUE_SIZE, threadFactory);
+    this.workUnitExecutor = new BoundedQueueExecutor(
+        MAX_PROCESSING_THREADS, THREAD_EXPIRATION_TIME_SEC, TimeUnit.SECONDS,
+        MAX_WORK_UNITS_QUEUED, threadFactory);
     this.windmillServer = server;
     this.running = new AtomicBoolean();
     this.stateFetcher = new StateFetcher(server);
@@ -226,8 +230,8 @@ public class StreamingDataflowWorker {
       }
       running.set(false);
       dispatchThread.join();
-      executor.shutdown();
-      if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
+      workUnitExecutor.shutdown();
+      if (!workUnitExecutor.awaitTermination(5, TimeUnit.MINUTES)) {
         throw new RuntimeException("Process did not terminate within 5 minutes");
       }
       for (ConcurrentLinkedQueue<WorkerAndContext> queue : mapTaskExecutors.values()) {
@@ -317,7 +321,7 @@ public class StreamingDataflowWorker {
         final Instant inputDataWatermark = new Instant(watermarkMicros / 1000);
 
         for (final Windmill.WorkItem work : computationWork.getWorkList()) {
-          executor.execute(new Runnable() {
+          workUnitExecutor.execute(new Runnable() {
               @Override
               public void run() {
                 process(computation, inputDataWatermark, work);
@@ -413,7 +417,7 @@ public class StreamingDataflowWorker {
         if (reportFailure(computation, work, t)) {
           // Try again, after some delay and at the end of the queue to avoid a tight loop.
           sleep(10000);
-          executor.forceExecute(
+          workUnitExecutor.forceExecute(
               new Runnable() {
                 @Override
                 public void run() {
@@ -631,10 +635,11 @@ public class StreamingDataflowWorker {
 
   private void printMetrics(PrintWriter response) {
     response.println("<h2>Metrics</h2>");
-    response.println("Worker Threads: " + executor.getPoolSize()
-        + "/" + MAX_THREAD_POOL_QUEUE_SIZE + "<br>");
-    response.println("Active Threads: " + executor.getActiveCount() + "<br>");
-    response.println("Work Queue Size: " + executor.getQueue().size() + "<br>");
+    response.println("Worker Threads: " + workUnitExecutor.getPoolSize()
+        + "/" + MAX_PROCESSING_THREADS + "<br>");
+    response.println("Active Threads: " + workUnitExecutor.getActiveCount() + "<br>");
+    response.println("Work Queue Size: " + workUnitExecutor.getQueue().size()
+        + "/" + MAX_WORK_UNITS_QUEUED + "<br>");
     response.println("Commit Queues: <ul>");
     for (Map.Entry<String, ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>> entry
              : outputMap.entrySet()) {
@@ -645,6 +650,7 @@ public class StreamingDataflowWorker {
       response.println("</li>");
     }
     response.println("</ul>");
+    stateFetcher.printHtml(response);
   }
 
   private void printResources(PrintWriter response) {
