@@ -55,6 +55,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.RetryHttpRequestInitializer;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -299,7 +300,13 @@ public class DatastoreIO {
         // Fallback in case estimated size is unavailable.
         numSplits = dataflowOptions.getNumWorkers();
       }
-      numSplits = Math.max(numSplits, 1);
+
+      // If the desiredBundleSize or number of workers results in 1 split, simply return
+      // a source that reads from the original query.
+      if (numSplits <= 1) {
+        return Lists.newArrayList(this);
+      }
+
       List<Query> splitQueries;
       if (mockSplitter == null) {
         splitQueries = DatastoreHelper.getQuerySplitter().getSplits(

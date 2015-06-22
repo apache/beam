@@ -24,7 +24,9 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.datastore.DatastoreV1;
@@ -196,9 +198,11 @@ public class DatastoreIOTest {
 
     List<DatastoreIO.Source> bundles = io.splitIntoBundles(1024, options);
     assertEquals(1, bundles.size());
+    verify(splitter, never()).getSplits(any(Query.class), eq(1), any(Datastore.class));
     DatastoreIO.Source bundle = bundles.get(0);
     Query bundleQuery = bundle.query;
     assertEquals("mykind", bundleQuery.getKind(0).getName());
+    assertFalse(bundleQuery.hasFilter());
   }
 
   @Test
@@ -277,9 +281,11 @@ public class DatastoreIOTest {
 
     List<DatastoreIO.Source> bundles = spiedIo.splitIntoBundles(1024, options);
     assertEquals(1, bundles.size());
+    verify(splitter, never()).getSplits(any(Query.class), eq(1), any(Datastore.class));
     DatastoreIO.Source bundle = bundles.get(0);
     Query bundleQuery = bundle.query;
     assertEquals("mykind", bundleQuery.getKind(0).getName());
+    assertFalse(bundleQuery.hasFilter());
   }
 
   @Test
@@ -310,9 +316,11 @@ public class DatastoreIOTest {
 
     List<DatastoreIO.Source> bundles = io.splitIntoBundles(1024, options);
     assertEquals(1, bundles.size());
+    verify(splitter, never()).getSplits(any(Query.class), eq(1), any(Datastore.class));
     DatastoreIO.Source bundle = bundles.get(0);
     Query bundleQuery = bundle.query;
     assertEquals("mykind", bundleQuery.getKind(0).getName());
+    assertFalse(bundleQuery.hasFilter());
   }
 
   /**
