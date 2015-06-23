@@ -244,10 +244,9 @@ public class DataflowPipelineTranslatorTest {
 
   @Test
   public void testDebuggerConfig() throws IOException {
-    final String cdbgVersion = "test-v1";
     DataflowPipelineOptions options = buildPipelineOptions();
-    options.setCdbgVersion(cdbgVersion);
-    String expectedConfig = "{\"version\":\"test-v1\"}";
+    options.setCloudDebuggerEnabled(true);
+    String expectedConfig = "true";
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
@@ -258,7 +257,7 @@ public class DataflowPipelineTranslatorTest {
 
     for (WorkerPool pool : job.getEnvironment().getWorkerPools()) {
       if ("harness".equals(pool.getKind())) {
-        assertEquals(pool.getMetadata().get("debugger"), expectedConfig);
+        assertEquals(pool.getMetadata().get("enableDebugger"), expectedConfig);
       }
     }
   }

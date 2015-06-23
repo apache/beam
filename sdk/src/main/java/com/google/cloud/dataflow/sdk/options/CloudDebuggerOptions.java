@@ -26,27 +26,10 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 public interface CloudDebuggerOptions {
 
   /**
-   * User defined application version. Cloud Debugger uses it to group all
-   * running debugged processes. Version should be different if users have
-   * multiple parallel runs of the same application with different inputs.
+   * Whether to enable the Cloud Debugger snapshot agent for the current job.
    */
-  @Description("User defined application version. Cloud Debugger uses it to group all "
-      + "running debugged processes. cdbgVersion should be different if users have "
-      + "multiple parallel runs of the same application with different inputs.")
-  String getCdbgVersion();
-  void setCdbgVersion(String value);
-
-  /**
-   * Return a JSON string for the Debugger metadata item.
-   */
-  public static class DebuggerConfig {
-    private String version;
-    public String getVersion() {
-      return version;
-    }
-    public void setVersion(String version) {
-      this.version = version;
-    }
-  }
+  @Description("Whether to enable the Cloud Debugger snapshot agent for the current job.")
+  boolean isCloudDebuggerEnabled();
+  void setCloudDebuggerEnabled(boolean enabled);
 }
 

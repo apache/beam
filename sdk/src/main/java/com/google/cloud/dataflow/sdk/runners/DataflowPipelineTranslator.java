@@ -48,7 +48,6 @@ import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.CloudDebuggerOptions.DebuggerConfig;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
@@ -345,6 +344,9 @@ public class DataflowPipelineTranslator {
    * Translates a Pipeline into the Dataflow representation.
    */
   class Translator implements PipelineVisitor, TranslationContext {
+    /** Metadata key to enable cloud debugger. */
+    static final String ENABLE_CLOUD_DEBUGGER_METADATA_KEY = "enableDebugger";
+
     /** The Pipeline to translate. */
     private final Pipeline pipeline;
 
@@ -412,21 +414,12 @@ public class DataflowPipelineTranslator {
       }
 
       // Config Cloud Debugger
-      if (!Strings.isNullOrEmpty(options.getCdbgVersion())) {
-        String cdbgVersion = options.getCdbgVersion();
-        DebuggerConfig debuggerConfig = new DebuggerConfig();
-        debuggerConfig.setVersion(cdbgVersion);
-
+      if (options.isCloudDebuggerEnabled()) {
         Map<String, String> metadata = workerPool.getMetadata();
         if (metadata == null) {
           metadata = new HashMap<String, String>();
         }
-
-        try {
-          metadata.put("debugger", computeMetadataString(debuggerConfig));
-        } catch (JsonProcessingException e) {
-          throw new IllegalArgumentException("Cannot format Debugger version.", e);
-        }
+        metadata.put(ENABLE_CLOUD_DEBUGGER_METADATA_KEY, "true");
         workerPool.setMetadata(metadata);
       }
 
@@ -1081,17 +1074,5 @@ public class DataflowPipelineTranslator {
       PCollection<?> output = entry.getValue();
       context.addOutput(tag.getId(), output);
     }
-  }
-
-  /**
-   * Serialize the provided {@link DebuggerConfig} to a JSON string.
-   *
-   * @return JSON string of Debugger config metadata.
-   * @throws JsonProcessingException when converting to Json fails.
-   */
-  private String computeMetadataString(DebuggerConfig config)
-      throws JsonProcessingException {
-    String debuggerConfigString = MAPPER.writeValueAsString(config);
-    return debuggerConfigString;
   }
 }
