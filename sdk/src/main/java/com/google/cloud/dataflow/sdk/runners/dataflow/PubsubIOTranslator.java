@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TransformTranslator;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TranslationContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -30,8 +31,9 @@ public class PubsubIOTranslator {
   /**
    * Implements PubsubIO Read translation for the Dataflow backend.
    */
-  public static class ReadTranslator implements TransformTranslator<PubsubIO.Read.Bound> {
+  public static class ReadTranslator<T> implements TransformTranslator<PubsubIO.Read.Bound<T>> {
     @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public void translate(
         PubsubIO.Read.Bound transform,
         TranslationContext context) {
@@ -43,7 +45,7 @@ public class PubsubIOTranslator {
         TranslationContext context) {
       if (!context.getPipelineOptions().isStreaming()) {
         throw new IllegalArgumentException(
-            "Unbounded PubsubIO can only be used in streaming mode.");
+            "PubsubIO.Read can only be used with the Dataflow streaming runner.");
       }
 
       context.addStep(transform, "ParallelRead");
@@ -68,22 +70,28 @@ public class PubsubIOTranslator {
   /**
    * Implements PubsubIO Write translation for the Dataflow backend.
    */
-  public static class WriteTranslator implements TransformTranslator<PubsubIO.Write.Bound> {
+  public static class WriteTranslator<T>
+      implements TransformTranslator<DataflowPipelineRunner.StreamingPubsubIOWrite<T>> {
+
     @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public void translate(
-        PubsubIO.Write.Bound transform,
+        DataflowPipelineRunner.StreamingPubsubIOWrite transform,
         TranslationContext context) {
       translateWriteHelper(transform, context);
     }
 
     private <T> void translateWriteHelper(
-        PubsubIO.Write.Bound<T> transform,
+        DataflowPipelineRunner.StreamingPubsubIOWrite<T> customTransform,
         TranslationContext context) {
       if (!context.getPipelineOptions().isStreaming()) {
-        throw new IllegalArgumentException("PubsubIO can only be used in streaming mode.");
+        throw new IllegalArgumentException(
+            "PubsubIO.Write is non-primitive for the Dataflow batch runner.");
       }
 
-      context.addStep(transform, "ParallelWrite");
+      PubsubIO.Write.Bound<T> transform = customTransform.getOverriddenTransform();
+
+      context.addStep(customTransform, "ParallelWrite");
       context.addInput(PropertyNames.FORMAT, "pubsub");
       context.addInput(PropertyNames.PUBSUB_TOPIC, transform.getTopic().asV1Beta1Path());
       if (transform.getTimestampLabel() != null) {
@@ -93,7 +101,7 @@ public class PubsubIOTranslator {
         context.addInput(PropertyNames.PUBSUB_ID_LABEL, transform.getIdLabel());
       }
       context.addEncodingInput(WindowedValue.getValueOnlyCoder(transform.getCoder()));
-      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(customTransform));
     }
   }
 }

@@ -25,6 +25,10 @@ import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
@@ -33,19 +37,34 @@ import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowAggregatorTransfor
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.View;
+import com.google.cloud.dataflow.sdk.transforms.Write;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
+import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
+import com.google.cloud.dataflow.sdk.util.PCollectionViews;
 import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.StreamingPCollectionViewWriterFn;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
@@ -61,6 +80,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -84,6 +104,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /** Translator for this DataflowPipelineRunner, based on options. */
   private final DataflowPipelineTranslator translator;
+
+  /** Custom transforms implementations for running in streaming mode. */
+  private final Map<Class<?>, Class<?>> streamingOverrides;
 
   /** A set of user defined functions to invoke at different points in execution. */
   private DataflowPipelineRunnerHooks hooks;
@@ -163,26 +186,58 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     this.options = options;
     this.dataflowClient = options.getDataflowClient();
     this.translator = DataflowPipelineTranslator.fromOptions(options);
+
+    this.streamingOverrides = ImmutableMap.<Class<?>, Class<?>>builder()
+        .put(Create.Values.class, StreamingCreate.class)
+        .put(View.AsMap.class, StreamingViewAsMap.class)
+        .put(View.AsMultimap.class, StreamingViewAsMultimap.class)
+        .put(View.AsSingleton.class, StreamingViewAsSingleton.class)
+        .put(View.AsIterable.class, StreamingViewAsIterable.class)
+        .put(Write.Bound.class, StreamingWrite.class)
+        .put(PubsubIO.Write.Bound.class, StreamingPubsubIOWrite.class)
+        .build();
   }
 
+  /**
+   * Applies the given transform to the input. For transforms with customized definitions
+   * for the Dataflow pipeline runner, the application is intercepted and modified here.
+   */
   @Override
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
+
     if (Combine.GroupedValues.class.equals(transform.getClass())
         || GroupByKey.class.equals(transform.getClass())) {
+
+      // For both Dataflow runners (streaming and batch), GroupByKey and GroupedValues are
+      // primitives. Returning a primitive output instead of the expanded definition
+      // signals to the translator that translation is necessary.
+      @SuppressWarnings("unchecked")
       PCollection<?> pc = (PCollection<?>) input;
-      // TODO: Redundant with translator registration?
       @SuppressWarnings("unchecked")
       OutputT outputT = (OutputT) PCollection.createPrimitiveOutputInternal(
           pc.getPipeline(),
           pc.getWindowingStrategy(),
           pc.isBounded());
       return outputT;
-    } else if (Create.Values.class.equals(transform.getClass())) {
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      OutputT output = (OutputT)
-          ((Create.Values) transform).applyHelper(input, options.isStreaming());
-      return output;
+
+    } else if (options.isStreaming() && streamingOverrides.containsKey(transform.getClass())) {
+      // It is the responsibility of whoever constructs streamingOverrides
+      // to ensure this is type safe.
+      @SuppressWarnings("unchecked")
+      Class<PTransform<InputT, OutputT>> transformClass =
+          (Class<PTransform<InputT, OutputT>>) transform.getClass();
+
+      @SuppressWarnings("unchecked")
+      Class<PTransform<InputT, OutputT>> customTransformClass =
+          (Class<PTransform<InputT, OutputT>>) streamingOverrides.get(transform.getClass());
+
+      PTransform<InputT, OutputT> customTransform =
+          InstanceBuilder.ofType(customTransformClass)
+          .withArg(transformClass, transform)
+          .build();
+
+      return Pipeline.applyTransform(input, customTransform);
     } else {
       return super.apply(transform, input);
     }
@@ -324,8 +379,258 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     this.hooks = hooks;
   }
 
-
   /////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Specialized (non-)implementation for {@link Write.Bound} for the Dataflow runner in streaming
+   * mode.
+   */
+  private static class StreamingWrite<T> extends PTransform<PCollection<T>, PDone> {
+    private static final long serialVersionUID = 0L;
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    public StreamingWrite(Write.Bound<T> transform) { }
+
+    @Override
+    public PDone apply(PCollection<T> input) {
+      throw new UnsupportedOperationException(
+          "The Write transform is not supported by the Dataflow streaming runner.");
+    }
+  }
+
+  /**
+   * Specialized implementation for {@link PubsubIO.Write} for the Dataflow runner in streaming
+   * mode.
+   *
+   * <p>For internal use only. Subject to change at any time.
+   *
+   * <p>Public so the {@link com.google.cloud.dataflow.sdk.runners.dataflow.PubsubIOTranslator}
+   * can access.
+   */
+  public static class StreamingPubsubIOWrite<T> extends PTransform<PCollection<T>, PDone> {
+    private static final long serialVersionUID = 0L;
+
+    private final PubsubIO.Write.Bound<T> transform;
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    public StreamingPubsubIOWrite(PubsubIO.Write.Bound<T> transform) {
+      this.transform = transform;
+    }
+
+    public PubsubIO.Write.Bound<T> getOverriddenTransform() {
+      return transform;
+    }
+
+    @Override
+    public PDone apply(PCollection<T> input) {
+      return PDone.in(input.getPipeline());
+    }
+  }
+
+  /**
+   * Specialized implementation for {@link Create.Values} for the Dataflow runner in streaming mode.
+   */
+  private static class StreamingCreate<T> extends PTransform<PInput, PCollection<T>> {
+    private static final long serialVersionUID = 0L;
+
+    private final Create.Values<T> transform;
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in apply()
+    public StreamingCreate(Create.Values<T> transform) {
+      this.transform = transform;
+    }
+
+    /**
+     * {@link DoFn} that outputs a single KV.of(null, null) kick off the {@link GroupByKey}
+     * in the streaming create implementation.
+     */
+    private static class OutputNullKv extends DoFn<String, KV<Void, Void>> {
+      private static final long serialVersionUID = 0;
+
+      @Override
+      public void processElement(DoFn<String, KV<Void, Void>>.ProcessContext c) throws Exception {
+        c.output(KV.of((Void) null, (Void) null));
+      }
+    }
+
+    /**
+     * A {@link DoFn} which outputs the specified elements by first encoding them to bytes using
+     * the specified {@link Coder} so that they are serialized as part of the {@link DoFn} but
+     * need not implement {@code Serializable}.
+     */
+    private static class OutputElements<T> extends DoFn<Object, T> {
+      private static final long serialVersionUID = 0;
+
+      private final Coder<T> coder;
+      private final List<byte[]> encodedElements;
+
+      public OutputElements(Iterable<T> elems, Coder<T> coder) {
+        this.coder = coder;
+        this.encodedElements = new ArrayList<>();
+        for (T t : elems) {
+          try {
+            encodedElements.add(CoderUtils.encodeToByteArray(coder, t));
+          } catch (CoderException e) {
+            throw new IllegalArgumentException("Unable to encode value " + t
+                + " with coder " + coder, e);
+          }
+        }
+      }
+
+      @Override
+      public void processElement(ProcessContext c) throws IOException {
+        for (byte[] encodedElement : encodedElements) {
+          c.output(CoderUtils.decodeFromByteArray(coder, encodedElement));
+        }
+      }
+    }
+
+    @Override
+    public PCollection<T> apply(PInput input) {
+      try {
+        Coder<T> coder = transform.getDefaultOutputCoder(input);
+        return Pipeline.applyTransform(
+            input, PubsubIO.Read.named("StartingSignal").subscription("_starting_signal/"))
+            .apply(ParDo.of(new OutputNullKv()))
+            .apply("GlobalSingleton", Window.<KV<Void, Void>>into(new GlobalWindows())
+                .triggering(AfterPane.elementCountAtLeast(1))
+                .discardingFiredPanes())
+                .apply(GroupByKey.<Void, Void>create())
+                .apply(Window.<KV<Void, Iterable<Void>>>into(new GlobalWindows()))
+                .apply(ParDo.of(new OutputElements<>(transform.getElements(), coder)))
+                .setCoder(coder);
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
+            + "Please set a coder by invoking Create.withCoder() explicitly.", e);
+      }
+    }
+  }
+
+  /**
+   * Specialized implementation for {@link View.AsMap} for the Dataflow runner in streaming mode.
+   */
+  private static class StreamingViewAsMap<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
+    private static final long serialVersionUID = 0L;
+
+    @SuppressWarnings("unused") // used via reflection in apply()
+    public StreamingViewAsMap(View.AsMap<K, V> transform) { }
+
+    @Override
+    public PCollectionView<Map<K, V>> apply(PCollection<KV<K, V>> input) {
+      PCollectionView<Map<K, V>> view =
+          PCollectionViews.mapView(
+              input.getPipeline(),
+              input.getWindowingStrategy(),
+              input.getCoder());
+
+      return input
+          .apply(Combine.globally(new View.Concatenate<KV<K, V>>()).withoutDefaults())
+          .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
+          .apply(View.CreatePCollectionView.<KV<K, V>, Map<K, V>>of(view));
+    }
+  }
+
+  /**
+   * Specialized expansion for {@link View.AsMultimap} for the Dataflow runner in streaming mode.
+   */
+  private static class StreamingViewAsMultimap<K, V>
+    extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
+    private static final long serialVersionUID = 0L;
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in apply()
+    public StreamingViewAsMultimap(View.AsMultimap<K, V> transform) { }
+
+    @Override
+    public PCollectionView<Map<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
+      PCollectionView<Map<K, Iterable<V>>> view =
+          PCollectionViews.multimapView(
+              input.getPipeline(),
+              input.getWindowingStrategy(),
+              input.getCoder());
+
+      return input
+          .apply(Combine.globally(new View.Concatenate<KV<K, V>>()).withoutDefaults())
+          .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
+          .apply(View.CreatePCollectionView.<KV<K, V>, Map<K, Iterable<V>>>of(view));
+    }
+  }
+
+  /**
+   * Specialized implementation for {@link View.AsIterable} for the Dataflow runner in streaming
+   * mode.
+   */
+  private static class StreamingViewAsIterable<T>
+      extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
+    private static final long serialVersionUID = 0L;
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in apply()
+    public StreamingViewAsIterable(View.AsIterable<T> transform) { }
+
+    @Override
+    public PCollectionView<Iterable<T>> apply(PCollection<T> input) {
+      // Using Combine.globally(...).asSingletonView() allows automatic propagation of
+      // the CombineFn's default value as the default value of the SingletonView.
+      //
+      // safe covariant cast List<T> -> Iterable<T>
+      // not expressible in java, even with unchecked casts
+      @SuppressWarnings({"rawtypes", "unchecked"})
+      Combine.GloballyAsSingletonView<T, Iterable<T>> concatAndView =
+      (Combine.GloballyAsSingletonView)
+      Combine.globally(new View.Concatenate<T>()).asSingletonView();
+      return input.apply(concatAndView);
+    }
+  }
+
+  private static class WrapAsList<T> extends DoFn<T, List<T>> {
+    private static final long serialVersionUID = 0;
+
+    @Override
+    public void processElement(ProcessContext c) {
+      c.output(Arrays.asList(c.element()));
+    }
+  }
+
+  /**
+   * Specialized expansion for {@link View.AsSingleton} for the Dataflow runner in streaming mode.
+   */
+  private static class StreamingViewAsSingleton<T>
+      extends PTransform<PCollection<T>, PCollectionView<T>> {
+    private static final long serialVersionUID = 0L;
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in apply()
+    public StreamingViewAsSingleton(View.AsSingleton<T> transform) { }
+
+    @Override
+    public PCollectionView<T> apply(PCollection<T> input) {
+      PCollectionView<T> view = PCollectionViews.singletonView(
+          input.getPipeline(),
+          input.getWindowingStrategy(),
+          false, // no default
+          null,  // unused default value
+          input.getCoder());
+      return input
+          .apply(ParDo.of(new WrapAsList<T>()))
+          .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
+          .apply(View.CreatePCollectionView.<T, T>of(view));
+    }
+  }
 
   @Override
   public String toString() {

@@ -28,7 +28,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -632,7 +631,7 @@ public class PubsubIO {
               }
             }
           } catch (IOException e) {
-            throw new RuntimeException("Unexected exception while reading from Pubsub: ", e);
+            throw new RuntimeException("Unexpected exception while reading from Pubsub: ", e);
           } finally {
             if (getTopic() != null) {
               try {
@@ -800,13 +799,8 @@ public class PubsubIO {
           throw new IllegalStateException(
               "need to set the topic of a PubsubIO.Write transform");
         }
-
-        if (input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()) {
-          return PDone.in(input.getPipeline());
-        } else {
-          input.apply(ParDo.of(new PubsubWriter()));
-          return PDone.in(input.getPipeline());
-        }
+        input.apply(ParDo.of(new PubsubWriter()));
+        return PDone.in(input.getPipeline());
       }
 
       @Override

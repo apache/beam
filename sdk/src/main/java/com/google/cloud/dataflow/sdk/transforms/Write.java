@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.io.Sink;
 import com.google.cloud.dataflow.sdk.io.Sink.WriteOperation;
 import com.google.cloud.dataflow.sdk.io.Sink.Writer;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
@@ -70,11 +69,6 @@ public class Write {
     @Override
     public PDone apply(PCollection<T> input) {
       PipelineOptions options = input.getPipeline().getOptions();
-      DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-      if (dataflowOptions.isStreaming()) {
-        throw new UnsupportedOperationException(
-            "The Write transform cannot be applied to streaming workflows.");
-      }
       sink.validate(options);
       return createWrite(input, sink.createWriteOperation(options));
     }

@@ -1019,7 +1019,8 @@ public class DataflowPipelineTranslator {
     registerTransformTranslator(
         PubsubIO.Read.Bound.class, new PubsubIOTranslator.ReadTranslator());
     registerTransformTranslator(
-        PubsubIO.Write.Bound.class, new PubsubIOTranslator.WriteTranslator());
+        DataflowPipelineRunner.StreamingPubsubIOWrite.class,
+        new PubsubIOTranslator.WriteTranslator());
 
     registerTransformTranslator(
         TextIO.Read.Bound.class, new TextIOTranslator.ReadTranslator());

@@ -16,34 +16,18 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
-import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.StreamingPCollectionViewWriterFn;
+import com.google.cloud.dataflow.sdk.util.PCollectionViews;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.PValueBase;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.base.Function;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -249,24 +233,9 @@ public class View {
     private AsIterable() { }
 
     @Override
-    public PCollectionView<Iterable<T>> apply(
-        PCollection<T> input) {
-      if (input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()) {
-
-        // safe covariant cast List<T> -> Iterable<T>
-        // not expressible in java, even with unchecked casts
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        Combine.GloballyAsSingletonView<T, Iterable<T>> concatAndView =
-            (Combine.GloballyAsSingletonView)
-            Combine.globally(new Concatenate<T>()).asSingletonView();;
-
-        return input.apply(concatAndView);
-      } else {
-        return input.apply(
-            new CreatePCollectionView<T, Iterable<T>>(
-                new IterablePCollectionView<T>(
-                    input.getPipeline(), input.getWindowingStrategy(), input.getCoder())));
-      }
+    public PCollectionView<Iterable<T>> apply(PCollection<T> input) {
+      return input.apply(CreatePCollectionView.<T, Iterable<T>>of(PCollectionViews.iterableView(
+          input.getPipeline(), input.getWindowingStrategy(), input.getCoder())));
     }
   }
 
@@ -295,31 +264,17 @@ public class View {
      * Default value to return for windows with no value in them.
      */
     public AsSingleton<T> withDefaultValue(T defaultValue) {
-      return new AsSingleton(defaultValue);
+      return new AsSingleton<>(defaultValue);
     }
 
     @Override
     public PCollectionView<T> apply(PCollection<T> input) {
-      SingletonPCollectionView<T> view = new SingletonPCollectionView<T>(
-          input.getPipeline(), input.getWindowingStrategy(), hasDefault, defaultValue,
-          input.getCoder());
-
-      CreatePCollectionView<T, T> createView = new CreatePCollectionView<>(view);
-
-      if (input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()) {
-        return input
-            .apply(ParDo.named("WrapAsList").of(new DoFn<T, List<T>>() {
-                      private static final long serialVersionUID = 0;
-                      @Override
-                      public void processElement(ProcessContext c) {
-                        c.output(Arrays.asList(c.element()));
-                      }
-                    }))
-            .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
-            .apply(createView);
-      } else {
-        return input.apply(createView);
-      }
+      return input.apply(CreatePCollectionView.<T, T>of(PCollectionViews.singletonView(
+          input.getPipeline(),
+          input.getWindowingStrategy(),
+          hasDefault,
+          defaultValue,
+          input.getCoder())));
     }
   }
 
@@ -337,20 +292,11 @@ public class View {
 
     @Override
     public PCollectionView<Map<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
-      MultimapPCollectionView<K, V> view = new MultimapPCollectionView<K, V>(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder());
-
-      CreatePCollectionView<KV<K, V>, Map<K, Iterable<V>>> createView =
-          new CreatePCollectionView<>(view);
-
-      if (input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()) {
-        return input
-            .apply(Combine.globally(new Concatenate<KV<K, V>>()).withoutDefaults())
-            .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
-            .apply(createView);
-      } else {
-        return input.apply(createView);
-      }
+      return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, Iterable<V>>>of(
+          PCollectionViews.multimapView(
+              input.getPipeline(),
+              input.getWindowingStrategy(),
+              input.getCoder())));
     }
   }
 
@@ -385,22 +331,11 @@ public class View {
 
     @Override
     public PCollectionView<Map<K, V>> apply(PCollection<KV<K, V>> input) {
-      @SuppressWarnings("unchecked")
-
-      MapPCollectionView<K, V> view = new MapPCollectionView<K, V>(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder());
-
-      CreatePCollectionView<KV<K, V>, Map<K, V>> createView =
-          new CreatePCollectionView<>(view);
-
-      if (input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming()) {
-        return input
-            .apply(Combine.globally(new Concatenate<KV<K, V>>()).withoutDefaults())
-            .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
-            .apply(createView);
-      } else {
-        return input.apply(createView);
-      }
+      return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, V>>of(
+          PCollectionViews.mapView(
+              input.getPipeline(),
+              input.getWindowingStrategy(),
+              input.getCoder())));
     }
   }
 
@@ -408,12 +343,67 @@ public class View {
   // Internal details below
 
   /**
+   * Creates a primitive {@link PCollectionView}.
+   *
+   * <p> For internal use only by runner implementors.
+   *
+   * @param <ElemT> The type of the elements of the input PCollection
+   * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input
+   */
+  public static class CreatePCollectionView<ElemT, ViewT>
+      extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
+    private static final long serialVersionUID = 0;
+
+    private PCollectionView<ViewT> view;
+
+    private CreatePCollectionView(PCollectionView<ViewT> view) {
+      this.view = view;
+    }
+
+    public static <ElemT, ViewT> CreatePCollectionView<ElemT, ViewT> of(
+        PCollectionView<ViewT> view) {
+      return new CreatePCollectionView<>(view);
+    }
+
+    @Override
+    public PCollectionView<ViewT> apply(PCollection<ElemT> input) {
+      return view;
+    }
+
+    static {
+      DirectPipelineRunner.registerDefaultTransformEvaluator(
+          CreatePCollectionView.class,
+          new DirectPipelineRunner.TransformEvaluator<CreatePCollectionView>() {
+            @SuppressWarnings("rawtypes")
+            @Override
+            public void evaluate(
+                CreatePCollectionView transform,
+                DirectPipelineRunner.EvaluationContext context) {
+              evaluateTyped(transform, context);
+            }
+
+            private <ElemT, ViewT> void evaluateTyped(
+                CreatePCollectionView<ElemT, ViewT> transform,
+                DirectPipelineRunner.EvaluationContext context) {
+              List<WindowedValue<ElemT>> elems =
+                  context.getPCollectionWindowedValues(context.getInput(transform));
+              context.setPCollectionView(context.getOutput(transform), elems);
+            }
+          });
+    }
+  }
+
+  /**
    * Combiner that combines {@code T}s into a single {@code List<T>} containing
    * all inputs.
    *
+   * <p>For internal use only by {@link View#asList()}, which views a tiny {@link PCollection}
+   * that fits in memory as a single {@code List}. For a large {@link PCollection} this is
+   * expected to crash!
+   *
    * @param <T> the type of elements to concatenate.
    */
-  private static class Concatenate<T> extends CombineFn<T, List<T>, List<T>> {
+  public static class Concatenate<T> extends CombineFn<T, List<T>, List<T>> {
     private static final long serialVersionUID = 0;
 
     @Override
@@ -450,257 +440,5 @@ public class View {
     public Coder<List<T>> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
       return ListCoder.of(inputCoder);
     }
-  }
-
-  /**
-   * Creates a primitive {@link PCollectionView}.
-   *
-   * <p> For internal use only by runner implementors.
-   *
-   * @param <ElemT> The type of the elements of the input PCollection
-   * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input
-   */
-  public static class CreatePCollectionView<ElemT, ViewT>
-      extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
-    private static final long serialVersionUID = 0;
-
-    private PCollectionView<ViewT> view;
-
-    public CreatePCollectionView(PCollectionView<ViewT> view) {
-      this.view = view;
-    }
-
-    @Override
-    public PCollectionView<ViewT> apply(PCollection<ElemT> input) {
-      return view;
-    }
-
-    static {
-      DirectPipelineRunner.registerDefaultTransformEvaluator(
-          CreatePCollectionView.class,
-          new DirectPipelineRunner.TransformEvaluator<CreatePCollectionView>() {
-            @Override
-            public void evaluate(
-                CreatePCollectionView transform,
-                DirectPipelineRunner.EvaluationContext context) {
-              evaluateTyped(transform, context);
-            }
-
-            private <ElemT, ViewT> void evaluateTyped(
-                CreatePCollectionView<ElemT, ViewT> transform,
-                DirectPipelineRunner.EvaluationContext context) {
-              List<WindowedValue<ElemT>> elems =
-                  context.getPCollectionWindowedValues(context.getInput(transform));
-              context.setPCollectionView(context.getOutput(transform), elems);
-            }
-          });
-    }
-  }
-
-  /**
-   * Private implementation of conversion {@code Iterable<WindowedValue<T>>} to {@code T}.
-   */
-  private static class SingletonPCollectionView<T> extends PCollectionViewBase<T> {
-    private static final long serialVersionUID = 0;
-    private byte[] encodedDefaultValue;
-    private transient T defaultValue;
-    private Coder<T> valueCoder;
-
-    public SingletonPCollectionView(
-        Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy,
-        boolean hasDefault, T defaultValue, Coder<T> valueCoder) {
-      super(pipeline, windowingStrategy, valueCoder);
-      this.defaultValue = defaultValue;
-      this.valueCoder = valueCoder;
-      if (hasDefault) {
-        try {
-          this.encodedDefaultValue = CoderUtils.encodeToByteArray(valueCoder, defaultValue);
-        } catch (IOException e) {
-          throw new RuntimeException("Unexpected IOException: ", e);
-        }
-      }
-    }
-
-    /**
-     * Input iterable must actually be {@code Iterable<WindowedValue<T>>}.
-     */
-    @SuppressWarnings("unchecked")
-    @Override
-    public T fromIterableInternal(Iterable<WindowedValue<?>> contents) {
-      if (encodedDefaultValue != null && defaultValue == null) {
-        try {
-          defaultValue = CoderUtils.decodeFromByteArray(valueCoder, encodedDefaultValue);
-        } catch (IOException e) {
-          throw new RuntimeException("Unexpected IOException: ", e);
-        }
-      }
-
-      if (encodedDefaultValue != null && !contents.iterator().hasNext()) {
-        return defaultValue;
-      }
-      try {
-        return (T) Iterables.getOnlyElement(contents).getValue();
-      } catch (NoSuchElementException exc) {
-        throw new NoSuchElementException(
-            "Empty PCollection accessed as a singleton view.");
-      } catch (IllegalArgumentException exc) {
-        throw new IllegalArgumentException(
-            "PCollection with more than one element "
-            + "accessed as a singleton view.");
-      }
-    }
-  }
-
-  /**
-   * Private implementation of conversion {@code Iterable<WindowedValue<T>>} to {@code Iterable<T>}.
-   */
-  private static class IterablePCollectionView<T> extends PCollectionViewBase<Iterable<T>> {
-    private static final long serialVersionUID = 0;
-
-    public IterablePCollectionView(
-        Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy, Coder<T> valueCoder) {
-      super(pipeline, windowingStrategy, valueCoder);
-    }
-
-    /**
-     * Input iterable must actually be {@code Iterable<WindowedValue<T>>}.
-     */
-    @Override
-    public Iterable<T> fromIterableInternal(Iterable<WindowedValue<?>> contents) {
-      return Iterables.transform(contents, new Function<WindowedValue<?>, T>() {
-        @SuppressWarnings("unchecked")
-        @Override
-        public T apply(WindowedValue<?> input) {
-          return (T) input.getValue();
-        }
-      });
-    }
-  }
-
-  /**
-   * Private implementation of conversion {@code Iterable<WindowedValue<KV<K, V>>>}
-   * to {@code Map<K, Iterable<V>>}.
-   */
-  private static class MultimapPCollectionView<K, V>
-      extends PCollectionViewBase<Map<K, Iterable<V>>> {
-    private static final long serialVersionUID = 0;
-
-    public MultimapPCollectionView(
-        Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy, Coder<KV<K, V>> valueCoder) {
-      super(pipeline, windowingStrategy, valueCoder);
-    }
-
-    /**
-     * Input iterable must actually be {@code Iterable<WindowedValue<KV<K, V>>>}.
-     */
-    @Override
-    public Map<K, Iterable<V>> fromIterableInternal(Iterable<WindowedValue<?>> contents) {
-      Multimap<K, V> multimap = HashMultimap.create();
-      for (WindowedValue<?> elem : contents) {
-        @SuppressWarnings("unchecked")
-        KV<K, V> kv = (KV<K, V>) elem.getValue();
-        multimap.put(kv.getKey(), kv.getValue());
-      }
-
-      // Safe covariant cast that Java cannot express without rawtypes, even with unchecked casts
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      Map<K, Iterable<V>> resultMap = (Map) multimap.asMap();
-      return resultMap;
-    }
-  }
-
-  /**
-   * Private implementation of conversion {@code Iterable<WindowedValue<KV<K, V>>} to
-   * {@code Map<K, V>}.
-   */
-  private static class MapPCollectionView<K, V> extends PCollectionViewBase<Map<K, V>> {
-    private static final long serialVersionUID = 0;
-
-    public MapPCollectionView(
-        Pipeline pipeline, WindowingStrategy<?, ?> windowingStrategy, Coder<KV<K, V>> valueCoder) {
-      super(pipeline, windowingStrategy, valueCoder);
-    }
-
-    /**
-     * Input iterable must actually be {@code Iterable<WindowedValue<KV<K, V>>>}.
-     */
-    @Override
-    public Map<K, V> fromIterableInternal(Iterable<WindowedValue<?>> contents) {
-      Map<K, V> map = new HashMap<>();
-      for (WindowedValue<?> elem : contents) {
-        @SuppressWarnings("unchecked")
-        KV<K, V> kv = (KV<K, V>) elem.getValue();
-        if (map.put(kv.getKey(), kv.getValue()) != null) {
-          throw new IllegalArgumentException("Duplicate values for " + kv.getKey());
-        }
-      }
-      return Collections.unmodifiableMap(map);
-    }
-  }
-
-  /**
-   * Base class for new implementations of side input views.
-   *
-   * <p>To implement a {@code PCollectionView<ViewT>} built from a {@code PCollection<ElemT>},
-   * override {@code fromIterableInternal} with a function from
-   * {@code Iterable<WindowedValue<ElemT>>} to {@code ViewT}.
-   *
-   * <p>This base class provides initialization and getters for a few boilerplate fields.
-   */
-  private abstract static class PCollectionViewBase<T>
-      extends PValueBase
-      implements PCollectionView<T> {
-    private static final long serialVersionUID = 0;
-
-    // for serialization only
-    protected PCollectionViewBase() {
-      super();
-    }
-
-    protected PCollectionViewBase(
-        Pipeline pipeline,
-        WindowingStrategy<?, ?> windowingStrategy,
-        Coder<?> valueCoder) {
-
-      super(pipeline);
-
-      if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
-        throw new IllegalArgumentException("WindowFn of PCollectionView cannot be InvalidWindows");
-      }
-      this.windowingStrategy = windowingStrategy;
-      this.coder = (Coder)
-          IterableCoder.of(WindowedValue.getFullCoder(
-              valueCoder, windowingStrategy.getWindowFn().windowCoder()));
-    }
-
-    /**
-     * Returns a unique {@link TupleTag} identifying this {@link PCollectionView}.
-     *
-     * <p> For internal use only by runner implementors.
-     */
-    @Override
-    public TupleTag<Iterable<WindowedValue<?>>> getTagInternal() {
-      return tag;
-    }
-
-    /**
-     * Returns the {@link WindowingStrategy} of this {@link PCollectionView}, which should
-     * be that of the underlying {@link PCollection}.
-     *
-     * <p> For internal use only by runner implementors.
-     */
-    @Override
-    public WindowingStrategy<?, ?> getWindowingStrategyInternal() {
-      return windowingStrategy;
-    }
-
-    @Override
-    public Coder<Iterable<WindowedValue<?>>> getCoderInternal() {
-      return coder;
-    }
-
-    private TupleTag<Iterable<WindowedValue<?>>> tag = new TupleTag<>();
-    private WindowingStrategy<?, ?> windowingStrategy;
-    private Coder<Iterable<WindowedValue<?>>> coder;
   }
 }

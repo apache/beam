@@ -20,15 +20,9 @@ import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -43,7 +37,6 @@ import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -92,13 +85,14 @@ import java.util.Objects;
 public class Create<T> {
   /**
    * Returns a new {@code Create.Values} transform that produces a
-   * {@link PCollection} containing the specified elements.
+   * {@link PCollection} containing elements of the provided
+   * {@code Iterable}.
    *
    * <p> The argument should not be modified after this is called.
    *
-   * <p> The elements will have a timestamp of negative infinity, see
-   * {@link Create#timestamped} for a way of creating a {@code PCollection}
-   * with timestamped elements.
+   * <p> The elements of the output {@link PCollection} will have a timestamp of negative infinity,
+   * see {@link Create#timestamped} for a way of creating a {@code PCollection} with timestamped
+   * elements.
    *
    * <p> By default, {@code Create.Values} can automatically determine the {@code Coder} to use
    * if all elements have the same run-time class, and a default coder is registered for that
@@ -152,8 +146,9 @@ public class Create<T> {
   }
 
   /**
-   * Returns a new {@link Create.TimestampedValues} transform that produces a {@link PCollection}
-   * containing the specified elements with the specified timestamps.
+   * Returns a new {@link Create.TimestampedValues} transform that produces a
+   * {@link PCollection} containing the elements of the provided {@code Iterable}
+   * with the specified timestamps.
    *
    * <p> The argument should not be modified after this is called.
    *
@@ -233,11 +228,22 @@ public class Create<T> {
 
     @Override
     public PCollection<T> apply(PInput input) {
-      return applyHelper(input, false);
+      try {
+        Coder<T> coder = getDefaultOutputCoder(input);
+        return PCollection
+            .<T>createPrimitiveOutputInternal(
+                input.getPipeline(),
+                WindowingStrategy.globalDefault(),
+                IsBounded.BOUNDED)
+            .setCoder(coder);
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
+            + "Please set a coder by invoking Create.withCoder() explicitly.", e);
+      }
     }
 
     @Override
-    protected Coder<T> getDefaultOutputCoder(PInput input) throws CannotProvideCoderException {
+    public Coder<T> getDefaultOutputCoder(PInput input) throws CannotProvideCoderException {
       if (coder.isPresent()) {
         return coder.get();
       }
@@ -289,41 +295,6 @@ public class Create<T> {
       return coder.get();
     }
 
-    public PCollection<T> applyHelper(PInput input, boolean isStreaming) {
-      try {
-        Coder<T> coder = getDefaultOutputCoder(input);
-        if (isStreaming) {
-          PCollection<T> output = Pipeline.applyTransform(
-              input, PubsubIO.Read.named("StartingSignal").subscription("_starting_signal/"))
-              .apply(ParDo.of(new DoFn<String, KV<Void, Void>>() {
-                private static final long serialVersionUID = 0;
-
-                @Override
-                public void processElement(DoFn<String, KV<Void, Void>>.ProcessContext c)
-                    throws Exception {
-                  c.output(KV.of((Void) null, (Void) null));
-                }
-              }))
-              .apply("GlobalSingleton", Window.<KV<Void, Void>>into(new GlobalWindows())
-                           .triggering(AfterPane.elementCountAtLeast(1))
-                           .discardingFiredPanes())
-              .apply(GroupByKey.<Void, Void>create())
-              .apply(Window.<KV<Void, Iterable<Void>>>into(new GlobalWindows()))
-              .apply(ParDo.of(new OutputElements<>(elems, coder)));
-          output.setCoder(coder);
-          return output;
-        } else {
-          return PCollection.<T>createPrimitiveOutputInternal(
-              input.getPipeline(),
-              WindowingStrategy.globalDefault(),
-              IsBounded.BOUNDED);
-        }
-      } catch (CannotProvideCoderException e) {
-        throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
-            + "Please set a coder by invoking Create.withCoder() explicitly.", e);
-      }
-    }
-
     /////////////////////////////////////////////////////////////////////////////
 
     /** The elements of the resulting PCollection. */
@@ -346,37 +317,6 @@ public class Create<T> {
 
     private Values(Iterable<T> elems, Optional<Coder<T>> coder) {
       this("CreateValues", elems, coder);
-    }
-
-    /**
-     * A {@link DoFn} which outputs the specified elements by first encoding them to bytes using
-     * the specified {@link Coder} so that they are serialized part of the {@link DoFn}.
-     */
-    private static class OutputElements<T> extends DoFn<Object, T> {
-      private static final long serialVersionUID = 0;
-
-      private final Coder<T> coder;
-      private final List<byte[]> encodedElements;
-
-      public OutputElements(Iterable<T> elems, Coder<T> coder) {
-        this.coder = coder;
-        this.encodedElements = new ArrayList<>();
-        for (T t : elems) {
-          try {
-            encodedElements.add(CoderUtils.encodeToByteArray(coder, t));
-          } catch (CoderException e) {
-            throw new IllegalArgumentException("Unable to encode value " + t
-                + " with coder " + coder, e);
-          }
-        }
-      }
-
-      @Override
-      public void processElement(ProcessContext c) throws IOException {
-        for (byte[] encodedElement : encodedElements) {
-          c.output(CoderUtils.decodeFromByteArray(coder, encodedElement));
-        }
-      }
     }
   }
 

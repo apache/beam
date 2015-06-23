@@ -154,6 +154,9 @@ public class DataflowPipelineTranslatorTest {
             .translate(p, Collections.<DataflowPackage>emptyList())
             .getJob();
 
+    // Note that the contents of this materialized map may be changed by the act of reading an
+    // option, which will cause the default to get materialized whereas it would otherwise be
+    // left absent. It is permissible to simply alter this test to reflect current behavior.
     assertEquals(ImmutableMap.of("options",
         ImmutableMap.builder()
           .put("appName", "DataflowPipelineTranslatorTest")
@@ -165,6 +168,7 @@ public class DataflowPipelineTranslatorTest {
           .put("filesToStage", ImmutableList.of())
           .put("stagingLocation", "gs://somebucket/some/path/staging")
           .put("stableUniqueNames", "WARNING")
+          .put("streaming", false)
           .build()),
         job.getEnvironment().getSdkPipelineOptions());
   }
