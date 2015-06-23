@@ -16,8 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.values;
 
+import com.google.cloud.dataflow.sdk.transforms.SerializableComparator;
+
 import java.io.Serializable;
-import java.util.Comparator;
 
 /**
  * An immutable key/value pair.
@@ -78,7 +79,7 @@ public class KV<K, V> implements Serializable {
   /** Orders the {@link KV} by the key. A null key is less than any non-null key. */
   @SuppressWarnings("serial")
   public static class OrderByKey<K extends Comparable<? super K>, V> implements
-      Comparator<KV<K, V>>, Serializable {
+      SerializableComparator<KV<K, V>> {
     @Override
     public int compare(KV<K, V> a, KV<K, V> b) {
       if (a.key == null) {
@@ -94,7 +95,7 @@ public class KV<K, V> implements Serializable {
   /** Orders the {@link KV} by the value. A null value is less than any non-null value. */
   @SuppressWarnings("serial")
   public static class OrderByValue<K, V extends Comparable<? super V>>
-      implements Comparator<KV<K, V>>, Serializable {
+      implements SerializableComparator<KV<K, V>> {
     @Override
     public int compare(KV<K, V> a, KV<K, V> b) {
       if (a.value == null) {

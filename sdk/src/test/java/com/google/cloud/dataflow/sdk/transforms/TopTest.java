@@ -42,7 +42,6 @@ import java.util.List;
 
 /** Tests for Top. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class TopTest {
 
   @Rule
@@ -218,7 +217,10 @@ public class TopTest {
     assertThat(p.getFullNameForTesting(top), Matchers.startsWith("Top"));
   }
 
+  // used by ApproximateQuantilesTest
   static class OrderByLength implements Comparator<String>, Serializable {
+    private static final long serialVersionUID = 0L;
+
     @Override
     public int compare(String a, String b) {
       if (a.length() != b.length()) {
@@ -229,18 +231,21 @@ public class TopTest {
     }
   }
 
-  static class IntegerComparator implements Comparator<Integer>, Serializable {
+  private static class IntegerComparator implements Comparator<Integer>, Serializable {
+    private static final long serialVersionUID = 0L;
+
     @Override
     public int compare(Integer o1, Integer o2) {
       return o1.compareTo(o2);
     }
   }
 
-  static class IntegerComparator2 implements SerializableComparator<Integer> {
+  private static class IntegerComparator2 implements Comparator<Integer>, Serializable {
+    private static final long serialVersionUID = 0L;
+
     @Override
     public int compare(Integer o1, Integer o2) {
       return o1.compareTo(o2);
     }
   }
-
 }

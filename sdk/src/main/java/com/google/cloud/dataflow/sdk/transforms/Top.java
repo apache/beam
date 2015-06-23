@@ -22,17 +22,19 @@ import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.CustomCoder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
 import com.google.cloud.dataflow.sdk.transforms.Combine.PerKey;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
@@ -304,6 +306,34 @@ public class Top {
         new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn()).named("Top.LargestPerKey");
   }
 
+  /**
+   * A {@code Serializable} {@code Comparator} that that uses the compared elements' natural
+   * ordering.
+   */
+  public static class Largest<T extends Comparable<T>>
+      implements Comparator<T>, Serializable {
+    private static final long serialVersionUID = 0L;
+
+    @Override
+    public int compare(T a, T b) {
+      return a.compareTo(b);
+    }
+  }
+
+  /**
+   * {@code Serializable} {@code Comparator} that that uses the reverse of the compared elements'
+   * natural ordering.
+   */
+  public static class Smallest<T extends Comparable<T>>
+      implements Comparator<T>, Serializable {
+    private static final long serialVersionUID = 0L;
+
+    @Override
+    public int compare(T a, T b) {
+      return b.compareTo(a);
+    }
+  }
+
 
   ////////////////////////////////////////////////////////////////////////////
 
@@ -316,169 +346,188 @@ public class Top {
    * @param <T> type of element being compared
    */
   @SuppressWarnings("serial")
-  public static class TopCombineFn<T>
-      extends AccumulatingCombineFn<T, TopCombineFn<T>.Heap, List<T>> {
+  public static class TopCombineFn<T, ComparatorT extends Comparator<T> & Serializable>
+      extends AccumulatingCombineFn<T, BoundedHeap<T, ComparatorT>, List<T>> {
 
     private final int count;
-    private final Comparator<T> compareFn;
+    private final ComparatorT compareFn;
 
-    public <ComparatorT extends Comparator<T> & Serializable> TopCombineFn(
-        int count, ComparatorT compareFn) {
-      if (count < 0) {
-        throw new IllegalArgumentException("count must be >= 0");
-      }
+    public TopCombineFn(int count, ComparatorT compareFn) {
+      Preconditions.checkArgument(
+          count >= 0,
+          "count must be >= 0");
       this.count = count;
       this.compareFn = compareFn;
     }
 
-    class Heap implements AccumulatingCombineFn.Accumulator<T, TopCombineFn<T>.Heap, List<T>> {
-
-      // Exactly one of these should be set.
-      private List<T> asList;            // ordered largest first
-      private PriorityQueue<T> asQueue;  // head is smallest
-
-      private Heap(List<T> asList) {
-        this.asList = asList;
-      }
-
-      @Override
-      public void addInput(T value) {
-        addInputInternal(value);
-      }
-
-      private boolean addInputInternal(T value) {
-        if (count == 0) {
-          // Don't add anything.
-          return false;
-        }
-
-        if (asQueue == null) {
-          asQueue = new PriorityQueue<>(count, compareFn);
-          for (T item : asList) {
-            asQueue.add(item);
-          }
-          asList = null;
-        }
-
-        if (asQueue.size() < count) {
-          asQueue.add(value);
-          return true;
-        } else if (compareFn.compare(value, asQueue.peek()) > 0) {
-          asQueue.poll();
-          asQueue.add(value);
-          return true;
-        } else {
-          return false;
-        }
-      }
-
-      @Override
-      public void mergeAccumulator(Heap accumulator) {
-        for (T value : accumulator.asList()) {
-          if (!addInputInternal(value)) {
-            // The list is ordered, remainder will also all be smaller.
-            break;
-          }
-        }
-      }
-
-      @Override
-      public List<T> extractOutput() {
-        return asList();
-      }
-
-      private List<T> asList() {
-        if (asList == null) {
-          int index = asQueue.size();
-          @SuppressWarnings("unchecked")
-          T[] ordered = (T[]) new Object[index];
-          while (!asQueue.isEmpty()) {
-            index--;
-            ordered[index] = asQueue.poll();
-          }
-          asList = Arrays.asList(ordered);
-          asQueue = null;
-        }
-        return asList;
-      }
+    @Override
+    public BoundedHeap<T, ComparatorT> createAccumulator() {
+      return new BoundedHeap<>(count, compareFn, new ArrayList<T>());
     }
 
     @Override
-    public Heap createAccumulator() {
-      return new Heap(new ArrayList<T>());
-    }
-
-    @Override
-    public Coder<Heap> getAccumulatorCoder(
+    public Coder<BoundedHeap<T, ComparatorT>> getAccumulatorCoder(
         CoderRegistry registry, Coder<T> inputCoder) {
-      return new HeapCoder(inputCoder);
-    }
-
-    @SuppressWarnings("serial")
-    private class HeapCoder extends CustomCoder<Heap> {
-      private final Coder<List<T>> listCoder;
-
-      public HeapCoder(Coder<T> inputCoder) {
-        listCoder = ListCoder.of(inputCoder);
-      }
-
-      @Override
-      public void encode(Heap value, OutputStream outStream,
-          Context context) throws CoderException, IOException {
-        listCoder.encode(value.asList(), outStream, context);
-      }
-
-      @Override
-      public Heap decode(InputStream inStream, Coder.Context context)
-          throws CoderException, IOException {
-        return new Heap(listCoder.decode(inStream, context));
-      }
-
-      @Override
-      public void verifyDeterministic() throws NonDeterministicException {
-        verifyDeterministic(
-            "HeapCoder requires a deterministic list coder", listCoder);
-      }
-
-      @Override
-      public boolean isRegisterByteSizeObserverCheap(
-          Heap value, Context context) {
-        return listCoder.isRegisterByteSizeObserverCheap(
-            value.asList(), context);
-      }
-
-      @Override
-      public void registerByteSizeObserver(
-          Heap value, ElementByteSizeObserver observer, Context context)
-          throws Exception {
-        listCoder.registerByteSizeObserver(value.asList(), observer, context);
-      }
+      return new BoundedHeapCoder<>(count, compareFn, inputCoder);
     }
   }
 
   /**
-   * {@code Serializable} {@code Comparator} that that uses the
-   * compared elements' natural ordering.
+   * A heap that stores only a finite number of top elements according to its provided
+   * {@code Comparator}. Implemented as an {@link Accumulator} to facilitate implementation of
+   * {@link Top}.
+   *
+   * <p>This class is <i>not</i> safe for multithreaded use, except read-only.
    */
-  @SuppressWarnings("serial")
-  public static class Largest<T extends Comparable<T>>
-      implements Comparator<T>, Serializable {
+  static class BoundedHeap<T, ComparatorT extends Comparator<T> & Serializable>
+      implements Accumulator<T, BoundedHeap<T, ComparatorT>, List<T>> {
+
+    /**
+     * A queue with smallest at the head, for quick adds.
+     *
+     * <p>Only one of asList and asQueue may be non-null.
+     */
+    private PriorityQueue<T> asQueue;
+
+    /**
+     * A list in with largest first, the form of extractOutput().
+     *
+     * <p>Only one of asList and asQueue may be non-null.
+     */
+    private List<T> asList;
+
+    /** The user-provided Comparator. */
+    private final ComparatorT compareFn;
+
+    /** The maximum size of the heap. */
+    private final int maximumSize;
+
+    /**
+     * Creates a new heap with the provided size, comparator, and initial elements.
+     */
+    private BoundedHeap(int maximumSize, ComparatorT compareFn, List<T> asList) {
+      this.maximumSize = maximumSize;
+      this.asList = asList;
+      this.compareFn = compareFn;
+    }
+
     @Override
-    public int compare(T a, T b) {
-      return a.compareTo(b);
+    public void addInput(T value) {
+      maybeAddInput(value);
+    }
+
+    /**
+     * Adds {@code value} to this heap if it is larger than any of the current elements.
+     * Returns {@code true} if {@code value} was added.
+     */
+    private boolean maybeAddInput(T value) {
+      if (maximumSize == 0) {
+        // Don't add anything.
+        return false;
+      }
+
+      // If asQueue == null, then this is the first add after the latest call to the
+      // constructor or asList().
+      if (asQueue == null) {
+        asQueue = new PriorityQueue<>(maximumSize, compareFn);
+        for (T item : asList) {
+          asQueue.add(item);
+        }
+        asList = null;
+      }
+
+      if (asQueue.size() < maximumSize) {
+        asQueue.add(value);
+        return true;
+      } else if (compareFn.compare(value, asQueue.peek()) > 0) {
+        asQueue.poll();
+        asQueue.add(value);
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public void mergeAccumulator(BoundedHeap<T, ComparatorT> accumulator) {
+      for (T value : accumulator.asList()) {
+        if (!maybeAddInput(value)) {
+          // If this element of accumulator does not make the top N, neither
+          // will the rest, which are all smaller.
+          break;
+        }
+      }
+    }
+
+    @Override
+    public List<T> extractOutput() {
+      return asList();
+    }
+
+    /**
+     * Returns the contents of this Heap as a List sorted largest-to-smallest.
+     */
+    private List<T> asList() {
+      if (asList == null) {
+        List<T> smallestFirstList = Lists.newArrayListWithCapacity(asQueue.size());
+        while (!asQueue.isEmpty()) {
+          smallestFirstList.add(asQueue.poll());
+        }
+        asList = Lists.reverse(smallestFirstList);
+        asQueue = null;
+      }
+      return asList;
     }
   }
 
   /**
-   * {@code Serializable} {@code Comparator} that that uses the
-   * reverse of the compared elements' natural ordering.
+   * A {@link Coder} for {@link BoundedHeap}, using Java serialization via {@link CustomCoder}.
    */
-  @SuppressWarnings("serial")
-  public static class Smallest<T extends Comparable<T>>
-      implements Comparator<T>, Serializable {
+  private static class BoundedHeapCoder<T, ComparatorT extends Comparator<T> & Serializable>
+      extends CustomCoder<BoundedHeap<T, ComparatorT>> {
+    private static final long serialVersionUID = 0L;
+
+    private final Coder<List<T>> listCoder;
+    private final ComparatorT compareFn;
+    private final int maximumSize;
+
+    public BoundedHeapCoder(int maximumSize, ComparatorT compareFn, Coder<T> elementCoder) {
+      listCoder = ListCoder.of(elementCoder);
+      this.compareFn = compareFn;
+      this.maximumSize = maximumSize;
+    }
+
     @Override
-    public int compare(T a, T b) {
-      return b.compareTo(a);
+    public void encode(
+        BoundedHeap<T, ComparatorT> value, OutputStream outStream, Context context)
+        throws CoderException, IOException {
+      listCoder.encode(value.asList(), outStream, context);
+    }
+
+    @Override
+    public BoundedHeap<T, ComparatorT> decode(InputStream inStream, Coder.Context context)
+        throws CoderException, IOException {
+      return new BoundedHeap<>(maximumSize, compareFn, listCoder.decode(inStream, context));
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      verifyDeterministic(
+          "HeapCoder requires a deterministic list coder", listCoder);
+    }
+
+    @Override
+    public boolean isRegisterByteSizeObserverCheap(
+        BoundedHeap<T, ComparatorT> value, Context context) {
+      return listCoder.isRegisterByteSizeObserverCheap(
+          value.asList(), context);
+    }
+
+    @Override
+    public void registerByteSizeObserver(
+        BoundedHeap<T, ComparatorT> value, ElementByteSizeObserver observer, Context context)
+            throws Exception {
+      listCoder.registerByteSizeObserver(value.asList(), observer, context);
     }
   }
 }

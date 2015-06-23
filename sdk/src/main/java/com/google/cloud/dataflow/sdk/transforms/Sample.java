@@ -186,41 +186,48 @@ public class Sample {
    * @param <T> the type of the elements
    */
   public static class FixedSizedSampleFn<T>
-      extends CombineFn<T, Top.TopCombineFn<KV<Integer, T>>.Heap, Iterable<T>> {
+      extends CombineFn<T,
+          Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>,
+          Iterable<T>> {
     private static final long serialVersionUID = 0;
 
-    private final Top.TopCombineFn<KV<Integer, T>> topCombineFn;
+    private final Top.TopCombineFn<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>
+        topCombineFn;
     private final Random rand = new Random();
 
     private FixedSizedSampleFn(int sampleSize) {
       if (sampleSize < 0) {
         throw new IllegalArgumentException("sample size must be >= 0");
       }
-      topCombineFn = new Top.TopCombineFn<>(sampleSize,
-                                            new KV.OrderByKey<Integer, T>());
+      topCombineFn = new Top.TopCombineFn<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>(
+          sampleSize, new KV.OrderByKey<Integer, T>());
     }
 
     @Override
-    public Top.TopCombineFn<KV<Integer, T>>.Heap createAccumulator() {
+    public Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>
+        createAccumulator() {
       return topCombineFn.createAccumulator();
     }
 
     @Override
-    public Top.TopCombineFn<KV<Integer, T>>.Heap addInput(
-        Top.TopCombineFn<KV<Integer, T>>.Heap accumulator, T input) {
+    public Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>> addInput(
+        Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>> accumulator,
+        T input) {
       accumulator.addInput(KV.of(rand.nextInt(), input));
       return accumulator;
     }
 
     @Override
-    public Top.TopCombineFn<KV<Integer, T>>.Heap mergeAccumulators(
-        Iterable<Top.TopCombineFn<KV<Integer, T>>.Heap> accumulators) {
+    public Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>
+        mergeAccumulators(
+            Iterable<Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>>
+            accumulators) {
       return topCombineFn.mergeAccumulators(accumulators);
     }
 
     @Override
     public Iterable<T> extractOutput(
-        Top.TopCombineFn<KV<Integer, T>>.Heap accumulator) {
+        Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>> accumulator) {
       List<T> out = new ArrayList<>();
       for (KV<Integer, T> element : accumulator.extractOutput()) {
         out.add(element.getValue());
@@ -229,8 +236,8 @@ public class Sample {
     }
 
     @Override
-    public Coder<Top.TopCombineFn<KV<Integer, T>>.Heap> getAccumulatorCoder(
-        CoderRegistry registry, Coder<T> inputCoder) {
+    public Coder<Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>>
+        getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder) {
       return topCombineFn.getAccumulatorCoder(
           registry, KvCoder.of(BigEndianIntegerCoder.of(), inputCoder));
     }
