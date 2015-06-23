@@ -532,6 +532,12 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         }
 
         @Override
+        public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
+            throws IOException {
+          context.stepContext.writeToTagList(tag, value, timestamp);
+        }
+
+        @Override
         public <T> void deleteTagList(CodedTupleTag<T> tag) {
           context.stepContext.deleteTagList(tag);
         }
@@ -568,11 +574,6 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
           context.stepContext.getExecutionContext().writePCollectionViewData(
               tag, data, IterableCoder.of(WindowedValue.getFullCoder(elemCoder, windowCoder)),
               window(), windowCoder);
-        }
-
-        @Override
-        public <T> void store(CodedTupleTag<T> tag, T value, Instant timestamp) throws IOException {
-          context.stepContext.store(tag, value, timestamp);
         }
 
         @Override

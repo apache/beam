@@ -93,10 +93,10 @@ public class RepeatedlyTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
     assertFalse(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.bufferTag(firstWindow),
         // Holding the earliest not-yet-output element (4) waiting to fire.
-        tester.earliestElement(firstWindow)));
+        tester.earliestElementTag(firstWindow)));
   }
 
   @Test

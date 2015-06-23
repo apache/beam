@@ -55,8 +55,8 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
       return new GroupAlsoByWindowsViaIteratorsDoFn<K, V, W>();
     }
 
-    return new GABWViaWindowSetDoFn<>(
-        windowingStrategy, AbstractWindowSet.<K, V, W>factoryFor(windowingStrategy, inputCoder));
+    return new GABWViaOutputBufferDoFn<>(
+        windowingStrategy, new ListOutputBuffer<K, V, W>(inputCoder));
   }
 
   /**
@@ -70,23 +70,23 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
       final Coder<K> keyCoder,
       final Coder<InputT> inputCoder) {
     Preconditions.checkNotNull(combineFn);
-    return new GABWViaWindowSetDoFn<>(
-        windowingStrategy, CombiningWindowSet.<K, InputT, AccumT, OutputT, W>factory(
+    return new GABWViaOutputBufferDoFn<>(windowingStrategy,
+        CombiningOutputBuffer.<K, InputT, AccumT, OutputT, W>create(
             combineFn, keyCoder, inputCoder));
   }
 
-  private static class GABWViaWindowSetDoFn<K, InputT, OutputT, W extends BoundedWindow>
+  private static class GABWViaOutputBufferDoFn<K, InputT, OutputT, W extends BoundedWindow>
      extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
 
-    private AbstractWindowSet.Factory<K, InputT, OutputT, W> windowSetFactory;
-    private WindowingStrategy<Object, W> strategy;
+    private final WindowingStrategy<Object, W> strategy;
+    private final OutputBuffer<K, InputT, OutputT, W> outputBuffer;
 
-    public GABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
-        AbstractWindowSet.Factory<K, InputT, OutputT, W> factory) {
+    public GABWViaOutputBufferDoFn(WindowingStrategy<?, W> windowingStrategy,
+        OutputBuffer<K, InputT, OutputT, W> outputBuffer) {
       @SuppressWarnings("unchecked")
       WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
       this.strategy = noWildcard;
-      this.windowSetFactory = factory;
+      this.outputBuffer = outputBuffer;
     }
 
     @Override
@@ -97,7 +97,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
       K key = c.element().getKey();
       BatchTimerManager timerManager = new BatchTimerManager(Instant.now());
       TriggerExecutor<K, InputT, OutputT, W> triggerExecutor = TriggerExecutor.create(
-          key, strategy, timerManager, windowSetFactory, c.windowingInternals());
+          key, strategy, timerManager, outputBuffer, c.windowingInternals());
 
       for (WindowedValue<InputT> e : c.element().getValue()) {
         // First, handle anything that needs to happen for this element
@@ -120,7 +120,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
       // Finally, advance the processing time to infinity to fire any timers.
       timerManager.advanceProcessingTime(triggerExecutor, new Instant(Long.MAX_VALUE));
 
-      triggerExecutor.persistWindowSet();
+      triggerExecutor.persist();
     }
   }
 }

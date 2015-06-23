@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.ByteArrayCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -32,8 +31,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.WindowStatus;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.ActiveWindowSet.MergeCallback;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
@@ -78,53 +77,107 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
   private final WindowFn<Object, W> windowFn;
   private final ExecutableTrigger<W> trigger;
-  private AccumulationMode mode;
-  private Duration allowedLateness;
+  private final AccumulationMode mode;
+  private final Duration allowedLateness;
 
   private final WindowingInternals<?, KV<K, OutputT>> windowingInternals;
-  private final AbstractWindowSet<K, InputT, OutputT, W> windowSet;
   private final TimerManager timerManager;
   private final WindowingInternals.KeyedState keyedState;
-  private final MergeContext mergeContext;
   private final Coder<TriggerId<W>> triggerIdCoder;
-  private final WatermarkHold watermarkHold;
+  private final ActiveWindowSet<W> activeWindows;
+  private final OutputBuffer<K, InputT, OutputT, W> outputBuffer;
 
-  TriggerExecutor(
+  private final WatermarkHold<W> watermarkHolder;
+
+  private K key;
+
+
+  TriggerExecutor(K key,
       WindowFn<Object, W> windowFn,
       TimerManager timerManager,
       ExecutableTrigger<W> trigger,
       WindowingInternals.KeyedState keyedState,
       WindowingInternals<?, KV<K, OutputT>> windowingInternals,
-      AbstractWindowSet<K, InputT, OutputT, W> windowSet,
       AccumulationMode mode,
-      Duration allowedLateness) {
+      Duration allowedLateness,
+      ActiveWindowSet<W> activeWindows,
+      OutputBuffer<K, InputT, OutputT, W> outputBuffer) {
+    this.key = key;
     this.windowFn = windowFn;
     this.trigger = trigger;
     this.keyedState = keyedState;
     this.windowingInternals = windowingInternals;
-    this.windowSet = windowSet;
+    this.allowedLateness = allowedLateness;
+    this.activeWindows = activeWindows;
+    this.outputBuffer = outputBuffer;
+    this.watermarkHolder = new WatermarkHold<W>(allowedLateness);
     this.timerManager = timerManager;
     this.mode = mode;
-    this.mergeContext = new MergeContext();
     this.triggerIdCoder = new TriggerIdCoder<>(windowFn.windowCoder());
-    this.watermarkHold = new WatermarkHold();
-    this.allowedLateness = allowedLateness;
   }
 
   private boolean isRootFinished(BitSet bitSet) {
     return bitSet.get(0);
   }
 
-  public CodedTupleTag<BitSet> finishedSetTag(W window) throws CoderException {
-    return CodedTupleTag.of(
-        CoderUtils.encodeToBase64(windowFn.windowCoder(), window) + "finished-set",
-        BitSetCoder.of());
+  private OutputBuffer.Context<K, W> bufferContext(final W window) {
+    return new OutputBuffer.Context<K, W>() {
+      @Override
+      public K key() {
+        return key;
+      }
+
+      @Override
+      public W window() {
+        return window;
+      }
+
+      @Override
+      public Iterable<W> sourceWindows() {
+        return activeWindows.sourceWindows(window);
+      }
+
+      private <T> CodedTupleTag<T> windowedTag(W window, CodedTupleTag<T> tag)
+          throws CoderException {
+        return CodedTupleTag.of(
+            CoderUtils.encodeToBase64(windowFn.windowCoder(), window) + "/" + tag.getId(),
+            tag.getCoder());
+      }
+
+      @Override
+      public <T> void addToBuffer(W window, CodedTupleTag<T> buffer, T value) throws IOException {
+        windowingInternals.writeToTagList(windowedTag(window, buffer), value);
+      }
+
+      @Override
+      public <T> void addToBuffer(W window, CodedTupleTag<T> buffer, T value, Instant timestamp)
+          throws IOException {
+        windowingInternals.writeToTagList(windowedTag(window, buffer), value, timestamp);
+      }
+
+      @Override
+      public void clearBuffers(CodedTupleTag<?> buffer, Iterable<W> windows) throws IOException {
+        for (W window : windows) {
+          windowingInternals.deleteTagList(windowedTag(window, buffer));
+        }
+      }
+
+      @Override
+      public <T> Iterable<T> readBuffers(CodedTupleTag<T> buffer, Iterable<W> windows)
+          throws IOException {
+        List<CodedTupleTag<T>> tags = new ArrayList<>();
+        for (W window : windows) {
+          tags.add(windowedTag(window, buffer));
+        }
+        return Iterables.concat(windowingInternals.readTagList(tags).values());
+      }
+    };
   }
 
-  public CodedTupleTag<Instant> earliestElementTag(W window) throws CoderException {
+  public CodedTupleTag<BitSet> finishedSetTag(W window) throws CoderException {
     return CodedTupleTag.of(
-        CoderUtils.encodeToBase64(windowFn.windowCoder(), window) + "earliest-element",
-        InstantCoder.of());
+        CoderUtils.encodeToBase64(windowFn.windowCoder(), window) + "/finished-set",
+        BitSetCoder.of());
   }
 
   public static <K, InputT, OutputT, W extends BoundedWindow>
@@ -132,16 +185,17 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       K key,
       WindowingStrategy<Object, W> windowingStrategy,
       TimerManager timerManager,
-      AbstractWindowSet.Factory<K, InputT, OutputT, W> windowSetFactory,
+      OutputBuffer<K, InputT, OutputT, W> outputBuffer,
       WindowingInternals<?, KV<K, OutputT>> windowingInternals)
           throws Exception {
-    AbstractWindowSet<K, InputT, OutputT, W> windowSet = windowSetFactory.create(
-        key, windowingStrategy.getWindowFn().windowCoder(),
-        windowingInternals.keyedState(), windowingInternals);
-    return new TriggerExecutor<K, InputT, OutputT, W>(
+    ActiveWindowSet<W> activeWindows = windowingStrategy.getWindowFn().isNonMerging()
+        ? new NonMergingActiveWindowSet<W>()
+        : new MergingActiveWindowSet<W>(
+            windowingStrategy.getWindowFn(), windowingInternals.keyedState());
+    return new TriggerExecutor<K, InputT, OutputT, W>(key,
         windowingStrategy.getWindowFn(), timerManager, windowingStrategy.getTrigger(),
-        windowingInternals.keyedState(), windowingInternals, windowSet,
-        windowingStrategy.getMode(), windowingStrategy.getAllowedLateness());
+        windowingInternals.keyedState(), windowingInternals, windowingStrategy.getMode(),
+        windowingStrategy.getAllowedLateness(), activeWindows, outputBuffer);
   }
 
   private TriggerContext<W> context(BitSet finishedSet) {
@@ -163,11 +217,14 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
    * Issue a load for all the keyed state tags that we know we need for the given windows.
    */
   private void warmUpCache(Iterable<W> windows) throws IOException {
+    if ((trigger.getSpec() instanceof DefaultTrigger)) {
+      return;
+    }
+
     // Prepare the cache by loading keyed state for all the given windows.
     Set<CodedTupleTag<?>> tags = new HashSet<>();
     for (W window : windows) {
       tags.add(finishedSetTag(window));
-      tags.add(earliestElementTag(window));
     }
     keyedState.lookup(tags);
   }
@@ -196,23 +253,15 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
         continue;
       }
 
-      WindowStatus status = windowSet.put(window, value.getValue());
-      if (status != WindowStatus.EXISTING) {
-        // Set the timer for final cleanup. We add an extra millisecond since
-        // maxTimestamp will be the maximum timestamp in the window, and we
-        // want the maximum timestamp of an element outside the window.
-        Instant cleanupTime = window.maxTimestamp()
-            .plus(allowedLateness)
-            .plus(Duration.millis(1));
-        setTimer(cleanupTimer(window), cleanupTime, TimeDomain.EVENT_TIME);
+      if (activeWindows.add(window)) {
+        scheduleCleanup(window);
       }
-
-      watermarkHold.updateHoldForElement(window, value.getTimestamp(),
-          value.getTimestamp().isBefore(timerManager.currentWatermarkTime()));
+      outputBuffer.addValue(bufferContext(window), value.getValue());
+      watermarkHolder.addHold(bufferContext(window), value.getTimestamp(),
+          timerManager.currentWatermarkTime().isAfter(value.getTimestamp()));
 
       BitSet originalFinishedSet = (BitSet) finishedSet.clone();
-      OnElementEvent<W> e =
-          new OnElementEvent<W>(value.getValue(), value.getTimestamp(), window, status);
+      OnElementEvent<W> e = new OnElementEvent<W>(value.getValue(), value.getTimestamp(), window);
 
       // Update the trigger state as appropriate for the arrival of the element.
       // Must come before merge so the state is updated (for merging).
@@ -232,21 +281,29 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
+  private void scheduleCleanup(W window) throws CoderException {
+    // Set the timer for final cleanup. We add an extra millisecond since
+    // maxTimestamp will be the maximum timestamp in the window, and we
+    // want the maximum timestamp of an element outside the window.
+    Instant cleanupTime = window.maxTimestamp()
+        .plus(allowedLateness)
+        .plus(Duration.millis(1));
+    setTimer(cleanupTimer(window), cleanupTime, TimeDomain.EVENT_TIME);
+  }
+
   public void onTimer(String timerTag) throws Exception {
     TriggerId<W> triggerId = CoderUtils.decodeFromBase64(triggerIdCoder, timerTag);
     W window = triggerId.window();
     BitSet finishedSet = lookupFinishedSet(window);
 
     if (triggerId.getTriggerIdx() == FINAL_CLEANUP_PSEUDO_ID) {
-      // If there are pending elements in the pane, emit it:
-      if (watermarkHold.holdingForElements(window)) {
-        if (mergeIfAppropriate(window)) {
-          emitWindow(window);
-        }
+      if (mergeIfAppropriate(window)) {
+        emitWindow(window);
+        outputBuffer.clear(bufferContext(window));
       }
 
       // Perform final cleanup.
-      windowSet.remove(window);
+      activeWindows.remove(window);
       trigger.invokeClear(context(finishedSet), window);
       keyedState.remove(finishedSetTag(window));
       return;
@@ -285,8 +342,10 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     return new OnMergeEvent<W>(toBeMerged, resultWindow, finishedSets.build());
   }
 
-  public void persistWindowSet() throws Exception {
-    windowSet.persist();
+  public void persist() throws Exception {
+    activeWindows.persist(keyedState);
+    outputBuffer.flush(bufferContext(null));
+    watermarkHolder.flush(bufferContext(null));
   }
 
   private void onMerge(Collection<W> toBeMerged, W resultWindow) throws Exception {
@@ -300,8 +359,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       throw new IllegalStateException("Root trigger returned MergeResult.ALREADY_FINISHED.");
     }
 
-    watermarkHold.updateHoldForMerge(toBeMerged, resultWindow);
-
     // Commit the updated states
     handleResult(
         trigger, resultWindow, originalFinishedSet, finishedSet, result.getTriggerResult());
@@ -311,7 +368,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       if (!resultWindow.equals(windowBeingMerged)) {
         trigger.invokeClear(context(lookupFinishedSet(windowBeingMerged)), windowBeingMerged);
         keyedState.remove(finishedSetTag(windowBeingMerged));
-        watermarkHold.clearHold(windowBeingMerged);
+        deleteTimer(cleanupTimer(windowBeingMerged), TimeDomain.EVENT_TIME);
       }
     }
   }
@@ -321,13 +378,17 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
    * still exists.
    */
   private boolean mergeIfAppropriate(W window) throws Exception {
-    if (windowFn.isNonMerging()) {
-      // These never merge so the window won't disappear.
-      return true;
-    } else {
-      windowFn.mergeWindows(mergeContext);
-      return window != null && windowSet.contains(window);
-    }
+    return activeWindows.mergeIfAppropriate(window, new MergeCallback<W>() {
+      @Override
+      public void onMerge(
+          Collection<W> mergedWindows, W resultWindow, boolean isResultNew) throws Exception {
+        TriggerExecutor.this.onMerge(mergedWindows, resultWindow);
+
+        if (isResultNew) {
+          scheduleCleanup(resultWindow);
+        }
+      }
+    });
   }
 
   public void merge() throws Exception {
@@ -343,8 +404,10 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
     if (result.isFinish()
         || (mode == AccumulationMode.DISCARDING_FIRED_PANES && result.isFire())) {
+      outputBuffer.clear(bufferContext(window));
+
       // Remove the window from management (assume it is "done")
-      windowSet.remove(window);
+      activeWindows.remove(window);
     }
 
     // If the trigger is finished, we can clear out its state as long as we keep the
@@ -359,24 +422,17 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private void emitWindow(W window) throws Exception {
-    if (!watermarkHold.holdingForElements(window)) {
-      // No elements to emit.
-      return;
-    }
-
-    OutputT finalValue = windowSet.finalValue(window);
+    Instant timestamp = watermarkHolder.extractAndRelease(bufferContext(window));
+    OutputT finalValue = outputBuffer.extract(bufferContext(window));
 
     // If there were any contents to output in the window, do so.
     if (finalValue != null) {
       // Emit the (current) final values for the window
-      KV<K, OutputT> value = KV.of(windowSet.getKey(), finalValue);
+      KV<K, OutputT> value = KV.of(key, finalValue);
 
       // Output the windowed value.
-      windowingInternals.outputWindowedValue(
-          value, watermarkHold.timestampToEmit(window), Arrays.asList(window));
+      windowingInternals.outputWindowedValue(value, timestamp, Arrays.asList(window));
     }
-
-    watermarkHold.clearHold(window);
   }
 
   @VisibleForTesting void setTimer(TriggerId<W> triggerId, Instant timestamp, TimeDomain domain)
@@ -387,80 +443,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   @VisibleForTesting void deleteTimer(
       TriggerId<W> triggerId, TimeDomain domain) throws CoderException {
     timerManager.deleteTimer(CoderUtils.encodeToBase64(triggerIdCoder, triggerId), domain);
-  }
-
-  /**
-   * Manages the time to which the watermark is held, specifically, we hold it to earliest non-late
-   * timestamp as elements arrive.
-   *
-   * <p>When windows merge, {@link #updateHoldForMerge} determines the earliest non-late element
-   * across all those windows.
-   */
-  private class WatermarkHold {
-
-    /**
-     * Return true if there is an active hold for elements in the given window.
-     */
-    public boolean holdingForElements(W window) throws IOException {
-      return keyedState.lookup(earliestElementTag(window)) != null;
-    }
-
-    /**
-     * Determine the timestamp to emit the current values at.
-     */
-    public Instant timestampToEmit(W window) throws IOException {
-      // Normally, output at the earliest non-late element in the pane.
-      // If the pane is empty or all the elements were late, output at window.maxTimestamp().
-      Instant earliest = keyedState.lookup(earliestElementTag(window));
-      return earliest == null || earliest.isAfter(window.maxTimestamp())
-          ? window.maxTimestamp() : earliest;
-    }
-
-    public void updateHoldForElement(
-        W window, Instant timestamp, boolean wasLate) throws IOException {
-      CodedTupleTag<Instant> earliestElementTag = earliestElementTag(window);
-      Instant earliestElement = keyedState.lookup(earliestElementTag);
-
-      if (earliestElement == null && wasLate) {
-        // If the element was late, then we want to put a hold in at the maxTimestamp for the end
-        // of the window plus the allowed lateness to ensure that we don't output something
-        // that is dropably late.
-        earliestElement = window.maxTimestamp().plus(allowedLateness);
-      } else if (earliestElement == null
-          || (!wasLate && timestamp.isBefore(earliestElement))) {
-        earliestElement = timestamp;
-      }
-      windowingInternals.store(earliestElementTag, earliestElement, earliestElement);
-    }
-
-    public void updateHoldForMerge(Iterable<W> mergingWindows, W newWindow) throws IOException {
-      Iterable<Instant> mergingEarliestElements = lookupKeyedState(
-          mergingWindows, new Function<W, CodedTupleTag<Instant>>() {
-        @Override
-        public CodedTupleTag<Instant> apply(W window) {
-          try {
-            return earliestElementTag(window);
-          } catch (CoderException e) {
-            throw Throwables.propagate(e);
-          }
-        }
-      }).values();
-
-      // If any of the merging windows had a hold, we should too.
-      // That hold should be at the earliest hold that any of the merging windows had in place.
-      Instant result = newWindow.maxTimestamp().plus(allowedLateness);
-      for (Instant earliestElement : mergingEarliestElements) {
-        if (earliestElement != null && result.isAfter(earliestElement)) {
-          result = earliestElement;
-        }
-      }
-
-      windowingInternals.store(earliestElementTag(newWindow), result, result);
-    }
-
-    public void clearHold(W window) throws IOException {
-      keyedState.remove(earliestElementTag(window));
-    }
   }
 
   private <T> Map<W, T> lookupKeyedState(
@@ -479,25 +461,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     return result;
-  }
-
-  private class MergeContext extends WindowFn<Object, W>.MergeContext {
-
-    @SuppressWarnings("cast")
-    public MergeContext() {
-      ((WindowFn<Object, W>) windowFn).super();
-    }
-
-    @Override
-    public Collection<W> windows() {
-      return windowSet.windows();
-    }
-
-    @Override
-    public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
-      windowSet.merge(toBeMerged, mergeResult);
-      onMerge(toBeMerged, mergeResult);
-    }
   }
 
   private class TriggerContextImpl implements TriggerContext<W> {

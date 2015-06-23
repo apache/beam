@@ -105,7 +105,7 @@ public class TriggerTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(2), 2, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         // We're storing that the root trigger has finished.
         tester.finishedSet(firstWindow)));
   }
@@ -120,7 +120,7 @@ public class TriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         // We're storing that the root trigger has finished.
         tester.finishedSet(firstWindow)));
   }
@@ -135,7 +135,7 @@ public class TriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         // We're storing that the root trigger has finished.
         tester.finishedSet(firstWindow)));
   }
@@ -163,7 +163,7 @@ public class TriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(firstWindow)));
   }
 
@@ -200,7 +200,7 @@ public class TriggerTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 9, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(firstWindow)));
   }
 
@@ -249,7 +249,7 @@ public class TriggerTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     // the until fired during the merge
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         // We're storing that the root has finished
         tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(22)))));
   }
@@ -310,7 +310,7 @@ public class TriggerTest {
         Matchers.containsString("delayed-until"),
         Matchers.containsString("elements-in-pane"),
         Matchers.containsString("elements-in-pane"),
-        Matchers.containsString("earliest-element")));
+        Matchers.equalTo(tester.earliestElementTag(window))));
 
     tester.injectElement(4, new Instant(1));
     assertThat(tester.extractOutput(), Matchers.contains(

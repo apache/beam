@@ -130,7 +130,7 @@ public final class CoderUtils {
       throw new RuntimeException("unexpected IOException", e);
     }
     byte[] rawValue = stream.toByteArray();
-    return Base64.encodeBase64String(rawValue);
+    return Base64.encodeBase64URLSafeString(rawValue);
   }
 
   /**

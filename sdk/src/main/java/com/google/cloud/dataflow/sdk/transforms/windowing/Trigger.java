@@ -104,26 +104,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   private static final long serialVersionUID = 0L;
 
   /**
-   * {@code WindowStatus} indicates the status of the window that an element is being processed in.
-   */
-  public enum WindowStatus {
-    /**
-     * The arrival of this element started a new pane. Either the window is entirely new, or we had
-     * previously fired a trigger that caused us to output the earlier elements.
-     */
-    NEW,
-
-    /** This element was added to a pane that was already being managed. */
-    EXISTING,
-
-    /**
-     * The window set doesn’t track the windows being managed, so it is not known whether the pane
-     * is new. The trigger can track windows on its own if necessary.
-     */
-    UNKNOWN;
-  }
-
-  /**
    * {@code TriggerResult} enumerates the possible result a trigger can have when it is executed.
    */
   public enum TriggerResult {
@@ -320,13 +300,11 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     private final Object value;
     private final Instant timestamp;
     private final W window;
-    private final WindowStatus status;
 
-    public OnElementEvent(Object value, Instant timestamp, W window, WindowStatus status) {
+    public OnElementEvent(Object value, Instant timestamp, W window) {
       this.value = value;
       this.timestamp = timestamp;
       this.window = window;
-      this.status = status;
     }
 
     /**
@@ -348,13 +326,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
      */
     public W window() {
       return window;
-    }
-
-    /**
-     * The status of the window to which the element was assigned.
-     */
-    public WindowStatus windowStatus() {
-      return status;
     }
   }
 

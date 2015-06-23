@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.AbstractWindowSet.Factory;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
 
@@ -44,7 +43,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
           final Coder<InputT> inputValueCoder) {
     Preconditions.checkNotNull(combineFn);
     return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
-        CombiningWindowSet.<K, InputT, AccumT, OutputT, W>factory(
+        CombiningOutputBuffer.<K, InputT, AccumT, OutputT, W>create(
             combineFn, keyCoder, inputValueCoder));
   }
 
@@ -53,29 +52,30 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
       final WindowingStrategy<?, W> windowingStrategy,
       final Coder<V> inputCoder) {
     return new StreamingGABWViaWindowSetDoFn<>(
-        windowingStrategy, AbstractWindowSet.<K, V, W>factoryFor(windowingStrategy, inputCoder));
+        windowingStrategy, new ListOutputBuffer<K, V, W>(inputCoder));
   }
 
   private static class StreamingGABWViaWindowSetDoFn<K, InputT, OutputT, W extends BoundedWindow>
   extends StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
-    private final Factory<K, InputT, OutputT, W> windowSetFactory;
+
     private final WindowingStrategy<Object, W> windowingStrategy;
+    private final OutputBuffer<K, InputT, OutputT, W> outputBuffer;
 
     private TriggerExecutor<K, InputT, OutputT, W> executor;
 
     public StreamingGABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
-        AbstractWindowSet.Factory<K, InputT, OutputT, W> windowSetFactory) {
-      this.windowSetFactory = windowSetFactory;
+        OutputBuffer<K, InputT, OutputT, W> outputBuffer) {
       @SuppressWarnings("unchecked")
       WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
       this.windowingStrategy = noWildcard;
+      this.outputBuffer = outputBuffer;
     }
 
     private void initForKey(ProcessContext c, K key) throws Exception{
       if (executor == null) {
         TimerManager timerManager = c.windowingInternals().getTimerManager();
         executor = TriggerExecutor.create(
-          key, windowingStrategy, timerManager, windowSetFactory, c.windowingInternals());
+          key, windowingStrategy, timerManager, outputBuffer, c.windowingInternals());
       }
     }
 
@@ -99,7 +99,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
       if (executor != null) {
         // Merge before finishing the bundle in case it causes triggers to fire.
         executor.merge();
-        executor.persistWindowSet();
+        executor.persist();
       }
 
       // Prepare this DoFn for reuse.

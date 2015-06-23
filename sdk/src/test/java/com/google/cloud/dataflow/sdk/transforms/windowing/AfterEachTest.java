@@ -106,7 +106,8 @@ public class AfterEachTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(4), 4, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
+        tester.finishedSet(firstWindow)));
   }
 
   @Test
@@ -116,11 +117,11 @@ public class AfterEachTest {
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.FIRE);
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
     assertFalse(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         // Buffering element 1; Ignored the trigger for T2 since we aren't there yet.
         tester.bufferTag(firstWindow),
         // Still holding the earliest element, waiting to fire
-        tester.earliestElement(firstWindow)));
+        tester.earliestElementTag(firstWindow)));
   }
 
   @SuppressWarnings("unchecked")
@@ -161,7 +162,8 @@ public class AfterEachTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(2), 9, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
+        tester.finishedSet(firstWindow)));
   }
 
   @Test
@@ -185,7 +187,7 @@ public class AfterEachTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(22)))));
   }
 
@@ -209,7 +211,7 @@ public class AfterEachTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(22)))));
   }
 
@@ -251,7 +253,7 @@ public class AfterEachTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(14, 15), 14, 0, 50),
         isSingleWindowedValue(Matchers.containsInAnyOrder(16), 16, 0, 50)));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(50))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(50)))));
   }
 }

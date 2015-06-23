@@ -70,7 +70,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -344,24 +343,6 @@ public class StreamingDataflowWorkerTest {
   private Windmill.WorkItemCommitRequest stripCounters(Windmill.WorkItemCommitRequest request) {
     return Windmill.WorkItemCommitRequest.newBuilder(request).clearCounterUpdates().build();
   }
-
-  private Windmill.WorkItemCommitRequest stripProcessingTimeCounters(
-      Windmill.WorkItemCommitRequest request) {
-    Windmill.WorkItemCommitRequest.Builder builder =
-        Windmill.WorkItemCommitRequest.newBuilder(request).clearCounterUpdates();
-    TreeMap<String, Windmill.Counter> sortedCounters = new TreeMap<>();
-    for (Windmill.Counter counter : request.getCounterUpdatesList()) {
-      String name = counter.getName();
-      if (!(name.startsWith("computation-") && name.endsWith("-msecs"))) {
-        sortedCounters.put(name, counter);
-      }
-    }
-    for (Windmill.Counter counter : sortedCounters.values()) {
-      builder.addCounterUpdates(counter);
-    }
-    return builder.build();
-  }
-
 
   @Test public void testBasicHarness() throws Exception {
     List<ParallelInstruction> instructions = Arrays.asList(
@@ -675,16 +656,6 @@ public class StreamingDataflowWorkerTest {
         CoderUtils.encodeToByteArray(
             CollectionCoder.of(IntervalWindow.getCoder()),
             Arrays.asList(new IntervalWindow(new Instant(0), new Instant(1000))))));
-    server.addDataToOffer(buildData(
-        "data {" +
-        "  computation_id: \"computation\"" +
-        "  data {" +
-        "    key: \"key\"" +
-        "    values {" +
-        "      tag: \"12:MergeWindowsgAAAAAAAAAA=earliest-element\"" +
-        "    }" +
-        "  }" +
-        "}"));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
@@ -692,7 +663,7 @@ public class StreamingDataflowWorkerTest {
         "key: \"key\" " +
         "work_token: 0 " +
         "output_timers {" +
-        "  tag: \"gAAAAAAAAAD/////Dw==\"" +
+        "  tag: \"gAAAAAAAAAD_____Dw\"" +
         "  timestamp: 1000000" +
         "  type: WATERMARK" +
         "}" +
@@ -701,18 +672,18 @@ public class StreamingDataflowWorkerTest {
         "  timestamp: 999000" +
         "  type: WATERMARK" +
         "} " +
-        "value_updates {" +
-        "  tag: \"12:MergeWindowsgAAAAAAAAAA=earliest-element\"" +
-        "  value {" +
-        "    timestamp: 0" +
-        "    data: \"\\200\\000\\000\\000\\000\\000\\000\\000\"" +
+        "list_updates {" +
+        "  tag: \"12:MergeWindowsgAAAAAAAAAA/__buffer\"" +
+        "  values {" +
+        "    timestamp: 9223372036854775000" +
+        "    data: \"\000data0\"" +
         "  }" +
         "}" +
         "list_updates {" +
-        "  tag: \"12:MergeWindowsbuffer:gAAAAAAAAAA=\"" +
-        "    values {" +
-        "    timestamp: 9223372036854775000" +
-        "    data: \"\000data0\"" +
+        "  tag: \"12:MergeWindowsgAAAAAAAAAA/__watermark_hold\"" +
+        "  values {" +
+        "    timestamp: 0" +
+        "    data: \"\000\\200\\000\\000\\000\\000\\000\\000\\000\"" +
         "  }" +
         "}"),
         stripCounters(result.get(0L)));
@@ -734,17 +705,17 @@ public class StreamingDataflowWorkerTest {
         "}"));
     server.addDataToOffer(buildData(
         "data {" +
-            "  computation_id: \"computation\"" +
-            "  data {" +
-            "    key: \"key\"" +
-            "    values {" +
-            "      tag: \"12:MergeWindowsgAAAAAAAAAA=earliest-element\"" +
-            "      value {" +
-            "        timestamp: 0" +
-            "        data: \"\\200\\000\\000\\000\\000\\000\\000\\000\"" +
-            "      }" +
-            "    }" +
-            "  }" +
+        "  computation_id: \"computation\"" +
+        "  data {" +
+        "    key: \"key\"" +
+        "    lists {" +
+        "      tag: \"12:MergeWindowsgAAAAAAAAAA/__watermark_hold\"" +
+        "      values {" +
+        "        timestamp: 0" +
+        "        data: \"\000\\200\\000\\000\\000\\000\\000\\000\\000\"" +
+        "      }" +
+        "    }" +
+        "  }" +
         "}"));
     server.addDataToOffer(buildData(
         "data {" +
@@ -752,7 +723,7 @@ public class StreamingDataflowWorkerTest {
         "  data {" +
         "    key: \"key\"" +
         "    lists {" +
-        "      tag: \"12:MergeWindowsbuffer:gAAAAAAAAAA=\"" +
+        "      tag: \"12:MergeWindowsgAAAAAAAAAA/__buffer\"" +
         "      values {" +
         "        timestamp: 0" +
         "        data: \"\000data0\"" +
@@ -772,19 +743,16 @@ public class StreamingDataflowWorkerTest {
         "    key: \"key\"" +
         "    messages {" +
         "      timestamp: 0" +
-        "      data: \"\\000\\000\\000\\001\\005data0\"" +
+        "      data: \"\\377\\377\\377\\377\\001\\005data0\\000\"" +
         "    }" +
         "  }" +
         "} " +
-        "value_updates {" +
-        "  tag: \"12:MergeWindowsgAAAAAAAAAA=earliest-element\"" +
-        "  value {" +
-        "    timestamp: 9223372036854775807" +
-        "    data: \"\"" +
-        "  }" +
+        "list_updates {" +
+        "  tag: \"12:MergeWindowsgAAAAAAAAAA/__watermark_hold\"" +
+        "  end_timestamp: 9223372036854775807" +
         "}" +
         "list_updates {" +
-        "  tag: \"12:MergeWindowsbuffer:gAAAAAAAAAA=\"" +
+        "  tag: \"12:MergeWindowsgAAAAAAAAAA/__buffer\"" +
         "  end_timestamp: 9223372036854775807" +
         "}",
         CoderUtils.encodeToByteArray(

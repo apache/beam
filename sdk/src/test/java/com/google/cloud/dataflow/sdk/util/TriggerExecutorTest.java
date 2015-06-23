@@ -23,6 +23,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
@@ -54,7 +56,6 @@ import org.mockito.MockitoAnnotations;
 public class TriggerExecutorTest {
 
   @Mock private Trigger<IntervalWindow> mockTrigger;
-  private TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester;
   private IntervalWindow firstWindow;
 
   @Before
@@ -68,7 +69,8 @@ public class TriggerExecutorTest {
     return Mockito.isA(TriggerContext.class);
   }
 
-  private void injectElement(int element, TriggerResult result)
+  private void injectElement(TriggerTester<Integer, ?, IntervalWindow> tester,
+      int element, TriggerResult result)
       throws Exception {
     when(mockTrigger.onElement(
         isTriggerContext(), Mockito.<OnElementEvent<IntervalWindow>>any()))
@@ -79,98 +81,158 @@ public class TriggerExecutorTest {
   @Test
   public void testOnElementBufferingDiscarding() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
-    tester = TriggerTester.nonCombining(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(Duration.millis(10)),
         mockTrigger,
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    injectElement(1, TriggerResult.CONTINUE);
+    injectElement(tester, 1, TriggerResult.CONTINUE);
     assertTrue(tester.isWindowActive(firstWindow));
 
-    injectElement(2, TriggerResult.FIRE);
+    injectElement(tester, 2, TriggerResult.FIRE);
     assertFalse(tester.isWindowActive(firstWindow));
 
-    injectElement(3, TriggerResult.FIRE_AND_FINISH);
+    injectElement(tester, 3, TriggerResult.FIRE_AND_FINISH);
 
     // This element shouldn't be seen, because the trigger has finished
-    injectElement(4, null);
+    injectElement(tester, 4, null);
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
+        tester.finishedSet(firstWindow)));
     assertFalse(tester.isWindowActive(firstWindow));
   }
 
   @Test
   public void testOnElementBufferingAccumulating() throws Exception {
- // Test basic execution of a trigger using a non-combining window set and accumulating mode.
-    tester = TriggerTester.nonCombining(
+    // Test basic execution of a trigger using a non-combining window set and accumulating mode.
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(Duration.millis(10)),
         mockTrigger,
         AccumulationMode.ACCUMULATING_FIRED_PANES,
         Duration.millis(100));
 
-    injectElement(1, TriggerResult.CONTINUE);
+    injectElement(tester, 1, TriggerResult.CONTINUE);
     assertTrue(tester.isWindowActive(firstWindow));
 
-    injectElement(2, TriggerResult.FIRE);
-    assertTrue(tester.isWindowActive(firstWindow));
-
-    injectElement(3, TriggerResult.FIRE_AND_FINISH);
+    injectElement(tester, 2, TriggerResult.FIRE);
+    injectElement(tester, 3, TriggerResult.FIRE_AND_FINISH);
 
     // This element shouldn't be seen, because the trigger has finished
-    injectElement(4, null);
+    injectElement(tester, 4, null);
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 3, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.contains(tester.finishedSet(firstWindow)));
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
+        tester.finishedSet(firstWindow)));
+    assertFalse(tester.isWindowActive(firstWindow));
+  }
+
+  @Test
+  public void testOnElementCombiningDiscarding() throws Exception {
+    // Test basic execution of a trigger using a non-combining window set and discarding mode.
+    TriggerTester<Integer, Integer, IntervalWindow> tester = TriggerTester.combining(
+        FixedWindows.of(Duration.millis(10)),
+        mockTrigger,
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        new Sum.SumIntegerFn().<String>asKeyedFn(),
+        VarIntCoder.of(),
+        Duration.millis(100));
+
+    injectElement(tester, 2, TriggerResult.CONTINUE);
+    assertTrue(tester.isWindowActive(firstWindow));
+
+    injectElement(tester, 3, TriggerResult.FIRE);
+    assertFalse(tester.isWindowActive(firstWindow));
+
+    injectElement(tester, 4, TriggerResult.FIRE_AND_FINISH);
+
+    // This element shouldn't be seen, because the trigger has finished
+    injectElement(tester, 6, null);
+
+    assertThat(tester.extractOutput(), Matchers.contains(
+        isSingleWindowedValue(Matchers.equalTo(5), 2, 0, 10),
+        isSingleWindowedValue(Matchers.equalTo(4), 4, 0, 10)));
+    assertTrue(tester.isMarkedFinished(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
+        tester.finishedSet(firstWindow)));
+    assertFalse(tester.isWindowActive(firstWindow));
+  }
+
+  @Test
+  public void testOnElementCombiningAccumulating() throws Exception {
+    // Test basic execution of a trigger using a non-combining window set and accumulating mode.
+    TriggerTester<Integer, Integer, IntervalWindow> tester = TriggerTester.combining(
+        FixedWindows.of(Duration.millis(10)),
+        mockTrigger,
+        AccumulationMode.ACCUMULATING_FIRED_PANES,
+        new Sum.SumIntegerFn().<String>asKeyedFn(),
+        VarIntCoder.of(),
+        Duration.millis(100));
+
+    injectElement(tester, 1, TriggerResult.CONTINUE);
+    assertTrue(tester.isWindowActive(firstWindow));
+
+    injectElement(tester, 2, TriggerResult.FIRE);
+    injectElement(tester, 3, TriggerResult.FIRE_AND_FINISH);
+
+    // This element shouldn't be seen, because the trigger has finished
+    injectElement(tester, 4, null);
+
+    assertThat(tester.extractOutput(), Matchers.contains(
+        isSingleWindowedValue(Matchers.equalTo(3), 1, 0, 10),
+        isSingleWindowedValue(Matchers.equalTo(6), 3, 0, 10)));
+    assertTrue(tester.isMarkedFinished(firstWindow));
+    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
+        tester.finishedSet(firstWindow)));
     assertFalse(tester.isWindowActive(firstWindow));
   }
 
   @Test
   public void testWatermarkHoldAndLateData() throws Exception {
     // Test handling of late data. Specifically, ensure the watermark hold is correct.
-    tester = TriggerTester.nonCombining(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(Duration.millis(10)),
         mockTrigger,
         AccumulationMode.ACCUMULATING_FIRED_PANES,
         Duration.millis(10));
 
     // All on time data, verify watermark hold.
-    injectElement(1, TriggerResult.CONTINUE);
-    injectElement(3, TriggerResult.CONTINUE);
+    injectElement(tester, 1, TriggerResult.CONTINUE);
+    injectElement(tester, 3, TriggerResult.CONTINUE);
     assertEquals(new Instant(1), tester.getWatermarkHold());
-    injectElement(2, TriggerResult.FIRE);
+    injectElement(tester, 2, TriggerResult.FIRE);
     assertEquals(null, tester.getWatermarkHold());
 
     // Some late, some on time. Verify that we only hold to the minimum of on-time.
     tester.advanceWatermark(new Instant(4));
-    injectElement(2, TriggerResult.CONTINUE);
-    injectElement(3, TriggerResult.CONTINUE);
+    injectElement(tester, 2, TriggerResult.CONTINUE);
+    injectElement(tester, 3, TriggerResult.CONTINUE);
     assertEquals(new Instant(19), tester.getWatermarkHold());
-    injectElement(5, TriggerResult.CONTINUE);
+    injectElement(tester, 5, TriggerResult.CONTINUE);
     assertEquals(new Instant(5), tester.getWatermarkHold());
-    injectElement(4, TriggerResult.FIRE);
+    injectElement(tester, 4, TriggerResult.FIRE);
 
     // All late -- output at end of window timestamp.
     tester.advanceWatermark(new Instant(8));
-    injectElement(6, TriggerResult.CONTINUE);
-    injectElement(5, TriggerResult.CONTINUE);
+    injectElement(tester, 6, TriggerResult.CONTINUE);
+    injectElement(tester, 5, TriggerResult.CONTINUE);
     assertEquals(new Instant(19), tester.getWatermarkHold());
-    injectElement(4, TriggerResult.FIRE);
+    injectElement(tester, 4, TriggerResult.FIRE);
 
     // This is "pending" at the time the watermark makes it way-late.
     // Because we're about to expire the window, we output it.
-    injectElement(8, TriggerResult.CONTINUE);
+    injectElement(tester, 8, TriggerResult.CONTINUE);
 
     // All very late -- gets dropped.
     tester.advanceWatermark(new Instant(50));
-    injectElement(2, TriggerResult.FIRE);
+    injectElement(tester, 2, TriggerResult.FIRE);
     assertEquals(null, tester.getWatermarkHold());
 
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -193,7 +255,7 @@ public class TriggerExecutorTest {
   public void testMergeBeforeFinalizing() throws Exception {
     // Verify that we merge windows before producing output so users don't see undesired
     // unmerged windows.
-    tester = TriggerTester.nonCombining(
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(Duration.millis(10)),
         mockTrigger,
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -210,8 +272,8 @@ public class TriggerExecutorTest {
         .thenReturn(TriggerResult.FIRE);
 
     // All on time data, verify watermark hold.
-    injectElement(1, TriggerResult.CONTINUE); // [1-11)
-    injectElement(10, TriggerResult.CONTINUE); // [10-20)
+    injectElement(tester, 1, TriggerResult.CONTINUE); // [1-11)
+    injectElement(tester, 10, TriggerResult.CONTINUE); // [10-20)
 
     // Create a fake timer to fire
     tester.setTimer(
