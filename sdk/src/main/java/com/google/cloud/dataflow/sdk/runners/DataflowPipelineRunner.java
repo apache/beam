@@ -128,9 +128,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         PipelineOptionsValidator.validate(DataflowPipelineOptions.class, options);
     ArrayList<String> missing = new ArrayList<>();
 
-    if (dataflowOptions.getProject() == null) {
-      missing.add("project");
-    }
     if (dataflowOptions.getAppName() == null) {
       missing.add("appName");
     }

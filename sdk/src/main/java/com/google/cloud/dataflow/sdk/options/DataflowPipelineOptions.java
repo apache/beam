@@ -33,6 +33,15 @@ public interface DataflowPipelineOptions extends
     DataflowPipelineWorkerPoolOptions, BigQueryOptions,
     GcsOptions, StreamingOptions, CloudDebuggerOptions, DataflowWorkerLoggingOptions {
 
+
+  @Description("Project id. Required when running a Dataflow in the cloud. "
+      + "See https://cloud.google.com/storage/docs/projects for further details.")
+  @Override
+  @Validation.Required
+  String getProject();
+  @Override
+  void setProject(String value);
+
   /**
    * GCS path for temporary files, e.g. gs://bucket/object
    * <p>

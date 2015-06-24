@@ -447,6 +447,19 @@ public class DataflowPipelineRunnerTest {
   }
 
   @Test
+  public void testNoProjectFails() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+
+    options.setRunner(DataflowPipelineRunner.class);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Project id");
+    thrown.expectMessage("when running a Dataflow in the cloud");
+
+    DataflowPipelineRunner.fromOptions(options);
+  }
+
+  @Test
   public void testInvalidJobName() throws IOException {
     List<String> invalidNames = Arrays.asList(
         "invalid_name",
