@@ -98,7 +98,7 @@ public class Combine {
    */
   public static <InputT, OutputT> Globally<InputT, OutputT> globally(
       CombineFn<? super InputT, ?, OutputT> fn) {
-    return new Globally<>("Globally", fn, true, 0);
+    return new Globally<>(fn, true, 0);
   }
 
   /**
@@ -161,7 +161,7 @@ public class Combine {
    */
   public static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
       KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn) {
-    return new PerKey<>("PerKey", fn, false /*fewKeys*/);
+    return new PerKey<>(fn, false /*fewKeys*/);
   }
 
   /**
@@ -170,7 +170,7 @@ public class Combine {
    */
   private static <K, InputT, OutputT> PerKey<K, InputT, OutputT> fewKeys(
       KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn) {
-    return new PerKey<>("PerKey", fn, true /*fewKeys*/);
+    return new PerKey<>(fn, true /*fewKeys*/);
   }
 
   /**
@@ -1208,6 +1208,12 @@ public class Combine {
     private final boolean insertDefault;
     private final int fanout;
 
+    private Globally(CombineFn<? super InputT, ?, OutputT> fn, boolean insertDefault, int fanout) {
+      this.fn = fn;
+      this.insertDefault = insertDefault;
+      this.fanout = fanout;
+    }
+
     private Globally(
         String name, CombineFn<? super InputT, ?, OutputT> fn, boolean insertDefault, int fanout) {
       super(name);
@@ -1302,11 +1308,6 @@ public class Combine {
               }).withSideInputs(maybeEmptyView))
           .setCoder(maybeEmpty.getCoder());
     }
-
-    @Override
-    protected String getKindString() {
-      return "Combine.Globally";
-    }
   }
 
   /**
@@ -1362,7 +1363,6 @@ public class Combine {
       this.fanout = fanout;
     }
 
-
     @Override
     public PCollectionView<OutputT> apply(PCollection<InputT> input) {
       PCollection<OutputT> combined = input
@@ -1374,11 +1374,6 @@ public class Combine {
       } else {
         return combined.apply(View.<OutputT>asSingleton());
       }
-    }
-
-    @Override
-    protected String getKindString() {
-      return "Combine.GloballyAsSingletonView";
     }
   }
 
@@ -1489,6 +1484,11 @@ public class Combine {
     private final transient KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn;
     private final boolean fewKeys;
 
+    private PerKey(KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn, boolean fewKeys) {
+      this.fn = fn;
+      this.fewKeys = fewKeys;
+    }
+
     private PerKey(
         String name, KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn,
         boolean fewKeys) {
@@ -1547,11 +1547,6 @@ public class Combine {
       return input
         .apply(GroupByKey.<K, InputT>create(fewKeys))
         .apply(Combine.<K, InputT, OutputT>groupedValues(fn));
-    }
-
-    @Override
-    protected String getKindString() {
-      return "Combine.PerKey";
     }
   }
 
@@ -1697,11 +1692,6 @@ public class Combine {
       // Return the union of the hot and cold key results.
       return PCollectionList.of(combinedHot).and(combinedCold)
           .apply(Flatten.<KV<K, OutputT>>pCollections());
-    }
-
-    @Override
-    protected String getKindString() {
-      return "Combine.PerKey";
     }
   }
 

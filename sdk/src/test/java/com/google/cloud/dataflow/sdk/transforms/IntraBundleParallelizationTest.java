@@ -173,6 +173,13 @@ public class IntraBundleParallelizationTest {
     Assert.assertEquals(1, numFailures.get());
   }
 
+  @Test
+  public void testIntraBundleParallelizationGetName() {
+    Assert.assertEquals(
+        "IntraBundleParallelization",
+        IntraBundleParallelization.of(new DelayFn<Integer>()).withMaxParallelism(1).getName());
+  }
+
   private long run(int numElements, int maxParallelism, DoFn<Integer, Integer> doFn) {
     DirectPipeline p = DirectPipeline.createForTest();
 

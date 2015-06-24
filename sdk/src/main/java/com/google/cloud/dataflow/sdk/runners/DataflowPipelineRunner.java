@@ -398,6 +398,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       throw new UnsupportedOperationException(
           "The Write transform is not supported by the Dataflow streaming runner.");
     }
+
+    @Override
+    protected String getKindString() {
+      return "StreamingWrite";
+    }
   }
 
   /**
@@ -428,6 +433,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     @Override
     public PDone apply(PCollection<T> input) {
       return PDone.in(input.getPipeline());
+    }
+
+    @Override
+    protected String getKindString() {
+      return "StreamingPubsubIOWrite";
     }
   }
 
@@ -511,6 +521,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
             + "Please set a coder by invoking Create.withCoder() explicitly.", e);
       }
     }
+
+    @Override
+    protected String getKindString() {
+      return "StreamingCreate";
+    }
   }
 
   /**
@@ -535,6 +550,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           .apply(Combine.globally(new View.Concatenate<KV<K, V>>()).withoutDefaults())
           .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
           .apply(View.CreatePCollectionView.<KV<K, V>, Map<K, V>>of(view));
+    }
+
+    @Override
+    protected String getKindString() {
+      return "StreamingViewAsMap";
     }
   }
 
@@ -564,6 +584,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
           .apply(View.CreatePCollectionView.<KV<K, V>, Map<K, Iterable<V>>>of(view));
     }
+
+    @Override
+    protected String getKindString() {
+      return "StreamingViewAsMultimap";
+    }
   }
 
   /**
@@ -592,6 +617,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       (Combine.GloballyAsSingletonView)
       Combine.globally(new View.Concatenate<T>()).asSingletonView();
       return input.apply(concatAndView);
+    }
+
+    @Override
+    protected String getKindString() {
+      return "StreamingViewAsIterable";
     }
   }
 
@@ -629,6 +659,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           .apply(ParDo.of(new WrapAsList<T>()))
           .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
           .apply(View.CreatePCollectionView.<T, T>of(view));
+    }
+
+    @Override
+    protected String getKindString() {
+      return "StreamingViewAsSingleton";
     }
   }
 

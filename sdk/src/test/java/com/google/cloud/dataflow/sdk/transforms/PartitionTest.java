@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -129,5 +130,10 @@ public class PartitionTest implements Serializable {
     PCollection<Integer> output = outputs.apply(Flatten.<Integer>pCollections());
     DataflowAssert.that(output).containsInAnyOrder(2, 4, 5, 7, 8, 10, 11);
     p.run();
+  }
+
+  @Test
+  public void testPartitionGetName() {
+    assertEquals("Partition", Partition.of(3, new ModFn()).getName());
   }
 }

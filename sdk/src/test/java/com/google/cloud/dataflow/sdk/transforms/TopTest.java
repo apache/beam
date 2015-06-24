@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -215,6 +216,16 @@ public class TopTest {
     p.traverseTopologically(new RecordingPipelineVisitor());
     // Check that the transform is named "Top" rather than "Combine".
     assertThat(p.getFullNameForTesting(top), Matchers.startsWith("Top"));
+  }
+
+  @Test
+  public void testTopGetNames() {
+    assertEquals("Top.Globally", Top.of(1, new OrderByLength()).getName());
+    assertEquals("Smallest.Globally", Top.smallest(1).getName());
+    assertEquals("Largest.Globally", Top.largest(2).getName());
+    assertEquals("Top.PerKey", Top.perKey(1, new IntegerComparator()).getName());
+    assertEquals("Smallest.PerKey", Top.<String, Integer>smallestPerKey(1).getName());
+    assertEquals("Largest.PerKey", Top.<String, Integer>largestPerKey(2).getName());
   }
 
   // used by ApproximateQuantilesTest

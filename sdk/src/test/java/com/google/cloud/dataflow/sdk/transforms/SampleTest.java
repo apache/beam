@@ -253,4 +253,9 @@ public class SampleTest {
     runPickAnyTest(NO_LINES, 0);
     runPickAnyTest(NO_LINES, 1);
   }
+
+  @Test
+  public void testSampleGetName() {
+    assertEquals("Sample.SampleAny", Sample.<String>any(1).getName());
+  }
 }

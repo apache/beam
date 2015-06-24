@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -83,5 +85,10 @@ public class ValuesTest {
         .containsInAnyOrder();
 
     p.run();
+  }
+
+  @Test
+  public void testValuesGetName() {
+    assertEquals("Values", Values.<Integer>create().getName());
   }
 }

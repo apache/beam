@@ -586,7 +586,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testParDoName() {
+  public void testParDoGetName() {
     Pipeline p = TestPipeline.create();
 
     PCollection<Integer> input =
@@ -597,7 +597,7 @@ public class ParDoTest implements Serializable {
       PCollection<String> output1 =
           input
           .apply(ParDo.of(new TestDoFn()));
-      assertEquals("Test.out", output1.getName());
+      assertEquals("ParDo(Test).out", output1.getName());
     }
 
     {
@@ -625,9 +625,15 @@ public class ParDoTest implements Serializable {
       PCollection<String> output5 =
           input
               .apply(ParDo.of(new StrangelyNamedDoer()));
-      assertEquals("StrangelyNamedDoer.out",
+      assertEquals("ParDo(StrangelyNamedDoer).out",
           output5.getName());
     }
+
+    assertEquals("ParDo(Printing)", ParDo.of(new PrintingDoFn()).getName());
+
+    assertEquals(
+        "ParMultiDo(SideOutputDummy)",
+        ParDo.of(new SideOutputDummyFn(null)).withOutputTags(null, null).getName());
   }
 
   @Test

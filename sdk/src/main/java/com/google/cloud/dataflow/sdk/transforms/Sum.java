@@ -49,7 +49,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Integer, Integer> integersGlobally() {
-    return Combine.globally(new SumIntegerFn()).named("Sum");
+    return Combine.globally(new SumIntegerFn()).named("Sum.Globally");
   }
 
   /**
@@ -72,7 +72,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Long, Long> longsGlobally() {
-    return Combine.globally(new SumLongFn()).named("Sum");
+    return Combine.globally(new SumLongFn()).named("Sum.Globally");
   }
 
   /**
@@ -95,7 +95,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
-    return Combine.globally(new SumDoubleFn()).named("Sum");
+    return Combine.globally(new SumDoubleFn()).named("Sum.Globally");
   }
 
   /**

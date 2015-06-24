@@ -745,18 +745,13 @@ public class ParDo {
     }
 
     @Override
-    protected String getDefaultName() {
+    protected String getKindString() {
       Class<?> clazz = DoFnReflector.getDoFnClass(fn);
       if (clazz.isAnonymousClass()) {
         return "AnonymousParDo";
       } else {
-        return StringUtils.approximateSimpleName(clazz);
+        return String.format("ParDo(%s)", StringUtils.approximateSimpleName(clazz));
       }
-    }
-
-    @Override
-    protected String getKindString() {
-      return "ParDo";
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -969,17 +964,13 @@ public class ParDo {
     }
 
     @Override
-    protected String getDefaultName() {
-      if (fn.getClass().isAnonymousClass()) {
-        return "AnonymousParDo";
-      } else {
-        return StringUtils.approximateSimpleName(fn.getClass());
-      }
-    }
-
-    @Override
     protected String getKindString() {
-      return "ParMultiDo";
+      Class<?> clazz = DoFnReflector.getDoFnClass(fn);
+      if (fn.getClass().isAnonymousClass()) {
+        return "AnonymousParMultiDo";
+      } else {
+        return String.format("ParMultiDo(%s)", StringUtils.approximateSimpleName(clazz));
+      }
     }
 
     public DoFn<InputT, OutputT> getFn() {

@@ -19,6 +19,11 @@ package com.google.cloud.dataflow.sdk.util;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.values.PBegin;
+import com.google.cloud.dataflow.sdk.values.PDone;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -55,11 +60,27 @@ public class StringUtilsTest {
    */
   private class EmbeddedDoFn {
 
-    private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
+private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
 
     private EmbeddedDoFn getEmbedded() {
       return new DeeperEmbeddedDoFn();
     }
+  }
+
+  private class EmbeddedPTransform extends PTransform<PBegin, PDone> {
+    private static final long serialVersionUID = 0;
+
+    private class Bound extends PTransform<PBegin, PDone> {
+      private static final long serialVersionUID = 0;
+    }
+
+    private Bound getBound() {
+      return new Bound();
+    }
+  }
+
+  private interface AnonymousClass {
+    Object getInnerClassInstance();
   }
 
   @Test
@@ -83,5 +104,37 @@ public class StringUtilsTest {
     EmbeddedDoFn inner = fn.getEmbedded();
 
     assertEquals("DeeperEmbedded", StringUtils.approximateSimpleName(inner.getClass()));
+  }
+
+  @Test
+  public void testPTransformName() {
+    EmbeddedPTransform transform = new EmbeddedPTransform();
+    assertEquals(
+        "StringUtilsTest.EmbeddedPTransform",
+        StringUtils.approximatePTransformName(transform.getClass()));
+    assertEquals(
+        "StringUtilsTest.EmbeddedPTransform",
+        StringUtils.approximatePTransformName(transform.getBound().getClass()));
+    assertEquals("TextIO.Write", StringUtils.approximatePTransformName(TextIO.Write.Bound.class));
+  }
+
+  @Test
+  public void testPTransformNameWithAnonOuterClass() throws Exception {
+    AnonymousClass anonymousClassObj = new AnonymousClass() {
+      class NamedInnerClass extends PTransform<PBegin, PDone> {
+        private static final long serialVersionUID = 0;
+      }
+
+      @Override
+      public Object getInnerClassInstance() {
+        return new NamedInnerClass();
+      }
+    };
+
+    assertEquals("NamedInnerClass",
+        StringUtils.approximateSimpleName(anonymousClassObj.getInnerClassInstance().getClass()));
+    assertEquals("StringUtilsTest.NamedInnerClass",
+        StringUtils.approximatePTransformName(
+            anonymousClassObj.getInnerClassInstance().getClass()));
   }
 }

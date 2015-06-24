@@ -122,10 +122,9 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   @Override
   public String toString() {
-    return String.format("%s, %s, %s, %s",
+    return String.format("%s, %s, %s",
         StringUtils.approximateSimpleName(windowFn.getClass()),
         trigger.toString(),
-        mode.toString(),
-        allowedLateness);
+        mode.toString());
   }
 }

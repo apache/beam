@@ -198,11 +198,6 @@ public class ApproximateUnique {
           Combine.globally(
               new ApproximateUniqueCombineFn<>(sampleSize, coder)));
     }
-
-    @Override
-    protected String getKindString() {
-      return "ApproximateUnique.Globally";
-    }
   }
 
   /**
@@ -257,11 +252,6 @@ public class ApproximateUnique {
       return input.apply(
           Combine.perKey(new ApproximateUniqueCombineFn<>(
               sampleSize, coder).<K>asKeyedFn()));
-    }
-
-    @Override
-    protected String getKindString() {
-      return "ApproximateUnique.PerKey";
     }
   }
 

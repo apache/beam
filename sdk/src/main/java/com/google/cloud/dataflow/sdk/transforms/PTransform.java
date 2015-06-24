@@ -208,7 +208,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * <p> This name is provided by the transform creator and is not required to be unique.
    */
   public String getName() {
-    return name != null ? name : getDefaultName();
+    return name != null ? name : getKindString();
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -233,34 +233,28 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
 
   @Override
   public String toString() {
-    return getName() + " [" + getKindString() + "]";
+    if (name == null) {
+      return getKindString();
+    } else {
+      return getName() + " [" + getKindString() + "]";
+    }
   }
 
   /**
    * Returns the name to use by default for this {@code PTransform}
    * (not including the names of any enclosing {@code PTransform}s).
    *
-   * <p> By default, returns {@link #getKindString}.
+   * <p> By default, returns the base name of this {@code PTransform}'s class.
    *
    * <p> The caller is responsible for ensuring that names of applied
    * {@code PTransform}s are unique, e.g., by adding a uniquifying
    * suffix when needed.
    */
-  protected String getDefaultName() {
-    return getKindString();
-  }
-
-  /**
-   * Returns a string describing what kind of {@code PTransform} this is.
-   *
-   * <p> By default, returns the base name of this
-   * {@code PTransform}'s class.
-   */
   protected String getKindString() {
     if (getClass().isAnonymousClass()) {
       return "AnonymousTransform";
     } else {
-      return StringUtils.approximateSimpleName(getClass());
+      return StringUtils.approximatePTransformName(getClass());
     }
   }
 

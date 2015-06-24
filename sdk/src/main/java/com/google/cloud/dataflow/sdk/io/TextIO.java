@@ -295,11 +295,6 @@ public class TextIO {
         return coder;
       }
 
-      @Override
-      protected String getKindString() {
-        return "TextIO.Read";
-      }
-
       public String getFilepattern() {
         return filepattern;
       }
@@ -596,11 +591,6 @@ public class TextIO {
       @Override
       protected Coder<Void> getDefaultOutputCoder() {
         return VoidCoder.of();
-      }
-
-      @Override
-      protected String getKindString() {
-        return "TextIO.Write";
       }
 
       public String getFilenamePrefix() {

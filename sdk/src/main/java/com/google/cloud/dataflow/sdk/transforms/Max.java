@@ -49,7 +49,7 @@ public class Max {
    * {@code Integer.MIN_VALUE} if there are no elements.
    */
   public static Combine.Globally<Integer, Integer> integersGlobally() {
-    return Combine.globally(new MaxIntegerFn()).named("Max");
+    return Combine.globally(new MaxIntegerFn()).named("Max.Globally");
   }
 
   /**
@@ -74,7 +74,7 @@ public class Max {
    * {@code Long.MIN_VALUE} if there are no elements.
    */
   public static Combine.Globally<Long, Long> longsGlobally() {
-    return Combine.globally(new MaxLongFn()).named("Max");
+    return Combine.globally(new MaxLongFn()).named("Max.Globally");
   }
 
   /**
@@ -99,7 +99,7 @@ public class Max {
    * {@code Double.NEGATIVE_INFINITY} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
-    return Combine.globally(new MaxDoubleFn()).named("Max");
+    return Combine.globally(new MaxDoubleFn()).named("Max.Globally");
   }
 
   /**

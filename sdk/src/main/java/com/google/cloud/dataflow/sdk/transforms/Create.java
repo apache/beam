@@ -309,14 +309,9 @@ public class Create<T> {
      *
      * <p> The arguments should not be modified after this is called.
      */
-    private Values(String name, Iterable<T> elems, Optional<Coder<T>> coder) {
-      super(name);
+    private Values(Iterable<T> elems, Optional<Coder<T>> coder) {
       this.elems = elems;
       this.coder = coder;
-    }
-
-    private Values(Iterable<T> elems, Optional<Coder<T>> coder) {
-      this("CreateValues", elems, coder);
     }
   }
 
@@ -368,7 +363,7 @@ public class Create<T> {
 
     private TimestampedValues(Iterable<TimestampedValue<T>> elems,
         Optional<Coder<T>> coder) {
-      super("CreateTimestampedValues",
+      super(
           Iterables.transform(elems, new Function<TimestampedValue<T>, T>() {
             @Override
             public T apply(TimestampedValue<T> input) {

@@ -377,6 +377,16 @@ public class AvroIOTest {
     assertFalse(write.withoutValidation().needsValidation());
   }
 
+  @Test
+  public void testAvroIOGetName() {
+    assertEquals("AvroIO.Read", AvroIO.Read.from("gs://bucket/foo*/baz").getName());
+    assertEquals("AvroIO.Write", AvroIO.Write.to("gs://bucket/foo/baz").getName());
+    assertEquals("ReadMyFile",
+        AvroIO.Read.named("ReadMyFile").from("gs://bucket/foo*/baz").getName());
+    assertEquals("WriteMyFile",
+        AvroIO.Write.named("WriteMyFile").to("gs://bucket/foo/baz").getName());
+  }
+
   // TODO: for Write only, test withSuffix, withNumShards,
   // withShardNameTemplate and withoutSharding.
 }

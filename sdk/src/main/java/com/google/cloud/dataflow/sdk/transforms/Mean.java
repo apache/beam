@@ -59,7 +59,7 @@ public class Mean {
    * @param <NumT> the type of the {@code Number}s being combined
    */
   public static <NumT extends Number> Combine.Globally<NumT, Double> globally() {
-    return Combine.<NumT, Double>globally(new MeanFn<>()).named("Mean");
+    return Combine.<NumT, Double>globally(new MeanFn<>()).named("Mean.Globally");
   }
 
   /**

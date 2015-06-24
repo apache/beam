@@ -459,4 +459,16 @@ public class TextIOTest {
 
     tmpFile.delete();
   }
+
+  @Test
+  public void testTextIOGetName() {
+    assertEquals("TextIO.Read", TextIO.Read.from("somefile").getName());
+    assertEquals("TextIO.Write", TextIO.Write.to("somefile").getName());
+    assertEquals("ReadMyFile", TextIO.Read.named("ReadMyFile").from("somefile").getName());
+    assertEquals("WriteMyFile", TextIO.Write.named("WriteMyFile").to("somefile").getName());
+
+    assertEquals("TextIO.Read", TextIO.Read.from("somefile").toString());
+    assertEquals(
+        "ReadMyFile [TextIO.Read]", TextIO.Read.named("ReadMyFile").from("somefile").toString());
+  }
 }

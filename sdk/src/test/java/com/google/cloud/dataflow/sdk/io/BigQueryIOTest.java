@@ -41,8 +41,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.io.IOException;
-
 /**
  * Tests for BigQueryIO.
  */
@@ -93,14 +91,14 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testBuildSource() throws IOException {
+  public void testBuildSource() {
     BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
         .from("foo.com:project:somedataset.sometable");
     checkReadObject(bound, "foo.com:project", "somedataset", "sometable");
   }
 
   @Test
-  public void testBuildSourcewithoutValidation() throws IOException {
+  public void testBuildSourcewithoutValidation() {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
     BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
@@ -109,14 +107,14 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testBuildSourceWithDefaultProject() throws IOException {
+  public void testBuildSourceWithDefaultProject() {
     BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
         .from("somedataset.sometable");
     checkReadObject(bound, null, "somedataset", "sometable");
   }
 
   @Test
-  public void testBuildSourceWithTableReference() throws IOException {
+  public void testBuildSourceWithTableReference() {
     TableReference table = new TableReference()
         .setProjectId("foo.com:project")
         .setDatasetId("somedataset")
@@ -127,13 +125,13 @@ public class BigQueryIOTest {
   }
 
   @Test(expected = IllegalStateException.class)
-  public void testBuildSourceWithoutTable() throws IOException {
+  public void testBuildSourceWithoutTable() {
     Pipeline p = TestPipeline.create();
     p.apply(BigQueryIO.Read.named("ReadMyTable"));
   }
 
   @Test
-  public void testBuildSink() throws IOException {
+  public void testBuildSink() {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
         .to("foo.com:project:somedataset.sometable");
     checkWriteObject(
@@ -142,7 +140,7 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testBuildSinkwithoutValidation() throws IOException {
+  public void testBuildSinkwithoutValidation() {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
@@ -153,7 +151,7 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testBuildSinkDefaultProject() throws IOException {
+  public void testBuildSinkDefaultProject() {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
         .to("somedataset.sometable");
     checkWriteObject(
@@ -162,7 +160,7 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testBuildSinkWithTableReference() throws IOException {
+  public void testBuildSinkWithTableReference() {
     TableReference table = new TableReference()
         .setProjectId("foo.com:project")
         .setDatasetId("somedataset")
@@ -175,14 +173,14 @@ public class BigQueryIOTest {
   }
 
   @Test(expected = IllegalStateException.class)
-  public void testBuildSinkWithoutTable() throws IOException {
+  public void testBuildSinkWithoutTable() {
     Pipeline p = TestPipeline.create();
     p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
         .apply(BigQueryIO.Write.named("WriteMyTable"));
   }
 
   @Test
-  public void testBuildSinkWithSchema() throws IOException {
+  public void testBuildSinkWithSchema() {
     TableSchema schema = new TableSchema();
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
         .to("foo.com:project:somedataset.sometable").withSchema(schema);
@@ -192,7 +190,7 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testBuildSinkWithCreateDispositionNever() throws IOException {
+  public void testBuildSinkWithCreateDispositionNever() {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
         .to("foo.com:project:somedataset.sometable")
         .withCreateDisposition(CreateDisposition.CREATE_NEVER);
@@ -202,7 +200,7 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testBuildSinkWithCreateDispositionIfNeeded() throws IOException {
+  public void testBuildSinkWithCreateDispositionIfNeeded() {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
         .to("foo.com:project:somedataset.sometable")
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED);
@@ -212,7 +210,7 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testBuildSinkWithWriteDispositionTruncate() throws IOException {
+  public void testBuildSinkWithWriteDispositionTruncate() {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
@@ -222,7 +220,7 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testBuildSinkWithWriteDispositionAppend() throws IOException {
+  public void testBuildSinkWithWriteDispositionAppend() {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_APPEND);
@@ -232,7 +230,7 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testBuildSinkWithWriteDispositionEmpty() throws IOException {
+  public void testBuildSinkWithWriteDispositionEmpty() {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_EMPTY);
@@ -303,5 +301,13 @@ public class BigQueryIOTest {
     byte[] newBytes = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), newRow);
 
     Assert.assertArrayEquals(bytes, newBytes);
+  }
+
+  @Test
+  public void testBigQueryIOGetName() {
+    assertEquals("BigQueryIO.Read", BigQueryIO.Read.from("somedataset.sometable").getName());
+    assertEquals("BigQueryIO.Write", BigQueryIO.Write.to("somedataset.sometable").getName());
+    assertEquals("ReadMyTable", BigQueryIO.Read.named("ReadMyTable").getName());
+    assertEquals("WriteMyTable", BigQueryIO.Write.named("WriteMyTable").getName());
   }
 }

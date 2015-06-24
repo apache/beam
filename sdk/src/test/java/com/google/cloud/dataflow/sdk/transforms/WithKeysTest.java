@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -90,6 +92,11 @@ public class WithKeysTest {
         .containsInAnyOrder(WITH_CONST_KEYS);
 
     p.run();
+  }
+
+  @Test
+  public void testWithKeysGetName() {
+    assertEquals("WithKeys", WithKeys.<Integer, String>of(100).getName());
   }
 
   /**

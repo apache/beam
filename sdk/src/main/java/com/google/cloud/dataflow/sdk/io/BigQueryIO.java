@@ -355,11 +355,6 @@ public class BigQueryIO {
         return TableRowJsonCoder.of();
       }
 
-      @Override
-      protected String getKindString() {
-        return "BigQueryIO.Read";
-      }
-
       static {
         DirectPipelineRunner.registerDefaultTransformEvaluator(
             Bound.class, new DirectPipelineRunner.TransformEvaluator<Bound>() {
@@ -722,11 +717,6 @@ public class BigQueryIO {
       @Override
       protected Coder<Void> getDefaultOutputCoder() {
         return VoidCoder.of();
-      }
-
-      @Override
-      protected String getKindString() {
-        return "BigQueryIO.Write";
       }
 
       static {

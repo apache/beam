@@ -277,4 +277,9 @@ public class GroupByKeyTest {
         middle.getWindowingStrategy().getWindowFn().isCompatible(
             Sessions.withGapDuration(Duration.standardMinutes(1))));
   }
+
+  @Test
+  public void testGroupByKeyGetName() {
+    Assert.assertEquals("GroupByKey", GroupByKey.<String, Integer>create().getName());
+  }
 }

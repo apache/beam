@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.api.client.util.Preconditions;
@@ -422,6 +423,23 @@ public class CombineTest implements Serializable {
 
     DataflowAssert.thatSingleton(output).isEqualTo(0);
     p.run();
+  }
+
+  @Test
+  public void testCombineGetName() {
+    assertEquals("Combine.Globally", Combine.globally(new SumInts()).getName());
+    assertEquals(
+        "MyCombineGlobally", Combine.globally(new SumInts()).named("MyCombineGlobally").getName());
+    assertEquals(
+        "Combine.GloballyAsSingletonView",
+        Combine.globally(new SumInts()).asSingletonView().getName());
+    assertEquals("Combine.PerKey", Combine.perKey(new TestKeyedCombineFn()).getName());
+    assertEquals(
+        "MyCombinePerKey",
+        Combine.perKey(new TestKeyedCombineFn()).named("MyCombinePerKey").getName());
+    assertEquals(
+        "Combine.PerKeyWithHotKeyFanout",
+        Combine.perKey(new TestKeyedCombineFn()).withHotKeyFanout(10).getName());
   }
 
   ////////////////////////////////////////////////////////////////////////////

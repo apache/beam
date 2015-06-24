@@ -45,6 +45,7 @@ import org.junit.runners.JUnit4;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -234,5 +235,11 @@ public class CreateTest {
         KV.of((Void) null, (Void) null));
 
     p.run();
+  }
+
+  @Test
+  public void testCreateGetName() {
+    assertEquals("Create.Values", Create.of(1, 2, 3).getName());
+    assertEquals("Create.TimestampedValues", Create.timestamped(Collections.EMPTY_LIST).getName());
   }
 }

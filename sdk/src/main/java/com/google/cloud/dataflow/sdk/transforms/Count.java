@@ -166,10 +166,5 @@ public class Count {
                    }))
           .apply(Sum.<T>longsPerKey());
     }
-
-    @Override
-    public String getKindString() {
-      return "Count.PerElement";
-    }
   }
 }

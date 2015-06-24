@@ -543,11 +543,6 @@ public class PubsubIO {
         return coder;
       }
 
-      @Override
-      protected String getKindString() {
-        return "PubsubIO.Read";
-      }
-
       public PubsubTopic getTopic() {
         return topic;
       }
@@ -806,11 +801,6 @@ public class PubsubIO {
       @Override
       protected Coder<Void> getDefaultOutputCoder() {
         return VoidCoder.of();
-      }
-
-      @Override
-      protected String getKindString() {
-        return "PubsubIO.Write";
       }
 
       public PubsubTopic getTopic() {

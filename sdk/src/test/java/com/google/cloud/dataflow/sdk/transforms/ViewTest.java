@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import static org.hamcrest.CoreMatchers.isA;
+import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
@@ -405,4 +406,11 @@ public class ViewTest implements Serializable {
     p.run();
   }
 
+  @Test
+  public void testViewGetName() {
+    assertEquals("View.AsSingleton", View.<Integer>asSingleton().getName());
+    assertEquals("View.AsIterable", View.<Integer>asIterable().getName());
+    assertEquals("View.AsMap", View.<String, Integer>asMap().getName());
+    assertEquals("View.AsMultimap", View.<String, Integer>asMultimap().getName());
+  }
 }

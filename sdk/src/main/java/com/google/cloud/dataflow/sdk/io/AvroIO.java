@@ -303,11 +303,6 @@ public class AvroIO {
         return AvroCoder.of(type, schema);
       }
 
-      @Override
-      protected String getKindString() {
-        return "AvroIO.Read";
-      }
-
       public String getFilepattern() {
         return filepattern;
       }
@@ -638,11 +633,6 @@ public class AvroIO {
       @Override
       protected Coder<Void> getDefaultOutputCoder() {
         return VoidCoder.of();
-      }
-
-      @Override
-      protected String getKindString() {
-        return "AvroIO.Write";
       }
 
       public String getFilenamePrefix() {

@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES;
+import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -110,5 +111,11 @@ public class CountTest {
     DataflowAssert.that(output)
         .containsInAnyOrder(0L);
     p.run();
+  }
+
+  @Test
+  public void testCountGetName() {
+    assertEquals("Count.PerElement", Count.perElement().getName());
+    assertEquals("Count.Globally", Count.globally().getName());
   }
 }

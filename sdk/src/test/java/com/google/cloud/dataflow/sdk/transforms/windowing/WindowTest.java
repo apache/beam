@@ -74,4 +74,10 @@ public class WindowTest {
 
     assertEquals(Duration.standardDays(1), strategy.getAllowedLateness());
   }
+
+  @Test
+  public void testWindowGetName() {
+    assertEquals("Window.Into(FixedWindows, DefaultTrigger, DISCARDING_FIRED_PANES)",
+        Window.<String>into(FixedWindows.of(Duration.standardMinutes(10))).getName());
+  }
 }
