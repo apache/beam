@@ -127,10 +127,10 @@ public class ExecutorTestUtils {
 
   /** A {@code Reader<String>} that yields a specified set of values. */
   public static class TestReader extends Reader<String> {
-    List<String> inputs = new ArrayList<>();
+    private final List<String> inputs;
 
-    public void addInput(String... inputs) {
-      this.inputs.addAll(Arrays.asList(inputs));
+    public TestReader(String... inputs) {
+      this.inputs = Arrays.asList(inputs);
     }
 
     @Override
