@@ -60,6 +60,15 @@ public interface GcsOptions extends
   void setExecutorService(ExecutorService value);
 
   /**
+   * GCS endpoint to use. If unspecified, uses the default endpoint.
+   */
+  @JsonIgnore
+  @Hidden
+  @Description("The URL for the GCS API.")
+  String getGcsEndpoint();
+  void setGcsEndpoint(String value);
+
+  /**
    * Returns the default {@link ExecutorService} to use within the Dataflow SDK. The
    * {@link ExecutorService} is compatible with AppEngine.
    */

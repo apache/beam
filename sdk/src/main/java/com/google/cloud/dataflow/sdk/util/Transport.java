@@ -69,6 +69,27 @@ public class Transport {
     return SingletonHelper.JSON_FACTORY;
   }
 
+  private static class ApiComponents {
+    public String rootUrl;
+    public String servicePath;
+
+    public ApiComponents(String root, String path) {
+      this.rootUrl = root;
+      this.servicePath = path;
+    }
+  }
+
+  private static ApiComponents apiComponentsFromUrl(String urlString) {
+    try {
+      URL url = new URL(urlString);
+      String rootUrl = url.getProtocol() + "://" + url.getHost() +
+          (url.getPort() > 0 ? ":" + url.getPort() : "");
+      return new ApiComponents(rootUrl, url.getPath());
+    } catch (MalformedURLException e) {
+      throw new RuntimeException("Invalid URL: " + urlString);
+    }
+  }
+
   /**
    * Returns a BigQuery client builder.
    * <p>
@@ -104,25 +125,20 @@ public class Transport {
    * Returns a Google Cloud Dataflow client builder.
    */
   public static Dataflow.Builder newDataflowClient(DataflowPipelineOptions options) {
-    String rootUrl = options.getApiRootUrl();
     String servicePath = options.getDataflowEndpoint();
+    ApiComponents components;
     if (servicePath.contains("://")) {
-      try {
-        URL url = new URL(servicePath);
-        rootUrl = url.getProtocol() + "://" + url.getHost() +
-            (url.getPort() > 0 ? ":" + url.getPort() : "");
-        servicePath = url.getPath();
-      } catch (MalformedURLException e) {
-        throw new RuntimeException("Invalid URL: " + servicePath);
-      }
+      components = apiComponentsFromUrl(servicePath);
+    } else {
+      components = new ApiComponents(options.getApiRootUrl(), servicePath);
     }
 
     return new Dataflow.Builder(getTransport(),
         getJsonFactory(),
         new RetryHttpRequestInitializer(options.getGcpCredential()))
         .setApplicationName(options.getAppName())
-        .setRootUrl(rootUrl)
-        .setServicePath(servicePath)
+        .setRootUrl(components.rootUrl)
+        .setServicePath(components.servicePath)
         .setGoogleClientRequestInitializer(
             new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
   }
@@ -147,7 +163,8 @@ public class Transport {
    */
   public static Storage.Builder
       newStorageClient(GcsOptions options) {
-    return new Storage.Builder(getTransport(), getJsonFactory(),
+    String servicePath = options.getGcsEndpoint();
+    Storage.Builder storageBuilder = new Storage.Builder(getTransport(), getJsonFactory(),
         new RetryHttpRequestInitializer(
             // Do not log the code 404. Code up the stack will deal with 404's if needed, and
             // logging it by default clutters the output during file staging.
@@ -155,6 +172,12 @@ public class Transport {
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(
             new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
+    if (servicePath != null) {
+      ApiComponents components = apiComponentsFromUrl(servicePath);
+      storageBuilder.setRootUrl(components.rootUrl);
+      storageBuilder.setServicePath(components.servicePath);
+    }
+    return storageBuilder;
   }
 
   /**
