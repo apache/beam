@@ -107,7 +107,7 @@ you can execute the `WordCount` and other example pipelines using the
 
     mvn exec:java -pl examples \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
-    -Dexec.args="--input=<INPUT FILE PATTERN> --output=<OUTPUT FILE>"
+    -Dexec.args="--inputFile=<INPUT FILE PATTERN> --output=<OUTPUT FILE>"
 
 You can use the `BlockingDataflowPipelineRunner` to execute the `WordCount` example on
 Google Cloud Dataflow Service using managed resources in the Google Cloud Platform.
@@ -137,7 +137,7 @@ Platform:
 
     java -cp examples/target/google-cloud-dataflow-java-examples-all-bundled-manual_build.jar \
     com.google.cloud.dataflow.examples.WordCount \
-    --input=<INPUT FILE PATTERN> --output=<OUTPUT FILE>
+    --inputFile=<INPUT FILE PATTERN> --output=<OUTPUT FILE>
 
     java -cp examples/target/google-cloud-dataflow-java-examples-all-bundled-manual_build.jar \
     com.google.cloud.dataflow.examples.WordCount \
