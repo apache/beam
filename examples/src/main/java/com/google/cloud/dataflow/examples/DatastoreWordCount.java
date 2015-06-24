@@ -176,6 +176,7 @@ public class DatastoreWordCount {
     p.apply(DatastoreIO.readFrom(options.getDataset(), query).named("ReadShakespeareFromDatastore"))
      .apply(ParDo.of(new GetContentFn()))
      .apply(new WordCount.CountWords())
+     .apply(ParDo.of(new WordCount.FormatAsTextFn()))
      .apply(TextIO.Write.named("WriteLines")
                         .to(options.getOutput())
                         .withNumShards(options.getNumShards()));
