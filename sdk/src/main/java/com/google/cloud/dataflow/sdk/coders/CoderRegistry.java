@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
@@ -30,7 +31,6 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -57,7 +57,7 @@ import java.util.Map;
  *        {@link #registerStandardCoders()}.
  *   <li> Annotations: {@link DefaultCoder} can be used to annotate a type with
  *        the default {@code Coder} type.
- *   <li> Inheritance: {@link Serializable} objects are given a default
+ *   <li> Inheritance: {@code Serializable} objects are given a default
  *        {@code Coder} of {@link SerializableCoder}.
  * </ul>
  */
@@ -127,7 +127,19 @@ public class CoderRegistry implements CoderProvider {
     }
   }
 
-  public void registerCoder(Class<?> rawClazz, Coder<?> coder) {
+  /**
+   * Registered the provided {@link Coder} for encoding all values of the specified {@code Class}.
+   *
+   * <p>Not for use with generic rawtypes. Instead, register a {@link CoderFactory} via
+   * {@link #registerCoder(Class, CoderFactory)} or ensure your {@code Coder} class has the
+   * appropriate static methods and register it directly via {@link #registerCoder(Class, Class)}.
+   */
+  public <T> void registerCoder(Class<T> rawClazz, Coder<T> coder) {
+    Preconditions.checkArgument(
+      rawClazz.getTypeParameters().length == 0,
+      "CoderRegistry.registerCoder(Class<T>, Coder<T>) may not be used "
+      + "with unspecialized generic classes");
+
     CoderFactory factory = CoderFactories.forCoder(coder);
     registerCoder(rawClazz, factory);
   }
@@ -428,7 +440,7 @@ public class CoderRegistry implements CoderProvider {
     // Various representations of the candidate type
     @SuppressWarnings("unchecked")
     TypeDescriptor<CandidateT> candidateDescriptor =
-        (TypeDescriptor<CandidateT>) TypeDescriptor.<CandidateT>of(candidateType);
+        (TypeDescriptor<CandidateT>) TypeDescriptor.of(candidateType);
     @SuppressWarnings("unchecked")
     Class<CandidateT> candidateClass = (Class<CandidateT>) candidateDescriptor.getRawType();
 

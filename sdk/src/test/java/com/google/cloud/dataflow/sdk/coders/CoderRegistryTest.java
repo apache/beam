@@ -36,7 +36,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -79,12 +78,36 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testRegisterInstantiatedGenericCoder() throws Exception {
-    class MyValueList extends ArrayList<MyValue> { }
-
+  public void testRegisterInstantiatedCoder() throws Exception {
     CoderRegistry registry = new CoderRegistry();
-    registry.registerCoder(MyValueList.class, ListCoder.of(MyValueCoder.of()));
-    assertEquals(registry.getDefaultCoder(MyValueList.class), ListCoder.of(MyValueCoder.of()));
+    registry.registerCoder(MyValue.class, MyValueCoder.of());
+    assertEquals(registry.getDefaultCoder(MyValue.class), MyValueCoder.of());
+  }
+
+  @SuppressWarnings("rawtypes") // this class exists to fail a test because of its rawtypes
+  private class MyListCoder extends DeterministicStandardCoder<List> {
+    @Override
+    public void encode(List value, OutputStream outStream, Context context)
+        throws CoderException, IOException {
+    }
+
+    @Override
+    public List decode(InputStream inStream, Context context)
+        throws CoderException, IOException {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public List<Coder<?>> getCoderArguments() {
+      return Collections.emptyList();
+    }
+  }
+
+  @Test
+  public void testRegisterInstantiatedCoderInvalidRawtype() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    CoderRegistry registry = new CoderRegistry();
+    registry.registerCoder(List.class, new MyListCoder());
   }
 
   @Test
@@ -265,6 +288,7 @@ public class CoderRegistryTest {
       return INSTANCE;
     }
 
+    @SuppressWarnings("unused") // this method an "override" of a latent static interface
     public static List<Object> getInstanceComponents(MyValue exampleValue) {
       return Arrays.asList();
     }
