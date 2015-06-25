@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
+import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,7 +115,13 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
 
       return ctxt;
     } catch (Exception e) {
-      throw new RuntimeException(e); // wrap a SparkException in a RuntimeException
+      // if the SparkException has a cause then wrap it in a RuntimeException
+      // (see https://issues.apache.org/jira/browse/SPARK-8625)
+      if (e instanceof SparkException && e.getCause() != null) {
+        throw new RuntimeException(e.getCause());
+      }
+      // otherwise just wrap in a RuntimeException
+      throw new RuntimeException(e);
     }
   }
 
