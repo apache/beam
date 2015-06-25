@@ -104,6 +104,13 @@ public class PTuple {
   }
 
   /**
+   * Returns true if this {@code PTuple} is empty.
+   */
+  public boolean isEmpty() {
+    return valueMap.isEmpty();
+  }
+
+  /**
    * Returns the value with the given tag in this
    * PTuple.  Throws IllegalArgumentException if there is no
    * such value, i.e., {@code !has(tag)}.

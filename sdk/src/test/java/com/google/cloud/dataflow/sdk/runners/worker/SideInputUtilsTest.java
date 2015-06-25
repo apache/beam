@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.SideInputUtils.createCollectionSideInputInfo;
+import static com.google.cloud.dataflow.sdk.runners.worker.SideInputUtils.createSingletonSideInputInfo;
+
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.hamcrest.core.Is.is;
@@ -42,20 +45,6 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 public class SideInputUtilsTest {
-  SideInputInfo createSingletonSideInputInfo(Source sideInputSource) {
-    SideInputInfo sideInputInfo = new SideInputInfo();
-    sideInputInfo.setSources(Arrays.asList(sideInputSource));
-    sideInputInfo.setKind(CloudObject.forClassName("singleton"));
-    return sideInputInfo;
-  }
-
-  SideInputInfo createCollectionSideInputInfo(Source... sideInputSources) {
-    SideInputInfo sideInputInfo = new SideInputInfo();
-    sideInputInfo.setSources(Arrays.asList(sideInputSources));
-    sideInputInfo.setKind(CloudObject.forClassName("collection"));
-    return sideInputInfo;
-  }
-
   Source createSideInputSource(Integer... ints) throws Exception {
     return InMemoryReaderFactoryTest.createInMemoryCloudSource(
         Arrays.asList(ints), null, null, BigEndianIntegerCoder.of());

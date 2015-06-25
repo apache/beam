@@ -29,8 +29,15 @@ import java.util.Map;
  * {@link ExecutionContext} for use in direct mode.
  */
 public class DirectModeExecutionContext extends BatchModeExecutionContext {
-  List<ValueWithMetadata> output = new ArrayList<>();
-  Map<TupleTag<?>, List<ValueWithMetadata>> sideOutputs = new HashMap<>();
+
+  private List<ValueWithMetadata> output = new ArrayList<>();
+  private Map<TupleTag<?>, List<ValueWithMetadata>> sideOutputs = new HashMap<>();
+
+  protected DirectModeExecutionContext() { }
+
+  public static DirectModeExecutionContext create() {
+    return new DirectModeExecutionContext();
+  }
 
   @Override
   public ExecutionContext.StepContext createStepContext(String stepName) {

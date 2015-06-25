@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
-import com.google.cloud.dataflow.sdk.util.PTuple;
+import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.ReifyTimestampAndWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet.AddCounterMutator;
@@ -43,7 +43,7 @@ class ReifyTimestampAndWindowsParDoFn extends ParDoFnBase {
       PipelineOptions options,
       ReifyTimestampAndWindowsDoFn<?, ?> fn,
       String stepName,
-      ExecutionContext executionContext,
+      DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
 
@@ -64,7 +64,7 @@ class ReifyTimestampAndWindowsParDoFn extends ParDoFnBase {
         @Nullable List<SideInputInfo> sideInputInfos,
         @Nullable List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
-        ExecutionContext executionContext,
+        DataflowExecutionContext executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
         StateSampler stateSampler /* ignored */)
             throws Exception {
@@ -96,7 +96,7 @@ class ReifyTimestampAndWindowsParDoFn extends ParDoFnBase {
       AddCounterMutator addCounterMutator) {
 
     super(options,
-          PTuple.empty(),
+          NullSideInputReader.empty(),
           Arrays.asList("output"),
           stepName,
           executionContext,

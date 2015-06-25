@@ -31,7 +31,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Throwables;
@@ -76,7 +75,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
   DoFnRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
-      PTuple sideInputs,
+      SideInputReader sideInputReader,
       OutputManager<ReceiverT> outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
@@ -85,14 +84,14 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
     this.context = new DoFnContext<>(
-        options, fn, sideInputs, outputManager, mainOutputTag, sideOutputTags, stepContext,
+        options, fn, sideInputReader, outputManager, mainOutputTag, sideOutputTags, stepContext,
         addCounterMutator, windowingStrategy == null ? null : windowingStrategy.getWindowFn());
   }
 
   public static <InputT, OutputT, ReceiverT> DoFnRunner<InputT, OutputT, ReceiverT> create(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
-      PTuple sideInputs,
+      SideInputReader sideInputReader,
       OutputManager<ReceiverT> outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
@@ -100,7 +99,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
       CounterSet.AddCounterMutator addCounterMutator,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new DoFnRunner<>(
-        options, fn, sideInputs, outputManager,
+        options, fn, sideInputReader, outputManager,
         mainOutputTag, sideOutputTags, stepContext, addCounterMutator, windowingStrategy);
   }
 
@@ -108,14 +107,14 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
   public static <InputT, OutputT> DoFnRunner<InputT, OutputT, List> createWithListOutputs(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
-      PTuple sideInputs,
+      SideInputReader sideInputReader,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
       CounterSet.AddCounterMutator addCounterMutator,
       WindowingStrategy<?, ?> windowingStrategy) {
     return create(
-        options, fn, sideInputs,
+        options, fn, sideInputReader,
         new OutputManager<List>() {
           @Override
           public List initialize(TupleTag<?> tag) {
@@ -148,7 +147,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
   public void processElement(WindowedValue<InputT> elem) {
     if (elem.getWindows().size() <= 1
         || (!RequiresWindowAccess.class.isAssignableFrom(fn.getClass())
-            && context.sideInputs.getAll().isEmpty())) {
+            && context.sideInputReader.isEmpty())) {
       invokeProcessElement(elem);
     } else {
       // We could modify the windowed value (and the processContext) to
@@ -203,8 +202,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
 
     final PipelineOptions options;
     final DoFn<InputT, OutputT> fn;
-    final PTuple sideInputs;
-    final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
+    final SideInputReader sideInputReader;
     final OutputManager<ReceiverT> outputManager;
     final Map<TupleTag<?>, ReceiverT> outputMap;
     final TupleTag<OutputT> mainOutputTag;
@@ -214,7 +212,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
 
     public DoFnContext(PipelineOptions options,
                        DoFn<InputT, OutputT> fn,
-                       PTuple sideInputs,
+                       SideInputReader sideInputReader,
                        OutputManager<ReceiverT> outputManager,
                        TupleTag<OutputT> mainOutputTag,
                        List<TupleTag<?>> sideOutputTags,
@@ -224,8 +222,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
       fn.super();
       this.options = options;
       this.fn = fn;
-      this.sideInputs = sideInputs;
-      this.sideInputCache = new HashMap<>();
+      this.sideInputReader = sideInputReader;
       this.outputManager = outputManager;
       this.mainOutputTag = mainOutputTag;
       this.outputMap = new HashMap<>();
@@ -253,11 +250,6 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
     @Override
     public PipelineOptions getPipelineOptions() {
       return options;
-    }
-
-    @SuppressWarnings("unchecked")
-    <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
-      return stepContext.getExecutionContext().getSideInput(view, mainInputWindow, sideInputs);
     }
 
     <T> WindowedValue<T> makeWindowedValue(
@@ -298,6 +290,15 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
       }
 
       return WindowedValue.of(output, timestamp, windows);
+    }
+
+    public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+      if (!sideInputReader.contains(view)) {
+        throw new IllegalArgumentException("calling sideInput() with unknown view");
+      }
+      BoundedWindow sideInputWindow =
+          view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
+      return sideInputReader.get(view, sideInputWindow);
     }
 
     void outputWindowedValue(
@@ -378,7 +379,6 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
       return new CounterAggregator<>(generateInternalAggregatorName(name),
           combiner, addCounterMutator);
     }
-
   }
 
   /**
@@ -502,18 +502,6 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
       Preconditions.checkArgument(
           !timestamp.isBefore(windowedValue.getTimestamp().minus(fn.getAllowedTimestampSkew())),
           "Timestamp %s exceeds allowed maximum skew.", timestamp);
-    }
-
-    private boolean equivalentToKV(InputT input) {
-      if (input == null) {
-        return true;
-      } else if (input instanceof KV) {
-        return true;
-      } else if (input instanceof TimerOrElement) {
-        return ((TimerOrElement) input).isTimer()
-            || ((TimerOrElement) input).element() instanceof KV;
-      }
-      return false;
     }
 
     @Override

@@ -61,13 +61,13 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
   public StreamingSideInputDoFnRunner(
       PipelineOptions options,
       DoFnInfo<InputT, OutputT> doFnInfo,
-      PTuple sideInputs,
+      SideInputReader sideInputReader,
       OutputManager<ReceiverT> outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
       CounterSet.AddCounterMutator addCounterMutator) throws Exception {
-    super(options, doFnInfo.getDoFn(), sideInputs, outputManager,
+    super(options, doFnInfo.getDoFn(), sideInputReader, outputManager,
         mainOutputTag, sideOutputTags, stepContext,
         addCounterMutator, doFnInfo.getWindowingStrategy());
     this.stepContext = stepContext;

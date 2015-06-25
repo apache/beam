@@ -70,6 +70,7 @@ public class StreamingSideInputDoFnRunnerTest {
   static TupleTag<String> mainOutputTag = new TupleTag<String>();
   @Mock StreamingModeExecutionContext execContext;
   @Mock ExecutionContext.StepContext stepContext;
+  @Mock SideInputReader mockSideInputReader;
 
   @Before
   public void setUp() {
@@ -87,8 +88,11 @@ public class StreamingSideInputDoFnRunnerTest {
     when(execContext.issueSideInputFetch(
              eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
         .thenReturn(true);
-    when(execContext.getSideInput(eq(view), any(BoundedWindow.class), any(PTuple.class)))
-        .thenReturn("data");
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    Iterable<PCollectionView<?>> anyIterable = (Iterable) any(Iterable.class);
+    when(execContext.getSideInputReaderForViews(anyIterable)).thenReturn(mockSideInputReader);
+    when(mockSideInputReader.contains(eq(view))).thenReturn(true);
+    when(mockSideInputReader.get(eq(view), any(BoundedWindow.class))).thenReturn("data");
 
     StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> runner =
         createRunner(Arrays.asList(view));
@@ -164,8 +168,10 @@ public class StreamingSideInputDoFnRunnerTest {
     when(execContext.issueSideInputFetch(
              eq(view), any(BoundedWindow.class), eq(SideInputState.KNOWN_READY)))
         .thenReturn(true);
-    when(execContext.getSideInput(eq(view), eq(window), any(PTuple.class)))
-        .thenReturn("data");
+    when(execContext.getSideInputReaderForViews(any(Iterable.class)))
+        .thenReturn(mockSideInputReader);
+    when(mockSideInputReader.contains(eq(view))).thenReturn(true);
+    when(mockSideInputReader.get(eq(view), any(BoundedWindow.class))).thenReturn("data");
     when(stepContext.readTagLists(
         Mockito.<Iterable<CodedTupleTag<WindowedValue<String>>>>any()))
         .thenAnswer(readTagListAnswer(Arrays.asList(createDatum("e", 0))));
@@ -224,10 +230,12 @@ public class StreamingSideInputDoFnRunnerTest {
     when(execContext.issueSideInputFetch(
              any(PCollectionView.class), any(BoundedWindow.class), any(SideInputState.class)))
         .thenReturn(true);
-    when(execContext.getSideInput(eq(view1), eq(window), any(PTuple.class)))
-        .thenReturn("data1");
-    when(execContext.getSideInput(eq(view2), eq(window), any(PTuple.class)))
-        .thenReturn("data2");
+    when(execContext.getSideInputReaderForViews(any(Iterable.class)))
+        .thenReturn(mockSideInputReader);
+    when(mockSideInputReader.contains(eq(view1))).thenReturn(true);
+    when(mockSideInputReader.contains(eq(view2))).thenReturn(true);
+    when(mockSideInputReader.get(eq(view1), any(BoundedWindow.class))).thenReturn("data1");
+    when(mockSideInputReader.get(eq(view2), any(BoundedWindow.class))).thenReturn("data2");
     when(stepContext.readTagLists(
         Mockito.<Iterable<CodedTupleTag<WindowedValue<String>>>>any()))
         .thenAnswer(readTagListAnswer(Arrays.asList(createDatum("e1", 0))));
@@ -254,15 +262,10 @@ public class StreamingSideInputDoFnRunnerTest {
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10))),
         (Iterable) views, StringUtf8Coder.of());
 
-    PTuple sideInputs = PTuple.empty();
-    for (PCollectionView<String> view : views) {
-      sideInputs = sideInputs.and(view.getTagInternal(), null);
-    }
-
     return new StreamingSideInputDoFnRunner<String, String, List, IntervalWindow>(
         PipelineOptionsFactory.create(),
         doFnInfo,
-        sideInputs,
+        mockSideInputReader,
         new DoFnRunner.OutputManager<List>() {
           @Override
           public List initialize(TupleTag<?> tag) {

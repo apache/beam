@@ -417,7 +417,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         DoFnRunner.createWithListOutputs(
             PipelineOptionsFactory.create(),
             fn,
-            PTuple.empty(),
+            NullSideInputReader.empty(),
             (TupleTag<KV<String, OutputT>>) (TupleTag) outputTag,
             new ArrayList<TupleTag<?>>(),
             execContext.createStepContext("merge"),

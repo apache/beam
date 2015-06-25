@@ -25,8 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
-import com.google.cloud.dataflow.sdk.util.PTuple;
+import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
@@ -50,7 +49,7 @@ class AssignWindowsParDoFn extends ParDoFnBase {
       PipelineOptions options,
       AssignWindowsDoFn<?, ?> fn,
       String stepName,
-      ExecutionContext executionContext,
+      DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
     return new AssignWindowsParDoFn(options, fn, stepName, executionContext, addCounterMutator);
@@ -69,7 +68,7 @@ class AssignWindowsParDoFn extends ParDoFnBase {
         @Nullable List<SideInputInfo> sideInputInfos,
         @Nullable List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
-        ExecutionContext executionContext,
+        DataflowExecutionContext executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
         StateSampler stateSampler /* ignored */)
             throws Exception {
@@ -113,11 +112,11 @@ class AssignWindowsParDoFn extends ParDoFnBase {
       PipelineOptions options,
       AssignWindowsDoFn<?, ?> fn,
       String stepName,
-      ExecutionContext executionContext,
+      DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
         options,
-        PTuple.empty(),
+        NullSideInputReader.empty(),
         Arrays.asList("output"),
         stepName,
         executionContext,

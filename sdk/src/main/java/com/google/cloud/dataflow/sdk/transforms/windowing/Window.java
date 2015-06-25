@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
-import com.google.cloud.dataflow.sdk.util.PTuple;
+import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -407,7 +407,7 @@ public class Window {
       DirectPipelineRunner.EvaluationContext context) {
     PCollection<T> input = context.getInput(transform);
 
-    DirectModeExecutionContext executionContext = new DirectModeExecutionContext();
+    DirectModeExecutionContext executionContext = DirectModeExecutionContext.create();
 
     TupleTag<T> outputTag = new TupleTag<>();
     DoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(transform.windowingStrategy.getWindowFn());
@@ -415,7 +415,7 @@ public class Window {
         DoFnRunner.createWithListOutputs(
             context.getPipelineOptions(),
             addWindowsDoFn,
-            PTuple.empty(),
+            NullSideInputReader.empty(),
             outputTag,
             new ArrayList<TupleTag<?>>(),
             executionContext.getStepContext(context.getStepName(transform)),

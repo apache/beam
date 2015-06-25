@@ -16,16 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
-import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
@@ -41,7 +35,11 @@ import java.util.Map;
  */
 public class BatchModeExecutionContext extends ExecutionContext {
   private Object key;
-  private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache = new HashMap<>();
+
+  /**
+   * Creates a {@code BatchModeExecutionContext}.
+   */
+  public BatchModeExecutionContext() { }
 
   /**
    * Create a new {@link ExecutionContext.StepContext}.
@@ -70,48 +68,6 @@ public class BatchModeExecutionContext extends ExecutionContext {
   @Override
   public TimerManager getTimerManager() {
     return null;
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public <T> T getSideInput(
-      PCollectionView<T> view, BoundedWindow mainInputWindow, PTuple sideInputs) {
-    TupleTag<Iterable<WindowedValue<?>>> tag = view.getTagInternal();
-    Map<BoundedWindow, Object> tagCache = sideInputCache.get(tag);
-    if (tagCache == null) {
-      if (!sideInputs.has(tag)) {
-        throw new IllegalArgumentException(
-            "calling sideInput() with unknown view; did you forget to pass the view in "
-            + "ParDo.withSideInputs()?");
-      }
-      tagCache = new HashMap<>();
-      sideInputCache.put(tag, tagCache);
-    }
-
-    final BoundedWindow sideInputWindow =
-        view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
-
-    // tagCache stores values in a type-safe way based on the TupleTag.
-    T result = (T) tagCache.get(sideInputWindow);
-
-    // TODO: Consider partial prefetching like in CoGBK to reduce iteration cost.
-    if (result == null) {
-      if (view.getWindowingStrategyInternal().getWindowFn() instanceof GlobalWindows) {
-        result = view.fromIterableInternal(sideInputs.get(tag));
-      } else {
-        result = view.fromIterableInternal(
-            Iterables.filter(sideInputs.get(tag),
-                new Predicate<WindowedValue<?>>() {
-                  @Override
-                  public boolean apply(WindowedValue<?> element) {
-                    return element.getWindows().contains(sideInputWindow);
-                  }
-                }));
-      }
-      tagCache.put(sideInputWindow, result);
-    }
-
-    return result;
   }
 
   /**

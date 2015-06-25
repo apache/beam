@@ -32,7 +32,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Context about the current execution.  This is guaranteed to exist during processing,
+ * Context for the current execution. This is guaranteed to exist during processing,
  * but does not necessarily persist between different batches of work.
  */
 public abstract class ExecutionContext {
@@ -81,13 +81,6 @@ public abstract class ExecutionContext {
    * is called.
    */
   public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {}
-
-  /**
-   * Returns the side input associated with the given view and window, given the set of side
-   * inputs available.
-   */
-  public abstract <T> T getSideInput(
-      PCollectionView<T> view, BoundedWindow mainInputWindow, PTuple sideInputs);
 
   /**
    * Writes the given {@link PCollectionView} data to a globally accessible location.

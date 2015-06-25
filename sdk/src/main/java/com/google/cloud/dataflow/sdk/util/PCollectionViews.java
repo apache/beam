@@ -22,11 +22,11 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValueBase;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 
 /**
  * Implementations of {@link PCollectionView} shared across the SDK.
@@ -252,7 +253,7 @@ public class PCollectionViews {
     private static final long serialVersionUID = 0L;
 
     /** A unique tag for the view, typed according to the elements underlying the view. */
-    private TupleTag<Iterable<WindowedValue<ElemT>>> tag = new TupleTag<>();
+    private TupleTag<Iterable<WindowedValue<ElemT>>> tag;
 
     /** The windowing strategy for the PCollection underlying the view. */
     private WindowingStrategy<?, W> windowingStrategy;
@@ -272,16 +273,29 @@ public class PCollectionViews {
      */
     protected PCollectionViewBase(
         Pipeline pipeline,
+        TupleTag<Iterable<WindowedValue<ElemT>>> tag,
         WindowingStrategy<?, W> windowingStrategy,
         Coder<ElemT> valueCoder) {
       super(pipeline);
       if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
         throw new IllegalArgumentException("WindowFn of PCollectionView cannot be InvalidWindows");
       }
+      this.tag = tag;
       this.windowingStrategy = windowingStrategy;
       this.coder =
           IterableCoder.of(WindowedValue.getFullCoder(
               valueCoder, windowingStrategy.getWindowFn().windowCoder()));
+    }
+
+    /**
+     * Call this constructor to initialize the fields for which this base class provides
+     * boilerplate accessors, with an auto-generated tag.
+     */
+    protected PCollectionViewBase(
+        Pipeline pipeline,
+        WindowingStrategy<?, W> windowingStrategy,
+        Coder<ElemT> valueCoder) {
+      this(pipeline, new TupleTag<Iterable<WindowedValue<ElemT>>>(), windowingStrategy, valueCoder);
     }
 
     /**
@@ -335,6 +349,26 @@ public class PCollectionViews {
       @SuppressWarnings({"rawtypes", "unchecked"})
       Coder<Iterable<WindowedValue<?>>> untypedCoder = (Coder) coder;
       return untypedCoder;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(tag);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof PCollectionView) || other == null) {
+        return false;
+      }
+      @SuppressWarnings("unchecked")
+      PCollectionView<?> otherView = (PCollectionView<?>) other;
+      return tag.equals(otherView.getTagInternal());
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this).add("tag", tag).toString();
     }
   }
 }

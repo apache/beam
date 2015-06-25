@@ -26,8 +26,7 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
-import com.google.cloud.dataflow.sdk.util.PTuple;
+import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -66,7 +65,7 @@ class CombineValuesFn extends ParDoFnBase {
       Combine.KeyedCombineFn<?, ?, ?, ?> combineFn,
       String phase,
       String stepName,
-      ExecutionContext executionContext,
+      DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
     return new CombineValuesFn(
@@ -86,7 +85,7 @@ class CombineValuesFn extends ParDoFnBase {
         @Nullable List<SideInputInfo> sideInputInfos,
         @Nullable List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
-        ExecutionContext executionContext,
+        DataflowExecutionContext executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
         StateSampler stateSampler)
             throws Exception {
@@ -151,11 +150,11 @@ class CombineValuesFn extends ParDoFnBase {
       Combine.KeyedCombineFn<?, ?, ?, ?> combineFn,
       String phase,
       String stepName,
-      ExecutionContext executionContext,
+      DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
         options,
-        PTuple.empty(),
+        NullSideInputReader.empty(),
         Arrays.asList("output"),
         stepName,
         executionContext,

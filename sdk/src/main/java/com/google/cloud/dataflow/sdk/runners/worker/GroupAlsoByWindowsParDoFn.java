@@ -31,9 +31,8 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
-import com.google.cloud.dataflow.sdk.util.PTuple;
+import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.Serializer;
@@ -63,7 +62,7 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
       PipelineOptions options,
       DoFn<?, ?> groupAlsoByWindowsDoFn,
       String stepName,
-      ExecutionContext executionContext,
+      DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
     return new GroupAlsoByWindowsParDoFn(
@@ -83,7 +82,7 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
         @Nullable List<SideInputInfo> sideInputInfos,
         @Nullable List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
-        ExecutionContext executionContext,
+        DataflowExecutionContext executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
         StateSampler stateSampler)
             throws Exception {
@@ -238,11 +237,11 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
       PipelineOptions options,
       DoFn<?, ?> groupAlsoByWindowsDoFn,
       String stepName,
-      ExecutionContext executionContext,
+      DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
         options,
-        PTuple.empty(),
+        NullSideInputReader.empty(),
         Arrays.asList("output"),
         stepName,
         executionContext,

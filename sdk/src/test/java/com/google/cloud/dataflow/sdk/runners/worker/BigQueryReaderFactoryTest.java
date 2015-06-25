@@ -21,8 +21,8 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import org.hamcrest.core.IsInstanceOf;
@@ -48,7 +48,7 @@ public class BigQueryReaderFactoryTest {
     cloudSource.setCodec(encoding);
 
     Reader<?> reader = ReaderFactory.create(
-        PipelineOptionsFactory.create(), cloudSource, new BatchModeExecutionContext());
+        PipelineOptionsFactory.create(), cloudSource, DirectModeExecutionContext.create());
     Assert.assertThat(reader, new IsInstanceOf(BigQueryReader.class));
     BigQueryReader bigQueryReader = (BigQueryReader) reader;
     Assert.assertEquals(project, bigQueryReader.tableRef.getProjectId());

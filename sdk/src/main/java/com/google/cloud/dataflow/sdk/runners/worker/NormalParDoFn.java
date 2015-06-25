@@ -25,14 +25,15 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
-import com.google.cloud.dataflow.sdk.util.PTuple;
+import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
+import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.collect.Iterables;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,16 +50,16 @@ class NormalParDoFn extends ParDoFnBase {
    */
   static NormalParDoFn of(
       PipelineOptions options,
-      DoFnInfo doFnInfo,
-      PTuple sideInputValues,
+      DoFnInfo<?, ?> doFnInfo,
+      SideInputReader sideInputReader,
       List<String> outputTags,
       String stepName,
-      ExecutionContext executionContext,
+      DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     return new NormalParDoFn(
         options,
         doFnInfo,
-        sideInputValues,
+        sideInputReader,
         outputTags,
         stepName,
         executionContext,
@@ -78,11 +79,10 @@ class NormalParDoFn extends ParDoFnBase {
         @Nullable List<SideInputInfo> sideInputInfos,
         @Nullable List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
-        ExecutionContext executionContext,
+        DataflowExecutionContext executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
         StateSampler stateSampler /* ignored */)
             throws Exception {
-
       Object deserializedFnInfo =
           SerializableUtils.deserializeFromByteArray(
               getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
@@ -93,21 +93,25 @@ class NormalParDoFn extends ParDoFnBase {
       }
       DoFnInfo<?, ?> doFnInfo = (DoFnInfo<?, ?>) deserializedFnInfo;
 
-      // If the side input data has already been computed, it will be in sideInputInfo.  Otherwise,
-      // we need to look it up dynamically from the Views.
-      PTuple sideInputValues = PTuple.empty();
+      // If side input source metadata is provided by the service in sideInputInfos, we request
+      // a SideInputReader from the executionContext using that info.
+      //
+      // If no side input source metadata is provided but the DoFn expects side inputs, as a
+      // fallback, we request a SideInputReader based only on the expected views.
+      //
+      // These cases are not disjoint: Whenever a DoFn takes side inputs,
+      // doFnInfo.getSideInputViews() should be non-empty.
+      //
+      // A note on the behavior of the Dataflow service: Today, the first case corresponds to
+      // batch mode, while the fallback corresponds to streaming mode.
+      SideInputReader sideInputReader;
       final Iterable<PCollectionView<?>> sideInputViews = doFnInfo.getSideInputViews();
       if (sideInputInfos != null && !sideInputInfos.isEmpty()) {
-        for (SideInputInfo sideInputInfo : sideInputInfos) {
-          Object sideInputValue = SideInputUtils.readSideInput(
-              options, sideInputInfo, executionContext);
-          TupleTag<Object> tag = new TupleTag<>(sideInputInfo.getTag());
-          sideInputValues = sideInputValues.and(tag, sideInputValue);
-        }
-      } else if (sideInputViews != null) {
-        for (PCollectionView<?> view : sideInputViews) {
-          sideInputValues = sideInputValues.and(view.getTagInternal(), null);
-        }
+        sideInputReader = executionContext.getSideInputReader(sideInputInfos);
+      } else if (sideInputViews != null && Iterables.size(sideInputViews) > 0) {
+        sideInputReader = executionContext.getSideInputReaderForViews(sideInputViews);
+      } else {
+        sideInputReader = NullSideInputReader.empty();
       }
 
       List<String> outputTags = new ArrayList<>();
@@ -129,7 +133,7 @@ class NormalParDoFn extends ParDoFnBase {
       return NormalParDoFn.of(
           options,
           doFnInfo,
-          sideInputValues,
+          sideInputReader,
           outputTags,
           stepName,
           executionContext,
@@ -143,12 +147,12 @@ class NormalParDoFn extends ParDoFnBase {
   private NormalParDoFn(
       PipelineOptions options,
       DoFnInfo<?, ?> doFnInfo,
-      PTuple sideInputValues,
+      SideInputReader sideInputReader,
       List<String> outputTags,
       String stepName,
       ExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
-    super(options, sideInputValues, outputTags, stepName, executionContext, addCounterMutator);
+    super(options, sideInputReader, outputTags, stepName, executionContext, addCounterMutator);
     // The userDoFn is serialized because a fresh copy is provided each time it is accessed.
     this.serializedDoFn = SerializableUtils.serializeToByteArray(doFnInfo.getDoFn());
     this.doFnInfo = doFnInfo;
@@ -157,6 +161,7 @@ class NormalParDoFn extends ParDoFnBase {
   /**
    * Produces a fresh {@link DoFnInfo} containing the user's {@link DoFn}.
    */
+  @Override
   protected DoFnInfo getDoFnInfo() {
     // This class write the serialized data in its own constructor, as a way of doing
     // a deep copy.

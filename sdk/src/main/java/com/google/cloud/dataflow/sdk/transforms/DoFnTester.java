@@ -18,7 +18,8 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
+import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
+import com.google.cloud.dataflow.sdk.util.DirectSideInputReader;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
@@ -360,10 +361,10 @@ public class DoFnTester<InputT, OutputT> {
     fnRunner = DoFnRunner.createWithListOutputs(
         options,
         fn,
-        runnerSideInputs,
+        DirectSideInputReader.of(runnerSideInputs),
         mainOutputTag,
         sideOutputTags,
-        (new BatchModeExecutionContext()).createStepContext("stepName"),
+        DirectModeExecutionContext.create().createStepContext("stepName"),
         counterSet.getAddCounterMutator(),
         WindowingStrategy.globalDefault());
   }

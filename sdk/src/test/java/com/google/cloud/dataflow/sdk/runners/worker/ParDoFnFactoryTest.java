@@ -27,7 +27,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
@@ -89,7 +88,7 @@ public class ParDoFnFactoryTest {
     List<MultiOutputInfo> multiOutputInfos =
         Arrays.asList(multiOutputInfo);
 
-    BatchModeExecutionContext context = new BatchModeExecutionContext();
+    DataflowExecutionContext context = DataflowExecutionContext.withoutSideInputs();
     CounterSet counters = new CounterSet();
     StateSampler stateSampler = new StateSampler(
         "test", counters.getAddCounterMutator());
@@ -140,7 +139,7 @@ public class ParDoFnFactoryTest {
           null,
           null,
           1,
-          new BatchModeExecutionContext(),
+          DataflowExecutionContext.withoutSideInputs(),
           counters.getAddCounterMutator(),
           stateSampler);
       fail("should have thrown an exception");

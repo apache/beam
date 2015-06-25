@@ -29,8 +29,9 @@ import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
+import com.google.cloud.dataflow.sdk.util.DirectSideInputReader;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
+import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -155,10 +156,10 @@ public class NormalParDoFnTest {
     NormalParDoFn normalParDoFn = NormalParDoFn.of(
         PipelineOptionsFactory.create(),
         fnInfo,
-        sideInputValues,
+        DirectSideInputReader.of(sideInputValues),
         outputTags,
         "doFn",
-        new BatchModeExecutionContext(),
+        DataflowExecutionContext.withoutSideInputs(),
         (new CounterSet()).getAddCounterMutator());
 
     normalParDoFn.startBundle(receiver, receiver1, receiver2, receiver3);
@@ -217,10 +218,10 @@ public class NormalParDoFnTest {
     NormalParDoFn normalParDoFn = NormalParDoFn.of(
         PipelineOptionsFactory.create(),
         fnInfo,
-        sideInputValues,
+        DirectSideInputReader.of(sideInputValues),
         outputTags,
         "doFn",
-        new BatchModeExecutionContext(),
+        DataflowExecutionContext.withoutSideInputs(),
         (new CounterSet()).getAddCounterMutator());
 
     try {
@@ -259,10 +260,10 @@ public class NormalParDoFnTest {
     NormalParDoFn normalParDoFn = NormalParDoFn.of(
         PipelineOptionsFactory.create(),
         fnInfo,
-        sideInputValues,
+        DirectSideInputReader.of(sideInputValues),
         outputTags,
         "doFn",
-        new BatchModeExecutionContext(),
+        DataflowExecutionContext.withoutSideInputs(),
         (new CounterSet()).getAddCounterMutator());
 
     try {
@@ -327,10 +328,10 @@ public class NormalParDoFnTest {
     NormalParDoFn normalParDoFn = NormalParDoFn.of(
         PipelineOptionsFactory.create(),
         fnInfo,
-        PTuple.empty(),
+        NullSideInputReader.empty(),
         Arrays.asList("output", "declared"),
         "doFn",
-        new BatchModeExecutionContext(),
+        DataflowExecutionContext.withoutSideInputs(),
         counters.getAddCounterMutator());
 
     normalParDoFn.startBundle(new TestReceiver(), new TestReceiver());

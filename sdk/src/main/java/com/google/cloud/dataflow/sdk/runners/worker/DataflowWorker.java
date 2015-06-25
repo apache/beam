@@ -22,17 +22,20 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 
 import com.google.api.services.dataflow.model.MetricUpdate;
+import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
-import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
 import com.google.cloud.dataflow.sdk.util.CloudMetricUtils;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.PCollectionViewWindow;
+import com.google.cloud.dataflow.sdk.util.SideInputReader;
+import com.google.cloud.dataflow.sdk.util.Sized;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -40,7 +43,9 @@ import com.google.cloud.dataflow.sdk.util.common.Metric;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
-
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,9 +80,27 @@ public class DataflowWorker {
    */
   private final DataflowWorkerHarnessOptions options;
 
+  /**
+   * A side input cache shared between all execution contexts.
+   */
+  private final Cache<PCollectionViewWindow<?>, Sized<Object>> sideInputCache;
+
+  /**
+   * A weight in "bytes" for the overhead of a {@link Sized} wrapper in the cache. It is just an
+   * approximation so it is OK for it to be fairly arbitrary as long as it is nonzero.
+   */
+  private static final int OVERHEAD_WEIGHT = 8;
+
+  private static final int MEGABYTES = 1024 * 1024;
+
   public DataflowWorker(WorkUnitClient workUnitClient, DataflowWorkerHarnessOptions options) {
     this.workUnitClient = workUnitClient;
     this.options = options;
+    this.sideInputCache = CacheBuilder.newBuilder()
+        .maximumWeight(options.getWorkerCacheMb() * MEGABYTES) // weights are in bytes
+        .weigher(new SizedWeigher<PCollectionViewWindow<?>, Object>(OVERHEAD_WEIGHT))
+        .softValues()
+        .build();
   }
 
   /**
@@ -109,7 +132,8 @@ public class DataflowWorker {
       // Populate PipelineOptions with data from work unit.
       options.setProject(workItem.getProjectId());
 
-      ExecutionContext executionContext = new BatchModeExecutionContext();
+      DataflowExecutionContext executionContext =
+          new DataflowWorkerExecutionContext(sideInputCache, options);
 
       if (workItem.getMapTask() != null) {
         worker = MapTaskExecutorFactory.create(options, workItem.getMapTask(), executionContext);
@@ -311,5 +335,38 @@ public class DataflowWorker {
      */
     public abstract WorkItemServiceState reportWorkItemStatus(WorkItemStatus workItemStatus)
         throws IOException;
+  }
+
+  /**
+   * A {@link DataflowExecutionContext} that provides a caching side input reader using
+   * the worker's shared cache.
+   */
+  private static class DataflowWorkerExecutionContext extends DataflowExecutionContext {
+
+    private final Cache<PCollectionViewWindow<?>, Sized<Object>> cache;
+    private final PipelineOptions options;
+
+    public DataflowWorkerExecutionContext(
+        Cache<PCollectionViewWindow<?>, Sized<Object>> cache, PipelineOptions options) {
+      this.cache = cache;
+      this.options = options;
+    }
+
+    @Override
+    public SideInputReader getSideInputReader(Iterable<? extends SideInputInfo> sideInputInfos)
+      throws Exception {
+      return CachingSideInputReader.of(
+          DataflowSideInputReader.of(sideInputInfos, options, this),
+          cache);
+    }
+
+    @Override
+    public SideInputReader getSideInputReaderForViews(
+        Iterable<? extends PCollectionView<?>> sideInputViews) {
+      throw new UnsupportedOperationException(
+        "Cannot call getSideInputReaderForViews for batch DataflowWorker: "
+        + "the MapTask specification should have had SideInputInfo descriptors "
+        + "for each side input, and a SideInputReader provided via getSideInputReader");
+    }
   }
 }

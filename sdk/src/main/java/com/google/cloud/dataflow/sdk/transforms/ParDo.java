@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
+import com.google.cloud.dataflow.sdk.util.DirectSideInputReader;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
@@ -1006,13 +1007,17 @@ public class ParDo {
       DirectPipelineRunner.EvaluationContext context) {
     TupleTag<OutputT> mainOutputTag = new TupleTag<>("out");
 
-    DirectModeExecutionContext executionContext = new DirectModeExecutionContext();
+    DirectModeExecutionContext executionContext = DirectModeExecutionContext.create();
 
-    DoFnRunner<InputT, OutputT, List> fnRunner =
-        evaluateHelper(transform.fn, context.getStepName(transform),
-            context.getInput(transform), transform.sideInputs,
-            mainOutputTag, new ArrayList<TupleTag<?>>(),
-            context, executionContext);
+    evaluateHelper(
+        transform.fn,
+        context.getStepName(transform),
+        context.getInput(transform),
+        transform.sideInputs,
+        mainOutputTag,
+        new ArrayList<TupleTag<?>>(),
+        context,
+        executionContext);
 
     context.setPCollectionValuesWithMetadata(
         context.getOutput(transform),
@@ -1038,13 +1043,17 @@ public class ParDo {
       BoundMulti<InputT, OutputT> transform,
       DirectPipelineRunner.EvaluationContext context) {
 
-    DirectModeExecutionContext executionContext = new DirectModeExecutionContext();
+    DirectModeExecutionContext executionContext = DirectModeExecutionContext.create();
 
-    DoFnRunner<InputT, OutputT, List> fnRunner =
-        evaluateHelper(transform.fn, context.getStepName(transform),
-                       context.getInput(transform), transform.sideInputs,
-                       transform.mainOutputTag, transform.sideOutputTags.getAll(),
-                       context, executionContext);
+    evaluateHelper(
+        transform.fn,
+        context.getStepName(transform),
+        context.getInput(transform),
+        transform.sideInputs,
+        transform.mainOutputTag,
+        transform.sideOutputTags.getAll(),
+        context,
+        executionContext);
 
     for (Map.Entry<TupleTag<?>, PCollection<?>> entry
         : context.getOutput(transform).getAll().entrySet()) {
@@ -1060,7 +1069,7 @@ public class ParDo {
     }
   }
 
-  private static <InputT, OutputT> DoFnRunner<InputT, OutputT, List> evaluateHelper(
+  private static <InputT, OutputT> void evaluateHelper(
       DoFn<InputT, OutputT> doFn,
       String name,
       PCollection<? extends InputT> input,
@@ -1083,7 +1092,7 @@ public class ParDo {
         DoFnRunner.createWithListOutputs(
             context.getPipelineOptions(),
             fn,
-            sideInputValues,
+            DirectSideInputReader.of(sideInputValues),
             mainOutputTag,
             sideOutputTags,
             executionContext.getStepContext(name),
@@ -1105,7 +1114,5 @@ public class ParDo {
     }
 
     fnRunner.finishBundle();
-
-    return fnRunner;
   }
 }

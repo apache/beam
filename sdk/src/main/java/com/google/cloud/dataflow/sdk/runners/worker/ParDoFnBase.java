@@ -25,7 +25,7 @@ import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner.OutputManager;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
-import com.google.cloud.dataflow.sdk.util.PTuple;
+import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.StreamingSideInputDoFnRunner;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -51,7 +51,7 @@ import java.util.Map;
 public abstract class ParDoFnBase extends ParDoFn {
 
   private final PipelineOptions options;
-  private final PTuple sideInputValues;
+  private final SideInputReader sideInputReader;
   private final TupleTag<Object> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
   private final String stepName;
@@ -70,7 +70,7 @@ public abstract class ParDoFnBase extends ParDoFn {
    */
   protected ParDoFnBase(
       PipelineOptions options,
-      PTuple sideInputValues,
+      SideInputReader sideInputReader,
       List<String> outputTags,
       String stepName,
       ExecutionContext executionContext,
@@ -78,7 +78,7 @@ public abstract class ParDoFnBase extends ParDoFn {
     this.options = options;
 
     // We vend a freshly deserialized version for each run
-    this.sideInputValues = sideInputValues;
+    this.sideInputReader = sideInputReader;
     Preconditions.checkArgument(
       outputTags.size() > 0,
       "expected at least one output");
@@ -156,11 +156,11 @@ public abstract class ParDoFnBase extends ParDoFn {
       }
     };
 
-    if (options.as(StreamingOptions.class).isStreaming() && !sideInputValues.getAll().isEmpty()) {
+    if (options.as(StreamingOptions.class).isStreaming() && !sideInputReader.isEmpty()) {
       fnRunner = new StreamingSideInputDoFnRunner<Object, Object, Receiver, BoundedWindow>(
           options,
           doFnInfo,
-          sideInputValues,
+          sideInputReader,
           outputManager,
           mainOutputTag,
           sideOutputTags,
@@ -170,7 +170,7 @@ public abstract class ParDoFnBase extends ParDoFn {
       fnRunner = DoFnRunner.create(
           options,
           doFnInfo.getDoFn(),
-          sideInputValues,
+          sideInputReader,
           outputManager,
           mainOutputTag,
           sideOutputTags,

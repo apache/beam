@@ -29,7 +29,6 @@ import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.DeterministicStandardCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
-import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -202,7 +201,7 @@ public class CombineValuesFnTest {
             null, // no side inputs
             null, // no side outputs
             1, // single main output
-            new BatchModeExecutionContext(),
+            DataflowExecutionContext.withoutSideInputs(),
             (new CounterSet()).getAddCounterMutator(),
             null);
   }

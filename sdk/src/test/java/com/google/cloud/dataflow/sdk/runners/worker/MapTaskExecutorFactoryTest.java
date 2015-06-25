@@ -44,7 +44,6 @@ import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSink;
 import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSinkFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
-import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -93,7 +92,9 @@ public class MapTaskExecutorFactoryTest {
     CounterSet counterSet = null;
     try (
         MapTaskExecutor executor = MapTaskExecutorFactory.create(
-            PipelineOptionsFactory.create(), mapTask, new BatchModeExecutionContext())) {
+            PipelineOptionsFactory.create(),
+            mapTask,
+            DataflowExecutionContext.withoutSideInputs())) {
       // Safe covariant cast not expressible without rawtypes.
       @SuppressWarnings({"rawtypes", "unchecked"})
       List<Object> operations = (List) executor.operations;
@@ -151,7 +152,7 @@ public class MapTaskExecutorFactoryTest {
     MapTask mapTask = new MapTask();
     mapTask.setInstructions(instructions);
 
-    BatchModeExecutionContext context = new BatchModeExecutionContext();
+    DataflowExecutionContext context = DataflowExecutionContext.withoutSideInputs();
 
     try (MapTaskExecutor executor =
         MapTaskExecutorFactory.create(PipelineOptionsFactory.create(), mapTask, context)) {
@@ -193,7 +194,7 @@ public class MapTaskExecutorFactoryTest {
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
-        createReadInstruction("Read"), new BatchModeExecutionContext(),
+        createReadInstruction("Read"), DataflowExecutionContext.withoutSideInputs(),
         Collections.<Operation>emptyList(), counterPrefix, counterSet.getAddCounterMutator(),
         stateSampler);
     assertThat(operation, instanceOf(ReadOperation.class));
@@ -255,7 +256,7 @@ public class MapTaskExecutorFactoryTest {
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
-        instruction, new BatchModeExecutionContext(), priorOperations, counterPrefix,
+        instruction, DataflowExecutionContext.withoutSideInputs(), priorOperations, counterPrefix,
         counterSet.getAddCounterMutator(), stateSampler);
     assertThat(operation, instanceOf(WriteOperation.class));
     WriteOperation writeOperation = (WriteOperation) operation;
@@ -330,7 +331,7 @@ public class MapTaskExecutorFactoryTest {
     ParallelInstruction instruction =
         createParDoInstruction(producerIndex, producerOutputNum, "DoFn");
 
-    BatchModeExecutionContext context = new BatchModeExecutionContext();
+    DataflowExecutionContext context = DataflowExecutionContext.withoutSideInputs();
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
@@ -398,7 +399,7 @@ public class MapTaskExecutorFactoryTest {
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
-        instruction, new BatchModeExecutionContext(), priorOperations, counterPrefix,
+        instruction, DataflowExecutionContext.withoutSideInputs(), priorOperations, counterPrefix,
         counterSet.getAddCounterMutator(), stateSampler);
     assertThat(operation, instanceOf(PartialGroupByKeyOperation.class));
     PartialGroupByKeyOperation pgbkOperation = (PartialGroupByKeyOperation) operation;
@@ -458,7 +459,7 @@ public class MapTaskExecutorFactoryTest {
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
-        instruction, new BatchModeExecutionContext(), priorOperations, counterPrefix,
+        instruction, DataflowExecutionContext.withoutSideInputs(), priorOperations, counterPrefix,
         counterSet.getAddCounterMutator(), stateSampler);
     assertThat(operation, instanceOf(FlattenOperation.class));
     FlattenOperation flattenOperation = (FlattenOperation) operation;

@@ -74,7 +74,7 @@ public class MapTaskExecutorFactory {
    * Creates a new MapTaskExecutor from the given MapTask definition.
    */
   public static MapTaskExecutor create(
-      PipelineOptions options, MapTask mapTask, ExecutionContext context) throws Exception {
+      PipelineOptions options, MapTask mapTask, DataflowExecutionContext context) throws Exception {
     List<Operation> operations = new ArrayList<>();
     CounterSet counters = new CounterSet();
     String counterPrefix = mapTask.getStageName() + "-";
@@ -94,9 +94,15 @@ public class MapTaskExecutorFactory {
   /**
    * Creates an Operation from the given ParallelInstruction definition.
    */
-  static Operation createOperation(PipelineOptions options, ParallelInstruction instruction,
-      ExecutionContext executionContext, List<Operation> priorOperations, String counterPrefix,
-      CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) throws Exception {
+  static Operation createOperation(
+      PipelineOptions options,
+      ParallelInstruction instruction,
+      DataflowExecutionContext executionContext,
+      List<Operation> priorOperations,
+      String counterPrefix,
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler)
+      throws Exception {
     if (instruction.getRead() != null) {
       return createReadOperation(options, instruction, executionContext, priorOperations,
           counterPrefix, addCounterMutator, stateSampler);
@@ -117,9 +123,15 @@ public class MapTaskExecutorFactory {
     }
   }
 
-  static ReadOperation createReadOperation(PipelineOptions options, ParallelInstruction instruction,
-      ExecutionContext executionContext, List<Operation> priorOperations, String counterPrefix,
-      CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) throws Exception {
+  static ReadOperation createReadOperation(
+      PipelineOptions options,
+      ParallelInstruction instruction,
+      DataflowExecutionContext executionContext,
+      List<Operation> priorOperations,
+      String counterPrefix,
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler)
+      throws Exception {
     ReadInstruction read = instruction.getRead();
 
     Reader<?> reader = ReaderFactory.create(options, read.getSource(), executionContext);
@@ -152,10 +164,15 @@ public class MapTaskExecutorFactory {
 
   private static ParDoFnFactory parDoFnFactory = new ParDoFnFactory.DefaultFactory();
 
-  static ParDoOperation createParDoOperation(PipelineOptions options,
-      ParallelInstruction instruction, ExecutionContext executionContext,
-      List<Operation> priorOperations, String counterPrefix,
-      CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) throws Exception {
+  static ParDoOperation createParDoOperation(
+      PipelineOptions options,
+      ParallelInstruction instruction,
+      DataflowExecutionContext executionContext,
+      List<Operation> priorOperations,
+      String counterPrefix,
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler)
+      throws Exception {
     ParDoInstruction parDo = instruction.getParDo();
 
     ParDoFn fn = parDoFnFactory.create(

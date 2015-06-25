@@ -16,7 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.runners.worker.DataflowExecutionContext;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
@@ -28,6 +30,7 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
+import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.ByteString;
 
 import org.joda.time.Instant;
@@ -37,12 +40,13 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
  * {@link ExecutionContext} for use in streaming mode.
  */
-public class StreamingModeExecutionContext extends ExecutionContext {
+public class StreamingModeExecutionContext extends DataflowExecutionContext {
   private String computation;
   private Instant inputDataWatermark;
   private Windmill.WorkItem work;
@@ -113,16 +117,16 @@ public class StreamingModeExecutionContext extends ExecutionContext {
   }
 
   @Override
-  public <T> T getSideInput(
-      PCollectionView<T> view, BoundedWindow mainInputWindow, PTuple sideInputs) {
-    if (!sideInputs.has(view.getTagInternal())) {
-      throw new IllegalArgumentException(
-          "calling sideInput() with unknown view; " +
-          "did you forget to pass the view in " +
-          "ParDo.withSideInputs()?");
-    }
+  public SideInputReader getSideInputReader(Iterable<? extends SideInputInfo> sideInputInfos) {
+    throw new UnsupportedOperationException(
+        "Cannot call getSideInputReader for StreamingDataflowWorker: "
+        + "the MapTask specification should not have had any SideInputInfo descriptors "
+        + "since the streaming runner does not yet support them.");
+  }
 
-    return fetchSideInput(view, mainInputWindow, SideInputState.CACHED_IN_WORKITEM);
+  @Override
+  public SideInputReader getSideInputReaderForViews(Iterable<? extends PCollectionView<?>> views) {
+    return StreamingModeSideInputReader.of(views, this);
   }
 
   /**
@@ -130,7 +134,9 @@ public class StreamingModeExecutionContext extends ExecutionContext {
    */
   public boolean issueSideInputFetch(
       PCollectionView<?> view, BoundedWindow mainInputWindow, SideInputState state) {
-    return fetchSideInput(view, mainInputWindow, state) != null;
+    BoundedWindow sideInputWindow =
+        view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
+    return fetchSideInput(view, sideInputWindow, state) != null;
   }
 
   /**
@@ -138,9 +144,7 @@ public class StreamingModeExecutionContext extends ExecutionContext {
    * items until the active work item is finished.
    */
   private <T> T fetchSideInput(
-      PCollectionView<T> view, BoundedWindow mainInputWindow, SideInputState state) {
-    BoundedWindow sideInputWindow =
-        view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
+      PCollectionView<T> view, BoundedWindow sideInputWindow, SideInputState state) {
 
     Map<BoundedWindow, Object> tagCache = sideInputCache.get(view.getTagInternal());
     if (tagCache == null) {
@@ -341,6 +345,45 @@ public class StreamingModeExecutionContext extends ExecutionContext {
 
     public void flushState() throws IOException {
       tagCache.flushTo(outputBuilder);
+    }
+  }
+
+  /**
+   * A {@link SideInputReader} that fetches side inputs from the streaming worker's
+   * cache.
+   */
+  public static class StreamingModeSideInputReader implements SideInputReader {
+    private StreamingModeExecutionContext context;
+    private Set<PCollectionView<?>> viewSet;
+
+    private StreamingModeSideInputReader(
+        Iterable<? extends PCollectionView<?>> views, StreamingModeExecutionContext context) {
+      this.context = context;
+      this.viewSet = ImmutableSet.copyOf(views);
+    }
+
+    public static StreamingModeSideInputReader of(
+        Iterable<? extends PCollectionView<?>> views, StreamingModeExecutionContext context) {
+      return new StreamingModeSideInputReader(views, context);
+    }
+
+    @Override
+    public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+      if (!contains(view)) {
+        throw new RuntimeException("get() called with unknown view");
+      }
+
+      return context.fetchSideInput(view, window, SideInputState.CACHED_IN_WORKITEM);
+    }
+
+    @Override
+    public <T> boolean contains(PCollectionView<T> view) {
+      return viewSet.contains(view);
+    }
+
+    @Override
+    public boolean isEmpty() {
+      return viewSet.isEmpty();
     }
   }
 }

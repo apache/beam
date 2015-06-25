@@ -20,7 +20,6 @@ import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
@@ -45,7 +44,7 @@ public interface ParDoFnFactory {
       List<SideInputInfo> sideInputInfos,
       List<MultiOutputInfo> multiOutputInfos,
       int numOutputs,
-      ExecutionContext executionContext,
+      DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler)
       throws Exception;
@@ -76,7 +75,7 @@ public interface ParDoFnFactory {
         List<SideInputInfo> sideInputInfos,
         List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
-        ExecutionContext executionContext,
+        DataflowExecutionContext executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
         StateSampler stateSampler)
             throws Exception {

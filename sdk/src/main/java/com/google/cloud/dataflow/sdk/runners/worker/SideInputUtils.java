@@ -21,15 +21,18 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Observer;
 
 /**
  * Utilities for working with side inputs.
@@ -41,33 +44,61 @@ public class SideInputUtils {
   /**
    * Reads the given side input, producing the contents associated
    * with a a {@link PCollectionView}.
+   *
+   * @throws Exception anything thrown by the delegate {@link Reader}
    */
-  public static Object readSideInput(PipelineOptions options, SideInputInfo sideInputInfo,
-      ExecutionContext executionContext) throws Exception {
+  public static Object readSideInput(
+      PipelineOptions options,
+      SideInputInfo sideInputInfo,
+      Observer observer,
+      ExecutionContext executionContext)
+      throws Exception {
     Iterable<Object> elements =
-        readSideInputSources(options, sideInputInfo.getSources(), executionContext);
+        readSideInputSources(options, sideInputInfo.getSources(), observer, executionContext);
     return readSideInputValue(sideInputInfo.getKind(), elements);
   }
 
-  static Iterable<Object> readSideInputSources(PipelineOptions options,
-      List<Source> sideInputSources, ExecutionContext executionContext) throws Exception {
+  public static Object readSideInput(
+      PipelineOptions options,
+      SideInputInfo sideInputInfo,
+      ExecutionContext executionContext)
+      throws Exception {
+    Iterable<Object> elements =
+        readSideInputSources(options, sideInputInfo.getSources(), null, executionContext);
+    return readSideInputValue(sideInputInfo.getKind(), elements);
+  }
+
+  private static Iterable<Object> readSideInputSources(
+      PipelineOptions options,
+      List<Source> sideInputSources,
+      Observer observer,
+      ExecutionContext executionContext)
+      throws Exception {
     int numSideInputSources = sideInputSources.size();
     if (numSideInputSources == 0) {
       throw new Exception("expecting at least one side input Source");
     } else if (numSideInputSources == 1) {
-      return readSideInputSource(options, sideInputSources.get(0), executionContext);
+      return readSideInputSource(options, sideInputSources.get(0), observer, executionContext);
     } else {
       List<Iterable<Object>> shards = new ArrayList<>();
       for (Source sideInputSource : sideInputSources) {
-        shards.add(readSideInputSource(options, sideInputSource, executionContext));
+        shards.add(readSideInputSource(options, sideInputSource, observer, executionContext));
       }
       return new ShardedIterable<>(shards);
     }
   }
 
-  static Iterable<Object> readSideInputSource(PipelineOptions options, Source sideInputSource,
-      ExecutionContext executionContext) throws Exception {
-    return new ReaderIterable<>(ReaderFactory.create(options, sideInputSource, executionContext));
+  private static Iterable<Object> readSideInputSource(
+      PipelineOptions options,
+      Source sideInputSource,
+      Observer observer,
+      ExecutionContext executionContext)
+      throws Exception {
+    Reader<Object> reader = ReaderFactory.create(options, sideInputSource, executionContext);
+    if (observer != null) {
+      reader.addObserver(observer);
+    }
+    return new ReaderIterable<>(reader);
   }
 
   static Object readSideInputValue(Map<String, Object> sideInputKind, Iterable<Object> elements)
@@ -196,5 +227,25 @@ public class SideInputUtils {
     public void remove() {
       throw new UnsupportedOperationException();
     }
+  }
+
+  /**
+   * Builds a {@link SideInputInfo} for a "singleton" side input.
+   */
+  public static SideInputInfo createSingletonSideInputInfo(Source sideInputSource) {
+    SideInputInfo sideInputInfo = new SideInputInfo();
+    sideInputInfo.setSources(Arrays.asList(sideInputSource));
+    sideInputInfo.setKind(CloudObject.forClassName("singleton"));
+    return sideInputInfo;
+  }
+
+  /**
+   * Builds a {@link SideInputInfo} for a "collection" side input.
+   */
+  public static SideInputInfo createCollectionSideInputInfo(Source... sideInputSources) {
+    SideInputInfo sideInputInfo = new SideInputInfo();
+    sideInputInfo.setSources(Arrays.asList(sideInputSources));
+    sideInputInfo.setKind(CloudObject.forClassName("collection"));
+    return sideInputInfo;
   }
 }
