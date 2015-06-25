@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.options;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.List;
 
 /**
@@ -191,6 +193,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   @Description("Files to stage on GCS and make available to workers. "
       + "Files are placed on the worker's classpath. "
       + "The default value is all files from the classpath.")
+  @JsonIgnore
   List<String> getFilesToStage();
   void setFilesToStage(List<String> value);
 

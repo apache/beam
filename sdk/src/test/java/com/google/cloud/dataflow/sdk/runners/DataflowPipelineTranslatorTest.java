@@ -56,7 +56,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
@@ -165,7 +164,6 @@ public class DataflowPipelineTranslatorTest {
           .put("runner", "com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner")
           .put("jobName", "some-job-name")
           .put("tempLocation", "gs://somebucket/some/path")
-          .put("filesToStage", ImmutableList.of())
           .put("stagingLocation", "gs://somebucket/some/path/staging")
           .put("stableUniqueNames", "WARNING")
           .put("streaming", false)
