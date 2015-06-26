@@ -267,7 +267,7 @@ public final class TransformTranslator {
               public /*KV<K, VA>*/ byte[] call(/*KV<K, VI>*/ byte[] input) {
                 KV<K, VI> kvi = CoderHelpers.fromByteArray(input, kviCoder);
                 VA va = keyed.createAccumulator(kvi.getKey());
-                keyed.addInput(kvi.getKey(), va, kvi.getValue());
+                va = keyed.addInput(kvi.getKey(), va, kvi.getValue());
                 return CoderHelpers.toByteArray(KV.of(kvi.getKey(), va), kvaCoder);
               }
             },
@@ -277,7 +277,8 @@ public final class TransformTranslator {
                   /*KV<K, VI>*/ byte[] input) {
                 KV<K, VA> kva = CoderHelpers.fromByteArray(acc, kvaCoder);
                 KV<K, VI> kvi = CoderHelpers.fromByteArray(input, kviCoder);
-                keyed.addInput(kva.getKey(), kva.getValue(), kvi.getValue());
+                VA va = keyed.addInput(kva.getKey(), kva.getValue(), kvi.getValue());
+                kva = KV.of(kva.getKey(), va);
                 return CoderHelpers.toByteArray(KV.of(kva.getKey(), kva.getValue()), kvaCoder);
               }
             },
