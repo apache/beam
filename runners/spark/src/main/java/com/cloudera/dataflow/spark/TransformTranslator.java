@@ -17,6 +17,8 @@ package com.cloudera.dataflow.spark;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -153,6 +155,63 @@ public final class TransformTranslator {
     };
   }
 
+  private static final FieldGetter COMBINE_GLOBALLY_FG = new FieldGetter(Combine.Globally.class);
+
+  private static <I, A, O> TransformEvaluator<Combine.Globally<I, O>> combineGlobally() {
+    return new TransformEvaluator<Combine.Globally<I, O>>() {
+
+      @Override
+      public void evaluate(Combine.Globally<I, O> transform, EvaluationContext context) {
+        final Combine.CombineFn<I, A, O> globally = COMBINE_GLOBALLY_FG.get("fn", transform);
+
+        @SuppressWarnings("unchecked")
+        JavaRDDLike<I, ?> inRdd = (JavaRDDLike<I, ?>) context.getInputRDD(transform);
+
+        final Coder<I> iCoder = context.getInput(transform).getCoder();
+        final Coder<A> aCoder;
+        try {
+          aCoder = globally.getAccumulatorCoder(
+              context.getPipeline().getCoderRegistry(), iCoder);
+        } catch (CannotProvideCoderException e) {
+          throw new IllegalStateException("Could not determine coder for accumulator", e);
+        }
+
+        // Use coders to convert objects in the PCollection to byte arrays, so they
+        // can be transferred over the network for the shuffle.
+        JavaRDD<byte[]> inRddBytes = inRdd.map(CoderHelpers.toByteFunction(iCoder));
+
+        /*A*/ byte[] acc = inRddBytes.aggregate(
+            CoderHelpers.toByteArray(globally.createAccumulator(), aCoder),
+            new Function2</*A*/ byte[], /*I*/ byte[], /*A*/ byte[]>() {
+              @Override
+              public /*A*/ byte[] call(/*A*/ byte[] ab, /*I*/ byte[] ib) throws Exception {
+                A a = CoderHelpers.fromByteArray(ab, aCoder);
+                I i = CoderHelpers.fromByteArray(ib, iCoder);
+                return CoderHelpers.toByteArray(globally.addInput(a, i), aCoder);
+              }
+            },
+            new Function2</*A*/ byte[], /*A*/ byte[], /*A*/ byte[]>() {
+              @Override
+              public /*A*/ byte[] call(/*A*/ byte[] a1b, /*A*/ byte[] a2b) throws Exception {
+                A a1 = CoderHelpers.fromByteArray(a1b, aCoder);
+                A a2 = CoderHelpers.fromByteArray(a2b, aCoder);
+                // don't use Guava's ImmutableList.of as values may be null
+                List<A> accumulators = Collections.unmodifiableList(Arrays.asList(a1, a2));
+                A merged = globally.mergeAccumulators(accumulators);
+                return CoderHelpers.toByteArray(merged, aCoder);
+              }
+            }
+        );
+        O output = globally.extractOutput(CoderHelpers.fromByteArray(acc, aCoder));
+
+        Coder<O> coder = context.getOutput(transform).getCoder();
+        JavaRDD<byte[]> outRdd = context.getSparkContext().parallelize(
+            CoderHelpers.toByteArrays(ImmutableList.of(output), coder));
+        context.setOutputRDD(transform, outRdd.map(CoderHelpers.fromByteFunction(coder)));
+      }
+    };
+  }
+
   private static final FieldGetter COMBINE_PERKEY_FG = new FieldGetter(Combine.PerKey.class);
 
   private static <K, VI, VA, VO> TransformEvaluator<Combine.PerKey<K, VI, VO>> combinePerKey() {
@@ -229,7 +288,8 @@ public final class TransformTranslator {
                 KV<K, VA> kva1 = CoderHelpers.fromByteArray(acc1, kvaCoder);
                 KV<K, VA> kva2 = CoderHelpers.fromByteArray(acc2, kvaCoder);
                 VA va = keyed.mergeAccumulators(kva1.getKey(),
-                    ImmutableList.of(kva1.getValue(), kva2.getValue()));
+                    // don't use Guava's ImmutableList.of as values may be null
+                    Collections.unmodifiableList(Arrays.asList(kva1.getValue(), kva2.getValue())));
                 return CoderHelpers.toByteArray(KV.of(kva1.getKey(), va), kvaCoder);
               }
             });
@@ -564,6 +624,7 @@ public final class TransformTranslator {
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
     EVALUATORS.put(GroupByKey.GroupByKeyOnly.class, gbk());
     EVALUATORS.put(Combine.GroupedValues.class, grouped());
+    EVALUATORS.put(Combine.Globally.class, combineGlobally());
     EVALUATORS.put(Combine.PerKey.class, combinePerKey());
     EVALUATORS.put(Flatten.FlattenPCollectionList.class, flattenPColl());
     EVALUATORS.put(Create.class, create());
