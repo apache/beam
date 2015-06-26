@@ -58,6 +58,8 @@ public final class ApplianceShuffleWriter implements ShuffleWriter {
                                        long bufferSize);
   private native void destroy();
 
+  public native String getDatasetId();
+
   @Override
   public native void write(byte[] chunk) throws IOException;
 
