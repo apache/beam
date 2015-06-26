@@ -166,6 +166,48 @@ public class GroupAlsoByWindowsDoFnTest {
         Matchers.contains(window(10, 30)));
   }
 
+  @Test public void testSlidingWindowsCombine() throws Exception {
+    CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
+    DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>, List> runner =
+        makeRunner(
+            WindowingStrategy.of(SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10))),
+            combineFn.<String>asKeyedFn());
+
+    runner.startBundle();
+
+    runner.processElement(WindowedValue.valueInEmptyWindows(
+        KV.of("k", (Iterable<WindowedValue<Long>>) Arrays.asList(
+            WindowedValue.of(
+                1L,
+                new Instant(5),
+                Arrays.asList(window(-10, 10), window(0, 20))),
+            WindowedValue.of(
+                2L,
+                new Instant(15),
+                Arrays.asList(window(0, 20), window(10, 30))),
+            WindowedValue.of(
+                4L,
+                new Instant(18),
+                Arrays.asList(window(0, 20), window(10, 30)))))));
+
+    runner.finishBundle();
+
+    List<WindowedValue<KV<String, Long>>> result = runner.getReceiver(outputTag);
+
+    assertEquals(3, result.size());
+
+    assertThat(result, Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(
+            KvMatcher.isKv(Matchers.equalTo("k"), Matchers.equalTo(1L)),
+            5, -10, 10),
+        WindowMatchers.isSingleWindowedValue(
+            KvMatcher.isKv(Matchers.equalTo("k"), Matchers.equalTo(7L)),
+            5, 0, 20),
+        WindowMatchers.isSingleWindowedValue(
+            KvMatcher.isKv(Matchers.equalTo("k"), Matchers.equalTo(6L)),
+            15, 10, 30)));
+  }
+
   @Test public void testDiscontiguousWindows() throws Exception {
     DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
         KV<String, Iterable<String>>, List> runner =

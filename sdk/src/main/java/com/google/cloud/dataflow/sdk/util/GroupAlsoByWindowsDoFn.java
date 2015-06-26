@@ -70,6 +70,11 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
       final Coder<K> keyCoder,
       final Coder<InputT> inputCoder) {
     Preconditions.checkNotNull(combineFn);
+    if (windowingStrategy.getWindowFn().isNonMerging()
+        && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
+        && windowingStrategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES) {
+      return new GroupAlsoByWindowsAndCombineDoFn<>(combineFn);
+    }
     return new GABWViaOutputBufferDoFn<>(windowingStrategy,
         CombiningOutputBuffer.<K, InputT, AccumT, OutputT, W>create(
             combineFn, keyCoder, inputCoder));
