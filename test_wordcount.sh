@@ -62,7 +62,7 @@ function run_via_mvn {
   local outfile_prefix="$(get_outfile_prefix "$name")" || exit 2
   local cmd='mvn exec:java -f '"$TOPDIR"'/pom.xml -pl examples \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
-    -Dexec.args="--runner=DirectPipelineRunner --input='"$input"' --output='"$outfile_prefix"'"'
+    -Dexec.args="--runner=DirectPipelineRunner --inputFile='"$input"' --output='"$outfile_prefix"'"'
   echo "$name: Running $cmd" >&2
   sh -c "$cmd"
   check_result_hash "$name" "$outfile_prefix" "$expected_hash"
@@ -77,7 +77,7 @@ function run_bundled {
   local cmd='java -cp '"$JAR_FILE"' \
     com.google.cloud.dataflow.examples.WordCount \
     --runner=DirectPipelineRunner \
-    --input='"'$input'"' \
+    --inputFile='"'$input'"' \
     --output='"$outfile_prefix"
   echo "$name: Running $cmd" >&2
   sh -c "$cmd"
