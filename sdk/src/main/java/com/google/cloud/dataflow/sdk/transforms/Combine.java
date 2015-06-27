@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
@@ -49,6 +50,7 @@ import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -566,6 +568,12 @@ public class Combine {
     @Override
     public Coder<Holder<V>> getAccumulatorCoder(CoderRegistry registry, final Coder<V> inputCoder) {
       return new CustomCoder<Holder<V>>() {
+
+        @Override
+        public List<Coder<?>> getCoderArguments() {
+          return Arrays.<Coder<?>>asList(inputCoder);
+        }
+
         @Override
         public void encode(Holder<V> accumulator, OutputStream outStream, Context context)
             throws CoderException, IOException {
