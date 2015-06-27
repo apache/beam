@@ -48,7 +48,7 @@ import java.util.Map;
  * <p>Subclasses override just a method to provide a {@link DoFnInfo} for the
  * wrapped {@link DoFn}.
  */
-public abstract class ParDoFnBase extends ParDoFn {
+public abstract class ParDoFnBase implements ParDoFn {
 
   private final PipelineOptions options;
   private final SideInputReader sideInputReader;
