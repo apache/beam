@@ -18,9 +18,7 @@ package com.google.cloud.dataflow.sdk.io;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 
 import org.joda.time.Instant;
 
@@ -28,16 +26,12 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.NoSuchElementException;
 
-import javax.annotation.Nullable;
-
 /**
- * Base class for defining input formats, with custom logic for splitting the input
- * into bundles (parts of the input, each of which may be processed on a different worker)
- * and creating a {@code Source} for reading the input.
+ * Base class for defining input formats and creating a {@code Source} for reading the input.
  *
  * <p> This class is not intended to be subclassed directly. Instead, to define
  * a bounded source (a source which produces a finite amount of input), subclass
- * {@link BoundedSource}; user-defined unbounded sources are currently not supported.
+ * {@link BoundedSource}; to define an unbounded source, subclass {@link UnboundedSource}.
  *
  * <p> A {@code Source} passed to a {@code Read} transform must be
  * {@code Serializable}.  This allows the {@code Source} instance
@@ -62,12 +56,6 @@ public abstract class Source<T> implements Serializable {
   private static final long serialVersionUID = 0;
 
   /**
-   * Creates a reader for this source.
-   */
-  public abstract Reader<T> createReader(
-      PipelineOptions options, @Nullable ExecutionContext executionContext) throws IOException;
-
-  /**
    * Checks that this source is valid, before it can be used in a pipeline.
    *
    * <p>It is recommended to use {@link com.google.common.base.Preconditions} for implementing
@@ -86,14 +74,48 @@ public abstract class Source<T> implements Serializable {
    * This interface is deliberately distinct from {@link java.util.Iterator} because
    * the current model tends to be easier to program and more efficient in practice
    * for iterating over sources such as files, databases etc. (rather than pure collections).
+   *
    * <p>
-   * To read a {@code Reader}:
+   * {@code Reader} implementations do not need to be thread-safe; they may only be accessed
+   * by a single thread at once.
+   *
+   * <p> Callers of {@code Readers} must obey the following access pattern:
+   * <ul>
+   * <li> One call to {@link Reader#start}
+   * <ul><li>If {@link Reader#start} returned true, any number of calls to {@code getCurrent}*
+   *   methods</ul>
+   * <li> Repeatedly, a call to {@link Reader#advance}. This may be called regardless
+   *   of what the previous {@link Reader#start}/{@link Reader#advance} returned.
+   * <ul><li>If {@link Reader#advance} returned true, any number of calls to {@code getCurrent}*
+   *   methods</ul>
+   * </ul>
+   *
+   * <p>
+   * For example, if the reader is reading a fixed set of data:
    * <pre>
    * for (boolean available = reader.start(); available; available = reader.advance()) {
    *   T item = reader.getCurrent();
+   *   Instant timestamp = reader.getCurrentTimestamp();
    *   ...
    * }
    * </pre>
+   *
+   * <p> If the set of data being read is continually growing:
+   * <pre>
+   * boolean available = reader.start();
+   * while (true) {
+   *   if (available) {
+   *     T item = reader.getCurrent();
+   *     Instant timestamp = reader.getCurrentTimestamp();
+   *     ...
+   *     resetExponentialBackoff();
+   *   } else {
+   *     exponentialBackoff();
+   *   }
+   *   available = reader.advance();
+   * }
+   * </pre>
+   *
    * <p>
    * Note: this interface is a work-in-progress and may change.
    */
@@ -105,14 +127,14 @@ public abstract class Source<T> implements Serializable {
      * {@link #advance} or {@link #getCurrent}. This method may perform expensive operations that
      * are needed to initialize the reader.
      *
-     * @return {@code true} if a record was read, {@code false} if we're at the end of input.
+     * @return {@code true} if a record was read, {@code false} if there is no more input available.
      */
     public boolean start() throws IOException;
 
     /**
      * Advances the reader to the next valid record.
      *
-     * @return {@code true} if a record was read, {@code false} if we're at the end of input.
+     * @return {@code true} if a record was read, {@code false} if there is no more input available.
      */
     public boolean advance() throws IOException;
 
@@ -120,6 +142,9 @@ public abstract class Source<T> implements Serializable {
      * Returns the value of the data item that was read by the last {@link #start} or
      * {@link #advance} call. The returned value must be effectively immutable and remain valid
      * indefinitely.
+     *
+     * <p> Multiple calls to this method without an intervening call to {@link #advance} should
+     * return the same result.
      *
      * @throws java.util.NoSuchElementException if the reader is at the beginning of the input and
      *         {@link #start} or {@link #advance} wasn't called, or if the last {@link #start} or
@@ -133,7 +158,12 @@ public abstract class Source<T> implements Serializable {
      * If the source does not support timestamps, this should return
      * {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
      *
-     * @throws NoSuchElementException
+     * <p> Multiple calls to this method without an intervening call to {@link #advance} should
+     * return the same result.
+     *
+     * @throws NoSuchElementException if the reader is at the beginning of the input and
+     *         {@link #start} or {@link #advance} wasn't called, or if the last {@link #start} or
+     *         {@link #advance} returned {@code false}.
      */
     public Instant getCurrentTimestamp() throws NoSuchElementException;
 

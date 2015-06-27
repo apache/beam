@@ -33,11 +33,11 @@ import java.util.List;
  */
 public class SourceTestUtils {
   /**
-   * Reads all elements from the given {@link Source}.
+   * Reads all elements from the given {@link BoundedSource}.
    */
-  public static <T> List<T> readFromSource(Source<T> source, PipelineOptions options)
+  public static <T> List<T> readFromSource(BoundedSource<T> source, PipelineOptions options)
       throws IOException {
-    try (Source.Reader<T> reader = source.createReader(options, null)) {
+    try (BoundedSource.BoundedReader<T> reader = source.createReader(options, null)) {
       return readFromUnstartedReader(reader);
     }
   }
@@ -45,7 +45,8 @@ public class SourceTestUtils {
   /**
    * Reads all elements from the given unstarted {@link Source.Reader}.
    */
-  public static <T> List<T> readFromUnstartedReader(Source.Reader<T> reader) throws IOException {
+  public static <T> List<T> readFromUnstartedReader(BoundedSource.BoundedReader<T> reader)
+      throws IOException {
     List<T> res = new ArrayList<>();
     for (boolean more = reader.start(); more; more = reader.advance()) {
       res.add(reader.getCurrent());
@@ -53,7 +54,8 @@ public class SourceTestUtils {
     return res;
   }
 
-  public static <T> List<T> readFromStartedReader(Source.Reader<T> reader) throws IOException {
+  public static <T> List<T> readFromStartedReader(BoundedSource.BoundedReader<T> reader)
+      throws IOException {
     List<T> res = new ArrayList<>();
     while (reader.advance()) {
       res.add(reader.getCurrent());
@@ -76,11 +78,11 @@ public class SourceTestUtils {
    * the records read from the list of sources is equal to the records read from the reference
    * source.
    */
-  public static <T> void assertSourcesEqualReferenceSource(Source<T> referenceSource,
-      List<? extends Source<T>> sources, PipelineOptions options) throws IOException {
+  public static <T> void assertSourcesEqualReferenceSource(BoundedSource<T> referenceSource,
+      List<? extends BoundedSource<T>> sources, PipelineOptions options) throws IOException {
     List<T> referenceRecords = readFromSource(referenceSource, options);
     List<T> bundleRecords = new ArrayList<>();
-    for (Source<T> source : sources) {
+    for (BoundedSource<T> source : sources) {
       List<T> elems = readFromSource(source, options);
       bundleRecords.addAll(elems);
     }
@@ -92,7 +94,7 @@ public class SourceTestUtils {
    * records as the reader.
    */
   public static <T> void assertUnstartedReaderReadsSameAsItsSource(
-      Source.Reader<T> reader, PipelineOptions options) throws IOException {
+      BoundedSource.BoundedReader<T> reader, PipelineOptions options) throws IOException {
     List<T> expected = readFromUnstartedReader(reader);
     List<T> actual = readFromSource(reader.getCurrentSource(), options);
     assertEquals(expected, actual);

@@ -61,7 +61,7 @@ public class StreamingModeExecutionContextTest {
   @Test
   public void testSideInputReaderReconstituted() {
     StreamingModeExecutionContext executionContext =
-        new StreamingModeExecutionContext("computation", stateFetcher);
+        new StreamingModeExecutionContext("computation", stateFetcher, null);
 
     PCollectionView<String> preview1 = PCollectionViewTesting.<String, String>testingView(
         newStringTag(), new ConstantViewFn<String, String>("view1"), StringUtf8Coder.of());
@@ -86,4 +86,3 @@ public class StreamingModeExecutionContextTest {
     assertFalse(sideInputReader.contains(view3));
   }
 }
-

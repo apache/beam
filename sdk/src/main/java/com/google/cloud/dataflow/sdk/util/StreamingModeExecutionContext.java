@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.runners.worker.DataflowExecutionContext;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -41,6 +42,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -53,11 +56,18 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   private StateFetcher stateFetcher;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
   private Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
+  // Per-key cache of active Reader objects in use by this process.
+  private ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache;
+  private UnboundedSource.UnboundedReader<?> activeReader;
 
-  public StreamingModeExecutionContext(String computation, StateFetcher stateFetcher) {
+  public StreamingModeExecutionContext(
+      String computation,
+      StateFetcher stateFetcher,
+      ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache) {
     this.computation = computation;
     this.stateFetcher = stateFetcher;
     this.sideInputCache = new HashMap<>();
+    this.readerCache = readerCache;
   }
 
   public void start(
@@ -236,7 +246,31 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     return outputBuilder;
   }
 
-  public void flushState() {
+  public UnboundedSource.UnboundedReader<?> getCachedReader() {
+    return readerCache.get(getSerializedKey());
+  }
+
+  public void setActiveReader(UnboundedSource.UnboundedReader<?> reader) {
+    readerCache.put(getSerializedKey(), reader);
+    activeReader = reader;
+  }
+
+  public UnboundedSource.CheckpointMark getReaderCheckpoint(
+      Coder<? extends UnboundedSource.CheckpointMark> coder) {
+    try {
+      ByteString state = work.getSourceState().getState();
+      if (state.isEmpty()) {
+        return null;
+      }
+      return coder.decode(state.newInput(), Coder.Context.OUTER);
+    } catch (IOException e) {
+      throw new RuntimeException("Exception while decoding checkpoint", e);
+    }
+  }
+
+  public Map<Long, Runnable> flushState() {
+    Map<Long, Runnable> callbacks = new HashMap<>();
+
     for (ExecutionContext.StepContext stepContext : getAllStepContexts()) {
       try {
         ((StepContext) stepContext).flushState();
@@ -244,6 +278,47 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
         throw new RuntimeException("Failed to flush state");
       }
     }
+
+    Windmill.SourceState.Builder sourceStateBuilder = Windmill.SourceState.newBuilder();
+
+    if (activeReader != null) {
+      final UnboundedSource.CheckpointMark checkpointMark = activeReader.getCheckpointMark();
+      final Instant watermark = activeReader.getWatermark();
+      long id = ThreadLocalRandom.current().nextLong();
+      sourceStateBuilder.addFinalizeIds(id);
+      callbacks.put(
+          id,
+          new Runnable() {
+            @Override
+            public void run() {
+              try {
+                checkpointMark.finalizeCheckpoint();
+              } catch (IOException e) {
+                throw new RuntimeException("Exception while finalizing checkpoint", e);
+              }
+            }
+          });
+
+      Coder<UnboundedSource.CheckpointMark> checkpointCoder =
+          ((UnboundedSource<?, UnboundedSource.CheckpointMark>) activeReader.getCurrentSource())
+              .getCheckpointMarkCoder();
+      if (checkpointCoder != null) {
+        ByteString.Output stream = ByteString.newOutput();
+        try {
+          checkpointCoder.encode(checkpointMark, stream, Coder.Context.OUTER);
+        } catch (IOException e) {
+          throw new RuntimeException("Exception while encoding checkpoint", e);
+        }
+        sourceStateBuilder.setState(stream.toByteString());
+      }
+      outputBuilder.setSourceStateUpdates(sourceStateBuilder.build());
+      outputBuilder.setSourceWatermark(TimeUnit.MILLISECONDS.toMicros(watermark.getMillis()));
+    }
+    return callbacks;
+  }
+
+  public List<Long> getReadyCommitCallbackIds() {
+    return work.getSourceState().getFinalizeIdsList();
   }
 
   private class TagLoader extends CacheLoader<CodedTupleTag<?>, Optional<?>> {

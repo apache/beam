@@ -243,8 +243,8 @@ public class ByteOffsetBasedSourceTest {
       assertNull(reader.splitAtFraction(0.0));
       assertNull(reader.splitAtFraction(reader.getFractionConsumed()));
 
-      Source<Integer> residual = reader.splitAtFraction(reader.getFractionConsumed() + 0.1);
-      Source<Integer> primary = reader.getCurrentSource();
+      BoundedSource<Integer> residual = reader.splitAtFraction(reader.getFractionConsumed() + 0.1);
+      BoundedSource<Integer> primary = reader.getCurrentSource();
       List<Integer> primaryItems = readFromSource(primary, options);
       List<Integer> residualItems = readFromSource(residual, options);
       for (Integer item : residualItems) {

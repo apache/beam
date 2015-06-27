@@ -16,14 +16,17 @@
 
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 
+import static com.google.api.client.util.Base64.decodeBase64;
 import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.readFromSource;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtFraction;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceOperationRequestToSourceOperationRequest;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.dictionaryToCloudSource;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceOperationResponseToCloudSourceOperationResponse;
+import static com.google.cloud.dataflow.sdk.util.SerializableUtils.deserializeFromByteArray;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
+import static com.google.cloud.dataflow.sdk.util.Structs.getStrings;
 import static com.google.cloud.dataflow.sdk.util.WindowedValue.valueInGlobalWindow;
 import static com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -50,27 +53,33 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
+import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
+import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Sample;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
+import com.google.protobuf.ByteString;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -86,6 +95,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -592,5 +603,85 @@ public class BasicSerializableSourceFormatTest {
     SourceFormat.OperationResponse response =
         new BasicSerializableSourceFormat(options).performSourceOperation(request1);
     return sourceOperationResponseToCloudSourceOperationResponse(response).getSplit();
+  }
+
+  @Test
+  public void testUnboundedSplits() throws Exception {
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    options.setNumWorkers(5);
+    com.google.api.services.dataflow.model.Source source =
+        BasicSerializableSourceFormat.serializeToCloudSource(
+            new CountingSource(Integer.MAX_VALUE), options);
+    List<String> serializedSplits =
+        getStrings(source.getSpec(), BasicSerializableSourceFormat.SERIALIZED_SOURCE_SPLITS, null);
+    assertEquals(10, serializedSplits.size());
+    for (String serializedSplit : serializedSplits) {
+      assertTrue(
+          deserializeFromByteArray(decodeBase64(serializedSplit), "source")
+              instanceof CountingSource);
+    }
+  }
+
+  @Test
+  public void testReadUnboundedReader() throws Exception {
+    StreamingModeExecutionContext context =
+        new StreamingModeExecutionContext(
+            null, null, new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>());
+
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    options.setNumWorkers(5);
+
+    ByteString state = ByteString.EMPTY;
+    for (int i = 0; i < 100; /* Incremented in inner loop */) {
+      WindowedValue<KV<Integer, Integer>> value;
+
+      // Initialize streaming context with state from previous iteration.
+      context.start(
+          Windmill.WorkItem.newBuilder()
+              .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
+              .setWorkToken(0) // Required proto field, unused.
+              .setSourceState(
+                  Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
+              .build(),
+          new Instant(0),
+          Windmill.WorkItemCommitRequest.newBuilder());
+
+      Reader.ReaderIterator<WindowedValue<KV<Integer, Integer>>> reader =
+          BasicSerializableSourceFormat.<KV<Integer, Integer>>create(
+                  options,
+                  (CloudObject)
+                      BasicSerializableSourceFormat.serializeToCloudSource(
+                              new CountingSource(Integer.MAX_VALUE), options)
+                          .getSpec(),
+                  null,
+                  context)
+              .iterator();
+
+      // Verify data.
+      while (reader.hasNext()) {
+        value = reader.next();
+        assertEquals(KV.of(0, i), value.getValue());
+        assertThat(value.getWindows(), contains((BoundedWindow) GlobalWindow.INSTANCE));
+        assertEquals(i, value.getTimestamp().getMillis());
+        i++;
+      }
+
+      // Extract and verify state modifications.
+      context.flushState();
+      state = context.getOutputBuilder().getSourceStateUpdates().getState();
+      // CountingSource's watermark is the last record - 1.  i is now one past the last record,
+      // so the expected watermark is i-2 millis.
+      assertEquals(
+          TimeUnit.MILLISECONDS.toMicros(i - 2), context.getOutputBuilder().getSourceWatermark());
+      assertEquals(
+          1,
+          context
+              .getOutputBuilder()
+              .getSourceStateUpdates()
+              .getFinalizeIdsList()
+              .size());
+    }
   }
 }

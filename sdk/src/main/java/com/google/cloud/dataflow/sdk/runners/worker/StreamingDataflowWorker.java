@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.api.services.dataflow.model.MapTask;
+import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
@@ -35,6 +36,7 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
 import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
 import com.google.common.base.Preconditions;
+import com.google.protobuf.ByteString;
 
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
@@ -53,7 +55,10 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -155,14 +160,23 @@ public class StreamingDataflowWorker {
     worker.runStatusServer(statusPort);
   }
 
-  private ConcurrentMap<String, MapTask> instructionMap;
-  private ConcurrentMap<String, ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>> outputMap;
-  private ConcurrentMap<String, ConcurrentLinkedQueue<WorkerAndContext>> mapTaskExecutors;
+  // Maps from computation ids to per-computation state.
+  private final ConcurrentMap<String, MapTask> instructionMap;
+  private final ConcurrentMap<String, ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>>
+      outputMap;
+  private final ConcurrentMap<String, ConcurrentLinkedQueue<WorkerAndContext>> mapTaskExecutors;
+  // Per computation cache of active readers, keyed by split ID.
+  private final ConcurrentMap<String, ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>>>
+      readerCache;
+
+  // Map of tokens to commit callbacks.
+  private ConcurrentMap<Long, Runnable> commitCallbacks;
+
   private ThreadFactory threadFactory;
   private BoundedQueueExecutor workUnitExecutor;
+  private ExecutorService commitExecutor;
   private WindmillServerStub windmillServer;
   private Thread dispatchThread;
-  private Thread commitThread;
   private AtomicBoolean running;
   private StateFetcher stateFetcher;
   private DataflowWorkerHarnessOptions options;
@@ -176,6 +190,8 @@ public class StreamingDataflowWorker {
     this.instructionMap = new ConcurrentHashMap<>();
     this.outputMap = new ConcurrentHashMap<>();
     this.mapTaskExecutors = new ConcurrentHashMap<>();
+    this.readerCache = new ConcurrentHashMap<>();
+    this.commitCallbacks = new ConcurrentHashMap<>();
     for (MapTask mapTask : mapTasks) {
       addComputation(mapTask);
     }
@@ -190,6 +206,24 @@ public class StreamingDataflowWorker {
     this.workUnitExecutor = new BoundedQueueExecutor(
         MAX_PROCESSING_THREADS, THREAD_EXPIRATION_TIME_SEC, TimeUnit.SECONDS,
         MAX_WORK_UNITS_QUEUED, threadFactory);
+    this.commitExecutor =
+        new ThreadPoolExecutor(
+            1,
+            1,
+            Long.MAX_VALUE,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<Runnable>(2),
+            new ThreadFactory() {
+              @Override
+              public Thread newThread(Runnable r) {
+                Thread t = new Thread(r);
+                t.setDaemon(true);
+                t.setPriority(Thread.MAX_PRIORITY);
+                t.setName("CommitThread");
+                return t;
+              }
+            },
+            new ThreadPoolExecutor.DiscardPolicy());
     this.windmillServer = server;
     this.running = new AtomicBoolean();
     this.stateFetcher = new StateFetcher(server);
@@ -211,16 +245,6 @@ public class StreamingDataflowWorker {
     dispatchThread.setPriority(Thread.MIN_PRIORITY);
     dispatchThread.setName("DispatchThread");
     dispatchThread.start();
-
-    commitThread = threadFactory.newThread(new Runnable() {
-        @Override
-        public void run() {
-          commitLoop();
-        }
-      });
-    commitThread.setPriority(Thread.MAX_PRIORITY);
-    commitThread.setName("CommitThread");
-    commitThread.start();
   }
 
   public void stop() {
@@ -232,7 +256,7 @@ public class StreamingDataflowWorker {
       dispatchThread.join();
       workUnitExecutor.shutdown();
       if (!workUnitExecutor.awaitTermination(5, TimeUnit.MINUTES)) {
-        throw new RuntimeException("Process did not terminate within 5 minutes");
+        throw new RuntimeException("Work executor did not terminate within 5 minutes");
       }
       for (ConcurrentLinkedQueue<WorkerAndContext> queue : mapTaskExecutors.values()) {
         WorkerAndContext workerAndContext;
@@ -240,7 +264,10 @@ public class StreamingDataflowWorker {
           workerAndContext.getWorker().close();
         }
       }
-      commitThread.join();
+      commitExecutor.shutdown();
+      if (!commitExecutor.awaitTermination(5, TimeUnit.MINUTES)) {
+        throw new RuntimeException("Commit executor did not terminate within 5 minutes");
+      }
     } catch (Exception e) {
       LOG.warn("Exception while shutting down: ", e);
     }
@@ -264,9 +291,9 @@ public class StreamingDataflowWorker {
       LOG.info("Adding config for {}: {}", computation, mapTask);
       outputMap.put(computation, new ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>());
       instructionMap.put(computation, mapTask);
-      mapTaskExecutors.put(
-          computation,
-          new ConcurrentLinkedQueue<WorkerAndContext>());
+      mapTaskExecutors.put(computation, new ConcurrentLinkedQueue<WorkerAndContext>());
+      readerCache.put(
+          computation, new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>());
     }
   }
 
@@ -359,7 +386,9 @@ public class StreamingDataflowWorker {
           work.getKey().toStringUtf8() + "-" + Long.toString(work.getWorkToken()));
       WorkerAndContext workerAndContext = mapTaskExecutors.get(computation).poll();
       if (workerAndContext == null) {
-        context = new StreamingModeExecutionContext(computation, stateFetcher);
+        context =
+            new StreamingModeExecutionContext(
+                computation, stateFetcher, readerCache.get(computation));
         worker = MapTaskExecutorFactory.create(options, mapTask, context);
         ReadOperation readOperation = worker.getReadOperation();
         // Disable progress updates since its results are unused for streaming
@@ -374,12 +403,28 @@ public class StreamingDataflowWorker {
 
       context.start(work, inputDataWatermark, outputBuilder);
 
+      for (Long callbackId : context.getReadyCommitCallbackIds()) {
+        final Runnable callback = commitCallbacks.remove(callbackId);
+        if (callback != null) {
+          workUnitExecutor.forceExecute(new Runnable() {
+              @Override
+              public void run() {
+                try {
+                  callback.run();
+                } catch (Throwable t) {
+                  LOG.error("Source checkpoint finalization failed:", t);
+                }
+              }
+            });
+        }
+      }
+
       // Blocks while executing work.
       worker.execute();
 
       buildCounters(worker.getOutputCounters(), outputBuilder);
 
-      context.flushState();
+      commitCallbacks.putAll(context.flushState());
 
       mapTaskExecutors.get(computation).offer(new WorkerAndContext(worker, context));
       worker = null;
@@ -387,6 +432,8 @@ public class StreamingDataflowWorker {
 
       Windmill.WorkItemCommitRequest output = outputBuilder.build();
       outputMap.get(computation).add(output);
+      scheduleCommit();
+
       LOG.debug("Processing done for work token: {}", work.getWorkToken());
     } catch (Throwable t) {
       if (worker != null) {
@@ -435,36 +482,42 @@ public class StreamingDataflowWorker {
     }
   }
 
-  private void commitLoop() {
-    while (running.get()) {
-      Windmill.CommitWorkRequest.Builder commitRequestBuilder =
-          Windmill.CommitWorkRequest.newBuilder();
-      long remainingCommitBytes = MAX_COMMIT_BYTES;
-      for (Map.Entry<String, ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>> entry :
-               outputMap.entrySet()) {
-        Windmill.ComputationCommitWorkRequest.Builder computationRequestBuilder =
-            Windmill.ComputationCommitWorkRequest.newBuilder();
-        ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest> queue = entry.getValue();
-        while (remainingCommitBytes > 0) {
-          Windmill.WorkItemCommitRequest request = queue.poll();
-          if (request == null) {
-            break;
+  private void scheduleCommit() {
+    commitExecutor.execute(new Commit());
+  }
+
+  private class Commit implements Runnable {
+    @Override
+    public void run() {
+      while (true) {
+        Windmill.CommitWorkRequest.Builder commitRequestBuilder =
+            Windmill.CommitWorkRequest.newBuilder();
+        long remainingCommitBytes = MAX_COMMIT_BYTES;
+        for (Map.Entry<String, ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>> entry :
+                 outputMap.entrySet()) {
+          Windmill.ComputationCommitWorkRequest.Builder computationRequestBuilder =
+              Windmill.ComputationCommitWorkRequest.newBuilder();
+          ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest> queue = entry.getValue();
+          while (remainingCommitBytes > 0) {
+            Windmill.WorkItemCommitRequest request = queue.poll();
+            if (request == null) {
+              break;
+            }
+            remainingCommitBytes -= request.getSerializedSize();
+            computationRequestBuilder.addRequests(request);
           }
-          remainingCommitBytes -= request.getSerializedSize();
-          computationRequestBuilder.addRequests(request);
+          if (computationRequestBuilder.getRequestsCount() > 0) {
+            computationRequestBuilder.setComputationId(entry.getKey());
+            commitRequestBuilder.addRequests(computationRequestBuilder);
+          }
         }
-        if (computationRequestBuilder.getRequestsCount() > 0) {
-          computationRequestBuilder.setComputationId(entry.getKey());
-          commitRequestBuilder.addRequests(computationRequestBuilder);
+        if (commitRequestBuilder.getRequestsCount() > 0) {
+          Windmill.CommitWorkRequest commitRequest = commitRequestBuilder.build();
+          LOG.trace("Commit: {}", commitRequest);
+          commitWork(commitRequest);
+        } else {
+          break;
         }
-      }
-      if (commitRequestBuilder.getRequestsCount() > 0) {
-        Windmill.CommitWorkRequest commitRequest = commitRequestBuilder.build();
-        LOG.trace("Commit: {}", commitRequest);
-        commitWork(commitRequest);
-      }
-      if (remainingCommitBytes > 0) {
-        sleep(100);
       }
     }
   }

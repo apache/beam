@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.cloud.dataflow.sdk.util.StringUtils.approximateSimpleName;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
@@ -48,11 +50,19 @@ public class Read {
   }
 
   /**
-   * Returns a new unnamed {@code Read.Bound} {@code PTransform} reading from the given
+   * Returns a new {@code Read.Bound} {@code PTransform} reading from the given
    * {@code BoundedSource}.
    */
   public static <T> Bound<T> from(BoundedSource<T> source) {
-    return new Bound<>("", source);
+    return new Bound<>(null, source);
+  }
+
+  /**
+   * Returns a new {@code Read.Bound} {@code PTransform} reading from the given
+   * {@code UnboundedSource}.
+   */
+  public static <T> Bound<T> from(UnboundedSource<T, ?> source) {
+    return new Bound<>(null, source);
   }
 
   /**
@@ -76,7 +86,7 @@ public class Read {
      * <p> Does not modify this object.
      */
     public <T> Bound<T> from(Source<T> source) {
-      return new Bound<T>(getName(), source);
+      return new Bound<T>(name, source);
     }
 
     /**
@@ -100,9 +110,9 @@ public class Read {
       Preconditions.checkNotNull(source, "source must be set");
       source.validate();
       return PCollection.<T>createPrimitiveOutputInternal(
-          input.getPipeline(),
-          WindowingStrategy.globalDefault(),
-          IsBounded.BOUNDED)
+              input.getPipeline(),
+              WindowingStrategy.globalDefault(),
+              (source instanceof BoundedSource) ? IsBounded.BOUNDED : IsBounded.UNBOUNDED)
           .setCoder(getDefaultOutputCoder());
     }
 
@@ -126,9 +136,18 @@ public class Read {
             @Override
             public void evaluate(
                 Bound transform, DirectPipelineRunner.EvaluationContext context) {
+              if (transform.getSource() instanceof UnboundedSource) {
+                throw new IllegalArgumentException(
+                    "UnboundedSources are not supported in the DirectPipelineRunner");
+              }
               BasicSerializableSourceFormat.evaluateReadHelper(transform, context);
             }
           });
+    }
+
+    @Override
+    public String getKindString() {
+      return "Read(" + approximateSimpleName(source.getClass()) + ")";
     }
   }
 

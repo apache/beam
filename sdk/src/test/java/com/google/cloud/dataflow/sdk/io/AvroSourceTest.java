@@ -193,7 +193,7 @@ public class AvroSourceTest {
     assertTrue(splits.size() > 2);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
     nonEmptySplits = 0;
-    for (Source<Bird> subSource : splits) {
+    for (BoundedSource<Bird> subSource : splits) {
       if (SourceTestUtils.readFromSource(subSource, options).size() > 0) {
         nonEmptySplits += 1;
       }
@@ -205,7 +205,7 @@ public class AvroSourceTest {
     assertTrue(splits.size() > 2);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
     nonEmptySplits = 0;
-    for (Source<Bird> subSource : splits) {
+    for (BoundedSource<Bird> subSource : splits) {
       if (SourceTestUtils.readFromSource(subSource, options).size() > 0) {
         nonEmptySplits += 1;
       }

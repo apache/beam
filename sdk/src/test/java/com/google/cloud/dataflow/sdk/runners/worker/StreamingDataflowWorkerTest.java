@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.addObject;
 import static com.google.cloud.dataflow.sdk.util.Structs.addString;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertFalse;
 
 import com.google.api.services.dataflow.model.InstructionInput;
@@ -34,13 +35,18 @@ import com.google.cloud.dataflow.sdk.coders.CollectionCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
+import com.google.cloud.dataflow.sdk.runners.dataflow.CountingSource;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -54,6 +60,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.primitives.UnsignedLong;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
 
@@ -179,7 +186,7 @@ public class StreamingDataflowWorkerTest {
     }
   }
 
-  private ParallelInstruction makeWindowingSourceInstruction(Coder coder) {
+  private ParallelInstruction makeWindowingSourceInstruction(Coder<?> coder) {
     CloudObject encodedCoder = FullWindowedValueCoder.of(
         TimerOrElementCoder.of(coder), IntervalWindow.getCoder()).asCloudObject();
     return new ParallelInstruction()
@@ -194,7 +201,7 @@ public class StreamingDataflowWorkerTest {
             .setCodec(encodedCoder)));
   }
 
-  private ParallelInstruction makeSourceInstruction(Coder coder) {
+  private ParallelInstruction makeSourceInstruction(Coder<?> coder) {
     return new ParallelInstruction()
         .setSystemName("source")
         .setRead(new ReadInstruction().setSource(
@@ -210,7 +217,10 @@ public class StreamingDataflowWorkerTest {
   }
 
   private ParallelInstruction makeDoFnInstruction(
-      DoFn<?, ?> doFn, int producerIndex, Coder outputCoder) {
+      DoFn<?, ?> doFn,
+      int producerIndex,
+      Coder<?> outputCoder,
+      Coder<? extends BoundedWindow> windowCoder) {
     CloudObject spec = CloudObject.forClassName("DoFn");
     addString(spec, PropertyNames.SERIALIZED_FN,
         StringUtils.byteArrayToJsonString(
@@ -225,11 +235,17 @@ public class StreamingDataflowWorkerTest {
         .setOutputs(Arrays.asList(
             new InstructionOutput()
             .setName("par_do_output")
-            .setCodec(WindowedValue.getFullCoder(outputCoder, IntervalWindow.getCoder())
+            .setCodec(WindowedValue.getFullCoder(outputCoder, windowCoder)
                                    .asCloudObject())));
   }
 
-  private ParallelInstruction makeSinkInstruction(Coder coder, int producerIndex) {
+  private ParallelInstruction makeDoFnInstruction(
+      DoFn<?, ?> doFn, int producerIndex, Coder<?> outputCoder) {
+    return makeDoFnInstruction(doFn, producerIndex, outputCoder, IntervalWindow.getCoder());
+  }
+
+  private ParallelInstruction makeSinkInstruction(
+      Coder<?> coder, int producerIndex, Coder<? extends BoundedWindow> windowCoder) {
     CloudObject spec = CloudObject.forClass(WindmillSink.class);
     addString(spec, "stream_id", "out");
     return new ParallelInstruction()
@@ -239,8 +255,12 @@ public class StreamingDataflowWorkerTest {
                 new InstructionInput().setProducerInstructionIndex(producerIndex).setOutputNum(0))
             .setSink(new Sink()
                 .setSpec(spec)
-                .setCodec(WindowedValue.getFullCoder(coder, IntervalWindow.getCoder())
+                .setCodec(WindowedValue.getFullCoder(coder, windowCoder)
                                        .asCloudObject())));
+  }
+
+  private ParallelInstruction makeSinkInstruction(Coder<?> coder, int producerIndex) {
+    return makeSinkInstruction(coder, producerIndex, IntervalWindow.getCoder());
   }
 
   private MapTask makeMapTask(List<ParallelInstruction> instructions) {
@@ -259,12 +279,13 @@ public class StreamingDataflowWorkerTest {
   private Windmill.GetWorkResponse buildInput(String input, byte[] metadata) throws Exception {
     Windmill.GetWorkResponse.Builder builder = Windmill.GetWorkResponse.newBuilder();
     TextFormat.merge(input, builder);
-    Windmill.InputMessageBundle.Builder messageBundleBuilder =
-        builder.getWorkBuilder(0)
-        .getWorkBuilder(0)
-        .getMessageBundlesBuilder(0);
-    for (Windmill.Message.Builder messageBuilder : messageBundleBuilder.getMessagesBuilderList()) {
-      messageBuilder.setMetadata(ByteString.copyFrom(metadata));
+    if (metadata != null) {
+      Windmill.InputMessageBundle.Builder messageBundleBuilder =
+          builder.getWorkBuilder(0).getWorkBuilder(0).getMessageBundlesBuilder(0);
+      for (Windmill.Message.Builder messageBuilder :
+          messageBundleBuilder.getMessagesBuilderList()) {
+        messageBuilder.setMetadata(ByteString.copyFrom(metadata));
+      }
     }
     return builder.build();
   }
@@ -305,10 +326,12 @@ public class StreamingDataflowWorkerTest {
       throws Exception {
     Windmill.WorkItemCommitRequest.Builder builder = Windmill.WorkItemCommitRequest.newBuilder();
     TextFormat.merge(output, builder);
-    builder.getOutputMessagesBuilder(0)
-           .getBundlesBuilder(0)
-           .getMessagesBuilder(0)
-           .setMetadata(ByteString.copyFrom(metadata));
+    if (metadata != null) {
+      builder.getOutputMessagesBuilder(0)
+          .getBundlesBuilder(0)
+          .getMessagesBuilder(0)
+          .setMetadata(ByteString.copyFrom(metadata));
+    }
     return builder.build();
   }
 
@@ -759,5 +782,164 @@ public class StreamingDataflowWorkerTest {
             CollectionCoder.of(IntervalWindow.getCoder()),
             Arrays.asList(new IntervalWindow(new Instant(0), new Instant(1000))))),
         stripCounters(result.get(1L)));
+  }
+
+  static class PrintFn extends DoFn<KV<Integer, Integer>, String> {
+    private static final long serialVersionUID = 0;
+
+    @Override
+    public void processElement(ProcessContext c) {
+      KV<Integer, Integer> elem = c.element();
+      c.output(elem.getKey() + ":" + elem.getValue());
+    }
+  }
+
+  @Test public void testUnboundedSources() throws Exception {
+    List<Integer> finalizeTracker = new ArrayList<>();
+
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    options.setNumWorkers(1);
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(new ParallelInstruction()
+            .setSystemName("Read")
+            .setRead(new ReadInstruction()
+                .setSource(
+                    BasicSerializableSourceFormat.serializeToCloudSource(
+                        new CountingSource(1), options)))
+            .setOutputs(
+                Arrays.asList(new InstructionOutput()
+                    .setName("read_output")
+                    .setCodec(
+                        WindowedValue.getFullCoder(
+                            KvCoder.of(VarIntCoder.of(), VarIntCoder.of()),
+                            GlobalWindow.Coder.INSTANCE)
+                        .asCloudObject()))),
+            makeDoFnInstruction(
+                new PrintFn(), 0, StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+            makeSinkInstruction(StringUtf8Coder.of(), 1, GlobalWindow.Coder.INSTANCE));
+
+    CountingSource.setFinalizeTracker(finalizeTracker);
+
+    FakeWindmillServer server = new FakeWindmillServer();
+    StreamingDataflowWorker worker = new StreamingDataflowWorker(
+        Arrays.asList(makeMapTask(instructions)), server, createTestingPipelineOptions());
+    worker.start();
+
+    // Test new key.
+    server.addWorkToOffer(buildInput(
+        "work {" +
+        "  computation_id: \"computation\"" +
+        "  input_data_watermark: 0" +
+        "  work {" +
+        "    key: \"0000000000000001\"" +
+        "    work_token: 1" +
+        "  }" +
+        "}", null));
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+
+    Windmill.WorkItemCommitRequest commit = stripCounters(result.get(1L));
+    UnsignedLong finalizeId =
+        UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+
+    Assert.assertEquals(buildExpectedOutput(
+        "key: \"0000000000000001\" " +
+        "work_token: 1 " +
+        "output_messages {" +
+        "  destination_stream_id: \"out\"" +
+        "  bundles {" +
+        "    key: \"0000000000000001\"" +
+        "    messages {" +
+        "      timestamp: 0" +
+        "      data: \"0:0\"" +
+        "    }" +
+        "  }" +
+        "} " +
+        "source_state_updates {" +
+        "  state: \"\000\"" +
+        "  finalize_ids: " + finalizeId +
+        "} " +
+        "source_watermark: 9223372036854775000",
+        CoderUtils.encodeToByteArray(
+            CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
+            Arrays.asList(GlobalWindow.INSTANCE))),
+        commit);
+
+    // Test same key continuing.
+    server.addWorkToOffer(buildInput(
+        "work {" +
+        "  computation_id: \"computation\"" +
+        "  input_data_watermark: 0" +
+        "  work {" +
+        "    key: \"0000000000000001\"" +
+        "    work_token: 2" +
+        "    source_state {" +
+        "      state: \"\000\"" +
+        "      finalize_ids: " + finalizeId +
+        "    } " +
+        "  }" +
+        "}", null));
+
+    result = server.waitForAndGetCommits(1);
+
+    commit = stripCounters(result.get(2L));
+    finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+
+    Assert.assertEquals(buildExpectedOutput(
+        "key: \"0000000000000001\" " +
+        "work_token: 2 " +
+        "source_state_updates {" +
+        "  state: \"\000\"" +
+        "  finalize_ids: " + finalizeId +
+        "} " +
+        "source_watermark: 9223372036854775000",
+        null),
+        commit);
+
+    Assert.assertThat(finalizeTracker, contains(0));
+
+    // Test recovery.
+    server.addWorkToOffer(buildInput(
+        "work {" +
+        "  computation_id: \"computation\"" +
+        "  input_data_watermark: 0" +
+        "  work {" +
+        "    key: \"0000000000000002\"" +
+        "    work_token: 3" +
+        "    source_state {" +
+        "      state: \"\005\"" +
+        "    } " +
+        "  }" +
+        "}", null));
+
+    result = server.waitForAndGetCommits(1);
+
+    commit = stripCounters(result.get(3L));
+    finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+
+    Assert.assertEquals(buildExpectedOutput(
+        "key: \"0000000000000002\" " +
+        "work_token: 3 " +
+        "output_messages {" +
+        "  destination_stream_id: \"out\"" +
+        "  bundles {" +
+        "    key: \"0000000000000002\"" +
+        "    messages {" +
+        "      timestamp: 5000" +
+        "      data: \"1:5\"" +
+        "    }" +
+        "  }" +
+        "} " +
+        "source_state_updates {" +
+        "  state: \"\005\"" +
+        "  finalize_ids: " + finalizeId +
+        "} " +
+        "source_watermark: 9223372036854775000",
+        CoderUtils.encodeToByteArray(
+            CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
+            Arrays.asList(GlobalWindow.INSTANCE))),
+        commit);
   }
 }

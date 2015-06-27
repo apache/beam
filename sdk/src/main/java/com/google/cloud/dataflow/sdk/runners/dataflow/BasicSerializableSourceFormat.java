@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 
+import static com.google.api.client.util.Base64.decodeBase64;
 import static com.google.api.client.util.Base64.encodeBase64String;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceOperationResponseToSourceOperationResponse;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceToDictionary;
@@ -23,7 +24,9 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.deserializeFromByteArray;
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.serializeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.Structs.addString;
+import static com.google.cloud.dataflow.sdk.util.Structs.addStringList;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
+import static com.google.cloud.dataflow.sdk.util.Structs.getStrings;
 
 import com.google.api.client.util.Base64;
 import com.google.api.services.dataflow.model.ApproximateProgress;
@@ -41,6 +44,8 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.Source;
+import com.google.cloud.dataflow.sdk.io.UnboundedSource;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
@@ -49,9 +54,15 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +82,7 @@ import java.util.NoSuchElementException;
  */
 public class BasicSerializableSourceFormat implements SourceFormat {
   private static final String SERIALIZED_SOURCE = "serialized_source";
+  @VisibleForTesting static final String SERIALIZED_SOURCE_SPLITS = "serialized_source_splits";
   private static final long DEFAULT_DESIRED_BUNDLE_SIZE_BYTES = 64 * (1 << 20);
 
   private static final Logger LOG = LoggerFactory.getLogger(BasicSerializableSourceFormat.class);
@@ -142,20 +154,97 @@ public class BasicSerializableSourceFormat implements SourceFormat {
    * {@link com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory}.
    */
   public static <T> Reader<WindowedValue<T>> create(
-      final PipelineOptions options, CloudObject spec, Coder<WindowedValue<T>> coder,
+      final PipelineOptions options, final CloudObject spec, Coder<WindowedValue<T>> coder,
       final ExecutionContext executionContext) throws Exception {
     // The parameter "coder" is deliberately never used. It is an artifact of ReaderFactory:
     // some readers need a coder, some don't (i.e. for some it doesn't even make sense),
     // but ReaderFactory passes it to all readers anyway.
-    @SuppressWarnings("unchecked")
     final Source<T> source = (Source<T>) deserializeFromCloudSource(spec);
-    return new Reader<WindowedValue<T>>() {
-      @Override
-      public ReaderIterator<WindowedValue<T>> iterator() throws IOException {
-        return new BasicSerializableSourceFormat.ReaderIterator<>(
-            source.createReader(options, executionContext));
+    if (source instanceof BoundedSource) {
+      return new Reader<WindowedValue<T>>() {
+        @Override
+        public Reader.ReaderIterator<WindowedValue<T>> iterator() throws IOException {
+          return new BoundedReaderIterator<>(
+              ((BoundedSource<T>) source).createReader(options, executionContext));
+        }
+      };
+    } else if (source instanceof UnboundedSource) {
+      return new UnboundedReader<T>(
+          options, spec, (StreamingModeExecutionContext) executionContext);
+    } else {
+      throw new IllegalArgumentException("Unexpected source kind: " + source.getClass());
+    }
+  }
+
+  /**
+   * {@link Reader} for reading from {@link UnboundedSource UnboundedSources}.
+   */
+  private static class UnboundedReader<T> extends Reader<WindowedValue<T>> {
+    private final PipelineOptions options;
+    private final CloudObject spec;
+    private final StreamingModeExecutionContext context;
+
+    UnboundedReader(
+        PipelineOptions options, CloudObject spec, StreamingModeExecutionContext context) {
+      this.options = options;
+      this.spec = spec;
+      this.context = context;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Reader.ReaderIterator<WindowedValue<T>> iterator() {
+      UnboundedSource.UnboundedReader<T> reader =
+          (UnboundedSource.UnboundedReader<T>) context.getCachedReader();
+      final boolean started = reader != null;
+
+      if (reader == null) {
+        String key = context.getSerializedKey().toStringUtf8();
+        // Key is expected to be a zero-padded integer representing the split index.
+        int splitIndex = Integer.parseInt(key.substring(0, 16), 16) - 1;
+
+        UnboundedSource<T, UnboundedSource.CheckpointMark> splitSource = parseSource(splitIndex);
+
+        UnboundedSource.CheckpointMark checkpoint = null;
+        if (splitSource.getCheckpointMarkCoder() != null) {
+          checkpoint = context.getReaderCheckpoint(splitSource.getCheckpointMarkCoder());
+        }
+
+        reader = splitSource.createReader(options, checkpoint);
       }
-    };
+
+      context.setActiveReader(reader);
+
+      return new UnboundedReaderIterator<>(reader, started);
+    }
+
+    @Override
+    public boolean supportsRestart() {
+      return true;
+    }
+
+    @SuppressWarnings("unchecked")
+    private UnboundedSource<T, UnboundedSource.CheckpointMark> parseSource(int index) {
+      List<String> serializedSplits = null;
+      try {
+        serializedSplits = getStrings(spec, SERIALIZED_SOURCE_SPLITS, null);
+      } catch (Exception e) {
+        throw new RuntimeException("Parsing serialized source splits failed: ", e);
+      }
+      Preconditions.checkArgument(
+          serializedSplits != null, "UnboundedSource object did not contain splits");
+      Preconditions.checkArgument(
+          index < serializedSplits.size(),
+          "UnboundedSource splits contained too few splits.  Requested index was %s, size was %s",
+          index,
+          serializedSplits.size());
+      Object rawSource = deserializeFromByteArray(
+          decodeBase64(serializedSplits.get(index)), "UnboundedSource split");
+      if (!(rawSource instanceof UnboundedSource)) {
+        throw new IllegalArgumentException("Expected UnboundedSource, got " + rawSource.getClass());
+      }
+      return (UnboundedSource<T, UnboundedSource.CheckpointMark>) rawSource;
+    }
   }
 
   private SourceSplitResponse performSplit(SourceSplitRequest request) throws Exception {
@@ -230,7 +319,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     return source;
   }
 
-  static com.google.api.services.dataflow.model.Source serializeToCloudSource(
+  public static com.google.api.services.dataflow.model.Source serializeToCloudSource(
       Source<?> source, PipelineOptions options) throws Exception {
     com.google.api.services.dataflow.model.Source cloudSource =
         new com.google.api.services.dataflow.model.Source();
@@ -254,6 +343,20 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       } catch (Exception e) {
         LOG.warn("Size estimation of the source failed: " + source, e);
       }
+    } else if (source instanceof UnboundedSource) {
+      UnboundedSource<?, ?> unboundedSource = (UnboundedSource<?, ?>) source;
+      metadata.setInfinite(true);
+      List<String> encodedSplits = new ArrayList<>();
+      for (UnboundedSource<?, ?> split :
+          unboundedSource.generateInitialSplits(
+              options.as(DataflowPipelineOptions.class).getNumWorkers() * 2, options)) {
+        encodedSplits.add(encodeBase64String(serializeToByteArray(split)));
+      }
+      Preconditions.checkArgument(
+          !encodedSplits.isEmpty(), "UnboundedSources must have at least one split");
+      addStringList(cloudSource.getSpec(), SERIALIZED_SOURCE_SPLITS, encodedSplits);
+    } else {
+      throw new IllegalArgumentException("Unexpected source kind: " + source.getClass());
     }
 
     cloudSource.setMetadata(metadata);
@@ -287,11 +390,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   public static <T> void translateReadHelper(
       Read.Bound<T> transform, DataflowPipelineTranslator.TranslationContext context) {
     try {
-      Source<T> anySource = transform.getSource();
-      if (!(anySource instanceof BoundedSource)) {
-        throw new IllegalArgumentException("Unexpected read from a user-defined unbounded source");
-      }
-      BoundedSource<T> source = (BoundedSource<T>) anySource;
+      Source<T> source = transform.getSource();
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);
       context.addInput(
@@ -304,27 +403,31 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   /**
-   * Adapter from the {@code Source.Reader} interface to {@code Reader.ReaderIterator},
+   * Adapter from the {@code Source.Reader} interface to {@code Iterator},
    * wrapping every value into the global window. Proper windowing will be assigned by the
    * subsequent Window transform.
    * <p>
    * TODO: Consider changing the API of Reader.ReaderIterator so this adapter wouldn't be needed.
    */
-  private static class ReaderIterator<T> implements Reader.ReaderIterator<WindowedValue<T>> {
+  private static class ReaderToIteratorAdapter<T> {
     private enum NextState {
       UNKNOWN_BEFORE_START,
       UNKNOWN_BEFORE_ADVANCE,
       AVAILABLE,
-      FINISHED
+      UNAVAILABLE
     }
     private Source.Reader<T> reader;
-    private NextState state = NextState.UNKNOWN_BEFORE_START;
+    private NextState state;
 
-    private ReaderIterator(Source.Reader<T> reader) {
+    /**
+     * Creates an iterator adapter for the given reader.  {@code started} represents whether
+     * {@link Source.Reader#start} has previously been called on this reader.
+     */
+    private ReaderToIteratorAdapter(Source.Reader<T> reader, boolean started) {
       this.reader = reader;
+      this.state = started ? NextState.UNKNOWN_BEFORE_ADVANCE : NextState.UNKNOWN_BEFORE_START;
     }
 
-    @Override
     public boolean hasNext() throws IOException {
       switch(state) {
         case UNKNOWN_BEFORE_START:
@@ -333,7 +436,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
               state = NextState.AVAILABLE;
               return true;
             } else {
-              state = NextState.FINISHED;
+              state = NextState.UNAVAILABLE;
               return false;
             }
           } catch (Exception e) {
@@ -345,16 +448,15 @@ public class BasicSerializableSourceFormat implements SourceFormat {
             state = NextState.AVAILABLE;
             return true;
           } else {
-            state = NextState.FINISHED;
+            state = NextState.UNAVAILABLE;
             return false;
           }
         case AVAILABLE: return true;
-        case FINISHED: return false;
+        case UNAVAILABLE: return false;
         default: throw new AssertionError();
       }
     }
 
-    @Override
     public WindowedValue<T> next() throws IOException {
       if (!hasNext()) {
         throw new NoSuchElementException();
@@ -363,9 +465,29 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       return WindowedValue.of(
           reader.getCurrent(), reader.getCurrentTimestamp(), GlobalWindow.INSTANCE);
     }
+  }
+
+  private static class BoundedReaderIterator<T> implements Reader.ReaderIterator<WindowedValue<T>> {
+    private BoundedSource.BoundedReader<T> reader;
+    private ReaderToIteratorAdapter<T> iteratorAdapter;
+
+    private BoundedReaderIterator(BoundedSource.BoundedReader<T> reader) {
+      this.reader = reader;
+      this.iteratorAdapter = new ReaderToIteratorAdapter<>(reader, false);
+    }
 
     @Override
-    public ReaderIterator<T> copy() throws IOException {
+    public boolean hasNext() throws IOException {
+      return iteratorAdapter.hasNext();
+    }
+
+    @Override
+    public WindowedValue<T> next() throws IOException {
+      return iteratorAdapter.next();
+    }
+
+    @Override
+    public BoundedReaderIterator<T> copy() throws IOException {
       throw new UnsupportedOperationException();
     }
 
@@ -378,7 +500,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     public Reader.Progress getProgress() {
       if (reader instanceof BoundedSource.BoundedReader) {
         ApproximateProgress progress = new ApproximateProgress();
-        Double fractionConsumed = ((BoundedSource.BoundedReader<?>) reader).getFractionConsumed();
+        Double fractionConsumed = reader.getFractionConsumed();
         if (fractionConsumed != null) {
           progress.setPercentComplete(fractionConsumed.floatValue());
         }
@@ -391,13 +513,6 @@ public class BasicSerializableSourceFormat implements SourceFormat {
 
     @Override
     public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest request) {
-      if (!(reader instanceof BoundedSource.BoundedReader)) {
-        throw new IllegalStateException(
-            "Unexpected requestDynamicSplit on an unbounded source: " + reader.getCurrentSource()
-            + ", request: " + request);
-      }
-
-      BoundedSource.BoundedReader<T> boundedReader = (BoundedSource.BoundedReader<T>) reader;
       ApproximateProgress stopPosition =
           SourceTranslationUtils.splitRequestToApproximateProgress(request);
       Float fractionConsumed = stopPosition.getPercentComplete();
@@ -405,13 +520,13 @@ public class BasicSerializableSourceFormat implements SourceFormat {
         // Only truncating at a fraction is currently supported.
         return null;
       }
-      BoundedSource<T> original = boundedReader.getCurrentSource();
-      BoundedSource<T> residual = boundedReader.splitAtFraction(fractionConsumed.doubleValue());
+      BoundedSource<T> original = reader.getCurrentSource();
+      BoundedSource<T> residual = reader.splitAtFraction(fractionConsumed.doubleValue());
       if (residual == null) {
         return null;
       }
       // Try to catch some potential subclass implementation errors early.
-      BoundedSource<T> primary = boundedReader.getCurrentSource();
+      BoundedSource<T> primary = reader.getCurrentSource();
       if (original == primary) {
         throw new IllegalStateException(
           "Successful split did not change the current source: primary is identical to original"
@@ -437,6 +552,59 @@ public class BasicSerializableSourceFormat implements SourceFormat {
             + "\nOriginal: " + original + "\nPrimary: " + primary + "\nResidual: " + residual);
       }
       return new BoundedSourceSplit<T>(primary, residual);
+    }
+  }
+
+  private static class UnboundedReaderIterator<T>
+      implements Reader.ReaderIterator<WindowedValue<T>> {
+    // Commit at least once every 10 seconds or 10k records.  This keeps the watermark advancing
+    // smoothly, and ensures that not too much work will have to be reprocessed in the event of
+    // a crash.
+    private static final int MAX_BUNDLE_SIZE = 10000;
+    private static final Duration MAX_BUNDLE_READ_TIME = Duration.standardSeconds(10);
+
+    private ReaderToIteratorAdapter<T> iteratorAdapter;
+    private Instant endTime;
+    private int elemsRead;
+
+    private UnboundedReaderIterator(UnboundedSource.UnboundedReader<T> reader, boolean started) {
+      this.iteratorAdapter = new ReaderToIteratorAdapter<>(reader, started);
+      this.endTime = Instant.now().plus(MAX_BUNDLE_READ_TIME);
+      this.elemsRead = 0;
+    }
+
+    @Override
+    public boolean hasNext() throws IOException {
+      if (elemsRead >= MAX_BUNDLE_SIZE
+          || Instant.now().isAfter(endTime)) {
+        return false;
+      }
+      return iteratorAdapter.hasNext();
+    }
+
+    @Override
+    public WindowedValue<T> next() throws IOException {
+      WindowedValue<T> result = iteratorAdapter.next();
+      elemsRead++;
+      return result;
+    }
+
+    @Override
+    public UnboundedReaderIterator<T> copy() throws IOException {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void close() { }
+
+    @Override
+    public Reader.Progress getProgress() {
+      return null;
+    }
+
+    @Override
+    public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest request) {
+      return null;
     }
   }
 }

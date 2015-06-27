@@ -67,13 +67,15 @@ public abstract class BoundedSource<T> extends Source<T> {
    */
   public abstract boolean producesSortedKeys(PipelineOptions options) throws Exception;
 
-  @Override
   public abstract BoundedReader<T> createReader(
       PipelineOptions options, @Nullable ExecutionContext executionContext) throws IOException;
 
   /**
    * A {@code Reader} that reads a bounded amount of input and supports some additional
    * operations, such as progress estimation and dynamic work rebalancing.
+   *
+   * <p> Once {@link #start} or {@link #advance} has returned false, neither will be called
+   * again on this object.
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   public interface BoundedReader<T> extends Source.Reader<T> {

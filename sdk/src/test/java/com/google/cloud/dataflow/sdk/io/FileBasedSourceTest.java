@@ -671,13 +671,13 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 16, null);
 
-    List<? extends Source<String>> sources = source.splitIntoBundles(32, null);
+    List<? extends BoundedSource<String>> sources = source.splitIntoBundles(32, null);
 
     // Not a trivial split.
     assertTrue(sources.size() > 1);
 
     List<String> results = new ArrayList<String>();
-    for (Source<String> split : sources) {
+    for (BoundedSource<String> split : sources) {
       results.addAll(readFromSource(split, options));
     }
 
@@ -782,13 +782,13 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source =
         new TestFileBasedSource(new File(file1.getParent(), "file*").getPath(), 64, null);
-    List<? extends Source<String>> sources = source.splitIntoBundles(512, null);
+    List<? extends BoundedSource<String>> sources = source.splitIntoBundles(512, null);
 
     // Not a trivial split.
     assertTrue(sources.size() > 1);
 
     List<String> results = new ArrayList<String>();
-    for (Source<String> split : sources) {
+    for (BoundedSource<String> split : sources) {
       results.addAll(readFromSource(split, options));
     }
 
