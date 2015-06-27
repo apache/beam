@@ -60,7 +60,8 @@ public class Proto2CoderTest {
         .addField2(MessageB.newBuilder()
             .setField1(true).build())
         .build();
-    CoderProperties.coderDecodeEncodeEqual(ListCoder.of(Proto2Coder.of(MessageA.class)),
+    CoderProperties.coderDecodeEncodeEqual(
+        ListCoder.of(Proto2Coder.of(MessageA.class)),
         ImmutableList.of(value1, value2));
   }
 
@@ -80,7 +81,20 @@ public class Proto2CoderTest {
             .build())
         .build();
     CoderProperties.coderDecodeEncodeEqual(
-        Proto2Coder.of(MessageC.class)
-        .addExtensionsFrom(Proto2CoderTestMessages.class), value);
+        Proto2Coder.of(MessageC.class).withExtensionsFrom(Proto2CoderTestMessages.class),
+        value);
+  }
+
+  @Test
+  public void testCoderSerialization() throws Exception {
+    Proto2Coder<MessageA> coder = Proto2Coder.of(MessageA.class);
+    CoderProperties.coderSerializable(coder);
+  }
+
+  @Test
+  public void testCoderExtensionsSerialization() throws Exception {
+    Proto2Coder<MessageC> coder = Proto2Coder.of(MessageC.class)
+        .withExtensionsFrom(Proto2CoderTestMessages.class);
+    CoderProperties.coderSerializable(coder);
   }
 }

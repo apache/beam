@@ -15,16 +15,28 @@
  */
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.cloud.dataflow.sdk.util.Structs;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * An encoder using Google Protocol Buffers 2 binary format.
@@ -54,23 +66,65 @@ import java.util.List;
  *
  * @param <T> the type of elements handled by this coder, must extend {@code Message}
  */
-public class Proto2Coder<T extends Message> extends CustomCoder<T> {
+public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
   private static final long serialVersionUID = 0;
 
+  /** The class of Protobuf message to be encoded. */
+  private final Class<T> protoMessageClass;
+
   /**
-   * Produces a new Proto2Coder instance, for a given Protobuf message class.
+   * All extension host classes included in this Proto2Coder. The extensions from
+   * these classes will be included in the {@link ExtensionRegistry} used during
+   * encoding and decoding.
    */
-  public static <T extends Message> Proto2Coder<T> of(Class<T> protoMessageClass) {
-    return new Proto2Coder<>(protoMessageClass);
+  private final List<Class<?>> extensionHostClasses;
+
+  private Proto2Coder(Class<T> protoMessageClass, List<Class<?>> extensionHostClasses) {
+    this.protoMessageClass = protoMessageClass;
+    this.extensionHostClasses = extensionHostClasses;
   }
 
-  private final Class<?> protoMessageClass;
-  private final List<Class<?>> extensionClassList = new ArrayList<>();
-  private transient Parser<T> parser;
-  private transient ExtensionRegistry extensionRegistry;
+  /**
+   * Returns a {@code Proto2Coder} for the given Protobuf message class.
+   */
+  public static <T extends Message> Proto2Coder<T> of(Class<T> protoMessageClass) {
+    return new Proto2Coder<>(protoMessageClass, Collections.<Class<?>>emptyList());
+  }
 
-  Proto2Coder(Class<T> protoMessageClass) {
-    this.protoMessageClass = protoMessageClass;
+  /**
+   * Produces a {@code Proto2Coder} like this one, but with the extensions from
+   * the given classes registered.
+   *
+   * @param moreExtensionHosts an iterable of classes that define a static
+   *      method {@code registerAllExtensions(ExtensionRegistry)}
+   */
+  public Proto2Coder<T> withExtensionsFrom(Iterable<Class<?>> moreExtensionHosts) {
+    for (Class<?> extensionHost : moreExtensionHosts) {
+      // Attempt to access the required method, to make sure it's present.
+      try {
+        Method registerAllExtensions = extensionHost.getDeclaredMethod(
+            "registerAllExtensions", ExtensionRegistry.class);
+        Preconditions.checkArgument(
+            0 != (registerAllExtensions.getModifiers() | Modifier.STATIC),
+            "Method registerAllExtensions() must be static for use with Proto2Coder");
+      } catch (NoSuchMethodException | SecurityException e) {
+        throw new IllegalArgumentException(e);
+      }
+    }
+
+    return new Proto2Coder<T>(
+        protoMessageClass,
+        new ImmutableList.Builder<Class<?>>()
+            .addAll(extensionHostClasses)
+            .addAll(moreExtensionHosts)
+            .build());
+  }
+
+  /**
+   * See {@link #withExtensionsFrom(Iterable)}.
+   */
+  public Proto2Coder<T> withExtensionsFrom(Class<?>... extensionHosts) {
+    return withExtensionsFrom(ImmutableList.copyOf(extensionHosts));
   }
 
   /**
@@ -79,8 +133,23 @@ public class Proto2Coder<T extends Message> extends CustomCoder<T> {
    *
    * @param extensionHosts must be a class that defines a static
    *      method name {@code registerAllExtensions}
+   * @deprecated use {@link #withExtensionsFrom}
    */
+  @Deprecated
   public Proto2Coder<T> addExtensionsFrom(Class<?>... extensionHosts) {
+    return addExtensionsFrom(ImmutableList.copyOf(extensionHosts));
+  }
+
+  /**
+   * Adds custom Protobuf extensions to the coder. Returns {@code this}
+   * for method chaining.
+   *
+   * @param extensionHosts must be a class that defines a static
+   *      method name {@code registerAllExtensions}
+   * @deprecated use {@link #withExtensionsFrom}
+   */
+  @Deprecated
+  public Proto2Coder<T> addExtensionsFrom(Iterable<Class<?>> extensionHosts) {
     for (Class<?> extensionHost : extensionHosts) {
       try {
         // Attempt to access the declared method, to make sure it's present.
@@ -89,7 +158,7 @@ public class Proto2Coder<T extends Message> extends CustomCoder<T> {
       } catch (NoSuchMethodException e) {
         throw new IllegalArgumentException(e);
       }
-      extensionClassList.add(extensionHost);
+      extensionHostClasses.add(extensionHost);
     }
     return this;
   }
@@ -112,41 +181,102 @@ public class Proto2Coder<T extends Message> extends CustomCoder<T> {
     }
   }
 
-  private Parser<T> getParser() {
-    if (parser != null) {
-      return parser;
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
     }
-    try {
-      @SuppressWarnings("unchecked")
-      T protoMessageInstance = (T) protoMessageClass
-          .getMethod("getDefaultInstance").invoke(null);
-      @SuppressWarnings("unchecked")
-      Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
-      parser = tParser;
-    } catch (IllegalAccessException
-        | InvocationTargetException
-        | NoSuchMethodException e) {
-      throw new IllegalArgumentException(e);
+    if (!(other instanceof Proto2Coder)) {
+      return false;
     }
-    return parser;
+    @SuppressWarnings("unchecked")
+    Proto2Coder<?> otherCoder = (Proto2Coder<?>) other;
+    return protoMessageClass.equals(otherCoder.protoMessageClass)
+        && Sets.newHashSet(extensionHostClasses)
+            .equals(Sets.newHashSet(otherCoder.extensionHostClasses));
   }
 
-  private ExtensionRegistry getExtensionRegistry() {
-    if (extensionRegistry != null) {
-      return extensionRegistry;
-    }
-    extensionRegistry = ExtensionRegistry.newInstance();
-    for (Class<?> extensionHost : extensionClassList) {
+  @Override
+  public int hashCode() {
+    return Objects.hash(protoMessageClass, extensionHostClasses);
+  }
+
+  private transient Parser<T> memoizedParser;
+
+  private Parser<T> getParser() {
+    if (memoizedParser == null) {
       try {
-        extensionHost
-            .getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class)
-            .invoke(null, extensionRegistry);
+        @SuppressWarnings("unchecked")
+        T protoMessageInstance = (T) protoMessageClass
+            .getMethod("getDefaultInstance").invoke(null);
+        @SuppressWarnings("unchecked")
+        Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
+        memoizedParser = tParser;
       } catch (IllegalAccessException
           | InvocationTargetException
           | NoSuchMethodException e) {
-        throw new IllegalStateException(e);
+        throw new IllegalArgumentException(e);
       }
     }
-    return extensionRegistry;
+    return memoizedParser;
+  }
+
+  private transient ExtensionRegistry memoizedExtensionRegistry;
+
+  private ExtensionRegistry getExtensionRegistry() {
+    if (memoizedExtensionRegistry == null) {
+      memoizedExtensionRegistry = ExtensionRegistry.newInstance();
+      for (Class<?> extensionHost : extensionHostClasses) {
+        try {
+          extensionHost
+              .getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class)
+              .invoke(null, memoizedExtensionRegistry);
+        } catch (IllegalAccessException
+            | InvocationTargetException
+            | NoSuchMethodException e) {
+          throw new IllegalStateException(e);
+        }
+      }
+    }
+    return memoizedExtensionRegistry;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////
+  // JSON Serialization details below
+
+  private static final String PROTO_MESSAGE_CLASS = "proto_message_class";
+  private static final String PROTO_EXTENSION_HOSTS = "proto_extension_hosts";
+
+  /**
+   * Constructor for JSON deserialization only.
+   */
+  @JsonCreator
+  public static <T extends Message> Proto2Coder<T> of(
+      @JsonProperty(PROTO_MESSAGE_CLASS) String protoMessageClassName,
+      @JsonProperty(PROTO_EXTENSION_HOSTS) List<String> extensionHostClassNames) {
+
+    try {
+      @SuppressWarnings("unchecked")
+      Class<T> protoMessageClass = (Class<T>) Class.forName(protoMessageClassName);
+      List<Class<?>> extensionHostClasses = Lists.newArrayList();
+      for (String extensionHostClassName : extensionHostClassNames) {
+        extensionHostClasses.add(Class.forName(extensionHostClassName));
+      }
+      return of(protoMessageClass).withExtensionsFrom(extensionHostClasses);
+    } catch (ClassNotFoundException e) {
+      throw new IllegalArgumentException(e);
+    }
+  }
+
+  @Override
+  public CloudObject asCloudObject() {
+    CloudObject result = super.asCloudObject();
+    Structs.addString(result, PROTO_MESSAGE_CLASS, protoMessageClass.getName());
+    List<CloudObject> extensionHostClassNames = Lists.newArrayList();
+    for (Class<?> clazz : extensionHostClasses) {
+      extensionHostClassNames.add(CloudObject.forString(clazz.getName()));
+    }
+    Structs.addList(result, PROTO_EXTENSION_HOSTS, extensionHostClassNames);
+    return result;
   }
 }
