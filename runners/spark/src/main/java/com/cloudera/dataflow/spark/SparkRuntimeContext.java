@@ -31,7 +31,6 @@ import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Max;
 import com.google.cloud.dataflow.sdk.transforms.Min;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import org.apache.spark.Accumulator;
@@ -93,30 +92,6 @@ public class SparkRuntimeContext implements Serializable {
 
   public synchronized PipelineOptions getPipelineOptions() {
     return deserializePipelineOptions(serializedPipelineOptions);
-  }
-
-  /**
-   * Creates and aggregator and associates it with the specified name.
-   *
-   * @param named Name of aggregator.
-   * @param sfunc Serializable function used in aggregation.
-   * @param <IN>  Type of inputs to aggregator.
-   * @param <OUT> Type of aggregator outputs.
-   * @return Specified aggregator
-   */
-  public synchronized <IN, OUT> Aggregator<IN, OUT> createAggregator(
-      String named,
-      SerializableFunction<Iterable<IN>, OUT> sfunc) {
-    @SuppressWarnings("unchecked")
-    Aggregator<IN, OUT> aggregator = (Aggregator<IN, OUT>) aggregators.get(named);
-    if (aggregator == null) {
-      NamedAggregators.SerFunctionState<IN, OUT> state = new NamedAggregators
-          .SerFunctionState<>(sfunc);
-      accum.add(new NamedAggregators(named, state));
-      aggregator = new SparkAggregator<>(named, state);
-      aggregators.put(named, aggregator);
-    }
-    return aggregator;
   }
 
   /**
@@ -192,9 +167,9 @@ public class SparkRuntimeContext implements Serializable {
    */
   private static class SparkAggregator<IN, OUT> implements Aggregator<IN, OUT>, Serializable {
     private final String name;
-    private final NamedAggregators.State<IN, ?, ?> state;
+    private final NamedAggregators.State<IN, ?, OUT> state;
 
-    SparkAggregator(String name, NamedAggregators.State<IN, ?, ?> state) {
+    SparkAggregator(String name, NamedAggregators.State<IN, ?, OUT> state) {
       this.name = name;
       this.state = state;
     }
@@ -211,8 +186,7 @@ public class SparkRuntimeContext implements Serializable {
 
     @Override
     public Combine.CombineFn<IN, ?, OUT> getCombineFn() {
-      //TODO: Support this.
-      throw new UnsupportedOperationException("getCombineFn is not yet supported.");
+      return state.getCombineFn();
     }
   }
 }

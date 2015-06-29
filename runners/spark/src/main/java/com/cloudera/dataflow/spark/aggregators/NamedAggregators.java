@@ -25,7 +25,6 @@ import java.util.TreeMap;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.common.collect.ImmutableList;
 
 import com.cloudera.dataflow.spark.SparkRuntimeContext;
@@ -124,6 +123,8 @@ public class NamedAggregators implements Serializable {
     INTER current();
 
     OUT render();
+
+    Combine.CombineFn<IN, INTER, OUT> getCombineFn();
   }
 
   /**
@@ -167,6 +168,11 @@ public class NamedAggregators implements Serializable {
       return combineFn.extractOutput(state);
     }
 
+    @Override
+    public Combine.CombineFn<IN, INTER, OUT> getCombineFn() {
+      return combineFn;
+    }
+
     private void writeObject(ObjectOutputStream oos) throws IOException {
       oos.writeObject(ctxt);
       oos.writeObject(combineFn);
@@ -190,48 +196,6 @@ public class NamedAggregators implements Serializable {
       } catch (CannotProvideCoderException e) {
         throw new IllegalStateException("Could not determine coder for accumulator", e);
       }
-    }
-  }
-
-  /**
-   * states correspond to dataflow objects. this one =&gt; serializable function
-   */
-  public static class SerFunctionState<IN, OUT> implements State<IN, OUT, OUT> {
-
-    private final SerializableFunction<Iterable<IN>, OUT> sfunc;
-    private OUT state;
-
-    public SerFunctionState(SerializableFunction<Iterable<IN>, OUT> sfunc) {
-      this.sfunc = sfunc;
-      this.state = sfunc.apply(ImmutableList.<IN>of());
-    }
-
-    @Override
-    public void update(IN element) {
-      @SuppressWarnings("unchecked")
-      IN thisState = (IN) state;
-      this.state = sfunc.apply(ImmutableList.of(element, thisState));
-    }
-
-    @Override
-    public State<IN, OUT, OUT> merge(State<IN, OUT, OUT> other) {
-      // Add exception catching and logging here.
-      @SuppressWarnings("unchecked")
-      IN thisState = (IN) state;
-      @SuppressWarnings("unchecked")
-      IN otherCurrent = (IN) other.current();
-      this.state = sfunc.apply(ImmutableList.of(thisState, otherCurrent));
-      return this;
-    }
-
-    @Override
-    public OUT current() {
-      return state;
-    }
-
-    @Override
-    public OUT render() {
-      return state;
     }
   }
 
