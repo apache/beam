@@ -18,6 +18,7 @@ package com.cloudera.dataflow.spark;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.ApproximateUnique;
 import com.google.cloud.dataflow.sdk.transforms.Count;
@@ -36,6 +37,7 @@ import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import com.google.common.collect.Iterables;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -56,7 +58,8 @@ public class MultiOutputWordCountTest {
 
     PCollection<String> union = list.apply(Flatten.<String>pCollections());
     PCollectionView<String> regexView = regex.apply(View.<String>asSingleton());
-    PCollectionTuple luc = union.apply(new CountWords(regexView));
+    CountWords countWords = new CountWords(regexView);
+    PCollectionTuple luc = union.apply(countWords);
     PCollection<Long> unique = luc.get(lowerCnts).apply(
         ApproximateUnique.<KV<String, Long>>globally(16));
 
@@ -70,6 +73,10 @@ public class MultiOutputWordCountTest {
     Assert.assertEquals(18, actualTotalWords);
     int actualMaxWordLength = res.getAggregatorValue("maxWordLength", Integer.class);
     Assert.assertEquals(6, actualMaxWordLength);
+    AggregatorValues<Integer> aggregatorValues = res.getAggregatorValues(countWords
+        .getTotalWordsAggregator());
+    Assert.assertEquals(18, Iterables.getOnlyElement(aggregatorValues.getValues()).intValue());
+
     res.close();
   }
 
@@ -108,16 +115,18 @@ public class MultiOutputWordCountTest {
   public static class CountWords extends PTransform<PCollection<String>, PCollectionTuple> {
 
     private final PCollectionView<String> regex;
+    private final ExtractWordsFn extractWordsFn;
 
     public CountWords(PCollectionView<String> regex) {
       this.regex = regex;
+      this.extractWordsFn = new ExtractWordsFn(regex);
     }
 
     @Override
     public PCollectionTuple apply(PCollection<String> lines) {
       // Convert lines of text into individual words.
       PCollectionTuple lowerUpper = lines
-          .apply(ParDo.of(new ExtractWordsFn(regex))
+          .apply(ParDo.of(extractWordsFn)
               .withSideInputs(regex)
               .withOutputTags(lower, TupleTagList.of(upper)));
       lowerUpper.get(lower).setCoder(StringUtf8Coder.of());
@@ -129,6 +138,10 @@ public class MultiOutputWordCountTest {
       return PCollectionTuple
           .of(lowerCnts, lowerCounts)
           .and(upperCnts, upperCounts);
+    }
+
+    Aggregator<Integer, Integer> getTotalWordsAggregator() {
+      return extractWordsFn.totalWords;
     }
   }
 }

@@ -17,6 +17,7 @@ package com.cloudera.dataflow.spark;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,12 +28,14 @@ import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Max;
 import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import com.google.common.collect.ImmutableList;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
 
@@ -88,6 +91,22 @@ public class SparkRuntimeContext implements Serializable {
    */
   public <T> T getAggregatorValue(String aggregatorName, Class<T> typeClass) {
     return accum.value().getValue(aggregatorName, typeClass);
+  }
+
+  public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator) {
+    final T aggregatorValue = (T) getAggregatorValue(aggregator.getName(),
+        aggregator.getCombineFn().getOutputType().getRawType());
+    return new AggregatorValues<T>() {
+      @Override
+      public Collection<T> getValues() {
+        return ImmutableList.of(aggregatorValue);
+      }
+
+      @Override
+      public Map<String, T> getValuesAtSteps() {
+        throw new UnsupportedOperationException("getValuesAtSteps is not supported.");
+      }
+    };
   }
 
   public synchronized PipelineOptions getPipelineOptions() {

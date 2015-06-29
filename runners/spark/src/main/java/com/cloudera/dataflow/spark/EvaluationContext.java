@@ -168,8 +168,7 @@ public class EvaluationContext implements EvaluationResult {
   @Override
   public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
       throws AggregatorRetrievalException {
-    //TODO: Support this.
-    throw new UnsupportedOperationException("getAggregatorValues is not yet supported.");
+    return runtime.getAggregatorValues(aggregator);
   }
 
   @Override
