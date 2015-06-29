@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.examples;
+package com.google.cloud.dataflow.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -103,7 +103,6 @@ public class JoinExamples {
           @Override
           public void processElement(ProcessContext c) {
             KV<String, CoGbkResult> e = c.element();
-            CoGbkResult val = e.getValue();
             String countryCode = e.getKey();
             String countryName = "none";
             countryName = e.getValue().getOnly(countryInfoTag);

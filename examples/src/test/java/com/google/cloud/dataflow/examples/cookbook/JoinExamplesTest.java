@@ -14,11 +14,11 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.examples;
+package com.google.cloud.dataflow.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.dataflow.examples.JoinExamples.ExtractCountryInfoFn;
-import com.google.cloud.dataflow.examples.JoinExamples.ExtractEventDataFn;
+import com.google.cloud.dataflow.examples.cookbook.JoinExamples.ExtractCountryInfoFn;
+import com.google.cloud.dataflow.examples.cookbook.JoinExamples.ExtractEventDataFn;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
