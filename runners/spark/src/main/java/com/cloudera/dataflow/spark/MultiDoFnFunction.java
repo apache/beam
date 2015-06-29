@@ -18,14 +18,7 @@ package com.cloudera.dataflow.spark;
 import java.util.Iterator;
 import java.util.Map;
 
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.Aggregator;
-import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.WindowingInternals;
-import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
@@ -43,10 +36,6 @@ import scala.Tuple2;
  * @param <O> Output type for DoFunction.
  */
 class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleTag<?>, Object> {
-  // TODO: I think implementing decoding logic will allow us to do away with having two types of
-  // DoFunctions. Josh originally made these two classes in order to help ease the typing of
-  // results. Correctly using coders should just fix this.
-
   private final DoFn<I, O> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
   private final TupleTag<O> mMainOutputTag;
@@ -65,13 +54,16 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
 
   @Override
   public Iterable<Tuple2<TupleTag<?>, Object>> call(Iterator<I> iter) throws Exception {
-    ProcCtxt ctxt = new ProcCtxt(mFunction);
+    ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
+    //setup
     mFunction.startBundle(ctxt);
     ctxt.setup();
+    //operation
     while (iter.hasNext()) {
       ctxt.element = iter.next();
       mFunction.processElement(ctxt);
     }
+    //cleanup
     mFunction.finishBundle(ctxt);
     return Iterables.transform(ctxt.outputs.entries(),
         new Function<Map.Entry<TupleTag<?>, Object>, Tuple2<TupleTag<?>, Object>>() {
@@ -82,31 +74,13 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
         });
   }
 
-  private class ProcCtxt extends DoFn<I, O>.ProcessContext {
+  private class ProcCtxt extends SparkProcessContext<I, O> {
 
     private final Multimap<TupleTag<?>, Object> outputs = LinkedListMultimap.create();
-    private I element;
 
-    ProcCtxt(DoFn<I, O> fn) {
-      fn.super();
-    }
-
-    void setup() {
-      super.setupDelegateAggregators();
-    }
-
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      return mRuntimeContext.getPipelineOptions();
-    }
-
-    @Override
-    public <T> T sideInput(PCollectionView<T> view) {
-      @SuppressWarnings("unchecked")
-      BroadcastHelper<Iterable<WindowedValue<?>>> broadcastHelper =
-          (BroadcastHelper<Iterable<WindowedValue<?>>>) mSideInputs.get(view.getTagInternal());
-      Iterable<WindowedValue<?>> contents = broadcastHelper.getValue();
-      return view.fromIterableInternal(contents);
+    ProcCtxt(DoFn<I, O> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
+        BroadcastHelper<?>> sideInputs) {
+      super(fn, runtimeContext, sideInputs);
     }
 
     @Override
@@ -122,38 +96,6 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tupleTag, T t, Instant instant) {
       outputs.put(tupleTag, t);
-    }
-
-    @Override
-    public <AI, AO> Aggregator<AI, AO> createAggregatorInternal(
-        String named,
-        Combine.CombineFn<AI, ?, AO> combineFn) {
-      return mRuntimeContext.createAggregator(named, combineFn);
-    }
-
-    @Override
-    public I element() {
-      return element;
-    }
-
-    @Override
-    public void outputWithTimestamp(O output, Instant timestamp) {
-      output(output);
-    }
-
-    @Override
-    public Instant timestamp() {
-      return Instant.now();
-    }
-
-    @Override
-    public BoundedWindow window() {
-      return null;
-    }
-
-    @Override
-    public WindowingInternals<I, O> windowingInternals() {
-      return null;
     }
   }
 }
