@@ -161,6 +161,14 @@ public final class PCollectionViewTesting {
   }
 
   /**
+   * The default {@link Coder} used for windowed values, given an element {@link Coder}.
+   */
+  public static <T> Coder<WindowedValue<T>> defaultWindowedValueCoder(Coder<T> elemCoder) {
+    return WindowedValue.getFullCoder(
+        elemCoder, DEFAULT_WINDOWING_STRATEGY.getWindowFn().windowCoder());
+  }
+
+  /**
    * A {@link PCollectionView} explicitly built from its {@link TupleTag},
    * {@link WindowingStrategy}, {@link Coder}, and conversion function.
    *
@@ -185,18 +193,24 @@ public final class PCollectionViewTesting {
   }
 
   /**
+   * Places the given {@code value} in the {@link #DEFAULT_NONEMPTY_WINDOW}.
+   */
+  public static <T> WindowedValue<T> valueInDefaultWindow(T value) {
+    return WindowedValue.of(value, DEFAULT_TIMESTAMP, DEFAULT_NONEMPTY_WINDOW);
+  }
+
+  /**
    * Prepares {@code values} for reading as the contents of a {@link PCollectionView} side input.
    */
   public static <T> Iterable<WindowedValue<T>> contentsInDefaultWindow(T... values)
       throws Exception {
     List<WindowedValue<T>> windowedValues = Lists.newArrayList();
     for (T value : values) {
-      windowedValues.add(WindowedValue.of(value, DEFAULT_TIMESTAMP, DEFAULT_NONEMPTY_WINDOW));
+      windowedValues.add(valueInDefaultWindow(value));
     }
     return windowedValues;
   }
 
-  ///////////////////////////////////////////////////////////////////////////////
   // Internal details below here
 
   /**

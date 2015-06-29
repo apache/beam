@@ -82,7 +82,7 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
   @Override
   public Coder<IntervalWindow> windowCoder() {
-    return IntervalWindow.getFixedSizeCoder(size);
+    return IntervalWindow.getCoder();
   }
 
   @Override

@@ -101,7 +101,7 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
 
   @Override
   public Coder<IntervalWindow> windowCoder() {
-    return IntervalWindow.getFixedSizeCoder(size);
+    return IntervalWindow.getCoder();
   }
 
   @Override

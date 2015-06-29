@@ -16,18 +16,12 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static com.google.cloud.dataflow.sdk.util.Structs.addString;
-import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudDuration;
-import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
-
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
-import com.google.cloud.dataflow.sdk.util.CloudObject;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -169,15 +163,6 @@ public class IntervalWindow extends BoundedWindow
     return IntervalWindowCoder.of();
   }
 
-  /**
-   * Returns a Coder for encoding interval windows of fixed size (which
-   * is more efficient than {@link #getCoder()} as it only needs to encode
-   * one endpoint).
-   */
-  public static Coder<IntervalWindow> getFixedSizeCoder(final Duration size) {
-    return FixedSizeIntervalWindowCoder.of(size);
-  }
-
   @SuppressWarnings("serial")
   private static class IntervalWindowCoder extends AtomicCoder<IntervalWindow> {
     private static final IntervalWindowCoder INSTANCE =
@@ -204,50 +189,6 @@ public class IntervalWindow extends BoundedWindow
       Instant start = instantCoder.decode(inStream, context.nested());
       Instant end = instantCoder.decode(inStream, context.nested());
       return new IntervalWindow(start, end);
-    }
-  }
-
-  @SuppressWarnings("serial")
-  private static class FixedSizeIntervalWindowCoder
-      extends AtomicCoder<IntervalWindow> {
-    private static final Coder<Instant> instantCoder = InstantCoder.of();
-
-    private final Duration size;
-
-    @JsonCreator
-    public static FixedSizeIntervalWindowCoder of(
-        @JsonProperty("duration") String duration) {
-      return of(fromCloudDuration(duration));
-    }
-
-    public static FixedSizeIntervalWindowCoder of(Duration size) {
-      return new FixedSizeIntervalWindowCoder(size);
-    }
-
-    private FixedSizeIntervalWindowCoder(Duration size) {
-      this.size = size;
-    }
-
-    @Override
-    public void encode(IntervalWindow window,
-                       OutputStream outStream,
-                       Context context)
-        throws IOException, CoderException {
-      instantCoder.encode(window.start, outStream, context);
-    }
-
-    @Override
-    public IntervalWindow decode(InputStream inStream, Context context)
-        throws IOException, CoderException {
-      Instant start = instantCoder.decode(inStream, context);
-      return new IntervalWindow(start, size);
-    }
-
-    @Override
-    public CloudObject asCloudObject() {
-      CloudObject result = super.asCloudObject();
-      addString(result, "duration", toCloudDuration(Duration.millis(size.getMillis())));
-      return result;
     }
   }
 }

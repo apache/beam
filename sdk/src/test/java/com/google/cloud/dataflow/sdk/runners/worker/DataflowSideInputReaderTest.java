@@ -28,10 +28,10 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.Sized;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.Lists;
@@ -50,7 +50,24 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class DataflowSideInputReaderTest {
 
-  private static final long WINDOWED_BIG_ENDIAN_LONG_BYTES = 28L;
+  private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
+
+  /**
+   * The size, in bytes, of a {@code long} placed in
+   * {@link PCollectionViewTesting#DEFAULT_NONEMPTY_WINDOW}. This is the size of each of the
+   * elements of each {@link PCollection} created in the following tests.
+   *
+   * <p>This value is arbitrary from the point of view of these tests.
+   * The correctness of {@link DataflowSideInputReader} does not depend on this value,
+   * but depends on the fact that the reported sizes are this value times the number
+   * of elements in a collection.
+   */
+  private long windowedLongBytes() throws Exception {
+    long arbitraryLong = 42L;
+    return CoderUtils.encodeToByteArray(
+        PCollectionViewTesting.defaultWindowedValueCoder(LONG_CODER),
+        PCollectionViewTesting.valueInDefaultWindow(arbitraryLong)).length;
+  }
 
   /**
    * Creates a {@link Source} descriptor for reading the provided contents as a side input.
@@ -85,7 +102,7 @@ public class DataflowSideInputReaderTest {
     ExecutionContext executionContext = DataflowExecutionContext.withoutSideInputs();
     TupleTag<Iterable<WindowedValue<Long>>> tag = new TupleTag<>();
     PCollectionView<Long> view = PCollectionViewTesting.<Long, Long>testingView(
-        tag, new PCollectionViewTesting.LengthViewFn<Long>(), BigEndianLongCoder.of());
+        tag, new PCollectionViewTesting.LengthViewFn<Long>(), LONG_CODER);
 
     SideInputInfo sideInputInfo = SideInputUtils.createCollectionSideInputInfo(
         sourceInDefaultWindow(view, 1L, -43255L, 0L, 13L, 1975858L));
@@ -100,19 +117,19 @@ public class DataflowSideInputReaderTest {
     Sized<Long> sizedValue = sideInputReader.getSized(
         view, PCollectionViewTesting.DEFAULT_NONEMPTY_WINDOW);
     assertThat(sizedValue.getValue(), equalTo(5L));
-    assertThat(sizedValue.getSize(), equalTo(5 * WINDOWED_BIG_ENDIAN_LONG_BYTES));
+    assertThat(sizedValue.getSize(), equalTo(5 * windowedLongBytes()));
 
     // A repeated read should yield the same size
     Sized<Long> repeatedRead = sideInputReader.getSized(
         view, PCollectionViewTesting.DEFAULT_NONEMPTY_WINDOW);
     assertThat(repeatedRead.getValue(), equalTo(5L));
-    assertThat(sizedValue.getSize(), equalTo(5 * WINDOWED_BIG_ENDIAN_LONG_BYTES));
+    assertThat(sizedValue.getSize(), equalTo(5 * windowedLongBytes()));
 
     // Reading an empty window still yields the same size, for now
     Sized<Long> emptyWindowValue = sideInputReader.getSized(
         view, PCollectionViewTesting.DEFAULT_EMPTY_WINDOW);
     assertThat(emptyWindowValue.getValue(), equalTo(0L));
-    assertThat(emptyWindowValue.getSize(), equalTo(5 * WINDOWED_BIG_ENDIAN_LONG_BYTES));
+    assertThat(emptyWindowValue.getSize(), equalTo(5 * windowedLongBytes()));
   }
 
   /**
@@ -125,7 +142,7 @@ public class DataflowSideInputReaderTest {
     ExecutionContext executionContext = DataflowExecutionContext.withoutSideInputs();
     TupleTag<Iterable<WindowedValue<Long>>> tag = new TupleTag<>();
     PCollectionView<Long> view = PCollectionViewTesting.testingView(
-        tag, new PCollectionViewTesting.LengthViewFn<Long>(), BigEndianLongCoder.of());
+        tag, new PCollectionViewTesting.LengthViewFn<Long>(), LONG_CODER);
 
     SideInputInfo sideInputInfo = SideInputUtils.createCollectionSideInputInfo(
         sourceInDefaultWindow(view, 1L, -43255L, 0L, 13L, 1975858L));

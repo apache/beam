@@ -136,7 +136,7 @@ public class StreamingSideInputDoFnRunnerTest {
                 .setDataId(Windmill.GlobalDataId.newBuilder()
                     .setTag(view.getTagInternal().getId())
                     .setVersion(ByteString.copyFrom(CoderUtils.encodeToByteArray(
-                        IntervalWindow.getFixedSizeCoder(Duration.millis(10)), window)))
+                        IntervalWindow.getCoder(), window)))
                     .build())
                 .setExistenceWatermarkDeadline(9000)
                 .build()))));
@@ -150,7 +150,7 @@ public class StreamingSideInputDoFnRunnerTest {
     Windmill.GlobalDataId id = Windmill.GlobalDataId.newBuilder()
         .setTag(view.getTagInternal().getId())
         .setVersion(ByteString.copyFrom(CoderUtils.encodeToByteArray(
-            IntervalWindow.getFixedSizeCoder(Duration.millis(10)), window)))
+            IntervalWindow.getCoder(), window)))
         .build();
 
     Set<Windmill.GlobalDataRequest> requestSet = new HashSet<>();
@@ -215,7 +215,7 @@ public class StreamingSideInputDoFnRunnerTest {
     Windmill.GlobalDataId id = Windmill.GlobalDataId.newBuilder()
         .setTag(view1.getTagInternal().getId())
         .setVersion(ByteString.copyFrom(CoderUtils.encodeToByteArray(
-            IntervalWindow.getFixedSizeCoder(Duration.millis(10)), window)))
+            IntervalWindow.getCoder(), window)))
         .build();
 
     Set<Windmill.GlobalDataRequest> requestSet = new HashSet<>();
