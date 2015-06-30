@@ -118,6 +118,11 @@ public class EvaluationContext implements EvaluationResult {
   }
 
   void setRDD(PValue pvalue, JavaRDDLike<?, ?> rdd) {
+    try {
+      rdd.rdd().setName(pvalue.getName());
+    } catch (IllegalStateException e) {
+      // name not set, ignore
+    }
     rdds.put(pvalue, rdd);
     leafRdds.add(rdd);
   }
