@@ -21,15 +21,18 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.collect.Maps;
 
 import org.joda.time.Instant;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 
@@ -48,18 +51,20 @@ public class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W exte
     extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
 
   private final KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn;
+  private WindowFn<Object, W> windowFn;
 
   public GroupAlsoByWindowsAndCombineDoFn(
-      KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
+      WindowFn<Object, W> windowFn, KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
+    this.windowFn = windowFn;
     this.combineFn = combineFn;
   }
 
   @Override
   public void processElement(ProcessContext c) throws Exception {
-    K key = c.element().getKey();
+    final K key = c.element().getKey();
     Iterator<WindowedValue<InputT>> iterator = c.element().getValue().iterator();
 
-    PriorityQueue<W> liveWindows =
+    final PriorityQueue<W> liveWindows =
         new PriorityQueue<>(11, new Comparator<BoundedWindow>() {
           @Override
           public int compare(BoundedWindow w1, BoundedWindow w2) {
@@ -67,8 +72,35 @@ public class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W exte
           }
         });
 
-    Map<W, AccumT> accumulators = Maps.newHashMap();
-    Map<W, Instant> minTimestamps = Maps.newHashMap();
+    final Map<W, AccumT> accumulators = Maps.newHashMap();
+    final Map<W, Instant> minTimestamps = Maps.newHashMap();
+
+    WindowFn<Object, W>.MergeContext mergeContext = new CombiningMergeContext() {
+      @Override
+      public Collection<W> windows() {
+        return liveWindows;
+      }
+
+      @Override
+      public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
+        List<AccumT> accumsToBeMerged = new ArrayList<>(toBeMerged.size());
+        Instant minTimestamp = null;
+        for (W window : toBeMerged) {
+          accumsToBeMerged.add(accumulators.remove(window));
+
+          Instant timestampToBeMerged = minTimestamps.remove(window);
+          if (minTimestamp == null
+              || (timestampToBeMerged != null && timestampToBeMerged.isBefore(minTimestamp))) {
+            minTimestamp = timestampToBeMerged;
+          }
+        }
+        liveWindows.removeAll(toBeMerged);
+
+        minTimestamps.put(mergeResult, minTimestamp);
+        liveWindows.add(mergeResult);
+        accumulators.put(mergeResult, combineFn.mergeAccumulators(key, accumsToBeMerged));
+      }
+    };
 
     while (iterator.hasNext()) {
       WindowedValue<InputT> e = iterator.next();
@@ -93,12 +125,16 @@ public class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W exte
         accumulators.put(w, accum);
       }
 
+      windowFn.mergeWindows(mergeContext);
+
       while (!liveWindows.isEmpty()
           && liveWindows.peek().maxTimestamp().isBefore(e.getTimestamp())) {
         closeWindow(key, liveWindows.poll(), accumulators, minTimestamps, c);
       }
     }
 
+    // To have gotten here, we've either not had any elements added, or we've only run merge
+    // and then closed windows. We don't need to retry merging.
     while (!liveWindows.isEmpty()) {
       closeWindow(key, liveWindows.poll(), accumulators, minTimestamps, c);
     }
@@ -114,5 +150,12 @@ public class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W exte
         timestamp,
         Arrays.asList(w),
         PaneInfo.DEFAULT_PANE);
+  }
+
+  private abstract class CombiningMergeContext extends WindowFn<Object, W>.MergeContext {
+
+    public CombiningMergeContext() {
+      windowFn.super();
+    }
   }
 }

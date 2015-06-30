@@ -49,6 +49,9 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
    */
   public static <K, V, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W>
   createForIterable(WindowingStrategy<?, W> windowingStrategy, Coder<V> inputCoder) {
+    @SuppressWarnings("unchecked")
+    WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
+
     if (windowingStrategy.getWindowFn().isNonMerging()
         && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
         && windowingStrategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES) {
@@ -56,7 +59,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
     }
 
     return new GABWViaOutputBufferDoFn<>(
-        windowingStrategy, new ListOutputBuffer<K, V, W>(inputCoder));
+        noWildcard, new ListOutputBuffer<K, V, W>(inputCoder));
   }
 
   /**
@@ -70,12 +73,15 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
       final Coder<K> keyCoder,
       final Coder<InputT> inputCoder) {
     Preconditions.checkNotNull(combineFn);
-    if (windowingStrategy.getWindowFn().isNonMerging()
-        && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
+
+    @SuppressWarnings("unchecked")
+    WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
+
+    if (windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
         && windowingStrategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES) {
-      return new GroupAlsoByWindowsAndCombineDoFn<>(combineFn);
+      return new GroupAlsoByWindowsAndCombineDoFn<>(noWildcard.getWindowFn(), combineFn);
     }
-    return new GABWViaOutputBufferDoFn<>(windowingStrategy,
+    return new GABWViaOutputBufferDoFn<>(noWildcard,
         CombiningOutputBuffer.<K, InputT, AccumT, OutputT, W>create(
             combineFn, keyCoder, inputCoder));
   }
@@ -86,11 +92,10 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
     private final WindowingStrategy<Object, W> strategy;
     private final OutputBuffer<K, InputT, OutputT, W> outputBuffer;
 
-    public GABWViaOutputBufferDoFn(WindowingStrategy<?, W> windowingStrategy,
+    public GABWViaOutputBufferDoFn(
+        WindowingStrategy<Object, W> windowingStrategy,
         OutputBuffer<K, InputT, OutputT, W> outputBuffer) {
-      @SuppressWarnings("unchecked")
-      WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
-      this.strategy = noWildcard;
+      this.strategy = windowingStrategy;
       this.outputBuffer = outputBuffer;
     }
 
