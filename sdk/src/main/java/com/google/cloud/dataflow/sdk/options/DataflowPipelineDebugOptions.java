@@ -178,6 +178,13 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setPubsubRootUrl(String value);
 
   /**
+   * Custom windmill_main binary to use with the streaming runner.
+   */
+  @Description("Custom windmill_main binary to use with the streaming runner")
+  String getOverrideWindmillBinary();
+  void setOverrideWindmillBinary(String value);
+
+  /**
    * Creates a {@link PathValidator} object using the class specified in
    * {@link #getPathValidatorClass()}.
    */

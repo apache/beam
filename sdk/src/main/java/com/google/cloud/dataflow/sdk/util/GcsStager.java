@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.common.base.Preconditions;
@@ -40,8 +41,13 @@ public class GcsStager implements Stager {
   @Override
   public List<DataflowPackage> stageFiles() {
     Preconditions.checkNotNull(options.getStagingLocation());
+    List<String> filesToStage = options.getFilesToStage();
+    String windmillBinary =
+        options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
+    if (windmillBinary != null) {
+      filesToStage.add("windmill_main=" + windmillBinary);
+    }
     return PackageUtil.stageClasspathElements(
-        options.getFilesToStage(),
-        options.getStagingLocation());
+        options.getFilesToStage(), options.getStagingLocation());
   }
 }
