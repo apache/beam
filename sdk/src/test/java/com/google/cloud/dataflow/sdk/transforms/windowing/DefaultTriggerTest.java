@@ -158,4 +158,10 @@ public class DefaultTriggerTest {
     assertEquals(GlobalWindow.INSTANCE.maxTimestamp(),
         DefaultTrigger.of().getWatermarkThatGuaranteesFiring(GlobalWindow.INSTANCE));
   }
+
+
+  @Test
+  public void testContinuation() throws Exception {
+    assertEquals(DefaultTrigger.of(), DefaultTrigger.of().getContinuationTrigger());
+  }
 }

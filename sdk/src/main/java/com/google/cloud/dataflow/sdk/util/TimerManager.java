@@ -39,9 +39,16 @@ public interface TimerManager {
 
     /**
      * The {@code PROCESSING_TIME} domain corresponds to the current to the current (system) time.
-     * This is advanced during exeuction of the Dataflow pipeline.
+     * This is advanced during execution of the Dataflow pipeline.
      */
-    PROCESSING_TIME;
+    PROCESSING_TIME,
+
+    /**
+     * Same as the {@code PROCESSING_TIME} domain, except it won't fire a timer set for time
+     * {@code T} until all timers from earlier stages set for a time earlier than {@code T} have
+     * fired.
+     */
+    SYNCHRONIZED_PROCESSING_TIME;
   }
 
   /**

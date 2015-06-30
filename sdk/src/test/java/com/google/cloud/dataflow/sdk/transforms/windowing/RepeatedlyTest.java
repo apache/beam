@@ -176,4 +176,16 @@ public class RepeatedlyTest {
         .orFinally(AfterPane.elementCountAtLeast(10))
         .getWatermarkThatGuaranteesFiring(window));
   }
+
+  @Test
+  public void testContinuation() throws Exception {
+    Trigger<IntervalWindow> trigger = AfterProcessingTime.pastFirstElementInPane();
+    Trigger<IntervalWindow> repeatedly = Repeatedly.forever(trigger);
+    assertEquals(
+        Repeatedly.forever(trigger.getContinuationTrigger()),
+        repeatedly.getContinuationTrigger());
+    assertEquals(
+        Repeatedly.forever(trigger.getContinuationTrigger().getContinuationTrigger()),
+        repeatedly.getContinuationTrigger().getContinuationTrigger());
+  }
 }

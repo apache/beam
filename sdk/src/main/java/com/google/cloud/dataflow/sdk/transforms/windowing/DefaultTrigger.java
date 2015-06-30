@@ -21,6 +21,8 @@ import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 
 import org.joda.time.Instant;
 
+import java.util.List;
+
 /**
  * A trigger that is equivalent to {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.
  * See {@link Repeatedly#forever} and {@link AfterWatermark#pastEndOfWindow} for more details.
@@ -74,5 +76,10 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   public boolean isCompatible(Trigger<?> other) {
     // Semantically, all default triggers are identical
     return other instanceof DefaultTrigger;
+  }
+
+  @Override
+  public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+    return this;
   }
 }

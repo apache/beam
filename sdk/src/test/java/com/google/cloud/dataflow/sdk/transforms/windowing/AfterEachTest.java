@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerEvent;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
@@ -255,5 +256,16 @@ public class AfterEachTest {
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(50))));
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(50)))));
+  }
+
+  @Test
+  public void testContinuation() throws Exception {
+    OnceTrigger<IntervalWindow> trigger1 = AfterProcessingTime.pastFirstElementInPane();
+    OnceTrigger<IntervalWindow> trigger2 = AfterWatermark.pastEndOfWindow();
+    Trigger<IntervalWindow> afterEach = AfterEach.inOrder(trigger1, trigger2);
+    assertEquals(
+        Repeatedly.forever(AfterFirst.of(
+            trigger1.getContinuationTrigger(), trigger2.getContinuationTrigger())),
+        afterEach.getContinuationTrigger());
   }
 }

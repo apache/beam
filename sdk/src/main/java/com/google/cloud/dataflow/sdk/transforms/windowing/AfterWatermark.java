@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.common.base.Objects;
 
 import org.joda.time.Instant;
 
@@ -150,6 +151,33 @@ public abstract class AfterWatermark<W extends BoundedWindow>
         List<SerializableFunction<Instant, Instant>> transforms) {
       return new FromFirstElementInPane<W>(transforms);
     }
+
+    @Override
+    public OnceTrigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+      return this;
+    }
+
+    @Override
+    public String toString() {
+      return "AfterWatermark.pastFirstElementInPane(" + timestampMappers + ")";
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      if (!(obj instanceof FromFirstElementInPane)) {
+        return false;
+      }
+      FromFirstElementInPane<?> that = (FromFirstElementInPane<?>) obj;
+      return Objects.equal(this.timestampMappers, that.timestampMappers);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(timestampMappers);
+    }
   }
 
   private static class FromEndOfWindow<W extends BoundedWindow> extends AfterWatermark<W> {
@@ -204,6 +232,33 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     protected AfterWatermark<W> newWith(
         List<SerializableFunction<Instant, Instant>> transforms) {
       return new FromEndOfWindow<>(transforms);
+    }
+
+    @Override
+    public OnceTrigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+      return this;
+    }
+
+    @Override
+    public String toString() {
+      return "AfterWatermark.pastEndOfWindow(" + timestampMappers + ")";
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      if (!(obj instanceof FromEndOfWindow)) {
+        return false;
+      }
+      FromEndOfWindow<?> that = (FromEndOfWindow<?>) obj;
+      return Objects.equal(this.timestampMappers, that.timestampMappers);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(timestampMappers);
     }
   }
 }

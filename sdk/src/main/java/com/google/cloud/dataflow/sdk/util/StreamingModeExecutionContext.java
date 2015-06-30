@@ -121,9 +121,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   }
 
   private Windmill.Timer.Type timerType(TimeDomain domain) {
-    return domain == TimeDomain.EVENT_TIME
-        ? Windmill.Timer.Type.WATERMARK
-        : Windmill.Timer.Type.REALTIME;
+    switch (domain) {
+      case EVENT_TIME: return Windmill.Timer.Type.WATERMARK;
+      case PROCESSING_TIME: return Windmill.Timer.Type.REALTIME;
+      case SYNCHRONIZED_PROCESSING_TIME: return Windmill.Timer.Type.DEPENDENT_REALTIME;
+      default:
+        throw new IllegalArgumentException("Unrecgonized TimeDomain: " + domain);
+    }
   }
 
   @Override

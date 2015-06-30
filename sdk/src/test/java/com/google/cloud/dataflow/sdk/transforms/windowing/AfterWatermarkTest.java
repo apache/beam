@@ -169,4 +169,23 @@ public class AfterWatermarkTest {
             .pastEndOfWindow()
             .plusDelayOf(Duration.millis(10)).getWatermarkThatGuaranteesFiring(window));
   }
+
+  @Test
+  public void testContinuation() throws Exception {
+    AfterWatermark<?> endOfWindowPlus1 =
+        AfterWatermark.pastEndOfWindow().plusDelayOf(Duration.standardMinutes(1));
+    assertEquals(endOfWindowPlus1, endOfWindowPlus1.getContinuationTrigger());
+    assertEquals(
+        endOfWindowPlus1,
+        endOfWindowPlus1.getContinuationTrigger().getContinuationTrigger());
+
+    AfterWatermark<?> firstElementAligned =
+        AfterWatermark.pastFirstElementInPane().alignedTo(Duration.standardDays(1));
+    assertEquals(
+        firstElementAligned,
+        firstElementAligned.getContinuationTrigger());
+    assertEquals(
+        firstElementAligned,
+        firstElementAligned.getContinuationTrigger().getContinuationTrigger());
+  }
 }

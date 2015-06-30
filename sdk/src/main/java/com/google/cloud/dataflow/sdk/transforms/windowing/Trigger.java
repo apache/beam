@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.base.Objects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Maps;
 
@@ -29,6 +30,7 @@ import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
@@ -471,6 +473,31 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   }
 
   /**
+   * Return a trigger to use after a {@code GroupByKey} to preserve the
+   * intention of this trigger. Specifically, triggers that are time based
+   * and intended to provide speculative results should continue providing
+   * speculative results. Triggers that fire once (or multiple times) should
+   * continue firing once (or multiple times).
+   */
+  public Trigger<W> getContinuationTrigger() {
+    if (subTriggers == null) {
+      return getContinuationTrigger(null);
+    }
+
+    List<Trigger<W>> subTriggerContinuations = new ArrayList<>();
+    for (Trigger<W> subTrigger : subTriggers) {
+      subTriggerContinuations.add(subTrigger.getContinuationTrigger());
+    }
+    return getContinuationTrigger(subTriggerContinuations);
+  }
+
+  /**
+   * Return the {@link #getContinuationTrigger} of this {@code Trigger}. For convenience, this
+   * is provided the continuation trigger of each of the sub-triggers.
+   */
+  protected abstract Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers);
+
+  /**
    * Returns a bound in watermark time by which this trigger would have fired at least once
    * for a given window had there been input data.  This is a static property of a trigger
    * that does not depend on its state.
@@ -519,6 +546,25 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     } else {
       return simpleName + "(" + Joiner.on(", ").join(subTriggers) + ")";
     }
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (!(obj instanceof Trigger)) {
+      return false;
+    }
+    @SuppressWarnings("unchecked")
+    Trigger<W> that = (Trigger<W>) obj;
+    return Objects.equal(getClass(), that.getClass())
+        && Objects.equal(subTriggers, that.subTriggers);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(getClass(), subTriggers);
   }
 
   /**
@@ -582,6 +628,15 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     protected OnceTrigger(List<Trigger<W>> subTriggers) {
       super(subTriggers);
     }
+
+    @Override
+    public final OnceTrigger<W> getContinuationTrigger() {
+      Trigger<W> continuation = super.getContinuationTrigger();
+      if (!(continuation instanceof OnceTrigger)) {
+        throw new IllegalStateException("Continuation of a OnceTrigger must be a OnceTrigger");
+      }
+      return (OnceTrigger<W>) continuation;
+    }
   }
 
   /**
@@ -641,6 +696,13 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
       Instant actualDeadline = subTriggers.get(ACTUAL).getWatermarkThatGuaranteesFiring(window);
       Instant untilDeadline = subTriggers.get(UNTIL).getWatermarkThatGuaranteesFiring(window);
       return actualDeadline.isBefore(untilDeadline) ? actualDeadline : untilDeadline;
+    }
+
+    @Override
+    public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+      return new OrFinallyTrigger<W>(
+          continuationTriggers.get(ACTUAL),
+          (OnceTrigger<W>) continuationTriggers.get(UNTIL));
     }
   }
 }

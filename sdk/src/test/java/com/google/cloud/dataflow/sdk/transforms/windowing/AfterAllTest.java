@@ -250,4 +250,14 @@ public class AfterAllTest {
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(window)));
   }
+
+  @Test
+  public void testContinuation() throws Exception {
+    OnceTrigger<IntervalWindow> trigger1 = AfterProcessingTime.pastFirstElementInPane();
+    OnceTrigger<IntervalWindow> trigger2 = AfterWatermark.pastEndOfWindow();
+    Trigger<IntervalWindow> afterAll = AfterAll.of(trigger1, trigger2);
+    assertEquals(
+        AfterAll.of(trigger1.getContinuationTrigger(), trigger2.getContinuationTrigger()),
+        afterAll.getContinuationTrigger());
+  }
 }

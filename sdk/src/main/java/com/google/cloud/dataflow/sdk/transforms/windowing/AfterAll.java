@@ -109,4 +109,9 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
     }
     return deadline;
   }
+
+  @Override
+  public OnceTrigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+    return new AfterAll<W>(continuationTriggers);
+  }
 }

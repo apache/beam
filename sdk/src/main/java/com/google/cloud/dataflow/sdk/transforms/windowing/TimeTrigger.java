@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
@@ -32,6 +31,7 @@ import java.util.List;
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used.
  * @param <T> {@code TimeTrigger} subclass produced by modifying the current {@code TimeTrigger}.
+ *     Typically, this is the self type.
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger<W, T>>
@@ -44,7 +44,12 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
     IDENTITY = ImmutableList.<SerializableFunction<Instant, Instant>>of();
   }
 
-  private final List<SerializableFunction<Instant, Instant>> timestampMappers;
+  /**
+   * A list of timestampMappers m1, m2, m3, ... m_n considered to be composed in sequence. The
+   * overall mapping for an instance `instance` is `m_n(... m3(m2(m1(instant))`,
+   * implemented via #computeTargetTimestamp
+   */
+  protected final List<SerializableFunction<Instant, Instant>> timestampMappers;
 
   protected TimeTrigger(
       List<SerializableFunction<Instant, Instant>> timestampMappers) {
@@ -67,14 +72,18 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * @return An updated time trigger that will wait the additional time before firing.
    */
   public T plusDelayOf(final Duration delay) {
-    return newWith(new SerializableFunction<Instant, Instant>() {
+    return newWith(delayFn(delay));
+  }
+
+  private static SerializableFunction<Instant, Instant> delayFn(final Duration delay) {
+    return new SerializableFunction<Instant, Instant>() {
       private static final long serialVersionUID = 0L;
 
       @Override
       public Instant apply(Instant input) {
         return input.plus(delay);
       }
-    });
+    };
   }
 
   /**
@@ -85,14 +94,20 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * CalendarWindows.
    */
   public T alignedTo(final Duration size, final Instant offset) {
-    return newWith(new SerializableFunction<Instant, Instant>() {
+    return newWith(alignFn(size, offset));
+  }
+
+  private static SerializableFunction<Instant, Instant> alignFn(
+      final Duration size, final Instant offset) {
+    return new SerializableFunction<Instant, Instant>() {
       private static final long serialVersionUID = 0L;
 
       @Override
       public Instant apply(Instant point) {
-        return alignedTo(point, size, offset);
+        long millisSinceStart = new Duration(offset, point).getMillis() % size.getMillis();
+        return millisSinceStart == 0 ? point : point.plus(size).minus(millisSinceStart);
       }
-    });
+    };
   }
 
   /**
@@ -101,11 +116,6 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    */
   public T alignedTo(final Duration size) {
     return alignedTo(size, new Instant(0));
-  }
-
-  @VisibleForTesting static Instant alignedTo(Instant point, Duration size, Instant offset) {
-    long millisSinceStart = new Duration(offset, point).getMillis() % size.getMillis();
-    return millisSinceStart == 0 ? point : point.plus(size).minus(millisSinceStart);
   }
 
   /**

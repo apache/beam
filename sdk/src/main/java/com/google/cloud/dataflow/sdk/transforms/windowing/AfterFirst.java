@@ -38,7 +38,7 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
 
   private static final long serialVersionUID = 0L;
 
-  private AfterFirst(List<Trigger<W>> subTriggers) {
+  AfterFirst(List<Trigger<W>> subTriggers) {
     super(subTriggers);
     Preconditions.checkArgument(subTriggers.size() > 1);
   }
@@ -100,5 +100,10 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
       }
     }
     return deadline;
+  }
+
+  @Override
+  public OnceTrigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+    return new AfterFirst<W>(continuationTriggers);
   }
 }

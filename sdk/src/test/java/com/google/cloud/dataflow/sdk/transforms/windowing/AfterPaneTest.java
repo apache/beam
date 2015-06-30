@@ -130,4 +130,14 @@ public class AfterPaneTest {
         AfterPane.elementCountAtLeast(1).getWatermarkThatGuaranteesFiring(
             new IntervalWindow(new Instant(0), new Instant(10))));
   }
+
+  @Test
+  public void testContinuation() throws Exception {
+    assertEquals(
+        AfterPane.elementCountAtLeast(1),
+        AfterPane.elementCountAtLeast(100).getContinuationTrigger());
+    assertEquals(
+        AfterPane.elementCountAtLeast(1),
+        AfterPane.elementCountAtLeast(100).getContinuationTrigger().getContinuationTrigger());
+  }
 }

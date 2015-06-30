@@ -338,8 +338,22 @@ public class TriggerTest {
 
   @Test
   public void testTriggerToString() throws Exception {
-    assertEquals("AfterWatermark.FromEndOfWindow", AfterWatermark.pastEndOfWindow().toString());
-    assertEquals("Repeatedly(AfterWatermark.FromEndOfWindow)",
+    assertEquals("AfterWatermark.pastEndOfWindow([])", AfterWatermark.pastEndOfWindow().toString());
+    assertEquals("Repeatedly(AfterWatermark.pastEndOfWindow([]))",
         Repeatedly.forever(AfterWatermark.pastEndOfWindow()).toString());
+  }
+
+  @Test
+  public void testContinuation() throws Exception {
+    OnceTrigger<IntervalWindow> triggerA = AfterProcessingTime.pastFirstElementInPane();
+    OnceTrigger<IntervalWindow> triggerB = AfterWatermark.pastEndOfWindow();
+    Trigger<IntervalWindow> aOrFinallyB = triggerA.orFinally(triggerB);
+    Trigger<IntervalWindow> bOrFinallyA = triggerB.orFinally(triggerA);
+    assertEquals(
+        triggerA.getContinuationTrigger().orFinally(triggerB.getContinuationTrigger()),
+        aOrFinallyB.getContinuationTrigger());
+    assertEquals(
+        triggerB.getContinuationTrigger().orFinally(triggerA.getContinuationTrigger()),
+        bOrFinallyA.getContinuationTrigger());
   }
 }

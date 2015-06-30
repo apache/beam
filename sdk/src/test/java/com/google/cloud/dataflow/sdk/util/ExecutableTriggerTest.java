@@ -29,6 +29,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Tests for {@link ExecutableTrigger}.
@@ -128,6 +129,12 @@ public class ExecutableTriggerTest {
     @Override
     public boolean isCompatible(Trigger<?> other) {
       return false;
+    }
+
+    @Override
+    public Trigger<IntervalWindow> getContinuationTrigger(
+        List<Trigger<IntervalWindow>> continuationTriggers) {
+      return this;
     }
   }
 }

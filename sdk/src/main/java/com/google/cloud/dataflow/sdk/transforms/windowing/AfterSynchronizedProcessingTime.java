@@ -13,12 +13,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.common.base.Objects;
@@ -27,37 +25,15 @@ import org.joda.time.Instant;
 
 import java.util.List;
 
-/**
- * {@code AfterProcessingTime} triggers fire based on the current processing time. They operate in
- * the real-time domain.
- *
- * @param <W> {@link BoundedWindow} subclass used to represent the windows used
- */
-@Experimental(Experimental.Kind.TRIGGER)
-public class AfterProcessingTime<W extends BoundedWindow>
-    extends TimeTrigger<W, AfterProcessingTime<W>> {
+class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigger<W> {
 
   private static final long serialVersionUID = 0L;
 
   private static final CodedTupleTag<Instant> DELAYED_UNTIL_TAG =
       CodedTupleTag.of("delayed-until", InstantCoder.of());
 
-  private AfterProcessingTime(List<SerializableFunction<Instant, Instant>> transforms) {
-    super(transforms);
-  }
-
-  /**
-   * Creates a trigger that fires when the current processing time passes the processing time
-   * at which this trigger saw the first element in a pane.
-   */
-  public static <W extends BoundedWindow> AfterProcessingTime<W> pastFirstElementInPane() {
-    return new AfterProcessingTime<W>(IDENTITY);
-  }
-
-  @Override
-  protected AfterProcessingTime<W> newWith(
-      List<SerializableFunction<Instant, Instant>> transforms) {
-    return new AfterProcessingTime<W>(transforms);
+  public AfterSynchronizedProcessingTime() {
+    super(null);
   }
 
   @Override
@@ -65,8 +41,8 @@ public class AfterProcessingTime<W extends BoundedWindow>
       throws Exception {
     Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, e.window());
     if (delayUntil == null) {
-      delayUntil = computeTargetTimestamp(c.currentProcessingTime());
-      c.setTimer(e.window(), delayUntil, TimeDomain.PROCESSING_TIME);
+      delayUntil = c.currentProcessingTime();
+      c.setTimer(e.window(), delayUntil, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
       c.store(DELAYED_UNTIL_TAG, e.window(), delayUntil);
     }
 
@@ -92,7 +68,7 @@ public class AfterProcessingTime<W extends BoundedWindow>
 
     if (earliestTimer != null) {
       c.store(DELAYED_UNTIL_TAG, e.newWindow(), earliestTimer);
-      c.setTimer(e.newWindow(), earliestTimer, TimeDomain.PROCESSING_TIME);
+      c.setTimer(e.newWindow(), earliestTimer, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     }
 
     return MergeResult.CONTINUE;
@@ -106,7 +82,7 @@ public class AfterProcessingTime<W extends BoundedWindow>
   @Override
   public void clear(TriggerContext<W> c, W window) throws Exception {
     c.remove(DELAYED_UNTIL_TAG, window);
-    c.deleteTimer(window, TimeDomain.PROCESSING_TIME);
+    c.deleteTimer(window, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
   }
 
   @Override
@@ -116,28 +92,21 @@ public class AfterProcessingTime<W extends BoundedWindow>
 
   @Override
   protected Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
-    return new AfterSynchronizedProcessingTime<W>();
+    return this;
   }
 
   @Override
   public String toString() {
-    return "AfterProcessingTime.pastFirstElementInPane(" + timestampMappers + ")";
+    return "AfterSynchronizedProcessingTime.pastFirstElementInPane()";
   }
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj) {
-      return true;
-    }
-    if (!(obj instanceof AfterProcessingTime)) {
-      return false;
-    }
-    AfterProcessingTime<?> that = (AfterProcessingTime<?>) obj;
-    return Objects.equal(this.timestampMappers, that.timestampMappers);
+    return this == obj || obj instanceof AfterSynchronizedProcessingTime;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(this.timestampMappers);
+    return Objects.hashCode(AfterSynchronizedProcessingTime.class);
   }
 }

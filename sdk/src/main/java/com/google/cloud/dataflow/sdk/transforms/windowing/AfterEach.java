@@ -130,4 +130,9 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
     // fires at least once.
     return subTriggers.get(0).getWatermarkThatGuaranteesFiring(window);
   }
+
+  @Override
+  public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+    return Repeatedly.forever(new AfterFirst<W>(continuationTriggers));
+  }
 }

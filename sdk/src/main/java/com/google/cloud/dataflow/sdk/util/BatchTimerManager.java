@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 
 import org.joda.time.Instant;
 
@@ -45,8 +44,14 @@ public class BatchTimerManager implements TimerManager {
   }
 
   private Map<String, BatchTimer> map(TimeDomain domain) {
-    return TimeDomain.EVENT_TIME.equals(domain)
-        ? watermarkTagToTimer : processingTagToTimer;
+    switch (domain) {
+      case EVENT_TIME: return watermarkTagToTimer;
+      case PROCESSING_TIME: case SYNCHRONIZED_PROCESSING_TIME:
+        // Batch fires timers in order, and only starts a stage after the previous stage is done.
+        // As a result, SYNCHRONIZED_PROCESSING_TIME is the same as PROCESSING_TIME.
+        return processingTagToTimer;
+    }
+    throw new IllegalArgumentException("Unrecognized TimeDomain: " + domain);
   }
 
   public BatchTimerManager(Instant processingTime) {
@@ -174,6 +179,5 @@ public class BatchTimerManager implements TimerManager {
       }
       return false;
     }
-
   }
 }

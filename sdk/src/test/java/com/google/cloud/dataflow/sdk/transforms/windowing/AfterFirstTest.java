@@ -243,4 +243,14 @@ public class AfterFirstTest {
     // persisted keyed state.
     assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
   }
+
+  @Test
+  public void testContinuation() throws Exception {
+    OnceTrigger<IntervalWindow> trigger1 = AfterProcessingTime.pastFirstElementInPane();
+    OnceTrigger<IntervalWindow> trigger2 = AfterWatermark.pastEndOfWindow();
+    Trigger<IntervalWindow> afterFirst = AfterFirst.of(trigger1, trigger2);
+    assertEquals(
+        AfterFirst.of(trigger1.getContinuationTrigger(), trigger2.getContinuationTrigger()),
+        afterFirst.getContinuationTrigger());
+  }
 }

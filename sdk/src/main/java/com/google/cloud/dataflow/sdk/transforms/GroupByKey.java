@@ -416,8 +416,11 @@ public class GroupByKey<K, V>
             "WindowFn has already been consumed by previous GroupByKey", newWindowFn);
       }
 
-      // We also return to the default trigger.
-      WindowingStrategy<?, ?> newWindowingStrategy = WindowingStrategy.of(newWindowFn);
+      // We also switch to the continuation trigger associated with the current trigger.
+      WindowingStrategy<?, ?> newWindowingStrategy = oldWindowingStrategy
+          .withWindowFn(newWindowFn)
+          .withTrigger(oldWindowingStrategy.getTrigger().getSpec().getContinuationTrigger());
+
       return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
           input.getPipeline(), newWindowingStrategy, input.isBounded());
     }

@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import org.joda.time.Instant;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Repeat a trigger, either until some condition is met or forever.
@@ -89,5 +90,10 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
   public Instant getWatermarkThatGuaranteesFiring(W window) {
     // This trigger fires once the repeated trigger fires.
     return subTriggers.get(REPEATED).getWatermarkThatGuaranteesFiring(window);
+  }
+
+  @Override
+  public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+    return new Repeatedly<W>(continuationTriggers.get(REPEATED));
   }
 }

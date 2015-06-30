@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 
 import org.joda.time.Instant;
 
+import java.util.List;
 import java.util.Map.Entry;
 
 /**
@@ -109,5 +110,27 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   @Override
   public Instant getWatermarkThatGuaranteesFiring(W window) {
     return BoundedWindow.TIMESTAMP_MAX_VALUE;
+  }
+
+  @Override
+  public OnceTrigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+    return AfterPane.elementCountAtLeast(1);
+  }
+
+  @Override
+  public String toString() {
+    return "AfterPane.elementCountAtLeast(" + countElems + ")";
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (!(obj instanceof AfterPane)) {
+      return false;
+    }
+    AfterPane<?> that = (AfterPane<?>) obj;
+    return this.countElems == that.countElems;
   }
 }
