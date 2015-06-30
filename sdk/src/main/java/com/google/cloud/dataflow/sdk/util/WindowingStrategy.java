@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
@@ -74,6 +75,12 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    * {@link DefaultTrigger}.
    */
   public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(WindowFn<T, W> windowFn) {
+    try {
+      windowFn.windowCoder().verifyDeterministic();
+    } catch (NonDeterministicException e) {
+      throw new IllegalArgumentException("Window coders must be deterministic.", e);
+    }
+
     ExecutableTrigger<W> defaultTrigger = ExecutableTrigger.create(DefaultTrigger.<W>of());
     return new WindowingStrategy<>(
         windowFn, defaultTrigger, AccumulationMode.DISCARDING_FIRED_PANES, null);
