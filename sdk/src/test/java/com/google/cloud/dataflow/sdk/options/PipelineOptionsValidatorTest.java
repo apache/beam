@@ -66,6 +66,17 @@ public class PipelineOptionsValidatorTest {
     PipelineOptionsValidator.validate(Required.class, required);
   }
 
+  @Test
+  public void testWhenRequiredOptionIsNeverSetOnSuperInterface() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Missing required value for "
+        + "[public abstract java.lang.String com.google.cloud.dataflow."
+        + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    PipelineOptionsValidator.validate(Required.class, options);
+  }
+
   /** A test interface that overrides the parent's method. */
   public static interface SubClassValidation extends Required {
     @Override

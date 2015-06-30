@@ -44,15 +44,19 @@ public class PipelineOptionsValidator {
     Preconditions.checkArgument(Proxy.getInvocationHandler(options)
         instanceof ProxyInvocationHandler);
 
+    // Ensure the methods for T are registered on the ProxyInvocationHandler
+    T asClassOptions = options.as(klass);
+
     ProxyInvocationHandler handler =
-        (ProxyInvocationHandler) Proxy.getInvocationHandler(options);
+        (ProxyInvocationHandler) Proxy.getInvocationHandler(asClassOptions);
+
     for (Method method : ReflectHelpers.getClosureOfMethodsOnInterface(klass)) {
       if (method.getAnnotation(Validation.Required.class) != null) {
-        Preconditions.checkArgument(handler.invoke(options, method, null) != null,
+        Preconditions.checkArgument(handler.invoke(asClassOptions, method, null) != null,
             "Missing required value for [" + method + ", \"" + getDescription(method) + "\"]. ");
       }
     }
-    return options.as(klass);
+    return asClassOptions;
   }
 
   private static String getDescription(Method method) {
