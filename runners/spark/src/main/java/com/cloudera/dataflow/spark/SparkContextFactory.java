@@ -59,7 +59,7 @@ final class SparkContextFactory {
   private static JavaSparkContext createSparkContext(String master) {
     SparkConf conf = new SparkConf();
     conf.setMaster(master);
-    conf.setAppName("spark pipeline job");
+    conf.setAppName("spark dataflow pipeline job");
     conf.set("spark.serializer", KryoSerializer.class.getCanonicalName());
     return new JavaSparkContext(conf);
   }

@@ -539,7 +539,6 @@ public final class TransformTranslator {
     return new TransformEvaluator<View.AsSingleton<T>>() {
       @Override
       public void evaluate(View.AsSingleton<T> transform, EvaluationContext context) {
-        // TODO: PROBABLY INCORRECT. Fix it.
         Iterable<T> input = context.get(context.getInput(transform));
         context.setPView(context.getOutput(transform), Iterables.transform(input,
             new WindowingFunction<T>()));
@@ -552,7 +551,6 @@ public final class TransformTranslator {
       @Override
       public void evaluate(View.AsIterable<T> transform, EvaluationContext context) {
         Iterable<T> input = context.get(context.getInput(transform));
-
         context.setPView(context.getOutput(transform), Iterables.transform(input,
             new WindowingFunction<T>()));
       }

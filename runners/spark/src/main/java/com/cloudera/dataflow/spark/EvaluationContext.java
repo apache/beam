@@ -193,8 +193,9 @@ public class EvaluationContext implements EvaluationResult {
     SparkContextFactory.stopSparkContext(jsc);
   }
 
+  /** The runner is blocking. */
   @Override
   public State getState() {
-    return State.UNKNOWN;
+    return State.DONE;
   }
 }

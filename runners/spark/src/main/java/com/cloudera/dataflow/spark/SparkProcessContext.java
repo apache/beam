@@ -40,12 +40,11 @@ import org.slf4j.LoggerFactory;
 
 abstract class SparkProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
 
-  private static final Logger LOG = LoggerFactory.getLogger(DoFnFunction.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SparkProcessContext.class);
 
   private static final Collection<? extends BoundedWindow> GLOBAL_WINDOWS =
       Collections.singletonList(GlobalWindow.INSTANCE);
 
-  private final DoFn<I, O> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
@@ -55,7 +54,6 @@ abstract class SparkProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
       SparkRuntimeContext runtime,
       Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     fn.super();
-    this.mFunction = fn;
     this.mRuntimeContext = runtime;
     this.mSideInputs = sideInputs;
   }
