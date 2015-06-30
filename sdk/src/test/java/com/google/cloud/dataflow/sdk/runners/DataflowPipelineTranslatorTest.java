@@ -245,26 +245,6 @@ public class DataflowPipelineTranslatorTest {
   }
 
   @Test
-  public void testDebuggerConfig() throws IOException {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setCloudDebuggerEnabled(true);
-    String expectedConfig = "true";
-
-    Pipeline p = buildPipeline(options);
-    p.traverseTopologically(new RecordingPipelineVisitor());
-    Job job =
-        DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, Collections.<DataflowPackage>emptyList())
-            .getJob();
-
-    for (WorkerPool pool : job.getEnvironment().getWorkerPools()) {
-      if ("harness".equals(pool.getKind())) {
-        assertEquals(pool.getMetadata().get("enableDebugger"), expectedConfig);
-      }
-    }
-  }
-
-  @Test
   public void testDiskSizeGbConfig() throws IOException {
     final Integer diskSizeGb = 1234;
 

@@ -29,7 +29,7 @@ public interface CloudDebuggerOptions {
    * Whether to enable the Cloud Debugger snapshot agent for the current job.
    */
   @Description("Whether to enable the Cloud Debugger snapshot agent for the current job.")
-  boolean isCloudDebuggerEnabled();
-  void setCloudDebuggerEnabled(boolean enabled);
+  boolean getEnableCloudDebugger();
+  void setEnableCloudDebugger(boolean enabled);
 }
 

@@ -344,9 +344,6 @@ public class DataflowPipelineTranslator {
    * Translates a Pipeline into the Dataflow representation.
    */
   class Translator implements PipelineVisitor, TranslationContext {
-    /** Metadata key to enable cloud debugger. */
-    static final String ENABLE_CLOUD_DEBUGGER_METADATA_KEY = "enableDebugger";
-
     /** The Pipeline to translate. */
     private final Pipeline pipeline;
 
@@ -411,16 +408,6 @@ public class DataflowPipelineTranslator {
       workerPool.setKind(options.getWorkerPoolType());
       if (options.getTeardownPolicy() != null) {
         workerPool.setTeardownPolicy(options.getTeardownPolicy().getTeardownPolicyName());
-      }
-
-      // Config Cloud Debugger
-      if (options.isCloudDebuggerEnabled()) {
-        Map<String, String> metadata = workerPool.getMetadata();
-        if (metadata == null) {
-          metadata = new HashMap<String, String>();
-        }
-        metadata.put(ENABLE_CLOUD_DEBUGGER_METADATA_KEY, "true");
-        workerPool.setMetadata(metadata);
       }
 
       if (options.isStreaming()) {
