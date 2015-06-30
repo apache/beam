@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -154,7 +155,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
       // avoid repeated allocations, but this is more straightforward.
       for (BoundedWindow window : elem.getWindows()) {
         invokeProcessElement(WindowedValue.of(
-            elem.getValue(), elem.getTimestamp(), window));
+            elem.getValue(), elem.getTimestamp(), window, elem.getPane()));
       }
     }
   }
@@ -253,7 +254,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
     }
 
     <T> WindowedValue<T> makeWindowedValue(
-        T output, Instant timestamp, Collection<? extends BoundedWindow> windows) {
+        T output, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
       final Instant inputTimestamp = timestamp;
 
       if (timestamp == null) {
@@ -289,7 +290,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         }
       }
 
-      return WindowedValue.of(output, timestamp, windows);
+      return WindowedValue.of(output, timestamp, windows, pane);
     }
 
     public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
@@ -304,8 +305,12 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
     void outputWindowedValue(
         OutputT output,
         Instant timestamp,
-        Collection<? extends BoundedWindow> windows) {
-      WindowedValue<OutputT> windowedElem = makeWindowedValue(output, timestamp, windows);
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
+      outputWindowedValue(makeWindowedValue(output, timestamp, windows, pane));
+    }
+
+    void outputWindowedValue(WindowedValue<OutputT> windowedElem) {
       outputManager.output(outputMap.get(mainOutputTag), windowedElem);
       if (stepContext != null) {
         stepContext.noteOutput(windowedElem);
@@ -315,7 +320,12 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
     protected <T> void sideOutputWindowedValue(TupleTag<T> tag,
                                                T output,
                                                Instant timestamp,
-                                               Collection<? extends BoundedWindow> windows) {
+                                               Collection<? extends BoundedWindow> windows,
+                                               PaneInfo pane) {
+      sideOutputWindowedValue(tag, makeWindowedValue(output, timestamp, windows, pane));
+    }
+
+    protected <T> void sideOutputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedElem) {
       ReceiverT receiver = outputMap.get(tag);
       if (receiver == null) {
         // This tag wasn't declared nor was it seen before during this execution.
@@ -335,7 +345,6 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         outputMap.put(tag, receiver);
       }
 
-      WindowedValue<T> windowedElem = makeWindowedValue(output, timestamp, windows);
       outputManager.output(receiver, windowedElem);
       if (stepContext != null) {
         stepContext.noteSideOutput(tag, windowedElem);
@@ -347,24 +356,24 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
     // ProcessContext's versions in DoFn.processElement.
     @Override
     public void output(OutputT output) {
-      outputWindowedValue(output, null, null);
+      outputWindowedValue(output, null, null, null);
     }
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      outputWindowedValue(output, timestamp, null);
+      outputWindowedValue(output, timestamp, null, null);
     }
 
     @Override
     public <T> void sideOutput(TupleTag<T> tag, T output) {
       Preconditions.checkNotNull(tag, "TupleTag passed to sideOutput cannot be null");
-      sideOutputWindowedValue(tag, output, null, null);
+      sideOutputWindowedValue(tag, output, null, null, null);
     }
 
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       Preconditions.checkNotNull(tag, "TupleTag passed to sideOutputWithTimestamp cannot be null");
-      sideOutputWindowedValue(tag, output, timestamp, null);
+      sideOutputWindowedValue(tag, output, timestamp, null, null);
     }
 
     private String generateInternalAggregatorName(String userName) {
@@ -456,37 +465,42 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
     }
 
     @Override
+    public PaneInfo pane() {
+      return windowedValue.getPane();
+    }
+
+    @Override
     public void output(OutputT output) {
-      context.outputWindowedValue(output, windowedValue.getTimestamp(), windowedValue.getWindows());
+      context.outputWindowedValue(windowedValue.withValue(output));
     }
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       checkTimestamp(timestamp);
-      context.outputWindowedValue(output, timestamp, windowedValue.getWindows());
+      context.outputWindowedValue(output, timestamp,
+          windowedValue.getWindows(), windowedValue.getPane());
     }
 
     void outputWindowedValue(
         OutputT output,
         Instant timestamp,
-        Collection<? extends BoundedWindow> windows) {
-      context.outputWindowedValue(output, timestamp, windows);
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
+      context.outputWindowedValue(output, timestamp, windows, pane);
     }
 
     @Override
     public <T> void sideOutput(TupleTag<T> tag, T output) {
       Preconditions.checkNotNull(tag, "Tag passed to sideOutput cannot be null");
-      context.sideOutputWindowedValue(tag,
-                                      output,
-                                      windowedValue.getTimestamp(),
-                                      windowedValue.getWindows());
+      context.sideOutputWindowedValue(tag, windowedValue.withValue(output));
     }
 
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       Preconditions.checkNotNull(tag, "Tag passed to sideOutputWithTimestamp cannot be null");
       checkTimestamp(timestamp);
-      context.sideOutputWindowedValue(tag, output, timestamp, windowedValue.getWindows());
+      context.sideOutputWindowedValue(
+          tag, output, timestamp, windowedValue.getWindows(), windowedValue.getPane());
     }
 
     @Override
@@ -509,8 +523,8 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
       return new WindowingInternals<InputT, OutputT>() {
         @Override
         public void outputWindowedValue(OutputT output, Instant timestamp,
-            Collection<? extends BoundedWindow> windows) {
-          context.outputWindowedValue(output, timestamp, windows);
+            Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+          context.outputWindowedValue(output, timestamp, windows, pane);
         }
 
         @Override
@@ -545,6 +559,11 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         @Override
         public Collection<? extends BoundedWindow> windows() {
           return windowedValue.getWindows();
+        }
+
+        @Override
+        public PaneInfo pane() {
+          return windowedValue.getPane();
         }
 
         @Override

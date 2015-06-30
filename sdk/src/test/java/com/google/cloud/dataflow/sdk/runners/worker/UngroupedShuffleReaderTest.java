@@ -63,7 +63,7 @@ public class UngroupedShuffleReaderTest {
              shuffleSink.writer(shuffleWriter)) {
       for (Integer value : expected) {
         actualSizes.add(shuffleSinkWriter.add(
-            WindowedValue.of(value, timestamp, Lists.newArrayList(window))));
+            WindowedValue.of(value, timestamp, Lists.newArrayList(window), null)));
       }
     }
     List<ShuffleEntry> records = shuffleWriter.getRecords();

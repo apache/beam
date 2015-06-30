@@ -53,16 +53,16 @@ public class PartitioningShuffleReaderTest {
   private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
 
   private static final List<WindowedValue<KV<Integer, String>>> KVS = Arrays.asList(
-      WindowedValue.of(KV.of(1, "in 1a"), timestamp, Lists.newArrayList(window)),
-      WindowedValue.of(KV.of(1, "in 1b"), timestamp, Lists.newArrayList(window)),
-      WindowedValue.of(KV.of(2, "in 2a"), timestamp, Lists.newArrayList(window)),
-      WindowedValue.of(KV.of(2, "in 2b"), timestamp, Lists.newArrayList(window)),
-      WindowedValue.of(KV.of(3, "in 3"), timestamp, Lists.newArrayList(window)),
-      WindowedValue.of(KV.of(4, "in 4a"), timestamp, Lists.newArrayList(window)),
-      WindowedValue.of(KV.of(4, "in 4b"), timestamp, Lists.newArrayList(window)),
-      WindowedValue.of(KV.of(4, "in 4c"), timestamp, Lists.newArrayList(window)),
-      WindowedValue.of(KV.of(4, "in 4d"), timestamp, Lists.newArrayList(window)),
-      WindowedValue.of(KV.of(5, "in 5"), timestamp, Lists.newArrayList(window)));
+      WindowedValue.of(KV.of(1, "in 1a"), timestamp, Lists.newArrayList(window), null),
+      WindowedValue.of(KV.of(1, "in 1b"), timestamp, Lists.newArrayList(window), null),
+      WindowedValue.of(KV.of(2, "in 2a"), timestamp, Lists.newArrayList(window), null),
+      WindowedValue.of(KV.of(2, "in 2b"), timestamp, Lists.newArrayList(window), null),
+      WindowedValue.of(KV.of(3, "in 3"), timestamp, Lists.newArrayList(window), null),
+      WindowedValue.of(KV.of(4, "in 4a"), timestamp, Lists.newArrayList(window), null),
+      WindowedValue.of(KV.of(4, "in 4b"), timestamp, Lists.newArrayList(window), null),
+      WindowedValue.of(KV.of(4, "in 4c"), timestamp, Lists.newArrayList(window), null),
+      WindowedValue.of(KV.of(4, "in 4d"), timestamp, Lists.newArrayList(window), null),
+      WindowedValue.of(KV.of(5, "in 5"), timestamp, Lists.newArrayList(window), null));
 
   private void runTestReadFromShuffle(List<WindowedValue<KV<Integer, String>>> expected)
       throws Exception {

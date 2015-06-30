@@ -242,7 +242,7 @@ public class StreamingDataflowWorkerTest {
           builder.getWorkBuilder(0).getWorkBuilder(0).getMessageBundlesBuilder(0);
       for (Windmill.Message.Builder messageBuilder :
           messageBundleBuilder.getMessagesBuilderList()) {
-        messageBuilder.setMetadata(ByteString.copyFrom(metadata));
+        messageBuilder.setMetadata(addNullPaneTag(ByteString.copyFrom(metadata)));
       }
     }
     return builder.build();
@@ -293,7 +293,7 @@ public class StreamingDataflowWorkerTest {
       builder.getOutputMessagesBuilder(0)
           .getBundlesBuilder(0)
           .getMessagesBuilder(0)
-          .setMetadata(ByteString.copyFrom(metadata));
+          .setMetadata(addNullPaneTag(ByteString.copyFrom(metadata)));
     }
     return builder;
   }
@@ -316,6 +316,10 @@ public class StreamingDataflowWorkerTest {
             "  }" +
             "}"))
         .build();
+  }
+
+  private ByteString addNullPaneTag(ByteString windows) {
+    return ByteString.copyFrom(new byte[1]).concat(windows);
   }
 
   private DataflowWorkerHarnessOptions createTestingPipelineOptions() {

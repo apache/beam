@@ -135,7 +135,8 @@ public class ShuffleSinkTest {
         actualSizes.add(shuffleSinkWriter.add(
             WindowedValue.of(KV.of(kv.getKey(), kv.getValue()),
                              timestamp,
-                             Lists.newArrayList(window))));
+                             Lists.newArrayList(window),
+                             null)));
       }
     }
 

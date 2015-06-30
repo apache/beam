@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
@@ -297,8 +298,10 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     BitSet finishedSet = lookupFinishedSet(window);
 
     if (triggerId.getTriggerIdx() == FINAL_CLEANUP_PSEUDO_ID) {
+      // TODO: Create appropriate Pane here.
+      PaneInfo pane = PaneInfo.createPaneInternal();
       if (mergeIfAppropriate(window)) {
-        emitWindow(window);
+        emitWindow(window, pane);
         outputBuffer.clear(bufferContext(window));
       }
 
@@ -399,7 +402,9 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       ExecutableTrigger<W> trigger, W window,
       BitSet originalFinishedSet, BitSet finishedSet, TriggerResult result) throws Exception {
     if (result.isFire()) {
-      emitWindow(window);
+      // TODO: Obtain pain from ExecutableTrigger or TriggerResult.
+      PaneInfo pane = PaneInfo.createPaneInternal();
+      emitWindow(window, pane);
     }
 
     if (result.isFinish()
@@ -421,7 +426,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
-  private void emitWindow(W window) throws Exception {
+  private void emitWindow(W window, PaneInfo pane) throws Exception {
     Instant timestamp = watermarkHolder.extractAndRelease(bufferContext(window));
     OutputT finalValue = outputBuffer.extract(bufferContext(window));
 
@@ -431,7 +436,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       KV<K, OutputT> value = KV.of(key, finalValue);
 
       // Output the windowed value.
-      windowingInternals.outputWindowedValue(value, timestamp, Arrays.asList(window));
+      windowingInternals.outputWindowedValue(value, timestamp, Arrays.asList(window), pane);
     }
   }
 

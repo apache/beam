@@ -50,7 +50,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -63,7 +62,6 @@ import com.google.common.base.Preconditions;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -377,8 +375,8 @@ public class BasicSerializableSourceFormat implements SourceFormat {
         for (boolean available = reader.start(); available; available = reader.advance()) {
           output.add(
               DirectPipelineRunner.ValueWithMetadata.of(
-                  WindowedValue.of(
-                      reader.getCurrent(), reader.getCurrentTimestamp(), GlobalWindow.INSTANCE)));
+                  WindowedValue.timestampedValueInGlobalWindow(
+                      reader.getCurrent(), reader.getCurrentTimestamp())));
         }
       }
       context.setPCollectionValuesWithMetadata(context.getOutput(transform), output);
@@ -462,8 +460,8 @@ public class BasicSerializableSourceFormat implements SourceFormat {
         throw new NoSuchElementException();
       }
       state = NextState.UNKNOWN_BEFORE_ADVANCE;
-      return WindowedValue.of(
-          reader.getCurrent(), reader.getCurrentTimestamp(), GlobalWindow.INSTANCE);
+      return WindowedValue.timestampedValueInGlobalWindow(
+          reader.getCurrent(), reader.getCurrentTimestamp());
     }
   }
 

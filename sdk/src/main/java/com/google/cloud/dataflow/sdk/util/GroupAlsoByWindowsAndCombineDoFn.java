@@ -20,6 +20,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.collect.Maps;
 
@@ -109,6 +110,9 @@ public class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W exte
     Instant timestamp = minTimestamps.remove(w);
     checkState(accum != null && timestamp != null);
     c.windowingInternals().outputWindowedValue(
-        KV.of(key, combineFn.extractOutput(key, accum)), timestamp, Arrays.asList(w));
+        KV.of(key, combineFn.extractOutput(key, accum)),
+        timestamp,
+        Arrays.asList(w),
+        PaneInfo.DEFAULT_PANE);
   }
 }

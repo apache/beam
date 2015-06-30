@@ -38,6 +38,10 @@ public class ReifyTimestampAndWindowsDoFn<K, V>
     V value = kv.getValue();
     c.output(KV.of(
         key,
-        WindowedValue.of(value, c.timestamp(), c.windowingInternals().windows())));
+        WindowedValue.of(
+            value,
+            c.timestamp(),
+            c.windowingInternals().windows(),
+            c.pane())));
   }
 }

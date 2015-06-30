@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -98,7 +99,7 @@ public interface WindowingInternals<InputT, OutputT> {
    * Output the value at the specified timestamp in the listed windows.
    */
   void outputWindowedValue(OutputT output, Instant timestamp,
-      Collection<? extends BoundedWindow> windows);
+      Collection<? extends BoundedWindow> windows, PaneInfo pane);
 
   /**
    * Writes the provided value to the list of values in stored state corresponding to the
@@ -154,6 +155,11 @@ public interface WindowingInternals<InputT, OutputT> {
    * Access the windows the element is being processed in without "exploding" it.
    */
   Collection<? extends BoundedWindow> windows();
+
+  /**
+   * Access the pane of the current window(s).
+   */
+  PaneInfo pane();
 
   /**
    * Write the given {@link PCollectionView} data to a location accessible by other workers.

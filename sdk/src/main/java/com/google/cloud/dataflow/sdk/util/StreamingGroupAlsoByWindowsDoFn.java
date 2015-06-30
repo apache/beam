@@ -90,7 +90,11 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
       } else {
         InputT value = c.element().element().getValue();
         executor.onElement(
-            WindowedValue.of(value, c.timestamp(), c.windowingInternals().windows()));
+            WindowedValue.of(
+                value,
+                c.timestamp(),
+                c.windowingInternals().windows(),
+                c.pane()));
       }
     }
 

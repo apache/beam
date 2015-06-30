@@ -27,6 +27,8 @@ import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -61,14 +63,16 @@ public abstract class WindowedValue<V> {
   public static <V> WindowedValue<V> of(
       V value,
       Instant timestamp,
-      Collection<? extends BoundedWindow> windows) {
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo pane) {
 
-    if (windows.size() == 0 && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
+    if (windows.size() == 0 && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)
+        && PaneInfo.isDefaultPane(pane)) {
       return valueInEmptyWindows(value);
     } else if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next());
+      return of(value, timestamp, windows.iterator().next(), pane);
     } else {
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows);
+      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
     }
   }
 
@@ -78,28 +82,42 @@ public abstract class WindowedValue<V> {
   public static <V> WindowedValue<V> of(
       V value,
       Instant timestamp,
-      BoundedWindow window) {
+      BoundedWindow window,
+      PaneInfo pane) {
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
-    if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
+    if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)
+        && PaneInfo.isDefaultPane(pane)) {
       return valueInGlobalWindow(value);
     } else if (isGlobal) {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, pane);
     } else {
-      return new TimestampedValueInSingleWindow<>(value, timestamp, window);
+      return new TimestampedValueInSingleWindow<>(value, timestamp, window, pane);
     }
   }
 
   /**
    * Returns a {@code WindowedValue} with the given value, default timestamp,
-   * and {@code GlobalWindow}.
+   * pane, and {@code GlobalWindow}.
    */
   public static <V> WindowedValue<V> valueInGlobalWindow(V value) {
     return new ValueInGlobalWindow<>(value);
   }
 
   /**
+   * Returns a {@code WindowedValue} with the given value and timestamp,
+   * {@code GlobalWindow} and default pane.
+   */
+  public static <V> WindowedValue<V> timestampedValueInGlobalWindow(V value, Instant timestamp) {
+    if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
+      return valueInGlobalWindow(value);
+    } else {
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.DEFAULT_PANE);
+    }
+  }
+
+  /**
    * Returns a {@code WindowedValue} with the given value and default
-   * timestamp and empty windows.
+   * timestamp and pane and empty windows.
    */
   public static <V> WindowedValue<V> valueInEmptyWindows(V value) {
     return new ValueInEmptyWindows<>(value);
@@ -131,6 +149,11 @@ public abstract class WindowedValue<V> {
    * Returns the windows of this {@code WindowedValue}.
    */
   public abstract Collection<? extends BoundedWindow> getWindows();
+
+  /**
+   * Returns the pane of this {@code WindowedValue} in its window.
+   */
+  public abstract PaneInfo getPane();
 
   @Override
   public abstract boolean equals(Object o);
@@ -181,6 +204,11 @@ public abstract class WindowedValue<V> {
     }
 
     @Override
+    public PaneInfo getPane() {
+      return PaneInfo.DEFAULT_PANE;
+    }
+
+    @Override
     public boolean equals(Object o) {
       if (o instanceof ValueInGlobalWindow) {
         ValueInGlobalWindow<?> that = (ValueInGlobalWindow) o;
@@ -222,6 +250,11 @@ public abstract class WindowedValue<V> {
     }
 
     @Override
+    public PaneInfo getPane() {
+      return PaneInfo.DEFAULT_PANE;
+    }
+
+    @Override
     public boolean equals(Object o) {
       if (o instanceof ValueInEmptyWindows) {
         ValueInEmptyWindows<?> that = (ValueInEmptyWindows) o;
@@ -249,16 +282,24 @@ public abstract class WindowedValue<V> {
   private abstract static class TimestampedWindowedValue<V>
       extends WindowedValue<V> {
     protected final Instant timestamp;
+    protected final PaneInfo pane;
 
     public TimestampedWindowedValue(V value,
-                                    Instant timestamp) {
+                                    Instant timestamp,
+                                    PaneInfo pane) {
       super(value);
       this.timestamp = checkNotNull(timestamp);
+      this.pane = pane;
     }
 
     @Override
     public Instant getTimestamp() {
       return timestamp;
+    }
+
+    @Override
+    public PaneInfo getPane() {
+      return pane;
     }
   }
 
@@ -269,13 +310,14 @@ public abstract class WindowedValue<V> {
   private static class TimestampedValueInGlobalWindow<V>
       extends TimestampedWindowedValue<V> {
     public TimestampedValueInGlobalWindow(V value,
-                                          Instant timestamp) {
-      super(value, timestamp);
+                                          Instant timestamp,
+                                          PaneInfo pane) {
+      super(value, timestamp, pane);
     }
 
     @Override
     public <V> WindowedValue<V> withValue(V value) {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, pane);
     }
 
     @Override
@@ -289,6 +331,7 @@ public abstract class WindowedValue<V> {
         TimestampedValueInGlobalWindow<?> that =
             (TimestampedValueInGlobalWindow) o;
         return this.timestamp.getMillis() == that.timestamp.getMillis()
+            && Objects.equals(that.pane, this.pane)
             && Objects.equals(that.value, this.value);
       } else {
         return false;
@@ -317,14 +360,15 @@ public abstract class WindowedValue<V> {
 
     public TimestampedValueInSingleWindow(V value,
                                           Instant timestamp,
-                                          BoundedWindow window) {
-      super(value, timestamp);
+                                          BoundedWindow window,
+                                          PaneInfo pane) {
+      super(value, timestamp, pane);
       this.window = checkNotNull(window);
     }
 
     @Override
     public <V> WindowedValue<V> withValue(V value) {
-      return new TimestampedValueInSingleWindow<>(value, timestamp, window);
+      return new TimestampedValueInSingleWindow<>(value, timestamp, window, pane);
     }
 
     @Override
@@ -339,6 +383,7 @@ public abstract class WindowedValue<V> {
             (TimestampedValueInSingleWindow) o;
         return Objects.equals(that.value, this.value)
             && that.timestamp.isEqual(this.timestamp)
+            && Objects.equals(that.pane, this.pane)
             && that.window.equals(this.window);
       } else {
         return false;
@@ -369,14 +414,15 @@ public abstract class WindowedValue<V> {
     public TimestampedValueInMultipleWindows(
         V value,
         Instant timestamp,
-        Collection<? extends BoundedWindow> windows) {
-      super(value, timestamp);
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
+      super(value, timestamp, pane);
       this.windows = checkNotNull(windows);
     }
 
     @Override
     public <V> WindowedValue<V> withValue(V value) {
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows);
+      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
     }
 
     @Override
@@ -390,7 +436,8 @@ public abstract class WindowedValue<V> {
         TimestampedValueInMultipleWindows<?> that =
             (TimestampedValueInMultipleWindows) o;
         if (Objects.equals(that.value, this.value)
-            && that.timestamp.isEqual(this.timestamp)) {
+            && that.timestamp.isEqual(this.timestamp)
+            && Objects.equals(that.pane, this.pane)) {
           ensureWindowsAreASet();
           that.ensureWindowsAreASet();
           return that.windows.equals(this.windows);
@@ -529,6 +576,7 @@ public abstract class WindowedValue<V> {
       InstantCoder.of().encode(
           windowedElem.getTimestamp(), outStream, nestedContext);
       windowsCoder.encode(windowedElem.getWindows(), outStream, nestedContext);
+      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream, context);
     }
 
     @Override
@@ -539,7 +587,8 @@ public abstract class WindowedValue<V> {
       Instant timestamp = InstantCoder.of().decode(inStream, nestedContext);
       Collection<? extends BoundedWindow> windows =
           windowsCoder.decode(inStream, nestedContext);
-      return WindowedValue.of(value, timestamp, windows);
+      PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream, nestedContext);
+      return WindowedValue.of(value, timestamp, windows, pane);
     }
 
     @Override

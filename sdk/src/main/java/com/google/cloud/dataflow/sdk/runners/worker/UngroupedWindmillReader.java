@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
@@ -89,7 +90,9 @@ class UngroupedWindmillReader<T> extends Reader<WindowedValue<T>> {
       Instant timestampMillis = new Instant(TimeUnit.MICROSECONDS.toMillis(message.getTimestamp()));
       InputStream data = message.getData().newInput();
       InputStream metadata = message.getMetadata().newInput();
-      Collection<? extends BoundedWindow> windows = decode(windowsCoder, metadata);
+      Collection<? extends BoundedWindow> windows = WindmillSink.decodeMetadataWindows(
+          windowsCoder, message.getMetadata());
+      PaneInfo pane = WindmillSink.decodeMetadataPane(message.getMetadata());
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         InputStream key = context.getSerializedKey().newInput();
@@ -97,10 +100,11 @@ class UngroupedWindmillReader<T> extends Reader<WindowedValue<T>> {
         return WindowedValue.of((T) KV.of(decode(kvCoder.getKeyCoder(), key),
                                           decode(kvCoder.getValueCoder(), data)),
                                 timestampMillis,
-                                windows);
+                                windows,
+                                pane);
       } else {
         notifyElementRead(data.available() + metadata.available());
-        return WindowedValue.of(decode(valueCoder, data), timestampMillis, windows);
+        return WindowedValue.of(decode(valueCoder, data), timestampMillis, windows, pane);
       }
     }
 

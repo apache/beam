@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
@@ -197,8 +198,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
           @Override
           @Nullable
           public WindowedValue<OutputT> apply(@Nullable WindowedValue<KV<String, OutputT>> input) {
-            return WindowedValue.of(
-                input.getValue().getValue(), input.getTimestamp(), input.getWindows());
+            return input.withValue(input.getValue().getValue());
           }
         })
         .toList();
@@ -232,7 +232,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
     logInteraction("Element %s at time %d put in windows %s",
         value, timestamp.getMillis(), windows);
-    triggerExecutor.onElement(WindowedValue.of(value, timestamp, windows));
+    triggerExecutor.onElement(WindowedValue.of(value, timestamp, windows, null));
   }
 
   public void doMerge() throws Exception {
@@ -258,11 +258,11 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
     @Override
     public void outputWindowedValue(KV<String, OutputT> output, Instant timestamp,
-        Collection<? extends BoundedWindow> windows) {
+        Collection<? extends BoundedWindow> windows, PaneInfo pane) {
       // Copy the output value (using coders) before capturing it.
       KV<String, OutputT> copy = SerializableUtils.<KV<String, OutputT>>ensureSerializableByCoder(
           KvCoder.of(StringUtf8Coder.of(), outputCoder), output, "outputForWindow");
-      WindowedValue<KV<String, OutputT>> value = WindowedValue.of(copy, timestamp, windows);
+      WindowedValue<KV<String, OutputT>> value = WindowedValue.of(copy, timestamp, windows, pane);
       logInteraction("Outputting: %s", value);
       outputs.add(value);
     }
@@ -336,6 +336,12 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     public Collection<? extends BoundedWindow> windows() {
       throw new UnsupportedOperationException(
           "Testing triggers should not use windows from WindowingInternals.");
+    }
+
+    @Override
+    public PaneInfo pane() {
+      throw new UnsupportedOperationException(
+          "Testing triggers should not use pane from WindowingInternals.");
     }
 
     @Override

@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -103,6 +104,11 @@ class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
 
     @Override
     public BoundedWindow window() {
+      return null;
+    }
+
+    @Override
+    public PaneInfo pane() {
       return null;
     }
 

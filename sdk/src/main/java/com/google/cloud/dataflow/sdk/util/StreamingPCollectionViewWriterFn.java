@@ -49,7 +49,7 @@ public class StreamingPCollectionViewWriterFn<T>
   public void processElement(ProcessContext c) throws Exception {
     List<WindowedValue<T>> output = new ArrayList<>();
     for (T elem : c.element()) {
-      output.add(WindowedValue.of(elem, c.timestamp(), c.window()));
+      output.add(WindowedValue.of(elem, c.timestamp(), c.window(), c.pane()));
     }
 
     c.windowingInternals().writePCollectionViewData(

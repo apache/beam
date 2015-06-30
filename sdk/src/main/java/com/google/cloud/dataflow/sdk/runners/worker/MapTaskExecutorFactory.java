@@ -328,7 +328,8 @@ public class MapTaskExecutorFactory {
       return WindowedValue.of(
           coder.structuralValue(windowedKey.getValue()),
           ignored,
-          windowedKey.getWindows());
+          windowedKey.getWindows(),
+          windowedKey.getPane());
     }
   }
 

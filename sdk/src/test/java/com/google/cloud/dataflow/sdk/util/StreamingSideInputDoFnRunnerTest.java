@@ -314,6 +314,7 @@ public class StreamingSideInputDoFnRunnerTest {
         new Instant(timestamp),
         Arrays.asList(new IntervalWindow(
             new Instant(timestamp - timestamp % 10),
-            new Instant(timestamp - timestamp % 10 + 10))));
+            new Instant(timestamp - timestamp % 10 + 10))),
+        null);
   }
 }

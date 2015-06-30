@@ -102,22 +102,26 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v1")),
         new Instant(1),
-        Arrays.asList(window(0, 10))));
+        Arrays.asList(window(0, 10)),
+        null));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v2")),
         new Instant(2),
-        Arrays.asList(window(0, 10))));
+        Arrays.asList(window(0, 10)),
+        null));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v0")),
         new Instant(0),
-        Arrays.asList(window(0, 10))));
+        Arrays.asList(window(0, 10)),
+        null));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v3")),
         new Instant(13),
-        Arrays.asList(window(10, 20))));
+        Arrays.asList(window(10, 20)),
+        null));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
@@ -166,12 +170,14 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v1")),
         new Instant(5),
-        Arrays.asList(window(-10, 10), window(0, 20))));
+        Arrays.asList(window(-10, 10), window(0, 20)),
+        null));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v0")),
         new Instant(2),
-        Arrays.asList(window(-10, 10), window(0, 20))));
+        Arrays.asList(window(-10, 10), window(0, 20)),
+        null));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
@@ -181,7 +187,8 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v2")),
         new Instant(5),
-        Arrays.asList(window(0, 20), window(10, 30))));
+        Arrays.asList(window(0, 20), window(10, 30)),
+        null));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
@@ -235,22 +242,26 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v1")),
         new Instant(0),
-        Arrays.asList(window(0, 10))));
+        Arrays.asList(window(0, 10)),
+        null));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v2")),
         new Instant(5),
-        Arrays.asList(window(5, 15))));
+        Arrays.asList(window(5, 15)),
+        null));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v3")),
         new Instant(15),
-        Arrays.asList(window(15, 25))));
+        Arrays.asList(window(15, 25)),
+        null));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v0")),
         new Instant(3),
-        Arrays.asList(window(3, 13))));
+        Arrays.asList(window(3, 13)),
+        null));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
@@ -337,22 +348,26 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", 1L)),
         new Instant(0),
-        Arrays.asList(window(0, 10))));
+        Arrays.asList(window(0, 10)),
+        null));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", 2L)),
         new Instant(5),
-        Arrays.asList(window(5, 15))));
+        Arrays.asList(window(5, 15)),
+        null));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", 3L)),
         new Instant(15),
-        Arrays.asList(window(15, 25))));
+        Arrays.asList(window(15, 25)),
+        null));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", 4L)),
         new Instant(3),
-        Arrays.asList(window(3, 13))));
+        Arrays.asList(window(3, 13)),
+        null));
 
     // TODO: To simplify tests, create a timer manager that can sweep a watermark past some timers
     // and fire them as appropriate. This would essentially be the batch timer context.

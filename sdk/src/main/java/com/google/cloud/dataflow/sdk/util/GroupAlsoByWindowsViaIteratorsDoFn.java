@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.common.PeekingReiterator;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.Reiterator;
@@ -73,7 +74,8 @@ class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
           c.windowingInternals().outputWindowedValue(
               KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
               e.getTimestamp(),
-              Arrays.asList(window));
+              Arrays.asList(window),
+              PaneInfo.DEFAULT_PANE);
         }
       }
       // Copy the iterator in case the next DoFn cached its version of the iterator instead

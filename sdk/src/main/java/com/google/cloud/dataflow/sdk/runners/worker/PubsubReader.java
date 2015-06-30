@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
@@ -84,9 +83,7 @@ class PubsubReader<T> extends Reader<WindowedValue<T>> {
       InputStream data = message.getData().newInput();
       notifyElementRead(data.available());
       T value = (T) coder.getValueCoder().decode(data, Coder.Context.OUTER);
-      return WindowedValue.of(value,
-                              new Instant(timestampMillis),
-                              GlobalWindow.INSTANCE);
+      return WindowedValue.timestampedValueInGlobalWindow(value, new Instant(timestampMillis));
     }
   }
 

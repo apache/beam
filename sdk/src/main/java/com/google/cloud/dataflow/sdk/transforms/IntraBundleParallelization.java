@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -313,6 +314,11 @@ public class IntraBundleParallelization {
       @Override
       public BoundedWindow window() {
         return context.window();
+      }
+
+      @Override
+      public PaneInfo pane() {
+        return context.pane();
       }
 
       @Override

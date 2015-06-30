@@ -111,8 +111,7 @@ public class PartitioningShuffleReader<K, V> extends Reader<WindowedValue<KV<K, 
       WindowedValue<V> windowedValue =
           CoderUtils.decodeFromByteArray(windowedValueCoder, record.getValue());
       notifyElementRead(record.length());
-      return WindowedValue.of(KV.of(key, windowedValue.getValue()), windowedValue.getTimestamp(),
-          windowedValue.getWindows());
+      return windowedValue.withValue(KV.of(key, windowedValue.getValue()));
     }
   }
 }

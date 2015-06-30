@@ -118,7 +118,7 @@ public class GroupingShuffleReaderTest {
         for (String value : kvs.getValue()) {
           ++kvCount;
           actualSizes.add(shuffleSinkWriter.add(
-              WindowedValue.of(KV.of(key, value), timestamp, Lists.newArrayList(window))));
+              WindowedValue.of(KV.of(key, value), timestamp, Lists.newArrayList(window), null)));
         }
       }
     }

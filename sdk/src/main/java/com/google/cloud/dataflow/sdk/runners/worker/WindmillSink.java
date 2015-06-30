@@ -22,6 +22,9 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
@@ -32,6 +35,8 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.protobuf.ByteString;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
   private WindmillStreamWriter writer;
   private final Coder<T> valueCoder;
-  private final Coder windowsCoder;
+  private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
   private StreamingModeExecutionContext context;
 
   WindmillSink(String destinationName,
@@ -50,6 +55,29 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     this.valueCoder = inputCoder.getValueCoder();
     this.windowsCoder = inputCoder.getWindowsCoder();
     this.context = context;
+  }
+
+  public static ByteString encodeMetadata(
+      Coder<Collection<? extends BoundedWindow>> windowsCoder,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo pane) throws IOException {
+    ByteString.Output stream = ByteString.newOutput();
+    PaneInfoCoder.INSTANCE.encode(pane, stream, Coder.Context.NESTED);
+    windowsCoder.encode(windows, stream, Coder.Context.OUTER);
+    return stream.toByteString();
+  }
+
+  public static PaneInfo decodeMetadataPane(ByteString metadata) throws IOException {
+    InputStream inStream = metadata.newInput();
+    return PaneInfoCoder.INSTANCE.decode(inStream, Coder.Context.NESTED);
+  }
+
+  public static Collection<? extends BoundedWindow> decodeMetadataWindows(
+      Coder<Collection<? extends BoundedWindow>> windowsCoder,
+      ByteString metadata) throws IOException {
+    InputStream inStream = metadata.newInput();
+    PaneInfoCoder.INSTANCE.decode(inStream, Coder.Context.NESTED);
+    return windowsCoder.decode(inStream, Coder.Context.OUTER);
   }
 
   public static <T> WindmillSink<T> create(PipelineOptions options,
@@ -83,7 +111,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     @Override
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
-      ByteString windows = encode(windowsCoder, data.getWindows());
+      ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPane());
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = (KV) data.getValue();
@@ -103,9 +131,9 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       Windmill.Message.Builder builder = Windmill.Message.newBuilder()
           .setTimestamp(timestampMicros)
           .setData(value)
-          .setMetadata(windows);
+          .setMetadata(metadata);
       keyedOutput.addMessages(builder.build());
-      return key.size() + value.size() + windows.size();
+      return key.size() + value.size() + metadata.size();
     }
 
     @Override

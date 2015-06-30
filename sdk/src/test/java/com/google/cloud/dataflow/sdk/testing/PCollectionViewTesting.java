@@ -196,7 +196,7 @@ public final class PCollectionViewTesting {
    * Places the given {@code value} in the {@link #DEFAULT_NONEMPTY_WINDOW}.
    */
   public static <T> WindowedValue<T> valueInDefaultWindow(T value) {
-    return WindowedValue.of(value, DEFAULT_TIMESTAMP, DEFAULT_NONEMPTY_WINDOW);
+    return WindowedValue.of(value, DEFAULT_TIMESTAMP, DEFAULT_NONEMPTY_WINDOW, null);
   }
 
   /**
