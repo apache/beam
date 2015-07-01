@@ -346,17 +346,6 @@ public class DataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testGcsRequiredTempLocation() {
-    // Error raised if temp location not set.
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setProject("someProject");
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("tempLocation"));
-    DataflowPipelineRunner.fromOptions(options);
-  }
-
-  @Test
   public void testNonGcsFilePathInReadFailure() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
@@ -455,6 +444,43 @@ public class DataflowPipelineRunnerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Project id");
     thrown.expectMessage("when running a Dataflow in the cloud");
+
+    DataflowPipelineRunner.fromOptions(options);
+  }
+
+  @Test
+  public void testNoStagingLocationAndNoTempLocationFails() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setRunner(DataflowPipelineRunner.class);
+    options.setProject("foo");
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Missing required value for group");
+    thrown.expectMessage(DataflowPipelineOptions.DATAFLOW_STORAGE_LOCATION);
+    thrown.expectMessage("getStagingLocation");
+    thrown.expectMessage("getTempLocation");
+
+    DataflowPipelineRunner.fromOptions(options);
+  }
+
+  @Test
+  public void testStagingLocationAndNoTempLocationSucceeds() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setRunner(DataflowPipelineRunner.class);
+    options.setGcpCredential(new TestCredential());
+    options.setProject("foo");
+    options.setStagingLocation("gs://spam/ham/eggs");
+
+    DataflowPipelineRunner.fromOptions(options);
+  }
+
+  @Test
+  public void testTempLocationAndNoStagingLocationSucceeds() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setRunner(DataflowPipelineRunner.class);
+    options.setGcpCredential(new TestCredential());
+    options.setProject("foo");
+    options.setTempLocation("gs://spam/ham/eggs");
 
     DataflowPipelineRunner.fromOptions(options);
   }

@@ -16,11 +16,17 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Ordering;
+import com.google.common.collect.SortedSetMultimap;
+import com.google.common.collect.TreeMultimap;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Collection;
 
 /**
  * Validates that the {@link PipelineOptions} conforms to all the {@link Validation} criteria.
@@ -50,13 +56,43 @@ public class PipelineOptionsValidator {
     ProxyInvocationHandler handler =
         (ProxyInvocationHandler) Proxy.getInvocationHandler(asClassOptions);
 
+    SortedSetMultimap<String, Method> requiredGroups = TreeMultimap.create(
+        Ordering.natural(), PipelineOptionsFactory.MethodNameComparator.INSTANCE);
     for (Method method : ReflectHelpers.getClosureOfMethodsOnInterface(klass)) {
-      if (method.getAnnotation(Validation.Required.class) != null) {
-        Preconditions.checkArgument(handler.invoke(asClassOptions, method, null) != null,
-            "Missing required value for [" + method + ", \"" + getDescription(method) + "\"]. ");
+      Required requiredAnnotation = method.getAnnotation(Validation.Required.class);
+      if (requiredAnnotation != null) {
+        if (requiredAnnotation.groups().length > 0) {
+          for (String requiredGroup : requiredAnnotation.groups()) {
+            requiredGroups.put(requiredGroup, method);
+          }
+        } else {
+          Preconditions.checkArgument(handler.invoke(asClassOptions, method, null) != null,
+              "Missing required value for [" + method + ", \"" + getDescription(method) + "\"]. ");
+        }
       }
     }
+
+    for (String requiredGroup : requiredGroups.keySet()) {
+      if (!verifyGroup(handler, asClassOptions, requiredGroups.get(requiredGroup))) {
+        throw new IllegalArgumentException("Missing required value for group [" + requiredGroup
+            + "]. At least one of the following properties "
+            + Collections2.transform(
+                requiredGroups.get(requiredGroup), ReflectHelpers.METHOD_FORMATTER)
+            + " required. Run with --help=" + klass.getSimpleName() + " for more information.");
+      }
+    }
+
     return asClassOptions;
+  }
+
+  private static boolean verifyGroup(ProxyInvocationHandler handler, PipelineOptions options,
+      Collection<Method> requiredGroup) {
+    for (Method m : requiredGroup) {
+      if (handler.invoke(options, m, null) != null) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static String getDescription(Method method) {
@@ -64,4 +100,3 @@ public class PipelineOptionsValidator {
     return description == null ? "" : description.value();
   }
 }
-

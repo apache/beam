@@ -33,6 +33,7 @@ public interface DataflowPipelineOptions extends
     DataflowPipelineWorkerPoolOptions, BigQueryOptions,
     GcsOptions, StreamingOptions, CloudDebuggerOptions, DataflowWorkerLoggingOptions {
 
+  static final String DATAFLOW_STORAGE_LOCATION = "Dataflow Storage Location";
 
   @Description("Project id. Required when running a Dataflow in the cloud. "
       + "See https://cloud.google.com/storage/docs/projects for further details.")
@@ -55,6 +56,7 @@ public interface DataflowPipelineOptions extends
       + "Must be a valid Cloud Storage url, beginning with the prefix \"gs://\". "
       + "At least one of tempLocation or stagingLocation must be set. If tempLocation is unset, "
       + "defaults to using stagingLocation.")
+  @Validation.Required(groups = {DATAFLOW_STORAGE_LOCATION})
   String getTempLocation();
   void setTempLocation(String value);
 
@@ -71,6 +73,7 @@ public interface DataflowPipelineOptions extends
       + "Must be a valid Cloud Storage url, beginning with the prefix \"gs://\". "
       + "At least one of stagingLocation or tempLocation must be set. If stagingLocation is unset, "
       + "defaults to using tempLocation.")
+  @Validation.Required(groups = {DATAFLOW_STORAGE_LOCATION})
   String getStagingLocation();
   void setStagingLocation(String value);
 

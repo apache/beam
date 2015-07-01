@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
 import com.google.cloud.dataflow.sdk.runners.worker.DataflowWorkerHarness;
@@ -93,7 +94,6 @@ import java.util.TreeSet;
  * specification</a> for more details as to what constitutes a property.
  */
 public class PipelineOptionsFactory {
-
   /**
    * Creates and returns an object that implements {@link PipelineOptions}.
    * This sets the {@link ApplicationNameOptions#getAppName() "appName"} to the calling
@@ -656,6 +656,8 @@ public class PipelineOptionsFactory {
       if (propertyNamesToGetters.isEmpty()) {
         continue;
       }
+      SortedSetMultimap<String, String> requiredGroupNameToProperties =
+          getRequiredGroupNamesToProperties(propertyNamesToGetters);
 
       out.format("%s:%n", currentIface.getName());
       prettyPrintDescription(out, currentIface.getAnnotation(Description.class));
@@ -676,22 +678,51 @@ public class PipelineOptionsFactory {
           out.format("    Default: %s%n", defaultValue.get());
         }
         prettyPrintDescription(out, method.getAnnotation(Description.class));
+        prettyPrintRequiredGroups(out, method.getAnnotation(Validation.Required.class),
+            requiredGroupNameToProperties);
       }
       out.println();
     }
   }
 
   /**
-   * Outputs the value of the description, breaking up long lines on white space characters
-   * and attempting to honor a line limit of {@code TERMINAL_WIDTH}.
+   * Output the requirement groups that the property is a member of, including all properties that
+   * satisfy the group requirement, breaking up long lines on white space characters and attempting
+   * to honor a line limit of {@code TERMINAL_WIDTH}.
+   */
+  private static void prettyPrintRequiredGroups(PrintStream out, Required annotation,
+      SortedSetMultimap<String, String> requiredGroupNameToProperties) {
+    if (annotation == null || annotation.groups() == null) {
+      return;
+    }
+    for (String group : annotation.groups()) {
+      SortedSet<String> groupMembers = requiredGroupNameToProperties.get(group);
+      String requirement;
+      if (groupMembers.size() == 1) {
+        requirement = Iterables.getOnlyElement(groupMembers) + " is required.";
+      } else {
+        requirement = "At least one of " + groupMembers + " is required";
+      }
+      terminalPrettyPrint(out, requirement.split("\\s+"));
+    }
+  }
+
+  /**
+   * Outputs the value of the description, breaking up long lines on white space characters and
+   * attempting to honor a line limit of {@code TERMINAL_WIDTH}.
    */
   private static void prettyPrintDescription(PrintStream out, Description description) {
-    final String spacing = "   ";
     if (description == null || description.value() == null) {
       return;
     }
 
     String[] words = description.value().split("\\s+");
+    terminalPrettyPrint(out, words);
+  }
+
+  private static void terminalPrettyPrint(PrintStream out, String[] words) {
+    final String spacing = "   ";
+
     if (words.length == 0) {
       return;
     }
@@ -877,6 +908,24 @@ public class PipelineOptionsFactory {
   }
 
   /**
+   * Returns a map of required groups of arguments to the properties that satisfy the requirement.
+   */
+  private static SortedSetMultimap<String, String> getRequiredGroupNamesToProperties(
+      Map<String, Method> propertyNamesToGetters) {
+    SortedSetMultimap<String, String> result = TreeMultimap.create();
+    for (Map.Entry<String, Method> propertyEntry : propertyNamesToGetters.entrySet()) {
+      Required requiredAnnotation =
+          propertyEntry.getValue().getAnnotation(Validation.Required.class);
+      if (requiredAnnotation != null) {
+        for (String groupName : requiredAnnotation.groups()) {
+          result.put(groupName, propertyEntry.getKey());
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
    * Validates that a given class conforms to the following properties:
    * <ul>
    *   <li>Any property with the same name must have the same return type for all derived
@@ -1048,7 +1097,7 @@ public class PipelineOptionsFactory {
   }
 
   /** A {@link Comparator} that uses the methods name to compare them. */
-  private static class MethodNameComparator implements Comparator<Method> {
+  static class MethodNameComparator implements Comparator<Method> {
     static final MethodNameComparator INSTANCE = new MethodNameComparator();
     @Override
     public int compare(Method o1, Method o2) {

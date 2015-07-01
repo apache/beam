@@ -35,5 +35,11 @@ public @interface Validation {
   @Target(value = ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   public @interface Required {
+    /**
+     * The groups that the annotated attribute is a member of. A member can be in 0 or more groups.
+     * Members not in any groups are considered to be in a group consisting exclusively of
+     * themselves. At least one member of a group must be non-null if the options are to be valid.
+     */
+    String[] groups() default {};
   }
 }
