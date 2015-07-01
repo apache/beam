@@ -20,8 +20,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
 
@@ -52,14 +50,9 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
 
-    if (windowingStrategy.getWindowFn().isNonMerging()
-        && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
-        && windowingStrategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES) {
-      return new GroupAlsoByWindowsViaIteratorsDoFn<K, V, W>();
-    }
-
-    return new GABWViaOutputBufferDoFn<>(
-        noWildcard, new ListOutputBuffer<K, V, W>(inputCoder));
+    return GroupAlsoByWindowsViaIteratorsDoFn.isSupported(windowingStrategy)
+        ? new GroupAlsoByWindowsViaIteratorsDoFn<K, V, W>()
+        : new GABWViaOutputBufferDoFn<>(noWildcard, new ListOutputBuffer<K, V, W>(inputCoder));
   }
 
   /**
