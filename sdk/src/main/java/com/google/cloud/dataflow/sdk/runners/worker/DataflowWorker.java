@@ -46,16 +46,25 @@ import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
 import javax.annotation.Nullable;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * This is a semi-abstract harness for executing WorkItem tasks in
@@ -86,12 +95,19 @@ public class DataflowWorker {
   private final Cache<PCollectionViewWindow<?>, Sized<Object>> sideInputCache;
 
   /**
+   * Status server returning health of worker.
+   */
+  private Server statusServer;
+
+  /**
    * A weight in "bytes" for the overhead of a {@link Sized} wrapper in the cache. It is just an
    * approximation so it is OK for it to be fairly arbitrary as long as it is nonzero.
    */
   private static final int OVERHEAD_WEIGHT = 8;
 
   private static final int MEGABYTES = 1024 * 1024;
+
+  public static final int DEFAULT_STATUS_PORT = 18081;
 
   public DataflowWorker(WorkUnitClient workUnitClient, DataflowWorkerHarnessOptions options) {
     this.workUnitClient = workUnitClient;
@@ -367,6 +383,41 @@ public class DataflowWorker {
         "Cannot call getSideInputReaderForViews for batch DataflowWorker: "
         + "the MapTask specification should have had SideInputInfo descriptors "
         + "for each side input, and a SideInputReader provided via getSideInputReader");
+    }
+  }
+
+  /**
+   * Runs the status server to report worker health.
+   */
+  public void runStatusServer(int statusPort) {
+    statusServer = new Server(statusPort);
+    statusServer.setHandler(new StatusHandler());
+    try {
+      // Run status server in separate thread.
+      statusServer.start();
+      LOG.info("Status server started on port {}", statusPort);
+    } catch (Exception e) {
+      LOG.warn("Status server failed to start: ", e);
+    }
+  }
+
+  private class StatusHandler extends AbstractHandler {
+    @Override
+    public void handle(String target, Request baseRequest, HttpServletRequest request,
+        HttpServletResponse response) throws IOException, ServletException {
+      response.setContentType("text/html;charset=utf-8");
+      baseRequest.setHandled(true);
+
+      PrintWriter responseWriter = response.getWriter();
+
+      if (target.equals("/healthz")) {
+        response.setStatus(HttpServletResponse.SC_OK);
+        // Right now, we always return "ok".
+        responseWriter.println("ok");
+      } else {
+        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+        responseWriter.println("not found");
+      }
     }
   }
 }
