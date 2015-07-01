@@ -23,6 +23,8 @@ import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.CustomCoder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
+import com.google.cloud.dataflow.sdk.util.Sized;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -44,6 +46,8 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
+
+import javax.annotation.Nullable;
 
 /**
  * {@code PTransform}s for getting an idea of a {@code PCollection}'s
@@ -206,11 +210,11 @@ public class ApproximateQuantiles {
    *
    * @param <T> the type of the values being combined
    */
-  @SuppressWarnings("serial")
   public static class ApproximateQuantilesCombineFn
       <T, ComparatorT extends Comparator<T> & Serializable>
-      extends AccumulatingCombineFn
-      <T, ApproximateQuantilesCombineFn<T, ComparatorT>.QuantileState, List<T>> {
+      extends AccumulatingCombineFn<T, QuantileState<T, ComparatorT>, List<T>> {
+
+    private static final long serialVersionUID = 0L;
 
     /**
      * The cost (in time and space) to compute quantiles to a given
@@ -238,14 +242,23 @@ public class ApproximateQuantiles {
     /**  The number of buffers, corresponding to b in the referenced paper. */
     private final int numBuffers;
 
-    private final double epsilon;
     private final long maxNumElements;
 
-    /**
-     * Used to alternate between biasing up and down in the even weight collapse
-     * operation.
-     */
-    private int offsetJitter = 0;
+    private ApproximateQuantilesCombineFn(
+        int numQuantiles,
+        ComparatorT compareFn,
+        int bufferSize,
+        int numBuffers,
+        long maxNumElements) {
+      Preconditions.checkArgument(numQuantiles >= 2);
+      Preconditions.checkArgument(bufferSize >= 2);
+      Preconditions.checkArgument(numBuffers >= 2);
+      this.numQuantiles = numQuantiles;
+      this.compareFn = compareFn;
+      this.bufferSize = bufferSize;
+      this.numBuffers = numBuffers;
+      this.maxNumElements = maxNumElements;
+    }
 
     /**
      * Returns an approximate quantiles combiner with the given
@@ -260,10 +273,10 @@ public class ApproximateQuantiles {
      * {@link #DEFAULT_MAX_NUM_ELEMENTS}.
      */
     public static <T, ComparatorT extends Comparator<T> & Serializable>
-    ApproximateQuantilesCombineFn<T, ComparatorT> create(
-        int numQuantiles, ComparatorT compareFn) {
-      return create(numQuantiles, compareFn,
-                    DEFAULT_MAX_NUM_ELEMENTS, 1.0 / numQuantiles);
+        ApproximateQuantilesCombineFn<T, ComparatorT> create(
+            int numQuantiles, ComparatorT compareFn) {
+      return create(
+          numQuantiles, compareFn, DEFAULT_MAX_NUM_ELEMENTS, 1.0 / numQuantiles);
     }
 
     /**
@@ -271,7 +284,7 @@ public class ApproximateQuantiles {
      * values using their natural ordering.
      */
     public static <T extends Comparable<T>>
-    ApproximateQuantilesCombineFn<T, Top.Largest<T>> create(int numQuantiles) {
+        ApproximateQuantilesCombineFn<T, Top.Largest<T>> create(int numQuantiles) {
       return create(numQuantiles, new Top.Largest<T>());
     }
 
@@ -318,11 +331,11 @@ public class ApproximateQuantiles {
      * tends to be much better.
      */
     public static <T, ComparatorT extends Comparator<T> & Serializable>
-    ApproximateQuantilesCombineFn<T, ComparatorT> create(
-        int numQuantiles,
-        ComparatorT compareFn,
-        long maxNumElements,
-        double epsilon) {
+        ApproximateQuantilesCombineFn<T, ComparatorT> create(
+            int numQuantiles,
+            ComparatorT compareFn,
+            long maxNumElements,
+            double epsilon) {
       // Compute optimal b and k.
       int b = 2;
       while ((b - 2) * (1 << (b - 2)) < epsilon * maxNumElements) {
@@ -330,346 +343,192 @@ public class ApproximateQuantiles {
       }
       b--;
       int k = Math.max(2, (int) Math.ceil(maxNumElements / (1 << (b - 1))));
-      return new ApproximateQuantilesCombineFn<>(
-          numQuantiles, compareFn, k, b, epsilon, maxNumElements);
-    }
-
-    private ApproximateQuantilesCombineFn(int numQuantiles,
-                                          ComparatorT compareFn,
-                                          int bufferSize,
-                                          int numBuffers,
-                                          double epsilon,
-                                          long maxNumElements) {
-      Preconditions.checkArgument(numQuantiles >= 2);
-      Preconditions.checkArgument(bufferSize >= 2);
-      Preconditions.checkArgument(numBuffers >= 2);
-      Preconditions.checkArgument(compareFn instanceof Serializable);
-      this.numQuantiles = numQuantiles;
-      this.compareFn = compareFn;
-      this.bufferSize = bufferSize;
-      this.numBuffers = numBuffers;
-      this.epsilon = epsilon;
-      this.maxNumElements = maxNumElements;
+      return new ApproximateQuantilesCombineFn<T, ComparatorT>(
+          numQuantiles, compareFn, k, b, maxNumElements);
     }
 
     @Override
-    public QuantileState createAccumulator() {
-      return new QuantileState();
+    public QuantileState<T, ComparatorT> createAccumulator() {
+      return QuantileState.empty(compareFn, numQuantiles, numBuffers, bufferSize);
     }
 
     @Override
-    public Coder<QuantileState> getAccumulatorCoder(
+    public Coder<QuantileState<T, ComparatorT>> getAccumulatorCoder(
         CoderRegistry registry, Coder<T> elementCoder) {
-      return new QuantileStateCoder(elementCoder);
+      return new QuantileStateCoder<>(compareFn, elementCoder);
+    }
+  }
+
+  /**
+   * Compact summarization of a collection on which quantiles can be estimated.
+   */
+  static class QuantileState<T, ComparatorT extends Comparator<T> & Serializable>
+      implements Accumulator<T, QuantileState<T, ComparatorT>, List<T>> {
+
+    private ComparatorT compareFn;
+    private int numQuantiles;
+    private int numBuffers;
+    private int bufferSize;
+
+    @Nullable
+    private T min;
+
+    @Nullable
+    private T max;
+
+    /**
+     * The set of buffers, ordered by level from smallest to largest.
+     */
+    private PriorityQueue<QuantileBuffer<T>> buffers;
+
+    /**
+     * The algorithm requires that the manipulated buffers always be filled
+     * to capacity to perform the collapse operation.  This operation can
+     * be extended to buffers of varying sizes by introducing the notion of
+     * fractional weights, but it's easier to simply combine the remainders
+     * from all shards into new, full buffers and then take them into account
+     * when computing the final output.
+     */
+    private List<T> unbufferedElements = Lists.newArrayList();
+
+    private QuantileState(
+        ComparatorT compareFn,
+        int numQuantiles,
+        @Nullable T min,
+        @Nullable T max,
+        int numBuffers,
+        int bufferSize,
+        Collection<T> unbufferedElements,
+        Collection<QuantileBuffer<T>> buffers) {
+      this.compareFn = compareFn;
+      this.numQuantiles = numQuantiles;
+      this.numBuffers = numBuffers;
+      this.bufferSize = bufferSize;
+      this.buffers = new PriorityQueue<>(numBuffers + 1);
+      this.min = min;
+      this.max = max;
+      this.unbufferedElements.addAll(unbufferedElements);
+      this.buffers.addAll(buffers);
+    }
+
+    public static <T, ComparatorT extends Comparator<T> & Serializable>
+        QuantileState<T, ComparatorT> empty(
+            ComparatorT compareFn, int numQuantiles, int numBuffers, int bufferSize) {
+      return new QuantileState<T, ComparatorT>(
+          compareFn,
+          numQuantiles,
+          null, /* min */
+          null, /* max */
+          numBuffers,
+          bufferSize,
+          Collections.<T>emptyList(),
+          Collections.<QuantileBuffer<T>>emptyList());
+    }
+
+    public static <T, ComparatorT extends Comparator<T> & Serializable>
+        QuantileState<T, ComparatorT> singleton(
+            ComparatorT compareFn, int numQuantiles, T elem, int numBuffers, int bufferSize) {
+      return new QuantileState<T, ComparatorT>(
+          compareFn,
+          numQuantiles,
+          elem, /* min */
+          elem, /* max */
+          numBuffers,
+          bufferSize,
+          Collections.singletonList(elem),
+          Collections.<QuantileBuffer<T>>emptyList());
     }
 
     /**
-     * Compact summarization of a collection on which quantiles can be
-     * estimated.
+     * Add a new element to the collection being summarized by this state.
      */
-    class QuantileState
-        implements AccumulatingCombineFn.Accumulator
-        <T, ApproximateQuantilesCombineFn<T, ComparatorT>.QuantileState, List<T>> {
-
-      private T min;
-      private T max;
-
-      /**
-       * The set of buffers, ordered by level from smallest to largest.
-       */
-      private PriorityQueue<QuantileBuffer> buffers =
-          new PriorityQueue<>(numBuffers + 1);
-
-      /**
-       * The algorithm requires that the manipulated buffers always be filled
-       * to capacity to perform the collapse operation.  This operation can
-       * be extended to buffers of varying sizes by introducing the notion of
-       * fractional weights, but it's easier to simply combine the remainders
-       * from all shards into new, full buffers and then take them into account
-       * when computing the final output.
-       */
-      private List<T> unbufferedElements = Lists.newArrayList();
-
-      public QuantileState() { }
-
-      public QuantileState(T elem) {
+    @Override
+    public void addInput(T elem) {
+      if (isEmpty()) {
+        min = max = elem;
+      } else if (compareFn.compare(elem, min) < 0) {
         min = elem;
+      } else if (compareFn.compare(elem, max) > 0) {
         max = elem;
-        unbufferedElements.add(elem);
       }
+      addUnbuffered(elem);
+    }
 
-      public QuantileState(T min, T max, Collection<T> unbufferedElements,
-                           Collection<QuantileBuffer> buffers) {
-        this.min = min;
-        this.max = max;
-        this.unbufferedElements.addAll(unbufferedElements);
-        this.buffers.addAll(buffers);
-      }
-
-      /**
-       * Add a new element to the collection being summarized by this state.
-       */
-      @Override
-      public void addInput(T elem) {
-        if (isEmpty()) {
-          min = max = elem;
-        } else if (compareFn.compare(elem, min) < 0) {
-          min = elem;
-        } else if (compareFn.compare(elem, max) > 0) {
-          max = elem;
-        }
-        addUnbuffered(elem);
-      }
-
-      /**
-       * Add a new buffer to the unbuffered list, creating a new buffer and
-       * collapsing if needed.
-       */
-      private void addUnbuffered(T elem) {
-        unbufferedElements.add(elem);
-        if (unbufferedElements.size() == bufferSize) {
-          Collections.sort(unbufferedElements, compareFn);
-          buffers.add(new QuantileBuffer(unbufferedElements));
-          unbufferedElements = Lists.newArrayListWithCapacity(bufferSize);
-          collapseIfNeeded();
-        }
-      }
-
-      /**
-       * Updates this as if adding all elements seen by other.
-       */
-      @Override
-      public void mergeAccumulator(QuantileState other) {
-        if (other.isEmpty()) {
-          return;
-        }
-        if (min == null || compareFn.compare(other.min, min) < 0) {
-          min = other.min;
-        }
-        if (max == null || compareFn.compare(other.max, max) > 0) {
-          max = other.max;
-        }
-        for (T elem : other.unbufferedElements) {
-          addUnbuffered(elem);
-        }
-        buffers.addAll(other.buffers);
+    /**
+     * Add a new buffer to the unbuffered list, creating a new buffer and
+     * collapsing if needed.
+     */
+    private void addUnbuffered(T elem) {
+      unbufferedElements.add(elem);
+      if (unbufferedElements.size() == bufferSize) {
+        Collections.sort(unbufferedElements, compareFn);
+        buffers.add(new QuantileBuffer<T>(unbufferedElements));
+        unbufferedElements = Lists.newArrayListWithCapacity(bufferSize);
         collapseIfNeeded();
       }
-
-      public boolean isEmpty() {
-        return unbufferedElements.size() == 0 && buffers.size() == 0;
-      }
-
-      private void collapseIfNeeded() {
-        while (buffers.size() > numBuffers) {
-          List<QuantileBuffer> toCollapse = Lists.newArrayList();
-          toCollapse.add(buffers.poll());
-          toCollapse.add(buffers.poll());
-          int minLevel = toCollapse.get(1).level;
-          while (!buffers.isEmpty() && buffers.peek().level == minLevel) {
-            toCollapse.add(buffers.poll());
-          }
-          buffers.add(collapse(toCollapse));
-        }
-      }
-
-      private QuantileBuffer collapse(Iterable<QuantileBuffer> buffers) {
-        int newLevel = 0;
-        long newWeight = 0;
-        for (QuantileBuffer buffer : buffers) {
-          // As presented in the paper, there should always be at least two
-          // buffers of the same (minimal) level to collapse, but it is possible
-          // to violate this condition when combining buffers from independently
-          // computed shards.  If they differ we take the max.
-          newLevel = Math.max(newLevel, buffer.level + 1);
-          newWeight += buffer.weight;
-        }
-        List<T> newElements =
-            interpolate(buffers, bufferSize, newWeight, offset(newWeight));
-        return new QuantileBuffer(newLevel, newWeight, newElements);
-      }
-
-      /**
-       * Outputs numQuantiles elements consisting of the minimum, maximum, and
-       * numQuantiles - 2 evenly spaced intermediate elements.
-       * <p>
-       * Returns the empty list if no elements have been added.
-       */
-      @Override
-      public List<T> extractOutput() {
-        if (isEmpty()) {
-          return Lists.newArrayList();
-        }
-        long totalCount = unbufferedElements.size();
-        for (QuantileBuffer buffer : buffers) {
-          totalCount += bufferSize * buffer.weight;
-        }
-        List<QuantileBuffer> all = Lists.newArrayList(buffers);
-        if (!unbufferedElements.isEmpty()) {
-          Collections.sort(unbufferedElements, compareFn);
-          all.add(new QuantileBuffer(unbufferedElements));
-        }
-        double step = 1.0 * totalCount / (numQuantiles - 1);
-        double offset = (1.0 * totalCount - 1) / (numQuantiles - 1);
-        List<T> quantiles = interpolate(all, numQuantiles - 2, step, offset);
-        quantiles.add(0, min);
-        quantiles.add(max);
-        return quantiles;
-      }
     }
 
     /**
-     * A single buffer in the sense of the referenced algorithm.
+     * Updates this as if adding all elements seen by other.
+     *
+     * <p>Note that this ignores the {@code Comparator} of the other {@link QuantileState}. In
+     * practice, they should generally be equal, but this method tolerates a mismatch.
      */
-    private class QuantileBuffer implements Comparable<QuantileBuffer> {
-      private int level;
-      private long weight;
-      private List<T> elements;
-
-      public QuantileBuffer(List<T> elements) {
-        this(0, 1, elements);
+    @Override
+    public void mergeAccumulator(QuantileState<T, ComparatorT> other) {
+      if (other.isEmpty()) {
+        return;
       }
-
-      public QuantileBuffer(int level, long weight, List<T> elements) {
-        this.level = level;
-        this.weight = weight;
-        this.elements = elements;
+      if (min == null || compareFn.compare(other.min, min) < 0) {
+        min = other.min;
       }
-
-      @Override
-      public int compareTo(QuantileBuffer other) {
-        return this.level - other.level;
+      if (max == null || compareFn.compare(other.max, max) > 0) {
+        max = other.max;
       }
-
-      @Override
-      public String toString() {
-        return "QuantileBuffer["
-            + "level=" + level
-            + ", weight="
-            + weight + ", elements=" + elements + "]";
+      for (T elem : other.unbufferedElements) {
+        addUnbuffered(elem);
       }
+      buffers.addAll(other.buffers);
+      collapseIfNeeded();
+    }
 
-      public Iterator<WeightedElement<T>> weightedIterator() {
-        return new UnmodifiableIterator<WeightedElement<T>>() {
-          Iterator<T> iter = elements.iterator();
-          @Override
-          public boolean hasNext() {
-            return iter.hasNext();
-          }
-          @Override public WeightedElement<T> next() {
-            return WeightedElement.of(weight, iter.next());
-          }
-        };
+    public boolean isEmpty() {
+      return unbufferedElements.size() == 0 && buffers.size() == 0;
+    }
+
+    private void collapseIfNeeded() {
+      while (buffers.size() > numBuffers) {
+        List<QuantileBuffer<T>> toCollapse = Lists.newArrayList();
+        toCollapse.add(buffers.poll());
+        toCollapse.add(buffers.poll());
+        int minLevel = toCollapse.get(1).level;
+        while (!buffers.isEmpty() && buffers.peek().level == minLevel) {
+          toCollapse.add(buffers.poll());
+        }
+        buffers.add(collapse(toCollapse));
       }
     }
 
-    /**
-     * Coder for QuantileState.
-     */
-    private class QuantileStateCoder extends CustomCoder<QuantileState> {
-
-      private final Coder<T> elementCoder;
-      private final Coder<List<T>> elementListCoder;
-
-      public QuantileStateCoder(Coder<T> elementCoder) {
-        this.elementCoder = elementCoder;
-        this.elementListCoder = ListCoder.of(elementCoder);
+    private QuantileBuffer<T> collapse(
+        Iterable<QuantileBuffer<T>> buffers) {
+      int newLevel = 0;
+      long newWeight = 0;
+      for (QuantileBuffer<T> buffer : buffers) {
+        // As presented in the paper, there should always be at least two
+        // buffers of the same (minimal) level to collapse, but it is possible
+        // to violate this condition when combining buffers from independently
+        // computed shards.  If they differ we take the max.
+        newLevel = Math.max(newLevel, buffer.level + 1);
+        newWeight += buffer.weight;
       }
-
-      @Override
-      public void encode(
-          QuantileState state, OutputStream outStream, Coder.Context context)
-          throws CoderException, IOException {
-        Coder.Context nestedContext = context.nested();
-        elementCoder.encode(state.min, outStream, nestedContext);
-        elementCoder.encode(state.max, outStream, nestedContext);
-        elementListCoder.encode(
-            state.unbufferedElements, outStream, nestedContext);
-        BigEndianIntegerCoder.of().encode(
-            state.buffers.size(), outStream, nestedContext);
-        for (QuantileBuffer buffer : state.buffers) {
-          encodeBuffer(buffer, outStream, nestedContext);
-        }
-      }
-
-      @Override
-      public QuantileState decode(InputStream inStream, Coder.Context context)
-          throws CoderException, IOException {
-        Coder.Context nestedContext = context.nested();
-        T min = elementCoder.decode(inStream, nestedContext);
-        T max = elementCoder.decode(inStream, nestedContext);
-        List<T> unbufferedElements =
-            elementListCoder.decode(inStream, nestedContext);
-        int numBuffers =
-            BigEndianIntegerCoder.of().decode(inStream, nestedContext);
-        List<QuantileBuffer> buffers = new ArrayList<>(numBuffers);
-        for (int i = 0; i < numBuffers; i++) {
-          buffers.add(decodeBuffer(inStream, nestedContext));
-        }
-        return new QuantileState(min, max, unbufferedElements, buffers);
-      }
-
-      private void encodeBuffer(
-          QuantileBuffer buffer, OutputStream outStream, Coder.Context context)
-          throws CoderException, IOException {
-        DataOutputStream outData = new DataOutputStream(outStream);
-        outData.writeInt(buffer.level);
-        outData.writeLong(buffer.weight);
-        elementListCoder.encode(buffer.elements, outStream, context);
-      }
-
-      private QuantileBuffer decodeBuffer(
-          InputStream inStream, Coder.Context context)
-          throws IOException, CoderException {
-        DataInputStream inData = new DataInputStream(inStream);
-        return new QuantileBuffer(
-            inData.readInt(),
-            inData.readLong(),
-            elementListCoder.decode(inStream, context));
-      }
-
-      /**
-       * Notifies ElementByteSizeObserver about the byte size of the
-       * encoded value using this coder.
-       */
-      @Override
-      public void registerByteSizeObserver(
-          QuantileState state,
-          ElementByteSizeObserver observer,
-          Coder.Context context)
-          throws Exception {
-        Coder.Context nestedContext = context.nested();
-        elementCoder.registerByteSizeObserver(
-            state.min, observer, nestedContext);
-        elementCoder.registerByteSizeObserver(
-            state.max, observer, nestedContext);
-        elementListCoder.registerByteSizeObserver(
-            state.unbufferedElements, observer, nestedContext);
-
-        BigEndianIntegerCoder.of().registerByteSizeObserver(
-            state.buffers.size(), observer, nestedContext);
-        for (QuantileBuffer buffer : state.buffers) {
-          observer.update(4L + 8);
-
-          elementListCoder.registerByteSizeObserver(
-              buffer.elements, observer, nestedContext);
-        }
-      }
-
-      @Override
-      public void verifyDeterministic() throws NonDeterministicException {
-        verifyDeterministic(
-            "QuantileState.ElementCoder must be deterministic",
-            elementCoder);
-        verifyDeterministic(
-            "QuantileState.ElementListCoder must be deterministic",
-            elementListCoder);
-      }
+      List<T> newElements =
+          interpolate(buffers, bufferSize, newWeight, offset(newWeight));
+      return new QuantileBuffer<>(newLevel, newWeight, newElements);
     }
 
     /**
-     * If the weight is even, we must round up our down.  Alternate between
-     * these two options to avoid a bias.
+     * If the weight is even, we must round up or down.  Alternate between these two options to
+     * avoid a bias.
      */
     private long offset(long newWeight) {
       if (newWeight % 2 == 1) {
@@ -680,52 +539,230 @@ public class ApproximateQuantiles {
       }
     }
 
+    /** For alternating between biasing up and down in the above even weight collapse operation. */
+    private int offsetJitter = 0;
+
+
     /**
      * Emulates taking the ordered union of all elements in buffers, repeated
      * according to their weight, and picking out the (k * step + offset)-th
      * elements of this list for {@code 0 <= k < count}.
      */
-    private List<T> interpolate(Iterable<QuantileBuffer> buffers,
+    private List<T> interpolate(Iterable<QuantileBuffer<T>> buffers,
                                 int count, double step, double offset) {
-      List<Iterator<WeightedElement<T>>> iterators = Lists.newArrayList();
-      for (QuantileBuffer buffer : buffers) {
-        iterators.add(buffer.weightedIterator());
+      List<Iterator<Sized<T>>> iterators = Lists.newArrayList();
+      for (QuantileBuffer<T> buffer : buffers) {
+        iterators.add(buffer.sizedIterator());
       }
       // Each of the buffers is already sorted by element.
-      Iterator<WeightedElement<T>> sorted = Iterators.mergeSorted(
+      Iterator<Sized<T>> sorted = Iterators.mergeSorted(
           iterators,
-          new Comparator<WeightedElement<T>>() {
+          new Comparator<Sized<T>>() {
             @Override
-            public int compare(WeightedElement<T> a, WeightedElement<T> b) {
-              return compareFn.compare(a.value, b.value);
+            public int compare(Sized<T> a, Sized<T> b) {
+              return compareFn.compare(a.getValue(), b.getValue());
             }
           });
 
       List<T> newElements = Lists.newArrayListWithCapacity(count);
-      WeightedElement<T> weightedElement = sorted.next();
-      double current = weightedElement.weight;
+      Sized<T> sizedElement = sorted.next();
+      double current = sizedElement.getSize();
       for (int j = 0; j < count; j++) {
         double target = j * step + offset;
         while (current <= target && sorted.hasNext()) {
-          weightedElement = sorted.next();
-          current += weightedElement.weight;
+          sizedElement = sorted.next();
+          current += sizedElement.getSize();
         }
-        newElements.add(weightedElement.value);
+        newElements.add(sizedElement.getValue());
       }
       return newElements;
     }
 
-    /** An element and its weight. */
-    private static class WeightedElement<T> {
-      public long weight;
-      public T value;
-      private WeightedElement(long weight, T value) {
-        this.weight = weight;
-        this.value = value;
+    /**
+     * Outputs numQuantiles elements consisting of the minimum, maximum, and
+     * numQuantiles - 2 evenly spaced intermediate elements.
+     * <p>
+     * Returns the empty list if no elements have been added.
+     */
+    @Override
+    public List<T> extractOutput() {
+      if (isEmpty()) {
+        return Lists.newArrayList();
       }
-      public static <T> WeightedElement<T> of(long weight, T value) {
-        return new WeightedElement<>(weight, value);
+      long totalCount = unbufferedElements.size();
+      for (QuantileBuffer<T> buffer : buffers) {
+        totalCount += bufferSize * buffer.weight;
       }
+      List<QuantileBuffer<T>> all = Lists.newArrayList(buffers);
+      if (!unbufferedElements.isEmpty()) {
+        Collections.sort(unbufferedElements, compareFn);
+        all.add(new QuantileBuffer<>(unbufferedElements));
+      }
+      double step = 1.0 * totalCount / (numQuantiles - 1);
+      double offset = (1.0 * totalCount - 1) / (numQuantiles - 1);
+      List<T> quantiles = interpolate(all, numQuantiles - 2, step, offset);
+      quantiles.add(0, min);
+      quantiles.add(max);
+      return quantiles;
+    }
+  }
+
+  /**
+   * A single buffer in the sense of the referenced algorithm.
+   */
+  private static class QuantileBuffer<T> implements Comparable<QuantileBuffer<T>> {
+    private int level;
+    private long weight;
+    private List<T> elements;
+
+    public QuantileBuffer(List<T> elements) {
+      this(0, 1, elements);
+    }
+
+    public QuantileBuffer(int level, long weight, List<T> elements) {
+      this.level = level;
+      this.weight = weight;
+      this.elements = elements;
+    }
+
+    @Override
+    public int compareTo(QuantileBuffer<T> other) {
+      return this.level - other.level;
+    }
+
+    @Override
+    public String toString() {
+      return "QuantileBuffer["
+          + "level=" + level
+          + ", weight="
+          + weight + ", elements=" + elements + "]";
+    }
+
+    public Iterator<Sized<T>> sizedIterator() {
+      return new UnmodifiableIterator<Sized<T>>() {
+        Iterator<T> iter = elements.iterator();
+        @Override
+        public boolean hasNext() {
+          return iter.hasNext();
+        }
+        @Override public Sized<T> next() {
+          return Sized.of(iter.next(), weight);
+        }
+      };
+    }
+  }
+
+  /**
+   * Coder for QuantileState.
+   */
+  private static class QuantileStateCoder<T, ComparatorT extends Comparator<T> & Serializable>
+      extends CustomCoder<QuantileState<T, ComparatorT>> {
+    private static final long serialVersionUID = 0L;
+
+    private final ComparatorT compareFn;
+    private final Coder<T> elementCoder;
+    private final Coder<List<T>> elementListCoder;
+    private final Coder<Integer> intCoder = BigEndianIntegerCoder.of();
+
+    public QuantileStateCoder(ComparatorT compareFn, Coder<T> elementCoder) {
+      this.compareFn = compareFn;
+      this.elementCoder = elementCoder;
+      this.elementListCoder = ListCoder.of(elementCoder);
+    }
+
+    @Override
+    public void encode(
+        QuantileState<T, ComparatorT> state, OutputStream outStream, Coder.Context context)
+        throws CoderException, IOException {
+      Coder.Context nestedContext = context.nested();
+      intCoder.encode(state.numQuantiles, outStream, nestedContext);
+      intCoder.encode(state.bufferSize, outStream, nestedContext);
+      elementCoder.encode(state.min, outStream, nestedContext);
+      elementCoder.encode(state.max, outStream, nestedContext);
+      elementListCoder.encode(
+          state.unbufferedElements, outStream, nestedContext);
+      BigEndianIntegerCoder.of().encode(
+          state.buffers.size(), outStream, nestedContext);
+      for (QuantileBuffer<T> buffer : state.buffers) {
+        encodeBuffer(buffer, outStream, nestedContext);
+      }
+    }
+
+    @Override
+    public QuantileState<T, ComparatorT> decode(InputStream inStream, Coder.Context context)
+        throws CoderException, IOException {
+      Coder.Context nestedContext = context.nested();
+      int numQuantiles = intCoder.decode(inStream, nestedContext);
+      int bufferSize = intCoder.decode(inStream, nestedContext);
+      T min = elementCoder.decode(inStream, nestedContext);
+      T max = elementCoder.decode(inStream, nestedContext);
+      List<T> unbufferedElements =
+          elementListCoder.decode(inStream, nestedContext);
+      int numBuffers =
+          BigEndianIntegerCoder.of().decode(inStream, nestedContext);
+      List<QuantileBuffer<T>> buffers = new ArrayList<>(numBuffers);
+      for (int i = 0; i < numBuffers; i++) {
+        buffers.add(decodeBuffer(inStream, nestedContext));
+      }
+      return new QuantileState<T, ComparatorT>(
+          compareFn, numQuantiles, min, max, numBuffers, bufferSize, unbufferedElements, buffers);
+    }
+
+    private void encodeBuffer(
+        QuantileBuffer<T> buffer, OutputStream outStream, Coder.Context context)
+        throws CoderException, IOException {
+      DataOutputStream outData = new DataOutputStream(outStream);
+      outData.writeInt(buffer.level);
+      outData.writeLong(buffer.weight);
+      elementListCoder.encode(buffer.elements, outStream, context);
+    }
+
+    private QuantileBuffer<T> decodeBuffer(
+        InputStream inStream, Coder.Context context)
+        throws IOException, CoderException {
+      DataInputStream inData = new DataInputStream(inStream);
+      return new QuantileBuffer<>(
+          inData.readInt(),
+          inData.readLong(),
+          elementListCoder.decode(inStream, context));
+    }
+
+    /**
+     * Notifies ElementByteSizeObserver about the byte size of the
+     * encoded value using this coder.
+     */
+    @Override
+    public void registerByteSizeObserver(
+        QuantileState<T, ComparatorT> state,
+        ElementByteSizeObserver observer,
+        Coder.Context context)
+        throws Exception {
+      Coder.Context nestedContext = context.nested();
+      elementCoder.registerByteSizeObserver(
+          state.min, observer, nestedContext);
+      elementCoder.registerByteSizeObserver(
+          state.max, observer, nestedContext);
+      elementListCoder.registerByteSizeObserver(
+          state.unbufferedElements, observer, nestedContext);
+
+      BigEndianIntegerCoder.of().registerByteSizeObserver(
+          state.buffers.size(), observer, nestedContext);
+      for (QuantileBuffer<T> buffer : state.buffers) {
+        observer.update(4L + 8);
+
+        elementListCoder.registerByteSizeObserver(
+            buffer.elements, observer, nestedContext);
+      }
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      verifyDeterministic(
+          "QuantileState.ElementCoder must be deterministic",
+          elementCoder);
+      verifyDeterministic(
+          "QuantileState.ElementListCoder must be deterministic",
+          elementListCoder);
     }
   }
 }
