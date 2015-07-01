@@ -25,9 +25,11 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
+import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
@@ -105,6 +107,9 @@ public class TriggerExecutorTest {
     assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
         tester.finishedSet(firstWindow)));
     assertFalse(tester.isWindowActive(firstWindow));
+
+    assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
+    assertEquals(0, tester.getElementsDroppedDueToLateness());
   }
 
   @Test
@@ -210,6 +215,9 @@ public class TriggerExecutorTest {
     injectElement(tester, 2, TriggerResult.FIRE);
     assertEquals(null, tester.getWatermarkHold());
 
+    assertEquals(0, tester.getElementsDroppedDueToLateness());
+    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+
     // Some late, some on time. Verify that we only hold to the minimum of on-time.
     tester.advanceWatermark(new Instant(4));
     injectElement(tester, 2, TriggerResult.CONTINUE);
@@ -230,10 +238,16 @@ public class TriggerExecutorTest {
     // Because we're about to expire the window, we output it.
     injectElement(tester, 8, TriggerResult.CONTINUE);
 
+    assertEquals(0, tester.getElementsDroppedDueToLateness());
+    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+
     // All very late -- gets dropped.
     tester.advanceWatermark(new Instant(50));
     injectElement(tester, 2, TriggerResult.FIRE);
     assertEquals(null, tester.getWatermarkHold());
+
+    assertEquals(1, tester.getElementsDroppedDueToLateness());
+    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10),
@@ -282,5 +296,33 @@ public class TriggerExecutorTest {
     tester.advanceWatermark(new Instant(100));
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 10), 1, 1, 20)));
+  }
+
+  @Test
+  public void testDropDataMultipleWindows() throws Exception {
+    TriggerTester<Integer, Integer, IntervalWindow> tester = TriggerTester.combining(
+        SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)),
+        AfterWatermark.<IntervalWindow>pastEndOfWindow(),
+        AccumulationMode.ACCUMULATING_FIRED_PANES,
+        new Sum.SumIntegerFn().<String>asKeyedFn(),
+        VarIntCoder.of(),
+        Duration.millis(20));
+
+    tester.injectElement(10, new Instant(23)); // [-60, 40), [-30, 70), [0, 100)
+    tester.injectElement(12, new Instant(40)); // [-30, 70), [0, 100), [30, 130)
+
+    assertEquals(0, tester.getElementsDroppedDueToLateness());
+    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+
+    tester.advanceWatermark(new Instant(70));
+    tester.injectElement(14, new Instant(60)); // [-30, 70) = closed, [0, 100), [30, 130)
+
+    assertEquals(0, tester.getElementsDroppedDueToLateness());
+    assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
+
+    tester.injectElement(16, new Instant(40)); // dropped due to lateness, assigned to 3 windows
+
+    assertEquals(3, tester.getElementsDroppedDueToLateness());
+    assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
   }
 }

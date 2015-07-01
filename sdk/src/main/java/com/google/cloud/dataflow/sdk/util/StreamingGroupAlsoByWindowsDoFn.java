@@ -17,8 +17,10 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
@@ -32,6 +34,7 @@ import com.google.common.base.Preconditions;
  * @param <W> window type
  */
 @SuppressWarnings("serial")
+@SystemDoFnInternal
 public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends BoundedWindow>
     extends DoFn<TimerOrElement<KV<K, InputT>>, KV<K, OutputT>> {
 
@@ -58,6 +61,11 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
   private static class StreamingGABWViaWindowSetDoFn<K, InputT, OutputT, W extends BoundedWindow>
   extends StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
 
+    private final Aggregator<Long, Long> droppedDueToClosedWindow =
+        createAggregator(TriggerExecutor.DROPPED_DUE_TO_CLOSED_WINDOW, new Sum.SumLongFn());
+    private final Aggregator<Long, Long> droppedDueToLateness =
+        createAggregator(TriggerExecutor.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
+
     private final WindowingStrategy<Object, W> windowingStrategy;
     private final OutputBuffer<K, InputT, OutputT, W> outputBuffer;
 
@@ -75,7 +83,8 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
       if (executor == null) {
         TimerManager timerManager = c.windowingInternals().getTimerManager();
         executor = TriggerExecutor.create(
-          key, windowingStrategy, timerManager, outputBuffer, c.windowingInternals());
+          key, windowingStrategy, timerManager, outputBuffer, c.windowingInternals(),
+          droppedDueToClosedWindow, droppedDueToLateness);
       }
     }
 

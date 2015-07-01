@@ -377,7 +377,8 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
     }
 
     private String generateInternalAggregatorName(String userName) {
-      return "user-" + stepContext.getStepName() + "-" + userName;
+      boolean system = fn.getClass().isAnnotationPresent(SystemDoFnInternal.class);
+      return (system ? "" : "user-") + stepContext.getStepName() + "-" + userName;
     }
 
     @Override

@@ -22,7 +22,10 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
+import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
@@ -90,6 +93,11 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   private boolean logInteractions = false;
   private ExecutableTrigger<W> executableTrigger;
 
+  private final InMemoryLongSumAggregator droppedDueToClosedWindow =
+      new InMemoryLongSumAggregator(TriggerExecutor.DROPPED_DUE_TO_CLOSED_WINDOW);
+  private final InMemoryLongSumAggregator droppedDueToLateness =
+      new InMemoryLongSumAggregator(TriggerExecutor.DROPPED_DUE_TO_LATENESS_COUNTER);
+
   private void logInteraction(String fmt, Object... args) {
     if (logInteractions) {
       LOGGER.warning("Trigger Interaction: " + String.format(fmt, args));
@@ -142,7 +150,8 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     this.outputCoder = outputCoder;
     executableTrigger = wildcardStrategy.getTrigger();
     this.triggerExecutor = TriggerExecutor.create(
-        KEY, objectStrategy, timerManager, outputBuffer, stubContexts);
+        KEY, objectStrategy, timerManager, outputBuffer, stubContexts,
+        droppedDueToClosedWindow, droppedDueToLateness);
   }
 
   public ExecutableTrigger<W> getTrigger() {
@@ -187,6 +196,14 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
   public boolean isWindowActive(W window) throws Exception {
     return Iterables.contains(getKeyedStateInUse(), earliestElementTag(window));
+  }
+
+  public long getElementsDroppedDueToClosedWindow() {
+    return droppedDueToClosedWindow.getSum();
+  }
+
+  public long getElementsDroppedDueToLateness() {
+    return droppedDueToLateness.getSum();
   }
 
   /**
@@ -456,4 +473,32 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
+  private static class InMemoryLongSumAggregator implements Aggregator<Long, Long> {
+
+    private final String name;
+    private long sum = 0;
+
+    public InMemoryLongSumAggregator(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public void addValue(Long value) {
+      sum += value;
+    }
+
+    @Override
+    public String getName() {
+      return name;
+    }
+
+    @Override
+    public CombineFn<Long, ?, Long> getCombineFn() {
+      return new Sum.SumLongFn();
+    }
+
+    public long getSum() {
+      return sum;
+    }
+  }
 }

@@ -17,8 +17,10 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
@@ -34,6 +36,7 @@ import org.joda.time.Instant;
  * @param <OutputT> output value element type
  * @param <W> window type
  */
+@SystemDoFnInternal
 @SuppressWarnings("serial")
 public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends BoundedWindow>
     extends DoFn<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> {
@@ -76,8 +79,14 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
                 combineFn, keyCoder, inputCoder));
   }
 
+  @SystemDoFnInternal
   private static class GABWViaOutputBufferDoFn<K, InputT, OutputT, W extends BoundedWindow>
      extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
+
+    private final Aggregator<Long, Long> droppedDueToClosedWindow =
+        createAggregator(TriggerExecutor.DROPPED_DUE_TO_CLOSED_WINDOW, new Sum.SumLongFn());
+    private final Aggregator<Long, Long> droppedDueToLateness =
+        createAggregator(TriggerExecutor.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
 
     private final WindowingStrategy<Object, W> strategy;
     private final OutputBuffer<K, InputT, OutputT, W> outputBuffer;
@@ -97,7 +106,8 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
       K key = c.element().getKey();
       BatchTimerManager timerManager = new BatchTimerManager(Instant.now());
       TriggerExecutor<K, InputT, OutputT, W> triggerExecutor = TriggerExecutor.create(
-          key, strategy, timerManager, outputBuffer, c.windowingInternals());
+          key, strategy, timerManager, outputBuffer, c.windowingInternals(),
+          droppedDueToClosedWindow, droppedDueToLateness);
 
       for (WindowedValue<InputT> e : c.element().getValue()) {
         // First, handle anything that needs to happen for this element

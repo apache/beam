@@ -49,7 +49,8 @@ import java.util.PriorityQueue;
  * @param <W> window type
  */
 @SuppressWarnings("serial")
-public class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends BoundedWindow>
+@SystemDoFnInternal
+class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
 
   public static boolean isSupported(WindowingStrategy<?, ?> strategy) {

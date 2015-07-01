@@ -39,7 +39,12 @@ import java.util.NoSuchElementException;
 /**
  * {@link GroupAlsoByWindowsDoFn} that uses reiterators to handle non-merging window functions with
  * the default triggering strategy.
+ *
+ * @param <K> key type
+ * @param <V> value element type
+ * @param <W> window type
  */
+@SystemDoFnInternal
 @SuppressWarnings("serial")
 class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
     extends GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W> {

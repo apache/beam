@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
@@ -74,6 +75,9 @@ import java.util.Set;
  */
 public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
+  public static final String DROPPED_DUE_TO_CLOSED_WINDOW = "DroppedDueToClosedWindow";
+  public static final String DROPPED_DUE_TO_LATENESS_COUNTER = "DroppedDueToLateness";
+
   private static final int FINAL_CLEANUP_PSEUDO_ID = -1;
 
   private final WindowFn<Object, W> windowFn;
@@ -90,8 +94,10 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
   private final WatermarkHold<W> watermarkHolder;
 
-  private K key;
+  private final K key;
 
+  private final Aggregator<Long, Long> droppedDueToClosedWindow;
+  private final Aggregator<Long, Long> droppedDueToLateness;
 
   TriggerExecutor(K key,
       WindowFn<Object, W> windowFn,
@@ -102,7 +108,9 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       AccumulationMode mode,
       Duration allowedLateness,
       ActiveWindowSet<W> activeWindows,
-      OutputBuffer<K, InputT, OutputT, W> outputBuffer) {
+      OutputBuffer<K, InputT, OutputT, W> outputBuffer,
+      Aggregator<Long, Long> droppedDueToClosedWindow,
+      Aggregator<Long, Long> droppedDueToLateness) {
     this.key = key;
     this.windowFn = windowFn;
     this.trigger = trigger;
@@ -111,6 +119,8 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     this.allowedLateness = allowedLateness;
     this.activeWindows = activeWindows;
     this.outputBuffer = outputBuffer;
+    this.droppedDueToClosedWindow = droppedDueToClosedWindow;
+    this.droppedDueToLateness = droppedDueToLateness;
     this.watermarkHolder = new WatermarkHold<W>(allowedLateness);
     this.timerManager = timerManager;
     this.mode = mode;
@@ -187,8 +197,9 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       WindowingStrategy<Object, W> windowingStrategy,
       TimerManager timerManager,
       OutputBuffer<K, InputT, OutputT, W> outputBuffer,
-      WindowingInternals<?, KV<K, OutputT>> windowingInternals)
-          throws Exception {
+      WindowingInternals<?, KV<K, OutputT>> windowingInternals,
+      Aggregator<Long, Long> droppedDueToClosedWindow,
+      Aggregator<Long, Long> droppedDueToLateness) throws Exception {
     ActiveWindowSet<W> activeWindows = windowingStrategy.getWindowFn().isNonMerging()
         ? new NonMergingActiveWindowSet<W>()
         : new MergingActiveWindowSet<W>(
@@ -196,7 +207,8 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     return new TriggerExecutor<K, InputT, OutputT, W>(key,
         windowingStrategy.getWindowFn(), timerManager, windowingStrategy.getTrigger(),
         windowingInternals.keyedState(), windowingInternals, windowingStrategy.getMode(),
-        windowingStrategy.getAllowedLateness(), activeWindows, outputBuffer);
+        windowingStrategy.getAllowedLateness(), activeWindows, outputBuffer,
+        droppedDueToClosedWindow, droppedDueToLateness);
   }
 
   private TriggerContext<W> context(BitSet finishedSet) {
@@ -237,7 +249,8 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   public void onElement(WindowedValue<InputT> value) throws Exception {
     Instant minimumAllowedTimestamp = timerManager.currentWatermarkTime().minus(allowedLateness);
     if (minimumAllowedTimestamp.isAfter(value.getTimestamp())) {
-      // TODO: Count the number of elements discarded because they are too late.
+      // We drop the element in all assigned windows if it is too late.
+      droppedDueToLateness.addValue((long) value.getWindows().size());
       return;
     }
 
@@ -249,8 +262,8 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     for (W window : windows) {
       BitSet finishedSet = lookupFinishedSet(window);
       if (isRootFinished(finishedSet)) {
-        // If the trigger was already finished in that window, don't bother passing the element down
-        // TODO: Count the number of elements discarded because the window is closed.
+        // If the window was finished (and closed) drop the element.
+        droppedDueToClosedWindow.addValue(1L);
         continue;
       }
 

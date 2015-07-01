@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
-import com.google.cloud.dataflow.sdk.coders.Coder;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
