@@ -76,14 +76,11 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
 
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
-
-    if (windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
-        && windowingStrategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES) {
-      return new GroupAlsoByWindowsAndCombineDoFn<>(noWildcard.getWindowFn(), combineFn);
-    }
-    return new GABWViaOutputBufferDoFn<>(noWildcard,
-        CombiningOutputBuffer.<K, InputT, AccumT, OutputT, W>create(
-            combineFn, keyCoder, inputCoder));
+    return GroupAlsoByWindowsAndCombineDoFn.isSupported(windowingStrategy)
+        ? new GroupAlsoByWindowsAndCombineDoFn<>(noWildcard.getWindowFn(), combineFn)
+        : new GABWViaOutputBufferDoFn<>(noWildcard,
+            CombiningOutputBuffer.<K, InputT, AccumT, OutputT, W>create(
+                combineFn, keyCoder, inputCoder));
   }
 
   private static class GABWViaOutputBufferDoFn<K, InputT, OutputT, W extends BoundedWindow>

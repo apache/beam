@@ -20,8 +20,10 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.collect.Maps;
 
@@ -49,6 +51,23 @@ import java.util.PriorityQueue;
 @SuppressWarnings("serial")
 public class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
+
+  public static boolean isSupported(WindowingStrategy<?, ?> strategy) {
+    // TODO: Add support for other triggers.
+    if (!(strategy.getTrigger().getSpec() instanceof DefaultTrigger)) {
+      return false;
+    }
+
+    // Right now, we support ACCUMULATING_FIRED_PANES because it is the same as
+    // DISCARDING_FIRED_PANES. In Batch mode there is no late data so the default
+    // trigger (after watermark) will only fire once.
+    if (!strategy.getMode().equals(AccumulationMode.DISCARDING_FIRED_PANES)
+        && !strategy.getMode().equals(AccumulationMode.ACCUMULATING_FIRED_PANES)) {
+      return false;
+    }
+
+    return true;
+  }
 
   private final KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn;
   private WindowFn<Object, W> windowFn;
