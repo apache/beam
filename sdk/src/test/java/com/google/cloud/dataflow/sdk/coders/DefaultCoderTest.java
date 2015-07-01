@@ -16,11 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertThat;
+
 import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
-import org.hamcrest.Matchers;
-import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -28,6 +31,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * Tests of Coder defaults.
@@ -38,6 +42,13 @@ public class DefaultCoderTest {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
+
+  public CoderRegistry registry = new CoderRegistry();
+
+  @Before
+  public void registerStandardCoders() {
+    registry.registerStandardCoders();
+  }
 
   @DefaultCoder(AvroCoder.class)
   private static class AvroRecord {
@@ -72,28 +83,27 @@ public class DefaultCoderTest {
   }
 
   @Test
-  public void testDefaultCoders() throws Exception {
-    checkDefault(AvroRecord.class, AvroCoder.class);
-    checkDefault(SerializableBase.class, SerializableCoder.class);
-    checkDefault(SerializableRecord.class, SerializableCoder.class);
-    checkDefault(CustomRecord.class, CustomCoder.class);
+  public void testDefaultCoderClasses() throws Exception {
+    assertThat(registry.getDefaultCoder(AvroRecord.class), instanceOf(AvroCoder.class));
+    assertThat(registry.getDefaultCoder(SerializableBase.class),
+        instanceOf(SerializableCoder.class));
+    assertThat(registry.getDefaultCoder(SerializableRecord.class),
+        instanceOf(SerializableCoder.class));
+    assertThat(registry.getDefaultCoder(CustomRecord.class), instanceOf(CustomCoder.class));
+  }
+
+  @Test
+  public void testDefaultCoderInCollection() throws Exception {
+    assertThat(registry.getDefaultCoder(new TypeDescriptor<List<AvroRecord>>(){}),
+        instanceOf(ListCoder.class));
+    assertThat(registry.getDefaultCoder(new TypeDescriptor<List<SerializableRecord>>(){}),
+        equalTo((Coder<List<SerializableRecord>>)
+            ListCoder.of(SerializableCoder.of(SerializableRecord.class))));
   }
 
   @Test
   public void testUnknown() throws Exception {
     thrown.expect(CannotProvideCoderException.class);
-    CoderRegistry registry = new CoderRegistry();
     registry.getDefaultCoder(Unknown.class);
-  }
-
-  /**
-   * Checks that the default Coder for {@code valueType} is an instance of
-   * {@code expectedCoder}.
-   */
-  private void checkDefault(Class<?> valueType,
-      Class<?> expectedCoder) throws Exception {
-    CoderRegistry registry = new CoderRegistry();
-    Coder<?> coder = registry.getDefaultCoder(TypeDescriptor.of(valueType));
-    Assert.assertThat(coder, Matchers.instanceOf(expectedCoder));
   }
 }
