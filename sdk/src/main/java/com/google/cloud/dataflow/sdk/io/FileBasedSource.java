@@ -39,15 +39,15 @@ import java.util.NoSuchElementException;
  * file-based custom source.
  *
  * <p>A file-based {@code Source} is a {@code Source} backed by a file pattern defined as a Java
- * glob, a single file, or a offset range for a single file. See {@link ByteOffsetBasedSource} for
- * semantics of offset ranges.
+ * glob, a single file, or a offset range for a single file. See {@link ByteOffsetBasedSource} and
+ * {@link com.google.cloud.dataflow.sdk.io.range.RangeTracker} for semantics of offset ranges.
  *
  * <p>This source stores a {@code String} that is an {@link IOChannelFactory} specification for a
  * file or file pattern. There should be an {@code IOChannelFactory} defined for the file
  * specification provided. Please refer to {@link IOChannelUtils} and {@link IOChannelFactory} for
  * more information on this.
  *
- * <p>In addition to the methods left abstract from {@code Source}, subclasses must implement
+ * <p>In addition to the methods left abstract from {@code BoundedSource}, subclasses must implement
  * methods to create a sub-source and a reader for a range of a single file -
  * {@link #createForSubrangeOfFile} and {@link #createSingleFileReader}. Please refer to
  * {@link XmlSource} for an example implementation of {@code FileBasedSource}.
@@ -327,33 +327,9 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * determine the correct starting position.
    *
    * <h2>Split Points</h2>
-   *
-   * <p>Simple record-based formats (such as reading lines, reading CSV etc.), where each record can
-   * be identified by a unique offset, should interpret a range [A, B) as "read from the first
-   * record starting at or after offset A, up to but not including the first record starting at or
-   * after offset B".
-   *
-   * <p>More complex formats, such as some block-based formats, may have records that are not
-   * directly addressable: i.e., for some records, there is no way to describe the location of a
-   * record using a single offset number. For example, imagine a file format consisting of a
-   * sequence of blocks, where each block is compressed using some block compression algorithm. Then
-   * blocks have offsets, but individual records don't. More complex cases are also possible.
-   *
-   * <p>Many such formats still admit reading a range of offsets in a way consistent with the
-   * semantics of {@code ByteOffsetBasedReader}, i.e. reading [A, B) and [B, C) is equivalent to
-   * reading [A, C). E.g., for the compressed block-based format discussed above, reading [A, B)
-   * would mean "read all the records in all blocks whose starting offset is in [A, B)".
-   *
-   * <p>To support such complex formats in {@code FileBasedReader}, we introduce the notion of
-   * <i>split points</i>. We say that a record is a split point if there exists an offset A such
-   * that the record is the first one to be read for a range [A, {@code Long.MAX_VALUE}). E.g. for
-   * the block-based format above, the only split points would be the first records in each block.
-   *
-   * <p>With the above definition of split points an extended definition of the offset of a record
-   * can be specified. For a record that is at a split point, its offset is defined to be the
-   * largest A such that reading a source with the range [A, Long.MAX_VALUE) includes this record;
-   * offsets of other records are only required to be non-strictly increasing. Offsets of records of
-   * a {@code FileBasedReader} should be set based on this definition.
+   * File-based sources support the notion of <i>split points</i>, as defined in
+   * {@link com.google.cloud.dataflow.sdk.io.range.RangeTracker}, using
+   * {@link FileBasedReader#isAtSplitPoint}.
    *
    * <h2>Reading Records</h2>
    *
@@ -361,12 +337,12 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    *
    * <p>Then {@code FileBasedReader} implements "reading a range [A, B)" in the following way.
    * <ol>
-   * <li>{@code start()} opens the file
-   * <li>{@code start()} seeks the {@code SeekableByteChannel} to A (reading offset ranges for
+   * <li>{@link #start} opens the file
+   * <li>{@link #start} seeks the {@code SeekableByteChannel} to A (reading offset ranges for
    * non-seekable files is not supported) and calls {@code startReading()}
-   * <li>the subclass must do whatever is needed to move to the first split point at or after this
-   * position in the channel
-   * <li>{@code start()} calls {@code advance()} once
+   * <li>{@link #start} calls {@link #advance} once, which, via {@link #readNextRecord},
+   * locates the first record which is at a split point AND its offset is at or after A.
+   * If this record is at or after B, {@link #advance} returns false and reading is finished.
    * <li>if the previous advance call returned {@code true} sequential reading starts and
    * {@code advance()} will be called repeatedly
    * </ol>
@@ -381,9 +357,6 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   public abstract static class FileBasedReader<T> extends ByteOffsetBasedReader<T> {
     private ReadableByteChannel channel = null;
     private boolean finished = false; // Reader has finished advancing.
-    private boolean endPositionReached = false; // If true, records have been read up to the ending
-                                                // offset but the last split point may not have been
-                                                // reached.
     private boolean startCalled = false;
 
     /**
@@ -430,7 +403,6 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
 
     @Override
     public final boolean advance() throws IOException {
-      FileBasedSource<T> source = getCurrentSource();
       Preconditions.checkState(startCalled, "advance() called before calling start()");
       if (finished) {
         return false;
@@ -441,16 +413,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
         finished = true;
         return false;
       }
-      if (getCurrentOffset() >= source.getEndOffset()) {
-        // Current record is at or after the end position defined by the source. The reader should
-        // continue reading until the next split point is reached.
-        endPositionReached = true;
-      }
-
-      // If the current record is at or after the end position defined by the source and if the
-      // current record is at a split point, then the current record, and any record after that
-      // does not belong to the offset range of the source.
-      if (endPositionReached && isAtSplitPoint()) {
+      if (!rangeTracker.tryReturnRecordAt(isAtSplitPoint(), getCurrentOffset())) {
         finished = true;
         return false;
       }
@@ -488,14 +451,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
      * reader. Subclass may use the {@code channel} to build a higher level IO abstraction, e.g., a
      * BufferedReader or an XML parser.
      *
-     * <p>A subclass may additionally use this to adjust the starting position prior to reading
-     * records. For example, the channel of a reader that reads text lines may point to the middle
-     * of a line after the position adjustment done at {@code FileBasedReader}. In this case the
-     * subclass could adjust the position of the channel to the beginning of the next line. If the
-     * corresponding source is for a subrange of a file, {@code channel} is guaranteed to be an
-     * instance of the type {@link SeekableByteChannel} in which case the subclass may traverse back
-     * in the channel to determine if the channel is already at the correct starting position (e.g.,
-     * to check if the previous character was a newline).
+     * <p>If the corresponding source is for a subrange of a file, {@code channel} is guaranteed to
+     * be an instance of the type {@link SeekableByteChannel}.
      *
      * <p>After this method is invoked the base class will not be reading data from the channel or
      * adjusting the position of the channel. But the base class is responsible for properly closing
@@ -509,6 +466,10 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
      * Reads the next record from the channel provided by {@link #startReading}. Methods
      * {@link #getCurrent}, {@link #getCurrentOffset}, and {@link #isAtSplitPoint()} should return
      * the corresponding information about the record read by the last invocation of this method.
+     *
+     * <p>Note that this method will be called the same way for reading the first record in the
+     * source (file or offset range in the file) and for reading subsequent records. It is up to the
+     * subclass to do anything special for locating and reading the first record, if necessary.
      *
      * @return {@code true} if a record was successfully read, {@code false} if the end of the
      *         channel was reached before successfully reading a new record.

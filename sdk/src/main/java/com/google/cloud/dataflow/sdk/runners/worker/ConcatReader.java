@@ -20,6 +20,7 @@ import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import java.io.IOException;
@@ -67,7 +68,7 @@ public class ConcatReader<T> extends Reader<T> {
     return new ConcatIterator<T>(options, executionContext, sources);
   }
 
-  private static class ConcatIterator<T> extends AbstractReaderIterator<T> {
+  private static class ConcatIterator<T> extends AbstractBoundedReaderIterator<T> {
     private int currentIteratorIndex = -1;
     private ReaderIterator<T> currentIterator = null;
     private final List<Source> sources;
@@ -82,7 +83,7 @@ public class ConcatReader<T> extends Reader<T> {
     }
 
     @Override
-    public boolean hasNext() throws IOException {
+    protected boolean hasNextImpl() throws IOException {
       for (;;) {
         if (currentIterator != null && currentIterator.hasNext()) {
           return true;
@@ -111,12 +112,8 @@ public class ConcatReader<T> extends Reader<T> {
     }
 
     @Override
-    public T next() throws IOException, NoSuchElementException {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      } else {
-        return currentIterator.next();
-      }
+    protected T nextImpl() throws IOException, NoSuchElementException {
+      return currentIterator.next();
     }
 
     @Override

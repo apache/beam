@@ -24,13 +24,12 @@ import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
-import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.SeekableInput;
 import org.apache.avro.io.DatumReader;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +40,6 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
@@ -59,8 +57,6 @@ public class AvroReader<T> extends Reader<WindowedValue<T>> {
   @Nullable
   final Long endPosition;
   final AvroCoder<T> avroCoder;
-  @SuppressWarnings("unchecked")
-  private final Schema schema;
 
   public AvroReader(String filename, @Nullable Long startPosition, @Nullable Long endPosition,
       WindowedValue.ValueOnlyWindowedValueCoder<T> coder) {
@@ -73,7 +69,6 @@ public class AvroReader<T> extends Reader<WindowedValue<T>> {
     this.startPosition = startPosition;
     this.endPosition = endPosition;
     this.avroCoder = (AvroCoder<T>) coder.getValueCoder();
-    this.schema = this.avroCoder.getSchema();
   }
 
   public ReaderIterator<WindowedValue<T>> iterator(DatumReader<T> datumReader) throws IOException {
@@ -120,7 +115,7 @@ public class AvroReader<T> extends Reader<WindowedValue<T>> {
     }
   }
 
-  class AvroFileIterator extends AbstractReaderIterator<WindowedValue<T>> {
+  class AvroFileIterator extends AbstractBoundedReaderIterator<WindowedValue<T>> {
     final DataFileReader<T> fileReader;
     final Long endOffset;
 
@@ -141,15 +136,12 @@ public class AvroReader<T> extends Reader<WindowedValue<T>> {
     }
 
     @Override
-    public boolean hasNext() throws IOException {
+    protected boolean hasNextImpl() throws IOException {
       return fileReader.hasNext() && (endOffset == null || !fileReader.pastSync(endOffset));
     }
 
     @Override
-    public WindowedValue<T> next() throws IOException {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
+    protected WindowedValue<T> nextImpl() throws IOException {
       T next = fileReader.next();
       // DataFileReader doesn't seem to support getting the current position.
       // Calls to tell() return how much has been read from the underlying Channel, which is a bad

@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import org.apache.avro.Schema;
@@ -27,7 +28,6 @@ import org.apache.avro.generic.GenericDatumReader;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
@@ -55,7 +55,7 @@ public class AvroByteReader<T> extends Reader<T> {
     return new AvroByteFileIterator();
   }
 
-  class AvroByteFileIterator extends AbstractReaderIterator<T> {
+  class AvroByteFileIterator extends AbstractBoundedReaderIterator<T> {
     private final ReaderIterator<WindowedValue<ByteBuffer>> avroFileIterator;
 
     public AvroByteFileIterator() throws IOException {
@@ -63,15 +63,12 @@ public class AvroByteReader<T> extends Reader<T> {
     }
 
     @Override
-    public boolean hasNext() throws IOException {
+    protected boolean hasNextImpl() throws IOException {
       return avroFileIterator.hasNext();
     }
 
     @Override
-    public T next() throws IOException {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
+    protected T nextImpl() throws IOException {
       ByteBuffer inBuffer = avroFileIterator.next().getValue();
       byte[] encodedElem = new byte[inBuffer.remaining()];
       inBuffer.get(encodedElem);

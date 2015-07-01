@@ -20,7 +20,6 @@ import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toDynamicSplitRequest;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -267,40 +266,6 @@ public class GroupingShuffleReaderTest {
   }
 
   @Test
-  public void testReadFromEmptyShuffleDataAndRequestDynamicSplit() throws Exception {
-    BatchModeExecutionContext context = new BatchModeExecutionContext();
-    GroupingShuffleReader<Integer, Integer> groupingShuffleReader = new GroupingShuffleReader<>(
-        PipelineOptionsFactory.create(), null, null, null,
-        WindowedValue.getFullCoder(
-            KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
-            IntervalWindow.getCoder()),
-        context);
-    TestShuffleReader shuffleReader = new TestShuffleReader();
-    try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
-        groupingShuffleReader.iterator(shuffleReader)) {
-      // Can split, the source range spans the entire interval.
-      Position proposedSplitPosition = new Position();
-      String stop = encodeBase64URLSafeString(fabricatePosition(0, null));
-      proposedSplitPosition.setShufflePosition(stop);
-
-      Reader.DynamicSplitResult dynamicSplitResult =
-          iter.requestDynamicSplit(toDynamicSplitRequest(
-              createApproximateProgress(proposedSplitPosition)));
-      Reader.Position acceptedSplitPosition =
-          ((Reader.DynamicSplitResultWithPosition) dynamicSplitResult).getAcceptedPosition();
-      assertEquals(stop, toCloudPosition(acceptedSplitPosition).getShufflePosition());
-
-
-      // Cannot split at a position >= the current stop position
-      stop = encodeBase64URLSafeString(fabricatePosition(1, null));
-      proposedSplitPosition.setShufflePosition(stop);
-
-      assertNull(iter.requestDynamicSplit(toDynamicSplitRequest(
-          createApproximateProgress(proposedSplitPosition))));
-    }
-  }
-
-  @Test
   public void testReadFromShuffleDataAndFailToSplit() throws Exception {
     BatchModeExecutionContext context = new BatchModeExecutionContext();
     final int kFirstShard = 0;
@@ -325,6 +290,9 @@ public class GroupingShuffleReaderTest {
 
     try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
         groupingShuffleReader.iterator(shuffleReader)) {
+      // Poke the iterator so we can test dynamic splitting.
+      assertTrue(iter.hasNext());
+
       // Cannot split since the value provided is past the current stop position.
       assertNull(iter.requestDynamicSplit(splitRequestAtPosition(
           makeShufflePosition(kNumRecords + 1, null))));
@@ -396,11 +364,15 @@ public class GroupingShuffleReaderTest {
     int i = 0;
     try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
         groupingShuffleReader.iterator(shuffleReader)) {
+      // Poke the iterator so we can test dynamic splitting.
+      assertTrue(iter.hasNext());
+
       assertNull(iter.requestDynamicSplit(splitRequestAtPosition(new Position())));
 
       // Split at the shard boundary
       Reader.DynamicSplitResult dynamicSplitResult =
           iter.requestDynamicSplit(splitRequestAtPosition(makeShufflePosition(kSecondShard, null)));
+      assertNotNull(dynamicSplitResult);
       assertEquals(
           encodeBase64URLSafeString(fabricatePosition(kSecondShard, null)),
           positionFromSplitResult(dynamicSplitResult).getShufflePosition());

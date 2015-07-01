@@ -24,9 +24,11 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
+import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.ProgressTracker;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
@@ -41,7 +43,6 @@ import java.io.InputStream;
 import java.io.PushbackInputStream;
 import java.nio.channels.Channels;
 import java.util.Collection;
-import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
@@ -120,20 +121,23 @@ public abstract class FileBasedReader<T> extends Reader<T> {
   /**
    * Abstract base class for file-based source iterators.
    */
-  protected abstract class FileBasedIterator extends AbstractReaderIterator<T> {
+  protected abstract class FileBasedIterator extends AbstractBoundedReaderIterator<T> {
     protected final CopyableSeekableByteChannel seeker;
     protected final PushbackInputStream stream;
-    protected final long startOffset;
-    protected Long endOffset;
-    protected final ProgressTracker<Integer> tracker;
-    protected ByteArrayOutputStream nextElement;
-    protected boolean nextElementComputed = false;
+    protected final OffsetRangeTracker rangeTracker;
     protected long offset;
+    protected final ProgressTracker<Integer> progressTracker;
+    protected ByteArrayOutputStream nextElement;
     protected DecompressingStreamFactory compressionStreamFactory;
 
-    FileBasedIterator(CopyableSeekableByteChannel seeker, long startOffset, long offset,
-        @Nullable Long endOffset, ProgressTracker<Integer> tracker,
-        DecompressingStreamFactory compressionStreamFactory) throws IOException {
+    FileBasedIterator(
+        CopyableSeekableByteChannel seeker,
+        long startOffset,
+        long offset,
+        @Nullable Long endOffset,
+        ProgressTracker<Integer> progressTracker,
+        DecompressingStreamFactory compressionStreamFactory)
+        throws IOException {
       this.seeker = checkNotNull(seeker);
       this.seeker.position(startOffset);
       this.compressionStreamFactory = compressionStreamFactory;
@@ -144,10 +148,10 @@ public abstract class FileBasedReader<T> extends Reader<T> {
               ? new BufferedInputStream(inputStream)
               : new BufferedInputStream(inputStream, BUF_SIZE);
       this.stream = new PushbackInputStream(bufferedStream, BUF_SIZE);
-      this.startOffset = startOffset;
+      long stopOffset = (endOffset == null) ? OffsetRangeTracker.OFFSET_INFINITY : endOffset;
+      this.rangeTracker = new OffsetRangeTracker(startOffset, stopOffset);
       this.offset = offset;
-      this.endOffset = endOffset;
-      this.tracker = checkNotNull(tracker);
+      this.progressTracker = checkNotNull(progressTracker);
     }
 
     /**
@@ -161,23 +165,21 @@ public abstract class FileBasedReader<T> extends Reader<T> {
     protected abstract ByteArrayOutputStream readElement() throws IOException;
 
     @Override
-    public boolean hasNext() throws IOException {
-      computeNextElement();
+    protected boolean hasNextImpl() throws IOException {
+      long startOffset = offset;
+      ByteArrayOutputStream element = readElement(); // As a side effect, updates "offset"
+      if (element != null && rangeTracker.tryReturnRecordAt(true, startOffset)) {
+        nextElement = element;
+        progressTracker.saw((int) (offset - startOffset));
+      } else {
+        nextElement = null;
+      }
       return nextElement != null;
     }
 
     @Override
-    public T next() throws IOException {
-      advance();
+    protected T nextImpl() throws IOException {
       return CoderUtils.decodeFromByteArray(coder, nextElement.toByteArray());
-    }
-
-    void advance() throws IOException {
-      computeNextElement();
-      if (nextElement == null) {
-        throw new NoSuchElementException();
-      }
-      nextElementComputed = false;
     }
 
     @Override
@@ -192,15 +194,9 @@ public abstract class FileBasedReader<T> extends Reader<T> {
       ApproximateProgress progress = new ApproximateProgress();
       progress.setPosition(currentPosition);
 
-      // If endOffset is null, we don't know the fraction consumed.
-      if (endOffset != null) {
-        // offset, in principle, can go beyond endOffset, e.g.:
-        // - We just read the last record and offset points to its end, which is after endOffset
-        // - This is some block-based file format where not every record is a "split point" and some
-        //   records can *start* after endOffset (though the first record of the next shard would
-        //   start still later).
-        progress.setPercentComplete(
-            Math.min(1.0f, 1.0f * (offset - startOffset) / (endOffset - startOffset)));
+      // If endOffset is unspecified, we don't know the fraction consumed.
+      if (rangeTracker.getStopPosition() != Long.MAX_VALUE) {
+        progress.setPercentComplete((float) rangeTracker.getFractionConsumed());
       }
 
       return cloudProgressToReaderProgress(progress);
@@ -224,49 +220,24 @@ public abstract class FileBasedReader<T> extends Reader<T> {
             splitPosition);
         return null;
       }
-      if (splitOffset <= offset) {
-        LOG.info("Already progressed to offset {}, which is after the requested split offset {}",
-            offset, splitOffset);
+      if (rangeTracker.trySplitAtPosition(splitOffset)) {
+        return new DynamicSplitResultWithPosition(cloudPositionToReaderPosition(splitPosition));
+      } else {
         return null;
       }
-
-      if (endOffset != null && splitOffset >= endOffset) {
-        LOG.info(
-            "Split requested at an offset beyond the end of the current range: {} >= {}",
-            splitOffset, endOffset);
-        return null;
-      }
-
-      this.endOffset = splitOffset;
-      LOG.info("Split FileBasedReader at offset {}", splitOffset);
-
-      return new DynamicSplitResultWithPosition(cloudPositionToReaderPosition(splitPosition));
     }
 
     /**
-     * Returns the end offset of the iterator.
+     * Returns the end offset of the iterator or Long.MAX_VALUE if unspecified.
      * The method is called for test ONLY.
      */
-    Long getEndOffset() {
-      return this.endOffset;
+    long getEndOffset() {
+      return rangeTracker.getStopPosition();
     }
 
     @Override
     public void close() throws IOException {
       stream.close();
-    }
-
-    private void computeNextElement() throws IOException {
-      if (nextElementComputed) {
-        return;
-      }
-
-      if (endOffset == null || offset < endOffset) {
-        nextElement = readElement();
-      } else {
-        nextElement = null;
-      }
-      nextElementComputed = true;
     }
   }
 

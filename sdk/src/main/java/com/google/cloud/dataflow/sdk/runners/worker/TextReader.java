@@ -65,8 +65,8 @@ public class TextReader<T> extends FileBasedReader<T> {
         factory, oneFile, stripTrailingNewlines, start, endPosition);
 
     // Skip the initial record if start position was set.
-    if (startPosition > 0 && iterator.hasNext()) {
-      iterator.advance();
+    if (startPosition > 0) {
+      iterator.hasNextImpl();
     }
 
     return iterator;
@@ -157,8 +157,15 @@ public class TextReader<T> extends FileBasedReader<T> {
       // Correctly adjust the start position of the seeker given
       // that it may hold bytes that have been read and now reside
       // in the read buffer (that is copied during cloning).
-      this(it.seeker.copy(), it.stripTrailingNewlines, it.startOffset + it.state.totalBytesRead,
-          it.offset, it.endOffset, it.tracker.copy(), it.state.copy(), it.compressionStreamFactory);
+      this(
+          it.seeker.copy(),
+          it.stripTrailingNewlines,
+          it.rangeTracker.getStartPosition() + it.state.totalBytesRead,
+          it.offset,
+          it.rangeTracker.getStopPosition(),
+          it.progressTracker.copy(),
+          it.state.copy(),
+          it.compressionStreamFactory);
     }
 
     @Override
@@ -208,7 +215,6 @@ public class TextReader<T> extends FileBasedReader<T> {
       }
 
       offset += charsConsumed;
-      tracker.saw(charsConsumed);
       return buffer;
     }
   }

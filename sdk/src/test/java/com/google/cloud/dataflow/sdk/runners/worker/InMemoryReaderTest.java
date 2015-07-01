@@ -135,16 +135,16 @@ public class InMemoryReaderTest {
   @Test
   public void testDynamicSplit() throws Exception {
     List<Integer> elements = Arrays.asList(33, 44, 55, 66, 77, 88);
-    final long start = 1L;
-    final long stop = 3L;
-    final long end = 4L;
+    // Should initially read elements at indices: 44@1, 55@2, 66@3, 77@4
 
     Coder<Integer> coder = BigEndianIntegerCoder.of();
     InMemoryReader<Integer> inMemoryReader =
-        new InMemoryReader<>(encodedElements(elements, coder), start, end, coder);
+        new InMemoryReader<>(encodedElements(elements, coder), 1L, 4L, coder);
 
     // Illegal proposed split position.
     try (Reader.ReaderIterator<Integer> iterator = inMemoryReader.iterator()) {
+      // Poke the iterator so that we can test dynamic splitting.
+      assertTrue(iterator.hasNext());
       assertNull(iterator.requestDynamicSplit(toDynamicSplitRequest(new ApproximateProgress())));
       assertNull(iterator.requestDynamicSplit(splitRequestAtIndex(null)));
     }
@@ -152,10 +152,12 @@ public class InMemoryReaderTest {
     // Successful update.
     try (InMemoryReader<Integer>.InMemoryReaderIterator iterator =
         (InMemoryReader<Integer>.InMemoryReaderIterator) inMemoryReader.iterator()) {
-      Reader.DynamicSplitResult dynamicSplitResult = iterator.requestDynamicSplit(
-          splitRequestAtIndex(stop));
-      assertEquals(positionAtIndex(stop), positionFromSplitResult(dynamicSplitResult));
-      assertEquals(stop, iterator.endPosition);
+      // Poke the iterator so that we can test dynamic splitting.
+      assertTrue(iterator.hasNext());
+      Reader.DynamicSplitResult dynamicSplitResult =
+          iterator.requestDynamicSplit(splitRequestAtIndex(3L));
+      assertEquals(positionAtIndex(3L), positionFromSplitResult(dynamicSplitResult));
+      assertEquals(3, iterator.tracker.getStopPosition().longValue());
       assertEquals(44, iterator.next().intValue());
       assertEquals(55, iterator.next().intValue());
       assertFalse(iterator.hasNext());
@@ -164,18 +166,24 @@ public class InMemoryReaderTest {
     // Proposed split position is before the current position, no update.
     try (InMemoryReader<Integer>.InMemoryReaderIterator iterator =
         (InMemoryReader<Integer>.InMemoryReaderIterator) inMemoryReader.iterator()) {
+      // Poke the iterator so that we can test dynamic splitting.
+      assertTrue(iterator.hasNext());
       assertEquals(44, iterator.next().intValue());
       assertEquals(55, iterator.next().intValue());
-      assertNull(iterator.requestDynamicSplit(splitRequestAtIndex(stop)));
-      assertEquals((int) end, iterator.endPosition);
+      assertTrue(iterator.hasNext()); // Returns true => we promised to return 66.
+      // Now we have to refuse the split.
+      assertNull(iterator.requestDynamicSplit(splitRequestAtIndex(3L)));
+      assertEquals(4, iterator.tracker.getStopPosition().longValue());
       assertTrue(iterator.hasNext());
     }
 
     // Proposed split position is after the current stop (end) position, no update.
     try (InMemoryReader.InMemoryReaderIterator iterator =
         (InMemoryReader.InMemoryReaderIterator) inMemoryReader.iterator()) {
-      assertNull(iterator.requestDynamicSplit(splitRequestAtIndex(end + 1)));
-      assertEquals((int) end, iterator.endPosition);
+      // Poke the iterator so that we can test dynamic splitting.
+      assertTrue(iterator.hasNext());
+      assertNull(iterator.requestDynamicSplit(splitRequestAtIndex(5L)));
+      assertEquals(4, iterator.tracker.getStopPosition().longValue());
     }
   }
 }

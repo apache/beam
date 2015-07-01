@@ -103,6 +103,10 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       this.primary = primary;
       this.residual = residual;
     }
+
+    public String toString() {
+      return String.format("<primary: %s; residual: %s>", primary, residual);
+    }
   }
 
   public static DynamicSourceSplit toSourceSplit(

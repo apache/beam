@@ -171,7 +171,6 @@ public class ExecutorTestUtils {
    * against the gold standard during testing.
    */
   public static class TestReaderObserver implements Observer {
-    private final Reader reader;
     private final List<Integer> sizes;
 
     public TestReaderObserver(Reader reader) {
@@ -179,7 +178,6 @@ public class ExecutorTestUtils {
     }
 
     public TestReaderObserver(Reader reader, List<Integer> sizes) {
-      this.reader = reader;
       this.sizes = sizes;
       reader.addObserver(this);
     }

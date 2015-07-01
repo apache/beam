@@ -223,6 +223,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
     private final FileBasedReader<T> readerDelegate;
     private final CompressedSource<T> source;
+    private int numRecordsRead;
 
     /**
      * Create a {@code CompressedReader} from a {@code CompressedSource} and delegate reader.
@@ -242,11 +243,17 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     }
 
     /**
-     * Returns false; compressed sources cannot be split.
+     * Returns true only for the first record; compressed sources cannot be split.
      */
     @Override
     protected final boolean isAtSplitPoint() {
-      return false;
+      // We have to return true for the first record, but not for the state before reading it,
+      // and not for the state after reading any other record. Hence == rather than >= or <=.
+      // This is required because FileBasedReader is intended for readers that can read a range
+      // of offsets in a file and where the range can be split in parts. CompressedReader,
+      // however, is a degenerate case because it cannot be split, but it has to satisfy the
+      // semantics of offsets and split points anyway.
+      return numRecordsRead == 1;
     }
 
     /**
@@ -263,7 +270,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
      */
     @Override
     protected final boolean readNextRecord() throws IOException {
-      return readerDelegate.readNextRecord();
+      if (!readerDelegate.readNextRecord()) {
+        return false;
+      }
+      ++numRecordsRead;
+      return true;
     }
 
     /**

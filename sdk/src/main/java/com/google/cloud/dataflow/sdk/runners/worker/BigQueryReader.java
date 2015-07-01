@@ -23,10 +23,10 @@ import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import java.io.IOException;
-import java.util.NoSuchElementException;
 
 /**
  * A source that reads a BigQuery table and yields TableRow objects.
@@ -68,7 +68,7 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
   /**
    * A ReaderIterator that yields TableRow objects for each row of a BigQuery table.
    */
-  class BigQueryReaderIterator extends AbstractReaderIterator<WindowedValue<TableRow>> {
+  class BigQueryReaderIterator extends AbstractBoundedReaderIterator<WindowedValue<TableRow>> {
     private BigQueryTableRowIterator rowIterator;
 
     public BigQueryReaderIterator(Bigquery bigQueryClient, TableReference tableRef) {
@@ -76,15 +76,12 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
     }
 
     @Override
-    public boolean hasNext() {
+    protected boolean hasNextImpl() {
       return rowIterator.hasNext();
     }
 
     @Override
-    public WindowedValue<TableRow> next() throws IOException {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
+    protected WindowedValue<TableRow> nextImpl() throws IOException {
       return WindowedValue.valueInGlobalWindow(rowIterator.next());
     }
 
@@ -92,7 +89,7 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
     public Progress getProgress() {
       // For now reporting progress is not supported because this source is used only when
       // an entire table needs to be read by each worker (used as a side input for instance).
-      throw new UnsupportedOperationException();
+      return null;
     }
 
     @Override
@@ -100,7 +97,7 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
       // For now dynamic splitting is not supported because this source
       // is used only when an entire table needs to be read by each worker (used
       // as a side input for instance).
-      throw new UnsupportedOperationException();
+      return null;
     }
   }
 }

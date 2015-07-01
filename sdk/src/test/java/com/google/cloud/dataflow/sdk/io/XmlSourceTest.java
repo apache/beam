@@ -713,18 +713,19 @@ public class XmlSourceTest {
     List<? extends FileBasedSource<Train>> splits =
         fileSource.splitIntoBundles(file.length() / 3, null);
     for (BoundedSource<Train> splitSource : splits) {
-      int items = readEverythingFromReader(splitSource.createReader(null, null)).size();
-      assertSplitAtFractionSucceedsAndConsistent(splitSource, 0, 0.7, options);
+      int numItems = readEverythingFromReader(splitSource.createReader(null, null)).size();
+      // Should not split while unstarted.
+      assertSplitAtFractionFails(splitSource, 0, 0.7, options);
       assertSplitAtFractionSucceedsAndConsistent(splitSource, 1, 0.7, options);
       assertSplitAtFractionSucceedsAndConsistent(splitSource, 15, 0.7, options);
       assertSplitAtFractionFails(splitSource, 0, 0.0, options);
       assertSplitAtFractionFails(splitSource, 20, 0.3, options);
-      assertSplitAtFractionFails(splitSource, items, 1.0, options);
+      assertSplitAtFractionFails(splitSource, numItems, 1.0, options);
 
       // After reading 100 elements we will be approximately at position
       // 0.99 * (endOffset - startOffset) hence trying to split at fraction 0.9 will be
       // unsuccessful.
-      assertSplitAtFractionFails(splitSource, items, 0.9, options);
+      assertSplitAtFractionFails(splitSource, numItems, 0.9, options);
 
       // Following passes since we can always find a fraction that is extremely close to 1 such that
       // the position suggested by the fraction will be larger than the position the reader is at
@@ -734,7 +735,7 @@ public class XmlSourceTest {
       // (i.e., the start position of the last element). This is true for most cases but will not
       // be true if reader position is only one less than the end position. (i.e., the last element
       // of the bundle start at the last byte that belongs to the bundle).
-      assertSplitAtFractionSucceedsAndConsistent(splitSource, items - 1, 0.999, options);
+      assertSplitAtFractionSucceedsAndConsistent(splitSource, numItems - 1, 0.999, options);
     }
   }
 

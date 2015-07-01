@@ -23,8 +23,12 @@ import java.util.Observable;
 /**
  * Abstract base class for readers.
  *
- * <p> A {@link Source} is read from by getting an {@code Iterator}-like value and
- * iterating through it.
+ * <p>A {@link com.google.api.services.dataflow.model.Source} is read from by getting an
+ * {@code Iterator}-like value and iterating through it.
+ *
+ * <p>This class is intended for formats that have built-in support on the Dataflow service.
+ * <b>Do not introduce new implementations:</b> for creating new input formats, use
+ * {@link com.google.cloud.dataflow.sdk.io.Source} instead.
  *
  * @param <T> the type of the elements read from the source
  */
@@ -60,6 +64,11 @@ public abstract class Reader<T> extends Observable {
 
   /**
    * A stateful iterator over the data in a Reader.
+   * <p>
+   * Partially thread-safe: methods {@link #hasNext}, {@link #next}, {@link #close},
+   * {@link #getProgress} are called serially, but {@link #requestDynamicSplit}
+   * can be called asynchronously to those. There will not be multiple concurrent calls to
+   * {@link #requestDynamicSplit}).
    */
   public interface ReaderIterator<T> extends AutoCloseable {
     /**
@@ -91,10 +100,6 @@ public abstract class Reader<T> extends Observable {
 
     /**
      * Returns a representation of how far this iterator is through the source.
-     *
-     * <p> This method is not required to be thread-safe, and it will not be
-     * called concurrently to any other methods.
-     *
      * @return the progress, or {@code null} if no progress measure
      * can be provided (implementors are discouraged from throwing
      * {@code UnsupportedOperationException} in this case).
@@ -122,9 +127,6 @@ public abstract class Reader<T> extends Observable {
      * <p>
      * After a successful call to {@link #requestDynamicSplit}, subsequent calls should be
      * interpreted relative to the new primary.
-     * <p>
-     * This method is not required to be thread-safe, and it will not be
-     * called concurrently to any other methods.
      * <p>
      * This call should not affect the range of input represented by the {@link Reader} that
      * produced this {@link ReaderIterator}.
@@ -205,6 +207,11 @@ public abstract class Reader<T> extends Observable {
 
     public Position getAcceptedPosition() {
       return acceptedPosition;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(acceptedPosition);
     }
   }
 

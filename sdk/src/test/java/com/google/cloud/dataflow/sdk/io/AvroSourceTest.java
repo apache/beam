@@ -146,15 +146,16 @@ public class AvroSourceTest {
         source.splitIntoBundles(file.length() / 3, null);
     for (BoundedSource<FixedRecord> subSource : splits) {
       int items = SourceTestUtils.readFromSource(subSource, null).size();
+      // Shouldn't split while unstarted.
       SourceTestUtils.assertSplitAtFractionFails(subSource, 0, 0.0, null);
-      SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent(subSource, 0, 0.7, null);
+      SourceTestUtils.assertSplitAtFractionFails(subSource, 0, 0.7, null);
       SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent(subSource, 1, 0.7, null);
       SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent(subSource, 100, 0.7, null);
       SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent(subSource, 1000, 0.1, null);
       SourceTestUtils.assertSplitAtFractionFails(subSource, 1001, 0.1, null);
       SourceTestUtils.assertSplitAtFractionFails(subSource, DEFAULT_RECORD_COUNT / 3, 0.3, null);
-      SourceTestUtils.assertSplitAtFractionFails(subSource, items, 1.0, null);
       SourceTestUtils.assertSplitAtFractionFails(subSource, items, 0.9, null);
+      SourceTestUtils.assertSplitAtFractionFails(subSource, items, 1.0, null);
       SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent(subSource, items, 0.999, null);
     }
   }

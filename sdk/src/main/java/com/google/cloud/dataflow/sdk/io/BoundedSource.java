@@ -74,8 +74,28 @@ public abstract class BoundedSource<T> extends Source<T> {
    * A {@code Reader} that reads a bounded amount of input and supports some additional
    * operations, such as progress estimation and dynamic work rebalancing.
    *
-   * <p> Once {@link #start} or {@link #advance} has returned false, neither will be called
+   * <h3>Boundedness</h3>
+   * <p>Once {@link #start} or {@link #advance} has returned false, neither will be called
    * again on this object.
+   *
+   * <h3>Thread safety</h3>
+   * All methods will be run from the same thread except {@link #splitAtFraction}, which can be
+   * called concurrently from a different thread (but there will not be multiple concurrent calls
+   * to {@link #splitAtFraction} itself).
+   * <p>If the source does not implement {@link #splitAtFraction}, you do not need to worry about
+   * thread safety. If implemented, it must be safe to call {@link #splitAtFraction} concurrently
+   * with other methods.
+   *
+   * <h3>Implementing {@link #splitAtFraction}</h3>
+   * In the course of dynamic work rebalancing, the method {@link #splitAtFraction}
+   * may be called concurrently with {@link #advance} or {@link #start}. It is critical that
+   * their interaction is implemented in a thread-safe way, otherwise data loss is possible.
+   *
+   * <p>Sources which support dynamic work rebalancing should use
+   * {@link com.google.cloud.dataflow.sdk.io.range.RangeTracker} to manage the (source-specific)
+   * range of positions that is being split. If your source supports dynamic work rebalancing,
+   * please use that class to implement it if possible; if not possible, please contact the team
+   * at <i>dataflow-feedback@google.com</i>.
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   public interface BoundedReader<T> extends Source.Reader<T> {
@@ -89,7 +109,6 @@ public abstract class BoundedSource<T> extends Source<T> {
      *   <li>Should return 1 after a {@link #start} or {@link #advance} call that returns false.
      *   <li>The returned values should be non-decreasing (though they don't have to be unique).
      * </ul>
-     *
      * @return A value in [0, 1] representing the fraction of this reader's current input
      *   read so far, or {@code null} if such an estimate is not available.
      */
@@ -102,16 +121,17 @@ public abstract class BoundedSource<T> extends Source<T> {
      * Tells the reader to narrow the range of the input it's going to read and give up
      * the remainder, so that the new range would contain approximately the given
      * fraction of the amount of data in the current range.
-     * Returns a {@code BoundedSource} representing the remainder.
-     * <p>
-     * More detailed description: Assuming the following sequence of calls:
+     * <p>Returns a {@code BoundedSource} representing the remainder.
+     *
+     * <h3>Detailed description</h3>
+     * Assuming the following sequence of calls:
      * <pre>{@code
      *   BoundedSource<T> initial = reader.getCurrentSource();
      *   BoundedSource<T> residual = reader.splitAtFraction(fraction);
      *   BoundedSource<T> primary = reader.getCurrentSource();
      * }</pre>
      * <ul>
-     *  <li> The "primary" and "residual" sources, when read, would together cover the same
+     *  <li> The "primary" and "residual" sources, when read, should together cover the same
      *  set of records as "initial".
      *  <li> The current reader should continue to be in a valid state, and continuing to read
      *  from it should, together with the records it already read, yield the same records
@@ -128,9 +148,26 @@ public abstract class BoundedSource<T> extends Source<T> {
      * in a file should return {@code null} if it is already past the position in its range
      * corresponding to the given fraction. In this case, the method MUST have no effect
      * (the reader must behave as if the method hadn't been called at all).
-     * <p>
+     *
+     * <h3>Statefulness</h3>
      * Since this method (if successful) affects the reader's source, in subsequent invocations
      * "fraction" should be interpreted relative to the new current source.
+     *
+     * <h3>Thread safety and blocking</h3>
+     * This method will be called concurrently to other methods (however there will not be multiple
+     * concurrent invocations of this method itself), and it is critical for it to be implemented
+     * in a thread-safe way (otherwise data loss is possible).
+     *
+     * <p>It is also very important that this method always completes quickly, in particular,
+     * it should not perform or wait on any blocking operations such as I/O, RPCs etc. Violating
+     * this requirement may stall completion of the work item or even cause it to fail.
+     *
+     * <p>E.g. it is incorrect to make both this method and {@link #start}/{@link #advance}
+     * {@code synchronized}, because those methods can perform blocking operations, and then
+     * this method would have to wait for those calls to complete.
+     *
+     * <p>{@link com.google.cloud.dataflow.sdk.io.range.RangeTracker} makes it easy to implement
+     * this method safely and correctly.
      */
     BoundedSource<T> splitAtFraction(double fraction);
   }

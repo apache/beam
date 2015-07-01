@@ -111,21 +111,16 @@ public class ByteOffsetBasedSourceTest {
     @Override
     public boolean start() throws IOException {
       current = getCurrentSource().getStartOffset();
-      while (true) {
-        if (current >= getCurrentSource().getEndOffset()) {
-          return false;
-        }
-        if (current % granularity == 0) {
-          return true;
-        }
+      while (current % granularity != 0) {
         ++current;
       }
+      return rangeTracker.tryReturnRecordAt(true, current);
     }
 
     @Override
     public boolean advance() throws IOException {
       ++current;
-      return !(current >= getCurrentSource().getEndOffset() && current % granularity == 0);
+      return rangeTracker.tryReturnRecordAt(current % granularity == 0, current);
     }
 
     @Override
@@ -241,7 +236,7 @@ public class ByteOffsetBasedSourceTest {
       assertTrue(reader.advance());
       originalItems.add(reader.getCurrent());
       assertNull(reader.splitAtFraction(0.0));
-      assertNull(reader.splitAtFraction(reader.getFractionConsumed()));
+      assertNull(reader.splitAtFraction(reader.getFractionConsumed() - 0.1));
 
       BoundedSource<Integer> residual = reader.splitAtFraction(reader.getFractionConsumed() + 0.1);
       BoundedSource<Integer> primary = reader.getCurrentSource();

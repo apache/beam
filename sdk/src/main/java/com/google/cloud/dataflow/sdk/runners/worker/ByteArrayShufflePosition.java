@@ -25,8 +25,12 @@ import com.google.common.primitives.UnsignedBytes;
 
 import java.util.Arrays;
 
+import javax.annotation.Nullable;
+
 /**
- * Represents a ShufflePosition as an array of bytes.
+ * Represents a position of a {@link GroupingShuffleReader} as an opaque array of bytes,
+ * encoded in a way such that lexicographic ordering of the bytes is consistent with the inherent
+ * ordering of {@link GroupingShuffleReader} positions.
  */
 public class ByteArrayShufflePosition implements Comparable, ShufflePosition {
   private final byte[] position;
@@ -35,18 +39,18 @@ public class ByteArrayShufflePosition implements Comparable, ShufflePosition {
     this.position = position;
   }
 
-  public static ByteArrayShufflePosition fromBase64(String position) {
+  public static ByteArrayShufflePosition fromBase64(@Nullable String position) {
     return ByteArrayShufflePosition.of(decodeBase64(position));
   }
 
-  public static ByteArrayShufflePosition of(byte[] position) {
+  public static ByteArrayShufflePosition of(@Nullable byte[] position) {
     if (position == null) {
       return null;
     }
     return new ByteArrayShufflePosition(position);
   }
 
-  public static byte[] getPosition(ShufflePosition shufflePosition) {
+  public static byte[] getPosition(@Nullable ShufflePosition shufflePosition) {
     if (shufflePosition == null) {
       return null;
     }
@@ -83,7 +87,7 @@ public class ByteArrayShufflePosition implements Comparable, ShufflePosition {
 
   @Override
   public String toString() {
-    return "ShufflePosition(" + (new String(position)) + ")";
+    return "ShufflePosition(base64:" + encodeBase64() + ")";
   }
 
   @Override

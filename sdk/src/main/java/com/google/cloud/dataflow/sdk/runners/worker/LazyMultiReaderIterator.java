@@ -16,11 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 /**
  * Implements a ReaderIterator over a collection of inputs.
@@ -33,7 +33,7 @@ import java.util.NoSuchElementException;
  * to be produced lazily, as an open source iterator may consume process
  * resources such as file descriptors.
  */
-abstract class LazyMultiReaderIterator<T> extends Reader.AbstractReaderIterator<T> {
+abstract class LazyMultiReaderIterator<T> extends AbstractBoundedReaderIterator<T> {
   private final Iterator<String> inputs;
   Reader.ReaderIterator<T> current;
 
@@ -42,7 +42,7 @@ abstract class LazyMultiReaderIterator<T> extends Reader.AbstractReaderIterator<
   }
 
   @Override
-  public boolean hasNext() throws IOException {
+  protected boolean hasNextImpl() throws IOException {
     while (selectReader()) {
       if (!current.hasNext()) {
         current.close();
@@ -55,10 +55,7 @@ abstract class LazyMultiReaderIterator<T> extends Reader.AbstractReaderIterator<
   }
 
   @Override
-  public T next() throws IOException {
-    if (!hasNext()) {
-      throw new NoSuchElementException();
-    }
+  protected T nextImpl() throws IOException {
     return current.next();
   }
 

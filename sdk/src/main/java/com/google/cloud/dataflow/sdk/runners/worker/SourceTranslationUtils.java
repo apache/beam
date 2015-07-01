@@ -103,6 +103,11 @@ public class SourceTranslationUtils {
     public DataflowReaderProgress(ApproximateProgress cloudProgress) {
       this.cloudProgress = cloudProgress;
     }
+
+    @Override
+    public String toString() {
+      return String.valueOf(cloudProgress);
+    }
   }
 
   static class DataflowReaderPosition implements Reader.Position {
@@ -110,6 +115,11 @@ public class SourceTranslationUtils {
 
     public DataflowReaderPosition(Position cloudPosition) {
       this.cloudPosition = cloudPosition;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(cloudPosition);
     }
   }
 
@@ -119,6 +129,11 @@ public class SourceTranslationUtils {
     public DataflowSourceOperationRequest(SourceOperationRequest cloudRequest) {
       this.cloudRequest = cloudRequest;
     }
+
+    @Override
+    public String toString() {
+      return String.valueOf(cloudRequest);
+    }
   }
 
   static class DataflowSourceOperationResponse implements SourceFormat.OperationResponse {
@@ -127,6 +142,11 @@ public class SourceTranslationUtils {
     public DataflowSourceOperationResponse(SourceOperationResponse cloudResponse) {
       this.cloudResponse = cloudResponse;
     }
+
+    @Override
+    public String toString() {
+      return String.valueOf(cloudResponse);
+    }
   }
 
   static class DataflowSourceSpec implements SourceFormat.SourceSpec {
@@ -134,6 +154,11 @@ public class SourceTranslationUtils {
 
     public DataflowSourceSpec(Source cloudSource) {
       this.cloudSource = cloudSource;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(cloudSource);
     }
   }
 
@@ -182,6 +207,11 @@ public class SourceTranslationUtils {
 
     private DataflowDynamicSplitRequest(ApproximateProgress approximateProgress) {
       this.approximateProgress = approximateProgress;
+    }
+
+    @Override
+    public String toString() {
+      return String.valueOf(approximateProgress);
     }
   }
 }

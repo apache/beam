@@ -34,6 +34,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.Reiterator;
+import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.BatchingShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.GroupingShuffleEntryIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.KeyGroupedShuffleEntries;
@@ -48,7 +49,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
+
+import javax.annotation.Nullable;
 
 /**
  * A source that reads from a shuffled dataset and yields key-grouped data.
@@ -60,16 +62,20 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleReader.class);
 
   final byte[] shuffleReaderConfig;
-  final String startShufflePosition;
-  final String stopShufflePosition;
+  @Nullable final String startShufflePosition;
+  @Nullable final String stopShufflePosition;
   final BatchModeExecutionContext executionContext;
 
   Coder<K> keyCoder;
   Coder<V> valueCoder;
 
-  public GroupingShuffleReader(PipelineOptions options, byte[] shuffleReaderConfig,
-      String startShufflePosition, String stopShufflePosition,
-      Coder<WindowedValue<KV<K, Iterable<V>>>> coder, BatchModeExecutionContext executionContext)
+  public GroupingShuffleReader(
+      PipelineOptions options,
+      byte[] shuffleReaderConfig,
+      @Nullable String startShufflePosition,
+      @Nullable String stopShufflePosition,
+      Coder<WindowedValue<KV<K, Iterable<V>>>> coder,
+      BatchModeExecutionContext executionContext)
       throws Exception {
     this.shuffleReaderConfig = shuffleReaderConfig;
     this.startShufflePosition = startShufflePosition;
@@ -129,35 +135,18 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
    * penalty.
    */
   private final class GroupingShuffleReaderIterator
-      extends AbstractReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> {
+      extends AbstractBoundedReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> {
     // N.B. This class is *not* static; it uses the keyCoder, valueCoder, and
     // executionContext from its enclosing GroupingShuffleReader.
 
     /** The iterator over shuffle entries, grouped by common key. */
     private final Iterator<KeyGroupedShuffleEntries> groups;
 
-    /** The stop position. No records with a position at or after
-     * @stopPosition will be returned.  Initialized
-     * to @AbstractShuffleReader.stopShufflePosition but can be
-     * dynamically updated via @updateStopPosition() (note that such
-     * updates can only decrease @stopPosition).
-     *
-     * <p> The granularity of the stop position is such that it can
-     * only refer to records at the boundary of a key.
-     */
-    private ByteArrayShufflePosition stopPosition = null;
-
-    /**
-     * Position that this @GroupingShuffleReaderIterator is guaranteed
-     * not to stop before reaching (inclusive); @promisedPosition can
-     * only increase monotonically and is updated when advancing to a
-     * new group of records (either in the most recent call to next()
-     * or when peeked at in hasNext()).
-     */
-    private ByteArrayShufflePosition promisedPosition = null;
+    private final GroupingShuffleRangeTracker rangeTracker;
+    private ByteArrayShufflePosition lastGroupStart;
 
     /** The next group to be consumed, if available. */
-    private KeyGroupedShuffleEntries nextGroup = null;
+    private KeyGroupedShuffleEntries currentGroup = null;
 
     protected StateSampler stateSampler = null;
     protected int readState;
@@ -173,53 +162,46 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
         this.readState = stateSampler.stateForName(
             GroupingShuffleReader.this.stateSamplerOperationName + "-process");
       }
-      promisedPosition = ByteArrayShufflePosition.fromBase64(startShufflePosition);
-      if (promisedPosition == null) {
-        promisedPosition = new ByteArrayShufflePosition(new byte[0]);
-      }
-      stopPosition = ByteArrayShufflePosition.fromBase64(stopShufflePosition);
+
+      this.rangeTracker =
+          new GroupingShuffleRangeTracker(
+              ByteArrayShufflePosition.fromBase64(startShufflePosition),
+              ByteArrayShufflePosition.fromBase64(stopShufflePosition));
       try (StateSampler.ScopedState read = stateSampler.scopedState(readState)) {
-        this.groups = new GroupingShuffleEntryIterator(
-            reader.read(promisedPosition, stopPosition)) {
-          @Override
-          protected void notifyElementRead(long byteSize) {
-            GroupingShuffleReader.this.notifyElementRead(byteSize);
-          }
-        };
+        this.groups =
+            new GroupingShuffleEntryIterator(
+                reader.read(rangeTracker.getStartPosition(), rangeTracker.getStopPosition())) {
+              @Override
+              protected void notifyElementRead(long byteSize) {
+                GroupingShuffleReader.this.notifyElementRead(byteSize);
+              }
+            };
       }
     }
 
-    private void advanceIfNecessary() {
+    @Override
+    protected boolean hasNextImpl() throws IOException {
       try (StateSampler.ScopedState read = stateSampler.scopedState(readState)) {
-        if (nextGroup == null && groups.hasNext()) {
-          nextGroup = groups.next();
-          promisedPosition = ByteArrayShufflePosition.of(nextGroup.position);
+        if (!groups.hasNext()) {
+          return false;
         }
+        currentGroup = groups.next();
       }
+      ByteArrayShufflePosition groupStart = ByteArrayShufflePosition.of(currentGroup.position);
+      boolean isAtSplitPoint = (lastGroupStart == null) || (!groupStart.equals(lastGroupStart));
+      lastGroupStart = groupStart;
+      return rangeTracker.tryReturnRecordAt(isAtSplitPoint, groupStart);
     }
 
     @Override
-    public boolean hasNext() throws IOException {
-      advanceIfNecessary();
-      if (nextGroup == null) {
-        return false;
-      }
-      return stopPosition == null || promisedPosition.compareTo(stopPosition) < 0;
-    }
-
-    @Override
-    public WindowedValue<KV<K, Reiterable<V>>> next() throws IOException {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
-      KeyGroupedShuffleEntries group = nextGroup;
-      nextGroup = null;
-
-      K key = CoderUtils.decodeFromByteArray(keyCoder, group.key);
+    protected WindowedValue<KV<K, Reiterable<V>>> nextImpl() throws IOException {
+      K key = CoderUtils.decodeFromByteArray(keyCoder, currentGroup.key);
       if (executionContext != null) {
         executionContext.setKey(key);
       }
 
+      KeyGroupedShuffleEntries group = currentGroup;
+      currentGroup = null;
       return WindowedValue.valueInEmptyWindows(
           KV.<K, Reiterable<V>>of(key, new ValuesIterable(group.values)));
     }
@@ -234,8 +216,11 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
       com.google.api.services.dataflow.model.Position position =
           new com.google.api.services.dataflow.model.Position();
       ApproximateProgress progress = new ApproximateProgress();
-      position.setShufflePosition(promisedPosition.encodeBase64());
-      progress.setPosition(position);
+      ByteArrayShufflePosition groupStart = rangeTracker.getLastGroupStart();
+      if (groupStart != null) {
+        position.setShufflePosition(groupStart.encodeBase64());
+        progress.setPosition(position);
+      }
       return cloudProgressToReaderProgress(progress);
     }
 
@@ -263,25 +248,19 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
       }
       ByteArrayShufflePosition newStopPosition =
           ByteArrayShufflePosition.fromBase64(splitShufflePosition);
-      if (newStopPosition.compareTo(promisedPosition) <= 0) {
-        LOG.info("Already progressed to promised shuffle position {}, which is "
-            + "after the requested split shuffle position {}",
-            promisedPosition.encodeBase64(), splitShufflePosition);
-        return null;
-      }
-
-      if (this.stopPosition != null && newStopPosition.compareTo(this.stopPosition) >= 0) {
+      if (rangeTracker.trySplitAtPosition(newStopPosition)) {
         LOG.info(
-            "Split requested at a shuffle position beyond the end of the current range: "
-            + "{} >= current stop position: {}",
-            splitShufflePosition, this.stopPosition.encodeBase64());
+            "Split GroupingShuffleReader at {}, now {}",
+            newStopPosition.encodeBase64(),
+            rangeTracker);
+        return new DynamicSplitResultWithPosition(cloudPositionToReaderPosition(splitPosition));
+      } else {
+        LOG.info(
+            "Refused to split GroupingShuffleReader {} at {}",
+            rangeTracker,
+            newStopPosition.encodeBase64());
         return null;
       }
-
-      this.stopPosition = newStopPosition;
-      LOG.info("Split GroupingShuffleReader at {}", splitShufflePosition);
-
-      return new DynamicSplitResultWithPosition(cloudPositionToReaderPosition(splitPosition));
     }
 
     /**

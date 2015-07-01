@@ -24,16 +24,18 @@ import static java.lang.Math.min;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
+import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.common.annotations.VisibleForTesting;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
@@ -81,26 +83,24 @@ public class InMemoryReader<T> extends Reader<T> {
   /**
    * A ReaderIterator that yields an in-memory list of elements.
    */
-  class InMemoryReaderIterator extends AbstractReaderIterator<T> {
-    int index;
-    int endPosition;
+  class InMemoryReaderIterator extends AbstractBoundedReaderIterator<T> {
+    @VisibleForTesting
+    OffsetRangeTracker tracker;
+    private int nextIndex;
 
     public InMemoryReaderIterator() {
-      index = startIndex;
-      endPosition = endIndex;
+      this.tracker = new OffsetRangeTracker(startIndex, endIndex);
+      this.nextIndex = startIndex;
     }
 
     @Override
-    public boolean hasNext() {
-      return index < endPosition;
+    protected boolean hasNextImpl() {
+      return tracker.tryReturnRecordAt(true, (long) nextIndex);
     }
 
     @Override
-    public T next() throws IOException {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
-      String encodedElementString = encodedElements.get(index++);
+    protected T nextImpl() throws IOException {
+      String encodedElementString = encodedElements.get(nextIndex++);
       // TODO: Replace with the real encoding used by the
       // front end, when we know what it is.
       byte[] encodedElement = StringUtils.jsonStringToByteArray(encodedElementString);
@@ -115,7 +115,7 @@ public class InMemoryReader<T> extends Reader<T> {
       // other metrics, e.g. completion percentage or remaining time.
       com.google.api.services.dataflow.model.Position currentPosition =
           new com.google.api.services.dataflow.model.Position();
-      currentPosition.setRecordIndex((long) index);
+      currentPosition.setRecordIndex((long) nextIndex);
 
       ApproximateProgress progress = new ApproximateProgress();
       progress.setPosition(currentPosition);
@@ -141,21 +141,10 @@ public class InMemoryReader<T> extends Reader<T> {
             splitPosition);
         return null;
       }
-      if (splitIndex <= index) {
-        LOG.info("Already progressed to index {}, which is after the requested split index {}",
-            index, splitIndex);
+
+      if (!tracker.trySplitAtPosition(splitIndex)) {
         return null;
       }
-      if (splitIndex >= endPosition) {
-        LOG.info(
-            "Split requested at an index beyond the end of the current range: {} >= {}",
-            splitIndex, endPosition);
-        return null;
-      }
-
-      this.endPosition = splitIndex.intValue();
-      LOG.info("Split InMemoryReader at index {}", splitIndex);
-
       return new DynamicSplitResultWithPosition(cloudPositionToReaderPosition(splitPosition));
     }
   }
