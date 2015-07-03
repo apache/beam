@@ -35,6 +35,7 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.SequenceFile.Writer;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.junit.Before;
 import org.junit.Rule;
@@ -63,11 +64,15 @@ public class HadoopFileFormatPipelineTest {
     populateFile();
 
     Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
-    PCollection<KV<IntWritable, Text>> input = (PCollection<KV<IntWritable, Text>>)
-            p.apply(HadoopIO.Read.from(inputFile.getAbsolutePath())
-            .withFormatClass(SequenceFileInputFormat.class)
-            .withKeyClass(IntWritable.class)
-            .withValueClass(Text.class));
+    @SuppressWarnings("unchecked")
+    Class<? extends FileInputFormat<IntWritable, Text>> inputFormatClass =
+        (Class<? extends FileInputFormat<IntWritable, Text>>) (Class<?>) SequenceFileInputFormat.class;
+    HadoopIO.Read.Bound<IntWritable,Text> bound =
+        HadoopIO.Read.<IntWritable,Text>from(inputFile.getAbsolutePath())
+        .withKeyClass(IntWritable.class)
+        .withValueClass(Text.class)
+        .withFormatClass(inputFormatClass);
+    PCollection<KV<IntWritable, Text>> input = p.apply(bound);
     input.apply(ParDo.of(new TabSeparatedString()))
         .apply(TextIO.Write.to(outputFile.getAbsolutePath()).withoutSharding());
     EvaluationResult res = SparkPipelineRunner.create().run(p);

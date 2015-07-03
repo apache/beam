@@ -32,20 +32,21 @@ public final class HadoopIO {
     private Read() {
     }
 
-    public static Bound from(String filepattern) {
-      return new Bound().from(filepattern);
+    public static <K, V> Bound<K, V> from(String filepattern) {
+      return new Bound<K, V>().from(filepattern);
     }
 
-    public static Bound withFormatClass(Class<? extends FileInputFormat<?, ?>> format) {
-      return new Bound().withFormatClass(format);
+    public static <K, V> Bound<K, V> withFormatClass(
+        Class<? extends FileInputFormat<K, V>> format) {
+      return new Bound<K, V>().withFormatClass(format);
     }
 
-    public static Bound withKeyClass(Class<?> key) {
-      return new Bound().withKeyClass(key);
+    public static <K, V> Bound<K, V> withKeyClass(Class<K> key) {
+      return new Bound<K, V>().withKeyClass(key);
     }
 
-    public static Bound withValueClass(Class<?> value) {
-      return new Bound().withValueClass(value);
+    public static <K, V> Bound<K, V> withValueClass(Class<V> value) {
+      return new Bound<K, V>().withValueClass(value);
     }
 
     public static class Bound<K, V> extends PTransform<PInput, PCollection<KV<K, V>>> {

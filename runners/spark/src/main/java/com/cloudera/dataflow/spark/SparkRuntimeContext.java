@@ -94,8 +94,9 @@ public class SparkRuntimeContext implements Serializable {
   }
 
   public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator) {
-    final T aggregatorValue = (T) getAggregatorValue(aggregator.getName(),
-        aggregator.getCombineFn().getOutputType().getRawType());
+    @SuppressWarnings("unchecked")
+    Class<T> aggValueClass = (Class<T>) aggregator.getCombineFn().getOutputType().getRawType();
+    final T aggregatorValue = getAggregatorValue(aggregator.getName(), aggValueClass);
     return new AggregatorValues<T>() {
       @Override
       public Collection<T> getValues() {
@@ -150,7 +151,7 @@ public class SparkRuntimeContext implements Serializable {
     return coderRegistry;
   }
 
-  private Coder getCoder(Combine.CombineFn<?, ?, ?> combiner) {
+  private Coder<?> getCoder(Combine.CombineFn<?, ?, ?> combiner) {
     try {
       if (combiner.getClass() == Sum.SumIntegerFn.class) {
         return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Integer.class));

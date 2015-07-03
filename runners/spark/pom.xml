@@ -194,7 +194,7 @@ License.
                         <arguments>
                             <argument>-classpath</argument>
                             <classpath />
-                            <argument>${class}</argument>
+                            <argument>${mainClass}</argument>
                             <argument>--input=${input}</argument>
                             <argument>--output=${output}</argument>
                             <argument>--runner=${runner}</argument>

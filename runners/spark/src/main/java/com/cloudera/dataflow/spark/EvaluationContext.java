@@ -127,7 +127,7 @@ public class EvaluationContext implements EvaluationResult {
     leafRdds.add(rdd);
   }
 
-  JavaRDDLike<?, ?> getInputRDD(PTransform transform) {
+  JavaRDDLike<?, ?> getInputRDD(PTransform<? extends PInput, ?> transform) {
     return getRDD((PValue) getInput(transform));
   }
 

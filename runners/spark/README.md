@@ -66,7 +66,7 @@ First download a text document to use as input:
 Then run the [word count example][wc] from the SDK using a single threaded Spark instance
 in local mode:
 
-    mvn exec:exec -Dclass=com.google.cloud.dataflow.examples.WordCount \
+    mvn exec:exec -DmainClass=com.google.cloud.dataflow.examples.WordCount \
       -Dinput=/tmp/kinglear.txt -Doutput=/tmp/out -Drunner=SparkPipelineRunner \
       -DsparkMaster=local
 

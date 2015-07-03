@@ -183,15 +183,16 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
       doVisitTransform(node);
     }
 
-    private <PT extends PTransform> void doVisitTransform(TransformTreeNode node) {
+    private <PT extends PTransform<? super PInput, POutput>>
+        void doVisitTransform(TransformTreeNode node) {
+      @SuppressWarnings("unchecked")
       PT transform = (PT) node.getTransform();
       @SuppressWarnings("unchecked")
-      TransformEvaluator<PT> evaluator = (TransformEvaluator<PT>)
-          TransformTranslator.getTransformEvaluator(transform.getClass());
+      Class<PT> transformClass = (Class<PT>) (Class<?>) transform.getClass();
+      TransformEvaluator<PT> evaluator = TransformTranslator.getTransformEvaluator(transformClass);
       LOG.info("Evaluating {}", transform);
-      AppliedPTransform<PInput, POutput, ? extends PTransform> appliedTransform =
-          AppliedPTransform.of(node.getFullName(), node.getInput(), node.getOutput(),
-              (PTransform) transform);
+      AppliedPTransform<PInput, POutput, PT> appliedTransform =
+          AppliedPTransform.of(node.getFullName(), node.getInput(), node.getOutput(), transform);
       ctxt.setCurrentTransform(appliedTransform);
       evaluator.evaluate(transform, ctxt);
       ctxt.setCurrentTransform(null);

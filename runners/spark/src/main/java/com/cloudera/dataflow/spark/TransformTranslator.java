@@ -633,12 +633,12 @@ public final class TransformTranslator {
     EVALUATORS.put(Window.Bound.class, window());
   }
 
-  public static <PT extends PTransform> boolean hasTransformEvaluator(Class<PT> clazz) {
+  public static <PT extends PTransform<?, ?>> boolean hasTransformEvaluator(Class<PT> clazz) {
     return EVALUATORS.containsKey(clazz);
   }
 
-  public static <PT extends PTransform> TransformEvaluator<PT> getTransformEvaluator(Class<PT>
-                                                                                         clazz) {
+  public static <PT extends PTransform<?, ?>> TransformEvaluator<PT> getTransformEvaluator(Class<PT>
+                                                                                           clazz) {
     @SuppressWarnings("unchecked")
     TransformEvaluator<PT> transform = (TransformEvaluator<PT>) EVALUATORS.get(clazz);
     if (transform == null) {
