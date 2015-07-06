@@ -32,8 +32,9 @@ public final class HadoopIO {
     private Read() {
     }
 
-    public static <K, V> Bound<K, V> withKeyValueClass(Class<K> key, Class<V> value) {
-      return new Bound<>(null, null, key, value);
+    public static <K, V> Bound<K, V> from(String filepattern, Class<? extends FileInputFormat<K, V>> format,
+        Class<K> key, Class<V> value) {
+      return new Bound<>(filepattern, format, key, value);
     }
 
     public static class Bound<K, V> extends PTransform<PInput, PCollection<KV<K, V>>> {
@@ -45,18 +46,18 @@ public final class HadoopIO {
 
       Bound(String filepattern, Class<? extends FileInputFormat<K, V>> format, Class<K> key,
           Class<V> value) {
+        Preconditions.checkNotNull(filepattern,
+                                   "need to set the filepattern of an HadoopIO.Read transform");
+        Preconditions.checkNotNull(format,
+                                   "need to set the format class of an HadoopIO.Read transform");
+        Preconditions.checkNotNull(key,
+                                   "need to set the key class of an HadoopIO.Read transform");
+        Preconditions.checkNotNull(value,
+                                   "need to set the value class of an HadoopIO.Read transform");
         this.filepattern = filepattern;
         this.formatClass = format;
         this.keyClass = key;
         this.valueClass = value;
-      }
-
-      public Bound<K, V> from(String file) {
-        return new Bound<>(file, formatClass, keyClass, valueClass);
-      }
-
-      public Bound<K, V> withFormatClass(Class<? extends FileInputFormat<K, V>> format) {
-        return new Bound<>(filepattern, format, keyClass, valueClass);
       }
 
       public String getFilepattern() {
@@ -77,15 +78,6 @@ public final class HadoopIO {
 
       @Override
       public PCollection<KV<K, V>> apply(PInput input) {
-        Preconditions.checkNotNull(filepattern,
-            "need to set the filepattern of an HadoopIO.Read transform");
-        Preconditions.checkNotNull(formatClass,
-            "need to set the format class of an HadoopIO.Read transform");
-        Preconditions.checkNotNull(keyClass,
-            "need to set the key class of an HadoopIO.Read transform");
-        Preconditions.checkNotNull(valueClass,
-            "need to set the value class of an HadoopIO.Read transform");
-
         return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
             WindowingStrategy.globalDefault(), PCollection.IsBounded.BOUNDED);
       }
