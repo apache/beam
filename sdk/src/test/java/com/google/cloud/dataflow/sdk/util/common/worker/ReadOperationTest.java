@@ -37,6 +37,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.Position;
+import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReader;
@@ -186,6 +187,33 @@ public class ReadOperationTest {
     assertNull(readOperation.requestDynamicSplit(splitRequestAtIndex(5L)));
   }
 
+  @Test
+  public void testDynamicSplitDoesNotBlock() throws Exception {
+    MockReaderIterator iterator = new MockReaderIterator(0, 10);
+    CounterSet counterSet = new CounterSet();
+    MockOutputReceiver receiver = new MockOutputReceiver(counterSet.getAddCounterMutator());
+    ReadOperation readOperation = new ReadOperation(new MockReader(iterator), receiver, "test-",
+        counterSet.getAddCounterMutator(),
+        new StateSampler("test-", counterSet.getAddCounterMutator()));
+
+    Thread thread = runReadLoopInThread(readOperation);
+    iterator.offerNext(0);
+    receiver.unblockProcess();
+    // Read loop is blocked in next(). Do not offer another next item,
+    // but check that we can still split while the read loop is blocked.
+    Reader.DynamicSplitResultWithPosition split = (Reader.DynamicSplitResultWithPosition)
+        readOperation.requestDynamicSplit(splitRequestAtIndex(5L));
+    assertNotNull(split);
+    assertEquals(positionAtIndex(5L), toCloudPosition(split.getAcceptedPosition()));
+
+    for (int i = 1; i < 5; ++i) {
+      iterator.offerNext(i);
+      receiver.unblockProcess();
+    }
+
+    thread.join();
+  }
+
   private Thread runReadLoopInThread(final ReadOperation readOperation) {
     Thread thread = new Thread() {
       @Override
@@ -202,23 +230,23 @@ public class ReadOperationTest {
     return thread;
   }
 
-  private static class MockReaderIterator extends Reader.AbstractReaderIterator<Integer> {
-    private int to;
+  private static class MockReaderIterator extends AbstractBoundedReaderIterator<Integer> {
+    private final OffsetRangeTracker tracker;
     private Exchanger<Integer> exchanger = new Exchanger<>();
     private int current;
 
     public MockReaderIterator(int from, int to) {
+      this.tracker = new OffsetRangeTracker(from, to);
       this.current = from;
-      this.to = to;
     }
 
     @Override
-    public boolean hasNext() throws IOException {
-      return current < to;
+    protected boolean hasNextImpl() throws IOException {
+      return tracker.tryReturnRecordAt(true, current);
     }
 
     @Override
-    public Integer next() throws IOException {
+    protected Integer nextImpl() throws IOException {
       ++current;
       try {
         return exchanger.exchange(current);
@@ -238,13 +266,11 @@ public class ReadOperationTest {
         Reader.DynamicSplitRequest splitRequest) {
       ApproximateProgress progress = splitRequestToApproximateProgress(splitRequest);
       int index = progress.getPosition().getRecordIndex().intValue();
-      if (index >= to) {
+      if (!tracker.trySplitAtPosition(index)) {
         return null;
-      } else {
-        this.to = index;
-        return new Reader.DynamicSplitResultWithPosition(
-            cloudPositionToReaderPosition(progress.getPosition()));
       }
+      return new Reader.DynamicSplitResultWithPosition(
+          cloudPositionToReaderPosition(progress.getPosition()));
     }
 
     public int offerNext(int next) {
