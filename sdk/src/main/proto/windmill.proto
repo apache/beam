@@ -54,6 +54,7 @@ message InputMessageBundle {
 message KeyedMessageBundle {
   required bytes key = 1;
   repeated Message messages = 2;
+  repeated bytes messages_ids = 3;
 }
 
 message OutputMessageBundle {
