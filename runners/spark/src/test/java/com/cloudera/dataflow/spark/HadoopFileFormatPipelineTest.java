@@ -68,9 +68,8 @@ public class HadoopFileFormatPipelineTest {
     Class<? extends FileInputFormat<IntWritable, Text>> inputFormatClass =
         (Class<? extends FileInputFormat<IntWritable, Text>>) (Class<?>) SequenceFileInputFormat.class;
     HadoopIO.Read.Bound<IntWritable,Text> bound =
-        HadoopIO.Read.<IntWritable,Text>from(inputFile.getAbsolutePath())
-        .withKeyClass(IntWritable.class)
-        .withValueClass(Text.class)
+        HadoopIO.Read.withKeyValueClass(IntWritable.class, Text.class).
+        from(inputFile.getAbsolutePath())
         .withFormatClass(inputFormatClass);
     PCollection<KV<IntWritable, Text>> input = p.apply(bound);
     input.apply(ParDo.of(new TabSeparatedString()))
