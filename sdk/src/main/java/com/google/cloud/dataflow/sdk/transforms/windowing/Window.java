@@ -118,7 +118,7 @@ import java.util.List;
  *          Repeatedly
  *              .forever(AfterProcessingTime
  *                  .pastFirstElementInPane().plusDelay(Duration.standardMinutes(1)))
- *              .until(AfterWatermark
+ *              .orFinally(AfterWatermark
  *                  .pastEndOfWindow().plusDelay(Duration.standardDays(1)))));
  * PCollection<KV<String, Long>> windowed_counts = windowed_items.apply(
  *   Count.<String>perElement());
@@ -133,7 +133,7 @@ import java.util.List;
  *      .triggering(Repeatedly
  *              .forever(AfterProcessingTime
  *                  .pastFirstElementInPane().plusDelay(Duration.standardMinutes(1)))
- *              .until(AfterWatermark.pastEndOfWindow())));
+ *              .orFinally(AfterWatermark.pastEndOfWindow())));
  * } </pre>
  *
  * <p> After a {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} the trigger is reset to
