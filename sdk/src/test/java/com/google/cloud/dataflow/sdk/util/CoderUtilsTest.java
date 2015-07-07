@@ -17,10 +17,16 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.makeCloudEncoding;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -28,7 +34,9 @@ import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -41,6 +49,10 @@ import java.io.OutputStream;
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class CoderUtilsTest {
+
+  @Rule
+  public transient ExpectedException expectedException = ExpectedException.none();
+
   static class TestCoder extends AtomicCoder<Integer> {
     public static TestCoder of() {
       return new TestCoder();
@@ -61,6 +73,20 @@ public class CoderUtilsTest {
       throw new NonDeterministicException(this,
         "TestCoder does not actually encode or decode.");
     }
+  }
+
+  @Test
+  public void testCoderExceptionPropagation() throws Exception {
+    @SuppressWarnings("unchecked")
+    Coder<String> crashingCoder = mock(Coder.class);
+    doThrow(new CoderException("testing exception"))
+        .when(crashingCoder)
+        .encode(anyString(), any(OutputStream.class), any(Coder.Context.class));
+
+    expectedException.expect(CoderException.class);
+    expectedException.expectMessage("testing exception");
+
+    CoderUtils.encodeToByteArray(crashingCoder, "hello");
   }
 
   @Test

@@ -40,4 +40,12 @@ public class ExposedByteArrayInputStream extends ByteArrayInputStream{
     return ret;
   }
 
+  @Override
+  public void close() {
+    try {
+      super.close();
+    } catch (IOException exn) {
+      throw new RuntimeException("Unexpected IOException closing ByteArrayInputStream", exn);
+    }
+  }
 }

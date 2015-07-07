@@ -18,21 +18,77 @@ package com.google.cloud.dataflow.sdk.runners;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
+import org.hamcrest.Matchers;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+
 /** Tests for {@link DirectPipelineRunner}. */
 @RunWith(JUnit4.class)
-public class DirectPipelineRunnerTest {
+public class DirectPipelineRunnerTest implements Serializable {
+
+  private static final long serialVersionUID = 0L;
+
+  @Rule
+  public transient ExpectedException expectedException = ExpectedException.none();
+
   @Test
   public void testToString() {
     PipelineOptions options = PipelineOptionsFactory.create();
     DirectPipelineRunner runner = DirectPipelineRunner.fromOptions(options);
     assertEquals("DirectPipelineRunner#" + runner.hashCode(),
         runner.toString());
+  }
+
+  private static class CrashingCoder<T> extends AtomicCoder<T> {
+    private static final long serialVersionUID = 0L;
+
+    @Override
+    public void encode(T value, OutputStream stream, Context context) throws CoderException {
+      throw new CoderException("Called CrashingCoder.encode");
+    }
+
+    @Override
+    public T decode(
+        InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+            throws CoderException {
+      throw new CoderException("Called CrashingCoder.decode");
+    }
+  }
+
+  @Test
+  public void testCoderException() {
+    expectedException.expect(RuntimeException.class);
+    expectedException.expectMessage("CrashDuringCoding");
+    expectedException.expectCause(Matchers.<CoderException>instanceOf(CoderException.class));
+    DirectPipeline pipeline = DirectPipeline.createForTest();
+
+    pipeline
+        .apply("CreateTestData", Create.of(42))
+        .apply("CrashDuringCoding", ParDo.of(new DoFn<Integer, String>() {
+          private static final long serialVersionUID = 0L;
+
+          @Override
+          public void processElement(ProcessContext context) {
+            context.output("hello");
+          }
+        }))
+        .setCoder(new CrashingCoder<String>());
+
+    pipeline.run();
   }
 }

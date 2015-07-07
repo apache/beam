@@ -27,20 +27,21 @@ import com.google.cloud.dataflow.sdk.coders.KvCoderBase;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.MapCoderBase;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import com.google.common.base.Throwables;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.TypeVariable;
@@ -69,24 +70,36 @@ public final class CoderUtils {
    * the encoded bytes.
    * This function is non-reentrant due to the use of ThreadLocal.
    */
-  public static <T> byte[] encodeToByteArray(Coder<T> coder, T value) throws CoderException{
+  public static <T> byte[] encodeToByteArray(Coder<T> coder, T value) throws CoderException {
     return encodeToByteArray(coder, value, Coder.Context.OUTER);
   }
 
   public static <T> byte[] encodeToByteArray(Coder<T> coder, T value, Coder.Context context)
       throws CoderException {
+    SoftReference<ExposedByteArrayOutputStream> refStream = threadLocalOutputStream.get();
+    ExposedByteArrayOutputStream stream = refStream == null ? null : refStream.get();
+    if (stream == null) {
+      stream = new ExposedByteArrayOutputStream();
+      threadLocalOutputStream.set(new SoftReference<>(stream));
+    }
+    stream.reset();
+    encodeToSafeStream(coder, value, stream, context);
+    return stream.toByteArray();
+  }
+
+  /**
+   * Encodes {@code value} to the given {@code stream}, which should be a stream that never throws
+   * {@code IOException}, such as {@code ByteArrayOutputStream} or
+   * {@link ExposedByteArrayOutputStream}.
+   */
+  private static <T> void encodeToSafeStream(
+      Coder<T> coder, T value, OutputStream stream, Coder.Context context) throws CoderException {
     try {
-      SoftReference<ExposedByteArrayOutputStream> refStream = threadLocalOutputStream.get();
-      ExposedByteArrayOutputStream stream = refStream == null ? null : refStream.get();
-      if (stream == null) {
-        stream = new ExposedByteArrayOutputStream();
-        threadLocalOutputStream.set(new SoftReference<>(stream));
-      }
-      stream.reset();
       coder.encode(value, stream, context);
-      return stream.toByteArray();
     } catch (IOException exn) {
-      throw new RuntimeException("unexpected IOException", exn);
+      Throwables.propagateIfPossible(exn, CoderException.class);
+      throw new IllegalArgumentException(
+          "Forbidden IOException when writing to OutputStream", exn);
     }
   }
 
@@ -101,18 +114,29 @@ public final class CoderUtils {
 
   public static <T> T decodeFromByteArray(
       Coder<T> coder, byte[] encodedValue, Coder.Context context) throws CoderException {
-    try {
-      try (ByteArrayInputStream is = new ExposedByteArrayInputStream(encodedValue)) {
-        T result = coder.decode(is, context);
-        if (is.available() != 0) {
-          throw new CoderException(
-              is.available() + " unexpected extra bytes after decoding " +
-              result);
-        }
-        return result;
+    try (ExposedByteArrayInputStream stream = new ExposedByteArrayInputStream(encodedValue)) {
+      T result = decodeFromSafeStream(coder, stream, context);
+      if (stream.available() != 0) {
+        throw new CoderException(
+            stream.available() + " unexpected extra bytes after decoding " + result);
       }
+      return result;
+    }
+  }
+
+  /**
+   * Decodes a value from the given {@code stream}, which should be a stream that never throws
+   * {@code IOException}, such as {@code ByteArrayInputStream} or
+   * {@link ExposedByteArrayInputStream}.
+   */
+  private static <T> T decodeFromSafeStream(
+      Coder<T> coder, InputStream stream, Coder.Context context) throws CoderException {
+    try {
+      return coder.decode(stream, context);
     } catch (IOException exn) {
-      throw new RuntimeException("unexpected IOException", exn);
+      Throwables.propagateIfPossible(exn, CoderException.class);
+      throw new IllegalArgumentException(
+          "Forbidden IOException when reading from InputStream", exn);
     }
   }
 
@@ -122,28 +146,18 @@ public final class CoderUtils {
    *
    * @throws CoderException if there are errors during encoding.
    */
-  public static <T> String encodeToBase64(Coder<T> coder, T value) throws CoderException {
-    ByteArrayOutputStream stream = new ByteArrayOutputStream();
-    try {
-      coder.encode(value, stream, Coder.Context.OUTER);
-    } catch (IOException e) {
-      throw new RuntimeException("unexpected IOException", e);
-    }
-    byte[] rawValue = stream.toByteArray();
+  public static <T> String encodeToBase64(Coder<T> coder, T value)
+      throws CoderException {
+    byte[] rawValue = encodeToByteArray(coder, value);
     return Base64.encodeBase64URLSafeString(rawValue);
   }
 
   /**
-   * Parses a window from a base64-encoded String using the given coder.
+   * Parses a value from a base64-encoded String using the given coder.
    */
-  public static <T> T decodeFromBase64(Coder<T> coder, String encodedValue) {
-    try {
-      return coder.decode(
-          new ByteArrayInputStream(Base64.decodeBase64(encodedValue)),
-          Coder.Context.OUTER);
-    } catch (IOException e) {
-      throw new RuntimeException("unexpected IOException", e);
-    }
+  public static <T> T decodeFromBase64(Coder<T> coder, String encodedValue) throws CoderException {
+    return decodeFromSafeStream(
+        coder, new ByteArrayInputStream(Base64.decodeBase64(encodedValue)), Coder.Context.OUTER);
   }
 
   /**
