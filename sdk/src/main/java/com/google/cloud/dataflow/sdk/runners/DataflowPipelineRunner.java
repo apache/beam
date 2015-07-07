@@ -306,6 +306,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     String reloadJobId = null;
     if (options.getReload()) {
       reloadJobId = getJobIdFromName(options.getJobName());
+      newJob.setTransformNameMapping(options.getTransformNameMapping());
     }
     Job jobResult;
     try {

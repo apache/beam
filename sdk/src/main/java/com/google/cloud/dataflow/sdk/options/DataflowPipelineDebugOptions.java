@@ -24,9 +24,12 @@ import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.Stager;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.common.base.Preconditions;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -160,6 +163,14 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   }
 
   /**
+   * Root URL for use with the Pubsub API.
+   */
+  @Description("Root URL for use with the Pubsub API")
+  @Default.String("https://pubsub.googleapis.com")
+  String getPubsubRootUrl();
+  void setPubsubRootUrl(String value);
+
+  /**
    * Whether to reload the currently running pipeline with the same name as this one.
    */
   @JsonIgnore
@@ -170,12 +181,16 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setReload(boolean value);
 
   /**
-   * Root URL for use with the Pubsub API.
+   * Mapping of old PTranform names to new ones, specified as a semicolon-separated list of
+   * oldName=newName pairs. To mark a transform as deleted, omit newName.
    */
-  @Description("Root URL for use with the Pubsub API")
-  @Default.String("https://pubsub.googleapis.com")
-  String getPubsubRootUrl();
-  void setPubsubRootUrl(String value);
+  @JsonIgnore
+  @Description(
+      "Mapping of old PTranform names to new ones, specified as a semicolon-separated "
+      + "list of oldName=newName pairs. To mark a transform as deleted, omit newName.")
+  @Experimental
+  NameMap getTransformNameMapping();
+  void setTransformNameMapping(NameMap value);
 
   /**
    * Custom windmill_main binary to use with the streaming runner.
@@ -213,6 +228,30 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
           .fromFactoryMethod("fromOptions")
           .withArg(PipelineOptions.class, options)
           .build();
+    }
+  }
+
+  /**
+   * Map of old names to new names.
+   */
+  public static class NameMap extends HashMap<String, String> {
+    private static final long serialVersionUID = 0L;
+    private static final String ENTRY_SEPARATOR = ";";
+    private static final String VALUE_SEPARATOR = "=";
+
+    /**
+     * Parses a NameMap from a String.
+     */
+    @JsonCreator
+    public static NameMap create(String value) {
+      NameMap result = new NameMap();
+      for (String entry : value.split(ENTRY_SEPARATOR)) {
+        String[] splitEntry = entry.split(VALUE_SEPARATOR, -1);
+        Preconditions.checkArgument(splitEntry.length == 2,
+            "Invalid value for --nameMapping.  Should be in old1=new1;old2=new2 format");
+        result.put(splitEntry[0], splitEntry[1]);
+      }
+      return result;
     }
   }
 }
