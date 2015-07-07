@@ -304,8 +304,6 @@ public class CoderRegistry implements CoderProvider {
    *
    * <p> For this reason, {@code getDefaultCoders} (plural) does not throw
    * an exception if a coder for a particular type variable cannot be
-   * inferred. Instead, it is left absent from the map. It is the responsibility
-   * of the caller (usually {@link #getDefaultCoder} to extract the
    * desired coder or throw a {@link CannotProvideCoderException} when appropriate.
    *
    * @param subClass the concrete type whose specializations are being inferred
@@ -577,7 +575,14 @@ public class CoderRegistry implements CoderProvider {
    *
    * @throws CannotProvideCoderException if a coder cannot be provided
    */
-  <T> Coder<T> getDefaultCoder(Class<T> clazz) throws CannotProvideCoderException {
+  public <T> Coder<T> getDefaultCoder(Class<T> clazz) throws CannotProvideCoderException {
+    if (clazz.getTypeParameters().length > 0) {
+      throw new IllegalArgumentException(
+          "CoderRegistry.getDefaultCoder(Class) cannot be used with parameterized types due to "
+              + "erasure. Instead of getDefaultCoder(" + clazz.getSimpleName() + ") "
+              + "use getDefaultCoder(new TypeDescriptor<" + clazz.getSimpleName() + "<...>>(){}).");
+    }
+
     try {
       CoderFactory coderFactory = getDefaultCoderFactory(clazz);
       LOG.debug("Default Coder for {} found by factory", clazz);
@@ -593,7 +598,7 @@ public class CoderRegistry implements CoderProvider {
     if (defaultAnnotation != null) {
       LOG.debug("Default Coder for {} found by DefaultCoder annotation", clazz);
       @SuppressWarnings("unchecked")
-      Coder<T> coder = (Coder<T>) InstanceBuilder.ofType(Coder.class)
+      Coder<T> coder = InstanceBuilder.ofType(Coder.class)
           .fromClass(defaultAnnotation.value())
           .fromFactoryMethod("of")
           .withArg(Class.class, clazz)

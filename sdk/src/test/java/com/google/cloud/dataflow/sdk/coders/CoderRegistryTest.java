@@ -46,7 +46,9 @@ import java.util.List;
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class CoderRegistryTest {
-  @Rule public ExpectedException expectedException = ExpectedException.none();
+
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
 
   public static CoderRegistry getStandardRegistry() {
     CoderRegistry registry = new CoderRegistry();
@@ -147,6 +149,14 @@ public class CoderRegistryTest {
 
     expectedException.expect(CannotProvideCoderException.class);
     registry.getDefaultCoder(listUnknownToken);
+  }
+
+  @Test
+  public void testParameterizedDefaultCoderWrongMethod() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("new TypeDescriptor<List<...>>(){}");
+    registry.getDefaultCoder(List.class);
   }
 
   @Test
