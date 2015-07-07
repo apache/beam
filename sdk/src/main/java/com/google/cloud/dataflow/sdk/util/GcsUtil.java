@@ -16,7 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Preconditions;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
@@ -26,6 +28,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.util.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.dataflow.sdk.util.gcsio.GoogleCloudStorageWriteChannel;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
 import org.slf4j.Logger;
@@ -117,9 +120,9 @@ public class GcsUtil {
   }
 
   /**
-   * Expands a pattern into matched paths. The pattern path may contain globs, which are expanded in
-   * the result. This function may return non-existent files so this should not be used to validate
-   * the existence of files in GCS.
+   * Expands a pattern into matched paths. The pattern path may contain globs, which are expanded
+   * in the result. This function may return non-existent files so this should not be used to
+   * validate the existence of files in GCS.
    */
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
     Preconditions.checkArgument(isGcsPatternSupported(gcsPattern.getObject()));
@@ -152,7 +155,18 @@ public class GcsUtil {
         listObject.setPageToken(pageToken);
       }
 
-      Objects objects = listObject.execute();
+      Objects objects;
+      try {
+        objects = ResilientOperation.retry(
+            ResilientOperation.getGoogleRequestCallable(listObject),
+            new AttemptBoundedExponentialBackOff(3, 200),
+            RetryDeterminer.SOCKET_ERRORS,
+            IOException.class);
+      } catch (Exception e) {
+        throw new IOException("Unable to match files in bucket " + gcsPattern.getBucket()
+            +  ", prefix " + prefix + " against pattern " + p.toString(), e);
+      }
+      //Objects objects = listObject.execute();
       Preconditions.checkNotNull(objects);
 
       if (objects.getItems() == null) {
@@ -180,20 +194,31 @@ public class GcsUtil {
    * if the resource does not exist.
    */
   public long fileSize(GcsPath path) throws IOException {
-    try {
+    return fileSize(path, new AttemptBoundedExponentialBackOff(4, 200), Sleeper.DEFAULT);
+  }
+
+  /**
+   * Returns the file size from GCS or throws {@link NoSuchFileException}
+   * if the resource does not exist.
+   */
+  @VisibleForTesting
+  long fileSize(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
       Storage.Objects.Get getObject =
           storage.objects().get(path.getBucket(), path.getObject());
-
-      StorageObject object = getObject.execute();
-      return object.getSize().longValue();
-    } catch (IOException e) {
-      if (errorExtractor.itemNotFound(e)) {
-        throw new NoSuchFileException(path.toString());
-      }
-
-      // Re-throw any other error.
-      throw e;
-    }
+      try {
+        StorageObject object = ResilientOperation.retry(
+            ResilientOperation.getGoogleRequestCallable(getObject),
+            backoff,
+            RetryDeterminer.SOCKET_ERRORS,
+            IOException.class,
+            sleeper);
+        return object.getSize().longValue();
+      } catch (Exception e) {
+        if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
+          throw new NoSuchFileException(path.toString());
+        }
+        throw new IOException("Unable to get file size", e);
+     }
   }
 
   /**
