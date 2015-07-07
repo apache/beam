@@ -32,8 +32,8 @@ public final class HadoopIO {
     private Read() {
     }
 
-    public static <K, V> Bound<K, V> from(String filepattern, Class<? extends FileInputFormat<K, V>> format,
-        Class<K> key, Class<V> value) {
+    public static <K, V> Bound<K, V> from(String filepattern,
+        Class<? extends FileInputFormat<K, V>> format, Class<K> key, Class<V> value) {
       return new Bound<>(filepattern, format, key, value);
     }
 
