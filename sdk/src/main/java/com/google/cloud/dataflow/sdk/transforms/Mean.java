@@ -16,16 +16,19 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.coders.CustomCoder;
 import com.google.cloud.dataflow.sdk.coders.DoubleCoder;
+import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
+import com.google.common.base.MoreObjects;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Objects;
 
 /**
  * {@code PTransform}s for computing the arithmetic mean
@@ -48,6 +51,8 @@ import java.io.OutputStream;
  * } </pre>
  */
 public class Mean {
+
+  private Mean() { } // Namespace only
 
   /**
    * Returns a {@code PTransform} that takes an input
@@ -92,8 +97,8 @@ public class Mean {
    *
    * @param <NumT> the type of the {@code Number}s being combined
    */
-  public static class MeanFn<NumT extends Number> extends
-    Combine.AccumulatingCombineFn<NumT, MeanFn<NumT>.CountSum, Double> {
+  static class MeanFn<NumT extends Number>
+  extends Combine.AccumulatingCombineFn<NumT, CountSum<NumT>, Double> {
     private static final long serialVersionUID = 0;
 
     /**
@@ -102,74 +107,100 @@ public class Mean {
      */
     public MeanFn() {}
 
-    /**
-     * Accumulator helper class for MeanFn.
-     */
-    class CountSum
-        implements Combine.AccumulatingCombineFn.Accumulator<NumT, CountSum, Double> {
-
-      long count = 0;
-      double sum = 0.0;
-
-      public CountSum() {
-        this(0, 0);
-      }
-
-      public CountSum(long count, double sum) {
-        this.count = count;
-        this.sum = sum;
-      }
-
-      @Override
-      public void addInput(NumT element) {
-        count++;
-        sum += element.doubleValue();
-      }
-
-      @Override
-      public void mergeAccumulator(CountSum accumulator) {
-        count += accumulator.count;
-        sum += accumulator.sum;
-      }
-
-      @Override
-      public Double extractOutput() {
-        return count == 0 ? Double.NaN : sum / count;
-      }
+    @Override
+    public CountSum<NumT> createAccumulator() {
+      return new CountSum<>();
     }
 
     @Override
-    public CountSum createAccumulator() {
-      return new CountSum();
-    }
-
-    private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
-    private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public Coder<CountSum> getAccumulatorCoder(
+    public Coder<CountSum<NumT>> getAccumulatorCoder(
         CoderRegistry registry, Coder<NumT> inputCoder) {
-      return new CustomCoder<CountSum> () {
-        private static final long serialVersionUID = 0;
+      return new CountSumCoder<>();
+    }
+  }
 
-        @Override
-        public void encode(CountSum value, OutputStream outStream, Coder.Context context)
-            throws CoderException, IOException {
-          Coder.Context nestedContext = context.nested();
-          LONG_CODER.encode(value.count, outStream, nestedContext);
-          DOUBLE_CODER.encode(value.sum, outStream, nestedContext);
-        }
+  /**
+   * Accumulator class for {@link MeanFn}.
+   */
+  static class CountSum<NumT extends Number>
+  implements Accumulator<NumT, CountSum<NumT>, Double> {
 
-        @Override
-        public CountSum decode(InputStream inStream, Coder.Context context)
-            throws CoderException, IOException {
-          Coder.Context nestedContext = context.nested();
-          return new CountSum(
-              LONG_CODER.decode(inStream, nestedContext),
-              DOUBLE_CODER.decode(inStream, nestedContext));
-        }
-      };
+    long count = 0;
+    double sum = 0.0;
+
+    public CountSum() {
+      this(0, 0);
+    }
+
+    public CountSum(long count, double sum) {
+      this.count = count;
+      this.sum = sum;
+    }
+
+    @Override
+    public void addInput(NumT element) {
+      count++;
+      sum += element.doubleValue();
+    }
+
+    @Override
+    public void mergeAccumulator(CountSum<NumT> accumulator) {
+      count += accumulator.count;
+      sum += accumulator.sum;
+    }
+
+    @Override
+    public Double extractOutput() {
+      return count == 0 ? Double.NaN : sum / count;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof CountSum)) {
+        return false;
+      }
+      @SuppressWarnings("unchecked")
+      CountSum<?> otherCountSum = (CountSum<?>) other;
+      return (count == otherCountSum.count)
+          && (sum == otherCountSum.sum);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(count, sum);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("count", count)
+          .add("sum", sum)
+          .toString();
+    }
+  }
+
+  static class CountSumCoder<NumT extends Number>
+  extends AtomicCoder<CountSum<NumT>> {
+     private static final long serialVersionUID = 0;
+
+     private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
+     private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
+
+     @Override
+     public void encode(CountSum<NumT> value, OutputStream outStream, Coder.Context context)
+         throws CoderException, IOException {
+       Coder.Context nestedContext = context.nested();
+       LONG_CODER.encode(value.count, outStream, nestedContext);
+       DOUBLE_CODER.encode(value.sum, outStream, nestedContext);
+     }
+
+     @Override
+     public CountSum<NumT> decode(InputStream inStream, Coder.Context context)
+         throws CoderException, IOException {
+       Coder.Context nestedContext = context.nested();
+       return new CountSum<>(
+           LONG_CODER.decode(inStream, nestedContext),
+           DOUBLE_CODER.decode(inStream, nestedContext));
     }
   }
 }

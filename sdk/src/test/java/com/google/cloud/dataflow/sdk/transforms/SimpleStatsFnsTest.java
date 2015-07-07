@@ -18,14 +18,6 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.coders.DoubleCoder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
-import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -114,19 +106,5 @@ public class SimpleStatsFnsTest {
       assertEquals(t.max, new Max.MaxLongFn().apply(t.data));
       assertEquals(t.mean, new Mean.MeanFn<Long>().apply(t.data));
     }
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  public void testMeanCountSumSerializable() {
-    Pipeline p = TestPipeline.create();
-
-    PCollection<KV<Long, Double>> input = p
-        .apply(Create.of(KV.of(1L, 1.5), KV.of(2L, 7.3))
-          .withCoder(KvCoder.of(VarLongCoder.of(), DoubleCoder.of())));
-
-    input.apply(Mean.<Long, Double>perKey());
-
-    p.run();
   }
 }
