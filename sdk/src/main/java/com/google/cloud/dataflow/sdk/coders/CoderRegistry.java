@@ -174,8 +174,8 @@ public class CoderRegistry implements CoderProvider {
       TypeDescriptor<InputT> contextTypeDescriptor,
       Coder<InputT> contextCoder)
       throws CannotProvideCoderException {
-    return getDefaultCoder(typeDescriptor,
-                           getTypeToCoderBindings(contextTypeDescriptor.getType(), contextCoder));
+    return getDefaultCoder(
+        typeDescriptor, getTypeToCoderBindings(contextTypeDescriptor.getType(), contextCoder));
   }
 
   /**
@@ -185,28 +185,15 @@ public class CoderRegistry implements CoderProvider {
   public <InputT, OutputT> Coder<OutputT> getDefaultOutputCoder(
       SerializableFunction<InputT, OutputT> fn, Coder<InputT> inputCoder)
       throws CannotProvideCoderException {
-    return getDefaultCoder(
-        fn.getClass(), SerializableFunction.class, inputCoder);
-  }
 
-  /**
-   * Returns the Coder to use for the last type parameter specialization
-   * of the subclass given Coders to use for all other type parameters
-   * specializations (if any).
-   *
-   * @throws CannotProvideCoderException if there is no default Coder.
-   */
-  public <T, OutputT> Coder<OutputT> getDefaultCoder(
-      Class<? extends T> subClass,
-      Class<T> baseClass,
-      Coder<?>... knownCoders) throws CannotProvideCoderException {
-    Coder<?>[] allCoders = new Coder<?>[knownCoders.length + 1];
-    // Last entry intentionally left null.
-    System.arraycopy(knownCoders, 0, allCoders, 0, knownCoders.length);
-    allCoders = getDefaultCoders(subClass, baseClass, allCoders);
-    @SuppressWarnings("unchecked") // trusted
-    Coder<OutputT> coder = (Coder<OutputT>) allCoders[knownCoders.length];
-    return coder;
+    ParameterizedType fnType = (ParameterizedType)
+        TypeDescriptor.of(fn.getClass()).getSupertype(SerializableFunction.class).getType();
+
+    return getDefaultCoder(
+        fn.getClass(),
+        SerializableFunction.class,
+        ImmutableMap.of(fnType.getActualTypeArguments()[0], inputCoder),
+        SerializableFunction.class.getTypeParameters()[1]);
   }
 
   /**
@@ -368,7 +355,7 @@ public class CoderRegistry implements CoderProvider {
    *         or if the length of knownCoders is not equal to the number of type
    *         parameters
    */
-  public <T> Coder<?>[] getDefaultCoders(
+  private <T> Coder<?>[] getDefaultCoders(
       Class<? extends T> subClass,
       Class<T> baseClass,
       Coder<?>[] knownCoders) {

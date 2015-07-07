@@ -193,40 +193,6 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testTypeParameterInferenceLast() throws Exception {
-    CoderRegistry registry = getStandardRegistry();
-    MyGenericClass<MyValue, List<MyValue>> instance =
-        new MyGenericClass<MyValue, List<MyValue>>() {};
-
-    Coder<List<MyValueCoder>> actual = registry.getDefaultCoder(
-        instance.getClass(),
-        MyGenericClass.class,
-        MyValueCoder.of());
-
-    assertEquals(ListCoder.of(MyValueCoder.of()), actual);
-  }
-
-  /**
-   * Tests sanity checking of the not-type-safe {@code Map<TypeVariable, Coder>}
-   * that the user can provide to {@code getDefaultCoder}.
-   */
-  @Test
-  public void testTypeParameterInferenceIncompatibleMap() throws Exception {
-    CoderRegistry registry = getStandardRegistry();
-    MyGenericClass<MyValue, List<MyValue>> instance =
-        new MyGenericClass<MyValue, List<MyValue>>() {};
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Cannot encode elements of type class "
-        + "com.google.cloud.dataflow.sdk.coders.CoderRegistryTest$MyValue "
-        + "with BigEndianIntegerCoder");
-    registry.getDefaultCoder(
-        instance.getClass(),
-        MyGenericClass.class,
-        BigEndianIntegerCoder.of());
-  }
-
-  @Test
   public void testGetDefaultCoderFromIntegerValue() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     Integer i = 13;
