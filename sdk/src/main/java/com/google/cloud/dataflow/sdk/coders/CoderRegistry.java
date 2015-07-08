@@ -88,21 +88,20 @@ public class CoderRegistry implements CoderProvider {
   }
 
   /**
-   * Registers {@code coderClazz} as the default {@code Coder<T>}
-   * class to handle encoding and decoding instances of {@code clazz}
-   * of type {@code T}.
+   * Registers {@code coderClazz} as the default {@link Coder} class to handle encoding and
+   * decoding instances of {@code clazz}, overriding prior registrations if any exist.
    *
-   * <p> {@code coderClazz} should have a static factory method with the
-   * following signature:
+   * <p> Supposing {@code T} is the static type corresponding to the {@code clazz}, then
+   * {@code coderClazz} should have a static factory method with the following signature:
    *
    * <pre> {@code
    * public static Coder<T> of(Coder<X> argCoder1, Coder<Y> argCoder2, ...)
    * } </pre>
    *
-   * <p> This method will be called to create instances of {@code Coder<T>}
-   * for values of type {@code T}, passing Coders for each of the generic type
-   * parameters of {@code T}.  If {@code T} takes no generic type parameters,
-   * then the {@code of()} factory method should have no arguments.
+   * <p> This method will be called to create instances of {@code Coder<T>} for values of type
+   * {@code T}, passing Coders for each of the generic type parameters of {@code T}.  If {@code T}
+   * takes no generic type parameters, then the {@code of()} factory method should have no
+   * arguments.
    *
    * <p> If {@code T} is a parameterized type, then it should additionally
    * have a method with the following signature:
@@ -112,23 +111,27 @@ public class CoderRegistry implements CoderProvider {
    * } </pre>
    *
    * <p> This method will be called to decompose a value during the coder
-   * inference process, to automatically choose coders for the components
+   * inference process, to automatically choose coders for the components.
+   *
+   * @param clazz the class of objects to be encoded
+   * @param coderClazz a class with static factory methods to provide coders
    */
-  public void registerCoder(Class<?> clazz,
-                            Class<?> coderClazz) {
+  public void registerCoder(Class<?> clazz, Class<?> coderClazz) {
     registerCoder(clazz, CoderFactories.fromStaticMethods(coderClazz));
   }
 
-  public void registerCoder(Class<?> rawClazz,
-                            CoderFactory coderFactory) {
-    if (coderFactoryMap.put(rawClazz, coderFactory) != null) {
-      throw new IllegalArgumentException(
-          "Cannot register multiple default Coder factories for " + rawClazz);
-    }
+  /**
+   * Registers {@code coderFactory} as the default {@link CoderFactory} to produce {@code Coder}
+   * instances to decode and encode instances of {@code clazz}. This will override prior
+   * registrations if any exist.
+   */
+  public void registerCoder(Class<?> clazz, CoderFactory coderFactory) {
+    coderFactoryMap.put(clazz, coderFactory);
   }
 
   /**
-   * Registered the provided {@link Coder} for encoding all values of the specified {@code Class}.
+   * Register the provided {@link Coder} for encoding all values of the specified {@code Class}.
+   * This will override prior registrations if any exist.
    *
    * <p>Not for use with generic rawtypes. Instead, register a {@link CoderFactory} via
    * {@link #registerCoder(Class, CoderFactory)} or ensure your {@code Coder} class has the
