@@ -81,7 +81,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   private static final int FINAL_CLEANUP_PSEUDO_ID = -1;
 
   private final WindowFn<Object, W> windowFn;
-  private final ExecutableTrigger<W> trigger;
+  private final ExecutableTrigger<W> rootTrigger;
   private final AccumulationMode mode;
   private final Duration allowedLateness;
 
@@ -102,7 +102,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   TriggerExecutor(K key,
       WindowFn<Object, W> windowFn,
       TimerManager timerManager,
-      ExecutableTrigger<W> trigger,
+      ExecutableTrigger<W> rootTrigger,
       WindowingInternals.KeyedState keyedState,
       WindowingInternals<?, KV<K, OutputT>> windowingInternals,
       AccumulationMode mode,
@@ -113,7 +113,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       Aggregator<Long, Long> droppedDueToLateness) {
     this.key = key;
     this.windowFn = windowFn;
-    this.trigger = trigger;
+    this.rootTrigger = rootTrigger;
     this.keyedState = keyedState;
     this.windowingInternals = windowingInternals;
     this.allowedLateness = allowedLateness;
@@ -212,25 +212,25 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private TriggerContext<W> context(BitSet finishedSet) {
-    return new TriggerContextImpl(finishedSet, trigger);
+    return new TriggerContextImpl(finishedSet, rootTrigger);
   }
 
   @VisibleForTesting BitSet lookupFinishedSet(W window) throws IOException {
     // TODO: If we know that no trigger in the tree will ever finish, we don't need to do the
     // lookup. Right now, we special case this for the DefaultTrigger.
-    if (trigger.getSpec() instanceof DefaultTrigger) {
+    if (rootTrigger.getSpec() instanceof DefaultTrigger) {
       return new BitSet(1);
     }
 
     BitSet finishedSet = keyedState.lookup(finishedSetTag(window));
-    return finishedSet == null ? new BitSet(trigger.getFirstIndexAfterSubtree()) : finishedSet;
+    return finishedSet == null ? new BitSet(rootTrigger.getFirstIndexAfterSubtree()) : finishedSet;
   }
 
   /**
    * Issue a load for all the keyed state tags that we know we need for the given windows.
    */
   private void warmUpCache(Iterable<W> windows) throws IOException {
-    if ((trigger.getSpec() instanceof DefaultTrigger)) {
+    if ((rootTrigger.getSpec() instanceof DefaultTrigger)) {
       return;
     }
 
@@ -279,7 +279,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
       // Update the trigger state as appropriate for the arrival of the element.
       // Must come before merge so the state is updated (for merging).
-      TriggerResult result = trigger.invokeElement(context(finishedSet), e);
+      TriggerResult result = rootTrigger.invokeElement(context(finishedSet), e);
 
       // Make sure we merge before firing, in case a larger window is produced
       boolean stillExists = true;
@@ -290,7 +290,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       // Only invoke handleResult if the window is still active after merging. If not, the
       // merge should have taken care of any firing behaviors that needed to happen.
       if (stillExists) {
-        handleResult(trigger, window, originalFinishedSet, finishedSet, result);
+        handleResult(rootTrigger, window, originalFinishedSet, finishedSet, result);
       }
     }
   }
@@ -320,7 +320,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
       // Perform final cleanup.
       activeWindows.remove(window);
-      trigger.invokeClear(context(finishedSet), window);
+      rootTrigger.invokeClear(context(finishedSet), window);
       keyedState.remove(finishedSetTag(window));
       return;
     }
@@ -338,9 +338,9 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     // Attempt to merge windows before continuing; that may remove the current window from
     // consideration.
     if (mergeIfAppropriate(window)) {
-      TriggerResult result = trigger.invokeTimer(
+      TriggerResult result = rootTrigger.invokeTimer(
           context(finishedSet), new OnTimerEvent<W>(triggerId));
-      handleResult(trigger, window, originalFinishedSet, finishedSet, result);
+      handleResult(rootTrigger, window, originalFinishedSet, finishedSet, result);
     }
   }
 
@@ -370,19 +370,19 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     BitSet finishedSet = (BitSet) originalFinishedSet.clone();
 
     TriggerContext<W> context = context(finishedSet);
-    MergeResult result = trigger.invokeMerge(context, e);
+    MergeResult result = rootTrigger.invokeMerge(context, e);
     if (MergeResult.ALREADY_FINISHED.equals(result)) {
       throw new IllegalStateException("Root trigger returned MergeResult.ALREADY_FINISHED.");
     }
 
     // Commit the updated states
     handleResult(
-        trigger, resultWindow, originalFinishedSet, finishedSet, result.getTriggerResult());
+        rootTrigger, resultWindow, originalFinishedSet, finishedSet, result.getTriggerResult());
 
     // Before we finish, we can clean up the state associated with the trigger in the old windows
     for (W windowBeingMerged : toBeMerged) {
       if (!resultWindow.equals(windowBeingMerged)) {
-        trigger.invokeClear(context(lookupFinishedSet(windowBeingMerged)), windowBeingMerged);
+        rootTrigger.invokeClear(context(lookupFinishedSet(windowBeingMerged)), windowBeingMerged);
         keyedState.remove(finishedSetTag(windowBeingMerged));
         deleteTimer(cleanupTimer(windowBeingMerged), TimeDomain.EVENT_TIME);
       }
