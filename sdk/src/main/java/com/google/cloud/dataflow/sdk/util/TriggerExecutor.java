@@ -45,6 +45,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -208,7 +209,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
         droppedDueToClosedWindow, droppedDueToLateness);
   }
 
-  private Trigger<W>.TriggerContext context(BitSet finishedSet, W window) {
+  private TriggerContextImpl context(BitSet finishedSet, W window) {
     return new TriggerContextImpl(finishedSet, rootTrigger, window);
   }
 
@@ -342,7 +343,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private OnMergeContextImpl createMergeEvent(
-      Trigger<W>.TriggerContext context, Collection<W> toBeMerged, W resultWindow)
+      TriggerContextImpl context, Collection<W> toBeMerged, W resultWindow)
       throws IOException {
     warmUpCache(
         toBeMerged.contains(resultWindow)
@@ -366,7 +367,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     BitSet originalFinishedSet = lookupFinishedSet(resultWindow);
     BitSet finishedSet = (BitSet) originalFinishedSet.clone();
 
-    Trigger<W>.TriggerContext context = context(finishedSet, resultWindow);
+    TriggerContextImpl context = context(finishedSet, resultWindow);
     OnMergeContextImpl e = createMergeEvent(context, toBeMerged, resultWindow);
     MergeResult result = rootTrigger.invokeMerge(e);
     if (MergeResult.ALREADY_FINISHED.equals(result)) {
@@ -554,23 +555,8 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public Trigger<W>.TriggerContext forTrigger(ExecutableTrigger<W> trigger) {
+    public TriggerContextImpl forTrigger(ExecutableTrigger<W> trigger) {
       return new TriggerContextImpl(finishedSet, trigger, window);
-    }
-
-    @Override
-    public ExecutableTrigger<W> current() {
-      return trigger;
-    }
-
-    @Override
-    public boolean isCurrentTrigger(int triggerIndex) {
-      return trigger.getTriggerIndex() == triggerIndex;
-    }
-
-    @Override
-    public ExecutableTrigger<W> nextStepTowards(int someTriggerIndex) {
-      return trigger.getSubTriggerContaining(someTriggerIndex);
     }
 
     @Override
@@ -633,13 +619,13 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private class OnElementContextImpl extends Trigger<W>.OnElementContext {
+    private final TriggerContextImpl delegate;
+
     public OnElementContextImpl(
-        Trigger<W>.TriggerContext delegate, Object value, Instant timestamp) {
-      delegate.current().getSpec().super(value, timestamp);
+        TriggerContextImpl delegate, Object value, Instant timestamp) {
+      delegate.trigger.getSpec().super(value, timestamp);
       this.delegate = delegate;
     }
-
-    private Trigger<W>.TriggerContext delegate;
 
     @Override
     public Trigger<W>.OnElementContext forTrigger(ExecutableTrigger<W> trigger) {
@@ -682,11 +668,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public ExecutableTrigger<W> current() {
-      return delegate.current();
-    }
-
-    @Override
     public Iterable<ExecutableTrigger<W>> subTriggers() {
       return delegate.subTriggers();
     }
@@ -694,16 +675,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public ExecutableTrigger<W> subTrigger(int subtriggerIndex) {
       return delegate.subTrigger(subtriggerIndex);
-    }
-
-    @Override
-    public boolean isCurrentTrigger(int triggerIndex) {
-      return delegate.isCurrentTrigger(triggerIndex);
-    }
-
-    @Override
-    public ExecutableTrigger<W> nextStepTowards(int destinationIndex) {
-      return delegate.nextStepTowards(destinationIndex);
     }
 
     @Override
@@ -744,12 +715,12 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
   private class OnMergeContextImpl extends Trigger<W>.OnMergeContext {
 
-    private final Trigger<W>.TriggerContext delegate;
+    private final TriggerContextImpl delegate;
 
     public OnMergeContextImpl(
-        Trigger<W>.TriggerContext delegate,
+        TriggerContextImpl delegate,
         Iterable<W> oldWindows, Map<W, BitSet> finishedSets) {
-      delegate.current().getSpec().super(oldWindows, finishedSets);
+      delegate.trigger.getSpec().super(oldWindows, finishedSets);
       this.delegate = delegate;
     }
 
@@ -794,11 +765,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public ExecutableTrigger<W> current() {
-      return delegate.current();
-    }
-
-    @Override
     public Iterable<ExecutableTrigger<W>> subTriggers() {
       return delegate.subTriggers();
     }
@@ -806,16 +772,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public ExecutableTrigger<W> subTrigger(int subtriggerIndex) {
       return delegate.subTrigger(subtriggerIndex);
-    }
-
-    @Override
-    public boolean isCurrentTrigger(int triggerIndex) {
-      return delegate.isCurrentTrigger(triggerIndex);
-    }
-
-    @Override
-    public ExecutableTrigger<W> nextStepTowards(int destinationIndex) {
-      return delegate.nextStepTowards(destinationIndex);
     }
 
     @Override
@@ -852,14 +808,33 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     public W window() {
       return delegate.window();
     }
+
+    @Override
+    public boolean finishedInAnyMergingWindow() {
+      for (BitSet bitSet : finishedSets.values()) {
+        if (bitSet.get(delegate.trigger.getTriggerIndex())) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    @Override
+    public Iterable<W> getFinishedMergingWindows() {
+      return Maps.filterValues(finishedSets, new Predicate<BitSet>() {
+        @Override
+        public boolean apply(BitSet input) {
+          return input.get(delegate.trigger.getTriggerIndex());
+        }
+      }).keySet();
+    }
   }
 
   private class OnTimerContextImpl extends Trigger<W>.OnTimerContext {
 
-    private final Trigger<W>.TriggerContext delegate;
-    public OnTimerContextImpl(
-        Trigger<W>.TriggerContext delegate, TriggerId<W> triggerId) {
-      delegate.current().getSpec().super(triggerId);
+    private final TriggerContextImpl delegate;
+    public OnTimerContextImpl(TriggerContextImpl delegate, TriggerId<W> triggerId) {
+      delegate.trigger.getSpec().super(triggerId);
       this.delegate = delegate;
     }
 
@@ -904,11 +879,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public ExecutableTrigger<W> current() {
-      return delegate.current();
-    }
-
-    @Override
     public Iterable<ExecutableTrigger<W>> subTriggers() {
       return delegate.subTriggers();
     }
@@ -919,13 +889,13 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public boolean isCurrentTrigger(int triggerIndex) {
-      return delegate.isCurrentTrigger(triggerIndex);
+    public boolean isDestination() {
+      return delegate.trigger.getTriggerIndex() == destinationId.getTriggerIdx();
     }
 
     @Override
-    public ExecutableTrigger<W> nextStepTowards(int destinationIndex) {
-      return delegate.nextStepTowards(destinationIndex);
+    public ExecutableTrigger<W> nextStepTowardsDestination() {
+      return delegate.trigger.getSubTriggerContaining(destinationId.getTriggerIdx());
     }
 
     @Override

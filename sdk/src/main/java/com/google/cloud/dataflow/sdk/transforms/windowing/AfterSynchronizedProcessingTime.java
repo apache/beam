@@ -54,7 +54,7 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
     // If the processing time timer has fired in any of the windows being merged, it would have
     // fired at the same point if it had been added to the merged window. So, we just report it as
     // finished.
-    if (c.finishedInAnyMergingWindow(c.current())) {
+    if (c.finishedInAnyMergingWindow()) {
       return MergeResult.ALREADY_FINISHED;
     }
 

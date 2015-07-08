@@ -71,7 +71,7 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   public MergeResult onMerge(OnMergeContext c) throws Exception {
     // If we've already received enough elements and finished in some window, then this trigger
     // is just finished.
-    if (c.finishedInAnyMergingWindow(c.current())) {
+    if (c.finishedInAnyMergingWindow()) {
       return MergeResult.ALREADY_FINISHED;
     }
 

@@ -23,8 +23,6 @@ import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Maps;
 
 import org.joda.time.Instant;
 
@@ -226,11 +224,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     public abstract TriggerContext forTrigger(ExecutableTrigger<W> trigger);
 
     /**
-     * Access the executable version of the trigger currently being executed.
-     */
-    public abstract ExecutableTrigger<W> current();
-
-    /**
      * Access the executable versions of the sub-triggers of the current trigger.
      */
     public abstract Iterable<ExecutableTrigger<W>> subTriggers();
@@ -239,16 +232,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
      * Access the executable version of the specified sub-trigger.
      */
     public abstract ExecutableTrigger<W> subTrigger(int subtriggerIndex);
-
-    /**
-     * Returns true if the given trigger index corresponds to the current trigger.
-     */
-    public abstract boolean isCurrentTrigger(int triggerIndex);
-
-    /**
-     * Returns the sub-trigger of the current trigger that is the next step towards the destination.
-     */
-    public abstract ExecutableTrigger<W> nextStepTowards(int destinationIndex);
 
     /**
      * Returns true if the current trigger is marked finished.
@@ -354,34 +337,10 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     }
 
     /** Return true if the trigger is finished in any window being merged. */
-    public boolean finishedInAnyMergingWindow(ExecutableTrigger<W> trigger) {
-      for (BitSet bitSet : finishedSets.values()) {
-        if (bitSet.get(trigger.getTriggerIndex())) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    /** Return true if the trigger is finished in all the windows being merged. */
-    public boolean finishedInAllMergingWindows(ExecutableTrigger<W> trigger) {
-      for (BitSet bitSet : finishedSets.values()) {
-        if (!bitSet.get(trigger.getTriggerIndex())) {
-          return false;
-        }
-      }
-      return true;
-    }
+    public abstract boolean finishedInAnyMergingWindow();
 
     /** Return the merging windows in which the trigger is finished. */
-    public Iterable<W> getFinishedMergingWindows(final ExecutableTrigger<W> trigger) {
-      return Maps.filterValues(finishedSets, new Predicate<BitSet>() {
-        @Override
-        public boolean apply(BitSet input) {
-          return input.get(trigger.getTriggerIndex());
-        }
-      }).keySet();
-    }
+    public abstract Iterable<W> getFinishedMergingWindows();
 
     /**
      * Create an {@code OnMergeContext} for executing the given trigger.
@@ -420,6 +379,16 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     public int getDestinationIndex() {
       return destinationId.getTriggerIdx();
     }
+
+    /**
+     * Returns the sub-trigger of the current trigger that is the next step towards the destination.
+     */
+    public abstract ExecutableTrigger<W> nextStepTowardsDestination();
+
+    /**
+     * Returns true if the given trigger index corresponds to the current trigger.
+     */
+    public abstract boolean isDestination();
 
     /**
      * Create an {@code OnTimerContext} for executing the given trigger.
@@ -662,11 +631,11 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
 
     @Override
     public TriggerResult onTimer(OnTimerContext c) throws Exception {
-      if (c.isCurrentTrigger(c.getDestinationIndex())) {
+      if (c.isDestination()) {
         throw new IllegalStateException("OrFinally shouldn't receive any timers.");
       }
 
-      ExecutableTrigger<W> destination = c.nextStepTowards(c.getDestinationIndex());
+      ExecutableTrigger<W> destination = c.nextStepTowardsDestination();
       TriggerResult result = destination.invokeTimer(c);
       if (destination == c.subTrigger(UNTIL) && result.isFire()) {
         return TriggerResult.FIRE_AND_FINISH;

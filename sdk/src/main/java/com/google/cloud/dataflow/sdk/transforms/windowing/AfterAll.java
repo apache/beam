@@ -88,11 +88,11 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
 
   @Override
   public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    if (c.isCurrentTrigger(c.getDestinationIndex())) {
+    if (c.isDestination()) {
       throw new IllegalStateException("AfterAll shouldn't receive any timers.");
     }
 
-    ExecutableTrigger<W> subTrigger = c.nextStepTowards(c.getDestinationIndex());
+    ExecutableTrigger<W> subTrigger = c.nextStepTowardsDestination();
     subTrigger.invokeTimer(c);
     return wrapResult(c);
   }

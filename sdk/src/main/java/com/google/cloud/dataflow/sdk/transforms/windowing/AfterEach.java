@@ -116,11 +116,11 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
 
   @Override
   public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    if (c.isCurrentTrigger(c.getDestinationIndex())) {
+    if (c.isDestination()) {
       throw new IllegalStateException("AfterEach shouldn't receive timers.");
     }
 
-    ExecutableTrigger<W> timerChild = c.nextStepTowards(c.getDestinationIndex());
+    ExecutableTrigger<W> timerChild = c.nextStepTowardsDestination();
     return wrapResult(c, timerChild.invokeTimer(c));
   }
 

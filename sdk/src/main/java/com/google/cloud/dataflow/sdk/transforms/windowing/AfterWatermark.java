@@ -108,7 +108,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
       // If the watermark time timer has fired in any of the windows being merged, it would have
       // fired at the same point if it had been added to the merged window. So, we just record it as
       // finished.
-      if (c.finishedInAnyMergingWindow(c.current())) {
+      if (c.finishedInAnyMergingWindow()) {
         return MergeResult.ALREADY_FINISHED;
       }
 
@@ -200,7 +200,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
       // If the watermark was past the end of a window that is past the end of the new window,
       // then the watermark must also be past the end of this window. What's more, we've already
       // fired some elements for that trigger firing, so we report FINISHED (without firing).
-      for (W finishedWindow : c.getFinishedMergingWindows(c.current())) {
+      for (W finishedWindow : c.getFinishedMergingWindows()) {
         if (finishedWindow.maxTimestamp().isAfter(c.window().maxTimestamp())) {
           return MergeResult.ALREADY_FINISHED;
         }
