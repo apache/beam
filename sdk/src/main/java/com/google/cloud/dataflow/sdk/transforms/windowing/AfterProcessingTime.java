@@ -21,11 +21,11 @@ import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.common.base.Objects;
 
 import org.joda.time.Instant;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * {@code AfterProcessingTime} triggers fire based on the current processing time. They operate in
@@ -133,11 +133,11 @@ public class AfterProcessingTime<W extends BoundedWindow>
       return false;
     }
     AfterProcessingTime<?> that = (AfterProcessingTime<?>) obj;
-    return Objects.equal(this.timestampMappers, that.timestampMappers);
+    return Objects.equals(this.timestampMappers, that.timestampMappers);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(this.timestampMappers);
+    return Objects.hash(getClass(), this.timestampMappers);
   }
 }

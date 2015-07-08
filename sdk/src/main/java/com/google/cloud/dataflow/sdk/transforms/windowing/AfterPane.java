@@ -25,6 +25,7 @@ import org.joda.time.Instant;
 
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Objects;
 
 /**
  * {@link Trigger}s that fire based on properties of the elements in the current pane.
@@ -103,8 +104,7 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
 
   @Override
   public boolean isCompatible(Trigger<?> other) {
-    return (other instanceof AfterPane)
-        && countElems == ((AfterPane<?>) other).countElems;
+    return this.equals(other);
   }
 
   @Override
@@ -132,5 +132,10 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
     }
     AfterPane<?> that = (AfterPane<?>) obj;
     return this.countElems == that.countElems;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(countElems);
   }
 }

@@ -21,11 +21,11 @@ import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.common.base.Objects;
 
 import org.joda.time.Instant;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * <p>{@code AfterWatermark} triggers fire based on progress of the system watermark. This time is a
@@ -171,7 +171,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
         return false;
       }
       FromFirstElementInPane<?> that = (FromFirstElementInPane<?>) obj;
-      return Objects.equal(this.timestampMappers, that.timestampMappers);
+      return Objects.equals(this.timestampMappers, that.timestampMappers);
     }
 
     @Override
@@ -251,12 +251,12 @@ public abstract class AfterWatermark<W extends BoundedWindow>
         return false;
       }
       FromEndOfWindow<?> that = (FromEndOfWindow<?>) obj;
-      return Objects.equal(this.timestampMappers, that.timestampMappers);
+      return Objects.equals(this.timestampMappers, that.timestampMappers);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(timestampMappers);
+      return Objects.hash(getClass(), timestampMappers);
     }
   }
 }
