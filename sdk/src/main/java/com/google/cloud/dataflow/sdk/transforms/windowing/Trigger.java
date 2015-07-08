@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 
@@ -29,7 +28,6 @@ import org.joda.time.Instant;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
@@ -589,73 +587,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
         throw new IllegalStateException("Continuation of a OnceTrigger must be a OnceTrigger");
       }
       return (OnceTrigger<W>) continuation;
-    }
-  }
-
-  /**
-   * Executes the {@code actual} trigger until it finishes or until the {@code until} trigger fires.
-   */
-  @VisibleForTesting static class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
-
-    private static final int ACTUAL = 0;
-    private static final int UNTIL = 1;
-
-    private static final long serialVersionUID = 0L;
-
-    @VisibleForTesting OrFinallyTrigger(Trigger<W> actual, OnceTrigger<W> until) {
-      super(Arrays.asList(actual, until));
-    }
-
-    @Override
-    public TriggerResult onElement(OnElementContext c) throws Exception {
-      TriggerResult untilResult = c.subTrigger(UNTIL).invokeElement(c);
-      if (untilResult != TriggerResult.CONTINUE) {
-        return TriggerResult.FIRE_AND_FINISH;
-      }
-
-      return c.subTrigger(ACTUAL).invokeElement(c);
-    }
-
-    @Override
-    public MergeResult onMerge(OnMergeContext c) throws Exception {
-      MergeResult untilResult = c.subTrigger(UNTIL).invokeMerge(c);
-      if (untilResult == MergeResult.ALREADY_FINISHED) {
-        return MergeResult.ALREADY_FINISHED;
-      } else if (untilResult.isFire()) {
-        return MergeResult.FIRE_AND_FINISH;
-      } else {
-        // was CONTINUE -- so merge the underlying trigger
-        return c.subTrigger(ACTUAL).invokeMerge(c);
-      }
-    }
-
-    @Override
-    public TriggerResult onTimer(OnTimerContext c) throws Exception {
-      if (c.isDestination()) {
-        throw new IllegalStateException("OrFinally shouldn't receive any timers.");
-      }
-
-      ExecutableTrigger<W> destination = c.nextStepTowardsDestination();
-      TriggerResult result = destination.invokeTimer(c);
-      if (destination == c.subTrigger(UNTIL) && result.isFire()) {
-        return TriggerResult.FIRE_AND_FINISH;
-      }
-      return result;
-    }
-
-    @Override
-    public Instant getWatermarkThatGuaranteesFiring(W window) {
-      // This trigger fires once either the trigger or the until trigger fires.
-      Instant actualDeadline = subTriggers.get(ACTUAL).getWatermarkThatGuaranteesFiring(window);
-      Instant untilDeadline = subTriggers.get(UNTIL).getWatermarkThatGuaranteesFiring(window);
-      return actualDeadline.isBefore(untilDeadline) ? actualDeadline : untilDeadline;
-    }
-
-    @Override
-    public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
-      return new OrFinallyTrigger<W>(
-          continuationTriggers.get(ACTUAL),
-          (OnceTrigger<W>) continuationTriggers.get(UNTIL));
     }
   }
 }
