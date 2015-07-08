@@ -37,45 +37,45 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e)
+  public TriggerResult onElement(OnElementContext c)
       throws Exception {
-    Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, e.window());
+    Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, c.window());
     if (delayUntil == null) {
       delayUntil = c.currentProcessingTime();
-      c.setTimer(e.window(), delayUntil, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
-      c.store(DELAYED_UNTIL_TAG, e.window(), delayUntil);
+      c.setTimer(c.window(), delayUntil, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+      c.store(DELAYED_UNTIL_TAG, c.window(), delayUntil);
     }
 
     return TriggerResult.CONTINUE;
   }
 
   @Override
-  public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(OnMergeContext c) throws Exception {
     // If the processing time timer has fired in any of the windows being merged, it would have
     // fired at the same point if it had been added to the merged window. So, we just report it as
     // finished.
-    if (e.finishedInAnyMergingWindow(c.current())) {
+    if (c.finishedInAnyMergingWindow(c.current())) {
       return MergeResult.ALREADY_FINISHED;
     }
 
     // Otherwise, determine the earliest delay for all of the windows, and delay to that point.
     Instant earliestTimer = BoundedWindow.TIMESTAMP_MAX_VALUE;
-    for (Instant delayedUntil : c.lookup(DELAYED_UNTIL_TAG, e.oldWindows()).values()) {
+    for (Instant delayedUntil : c.lookup(DELAYED_UNTIL_TAG, c.oldWindows()).values()) {
       if (delayedUntil != null && delayedUntil.isBefore(earliestTimer)) {
         earliestTimer = delayedUntil;
       }
     }
 
     if (earliestTimer != null) {
-      c.store(DELAYED_UNTIL_TAG, e.newWindow(), earliestTimer);
-      c.setTimer(e.newWindow(), earliestTimer, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+      c.store(DELAYED_UNTIL_TAG, c.newWindow(), earliestTimer);
+      c.setTimer(c.newWindow(), earliestTimer, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     }
 
     return MergeResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
+  public TriggerResult onTimer(OnTimerContext c) throws Exception {
     return TriggerResult.FIRE_AND_FINISH;
   }
 

@@ -55,28 +55,28 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
-    Integer count = c.lookup(ELEMENTS_IN_PANE_TAG, e.window());
+  public TriggerResult onElement(OnElementContext c) throws Exception {
+    Integer count = c.lookup(ELEMENTS_IN_PANE_TAG, c.window());
     if (count == null) {
       count = 0;
     }
     count++;
 
-    c.store(ELEMENTS_IN_PANE_TAG, e.window(), count);
+    c.store(ELEMENTS_IN_PANE_TAG, c.window(), count);
     return count >= countElems ? TriggerResult.FIRE_AND_FINISH : TriggerResult.CONTINUE;
   }
 
   @Override
-  public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(OnMergeContext c) throws Exception {
     // If we've already received enough elements and finished in some window, then this trigger
     // is just finished.
-    if (e.finishedInAnyMergingWindow(c.current())) {
+    if (c.finishedInAnyMergingWindow(c.current())) {
       return MergeResult.ALREADY_FINISHED;
     }
 
     // Otherwise, compute the sum of elements in all the active panes
     int count = 0;
-    for (Entry<W, Integer> old : c.lookup(ELEMENTS_IN_PANE_TAG, e.oldWindows()).entrySet()) {
+    for (Entry<W, Integer> old : c.lookup(ELEMENTS_IN_PANE_TAG, c.oldWindows()).entrySet()) {
       if (old.getValue() != null) {
         count += old.getValue();
       }
@@ -86,13 +86,13 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
     if (count >= countElems) {
       return MergeResult.FIRE_AND_FINISH;
     } else {
-      c.store(ELEMENTS_IN_PANE_TAG, e.newWindow(), count);
+      c.store(ELEMENTS_IN_PANE_TAG, c.newWindow(), count);
       return MergeResult.CONTINUE;
     }
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) {
+  public TriggerResult onTimer(OnTimerContext c) {
     return TriggerResult.CONTINUE;
   }
 

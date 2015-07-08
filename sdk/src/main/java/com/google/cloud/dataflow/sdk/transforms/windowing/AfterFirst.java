@@ -50,9 +50,9 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
+  public TriggerResult onElement(OnElementContext c) throws Exception {
     for (ExecutableTrigger<W> subTrigger : c.subTriggers()) {
-      if (subTrigger.invokeElement(c, e).isFire()) {
+      if (subTrigger.invokeElement(c).isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
       }
     }
@@ -61,13 +61,13 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
   }
 
   @Override
-  public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(OnMergeContext c) throws Exception {
     // FINISH if merging returns FINISH for any sub-trigger.
     // FIRE_AND_FINISH if merging returns FIRE or FIRE_AND_FINISH for at least one sub-trigger.
     // CONTINUE otherwise
     boolean fired = false;
     for (ExecutableTrigger<W> subTrigger : c.subTriggers()) {
-      MergeResult mergeResult = subTrigger.invokeMerge(c, e);
+      MergeResult mergeResult = subTrigger.invokeMerge(c);
       if (MergeResult.ALREADY_FINISHED.equals(mergeResult)) {
         return MergeResult.ALREADY_FINISHED;
       } else if (mergeResult.isFire()) {
@@ -78,13 +78,13 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
-    if (c.isCurrentTrigger(e.getDestinationIndex())) {
+  public TriggerResult onTimer(OnTimerContext c) throws Exception {
+    if (c.isCurrentTrigger(c.getDestinationIndex())) {
       throw new IllegalStateException("AfterFirst shouldn't receive any timers.");
     }
 
-    ExecutableTrigger<W> subTrigger = c.nextStepTowards(e.getDestinationIndex());
-    return subTrigger.invokeTimer(c, e).isFire()
+    ExecutableTrigger<W> subTrigger = c.nextStepTowards(c.getDestinationIndex());
+    return subTrigger.invokeTimer(c).isFire()
         ? TriggerResult.FIRE_AND_FINISH
         : TriggerResult.CONTINUE;
   }

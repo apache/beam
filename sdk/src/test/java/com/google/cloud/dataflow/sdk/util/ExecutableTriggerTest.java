@@ -97,20 +97,19 @@ public class ExecutableTriggerTest {
 
     @Override
     public TriggerResult onElement(
-        TriggerContext c, OnElementEvent<IntervalWindow> e) throws Exception {
+        OnElementContext c) throws Exception {
       return TriggerResult.CONTINUE;
     }
 
     @Override
-    public MergeResult onMerge(TriggerContext c, OnMergeEvent<IntervalWindow> e)
+    public MergeResult onMerge(OnMergeContext c)
         throws Exception {
       return MergeResult.CONTINUE;
     }
 
     @Override
     public TriggerResult onTimer(
-        TriggerContext c,
-        OnTimerEvent<IntervalWindow> e)
+        OnTimerContext c)
         throws Exception {
       return TriggerResult.CONTINUE;
     }

@@ -19,9 +19,6 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.common.base.Preconditions;
@@ -125,14 +122,13 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
    * Invoke the {@link Trigger#onElement} method for this trigger, ensuring that the bits are
    * properly updated if the trigger finishes.
    */
-  public TriggerResult invokeElement(
-      Trigger<W>.TriggerContext c, OnElementEvent<W> e) throws Exception {
-    Trigger<W>.TriggerContext subContext = c.forTrigger(this);
+  public TriggerResult invokeElement(Trigger<W>.OnElementContext c) throws Exception {
+    Trigger<W>.OnElementContext subContext = c.forTrigger(this);
     if (subContext.isFinished()) {
       throw new IllegalStateException("Shouldn't invokeElement on finished triggers.");
     }
 
-    Trigger.TriggerResult result = trigger.onElement(subContext, e);
+    Trigger.TriggerResult result = trigger.onElement(subContext);
 
     if (result.isFinish()) {
       subContext.setFinished(true);
@@ -145,14 +141,13 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
    * Invoke the {@link Trigger#onTimer} method for this trigger, ensuring that the bits are properly
    * updated if the trigger finishes.
    */
-  public TriggerResult invokeTimer(Trigger<W>.TriggerContext c, OnTimerEvent<W> e)
-      throws Exception {
-    Trigger<W>.TriggerContext subContext = c.forTrigger(this);
+  public TriggerResult invokeTimer(Trigger<W>.OnTimerContext c) throws Exception {
+    Trigger<W>.OnTimerContext subContext = c.forTrigger(this);
     if (subContext.isFinished()) {
       throw new IllegalStateException("Shouldn't invokeTimer on finished triggers.");
     }
 
-    Trigger.TriggerResult result = trigger.onTimer(subContext, e);
+    Trigger.TriggerResult result = trigger.onTimer(subContext);
     if (result.isFinish()) {
       subContext.setFinished(true);
     }
@@ -163,9 +158,9 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
    * Invoke the {@link Trigger#onMerge} method for this trigger, ensuring that the bits are properly
    * updated.
    */
-  public MergeResult invokeMerge(Trigger<W>.TriggerContext c, OnMergeEvent<W> e) throws Exception {
-    Trigger<W>.TriggerContext subContext = c.forTrigger(this);
-    Trigger.MergeResult result = trigger.onMerge(subContext, e);
+  public MergeResult invokeMerge(Trigger<W>.OnMergeContext c) throws Exception {
+    Trigger<W>.OnMergeContext subContext = c.forTrigger(this);
+    Trigger.MergeResult result = trigger.onMerge(subContext);
     subContext.setFinished(result.isFinish());
     return result;
   }
@@ -190,9 +185,8 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
     }
 
     @Override
-    public TriggerResult invokeElement(
-        Trigger<W>.TriggerContext c, OnElementEvent<W> e) throws Exception {
-      TriggerResult result = super.invokeElement(c, e);
+    public TriggerResult invokeElement(Trigger<W>.OnElementContext c) throws Exception {
+      TriggerResult result = super.invokeElement(c);
       if (TriggerResult.FIRE.equals(result)) {
         throw new IllegalStateException("TriggerResult.FIRE returned from once trigger");
       }
@@ -200,9 +194,8 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
     }
 
     @Override
-    public TriggerResult invokeTimer(
-        Trigger<W>.TriggerContext c, OnTimerEvent<W> e) throws Exception {
-      TriggerResult result = super.invokeTimer(c, e);
+    public TriggerResult invokeTimer(Trigger<W>.OnTimerContext c) throws Exception {
+      TriggerResult result = super.invokeTimer(c);
       if (TriggerResult.FIRE.equals(result)) {
         throw new IllegalStateException("TriggerResult.FIRE returned from once trigger");
       }
@@ -210,9 +203,8 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
     }
 
     @Override
-    public MergeResult invokeMerge(
-        Trigger<W>.TriggerContext c, OnMergeEvent<W> e) throws Exception {
-      MergeResult result = super.invokeMerge(c, e);
+    public MergeResult invokeMerge(Trigger<W>.OnMergeContext c) throws Exception {
+      MergeResult result = super.invokeMerge(c);
       if (MergeResult.FIRE.equals(result)) {
         throw new IllegalStateException("MergeResult.FIRE returned from once trigger");
       }

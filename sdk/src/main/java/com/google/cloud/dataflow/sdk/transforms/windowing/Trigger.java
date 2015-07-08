@@ -293,16 +293,13 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
 
   /**
    * Details about an invocation of {@link Trigger#onElement}.
-   *
-   * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
-   *            {@code OnElementEvent}
    */
-  public static class OnElementEvent<W extends BoundedWindow> {
+  public abstract class OnElementContext extends TriggerContext {
     private final Object value;
     private final Instant timestamp;
     private final W window;
 
-    public OnElementEvent(Object value, Instant timestamp, W window) {
+    public OnElementContext(Object value, Instant timestamp, W window) {
       this.value = value;
       this.timestamp = timestamp;
       this.window = window;
@@ -328,29 +325,30 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     public W window() {
       return window;
     }
+
+    /**
+     * Create an {@code OnElementContext} for executing the given trigger.
+     */
+    @Override
+    public abstract OnElementContext forTrigger(ExecutableTrigger<W> trigger);
   }
 
   /**
    * Called immediately after an element is first incorporated into a window.
    *
    * @param c the context to interact with
-   * @param e an event describing the cause of this callback being executed
    */
-  public abstract TriggerResult onElement(
-      TriggerContext c, OnElementEvent<W> e) throws Exception;
+  public abstract TriggerResult onElement(OnElementContext c) throws Exception;
 
   /**
    * Details about an invocation of {@link Trigger#onMerge}.
-   *
-   * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
-   *            {@code OnMergeEvent}
    */
-  public static class OnMergeEvent<W extends BoundedWindow> {
+  public abstract class OnMergeContext extends TriggerContext {
     private final Iterable<W> oldWindows;
     private final W newWindow;
-    private final Map<W, BitSet> finishedSets;
+    protected final Map<W, BitSet> finishedSets;
 
-    public OnMergeEvent(Iterable<W> oldWindows, W newWindow, Map<W, BitSet> finishedSets) {
+    public OnMergeContext(Iterable<W> oldWindows, W newWindow, Map<W, BitSet> finishedSets) {
       this.oldWindows = oldWindows;
       this.newWindow = newWindow;
       this.finishedSets = finishedSets;
@@ -399,6 +397,12 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
         }
       }).keySet();
     }
+
+    /**
+     * Create an {@code OnMergeContext} for executing the given trigger.
+     */
+    @Override
+    public abstract OnMergeContext forTrigger(ExecutableTrigger<W> trigger);
   }
 
   /**
@@ -414,40 +418,41 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    * <p>The implementation does not need to clear out any state associated with the old windows.
    *
    * @param c the context to interact with
-   * @param e an event describnig the cause of this callback being executed
    */
-  public abstract MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception;
+  public abstract MergeResult onMerge(OnMergeContext c) throws Exception;
 
   /**
    * Details about an invocation of {@link Trigger#onTimer}.
-   *
-   * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
-   *            {@code OnTimerEvent}
    */
-  public static class OnTimerEvent<W extends BoundedWindow> {
+  public abstract class OnTimerContext extends TriggerContext {
 
-    private final TriggerId<W> triggerId;
+    protected final TriggerId<W> destinationId;
 
-    public OnTimerEvent(TriggerId<W> triggerId) {
-      this.triggerId = triggerId;
+    public OnTimerContext(TriggerId<W> destinationId) {
+      this.destinationId = destinationId;
     }
 
     public W window() {
-      return triggerId.window;
+      return destinationId.window;
     }
 
     public int getDestinationIndex() {
-      return triggerId.getTriggerIdx();
+      return destinationId.getTriggerIdx();
     }
+
+    /**
+     * Create an {@code OnTimerContext} for executing the given trigger.
+     */
+    @Override
+    public abstract OnTimerContext forTrigger(ExecutableTrigger<W> trigger);
   }
 
   /**
    * Called when a timer has fired for the trigger or one of its sub-triggers.
    *
    * @param c the context to interact with
-   * @param e identifier for the trigger that the timer is for.
    */
-  public abstract TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception;
+  public abstract TriggerResult onTimer(OnTimerContext c) throws Exception;
 
   /**
    * Clear any state associated with this trigger in the given window.
@@ -653,36 +658,36 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     }
 
     @Override
-    public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
-      TriggerResult untilResult = c.subTrigger(UNTIL).invokeElement(c, e);
+    public TriggerResult onElement(OnElementContext c) throws Exception {
+      TriggerResult untilResult = c.subTrigger(UNTIL).invokeElement(c);
       if (untilResult != TriggerResult.CONTINUE) {
         return TriggerResult.FIRE_AND_FINISH;
       }
 
-      return c.subTrigger(ACTUAL).invokeElement(c, e);
+      return c.subTrigger(ACTUAL).invokeElement(c);
     }
 
     @Override
-    public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
-      MergeResult untilResult = c.subTrigger(UNTIL).invokeMerge(c, e);
+    public MergeResult onMerge(OnMergeContext c) throws Exception {
+      MergeResult untilResult = c.subTrigger(UNTIL).invokeMerge(c);
       if (untilResult == MergeResult.ALREADY_FINISHED) {
         return MergeResult.ALREADY_FINISHED;
       } else if (untilResult.isFire()) {
         return MergeResult.FIRE_AND_FINISH;
       } else {
         // was CONTINUE -- so merge the underlying trigger
-        return c.subTrigger(ACTUAL).invokeMerge(c, e);
+        return c.subTrigger(ACTUAL).invokeMerge(c);
       }
     }
 
     @Override
-    public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
-      if (c.isCurrentTrigger(e.getDestinationIndex())) {
+    public TriggerResult onTimer(OnTimerContext c) throws Exception {
+      if (c.isCurrentTrigger(c.getDestinationIndex())) {
         throw new IllegalStateException("OrFinally shouldn't receive any timers.");
       }
 
-      ExecutableTrigger<W> destination = c.nextStepTowards(e.getDestinationIndex());
-      TriggerResult result = destination.invokeTimer(c, e);
+      ExecutableTrigger<W> destination = c.nextStepTowards(c.getDestinationIndex());
+      TriggerResult result = destination.invokeTimer(c);
       if (destination == c.subTrigger(UNTIL) && result.isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
       }

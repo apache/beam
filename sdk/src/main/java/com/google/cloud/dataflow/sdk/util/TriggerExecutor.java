@@ -28,9 +28,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
@@ -275,11 +272,12 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
           timerManager.currentWatermarkTime().isAfter(value.getTimestamp()));
 
       BitSet originalFinishedSet = (BitSet) finishedSet.clone();
-      OnElementEvent<W> e = new OnElementEvent<W>(value.getValue(), value.getTimestamp(), window);
+      OnElementContextImpl e = new OnElementContextImpl(
+          context(finishedSet), value.getValue(), value.getTimestamp(), window);
 
       // Update the trigger state as appropriate for the arrival of the element.
       // Must come before merge so the state is updated (for merging).
-      TriggerResult result = rootTrigger.invokeElement(context(finishedSet), e);
+      TriggerResult result = rootTrigger.invokeElement(e);
 
       // Make sure we merge before firing, in case a larger window is produced
       boolean stillExists = true;
@@ -333,18 +331,18 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       return;
     }
 
-    BitSet originalFinishedSet = (BitSet) finishedSet.clone();
-
     // Attempt to merge windows before continuing; that may remove the current window from
     // consideration.
     if (mergeIfAppropriate(window)) {
+      BitSet originalFinishedSet = (BitSet) finishedSet.clone();
       TriggerResult result = rootTrigger.invokeTimer(
-          context(finishedSet), new OnTimerEvent<W>(triggerId));
+          new OnTimerContextImpl(context(finishedSet), triggerId));
       handleResult(rootTrigger, window, originalFinishedSet, finishedSet, result);
     }
   }
 
-  private OnMergeEvent<W> createMergeEvent(Collection<W> toBeMerged, W resultWindow)
+  private OnMergeContextImpl createMergeEvent(
+      Trigger<W>.TriggerContext context, Collection<W> toBeMerged, W resultWindow)
       throws IOException {
     warmUpCache(
         toBeMerged.contains(resultWindow)
@@ -355,7 +353,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       finishedSets.put(window, lookupFinishedSet(window));
     }
 
-    return new OnMergeEvent<W>(toBeMerged, resultWindow, finishedSets.build());
+    return new OnMergeContextImpl(context, toBeMerged, resultWindow, finishedSets.build());
   }
 
   public void persist() throws Exception {
@@ -365,12 +363,12 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private void onMerge(Collection<W> toBeMerged, W resultWindow) throws Exception {
-    OnMergeEvent<W> e = createMergeEvent(toBeMerged, resultWindow);
     BitSet originalFinishedSet = lookupFinishedSet(resultWindow);
     BitSet finishedSet = (BitSet) originalFinishedSet.clone();
 
     Trigger<W>.TriggerContext context = context(finishedSet);
-    MergeResult result = rootTrigger.invokeMerge(context, e);
+    OnMergeContextImpl e = createMergeEvent(context, toBeMerged, resultWindow);
+    MergeResult result = rootTrigger.invokeMerge(e);
     if (MergeResult.ALREADY_FINISHED.equals(result)) {
       throw new IllegalStateException("Root trigger returned MergeResult.ALREADY_FINISHED.");
     }
@@ -626,6 +624,326 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
+  private class OnElementContextImpl extends Trigger<W>.OnElementContext {
+    public OnElementContextImpl(
+        Trigger<W>.TriggerContext delegate, Object value, Instant timestamp, W window) {
+      delegate.current().getSpec().super(value, timestamp, window);
+      this.delegate = delegate;
+    }
+
+    private Trigger<W>.TriggerContext delegate;
+
+    @Override
+    public Trigger<W>.OnElementContext forTrigger(ExecutableTrigger<W> trigger) {
+      return new OnElementContextImpl(delegate.forTrigger(trigger),
+          element(), eventTimestamp(), window());
+    }
+
+    @Override
+    public void setTimer(W window, Instant timestamp, TimeDomain timeDomain) throws IOException {
+      delegate.setTimer(window, timestamp, timeDomain);
+    }
+
+    @Override
+    public void deleteTimer(W window, TimeDomain timeDomain) throws IOException {
+      delegate.deleteTimer(window, timeDomain);
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      return delegate.currentProcessingTime();
+    }
+
+    @Override
+    public <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException {
+      delegate.store(tag, window, value);
+    }
+
+    @Override
+    public <T> void remove(CodedTupleTag<T> tag, W window) throws IOException {
+      delegate.remove(tag, window);
+    }
+
+    @Override
+    public <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException {
+      return delegate.lookup(tag, window);
+    }
+
+    @Override
+    public <T> Map<W, T> lookup(CodedTupleTag<T> tag, Iterable<W> windows) throws IOException {
+      return delegate.lookup(tag, windows);
+    }
+
+    @Override
+    public ExecutableTrigger<W> current() {
+      return delegate.current();
+    }
+
+    @Override
+    public Iterable<ExecutableTrigger<W>> subTriggers() {
+      return delegate.subTriggers();
+    }
+
+    @Override
+    public ExecutableTrigger<W> subTrigger(int subtriggerIndex) {
+      return delegate.subTrigger(subtriggerIndex);
+    }
+
+    @Override
+    public boolean isCurrentTrigger(int triggerIndex) {
+      return delegate.isCurrentTrigger(triggerIndex);
+    }
+
+    @Override
+    public ExecutableTrigger<W> nextStepTowards(int destinationIndex) {
+      return delegate.nextStepTowards(destinationIndex);
+    }
+
+    @Override
+    public boolean isFinished() {
+      return delegate.isFinished();
+    }
+
+    @Override
+    public boolean areAllSubtriggersFinished() {
+      return delegate.areAllSubtriggersFinished();
+    }
+
+    @Override
+    public Iterable<ExecutableTrigger<W>> unfinishedSubTriggers() {
+      return delegate.unfinishedSubTriggers();
+    }
+
+    @Override
+    public ExecutableTrigger<W> firstUnfinishedSubTrigger() {
+      return delegate.firstUnfinishedSubTrigger();
+    }
+
+    @Override
+    public void resetTree(W window) throws Exception {
+      delegate.resetTree(window);
+    }
+
+    @Override
+    public void setFinished(boolean finished) {
+      delegate.setFinished(finished);
+    }
+  }
+
+  private class OnMergeContextImpl extends Trigger<W>.OnMergeContext {
+
+    private final Trigger<W>.TriggerContext delegate;
+
+    public OnMergeContextImpl(
+        Trigger<W>.TriggerContext delegate,
+        Iterable<W> oldWindows, W newWindow, Map<W, BitSet> finishedSets) {
+      delegate.current().getSpec().super(oldWindows, newWindow, finishedSets);
+      this.delegate = delegate;
+    }
+
+    @Override
+    public Trigger<W>.OnMergeContext forTrigger(ExecutableTrigger<W> trigger) {
+      return new OnMergeContextImpl(delegate.forTrigger(trigger),
+          oldWindows(), newWindow(), finishedSets);
+    }
+
+    @Override
+    public void setTimer(W window, Instant timestamp, TimeDomain timeDomain) throws IOException {
+      delegate.setTimer(window, timestamp, timeDomain);
+    }
+
+    @Override
+    public void deleteTimer(W window, TimeDomain timeDomain) throws IOException {
+      delegate.deleteTimer(window, timeDomain);
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      return delegate.currentProcessingTime();
+    }
+
+    @Override
+    public <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException {
+      delegate.store(tag, window, value);
+    }
+
+    @Override
+    public <T> void remove(CodedTupleTag<T> tag, W window) throws IOException {
+      delegate.remove(tag, window);
+    }
+
+    @Override
+    public <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException {
+      return delegate.lookup(tag, window);
+    }
+
+    @Override
+    public <T> Map<W, T> lookup(CodedTupleTag<T> tag, Iterable<W> windows) throws IOException {
+      return delegate.lookup(tag, windows);
+    }
+
+    @Override
+    public ExecutableTrigger<W> current() {
+      return delegate.current();
+    }
+
+    @Override
+    public Iterable<ExecutableTrigger<W>> subTriggers() {
+      return delegate.subTriggers();
+    }
+
+    @Override
+    public ExecutableTrigger<W> subTrigger(int subtriggerIndex) {
+      return delegate.subTrigger(subtriggerIndex);
+    }
+
+    @Override
+    public boolean isCurrentTrigger(int triggerIndex) {
+      return delegate.isCurrentTrigger(triggerIndex);
+    }
+
+    @Override
+    public ExecutableTrigger<W> nextStepTowards(int destinationIndex) {
+      return delegate.nextStepTowards(destinationIndex);
+    }
+
+    @Override
+    public boolean isFinished() {
+      return delegate.isFinished();
+    }
+
+    @Override
+    public boolean areAllSubtriggersFinished() {
+      return delegate.areAllSubtriggersFinished();
+    }
+
+    @Override
+    public Iterable<ExecutableTrigger<W>> unfinishedSubTriggers() {
+      return delegate.unfinishedSubTriggers();
+    }
+
+    @Override
+    public ExecutableTrigger<W> firstUnfinishedSubTrigger() {
+      return delegate.firstUnfinishedSubTrigger();
+    }
+
+    @Override
+    public void resetTree(W window) throws Exception {
+      delegate.resetTree(window);
+    }
+
+    @Override
+    public void setFinished(boolean finished) {
+      delegate.setFinished(finished);
+    }
+  }
+
+  private class OnTimerContextImpl extends Trigger<W>.OnTimerContext {
+
+    private final Trigger<W>.TriggerContext delegate;
+    public OnTimerContextImpl(
+        Trigger<W>.TriggerContext delegate, TriggerId<W> triggerId) {
+      delegate.current().getSpec().super(triggerId);
+      this.delegate = delegate;
+    }
+
+    @Override
+    public Trigger<W>.OnTimerContext forTrigger(ExecutableTrigger<W> trigger) {
+      return new OnTimerContextImpl(delegate.forTrigger(trigger), destinationId);
+    }
+
+    @Override
+    public void setTimer(W window, Instant timestamp, TimeDomain timeDomain) throws IOException {
+      delegate.setTimer(window, timestamp, timeDomain);
+    }
+
+    @Override
+    public void deleteTimer(W window, TimeDomain timeDomain) throws IOException {
+      delegate.deleteTimer(window, timeDomain);
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      return delegate.currentProcessingTime();
+    }
+
+    @Override
+    public <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException {
+      delegate.store(tag, window, value);
+    }
+
+    @Override
+    public <T> void remove(CodedTupleTag<T> tag, W window) throws IOException {
+      delegate.remove(tag, window);
+    }
+
+    @Override
+    public <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException {
+      return delegate.lookup(tag, window);
+    }
+
+    @Override
+    public <T> Map<W, T> lookup(CodedTupleTag<T> tag, Iterable<W> windows) throws IOException {
+      return delegate.lookup(tag, windows);
+    }
+
+    @Override
+    public ExecutableTrigger<W> current() {
+      return delegate.current();
+    }
+
+    @Override
+    public Iterable<ExecutableTrigger<W>> subTriggers() {
+      return delegate.subTriggers();
+    }
+
+    @Override
+    public ExecutableTrigger<W> subTrigger(int subtriggerIndex) {
+      return delegate.subTrigger(subtriggerIndex);
+    }
+
+    @Override
+    public boolean isCurrentTrigger(int triggerIndex) {
+      return delegate.isCurrentTrigger(triggerIndex);
+    }
+
+    @Override
+    public ExecutableTrigger<W> nextStepTowards(int destinationIndex) {
+      return delegate.nextStepTowards(destinationIndex);
+    }
+
+    @Override
+    public boolean isFinished() {
+      return delegate.isFinished();
+    }
+
+    @Override
+    public boolean areAllSubtriggersFinished() {
+      return delegate.areAllSubtriggersFinished();
+    }
+
+    @Override
+    public Iterable<ExecutableTrigger<W>> unfinishedSubTriggers() {
+      return delegate.unfinishedSubTriggers();
+    }
+
+    @Override
+    public ExecutableTrigger<W> firstUnfinishedSubTrigger() {
+      return delegate.firstUnfinishedSubTrigger();
+    }
+
+    @Override
+    public void resetTree(W window) throws Exception {
+      delegate.resetTree(window);
+    }
+
+    @Override
+    public void setFinished(boolean finished) {
+      delegate.setFinished(finished);
+    }
+  }
+
+
   /**
    * Coder for Trigger IDs.
    */
@@ -665,7 +983,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       return Arrays.asList(windowCoder);
     }
   }
-
   /**
    * Coder for the BitSet used to track child-trigger finished states.
    */

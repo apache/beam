@@ -70,30 +70,30 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
+  public TriggerResult onElement(OnElementContext c) throws Exception {
     // If all the sub-triggers have finished, we should have already finished, so we know there is
     // at least one unfinished trigger.
     ExecutableTrigger<W> subTrigger = c.firstUnfinishedSubTrigger();
-    return wrapResult(c, subTrigger.invokeElement(c, e));
+    return wrapResult(c, subTrigger.invokeElement(c));
   }
 
   @Override
-  public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(OnMergeContext c) throws Exception {
     // Iterate over the sub-triggers to identify the "current" sub-trigger.
     Iterator<ExecutableTrigger<W>> iterator = c.subTriggers().iterator();
     while (iterator.hasNext()) {
       ExecutableTrigger<W> subTrigger = iterator.next();
 
-      MergeResult mergeResult = subTrigger.invokeMerge(c, e);
+      MergeResult mergeResult = subTrigger.invokeMerge(c);
 
       if (MergeResult.CONTINUE.equals(mergeResult)) {
-        resetRemaining(c, e, iterator);
+        resetRemaining(c, c, iterator);
         return MergeResult.CONTINUE;
       } else if (MergeResult.FIRE.equals(mergeResult)) {
-        resetRemaining(c, e, iterator);
+        resetRemaining(c, c, iterator);
         return MergeResult.FIRE;
       } else if (MergeResult.FIRE_AND_FINISH.equals(mergeResult)) {
-        resetRemaining(c, e, iterator);
+        resetRemaining(c, c, iterator);
         return c.areAllSubtriggersFinished() ? MergeResult.FIRE_AND_FINISH : MergeResult.FIRE;
       }
     }
@@ -107,7 +107,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
     return MergeResult.ALREADY_FINISHED;
   }
 
-  private void resetRemaining(TriggerContext c, OnMergeEvent<W> e,
+  private void resetRemaining(TriggerContext c, OnMergeContext e,
       Iterator<ExecutableTrigger<W>> triggers) throws Exception {
     while (triggers.hasNext()) {
       c.forTrigger(triggers.next()).resetTree(e.newWindow());
@@ -115,13 +115,13 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
-    if (c.isCurrentTrigger(e.getDestinationIndex())) {
+  public TriggerResult onTimer(OnTimerContext c) throws Exception {
+    if (c.isCurrentTrigger(c.getDestinationIndex())) {
       throw new IllegalStateException("AfterEach shouldn't receive timers.");
     }
 
-    ExecutableTrigger<W> timerChild = c.nextStepTowards(e.getDestinationIndex());
-    return wrapResult(c, timerChild.invokeTimer(c,  e));
+    ExecutableTrigger<W> timerChild = c.nextStepTowards(c.getDestinationIndex());
+    return wrapResult(c, timerChild.invokeTimer(c));
   }
 
   @Override

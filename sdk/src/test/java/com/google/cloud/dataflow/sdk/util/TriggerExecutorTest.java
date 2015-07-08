@@ -32,10 +32,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerEvent;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
@@ -66,16 +62,11 @@ public class TriggerExecutorTest {
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
 
-  @SuppressWarnings("unchecked")
-  private Trigger<IntervalWindow>.TriggerContext isTriggerContext() {
-    return Mockito.isA(TriggerContext.class);
-  }
-
   private void injectElement(TriggerTester<Integer, ?, IntervalWindow> tester,
       int element, TriggerResult result)
       throws Exception {
     when(mockTrigger.onElement(
-        isTriggerContext(), Mockito.<OnElementEvent<IntervalWindow>>any()))
+        Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
         .thenReturn(result);
     tester.injectElement(element, new Instant(element));
   }
@@ -276,13 +267,11 @@ public class TriggerExecutorTest {
         Duration.millis(0));
 
     when(mockTrigger.onMerge(
-        Mockito.<Trigger<IntervalWindow>.TriggerContext>any(),
-        Mockito.<OnMergeEvent<IntervalWindow>>any()))
+        Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
         .thenReturn(MergeResult.CONTINUE);
 
     when(mockTrigger.onTimer(
-        Mockito.<Trigger<IntervalWindow>.TriggerContext>any(),
-        Mockito.<OnTimerEvent<IntervalWindow>>any()))
+        Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.FIRE);
 
     // All on time data, verify watermark hold.

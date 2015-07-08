@@ -59,29 +59,29 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
 
 
   @Override
-  public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e)
+  public TriggerResult onElement(OnElementContext c)
       throws Exception {
-    TriggerResult result = c.subTrigger(REPEATED).invokeElement(c, e);
+    TriggerResult result = c.subTrigger(REPEATED).invokeElement(c);
     if (result.isFinish()) {
-      c.forTrigger(c.subTrigger(REPEATED)).resetTree(e.window());
+      c.forTrigger(c.subTrigger(REPEATED)).resetTree(c.window());
     }
     return result.isFire() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
   }
 
   @Override
-  public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
-    MergeResult mergeResult = c.subTrigger(REPEATED).invokeMerge(c, e);
+  public MergeResult onMerge(OnMergeContext c) throws Exception {
+    MergeResult mergeResult = c.subTrigger(REPEATED).invokeMerge(c);
     if (mergeResult.isFinish()) {
-      c.forTrigger(c.subTrigger(REPEATED)).resetTree(e.newWindow());
+      c.forTrigger(c.subTrigger(REPEATED)).resetTree(c.newWindow());
     }
     return mergeResult.isFire() ? MergeResult.FIRE : MergeResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
-    TriggerResult result = c.subTrigger(REPEATED).invokeTimer(c, e);
+  public TriggerResult onTimer(OnTimerContext c) throws Exception {
+    TriggerResult result = c.subTrigger(REPEATED).invokeTimer(c);
     if (result.isFinish()) {
-      c.forTrigger(c.subTrigger(REPEATED)).resetTree(e.window());
+      c.forTrigger(c.subTrigger(REPEATED)).resetTree(c.window());
     }
     return result.isFire() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
   }
