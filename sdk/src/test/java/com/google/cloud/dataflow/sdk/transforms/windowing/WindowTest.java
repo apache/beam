@@ -16,20 +16,29 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
+import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -37,14 +46,16 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
+import java.io.Serializable;
+
 /**
  * Tests for {@link Window}.
  */
 @RunWith(JUnit4.class)
-public class WindowTest {
+public class WindowTest implements Serializable {
 
   @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testWindowIntoSetWindowfn() {
@@ -158,5 +169,54 @@ public class WindowTest {
       .apply("Mode", Window.<String>accumulatingFiredPanes())
       .apply("Window", Window.<String>into(fixed10))
       .apply("Trigger", Window.<String>triggering(trigger));
+  }
+
+  /**
+   * Tests that when two elements are combined via a GroupByKey their output timestamp agrees
+   * with the windowing function default, the earlier of the two values.
+   */
+  @Test
+  public void testOutputTimeFnDefault() {
+    Pipeline pipeline = TestPipeline.create();
+
+    pipeline.apply(
+        Create.timestamped(
+            TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
+            TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
+        .apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10))))
+        .apply(GroupByKey.<Integer, String>create())
+        .apply(ParDo.of(new DoFn<KV<Integer, Iterable<String>>, Void>() {
+          @Override
+          public void processElement(ProcessContext c) throws Exception {
+            assertThat(c.timestamp(), equalTo(new Instant(0)));
+          }
+        }));
+
+    pipeline.run();
+  }
+
+  /**
+   * Tests that when two elements are combined via a GroupByKey their output timestamp agrees
+   * with the windowing function customized to use the end of the window.
+   */
+  @Test
+  public void testOutputTimeFnEndOfWindow() {
+    Pipeline pipeline = TestPipeline.create();
+
+    pipeline.apply(
+        Create.timestamped(
+            TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
+            TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
+        .apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
+            .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow()))
+        .apply(GroupByKey.<Integer, String>create())
+        .apply(ParDo.of(new DoFn<KV<Integer, Iterable<String>>, Void>() {
+          @Override
+          public void processElement(ProcessContext c) throws Exception {
+            assertThat(c.timestamp(), equalTo(new Instant(10 * 60 * 1000 - 1)));
+          }
+        }));
+
+    pipeline.run();
   }
 }

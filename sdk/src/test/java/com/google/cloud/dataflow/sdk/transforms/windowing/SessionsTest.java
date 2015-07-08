@@ -18,10 +18,15 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.set;
+
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils;
+import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -31,6 +36,7 @@ import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -100,11 +106,51 @@ public class SessionsTest {
             Sessions.withGapDuration(new Duration(20))));
   }
 
+  /**
+   * Validates that the output timestamp for aggregate data falls within the acceptable range.
+   */
   @Test
   public void testValidOutputTimes() throws Exception {
     for (long timestamp : Arrays.asList(200, 800, 700)) {
       WindowFnTestUtils.validateGetOutputTimestamp(
-          Sessions.withGapDuration(new Duration(500)), timestamp);
+          Sessions.withGapDuration(Duration.millis(500)), timestamp);
     }
+  }
+
+  /**
+   * Test to confirm that {@link Sessions} with the default {@link OutputTimeFn} holds up the
+   * watermark potentially indefinitely.
+   */
+  @Test
+  public void testInvalidOutputAtEarliest() throws Exception {
+    try {
+      WindowFnTestUtils.<Object, IntervalWindow>validateGetOutputTimestamps(
+          Sessions.withGapDuration(Duration.millis(10)),
+          OutputTimeFns.outputAtEarliestInputTimestamp(),
+          ImmutableList.of(
+              (List<Long>) ImmutableList.of(1L, 3L),
+              (List<Long>) ImmutableList.of(0L, 5L, 10L, 15L, 20L)));
+    } catch (AssertionError exc) {
+      assertThat(
+          exc.getMessage(),
+          // These are the non-volatile pieces of the error message that a timestamp
+          // was not greater than what it should be.
+          allOf(containsString("a value greater than"), containsString("was less than")));
+    }
+  }
+
+  /**
+   * When a user explicitly requests per-key aggregate values have their derived timestamp to be
+   * the end of the window (instead of the earliest possible), the session here should not hold
+   * each other up, even though they overlap.
+   */
+  @Test
+  public void testValidOutputAtEndTimes() throws Exception {
+    WindowFnTestUtils.<Object, IntervalWindow>validateGetOutputTimestamps(
+        Sessions.withGapDuration(Duration.millis(10)),
+        OutputTimeFns.outputAtEndOfWindow(),
+          ImmutableList.of(
+              (List<Long>) ImmutableList.of(1L, 3L),
+              (List<Long>) ImmutableList.of(0L, 5L, 10L, 15L, 20L)));
   }
 }

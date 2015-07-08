@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 
 import org.joda.time.Duration;
@@ -170,17 +172,28 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
   }
 
   /**
-   * Ensure that later sliding windows have an output time that is past the end of earlier windows.
+   * Ensures that later sliding windows have an output time that is past the end of earlier windows.
    *
    * <p>If this is the earliest sliding window containing {@code inputTimestamp}, that's fine.
    * Otherwise, we pick the earliest time that doesn't overlap with earlier windows.
    */
+  @Experimental(Kind.OUTPUT_TIME)
   @Override
-  public Instant getOutputTime(Instant inputTimestamp, IntervalWindow window) {
-    Instant startOfLastSegment = window.maxTimestamp().minus(period);
-    return startOfLastSegment.isBefore(inputTimestamp)
-        ? inputTimestamp
-        : startOfLastSegment.plus(1);
+  public OutputTimeFn<? super IntervalWindow> getOutputTimeFn() {
+    return new OutputTimeFn.Defaults<BoundedWindow>() {
+      @Override
+      public Instant assignOutputTime(Instant inputTimestamp, BoundedWindow window) {
+        Instant startOfLastSegment = window.maxTimestamp().minus(period);
+        return startOfLastSegment.isBefore(inputTimestamp)
+            ? inputTimestamp
+                : startOfLastSegment.plus(1);
+      }
+
+      @Override
+      public boolean dependsOnlyOnEarliestInputTimestamp() {
+        return true;
+      }
+    };
   }
 
   @Override

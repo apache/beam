@@ -15,8 +15,12 @@
  */
 package com.google.cloud.dataflow.sdk.util.state;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
 
 import java.util.ArrayList;
@@ -26,12 +30,15 @@ import java.util.List;
  * Abstract implementation of {@link StateInternals} that provides {@link #mergedState} in terms of
  * {@link #state}.
  */
+@Experimental(Kind.STATE)
 public abstract class MergingStateInternals implements StateInternals {
 
   @Override
   public <T extends MergeableState<?, ?>> T mergedState(
       final Iterable<StateNamespace> sourceNamespaces,
-      final StateNamespace resultNamespace, StateTag<T> address) {
+      final StateNamespace resultNamespace,
+      StateTag<T> address,
+      final BoundedWindow resultWindow) {
     return address.bind(new StateBinder() {
       @Override
       public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
@@ -73,8 +80,9 @@ public abstract class MergingStateInternals implements StateInternals {
       }
 
       @Override
-      public <T> WatermarkStateInternal bindWatermark(
-          StateTag<WatermarkStateInternal> address) {
+      public <T, W extends BoundedWindow> WatermarkStateInternal bindWatermark(
+          StateTag<WatermarkStateInternal> address,
+          OutputTimeFn<? super W> outputTimeFn) {
         List<WatermarkStateInternal> sources = new ArrayList<>();
         for (StateNamespace sourceNamespace : sourceNamespaces) {
           // Skip adding the result namespace for now.
@@ -84,7 +92,13 @@ public abstract class MergingStateInternals implements StateInternals {
         }
         WatermarkStateInternal result = state(resultNamespace, address);
         sources.add(result);
-        return new MergedWatermarkStateInternal(sources, result);
+
+        // It is the responsibility of the SDK to only pass allowed result windows.
+        @SuppressWarnings("unchecked")
+        W typedResultWindow = (W) resultWindow;
+
+        return new MergedWatermarkStateInternal<W>(
+            sources, result, typedResultWindow, outputTimeFn);
       }
     });
   }

@@ -132,4 +132,48 @@ public class GroupAlsoByWindowsViaOutputBufferDoFnTest {
             appliedFn),
         combineFn);
   }
+
+  @Test
+  public void testGroupsElementsIntoFixedWindowsWithEndOfWindowTimestamp() throws Exception {
+    GroupAlsoByWindowsProperties.groupsElementsIntoFixedWindowsWithEndOfWindowTimestamp(
+        new BufferingGABWViaOutputBufferDoFnFactory<String, String>(StringUtf8Coder.of()));
+  }
+
+  @Test
+  public void testGroupsElementsIntoFixedWindowsWithLatestTimestamp() throws Exception {
+    GroupAlsoByWindowsProperties.groupsElementsIntoFixedWindowsWithLatestTimestamp(
+        new BufferingGABWViaOutputBufferDoFnFactory<String, String>(StringUtf8Coder.of()));
+  }
+
+  @Test
+  public void testGroupsElementsIntoFixedWindowsWithCustomTimestamp() throws Exception {
+    GroupAlsoByWindowsProperties.groupsElementsIntoFixedWindowsWithCustomTimestamp(
+        new BufferingGABWViaOutputBufferDoFnFactory<String, String>(StringUtf8Coder.of()));
+  }
+
+  @Test
+  public void testGroupsElementsIntoSessionsWithEndOfWindowTimestamp() throws Exception {
+    GroupAlsoByWindowsProperties.groupsElementsInMergedSessionsWithEndOfWindowTimestamp(
+        new BufferingGABWViaOutputBufferDoFnFactory<String, String>(StringUtf8Coder.of()));
+  }
+
+  @Test
+  public void testGroupsElementsIntoSessionsWithLatestTimestamp() throws Exception {
+    GroupAlsoByWindowsProperties.groupsElementsInMergedSessionsWithLatestTimestamp(
+        new BufferingGABWViaOutputBufferDoFnFactory<String, String>(StringUtf8Coder.of()));
+  }
+
+  @Test
+  public void testCombinesIntoSessionsWithEndOfWindowTimestamp() throws Exception {
+    CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
+    AppliedCombineFn<String, Long, ?, Long> appliedFn = AppliedCombineFn.withInputCoder(
+        combineFn.<String>asKeyedFn(), new CoderRegistry(),
+        KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
+
+    GroupAlsoByWindowsProperties.combinesElementsPerSessionWithEndOfWindowTimestamp(
+        new CombiningGABWViaOutputBufferDoFnFactory<>(
+            StringUtf8Coder.of(),
+            appliedFn),
+        combineFn);
+  }
 }

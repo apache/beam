@@ -22,8 +22,8 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * A {@link WindowFn} that places each value into exactly one window
- * based on its timestamp and never merges windows.
+ * A {@link WindowFn} that places each value into exactly one window based on its timestamp and
+ * never merges windows.
  *
  * @param <T> type of elements being windowed
  * @param <W> window type

@@ -70,6 +70,28 @@ public class GroupAlsoByWindowsViaIteratorsDoFnTest {
   }
 
   @Test
+  public void testGroupsElementsIntoFixedWindowsWithEndOfWindowTimestamp() throws Exception {
+    GroupAlsoByWindowsProperties.groupsElementsIntoFixedWindowsWithEndOfWindowTimestamp(
+        new GABWViaIteratorsDoFnFactory<String, String>());
+  }
+
+  @Test
+  public void testLatestTimestampNotSupported() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("OutputTimeFn");
+    thrown.expectMessage("not support");
+
+    GroupAlsoByWindowsProperties.groupsElementsIntoFixedWindowsWithLatestTimestamp(
+        new GABWViaIteratorsDoFnFactory<String, String>());
+  }
+
+  @Test
+  public void testGroupsElementsIntoFixedWindowsWithCustomTimestamp() throws Exception {
+    GroupAlsoByWindowsProperties.groupsElementsIntoFixedWindowsWithCustomTimestamp(
+        new GABWViaIteratorsDoFnFactory<String, String>());
+  }
+
+  @Test
   public void testMergingNotSupported() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("merging");

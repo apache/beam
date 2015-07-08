@@ -22,6 +22,9 @@ import static org.junit.Assert.assertThat;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -37,6 +40,8 @@ import java.util.Arrays;
 @RunWith(JUnit4.class)
 public class InMemoryStateInternalsTest {
 
+  private static final BoundedWindow WINDOW_1 = new IntervalWindow(new Instant(0), new Instant(10));
+  private static final BoundedWindow WINDOW_3 = new IntervalWindow(new Instant(5), new Instant(20));
   private static final StateNamespace NAMESPACE_1 = new StateNamespaceForTest("ns1");
   private static final StateNamespace NAMESPACE_2 = new StateNamespaceForTest("ns2");
   private static final StateNamespace NAMESPACE_3 = new StateNamespaceForTest("ns3");
@@ -48,8 +53,15 @@ public class InMemoryStateInternalsTest {
           "sumInteger", VarIntCoder.of(), new Sum.SumIntegerFn());
   private static final StateTag<BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
-  private static final StateTag<WatermarkStateInternal> WATERMARK_BAG_ADDR =
-      StateTags.watermarkStateInternal("watermark");
+  private static final StateTag<WatermarkStateInternal> WATERMARK_EARLIEST_ADDR =
+      StateTags.watermarkStateInternal("watermark",
+          OutputTimeFns.outputAtEarliestInputTimestamp());
+  private static final StateTag<WatermarkStateInternal> WATERMARK_LATEST_ADDR =
+      StateTags.watermarkStateInternal("watermark",
+          OutputTimeFns.outputAtLatestInputTimestamp());
+  private static final StateTag<WatermarkStateInternal> WATERMARK_EOW_ADDR =
+      StateTags.watermarkStateInternal("watermark",
+          OutputTimeFns.outputAtEndOfWindow());
 
   InMemoryStateInternals underTest = new InMemoryStateInternals();
 
@@ -120,7 +132,7 @@ public class InMemoryStateInternalsTest {
     bag1.add("!");
 
     BagState<String> merged = underTest.mergedState(
-        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_1, STRING_BAG_ADDR);
+        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_1, STRING_BAG_ADDR, WINDOW_1);
 
     // Reading the merged bag gets both the contents
     assertThat(merged.get().read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
@@ -142,7 +154,7 @@ public class InMemoryStateInternalsTest {
     bag1.add("!");
 
     BagState<String> merged = underTest.mergedState(
-        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_3, STRING_BAG_ADDR);
+        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_3, STRING_BAG_ADDR, WINDOW_3);
 
     // Reading the merged bag gets both the contents
     assertThat(merged.get().read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
@@ -204,7 +216,7 @@ public class InMemoryStateInternalsTest {
     assertThat(value2.get().read(), Matchers.equalTo(10));
 
     CombiningValueState<Integer, Integer> merged = underTest.mergedState(
-        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_1, SUM_INTEGER_ADDR);
+        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_1, SUM_INTEGER_ADDR, WINDOW_1);
 
     assertThat(value1.get().read(), Matchers.equalTo(11));
     assertThat(value2.get().read(), Matchers.equalTo(10));
@@ -233,7 +245,7 @@ public class InMemoryStateInternalsTest {
     assertThat(value2.get().read(), Matchers.equalTo(10));
 
     CombiningValueState<Integer, Integer> merged = underTest.mergedState(
-        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_3, SUM_INTEGER_ADDR);
+        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_3, SUM_INTEGER_ADDR, WINDOW_3);
 
     assertThat(value1.get().read(), Matchers.equalTo(11));
     assertThat(value2.get().read(), Matchers.equalTo(10));
@@ -253,12 +265,12 @@ public class InMemoryStateInternalsTest {
   }
 
   @Test
-  public void testWatermarkState() throws Exception {
-    WatermarkStateInternal value = underTest.state(NAMESPACE_1, WATERMARK_BAG_ADDR);
+  public void testWatermarkEarliestState() throws Exception {
+    WatermarkStateInternal value = underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR);
 
     // State instances are cached, but depend on the namespace.
-    assertEquals(value, underTest.state(NAMESPACE_1, WATERMARK_BAG_ADDR));
-    assertFalse(value.equals(underTest.state(NAMESPACE_2, WATERMARK_BAG_ADDR)));
+    assertEquals(value, underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR));
+    assertFalse(value.equals(underTest.state(NAMESPACE_2, WATERMARK_EARLIEST_ADDR)));
 
     assertThat(value.get().read(), Matchers.nullValue());
     StateContents<Instant> readFuture = value.get();
@@ -276,12 +288,58 @@ public class InMemoryStateInternalsTest {
 
     value.clear();
     assertThat(readFuture.read(), Matchers.equalTo(null));
-    assertThat(underTest.state(NAMESPACE_1, WATERMARK_BAG_ADDR), Matchers.sameInstance(value));
+    assertThat(underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR), Matchers.sameInstance(value));
+  }
+
+  @Test
+  public void testWatermarkLatestState() throws Exception {
+    WatermarkStateInternal value = underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR);
+
+    // State instances are cached, but depend on the namespace.
+    assertEquals(value, underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR));
+    assertFalse(value.equals(underTest.state(NAMESPACE_2, WATERMARK_LATEST_ADDR)));
+
+    assertThat(value.get().read(), Matchers.nullValue());
+    StateContents<Instant> readFuture = value.get();
+    value.add(new Instant(2000));
+    assertThat(readFuture.read(), Matchers.equalTo(new Instant(2000)));
+    assertThat(value.get().read(), Matchers.equalTo(new Instant(2000)));
+
+    value.add(new Instant(3000));
+    assertThat(readFuture.read(), Matchers.equalTo(new Instant(3000)));
+    assertThat(value.get().read(), Matchers.equalTo(new Instant(3000)));
+
+    value.add(new Instant(1000));
+    assertThat(readFuture.read(), Matchers.equalTo(new Instant(3000)));
+    assertThat(value.get().read(), Matchers.equalTo(new Instant(3000)));
+
+    value.clear();
+    assertThat(readFuture.read(), Matchers.equalTo(null));
+    assertThat(underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR), Matchers.sameInstance(value));
+  }
+
+  @Test
+  public void testWatermarkEndOfWindowState() throws Exception {
+    WatermarkStateInternal value = underTest.state(NAMESPACE_1, WATERMARK_EOW_ADDR);
+
+    // State instances are cached, but depend on the namespace.
+    assertEquals(value, underTest.state(NAMESPACE_1, WATERMARK_EOW_ADDR));
+    assertFalse(value.equals(underTest.state(NAMESPACE_2, WATERMARK_EOW_ADDR)));
+
+    assertThat(value.get().read(), Matchers.nullValue());
+    StateContents<Instant> readFuture = value.get();
+    value.add(new Instant(2000));
+    assertThat(readFuture.read(), Matchers.equalTo(new Instant(2000)));
+    assertThat(value.get().read(), Matchers.equalTo(new Instant(2000)));
+
+    value.clear();
+    assertThat(readFuture.read(), Matchers.equalTo(null));
+    assertThat(underTest.state(NAMESPACE_1, WATERMARK_EOW_ADDR), Matchers.sameInstance(value));
   }
 
   @Test
   public void testWatermarkStateIsEmpty() throws Exception {
-    WatermarkStateInternal value = underTest.state(NAMESPACE_1, WATERMARK_BAG_ADDR);
+    WatermarkStateInternal value = underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR);
 
     assertThat(value.isEmpty().read(), Matchers.is(true));
     StateContents<Boolean> readFuture = value.isEmpty();
@@ -293,9 +351,9 @@ public class InMemoryStateInternalsTest {
   }
 
   @Test
-  public void testMergeWatermarkIntoSource() throws Exception {
-    WatermarkStateInternal value1 = underTest.state(NAMESPACE_1, WATERMARK_BAG_ADDR);
-    WatermarkStateInternal value2 = underTest.state(NAMESPACE_2, WATERMARK_BAG_ADDR);
+  public void testMergeEarliestWatermarkIntoSource() throws Exception {
+    WatermarkStateInternal value1 = underTest.state(NAMESPACE_1, WATERMARK_EARLIEST_ADDR);
+    WatermarkStateInternal value2 = underTest.state(NAMESPACE_2, WATERMARK_EARLIEST_ADDR);
 
     value1.add(new Instant(3000));
     value2.add(new Instant(5000));
@@ -303,7 +361,7 @@ public class InMemoryStateInternalsTest {
     value2.add(new Instant(2000));
 
     WatermarkStateInternal merged = underTest.mergedState(
-        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_1, WATERMARK_BAG_ADDR);
+        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_1, WATERMARK_EARLIEST_ADDR, WINDOW_1);
 
     assertThat(value1.get().read(), Matchers.equalTo(new Instant(3000)));
     assertThat(value2.get().read(), Matchers.equalTo(new Instant(2000)));
@@ -315,5 +373,33 @@ public class InMemoryStateInternalsTest {
 
     merged.add(new Instant(1000));
     assertThat(merged.get().read(), Matchers.equalTo(new Instant(1000)));
+  }
+
+  @Test
+  public void testMergeLatestWatermarkIntoSource() throws Exception {
+    WatermarkStateInternal value1 = underTest.state(NAMESPACE_1, WATERMARK_LATEST_ADDR);
+    WatermarkStateInternal value2 = underTest.state(NAMESPACE_2, WATERMARK_LATEST_ADDR);
+
+    value1.add(new Instant(3000));
+    value2.add(new Instant(5000));
+    value1.add(new Instant(4000));
+    value2.add(new Instant(2000));
+
+    WatermarkStateInternal merged = underTest.mergedState(
+        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_1, WATERMARK_LATEST_ADDR, WINDOW_1);
+
+    assertThat(value1.get().read(), Matchers.equalTo(new Instant(4000)));
+    assertThat(value2.get().read(), Matchers.equalTo(new Instant(5000)));
+    assertThat(merged.get().read(), Matchers.equalTo(new Instant(5000)));
+
+    // Reading the merged value compressed the old values
+    assertThat(value1.get().read(), Matchers.equalTo(new Instant(5000)));
+    assertThat(value2.get().read(), Matchers.equalTo(null));
+
+    merged.add(new Instant(1000));
+    assertThat(merged.get().read(), Matchers.equalTo(new Instant(5000)));
+
+    merged.add(new Instant(7000));
+    assertThat(merged.get().read(), Matchers.equalTo(new Instant(7000)));
   }
 }

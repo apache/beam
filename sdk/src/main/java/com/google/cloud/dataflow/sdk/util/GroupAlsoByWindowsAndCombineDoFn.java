@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
@@ -25,11 +26,11 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import org.joda.time.Instant;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -61,8 +62,8 @@ class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends Bou
     // Right now, we support ACCUMULATING_FIRED_PANES because it is the same as
     // DISCARDING_FIRED_PANES. In Batch mode there is no late data so the default
     // trigger (after watermark) will only fire once.
-    if (!strategy.getMode().equals(AccumulationMode.DISCARDING_FIRED_PANES)
-        && !strategy.getMode().equals(AccumulationMode.ACCUMULATING_FIRED_PANES)) {
+    if (!(strategy.getMode().equals(AccumulationMode.DISCARDING_FIRED_PANES)
+        || strategy.getMode().equals(AccumulationMode.ACCUMULATING_FIRED_PANES))) {
       return false;
     }
 
@@ -70,17 +71,24 @@ class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends Bou
   }
 
   private final KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn;
-  private WindowFn<Object, W> windowFn;
+  private WindowingStrategy<Object, W> windowingStrategy;
 
   public GroupAlsoByWindowsAndCombineDoFn(
-      WindowFn<?, W> windowFn, KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
+      WindowingStrategy<?, W> strategy,
+      KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
+
+    checkArgument(GroupAlsoByWindowsAndCombineDoFn.isSupported(strategy),
+        "%s does not support non-default triggering, "
+        + "found in windowing strategy: %s",
+        getClass(),
+        strategy);
     this.combineFn = combineFn;
 
     // To make a MergeContext that is compatible with the type of windowFn, we need to remove
     // the wildcard from the element type.
     @SuppressWarnings("unchecked")
-    WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
-    this.windowFn = objectWindowFn;
+    WindowingStrategy<Object, W> objectWindowingStrategy = (WindowingStrategy<Object, W>) strategy;
+    this.windowingStrategy = objectWindowingStrategy;
 
   }
 
@@ -98,9 +106,10 @@ class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends Bou
         });
 
     final Map<W, AccumT> accumulators = Maps.newHashMap();
-    final Map<W, Instant> minTimestamps = Maps.newHashMap();
+    final Map<W, Instant> accumulatorOutputTimestamps = Maps.newHashMap();
 
-    WindowFn<Object, W>.MergeContext mergeContext = windowFn.new MergeContext() {
+    WindowFn<Object, W>.MergeContext mergeContext =
+        windowingStrategy.getWindowFn().new MergeContext() {
       @Override
       public Collection<W> windows() {
         return liveWindows;
@@ -108,20 +117,18 @@ class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends Bou
 
       @Override
       public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
-        List<AccumT> accumsToBeMerged = new ArrayList<>(toBeMerged.size());
-        Instant minTimestamp = null;
+        List<AccumT> accumsToBeMerged = Lists.newArrayListWithCapacity(toBeMerged.size());
+        List<Instant> timestampsToBeMerged = Lists.newArrayListWithCapacity(toBeMerged.size());
         for (W window : toBeMerged) {
           accumsToBeMerged.add(accumulators.remove(window));
-
-          Instant timestampToBeMerged = minTimestamps.remove(window);
-          if (minTimestamp == null
-              || (timestampToBeMerged != null && timestampToBeMerged.isBefore(minTimestamp))) {
-            minTimestamp = timestampToBeMerged;
-          }
+          timestampsToBeMerged.add(accumulatorOutputTimestamps.remove(window));
         }
         liveWindows.removeAll(toBeMerged);
 
-        minTimestamps.put(mergeResult, minTimestamp);
+
+        Instant mergedOutputTimestamp =
+            windowingStrategy.getOutputTimeFn().merge(mergeResult, timestampsToBeMerged);
+        accumulatorOutputTimestamps.put(mergeResult, mergedOutputTimestamp);
         liveWindows.add(mergeResult);
         accumulators.put(mergeResult, combineFn.mergeAccumulators(key, accumsToBeMerged));
       }
@@ -132,48 +139,55 @@ class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends Bou
 
       @SuppressWarnings("unchecked")
       Collection<W> windows = (Collection<W>) e.getWindows();
-      for (W w : windows) {
-        Instant timestamp = minTimestamps.get(w);
-        if (timestamp == null || timestamp.compareTo(e.getTimestamp()) > 0) {
-          minTimestamps.put(w, e.getTimestamp());
+      for (W window : windows) {
+        Instant outputTime =
+            windowingStrategy.getOutputTimeFn().assignOutputTime(e.getTimestamp(), window);
+        Instant accumulatorOutputTime = accumulatorOutputTimestamps.get(window);
+        if (accumulatorOutputTime == null) {
+          accumulatorOutputTimestamps.put(window, outputTime);
         } else {
-          minTimestamps.put(w, timestamp);
+          accumulatorOutputTimestamps.put(window,
+              windowingStrategy.getOutputTimeFn().combine(outputTime, accumulatorOutputTime));
         }
 
-        AccumT accum = accumulators.get(w);
-        checkState((timestamp == null && accum == null) || (timestamp != null && accum != null));
+        AccumT accum = accumulators.get(window);
+        checkState((accumulatorOutputTime == null && accum == null)
+            || (accumulatorOutputTime != null && accum != null),
+            "accumulator and accumulatorOutputTime should both be null or both be non-null");
         if (accum == null) {
           accum = combineFn.createAccumulator(key);
-          liveWindows.add(w);
+          liveWindows.add(window);
         }
         accum = combineFn.addInput(key, accum, e.getValue());
-        accumulators.put(w, accum);
+        accumulators.put(window, accum);
       }
 
-      windowFn.mergeWindows(mergeContext);
+      windowingStrategy.getWindowFn().mergeWindows(mergeContext);
 
       while (!liveWindows.isEmpty()
           && liveWindows.peek().maxTimestamp().isBefore(e.getTimestamp())) {
-        closeWindow(key, liveWindows.poll(), accumulators, minTimestamps, c);
+        closeWindow(key, liveWindows.poll(), accumulators, accumulatorOutputTimestamps, c);
       }
     }
 
     // To have gotten here, we've either not had any elements added, or we've only run merge
     // and then closed windows. We don't need to retry merging.
     while (!liveWindows.isEmpty()) {
-      closeWindow(key, liveWindows.poll(), accumulators, minTimestamps, c);
+      closeWindow(key, liveWindows.poll(), accumulators, accumulatorOutputTimestamps, c);
     }
   }
 
   private void closeWindow(
-      K key, W w, Map<W, AccumT> accumulators, Map<W, Instant> minTimestamps, ProcessContext c) {
-    AccumT accum = accumulators.remove(w);
-    Instant timestamp = minTimestamps.remove(w);
+      K key, W window, Map<W, AccumT> accumulators,
+      Map<W, Instant> accumulatorOutputTimes,
+      ProcessContext context) {
+    AccumT accum = accumulators.remove(window);
+    Instant timestamp = accumulatorOutputTimes.remove(window);
     checkState(accum != null && timestamp != null);
-    c.windowingInternals().outputWindowedValue(
+    context.windowingInternals().outputWindowedValue(
         KV.of(key, combineFn.extractOutput(key, accum)),
-        windowFn.getOutputTime(timestamp, w),
-        Arrays.asList(w),
+        timestamp,
+        Arrays.asList(window),
         PaneInfo.ON_TIME_AND_ONLY_FIRING);
   }
 }

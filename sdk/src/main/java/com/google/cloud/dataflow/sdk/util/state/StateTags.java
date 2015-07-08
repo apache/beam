@@ -21,6 +21,8 @@ import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.common.base.MoreObjects;
 
 import java.io.Serializable;
@@ -113,8 +115,9 @@ public class StateTags {
   /**
    * Create a state tag for holding the watermark.
    */
-  public static <T> StateTag<WatermarkStateInternal> watermarkStateInternal(String id) {
-    return new WatermarkStateTagInternal(new StructuredId(id));
+  public static <T> StateTag<WatermarkStateInternal> watermarkStateInternal(
+      String id, OutputTimeFn<?> outputTimeFn) {
+    return new WatermarkStateTagInternal(new StructuredId(id), outputTimeFn);
   }
 
   /**
@@ -349,15 +352,23 @@ public class StateTags {
     }
   }
 
-  private static class WatermarkStateTagInternal extends StateTagBase<WatermarkStateInternal> {
+  private static class WatermarkStateTagInternal<W extends BoundedWindow>
+      extends StateTagBase<WatermarkStateInternal> {
 
-    private WatermarkStateTagInternal(StructuredId id) {
+    /**
+     * When multiple output times are added to hold the watermark, this determines how they are
+     * combined, and also the behavior when merging windows.
+     */
+    private final OutputTimeFn<? super W> outputTimeFn;
+
+    private WatermarkStateTagInternal(StructuredId id, OutputTimeFn<? super W> outputTimeFn) {
       super(id);
+      this.outputTimeFn = outputTimeFn;
     }
 
     @Override
     public WatermarkStateInternal bind(StateBinder visitor) {
-      return visitor.bindWatermark(this);
+      return visitor.bindWatermark(this, outputTimeFn);
     }
 
     @Override
@@ -371,7 +382,8 @@ public class StateTags {
       }
 
       WatermarkStateTagInternal that = (WatermarkStateTagInternal) obj;
-      return Objects.equals(this.id, that.id);
+      return Objects.equals(this.id, that.id)
+          && Objects.equals(this.outputTimeFn, that.outputTimeFn);
     }
 
     @Override
@@ -381,7 +393,7 @@ public class StateTags {
 
     @Override
     protected StateTag<WatermarkStateInternal> asKind(StateKind kind) {
-      return new WatermarkStateTagInternal(id.asKind(kind));
+      return new WatermarkStateTagInternal(id.asKind(kind), outputTimeFn);
     }
   }
 }

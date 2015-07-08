@@ -381,6 +381,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       throw wrapMaybeUserException(e);
     }
 
+    // Merge the watermark hold
+    watermarkHold.mergeHolds(resultContext);
+
     // Have the trigger merge state as needed, and handle the result.
     TriggerResult triggerResult;
     try {

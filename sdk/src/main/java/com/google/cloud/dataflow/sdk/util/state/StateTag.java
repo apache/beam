@@ -20,6 +20,8 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 
 import java.io.Serializable;
 
@@ -50,7 +52,15 @@ public interface StateTag<StateT extends State> extends Serializable {
         StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
         Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn);
 
-    <T> WatermarkStateInternal bindWatermark(StateTag<WatermarkStateInternal> address);
+    /**
+     * Bind to a watermark {@link StateTag}.
+     *
+     * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps
+     * added to the returned {@link WatermarkStateInternal} are to be combined.
+     */
+    <T, W extends BoundedWindow> WatermarkStateInternal bindWatermark(
+        StateTag<WatermarkStateInternal> address,
+        OutputTimeFn<? super W> outputTimeFn);
   }
 
   /**

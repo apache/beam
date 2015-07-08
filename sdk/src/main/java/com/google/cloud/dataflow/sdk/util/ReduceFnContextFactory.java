@@ -165,7 +165,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
         sourceNamespaces.add(namespaceFor(sourceWindow));
       }
 
-      return stateInternals.mergedState(sourceNamespaces, namespace, address);
+      return stateInternals.mergedState(sourceNamespaces, namespace, address, window);
     }
   }
 
@@ -211,7 +211,8 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
         mergingNamespaces.add(delegate.namespaceFor(mergingWindow));
       }
 
-      return delegate.stateInternals.mergedState(mergingNamespaces, delegate.namespace, address);
+      return delegate.stateInternals.mergedState(
+          mergingNamespaces, delegate.namespace, address, delegate.window());
     }
 
     @Override

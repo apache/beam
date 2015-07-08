@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.BagState;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
@@ -64,10 +66,15 @@ class WindmillStateInternals extends MergingStateInternals {
             }
 
             @Override
-            public <T> WatermarkStateInternal bindWatermark(
-                StateTag<WatermarkStateInternal> address) {
+            public <T, W extends BoundedWindow> WatermarkStateInternal bindWatermark(
+                StateTag<WatermarkStateInternal> address,
+                OutputTimeFn<? super W> outputTimeFn) {
               return new WindmillWatermarkState(
-                  encodeKey(namespace, address), stateFamily, reader, scopedReadStateSupplier);
+                  encodeKey(namespace, address),
+                  stateFamily,
+                  reader,
+                  scopedReadStateSupplier,
+                  outputTimeFn);
             }
 
             @Override
@@ -350,6 +357,7 @@ class WindmillStateInternals extends MergingStateInternals {
 
   private static class WindmillWatermarkState implements WatermarkStateInternal, WindmillState {
 
+    private final OutputTimeFn<?> outputTimeFn;
     private final ByteString stateKey;
     private final String stateFamily;
     private final WindmillStateReader reader;
@@ -358,12 +366,17 @@ class WindmillStateInternals extends MergingStateInternals {
     private boolean cleared = false;
     private Instant localAdditions = null;
 
-    private WindmillWatermarkState(ByteString stateKey, String stateFamily,
-        WindmillStateReader reader, Supplier<StateSampler.ScopedState> readStateSupplier) {
+    private WindmillWatermarkState(
+        ByteString stateKey,
+        String stateFamily,
+        WindmillStateReader reader,
+        Supplier<StateSampler.ScopedState> readStateSupplier,
+        OutputTimeFn<?> outputTimeFn) {
       this.stateKey = stateKey;
       this.stateFamily = stateFamily;
       this.reader = reader;
       this.readStateSupplier = readStateSupplier;
+      this.outputTimeFn = outputTimeFn;
     }
 
     @Override
@@ -371,6 +384,15 @@ class WindmillStateInternals extends MergingStateInternals {
       cleared = true;
       localAdditions = null;
     }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Does nothing. There is only one hold and it is not extraneous.
+     * See {@link MergedWatermarkStateInternal} for a nontrivial implementation.
+     */
+    @Override
+    public void releaseExtraneousHolds() { }
 
     @Override
     public StateContents<Instant> get() {
@@ -386,11 +408,9 @@ class WindmillStateInternals extends MergingStateInternals {
         public Instant read() {
           Instant value = localAdditions;
           if (!cleared) {
-          try (StateSampler.ScopedState scope = readStateSupplier.get()) {
+            try (StateSampler.ScopedState scope = readStateSupplier.get()) {
               Instant persisted = persistedData.get();
-              if (value == null || (persisted != null && persisted.isBefore(value))) {
-                value = persisted;
-              }
+              value = (value == null) ? persisted : outputTimeFn.combine(value, persisted);
             } catch (InterruptedException | ExecutionException e) {
               throw new RuntimeException("Unable to read state", e);
             }
@@ -422,28 +442,80 @@ class WindmillStateInternals extends MergingStateInternals {
     }
 
     @Override
-    public void add(Instant watermarkHold) {
-      if (localAdditions == null || watermarkHold.isBefore(localAdditions)) {
-        localAdditions = watermarkHold;
-      }
+    public void add(Instant outputTime) {
+      localAdditions = (localAdditions == null) ? outputTime
+          : outputTimeFn.combine(outputTime, localAdditions);
     }
 
     @Override
     public void persist(Windmill.WorkItemCommitRequest.Builder commitBuilder) {
-      // If we do a delete, we need to have done a read
-      if (cleared) {
-        reader.watermarkFuture(stateKey, stateFamily);
+      if (!cleared && localAdditions == null) {
+        // Nothing to do
+        return;
+      } else if (cleared && localAdditions == null) {
+        // Just clearing the persisted state; blind delete
         commitBuilder.addWatermarkHoldsBuilder()
             .setTag(stateKey)
             .setStateFamily(stateFamily)
             .setReset(true);
-      }
 
-      if (localAdditions != null) {
+      } else if (cleared && localAdditions != null) {
+        // Since we cleared before adding, we can do a blind overwrite of persisted state
+        commitBuilder.addWatermarkHoldsBuilder()
+            .setTag(stateKey)
+            .setStateFamily(stateFamily)
+            .setReset(true)
+            .addTimestamps(TimeUnit.MILLISECONDS.toMicros(localAdditions.getMillis()));
+      } else if (!cleared && localAdditions != null){
+        // Otherwise, we need to combine the local additions with the already persisted data
+        combineWithPersisted(commitBuilder);
+      } else {
+        throw new IllegalStateException("Unreachable condition");
+      }
+    }
+
+    /**
+     * Combines local additions with persisted data and mutates the {@code commitBuilder}
+     * to write the result.
+     */
+    private void combineWithPersisted(Windmill.WorkItemCommitRequest.Builder commitBuilder) {
+      boolean windmillCanCombine = false;
+
+      // If the combined output time depends only on the window, then we are just blindly adding
+      // the same value that may or may not already be present. This depends on the state only being
+      // used for one window.
+      windmillCanCombine |= outputTimeFn.dependsOnlyOnWindow();
+
+      // If the combined output time depends only on the earliest input timestamp, then because
+      // assignOutputTime is monotonic, the hold only depends on the earliest output timestamp
+      // (which is the value submitted as a watermark hold). The only way holds for later inputs
+      // can be redundant is if the are later (or equal) to the earliest. So taking the MIN
+      // implicitly, as Windmill does, has the desired behavior.
+      windmillCanCombine |= outputTimeFn.dependsOnlyOnEarliestInputTimestamp();
+
+      if (windmillCanCombine) {
+        // We do a blind write and let Windmill take the MIN
         commitBuilder.addWatermarkHoldsBuilder()
             .setTag(stateKey)
             .setStateFamily(stateFamily)
             .addTimestamps(TimeUnit.MILLISECONDS.toMicros(localAdditions.getMillis()));
+      } else {
+        // The non-fast path does a read-modify-write
+        Instant priorHold;
+        try {
+          priorHold = reader.watermarkFuture(stateKey, stateFamily).get();
+        } catch (InterruptedException | ExecutionException e) {
+          throw new RuntimeException("Unable to read state", e);
+        }
+
+        Instant combinedHold = (priorHold == null) ? localAdditions
+            : outputTimeFn.combine(priorHold, localAdditions);
+
+        commitBuilder.addWatermarkHoldsBuilder()
+            .setTag(stateKey)
+            .setStateFamily(stateFamily)
+            .setReset(true)
+            .addTimestamps(TimeUnit.MILLISECONDS.toMicros(combinedHold.getMillis()));
       }
     }
   }

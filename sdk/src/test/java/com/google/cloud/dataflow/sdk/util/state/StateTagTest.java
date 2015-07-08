@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.Max;
 import com.google.cloud.dataflow.sdk.transforms.Max.MaxIntegerFn;
 import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.Min.MinIntegerFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,7 +36,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class StateTagTest {
-
   @Test
   public void testValueEquality() {
     StateTag<?> fooVarInt1 = StateTags.value("foo", VarIntCoder.of());
@@ -62,12 +62,19 @@ public class StateTagTest {
 
   @Test
   public void testWatermarkBagEquality() {
-    StateTag<?> foo1 = StateTags.watermarkStateInternal("foo");
-    StateTag<?> foo2 = StateTags.watermarkStateInternal("foo");
-    StateTag<?> bar = StateTags.watermarkStateInternal("bar");
+    StateTag<?> foo1 = StateTags.watermarkStateInternal(
+        "foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    StateTag<?> foo2 = StateTags.watermarkStateInternal(
+        "foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    StateTag<?> bar = StateTags.watermarkStateInternal(
+        "bar", OutputTimeFns.outputAtEarliestInputTimestamp());
+
+    StateTag<?> bar2 = StateTags.watermarkStateInternal(
+        "bar", OutputTimeFns.outputAtLatestInputTimestamp());
 
     assertEquals(foo1, foo2);
     assertNotEquals(foo1, bar);
+    assertNotEquals(bar, bar2);
   }
 
   @Test

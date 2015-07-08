@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsProperties.GroupAlsoByWindowsDoFnFactory;
 
 import org.junit.Test;
@@ -45,11 +44,8 @@ public class GroupAlsoByWindowsAndCombineDoFnTest {
     public <W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, InputT, OutputT, W>
         forStrategy(WindowingStrategy<?, W> windowingStrategy) {
 
-      @SuppressWarnings("unchecked")
-      WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
-
       return new GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W>(
-          windowFn,
+          windowingStrategy,
           keyedCombineFn);
     }
   }
@@ -78,4 +74,12 @@ public class GroupAlsoByWindowsAndCombineDoFnTest {
         combineFn);
   }
 
+  @Test
+  public void testCombinesIntoSessionsWithEndOfWindowTimestamp() throws Exception {
+    CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
+
+    GroupAlsoByWindowsProperties.combinesElementsPerSessionWithEndOfWindowTimestamp(
+        new GABWAndCombineDoFnFactory<>(combineFn.<String>asKeyedFn()),
+        combineFn);
+  }
 }

@@ -371,21 +371,23 @@ public class Window {
     @Nullable private final AccumulationMode mode;
     @Nullable private final Duration allowedLateness;
     @Nullable private final ClosingBehavior closingBehavior;
+    @Nullable private final OutputTimeFn<?> outputTimeFn;
 
     private Bound(String name,
         @Nullable WindowFn<? super T, ?> windowFn, @Nullable Trigger<?> trigger,
         @Nullable AccumulationMode mode, @Nullable Duration allowedLateness,
-        ClosingBehavior behavior) {
+        ClosingBehavior behavior, @Nullable OutputTimeFn<?> outputTimeFn) {
       super(name);
       this.windowFn = windowFn;
       this.trigger = trigger;
       this.mode = mode;
       this.allowedLateness = allowedLateness;
       this.closingBehavior = behavior;
+      this.outputTimeFn = outputTimeFn;
     }
 
     private Bound(String name) {
-      this(name, null, null, null, null, null);
+      this(name, null, null, null, null, null, null);
     }
 
     /**
@@ -402,7 +404,8 @@ public class Window {
         throw new IllegalArgumentException("Window coders must be deterministic.", e);
       }
 
-      return new Bound<>(name, windowFn, trigger, mode, allowedLateness, closingBehavior);
+      return new Bound<>(
+          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
     }
 
     /**
@@ -415,7 +418,8 @@ public class Window {
      * explanation.
      */
     public Bound<T> named(String name) {
-      return new Bound<>(name, windowFn, trigger, mode, allowedLateness, closingBehavior);
+      return new Bound<>(
+          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
     }
 
     /**
@@ -432,7 +436,13 @@ public class Window {
     @Experimental(Kind.TRIGGER)
     public Bound<T> triggering(TriggerBuilder<?> trigger) {
       return new Bound<T>(
-          name, windowFn, trigger.buildTrigger(), mode, allowedLateness, closingBehavior);
+          name,
+          windowFn,
+          trigger.buildTrigger(),
+          mode,
+          allowedLateness,
+          closingBehavior,
+          outputTimeFn);
     }
 
    /**
@@ -444,9 +454,14 @@ public class Window {
     */
     @Experimental(Kind.TRIGGER)
    public Bound<T> discardingFiredPanes() {
-     return new Bound<T>(name,
-         windowFn, trigger, AccumulationMode.DISCARDING_FIRED_PANES,
-         allowedLateness, closingBehavior);
+     return new Bound<T>(
+         name,
+         windowFn,
+         trigger,
+         AccumulationMode.DISCARDING_FIRED_PANES,
+         allowedLateness,
+         closingBehavior,
+         outputTimeFn);
    }
 
    /**
@@ -458,9 +473,14 @@ public class Window {
     */
    @Experimental(Kind.TRIGGER)
    public Bound<T> accumulatingFiredPanes() {
-     return new Bound<T>(name,
-         windowFn, trigger, AccumulationMode.ACCUMULATING_FIRED_PANES,
-         allowedLateness, closingBehavior);
+     return new Bound<T>(
+         name,
+         windowFn,
+         trigger,
+         AccumulationMode.ACCUMULATING_FIRED_PANES,
+         allowedLateness,
+         closingBehavior,
+         outputTimeFn);
    }
 
     /**
@@ -478,7 +498,18 @@ public class Window {
      */
     @Experimental(Kind.TRIGGER)
     public Bound<T> withAllowedLateness(Duration allowedLateness) {
-      return new Bound<T>(name, windowFn, trigger, mode, allowedLateness, closingBehavior);
+      return new Bound<T>(
+          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
+    }
+
+    /**
+     * <b><i>(Experimental)</i></b> Override the default {@link OutputTimeFn}, to control
+     * the output timestamp of values output from a {@link GroupByKey} operation.
+     */
+    @Experimental(Kind.OUTPUT_TIME)
+    public Bound<T> withOutputTimeFn(OutputTimeFn<?> outputTimeFn) {
+      return new Bound<T>(
+          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
     }
 
     /**
@@ -493,9 +524,11 @@ public class Window {
      */
     @Experimental(Kind.TRIGGER)
     public Bound<T> withAllowedLateness(Duration allowedLateness, ClosingBehavior behavior) {
-      return new Bound<T>(name, windowFn, trigger, mode, allowedLateness, behavior);
+      return new Bound<T>(name, windowFn, trigger, mode, allowedLateness, behavior, outputTimeFn);
     }
 
+    // Rawtype cast of OutputTimeFn cannot be eliminated with intermediate variable, as it is
+    // casting between wildcards
     private WindowingStrategy<?, ?> getOutputStrategy(WindowingStrategy<?, ?> inputStrategy) {
       WindowingStrategy<?, ?> result = inputStrategy;
       if (windowFn != null) {
@@ -512,6 +545,9 @@ public class Window {
       }
       if (closingBehavior != null) {
         result = result.withClosingBehavior(closingBehavior);
+      }
+      if (outputTimeFn != null) {
+        result = result.withOutputTimeFn(outputTimeFn);
       }
       return result;
     }

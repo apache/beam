@@ -63,11 +63,16 @@ class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
       return false;
     }
 
+    // It must be possible to compute the output timestamp of a pane from the input timestamp
+    // of the element with the earliest input timestamp.
+    if (!strategy.getOutputTimeFn().dependsOnlyOnEarliestInputTimestamp()) {
+      return false;
+    }
     // Right now, we support ACCUMULATING_FIRED_PANES because it is the same as
     // DISCARDING_FIRED_PANES. In Batch mode there is no late data so the default
     // trigger (after watermark) will only fire once.
-    if (!strategy.getMode().equals(AccumulationMode.DISCARDING_FIRED_PANES)
-        && !strategy.getMode().equals(AccumulationMode.ACCUMULATING_FIRED_PANES)) {
+    if (!(strategy.getMode().equals(AccumulationMode.DISCARDING_FIRED_PANES)
+        || strategy.getMode().equals(AccumulationMode.ACCUMULATING_FIRED_PANES))) {
       return false;
     }
 
@@ -76,7 +81,8 @@ class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
 
   public GroupAlsoByWindowsViaIteratorsDoFn(WindowingStrategy<?, W> strategy) {
     checkArgument(GroupAlsoByWindowsViaIteratorsDoFn.isSupported(strategy),
-        "%s does not support merging or non-default triggering, "
+        "%s does not support merging, non-default triggering, "
+        + "or any OutputTimeFn where dependsOnlyOnEarliest() is false, "
         + "found in windowing strategy: %s",
         getClass(),
         strategy);
@@ -118,7 +124,7 @@ class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
           windows.put(window.maxTimestamp(), window);
           c.windowingInternals().outputWindowedValue(
               KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
-              strategy.getWindowFn().getOutputTime(e.getTimestamp(), typedWindow),
+              strategy.getOutputTimeFn().assignOutputTime(e.getTimestamp(), typedWindow),
               Arrays.asList(window),
               PaneInfo.ON_TIME_AND_ONLY_FIRING);
         }

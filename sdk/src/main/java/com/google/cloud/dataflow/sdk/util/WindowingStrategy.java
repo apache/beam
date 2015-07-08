@@ -16,13 +16,16 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.common.base.MoreObjects;
 
 import org.joda.time.Duration;
 
@@ -52,6 +55,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   private static final WindowingStrategy<Object, GlobalWindow> DEFAULT = of(new GlobalWindows());
 
   private final WindowFn<T, W> windowFn;
+  private final OutputTimeFn<? super W> outputTimeFn;
   private final ExecutableTrigger<W> trigger;
   private final AccumulationMode mode;
   private final Duration allowedLateness;
@@ -59,12 +63,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   private final boolean triggerSpecified;
   private final boolean modeSpecified;
   private final boolean allowedLatenessSpecified;
+  private final boolean outputTimeFnSpecified;
 
   private WindowingStrategy(
       WindowFn<T, W> windowFn,
       ExecutableTrigger<W> trigger, boolean triggerSpecified,
       AccumulationMode mode, boolean modeSpecified,
       Duration allowedLateness, boolean allowedLatenessSpecified,
+      OutputTimeFn<? super W> outputTimeFn, boolean outputTimeFnSpecified,
       ClosingBehavior closingBehavior) {
     this.windowFn = windowFn;
     this.trigger = trigger;
@@ -74,6 +80,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     this.allowedLateness = allowedLateness;
     this.allowedLatenessSpecified = allowedLatenessSpecified;
     this.closingBehavior = closingBehavior;
+    this.outputTimeFn = outputTimeFn;
+    this.outputTimeFnSpecified = outputTimeFnSpecified;
   }
 
   /**
@@ -89,6 +97,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         ExecutableTrigger.create(DefaultTrigger.<W>of()), false,
         AccumulationMode.DISCARDING_FIRED_PANES, false,
         DEFAULT_ALLOWED_LATENESS, false,
+        windowFn.getOutputTimeFn(), false,
         ClosingBehavior.FIRE_IF_NON_EMPTY);
   }
 
@@ -124,6 +133,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return closingBehavior;
   }
 
+  public OutputTimeFn<? super W> getOutputTimeFn() {
+    return outputTimeFn;
+  }
+
+  public boolean isOutputTimeFnSpecified() {
+    return outputTimeFnSpecified;
+  }
+
   /**
    * Returns a {@link WindowingStrategy} identical to {@code this} but with the trigger set to
    * {@code wildcardTrigger}.
@@ -136,6 +153,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         ExecutableTrigger.create(typedTrigger), true,
         mode, modeSpecified,
         allowedLateness, allowedLatenessSpecified,
+        outputTimeFn, outputTimeFnSpecified,
         closingBehavior);
   }
 
@@ -149,6 +167,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         trigger, triggerSpecified,
         mode, true,
         allowedLateness, allowedLatenessSpecified,
+        outputTimeFn, outputTimeFnSpecified,
         closingBehavior);
   }
 
@@ -159,11 +178,18 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public WindowingStrategy<T, W> withWindowFn(WindowFn<?, ?> wildcardWindowFn) {
     @SuppressWarnings("unchecked")
     WindowFn<T, W> typedWindowFn = (WindowFn<T, W>) wildcardWindowFn;
+
+    // The onus of type correctness falls on the callee.
+    @SuppressWarnings("unchecked")
+    OutputTimeFn<? super W> newOutputTimeFn = (OutputTimeFn<? super W>)
+        (outputTimeFnSpecified ? outputTimeFn : typedWindowFn.getOutputTimeFn());
+
     return new WindowingStrategy<T, W>(
         typedWindowFn,
         trigger, triggerSpecified,
         mode, modeSpecified,
         allowedLateness, allowedLatenessSpecified,
+        newOutputTimeFn, outputTimeFnSpecified,
         closingBehavior);
   }
 
@@ -177,6 +203,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         trigger, triggerSpecified,
         mode, modeSpecified,
         allowedLateness, true,
+        outputTimeFn, outputTimeFnSpecified,
         closingBehavior);
   }
 
@@ -186,15 +213,34 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         trigger, triggerSpecified,
         mode, modeSpecified,
         allowedLateness, allowedLatenessSpecified,
+        outputTimeFn, outputTimeFnSpecified,
+        closingBehavior);
+  }
+
+  @Experimental(Experimental.Kind.OUTPUT_TIME)
+  public WindowingStrategy<T, W> withOutputTimeFn(OutputTimeFn<?> outputTimeFn) {
+
+    @SuppressWarnings("unchecked")
+    OutputTimeFn<? super W> typedOutputTimeFn = (OutputTimeFn<? super W>) outputTimeFn;
+
+    return new WindowingStrategy<T, W>(
+        windowFn,
+        trigger, triggerSpecified,
+        mode, modeSpecified,
+        allowedLateness, allowedLatenessSpecified,
+        typedOutputTimeFn, true,
         closingBehavior);
   }
 
   @Override
   public String toString() {
-    return String.format("%s, %s, %s",
-        StringUtils.approximateSimpleName(windowFn.getClass()),
-        trigger.toString(),
-        mode.toString());
+    return MoreObjects.toStringHelper(this)
+        .add("windowFn", windowFn)
+        .add("allowedLateness", allowedLateness)
+        .add("trigger", trigger)
+        .add("accumulationMode", mode)
+        .add("outputTimeFn", outputTimeFn)
+        .toString();
   }
 
   @Override

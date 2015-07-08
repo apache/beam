@@ -16,11 +16,12 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.common.base.Preconditions;
 
 /**
  * DoFn that merges windows and groups elements in those windows, optionally
@@ -44,13 +45,11 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
    */
   public static <K, V, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W>
   createForIterable(WindowingStrategy<?, W> windowingStrategy, Coder<V> inputCoder) {
-    @SuppressWarnings("unchecked")
-    WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
 
     return GroupAlsoByWindowsViaIteratorsDoFn.isSupported(windowingStrategy)
         ? new GroupAlsoByWindowsViaIteratorsDoFn<K, V, W>(windowingStrategy)
         : new GroupAlsoByWindowsViaOutputBufferDoFn<>(
-            noWildcard,
+            windowingStrategy,
             SystemReduceFn.<K, V, W>buffering(inputCoder));
   }
 
@@ -63,14 +62,15 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
       final WindowingStrategy<?, W> windowingStrategy,
       final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn,
       final Coder<K> keyCoder) {
-    Preconditions.checkNotNull(combineFn);
 
-    @SuppressWarnings("unchecked")
-    WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
+    checkNotNull(combineFn);
+
     return GroupAlsoByWindowsAndCombineDoFn.isSupported(windowingStrategy)
-        ? new GroupAlsoByWindowsAndCombineDoFn<>(noWildcard.getWindowFn(), combineFn.getFn())
+        ? new GroupAlsoByWindowsAndCombineDoFn<>(
+            windowingStrategy,
+            combineFn.getFn())
         : new GroupAlsoByWindowsViaOutputBufferDoFn<>(
-            noWildcard,
+            windowingStrategy,
             SystemReduceFn.<K, InputT, AccumT, OutputT, W>combining(keyCoder, combineFn));
   }
 }

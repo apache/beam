@@ -15,6 +15,11 @@
  */
 package com.google.cloud.dataflow.sdk.util.state;
 
+
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
+import com.google.common.collect.Lists;
+
 import org.joda.time.Instant;
 
 import java.util.ArrayList;
@@ -25,15 +30,22 @@ import java.util.List;
  * Implementation of {@link WatermarkStateInternal} reading from multiple sources and writing to a
  * single result.
  */
-class MergedWatermarkStateInternal implements WatermarkStateInternal {
+class MergedWatermarkStateInternal<W extends BoundedWindow> implements WatermarkStateInternal {
 
   private final Collection<WatermarkStateInternal> sources;
   private final WatermarkStateInternal result;
+  private final OutputTimeFn<? super W> outputTimeFn;
+  private final W resultWindow;
 
   public MergedWatermarkStateInternal(
-      Collection<WatermarkStateInternal> sources, WatermarkStateInternal result) {
+      Collection<WatermarkStateInternal> sources,
+      WatermarkStateInternal result,
+      W resultWindow,
+      OutputTimeFn<? super W> outputTimeFn) {
     this.sources = sources;
     this.result = result;
+    this.resultWindow = resultWindow;
+    this.outputTimeFn = outputTimeFn;
   }
 
   @Override
@@ -45,12 +57,17 @@ class MergedWatermarkStateInternal implements WatermarkStateInternal {
   }
 
   @Override
-  public void add(Instant watermarkHold) {
-    result.add(watermarkHold);
+  public void add(Instant outputTimestamp) {
+    result.add(outputTimestamp);
   }
 
   @Override
   public StateContents<Instant> get() {
+    // Short circuit if output times depend only on the window, hence are all equal.
+    if (outputTimeFn.dependsOnlyOnWindow()) {
+      return result.get();
+    }
+
     // Get the underlying StateContents's right away.
     final List<StateContents<Instant>> reads = new ArrayList<>(sources.size());
     for (WatermarkStateInternal source : sources) {
@@ -61,21 +78,23 @@ class MergedWatermarkStateInternal implements WatermarkStateInternal {
     return new StateContents<Instant>() {
       @Override
       public Instant read() {
-        Instant minimum = null;
+        List<Instant> outputTimesToMerge = Lists.newArrayListWithCapacity(sources.size());
         for (StateContents<Instant> read : reads) {
-          Instant input = read.read();
-          if (minimum == null || (input != null && minimum.isAfter(input))) {
-            minimum = input;
+          Instant sourceOutputTime = read.read();
+          if (sourceOutputTime != null) {
+            outputTimesToMerge.add(sourceOutputTime);
           }
         }
 
-        // Also, compact the state
-        if (minimum != null) {
+        if (outputTimesToMerge.isEmpty()) {
+          return null;
+        } else {
+          // Also, compact the state
           clear();
-          add(minimum);
+          Instant mergedOutputTime = outputTimeFn.merge(resultWindow, outputTimesToMerge);
+          add(mergedOutputTime);
+          return mergedOutputTime;
         }
-
-        return minimum;
       }
     };
   }
@@ -100,5 +119,17 @@ class MergedWatermarkStateInternal implements WatermarkStateInternal {
         return true;
       }
     };
+  }
+
+  @Override
+  public void releaseExtraneousHolds() {
+    if (outputTimeFn.dependsOnlyOnEarliestInputTimestamp()) {
+      // No need to do anything; the merged watermark state will hold to the earliest
+      // due to semantics of watermark holds.
+    } else {
+      // In all other cases, get() implements the necessary combining logic, and actually
+      // performs compaction that releases the watermark.
+      get().read();
+    }
   }
 }

@@ -131,7 +131,7 @@ public class CalendarWindows {
     }
 
     @Override
-    public boolean isCompatible(WindowFn other) {
+    public boolean isCompatible(WindowFn<?, ?> other) {
       if (!(other instanceof DaysWindows)) {
         return false;
       }
@@ -217,7 +217,7 @@ public class CalendarWindows {
     }
 
     @Override
-    public boolean isCompatible(WindowFn other) {
+    public boolean isCompatible(WindowFn<?, ?> other) {
       if (!(other instanceof MonthsWindows)) {
         return false;
       }
@@ -312,7 +312,7 @@ public class CalendarWindows {
     }
 
     @Override
-    public boolean isCompatible(WindowFn other) {
+    public boolean isCompatible(WindowFn<?, ?> other) {
       if (!(other instanceof YearsWindows)) {
         return false;
       }

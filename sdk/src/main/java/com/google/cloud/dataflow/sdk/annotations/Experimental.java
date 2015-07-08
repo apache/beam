@@ -69,6 +69,9 @@ public @interface Experimental {
     CODER_ENCODING_ID,
 
     /** State-related experimental APIs. */
-    STATE
+    STATE,
+
+    /** Experimental APIs related to customizing the output time for computed values. */
+    OUTPUT_TIME
   }
 }

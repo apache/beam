@@ -15,8 +15,12 @@
  */
 package com.google.cloud.dataflow.sdk.util.state;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
 
 import org.joda.time.Instant;
@@ -30,6 +34,7 @@ import java.util.Objects;
  * In-memory implementation of {@link StateInternals}. Used in {@code BatchModeExecutionContext}
  * and for running tests that need state.
  */
+@Experimental(Kind.STATE)
 public class InMemoryStateInternals extends MergingStateInternals {
   private interface InMemoryState {
     boolean isEmptyForTesting();
@@ -58,8 +63,10 @@ public class InMemoryStateInternals extends MergingStateInternals {
         }
 
         @Override
-        public <T> WatermarkStateInternal bindWatermark(StateTag<WatermarkStateInternal> address) {
-          return new WatermarkStateInternalImplementation();
+        public <T, W extends BoundedWindow> WatermarkStateInternal bindWatermark(
+            StateTag<WatermarkStateInternal> address,
+            OutputTimeFn<? super W> outputTimeFn) {
+          return new WatermarkStateInternalImplementation(outputTimeFn);
         }
       };
     }
@@ -118,35 +125,49 @@ public class InMemoryStateInternals extends MergingStateInternals {
 
   private final class WatermarkStateInternalImplementation
       implements WatermarkStateInternal, InMemoryState {
-    private Instant minimumHold = null;
+
+    private final OutputTimeFn<?> outputTimeFn;
+    private Instant combinedHold = null;
+
+    public WatermarkStateInternalImplementation(OutputTimeFn<?> outputTimeFn) {
+      this.outputTimeFn = outputTimeFn;
+    }
 
     @Override
     public void clear() {
       // Even though we're clearing we can't remove this from the in-memory state map, since
       // other users may already have a handle on this WatermarkBagInternal.
-      minimumHold = null;
+      combinedHold = null;
     }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Does nothing. There is only one hold and it is not extraneous.
+     * See {@link MergedWatermarkStateInternal} for a nontrivial implementation.
+     */
+    @Override
+    public void releaseExtraneousHolds() { }
 
     @Override
     public StateContents<Instant> get() {
       return new StateContents<Instant>() {
         @Override
         public Instant read() {
-          return minimumHold;
+          return combinedHold;
         }
       };
     }
 
     @Override
-    public void add(Instant watermarkHold) {
-      if (minimumHold == null || minimumHold.isAfter(watermarkHold)) {
-        minimumHold = watermarkHold;
-      }
+    public void add(Instant outputTime) {
+      combinedHold = combinedHold == null ? outputTime
+          : outputTimeFn.combine(combinedHold, outputTime);
     }
 
     @Override
     public boolean isEmptyForTesting() {
-      return minimumHold == null;
+      return combinedHold == null;
     }
 
     @Override
@@ -154,14 +175,14 @@ public class InMemoryStateInternals extends MergingStateInternals {
       return new StateContents<Boolean>() {
         @Override
         public Boolean read() {
-          return minimumHold == null;
+          return combinedHold == null;
         }
       };
     }
 
     @Override
     public String toString() {
-      return Objects.toString(minimumHold);
+      return Objects.toString(combinedHold);
     }
   }
 

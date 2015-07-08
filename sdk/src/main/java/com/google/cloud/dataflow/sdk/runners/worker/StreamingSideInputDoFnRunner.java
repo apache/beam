@@ -107,7 +107,8 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
     this.elementsAddr = StateTags.makeSystemTagInternal(StateTags.bag("elem",
         WindowedValue.getFullCoder(doFnInfo.getInputCoder(), windowFn.windowCoder())));
     this.watermarkHoldingAddr =
-        StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal("hold"));
+        StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal("hold",
+            doFnInfo.getWindowingStrategy().getOutputTimeFn()));
 
     this.blockedMap = stepContext.stateInternals().state(StateNamespaces.global(), blockedMapAddr)
         .get().read();

@@ -190,7 +190,8 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         ImmutableSet.<StateTag<?>>of(
             TriggerRunner.FINISHED_BITS_TAG,
             PaneInfoTracker.PANE_INFO_TAG,
-            WatermarkHold.DATA_HOLD_TAG));
+            WatermarkHold.watermarkHoldTagForOutputTimeFn(
+                objectStrategy.getOutputTimeFn())));
   }
 
   public final void assertHasOnlyGlobalState() {
@@ -202,7 +203,10 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndPaneInfoFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<?>>of(PaneInfoTracker.PANE_INFO_TAG, WatermarkHold.DATA_HOLD_TAG));
+        ImmutableSet.<StateTag<?>>of(
+            PaneInfoTracker.PANE_INFO_TAG,
+            WatermarkHold.watermarkHoldTagForOutputTimeFn(
+                objectStrategy.getOutputTimeFn())));
   }
 
   /**

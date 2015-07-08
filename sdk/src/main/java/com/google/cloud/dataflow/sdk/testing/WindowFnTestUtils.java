@@ -16,13 +16,19 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 
 import org.joda.time.Instant;
+import org.joda.time.ReadableInstant;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,6 +39,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javax.annotation.Nullable;
 
 /**
  * A utility class for testing {@link WindowFn}s.
@@ -50,7 +58,6 @@ public class WindowFnTestUtils {
     }
     return result;
   }
-
 
   /**
    * Runs the {@link WindowFn} over the provided input, returning a map
@@ -193,7 +200,7 @@ public class WindowFnTestUtils {
 
     Instant instant = new Instant(timestamp);
     for (W window : windows) {
-      Instant outputTimestamp = windowFn.getOutputTime(instant, window);
+      Instant outputTimestamp = windowFn.getOutputTimeFn().assignOutputTime(instant, window);
       assertFalse("getOutputTime must be greater than or equal to input timestamp",
           outputTimestamp.isBefore(instant));
       assertFalse("getOutputTime must be less than or equal to the max timestamp",
@@ -203,8 +210,9 @@ public class WindowFnTestUtils {
 
   /**
    * Assigns the given {@code timestamp} to windows using the specified {@code windowFn}, and
-   * verifies that result of {@code windowFn.getOutputTimestamp} for later windows (as defined by
-   * {@code maxTimestamp} won't prevent the watermark from passing the end of earlier windows.
+   * verifies that result of {@link WindowFn#getOutputTime windowFn.getOutputTime} for later windows
+   * (as defined by {@code maxTimestamp} won't prevent the watermark from passing the end of earlier
+   * windows.
    *
    * <p>This verifies that overlapping windows don't interfere at all. Depending on the
    * {@code windowFn} this may be stricter than desired.
@@ -223,7 +231,7 @@ public class WindowFnTestUtils {
     Instant instant = new Instant(timestamp);
     Instant endOfPrevious = null;
     for (W window : sortedWindows) {
-      Instant outputTimestamp = windowFn.getOutputTime(instant, window);
+      Instant outputTimestamp = windowFn.getOutputTimeFn().assignOutputTime(instant, window);
       if (endOfPrevious == null) {
         // If this is the first window, the output timestamp can be anything, as long as it is in
         // the valid range.
@@ -240,6 +248,78 @@ public class WindowFnTestUtils {
             outputTimestamp.isAfter(window.maxTimestamp()));
       }
       endOfPrevious = window.maxTimestamp();
+    }
+  }
+
+  /**
+   * Verifies that later-ending merged windows from any of the timestamps hold up output of
+   * earlier-ending windows, using the provided {@link WindowFn} and {@link OutputTimeFn}.
+   *
+   * <p>Given a list of lists of timestamps, where each list is expected to merge into a single
+   * window with end times in ascending order, assigns and merges windows for each list (as though
+   * each were a separate key/user session). Then maps each timestamp in the list according to
+   * {@link OutputTimeFn#assignOutputTime outputTimeFn.assignOutputTime()} and
+   * {@link OutputTimeFn#combine outputTimeFn.combine()}.
+   *
+   * <p>Verifies that a overlapping windows do not hold each other up via the watermark.
+   */
+  public static <T, W extends IntervalWindow>
+  void validateGetOutputTimestamps(
+      WindowFn<T, W> windowFn,
+      OutputTimeFn<? super W> outputTimeFn,
+      List<List<Long>> timestampsPerWindow) throws Exception {
+
+    // Assign windows to each timestamp, then merge them, storing the merged windows in
+    // a list in corresponding order to timestampsPerWindow
+    final List<W> windows = new ArrayList<>();
+    for (List<Long> timestampsForWindow : timestampsPerWindow) {
+      final Set<W> windowsToMerge = new HashSet<>();
+
+      for (long timestamp : timestampsForWindow) {
+        windowsToMerge.addAll(
+            WindowFnTestUtils.<T, W>assignedWindows(windowFn, timestamp));
+      }
+
+      windowFn.mergeWindows(windowFn.new MergeContext() {
+        @Override
+        public Collection<W> windows() {
+          return windowsToMerge;
+        }
+
+        @Override
+        public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
+          windows.add(mergeResult);
+        }
+      });
+    }
+
+    // Map every list of input timestamps to an output timestamp
+    final List<Instant> combinedOutputTimestamps = new ArrayList<>();
+    for (int i = 0; i < timestampsPerWindow.size(); ++i) {
+      List<Long> timestampsForWindow = timestampsPerWindow.get(i);
+      W window = windows.get(i);
+
+      List<Instant> outputInstants = new ArrayList<>();
+      for (long inputTimestamp : timestampsForWindow) {
+        outputInstants.add(outputTimeFn.assignOutputTime(new Instant(inputTimestamp), window));
+      }
+
+      combinedOutputTimestamps.add(OutputTimeFns.combineOutputTimes(outputTimeFn, outputInstants));
+    }
+
+    // Consider windows in increasing order of max timestamp; ensure the output timestamp is after
+    // the max timestamp of the previous
+    @Nullable W earlierEndingWindow = null;
+    for (int i = 0; i < windows.size(); ++i) {
+      W window = windows.get(i);
+      ReadableInstant outputTimestamp = combinedOutputTimestamps.get(i);
+
+      if (earlierEndingWindow != null) {
+        assertThat(outputTimestamp,
+            greaterThan((ReadableInstant) earlierEndingWindow.maxTimestamp()));
+      }
+
+      earlierEndingWindow = window;
     }
   }
 }

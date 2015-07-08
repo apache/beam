@@ -16,10 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -85,13 +86,14 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
     throw new UnsupportedOperationException("Sessions is not allowed in side inputs");
   }
 
-  public Duration getGapDuration() {
-    return gapDuration;
+  @Experimental(Kind.OUTPUT_TIME)
+  @Override
+  public OutputTimeFn<? super IntervalWindow> getOutputTimeFn() {
+    return OutputTimeFns.outputAtEarliestInputTimestamp();
   }
 
-  @Override
-  public Instant getOutputTime(Instant inputTimestamp, IntervalWindow window) {
-    return inputTimestamp;
+  public Duration getGapDuration() {
+    return gapDuration;
   }
 
   @Override
