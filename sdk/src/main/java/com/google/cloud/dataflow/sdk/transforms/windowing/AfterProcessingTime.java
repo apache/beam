@@ -66,7 +66,7 @@ public class AfterProcessingTime<W extends BoundedWindow>
     Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, c.window());
     if (delayUntil == null) {
       delayUntil = computeTargetTimestamp(c.currentProcessingTime());
-      c.setTimer(c.window(), delayUntil, TimeDomain.PROCESSING_TIME);
+      c.setTimer(delayUntil, TimeDomain.PROCESSING_TIME);
       c.store(DELAYED_UNTIL_TAG, c.window(), delayUntil);
     }
 
@@ -92,7 +92,7 @@ public class AfterProcessingTime<W extends BoundedWindow>
 
     if (earliestTimer != null) {
       c.store(DELAYED_UNTIL_TAG, c.window(), earliestTimer);
-      c.setTimer(c.window(), earliestTimer, TimeDomain.PROCESSING_TIME);
+      c.setTimer(earliestTimer, TimeDomain.PROCESSING_TIME);
     }
 
     return MergeResult.CONTINUE;
@@ -106,7 +106,7 @@ public class AfterProcessingTime<W extends BoundedWindow>
   @Override
   public void clear(TriggerContext c) throws Exception {
     c.remove(DELAYED_UNTIL_TAG, c.window());
-    c.deleteTimer(c.window(), TimeDomain.PROCESSING_TIME);
+    c.deleteTimer(TimeDomain.PROCESSING_TIME);
   }
 
   @Override

@@ -182,19 +182,17 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
      * <p>Each trigger can have a single timer in per {@code timeDomain} and {@code window}. If the
      * trigger has already set a timer for a given domain and window, then setting overwrites it.
      *
-     * @param window the window the timer is being set for.
      * @param timestamp the time at which the trigger’s {@link Trigger#onTimer} callback should
      *        execute
      * @param timeDomain the domain that the {@code timestamp} applies to
      */
-    public abstract void setTimer(
-        W window, Instant timestamp, TimeDomain timeDomain) throws IOException;
+    public abstract void setTimer(Instant timestamp, TimeDomain timeDomain) throws IOException;
 
     /**
      * Removes the timer set in this trigger context for the given {@code window} and
      * {@code timeDomain}.
      */
-    public abstract void deleteTimer(W window, TimeDomain timeDomain) throws IOException;
+    public abstract void deleteTimer(TimeDomain timeDomain) throws IOException;
 
     /**
      * Returns the current processing time.

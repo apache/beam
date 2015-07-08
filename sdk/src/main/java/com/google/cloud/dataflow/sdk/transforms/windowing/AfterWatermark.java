@@ -96,7 +96,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
       Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, c.window());
       if (delayUntil == null) {
         delayUntil = computeTargetTimestamp(c.eventTimestamp());
-        c.setTimer(c.window(), delayUntil, TimeDomain.EVENT_TIME);
+        c.setTimer(delayUntil, TimeDomain.EVENT_TIME);
         c.store(DELAYED_UNTIL_TAG, c.window(), delayUntil);
       }
 
@@ -124,7 +124,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
       if (earliestTimer != null) {
         c.store(DELAYED_UNTIL_TAG, c.window(), earliestTimer);
-        c.setTimer(c.window(), earliestTimer, TimeDomain.EVENT_TIME);
+        c.setTimer(earliestTimer, TimeDomain.EVENT_TIME);
       }
 
       return MergeResult.CONTINUE;
@@ -138,7 +138,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     @Override
     public void clear(TriggerContext c) throws Exception {
       c.remove(DELAYED_UNTIL_TAG, c.window());
-      c.deleteTimer(c.window(), TimeDomain.EVENT_TIME);
+      c.deleteTimer(TimeDomain.EVENT_TIME);
     }
 
     @Override
@@ -191,8 +191,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     public TriggerResult onElement(OnElementContext c) throws Exception {
-      c.setTimer(c.window(),
-          computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
+      c.setTimer(computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
       return TriggerResult.CONTINUE;
     }
 
@@ -208,8 +207,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
       }
 
       // Otherwise, set a timer for this window, and return.
-      c.setTimer(c.window(),
-          computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
+      c.setTimer(computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
       return MergeResult.CONTINUE;
     }
 
@@ -220,7 +218,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     public void clear(TriggerContext c) throws Exception {
-      c.deleteTimer(c.window(), TimeDomain.EVENT_TIME);
+      c.deleteTimer(TimeDomain.EVENT_TIME);
     }
 
     @Override

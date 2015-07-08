@@ -507,12 +507,12 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public void setTimer(W window, Instant timestamp, TimeDomain domain) throws IOException {
+    public void setTimer(Instant timestamp, TimeDomain domain) throws IOException {
       TriggerExecutor.this.setTimer(triggerId(window), timestamp, domain);
     }
 
     @Override
-    public void deleteTimer(W window, TimeDomain domain) throws IOException {
+    public void deleteTimer(TimeDomain domain) throws IOException {
       TriggerExecutor.this.deleteTimer(triggerId(window), domain);
     }
 
@@ -647,13 +647,13 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public void setTimer(W window, Instant timestamp, TimeDomain timeDomain) throws IOException {
-      delegate.setTimer(window, timestamp, timeDomain);
+    public void setTimer(Instant timestamp, TimeDomain timeDomain) throws IOException {
+      delegate.setTimer(timestamp, timeDomain);
     }
 
     @Override
-    public void deleteTimer(W window, TimeDomain timeDomain) throws IOException {
-      delegate.deleteTimer(window, timeDomain);
+    public void deleteTimer(TimeDomain timeDomain) throws IOException {
+      delegate.deleteTimer(timeDomain);
     }
 
     @Override
@@ -759,13 +759,13 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public void setTimer(W window, Instant timestamp, TimeDomain timeDomain) throws IOException {
-      delegate.setTimer(window, timestamp, timeDomain);
+    public void setTimer(Instant timestamp, TimeDomain timeDomain) throws IOException {
+      delegate.setTimer(timestamp, timeDomain);
     }
 
     @Override
-    public void deleteTimer(W window, TimeDomain timeDomain) throws IOException {
-      delegate.deleteTimer(window, timeDomain);
+    public void deleteTimer(TimeDomain timeDomain) throws IOException {
+      delegate.deleteTimer(timeDomain);
     }
 
     @Override
@@ -869,13 +869,13 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public void setTimer(W window, Instant timestamp, TimeDomain timeDomain) throws IOException {
-      delegate.setTimer(window, timestamp, timeDomain);
+    public void setTimer(Instant timestamp, TimeDomain timeDomain) throws IOException {
+      delegate.setTimer(timestamp, timeDomain);
     }
 
     @Override
-    public void deleteTimer(W window, TimeDomain timeDomain) throws IOException {
-      delegate.deleteTimer(window, timeDomain);
+    public void deleteTimer(TimeDomain timeDomain) throws IOException {
+      delegate.deleteTimer(timeDomain);
     }
 
     @Override
