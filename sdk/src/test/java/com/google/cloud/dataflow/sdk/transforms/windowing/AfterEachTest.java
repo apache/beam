@@ -69,7 +69,7 @@ public class AfterEachTest {
   }
 
   @SuppressWarnings("unchecked")
-  private TriggerContext<IntervalWindow> isTriggerContext() {
+  private Trigger<IntervalWindow>.TriggerContext isTriggerContext() {
     return Mockito.isA(TriggerContext.class);
   }
 

@@ -26,11 +26,11 @@ import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeEvent;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerEvent;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
@@ -211,7 +211,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
         droppedDueToClosedWindow, droppedDueToLateness);
   }
 
-  private TriggerContext<W> context(BitSet finishedSet) {
+  private Trigger<W>.TriggerContext context(BitSet finishedSet) {
     return new TriggerContextImpl(finishedSet, rootTrigger);
   }
 
@@ -369,7 +369,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     BitSet originalFinishedSet = lookupFinishedSet(resultWindow);
     BitSet finishedSet = (BitSet) originalFinishedSet.clone();
 
-    TriggerContext<W> context = context(finishedSet);
+    Trigger<W>.TriggerContext context = context(finishedSet);
     MergeResult result = rootTrigger.invokeMerge(context, e);
     if (MergeResult.ALREADY_FINISHED.equals(result)) {
       throw new IllegalStateException("Root trigger returned MergeResult.ALREADY_FINISHED.");
@@ -481,12 +481,13 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     return result;
   }
 
-  private class TriggerContextImpl implements TriggerContext<W> {
+  private class TriggerContextImpl extends Trigger<W>.TriggerContext {
 
     private final BitSet finishedSet;
     private final ExecutableTrigger<W> trigger;
 
     private TriggerContextImpl(BitSet finishedSet, ExecutableTrigger<W> trigger) {
+      trigger.getSpec().super();
       this.finishedSet = finishedSet;
       this.trigger = trigger;
     }
@@ -552,7 +553,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public TriggerContext<W> forTrigger(ExecutableTrigger<W> trigger) {
+    public Trigger<W>.TriggerContext forTrigger(ExecutableTrigger<W> trigger) {
       return new TriggerContextImpl(finishedSet, trigger);
     }
 

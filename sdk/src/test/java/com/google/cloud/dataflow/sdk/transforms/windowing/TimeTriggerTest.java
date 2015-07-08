@@ -70,19 +70,19 @@ public class TimeTriggerTest {
 
     @Override
     public TriggerResult onElement(
-        TriggerContext<IntervalWindow> c, OnElementEvent<IntervalWindow> e) throws Exception {
+        TriggerContext c, OnElementEvent<IntervalWindow> e) throws Exception {
       return null;
     }
 
     @Override
     public MergeResult onMerge(
-        TriggerContext<IntervalWindow> c, OnMergeEvent<IntervalWindow> e) throws Exception {
+        TriggerContext c, OnMergeEvent<IntervalWindow> e) throws Exception {
       return null;
     }
 
     @Override
     public TriggerResult onTimer(
-        TriggerContext<IntervalWindow> c, OnTimerEvent<IntervalWindow> e) throws Exception {
+        TriggerContext c, OnTimerEvent<IntervalWindow> e) throws Exception {
       return null;
     }
 

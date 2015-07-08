@@ -92,7 +92,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+    public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
       Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, e.window());
       if (delayUntil == null) {
         delayUntil = computeTargetTimestamp(e.eventTimestamp());
@@ -104,7 +104,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
       // If the watermark time timer has fired in any of the windows being merged, it would have
       // fired at the same point if it had been added to the merged window. So, we just record it as
       // finished.
@@ -131,12 +131,12 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+    public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
       return TriggerResult.FIRE_AND_FINISH;
     }
 
     @Override
-    public void clear(TriggerContext<W> c, W window) throws Exception {
+    public void clear(TriggerContext c, W window) throws Exception {
       c.remove(DELAYED_UNTIL_TAG, window);
       c.deleteTimer(window, TimeDomain.EVENT_TIME);
     }
@@ -190,14 +190,14 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+    public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
       c.setTimer(e.window(),
           computeTargetTimestamp(e.window().maxTimestamp()), TimeDomain.EVENT_TIME);
       return TriggerResult.CONTINUE;
     }
 
     @Override
-    public MergeResult onMerge(Trigger.TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
       // If the watermark was past the end of a window that is past the end of the new window,
       // then the watermark must also be past the end of this window. What's more, we've already
       // fired some elements for that trigger firing, so we report FINISHED (without firing).
@@ -214,12 +214,12 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+    public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
       return TriggerResult.FIRE_AND_FINISH;
     }
 
     @Override
-    public void clear(TriggerContext<W> c, W window) throws Exception {
+    public void clear(TriggerContext c, W window) throws Exception {
       c.deleteTimer(window, TimeDomain.EVENT_TIME);
     }
 

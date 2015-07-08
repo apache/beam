@@ -60,7 +60,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
     return new AfterEach<W>(Arrays.<Trigger<W>>asList(triggers));
   }
 
-  private TriggerResult wrapResult(TriggerContext<W> c, TriggerResult subResult)
+  private TriggerResult wrapResult(TriggerContext c, TriggerResult subResult)
       throws Exception {
     if (subResult.isFire()) {
       return c.areAllSubtriggersFinished() ? TriggerResult.FIRE_AND_FINISH : TriggerResult.FIRE;
@@ -70,7 +70,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+  public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
     // If all the sub-triggers have finished, we should have already finished, so we know there is
     // at least one unfinished trigger.
     ExecutableTrigger<W> subTrigger = c.firstUnfinishedSubTrigger();
@@ -78,7 +78,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
   }
 
   @Override
-  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
     // Iterate over the sub-triggers to identify the "current" sub-trigger.
     Iterator<ExecutableTrigger<W>> iterator = c.subTriggers().iterator();
     while (iterator.hasNext()) {
@@ -107,7 +107,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
     return MergeResult.ALREADY_FINISHED;
   }
 
-  private void resetRemaining(TriggerContext<W> c, OnMergeEvent<W> e,
+  private void resetRemaining(TriggerContext c, OnMergeEvent<W> e,
       Iterator<ExecutableTrigger<W>> triggers) throws Exception {
     while (triggers.hasNext()) {
       c.forTrigger(triggers.next()).resetTree(e.newWindow());
@@ -115,7 +115,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+  public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
     if (c.isCurrentTrigger(e.getDestinationIndex())) {
       throw new IllegalStateException("AfterEach shouldn't receive timers.");
     }

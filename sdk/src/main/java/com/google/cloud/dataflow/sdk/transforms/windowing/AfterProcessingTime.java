@@ -61,7 +61,7 @@ public class AfterProcessingTime<W extends BoundedWindow>
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e)
+  public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e)
       throws Exception {
     Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, e.window());
     if (delayUntil == null) {
@@ -74,7 +74,7 @@ public class AfterProcessingTime<W extends BoundedWindow>
   }
 
   @Override
-  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
     // If the processing time timer has fired in any of the windows being merged, it would have
     // fired at the same point if it had been added to the merged window. So, we just report it as
     // finished.
@@ -99,12 +99,12 @@ public class AfterProcessingTime<W extends BoundedWindow>
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+  public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
     return TriggerResult.FIRE_AND_FINISH;
   }
 
   @Override
-  public void clear(TriggerContext<W> c, W window) throws Exception {
+  public void clear(TriggerContext c, W window) throws Exception {
     c.remove(DELAYED_UNTIL_TAG, window);
     c.deleteTimer(window, TimeDomain.PROCESSING_TIME);
   }

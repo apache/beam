@@ -55,7 +55,7 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+  public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
     Integer count = c.lookup(ELEMENTS_IN_PANE_TAG, e.window());
     if (count == null) {
       count = 0;
@@ -67,7 +67,7 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
-  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
     // If we've already received enough elements and finished in some window, then this trigger
     // is just finished.
     if (e.finishedInAnyMergingWindow(c.current())) {
@@ -92,12 +92,12 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) {
+  public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) {
     return TriggerResult.CONTINUE;
   }
 
   @Override
-  public void clear(TriggerContext<W> c, W window) throws Exception {
+  public void clear(TriggerContext c, W window) throws Exception {
     c.remove(ELEMENTS_IN_PANE_TAG, window);
   }
 

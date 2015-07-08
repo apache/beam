@@ -66,9 +66,10 @@ public class RepeatedlyTest {
   }
 
   @SuppressWarnings("unchecked")
-  private TriggerContext<IntervalWindow> isTriggerContext() {
+  private Trigger<IntervalWindow>.TriggerContext isTriggerContext() {
     return Mockito.isA(TriggerContext.class);
   }
+
 
   private void injectElement(int element, TriggerResult result1)
       throws Exception {

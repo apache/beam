@@ -46,24 +46,24 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+  public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
     c.setTimer(e.window(), e.window().maxTimestamp(), TimeDomain.EVENT_TIME);
     return TriggerResult.CONTINUE;
   }
 
   @Override
-  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
     c.setTimer(e.newWindow(), e.newWindow().maxTimestamp(), TimeDomain.EVENT_TIME);
     return MergeResult.CONTINUE;
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+  public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
     return TriggerResult.FIRE;
   }
 
   @Override
-  public void clear(TriggerContext<W> c, W window) throws Exception {
+  public void clear(TriggerContext c, W window) throws Exception {
     c.deleteTimer(window, TimeDomain.EVENT_TIME);
   }
 

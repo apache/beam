@@ -172,11 +172,8 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
 
   /**
    * Information accessible to all of the callbacks that are executed on a {@link Trigger}.
-   *
-   * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
-   *            {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext}.
    */
-  public interface TriggerContext<W extends BoundedWindow>  {
+  public abstract class TriggerContext {
 
     /**
      * Sets a timer to fire when the watermark or processing time is beyond the given timestamp.
@@ -190,99 +187,101 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
      *        execute
      * @param timeDomain the domain that the {@code timestamp} applies to
      */
-    void setTimer(W window, Instant timestamp, TimeDomain timeDomain) throws IOException;
+    public abstract void setTimer(
+        W window, Instant timestamp, TimeDomain timeDomain) throws IOException;
 
     /**
      * Removes the timer set in this trigger context for the given {@code window} and
      * {@code timeDomain}.
      */
-    void deleteTimer(W window, TimeDomain timeDomain) throws IOException;
+    public abstract void deleteTimer(W window, TimeDomain timeDomain) throws IOException;
 
     /**
      * Returns the current processing time.
      */
-    Instant currentProcessingTime();
+    public abstract Instant currentProcessingTime();
 
     /**
      * Updates the value stored in keyed state for the given {@code tag} and {@code window}.
      */
-    <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException;
+    public abstract <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException;
 
     /**
      * Removes the keyed state associated with the given {@code tag} and {@code window}.
      */
-    <T> void remove(CodedTupleTag<T> tag, W window) throws IOException;
+    public abstract <T> void remove(CodedTupleTag<T> tag, W window) throws IOException;
 
     /**
      * Lookup the value stored for the given {@code tag} and {@code window}.
      */
-    <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException;
+    public abstract <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException;
 
     /**
      * Lookup the value stored for a given {@code tag} in a bunch of {@code window}s.
      */
-    <T> Map<W, T> lookup(CodedTupleTag<T> tag, Iterable<W> windows) throws IOException;
+    public abstract <T> Map<W, T> lookup(
+        CodedTupleTag<T> tag, Iterable<W> windows) throws IOException;
 
     /**
      * Create a {@code TriggerContext} for executing the given trigger.
      */
-    TriggerContext<W> forTrigger(ExecutableTrigger<W> trigger);
+    public abstract TriggerContext forTrigger(ExecutableTrigger<W> trigger);
 
     /**
      * Access the executable version of the trigger currently being executed.
      */
-    ExecutableTrigger<W> current();
+    public abstract ExecutableTrigger<W> current();
 
     /**
      * Access the executable versions of the sub-triggers of the current trigger.
      */
-    Iterable<ExecutableTrigger<W>> subTriggers();
+    public abstract Iterable<ExecutableTrigger<W>> subTriggers();
 
     /**
      * Access the executable version of the specified sub-trigger.
      */
-    ExecutableTrigger<W> subTrigger(int subtriggerIndex);
+    public abstract ExecutableTrigger<W> subTrigger(int subtriggerIndex);
 
     /**
      * Returns true if the given trigger index corresponds to the current trigger.
      */
-    boolean isCurrentTrigger(int triggerIndex);
+    public abstract boolean isCurrentTrigger(int triggerIndex);
 
     /**
      * Returns the sub-trigger of the current trigger that is the next step towards the destination.
      */
-    ExecutableTrigger<W> nextStepTowards(int destinationIndex);
+    public abstract ExecutableTrigger<W> nextStepTowards(int destinationIndex);
 
     /**
      * Returns true if the current trigger is marked finished.
      */
-    boolean isFinished();
+    public abstract boolean isFinished();
 
     /**
      * Returns true if all the sub-triggers of the current trigger are marked finished.
      */
-    boolean areAllSubtriggersFinished();
+    public abstract boolean areAllSubtriggersFinished();
 
     /**
      * Returns an iterable over the unfinished sub-triggers of the current trigger.
      */
-    Iterable<ExecutableTrigger<W>> unfinishedSubTriggers();
+    public abstract Iterable<ExecutableTrigger<W>> unfinishedSubTriggers();
 
     /**
      * Returns the first unfinished sub-trigger.
      */
-    ExecutableTrigger<W> firstUnfinishedSubTrigger();
+    public abstract ExecutableTrigger<W> firstUnfinishedSubTrigger();
 
     /**
      * Clears all keyed state for triggers in the current sub-tree and unsets all the associated
      * finished bits.
      */
-    void resetTree(W window) throws Exception;
+    public abstract void resetTree(W window) throws Exception;
 
     /**
      * Sets the finished bit for the current trigger.
      */
-    void setFinished(boolean finished);
+    public abstract void setFinished(boolean finished);
   }
 
   @Nullable
@@ -338,7 +337,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    * @param e an event describing the cause of this callback being executed
    */
   public abstract TriggerResult onElement(
-      TriggerContext<W> c, OnElementEvent<W> e) throws Exception;
+      TriggerContext c, OnElementEvent<W> e) throws Exception;
 
   /**
    * Details about an invocation of {@link Trigger#onMerge}.
@@ -417,7 +416,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    * @param c the context to interact with
    * @param e an event describnig the cause of this callback being executed
    */
-  public abstract MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception;
+  public abstract MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception;
 
   /**
    * Details about an invocation of {@link Trigger#onTimer}.
@@ -448,7 +447,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    * @param c the context to interact with
    * @param e identifier for the trigger that the timer is for.
    */
-  public abstract TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception;
+  public abstract TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception;
 
   /**
    * Clear any state associated with this trigger in the given window.
@@ -460,7 +459,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    * @param c the context to interact with
    * @param window the window that is being cleared
    */
-  public void clear(TriggerContext<W> c, W window) throws Exception {
+  public void clear(TriggerContext c, W window) throws Exception {
     if (subTriggers != null) {
       for (ExecutableTrigger<W> trigger : c.subTriggers()) {
         trigger.invokeClear(c, window);
@@ -654,7 +653,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     }
 
     @Override
-    public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+    public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
       TriggerResult untilResult = c.subTrigger(UNTIL).invokeElement(c, e);
       if (untilResult != TriggerResult.CONTINUE) {
         return TriggerResult.FIRE_AND_FINISH;
@@ -664,7 +663,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     }
 
     @Override
-    public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+    public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
       MergeResult untilResult = c.subTrigger(UNTIL).invokeMerge(c, e);
       if (untilResult == MergeResult.ALREADY_FINISHED) {
         return MergeResult.ALREADY_FINISHED;
@@ -677,7 +676,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     }
 
     @Override
-    public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+    public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
       if (c.isCurrentTrigger(e.getDestinationIndex())) {
         throw new IllegalStateException("OrFinally shouldn't receive any timers.");
       }

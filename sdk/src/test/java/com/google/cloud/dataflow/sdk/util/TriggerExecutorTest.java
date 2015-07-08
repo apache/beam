@@ -67,7 +67,7 @@ public class TriggerExecutorTest {
   }
 
   @SuppressWarnings("unchecked")
-  private TriggerContext<IntervalWindow> isTriggerContext() {
+  private Trigger<IntervalWindow>.TriggerContext isTriggerContext() {
     return Mockito.isA(TriggerContext.class);
   }
 
@@ -276,12 +276,12 @@ public class TriggerExecutorTest {
         Duration.millis(0));
 
     when(mockTrigger.onMerge(
-        Mockito.<TriggerContext<IntervalWindow>>any(),
+        Mockito.<Trigger<IntervalWindow>.TriggerContext>any(),
         Mockito.<OnMergeEvent<IntervalWindow>>any()))
         .thenReturn(MergeResult.CONTINUE);
 
     when(mockTrigger.onTimer(
-        Mockito.<TriggerContext<IntervalWindow>>any(),
+        Mockito.<Trigger<IntervalWindow>.TriggerContext>any(),
         Mockito.<OnTimerEvent<IntervalWindow>>any()))
         .thenReturn(TriggerResult.FIRE);
 

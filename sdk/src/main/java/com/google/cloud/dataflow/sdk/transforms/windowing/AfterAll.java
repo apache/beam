@@ -48,7 +48,7 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
     return new AfterAll<W>(Arrays.<Trigger<W>>asList(triggers));
   }
 
-  private TriggerResult wrapResult(TriggerContext<W> c) {
+  private TriggerResult wrapResult(TriggerContext c) {
     // If all children have finished, then they must have each fired at least once.
     if (c.areAllSubtriggersFinished()) {
       return TriggerResult.FIRE_AND_FINISH;
@@ -58,7 +58,7 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+  public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
     for (ExecutableTrigger<W> subTrigger : c.unfinishedSubTriggers()) {
       // Since subTriggers are all OnceTriggers, they must either CONTINUE or FIRE_AND_FINISH.
       // invokeElement will automatically mark the finish bit if they return FIRE_AND_FINISH.
@@ -69,7 +69,7 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
   }
 
   @Override
-  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
     // CONTINUE if merging returns CONTINUE for at least one sub-trigger
     // FIRE_AND_FINISH if merging returns FIRE or FIRE_AND_FINISH for at least one sub-trigger
     //   *and* FIRE, FIRE_AND_FINISH, or FINISH for all other sub-triggers.
@@ -87,7 +87,7 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+  public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
     if (c.isCurrentTrigger(e.getDestinationIndex())) {
       throw new IllegalStateException("AfterAll shouldn't receive any timers.");
     }

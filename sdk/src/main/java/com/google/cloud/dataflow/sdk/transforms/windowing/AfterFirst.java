@@ -50,7 +50,7 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
   }
 
   @Override
-  public TriggerResult onElement(TriggerContext<W> c, OnElementEvent<W> e) throws Exception {
+  public TriggerResult onElement(TriggerContext c, OnElementEvent<W> e) throws Exception {
     for (ExecutableTrigger<W> subTrigger : c.subTriggers()) {
       if (subTrigger.invokeElement(c, e).isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
@@ -61,7 +61,7 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
   }
 
   @Override
-  public MergeResult onMerge(TriggerContext<W> c, OnMergeEvent<W> e) throws Exception {
+  public MergeResult onMerge(TriggerContext c, OnMergeEvent<W> e) throws Exception {
     // FINISH if merging returns FINISH for any sub-trigger.
     // FIRE_AND_FINISH if merging returns FIRE or FIRE_AND_FINISH for at least one sub-trigger.
     // CONTINUE otherwise
@@ -78,7 +78,7 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
   }
 
   @Override
-  public TriggerResult onTimer(TriggerContext<W> c, OnTimerEvent<W> e) throws Exception {
+  public TriggerResult onTimer(TriggerContext c, OnTimerEvent<W> e) throws Exception {
     if (c.isCurrentTrigger(e.getDestinationIndex())) {
       throw new IllegalStateException("AfterFirst shouldn't receive any timers.");
     }

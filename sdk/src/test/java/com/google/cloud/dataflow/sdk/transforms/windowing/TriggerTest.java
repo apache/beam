@@ -72,7 +72,7 @@ public class TriggerTest {
   }
 
   @SuppressWarnings("unchecked")
-  private TriggerContext<IntervalWindow> isTriggerContext() {
+  private Trigger<IntervalWindow>.TriggerContext isTriggerContext() {
     return Mockito.isA(TriggerContext.class);
   }
 

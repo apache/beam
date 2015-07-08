@@ -71,7 +71,7 @@ public class AfterFirstTest {
   }
 
   @SuppressWarnings("unchecked")
-  private TriggerContext<IntervalWindow> isTriggerContext() {
+  private Trigger<IntervalWindow>.TriggerContext isTriggerContext() {
     return Mockito.isA(TriggerContext.class);
   }
 
