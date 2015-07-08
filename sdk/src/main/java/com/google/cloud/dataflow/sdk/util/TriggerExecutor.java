@@ -208,8 +208,8 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
         droppedDueToClosedWindow, droppedDueToLateness);
   }
 
-  private Trigger<W>.TriggerContext context(BitSet finishedSet) {
-    return new TriggerContextImpl(finishedSet, rootTrigger);
+  private Trigger<W>.TriggerContext context(BitSet finishedSet, W window) {
+    return new TriggerContextImpl(finishedSet, rootTrigger, window);
   }
 
   @VisibleForTesting BitSet lookupFinishedSet(W window) throws IOException {
@@ -273,7 +273,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
       BitSet originalFinishedSet = (BitSet) finishedSet.clone();
       OnElementContextImpl e = new OnElementContextImpl(
-          context(finishedSet), value.getValue(), value.getTimestamp(), window);
+          context(finishedSet, window), value.getValue(), value.getTimestamp());
 
       // Update the trigger state as appropriate for the arrival of the element.
       // Must come before merge so the state is updated (for merging).
@@ -318,7 +318,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
       // Perform final cleanup.
       activeWindows.remove(window);
-      rootTrigger.invokeClear(context(finishedSet), window);
+      rootTrigger.invokeClear(context(finishedSet, window));
       keyedState.remove(finishedSetTag(window));
       return;
     }
@@ -336,7 +336,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     if (mergeIfAppropriate(window)) {
       BitSet originalFinishedSet = (BitSet) finishedSet.clone();
       TriggerResult result = rootTrigger.invokeTimer(
-          new OnTimerContextImpl(context(finishedSet), triggerId));
+          new OnTimerContextImpl(context(finishedSet, window), triggerId));
       handleResult(rootTrigger, window, originalFinishedSet, finishedSet, result);
     }
   }
@@ -353,7 +353,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       finishedSets.put(window, lookupFinishedSet(window));
     }
 
-    return new OnMergeContextImpl(context, toBeMerged, resultWindow, finishedSets.build());
+    return new OnMergeContextImpl(context, toBeMerged, finishedSets.build());
   }
 
   public void persist() throws Exception {
@@ -366,7 +366,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     BitSet originalFinishedSet = lookupFinishedSet(resultWindow);
     BitSet finishedSet = (BitSet) originalFinishedSet.clone();
 
-    Trigger<W>.TriggerContext context = context(finishedSet);
+    Trigger<W>.TriggerContext context = context(finishedSet, resultWindow);
     OnMergeContextImpl e = createMergeEvent(context, toBeMerged, resultWindow);
     MergeResult result = rootTrigger.invokeMerge(e);
     if (MergeResult.ALREADY_FINISHED.equals(result)) {
@@ -380,7 +380,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     // Before we finish, we can clean up the state associated with the trigger in the old windows
     for (W windowBeingMerged : toBeMerged) {
       if (!resultWindow.equals(windowBeingMerged)) {
-        rootTrigger.invokeClear(context(lookupFinishedSet(windowBeingMerged)), windowBeingMerged);
+        rootTrigger.invokeClear(context(lookupFinishedSet(windowBeingMerged), windowBeingMerged));
         keyedState.remove(finishedSetTag(windowBeingMerged));
         deleteTimer(cleanupTimer(windowBeingMerged), TimeDomain.EVENT_TIME);
       }
@@ -429,7 +429,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     // If the trigger is finished, we can clear out its state as long as we keep the
     // IS_ROOT_FINISHED bit.
     if (result.isFinish()) {
-      trigger.invokeClear(context(finishedSet), window);
+      trigger.invokeClear(context(finishedSet, window));
     }
 
     if (!finishedSet.equals(originalFinishedSet)) {
@@ -483,11 +483,14 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
     private final BitSet finishedSet;
     private final ExecutableTrigger<W> trigger;
+    private final W window;
 
-    private TriggerContextImpl(BitSet finishedSet, ExecutableTrigger<W> trigger) {
+    private TriggerContextImpl(
+        BitSet finishedSet, ExecutableTrigger<W> trigger, W window) {
       trigger.getSpec().super();
       this.finishedSet = finishedSet;
       this.trigger = trigger;
+      this.window = window;
     }
 
     private TriggerId<W> triggerId(W window) {
@@ -552,7 +555,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
     @Override
     public Trigger<W>.TriggerContext forTrigger(ExecutableTrigger<W> trigger) {
-      return new TriggerContextImpl(finishedSet, trigger);
+      return new TriggerContextImpl(finishedSet, trigger, window);
     }
 
     @Override
@@ -613,21 +616,26 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public void resetTree(W window) throws Exception {
+    public void resetTree() throws Exception {
       finishedSet.clear(trigger.getTriggerIndex(), trigger.getFirstIndexAfterSubtree());
-      trigger.invokeClear(this, window);
+      trigger.invokeClear(this);
     }
 
     @Override
     public void setFinished(boolean finished) {
       finishedSet.set(trigger.getTriggerIndex(), finished);
     }
+
+    @Override
+    public W window() {
+      return window;
+    }
   }
 
   private class OnElementContextImpl extends Trigger<W>.OnElementContext {
     public OnElementContextImpl(
-        Trigger<W>.TriggerContext delegate, Object value, Instant timestamp, W window) {
-      delegate.current().getSpec().super(value, timestamp, window);
+        Trigger<W>.TriggerContext delegate, Object value, Instant timestamp) {
+      delegate.current().getSpec().super(value, timestamp);
       this.delegate = delegate;
     }
 
@@ -635,8 +643,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
     @Override
     public Trigger<W>.OnElementContext forTrigger(ExecutableTrigger<W> trigger) {
-      return new OnElementContextImpl(delegate.forTrigger(trigger),
-          element(), eventTimestamp(), window());
+      return new OnElementContextImpl(delegate.forTrigger(trigger), element(), eventTimestamp());
     }
 
     @Override
@@ -720,13 +727,18 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public void resetTree(W window) throws Exception {
-      delegate.resetTree(window);
+    public void resetTree() throws Exception {
+      delegate.resetTree();
     }
 
     @Override
     public void setFinished(boolean finished) {
       delegate.setFinished(finished);
+    }
+
+    @Override
+    public W window() {
+      return delegate.window();
     }
   }
 
@@ -736,15 +748,14 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
     public OnMergeContextImpl(
         Trigger<W>.TriggerContext delegate,
-        Iterable<W> oldWindows, W newWindow, Map<W, BitSet> finishedSets) {
-      delegate.current().getSpec().super(oldWindows, newWindow, finishedSets);
+        Iterable<W> oldWindows, Map<W, BitSet> finishedSets) {
+      delegate.current().getSpec().super(oldWindows, finishedSets);
       this.delegate = delegate;
     }
 
     @Override
     public Trigger<W>.OnMergeContext forTrigger(ExecutableTrigger<W> trigger) {
-      return new OnMergeContextImpl(delegate.forTrigger(trigger),
-          oldWindows(), newWindow(), finishedSets);
+      return new OnMergeContextImpl(delegate.forTrigger(trigger), oldWindows(), finishedSets);
     }
 
     @Override
@@ -828,13 +839,18 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public void resetTree(W window) throws Exception {
-      delegate.resetTree(window);
+    public void resetTree() throws Exception {
+      delegate.resetTree();
     }
 
     @Override
     public void setFinished(boolean finished) {
       delegate.setFinished(finished);
+    }
+
+    @Override
+    public W window() {
+      return delegate.window();
     }
   }
 
@@ -933,16 +949,20 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public void resetTree(W window) throws Exception {
-      delegate.resetTree(window);
+    public void resetTree() throws Exception {
+      delegate.resetTree();
     }
 
     @Override
     public void setFinished(boolean finished) {
       delegate.setFinished(finished);
     }
-  }
 
+    @Override
+    public W window() {
+      return delegate.window();
+    }
+  }
 
   /**
    * Coder for Trigger IDs.

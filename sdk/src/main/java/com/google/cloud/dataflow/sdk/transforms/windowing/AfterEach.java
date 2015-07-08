@@ -87,13 +87,13 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
       MergeResult mergeResult = subTrigger.invokeMerge(c);
 
       if (MergeResult.CONTINUE.equals(mergeResult)) {
-        resetRemaining(c, c, iterator);
+        resetRemaining(c, iterator);
         return MergeResult.CONTINUE;
       } else if (MergeResult.FIRE.equals(mergeResult)) {
-        resetRemaining(c, c, iterator);
+        resetRemaining(c, iterator);
         return MergeResult.FIRE;
       } else if (MergeResult.FIRE_AND_FINISH.equals(mergeResult)) {
-        resetRemaining(c, c, iterator);
+        resetRemaining(c, iterator);
         return c.areAllSubtriggersFinished() ? MergeResult.FIRE_AND_FINISH : MergeResult.FIRE;
       }
     }
@@ -107,10 +107,10 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
     return MergeResult.ALREADY_FINISHED;
   }
 
-  private void resetRemaining(TriggerContext c, OnMergeContext e,
-      Iterator<ExecutableTrigger<W>> triggers) throws Exception {
+  private void resetRemaining(
+      TriggerContext c, Iterator<ExecutableTrigger<W>> triggers) throws Exception {
     while (triggers.hasNext()) {
-      c.forTrigger(triggers.next()).resetTree(e.newWindow());
+      c.forTrigger(triggers.next()).resetTree();
     }
   }
 

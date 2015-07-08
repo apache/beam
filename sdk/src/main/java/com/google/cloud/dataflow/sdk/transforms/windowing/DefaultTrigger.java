@@ -53,7 +53,7 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
 
   @Override
   public MergeResult onMerge(OnMergeContext c) throws Exception {
-    c.setTimer(c.newWindow(), c.newWindow().maxTimestamp(), TimeDomain.EVENT_TIME);
+    c.setTimer(c.window(), c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
     return MergeResult.CONTINUE;
   }
 
@@ -63,8 +63,8 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   }
 
   @Override
-  public void clear(TriggerContext c, W window) throws Exception {
-    c.deleteTimer(window, TimeDomain.EVENT_TIME);
+  public void clear(TriggerContext c) throws Exception {
+    c.deleteTimer(c.window(), TimeDomain.EVENT_TIME);
   }
 
   @Override

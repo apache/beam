@@ -123,8 +123,8 @@ public abstract class AfterWatermark<W extends BoundedWindow>
       }
 
       if (earliestTimer != null) {
-        c.store(DELAYED_UNTIL_TAG, c.newWindow(), earliestTimer);
-        c.setTimer(c.newWindow(), earliestTimer, TimeDomain.EVENT_TIME);
+        c.store(DELAYED_UNTIL_TAG, c.window(), earliestTimer);
+        c.setTimer(c.window(), earliestTimer, TimeDomain.EVENT_TIME);
       }
 
       return MergeResult.CONTINUE;
@@ -136,9 +136,9 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    public void clear(TriggerContext c, W window) throws Exception {
-      c.remove(DELAYED_UNTIL_TAG, window);
-      c.deleteTimer(window, TimeDomain.EVENT_TIME);
+    public void clear(TriggerContext c) throws Exception {
+      c.remove(DELAYED_UNTIL_TAG, c.window());
+      c.deleteTimer(c.window(), TimeDomain.EVENT_TIME);
     }
 
     @Override
@@ -202,14 +202,14 @@ public abstract class AfterWatermark<W extends BoundedWindow>
       // then the watermark must also be past the end of this window. What's more, we've already
       // fired some elements for that trigger firing, so we report FINISHED (without firing).
       for (W finishedWindow : c.getFinishedMergingWindows(c.current())) {
-        if (finishedWindow.maxTimestamp().isAfter(c.newWindow().maxTimestamp())) {
+        if (finishedWindow.maxTimestamp().isAfter(c.window().maxTimestamp())) {
           return MergeResult.ALREADY_FINISHED;
         }
       }
 
       // Otherwise, set a timer for this window, and return.
-      c.setTimer(c.newWindow(),
-          computeTargetTimestamp(c.newWindow().maxTimestamp()), TimeDomain.EVENT_TIME);
+      c.setTimer(c.window(),
+          computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
       return MergeResult.CONTINUE;
     }
 
@@ -219,8 +219,8 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    public void clear(TriggerContext c, W window) throws Exception {
-      c.deleteTimer(window, TimeDomain.EVENT_TIME);
+    public void clear(TriggerContext c) throws Exception {
+      c.deleteTimer(c.window(), TimeDomain.EVENT_TIME);
     }
 
     @Override

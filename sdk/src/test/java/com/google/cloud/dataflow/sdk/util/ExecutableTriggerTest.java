@@ -115,9 +115,7 @@ public class ExecutableTriggerTest {
     }
 
     @Override
-    public void clear(
-        TriggerContext c,
-        IntervalWindow window) throws Exception {
+    public void clear(TriggerContext c) throws Exception {
     }
 
     @Override

@@ -86,7 +86,7 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
     if (count >= countElems) {
       return MergeResult.FIRE_AND_FINISH;
     } else {
-      c.store(ELEMENTS_IN_PANE_TAG, c.newWindow(), count);
+      c.store(ELEMENTS_IN_PANE_TAG, c.window(), count);
       return MergeResult.CONTINUE;
     }
   }
@@ -97,8 +97,8 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
-  public void clear(TriggerContext c, W window) throws Exception {
-    c.remove(ELEMENTS_IN_PANE_TAG, window);
+  public void clear(TriggerContext c) throws Exception {
+    c.remove(ELEMENTS_IN_PANE_TAG, c.window());
   }
 
   @Override

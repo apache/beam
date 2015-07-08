@@ -67,8 +67,8 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
     }
 
     if (earliestTimer != null) {
-      c.store(DELAYED_UNTIL_TAG, c.newWindow(), earliestTimer);
-      c.setTimer(c.newWindow(), earliestTimer, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+      c.store(DELAYED_UNTIL_TAG, c.window(), earliestTimer);
+      c.setTimer(c.window(), earliestTimer, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     }
 
     return MergeResult.CONTINUE;
@@ -80,9 +80,9 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
   }
 
   @Override
-  public void clear(TriggerContext c, W window) throws Exception {
-    c.remove(DELAYED_UNTIL_TAG, window);
-    c.deleteTimer(window, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+  public void clear(TriggerContext c) throws Exception {
+    c.remove(DELAYED_UNTIL_TAG, c.window());
+    c.deleteTimer(c.window(), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
   }
 
   @Override

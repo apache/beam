@@ -63,7 +63,7 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
       throws Exception {
     TriggerResult result = c.subTrigger(REPEATED).invokeElement(c);
     if (result.isFinish()) {
-      c.forTrigger(c.subTrigger(REPEATED)).resetTree(c.window());
+      c.forTrigger(c.subTrigger(REPEATED)).resetTree();
     }
     return result.isFire() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
   }
@@ -72,7 +72,7 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
   public MergeResult onMerge(OnMergeContext c) throws Exception {
     MergeResult mergeResult = c.subTrigger(REPEATED).invokeMerge(c);
     if (mergeResult.isFinish()) {
-      c.forTrigger(c.subTrigger(REPEATED)).resetTree(c.newWindow());
+      c.forTrigger(c.subTrigger(REPEATED)).resetTree();
     }
     return mergeResult.isFire() ? MergeResult.FIRE : MergeResult.CONTINUE;
   }
@@ -81,7 +81,7 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
   public TriggerResult onTimer(OnTimerContext c) throws Exception {
     TriggerResult result = c.subTrigger(REPEATED).invokeTimer(c);
     if (result.isFinish()) {
-      c.forTrigger(c.subTrigger(REPEATED)).resetTree(c.window());
+      c.forTrigger(c.subTrigger(REPEATED)).resetTree();
     }
     return result.isFire() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
   }

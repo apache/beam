@@ -276,12 +276,17 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
      * Clears all keyed state for triggers in the current sub-tree and unsets all the associated
      * finished bits.
      */
-    public abstract void resetTree(W window) throws Exception;
+    public abstract void resetTree() throws Exception;
 
     /**
      * Sets the finished bit for the current trigger.
      */
     public abstract void setFinished(boolean finished);
+
+    /**
+     * The window that the current context is executing in.
+     */
+    public abstract W window();
   }
 
   @Nullable
@@ -297,12 +302,10 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   public abstract class OnElementContext extends TriggerContext {
     private final Object value;
     private final Instant timestamp;
-    private final W window;
 
-    public OnElementContext(Object value, Instant timestamp, W window) {
+    public OnElementContext(Object value, Instant timestamp) {
       this.value = value;
       this.timestamp = timestamp;
-      this.window = window;
     }
 
     /**
@@ -317,13 +320,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
      */
     public Instant eventTimestamp() {
       return timestamp;
-    }
-
-    /**
-     * The window into which the element was assigned.
-     */
-    public W window() {
-      return window;
     }
 
     /**
@@ -345,12 +341,10 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    */
   public abstract class OnMergeContext extends TriggerContext {
     private final Iterable<W> oldWindows;
-    private final W newWindow;
     protected final Map<W, BitSet> finishedSets;
 
-    public OnMergeContext(Iterable<W> oldWindows, W newWindow, Map<W, BitSet> finishedSets) {
+    public OnMergeContext(Iterable<W> oldWindows, Map<W, BitSet> finishedSets) {
       this.oldWindows = oldWindows;
-      this.newWindow = newWindow;
       this.finishedSets = finishedSets;
     }
 
@@ -359,13 +353,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
      */
     public Iterable<W> oldWindows() {
       return oldWindows;
-    }
-
-    /**
-     * The new window produced by merging the {@link #oldWindows()}.
-     */
-    public W newWindow() {
-      return newWindow;
     }
 
     /** Return true if the trigger is finished in any window being merged. */
@@ -432,10 +419,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
       this.destinationId = destinationId;
     }
 
-    public W window() {
-      return destinationId.window;
-    }
-
     public int getDestinationIndex() {
       return destinationId.getTriggerIdx();
     }
@@ -462,12 +445,11 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    * of its state.
    *
    * @param c the context to interact with
-   * @param window the window that is being cleared
    */
-  public void clear(TriggerContext c, W window) throws Exception {
+  public void clear(TriggerContext c) throws Exception {
     if (subTriggers != null) {
       for (ExecutableTrigger<W> trigger : c.subTriggers()) {
-        trigger.invokeClear(c, window);
+        trigger.invokeClear(c);
       }
     }
   }

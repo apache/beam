@@ -168,8 +168,8 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
   /**
    * Invoke clear for the current this trigger.
    */
-  public void invokeClear(Trigger<W>.TriggerContext c, W window) throws Exception {
-    trigger.clear(c.forTrigger(this), window);
+  public void invokeClear(Trigger<W>.TriggerContext c) throws Exception {
+    trigger.clear(c.forTrigger(this));
   }
 
   /**
