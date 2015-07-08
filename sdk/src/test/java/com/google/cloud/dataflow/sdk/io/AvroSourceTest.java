@@ -47,7 +47,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PushbackInputStream;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -231,7 +230,7 @@ public class AvroSourceTest {
     }
 
     AvroSource<Bird> source =
-        AvroSource.from(Paths.get(tmpFolder.getRoot().toString(), baseName + "*").toString())
+        AvroSource.from(new File(tmpFolder.getRoot().toString(), baseName + "*").toString())
             .withSchema(Bird.class);
     List<Bird> actual = SourceTestUtils.readFromSource(source, null);
     assertThat(actual, containsInAnyOrder(expected.toArray()));
