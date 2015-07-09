@@ -254,6 +254,7 @@ message ReportStatsRequest {
   required bytes key = 2;
   required fixed64 work_token = 3;
   repeated Exception exceptions = 4;
+  repeated Counter counter_updates = 5;
 }
 
 message ReportStatsResponse {
