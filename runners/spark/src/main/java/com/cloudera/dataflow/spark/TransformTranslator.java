@@ -599,7 +599,7 @@ public final class TransformTranslator {
       for (PCollectionView<?> view : views) {
         Iterable<WindowedValue<?>> collectionView = context.getPCollectionView(view);
         Coder<Iterable<WindowedValue<?>>> coderInternal = view.getCoderInternal();
-        BroadcastHelper<?> helper = new BroadcastHelper<>(collectionView, coderInternal);
+        BroadcastHelper<?> helper = BroadcastHelper.create(collectionView, coderInternal);
         //broadcast side inputs
         helper.broadcast(context.getSparkContext());
         sideInputs.put(view.getTagInternal(), helper);
