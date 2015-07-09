@@ -66,6 +66,8 @@ message OutputMessageBundle {
 message PubSubMessageBundle {
   required string topic = 1;
   repeated Message messages = 2;
+  optional string timestamp_label = 3;
+  optional string id_label = 4;
 }
 
 message TimerBundle {
