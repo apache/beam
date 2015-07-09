@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 
 /**
  * Creates a ShuffleSink from a CloudObject spec.
@@ -37,19 +38,22 @@ public class ShuffleSinkFactory {
   public static <T> ShuffleSink<T> create(PipelineOptions options,
                                           CloudObject spec,
                                           Coder<WindowedValue<T>> coder,
-                                          ExecutionContext executionContext)
+                                          ExecutionContext executionContext,
+                                          CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
-    return create(options, spec, coder);
+    return create(options, spec, coder, addCounterMutator);
   }
 
   static <T> ShuffleSink<T> create(PipelineOptions options,
                                    CloudObject spec,
-                                   Coder<WindowedValue<T>> coder)
+                                   Coder<WindowedValue<T>> coder,
+                                   CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
     return new ShuffleSink<>(
         options,
         decodeBase64(getString(spec, PropertyNames.SHUFFLE_WRITER_CONFIG, null)),
         parseShuffleKind(getString(spec, PropertyNames.SHUFFLE_KIND)),
-        coder);
+        coder,
+        addCounterMutator);
   }
 }

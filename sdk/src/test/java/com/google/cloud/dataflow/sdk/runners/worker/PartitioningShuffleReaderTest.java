@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
@@ -70,14 +71,17 @@ public class PartitioningShuffleReaderTest {
         KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()), IntervalWindow.getCoder());
 
     // Write to shuffle with PARTITION_KEYS ShuffleSink.
+     CounterSet.AddCounterMutator addCounterMutator =
+         new CounterSet().getAddCounterMutator();
     ShuffleSink<KV<Integer, String>> shuffleSink = new ShuffleSink<>(
-        PipelineOptionsFactory.create(), null, ShuffleSink.ShuffleKind.PARTITION_KEYS, elemCoder);
+        PipelineOptionsFactory.create(), null, ShuffleSink.ShuffleKind.PARTITION_KEYS,
+        elemCoder, addCounterMutator);
 
     TestShuffleWriter shuffleWriter = new TestShuffleWriter();
 
     List<Long> actualSizes = new ArrayList<>();
     try (Sink.SinkWriter<WindowedValue<KV<Integer, String>>> shuffleSinkWriter =
-        shuffleSink.writer(shuffleWriter)) {
+        shuffleSink.writer(shuffleWriter, "dataset")) {
       for (WindowedValue<KV<Integer, String>> value : expected) {
         actualSizes.add(shuffleSinkWriter.add(value));
       }

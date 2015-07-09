@@ -53,7 +53,7 @@ public class AvroSinkFactoryTest {
     cloudSink.setCodec(encoding);
 
     Sink<?> sink = SinkFactory.create(PipelineOptionsFactory.create(), cloudSink,
-                                      new BatchModeExecutionContext());
+        new BatchModeExecutionContext(), null);
     return sink;
   }
 

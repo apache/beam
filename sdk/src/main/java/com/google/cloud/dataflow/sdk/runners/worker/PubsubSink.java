@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.protobuf.ByteString;
 
@@ -52,7 +53,8 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
   public static <T> PubsubSink<T> create(PipelineOptions options,
                                          CloudObject spec,
                                          Coder<WindowedValue<T>> coder,
-                                         ExecutionContext context)
+                                         ExecutionContext context,
+                                         CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
     String topic = getString(spec, "pubsub_topic");
     return new PubsubSink<>(topic, coder, (StreamingModeExecutionContext) context);

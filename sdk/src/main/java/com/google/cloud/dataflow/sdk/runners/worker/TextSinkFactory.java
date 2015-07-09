@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 
 /**
  * Creates a TextSink from a CloudObject spec.
@@ -35,7 +36,8 @@ public final class TextSinkFactory {
   public static <T> TextSink<T> create(PipelineOptions options,
                                        CloudObject spec,
                                        Coder<T> coder,
-                                       ExecutionContext executionContext)
+                                       ExecutionContext executionContext,
+                                       CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
     return create(spec, coder);
   }

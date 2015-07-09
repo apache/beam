@@ -41,6 +41,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
@@ -102,16 +103,19 @@ public class GroupingShuffleReaderTest {
             KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(StringUtf8Coder.of())),
             IntervalWindow.getCoder());
 
+    CounterSet.AddCounterMutator addCounterMutator =
+        new CounterSet().getAddCounterMutator();
     // Write to shuffle with GROUP_KEYS ShuffleSink.
     ShuffleSink<KV<Integer, String>> shuffleSink = new ShuffleSink<>(
-        PipelineOptionsFactory.create(), null, ShuffleSink.ShuffleKind.GROUP_KEYS, sinkElemCoder);
+        PipelineOptionsFactory.create(), null, ShuffleSink.ShuffleKind.GROUP_KEYS,
+        sinkElemCoder, addCounterMutator);
 
     TestShuffleWriter shuffleWriter = new TestShuffleWriter();
 
     int kvCount = 0;
     List<Long> actualSizes = new ArrayList<>();
     try (Sink.SinkWriter<WindowedValue<KV<Integer, String>>> shuffleSinkWriter =
-        shuffleSink.writer(shuffleWriter)) {
+        shuffleSink.writer(shuffleWriter, "dataset")) {
       for (KV<Integer, List<String>> kvs : input) {
         Integer key = kvs.getKey();
         for (String value : kvs.getValue()) {

@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.Serializer;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
@@ -35,7 +36,8 @@ import java.util.Map;
  * following signature:
  * <pre> {@code
  * static SomeSinkSubclass<T> create(PipelineOptions, CloudObject,
- *                                   Coder<T>, ExecutionContext);
+ *                                   Coder<T>, ExecutionContext,
+ *                                   CounterSet.AddCounterMutator);
  * } </pre>
  */
 public final class SinkFactory {
@@ -71,7 +73,8 @@ public final class SinkFactory {
   public static <T> Sink<T> create(
       PipelineOptions options,
       com.google.api.services.dataflow.model.Sink cloudSink,
-      ExecutionContext executionContext)
+      ExecutionContext executionContext,
+      CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
     Coder<T> coder = Serializer.deserialize(cloudSink.getCodec(), Coder.class);
     CloudObject object = CloudObject.fromSpec(cloudSink.getSpec());
@@ -89,6 +92,7 @@ public final class SinkFactory {
           .withArg(CloudObject.class, object)
           .withArg(Coder.class, coder)
           .withArg(ExecutionContext.class, executionContext)
+          .withArg(CounterSet.AddCounterMutator.class, addCounterMutator)
           .build();
 
     } catch (ClassNotFoundException exn) {

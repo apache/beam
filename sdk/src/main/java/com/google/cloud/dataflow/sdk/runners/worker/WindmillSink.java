@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.protobuf.ByteString;
@@ -83,7 +84,9 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   public static <T> WindmillSink<T> create(PipelineOptions options,
                                            CloudObject spec,
                                            Coder<WindowedValue<T>> coder,
-                                           ExecutionContext context) throws Exception {
+                                           ExecutionContext context,
+                                           CounterSet.AddCounterMutator addCounterMutator)
+      throws Exception {
     return new WindmillSink<>(getString(spec, "stream_id"), coder,
         (StreamingModeExecutionContext) context);
   }

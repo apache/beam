@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink.SinkWriter;
@@ -87,15 +88,18 @@ public class ShuffleSinkTest {
       throws Exception {
     Coder<WindowedValue<Integer>> windowedValueCoder =
         WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), new GlobalWindows().windowCoder());
+    CounterSet.AddCounterMutator addCounterMutator =
+        new CounterSet().getAddCounterMutator();
     ShuffleSink<Integer> shuffleSink = new ShuffleSink<>(
         PipelineOptionsFactory.create(),
         null, ShuffleSink.ShuffleKind.UNGROUPED,
-        windowedValueCoder);
+        windowedValueCoder,
+        addCounterMutator);
 
     TestShuffleWriter shuffleWriter = new TestShuffleWriter();
     List<Long> actualSizes = new ArrayList<>();
     try (Sink.SinkWriter<WindowedValue<Integer>> shuffleSinkWriter =
-             shuffleSink.writer(shuffleWriter)) {
+             shuffleSink.writer(shuffleWriter, "dataset")) {
       for (Integer value : expected) {
         actualSizes.add(shuffleSinkWriter.add(WindowedValue.valueInGlobalWindow(value)));
       }
@@ -120,17 +124,20 @@ public class ShuffleSinkTest {
   void runTestWriteGroupingShuffleSink(
       List<KV<Integer, String>> expected)
       throws Exception {
+    CounterSet.AddCounterMutator addCounterMutator =
+        new CounterSet().getAddCounterMutator();
     ShuffleSink<KV<Integer, String>> shuffleSink = new ShuffleSink<>(
         PipelineOptionsFactory.create(),
         null, ShuffleSink.ShuffleKind.GROUP_KEYS,
         WindowedValue.getFullCoder(
             KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()),
-            IntervalWindow.getCoder()));
+            IntervalWindow.getCoder()),
+        addCounterMutator);
 
     TestShuffleWriter shuffleWriter = new TestShuffleWriter();
     List<Long> actualSizes = new ArrayList<>();
     try (SinkWriter<WindowedValue<KV<Integer, String>>> shuffleSinkWriter =
-             shuffleSink.writer(shuffleWriter)) {
+             shuffleSink.writer(shuffleWriter, "dataset")) {
       for (KV<Integer, String> kv : expected) {
         actualSizes.add(shuffleSinkWriter.add(
             WindowedValue.of(KV.of(kv.getKey(), kv.getValue()),
@@ -164,6 +171,8 @@ public class ShuffleSinkTest {
   void runTestWriteGroupingSortingShuffleSink(
       List<KV<Integer, KV<String, Integer>>> expected)
       throws Exception {
+    CounterSet.AddCounterMutator addCounterMutator =
+        new CounterSet().getAddCounterMutator();
     ShuffleSink<KV<Integer, KV<String, Integer>>> shuffleSink =
         new ShuffleSink<>(
             PipelineOptionsFactory.create(),
@@ -173,12 +182,13 @@ public class ShuffleSinkTest {
                 KvCoder.of(BigEndianIntegerCoder.of(),
                            KvCoder.of(StringUtf8Coder.of(),
                                       BigEndianIntegerCoder.of())),
-                new GlobalWindows().windowCoder()));
+                new GlobalWindows().windowCoder()),
+            addCounterMutator);
 
     TestShuffleWriter shuffleWriter = new TestShuffleWriter();
     List<Long> actualSizes = new ArrayList<>();
     try (Sink.SinkWriter<WindowedValue<KV<Integer, KV<String, Integer>>>> shuffleSinkWriter =
-             shuffleSink.writer(shuffleWriter)) {
+             shuffleSink.writer(shuffleWriter, "dataset")) {
       for (KV<Integer, KV<String, Integer>> kv : expected) {
         actualSizes.add(shuffleSinkWriter.add(WindowedValue.valueInGlobalWindow(kv)));
       }

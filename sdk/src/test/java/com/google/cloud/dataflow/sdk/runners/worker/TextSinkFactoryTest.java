@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 
 import org.hamcrest.core.IsInstanceOf;
@@ -66,9 +67,12 @@ public class TextSinkFactoryTest {
     cloudSink.setSpec(spec);
     cloudSink.setCodec(encoding);
 
+    CounterSet.AddCounterMutator addCounterMutator =
+        new CounterSet().getAddCounterMutator();
     Sink<?> sink = SinkFactory.create(PipelineOptionsFactory.create(),
                                       cloudSink,
-                                      new BatchModeExecutionContext());
+                                      new BatchModeExecutionContext(),
+                                      addCounterMutator);
     Assert.assertThat(sink, new IsInstanceOf(TextSink.class));
     TextSink<?> textSink = (TextSink<?>) sink;
     Assert.assertEquals(filename, textSink.namePrefix);

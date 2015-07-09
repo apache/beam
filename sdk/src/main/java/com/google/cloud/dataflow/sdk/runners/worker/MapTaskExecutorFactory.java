@@ -149,7 +149,8 @@ public class MapTaskExecutorFactory {
       CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) throws Exception {
     WriteInstruction write = instruction.getWrite();
 
-    Sink sink = SinkFactory.create(options, write.getSink(), executionContext);
+    @SuppressWarnings("unchecked")
+    Sink sink = SinkFactory.create(options, write.getSink(), executionContext, addCounterMutator);
 
     OutputReceiver[] receivers =
         createOutputReceivers(instruction, counterPrefix, addCounterMutator, stateSampler, 0);

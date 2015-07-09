@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
@@ -50,17 +51,20 @@ public class UngroupedShuffleReaderTest {
     Coder<WindowedValue<Integer>> elemCoder =
         WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), IntervalWindow.getCoder());
 
+    CounterSet.AddCounterMutator addCounterMutator =
+        new CounterSet().getAddCounterMutator();
     // Write to shuffle with UNGROUPED ShuffleSink.
     ShuffleSink<Integer> shuffleSink = new ShuffleSink<>(
         PipelineOptionsFactory.create(),
         null, ShuffleSink.ShuffleKind.UNGROUPED,
-        elemCoder);
+        elemCoder,
+        addCounterMutator);
 
     TestShuffleWriter shuffleWriter = new TestShuffleWriter();
 
     List<Long> actualSizes = new ArrayList<>();
     try (Sink.SinkWriter<WindowedValue<Integer>> shuffleSinkWriter =
-             shuffleSink.writer(shuffleWriter)) {
+             shuffleSink.writer(shuffleWriter, "dataset")) {
       for (Integer value : expected) {
         actualSizes.add(shuffleSinkWriter.add(
             WindowedValue.of(value, timestamp, Lists.newArrayList(window), null)));

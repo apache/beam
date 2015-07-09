@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 
 import org.hamcrest.CoreMatchers;
@@ -43,7 +44,8 @@ public class SinkFactoryTest {
     public static TestSink create(PipelineOptions options,
                                   CloudObject o,
                                   Coder<Integer> coder,
-                                  ExecutionContext executionContext) {
+                                  ExecutionContext executionContext,
+                                  CounterSet.AddCounterMutator addCounterMutator) {
       return new TestSink();
     }
   }
@@ -77,9 +79,12 @@ public class SinkFactoryTest {
     cloudSink.setSpec(spec);
     cloudSink.setCodec(makeCloudEncoding("StringUtf8Coder"));
 
+    CounterSet.AddCounterMutator addCounterMutator =
+        new CounterSet().getAddCounterMutator();
     Sink<?> sink = SinkFactory.create(PipelineOptionsFactory.create(),
                                       cloudSink,
-                                      new BatchModeExecutionContext());
+                                      new BatchModeExecutionContext(),
+                                      addCounterMutator);
     Assert.assertThat(sink, new IsInstanceOf(TextSink.class));
   }
 
@@ -92,9 +97,12 @@ public class SinkFactoryTest {
     cloudSink.setSpec(spec);
     cloudSink.setCodec(makeCloudEncoding("BigEndianIntegerCoder"));
 
+    CounterSet.AddCounterMutator addCounterMutator =
+        new CounterSet().getAddCounterMutator();
     Sink<?> sink = SinkFactory.create(PipelineOptionsFactory.create(),
                                       cloudSink,
-                                      new BatchModeExecutionContext());
+                                      new BatchModeExecutionContext(),
+                                      addCounterMutator);
     Assert.assertThat(sink, new IsInstanceOf(TestSink.class));
   }
 
@@ -106,9 +114,12 @@ public class SinkFactoryTest {
     cloudSink.setSpec(spec);
     cloudSink.setCodec(makeCloudEncoding("StringUtf8Coder"));
     try {
+      CounterSet.AddCounterMutator addCounterMutator =
+          new CounterSet().getAddCounterMutator();
       SinkFactory.create(PipelineOptionsFactory.create(),
                          cloudSink,
-                         new BatchModeExecutionContext());
+                         new BatchModeExecutionContext(),
+                         addCounterMutator);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
       Assert.assertThat(exn.toString(),
