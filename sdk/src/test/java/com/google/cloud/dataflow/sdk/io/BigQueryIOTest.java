@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import com.google.api.client.util.Data;
 import com.google.api.services.bigquery.model.TableReference;
@@ -29,14 +30,17 @@ import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -50,17 +54,30 @@ public class BigQueryIOTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  private void checkReadObject(
+  private void checkReadTableObject(
       BigQueryIO.Read.Bound bound, String project, String dataset, String table) {
-    checkReadObjectWithValidate(bound, project, dataset, table, true);
+    checkReadTableObjectWithValidate(bound, project, dataset, table, true);
   }
 
-  private void checkReadObjectWithValidate(
+  private void checkReadQueryObject(
+      BigQueryIO.Read.Bound bound, String query) {
+    checkReadQueryObjectWithValidate(bound, query, true);
+  }
+
+  private void checkReadTableObjectWithValidate(
       BigQueryIO.Read.Bound bound, String project, String dataset, String table, boolean validate) {
     assertEquals(project, bound.table.getProjectId());
     assertEquals(dataset, bound.table.getDatasetId());
     assertEquals(table, bound.table.getTableId());
-    assertEquals(validate, bound.validate);
+    assertNull(bound.query);
+    assertEquals(validate, bound.getValidate());
+  }
+
+  private void checkReadQueryObjectWithValidate(
+      BigQueryIO.Read.Bound bound, String query, boolean validate) {
+    assertNull(bound.table);
+    assertEquals(query, bound.query);
+    assertEquals(validate, bound.getValidate());
   }
 
   private void checkWriteObject(
@@ -91,26 +108,42 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testBuildSource() {
+  public void testBuildTableBasedSource() {
     BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
         .from("foo.com:project:somedataset.sometable");
-    checkReadObject(bound, "foo.com:project", "somedataset", "sometable");
+    checkReadTableObject(bound, "foo.com:project", "somedataset", "sometable");
   }
 
   @Test
-  public void testBuildSourcewithoutValidation() {
+  public void testBuildQueryBasedSource() {
+    BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyQuery")
+        .fromQuery("foo_query");
+    checkReadQueryObject(bound, "foo_query");
+  }
+
+  @Test
+  public void testBuildTableBasedSourceWithoutValidation() {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
     BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
         .from("foo.com:project:somedataset.sometable").withoutValidation();
-    checkReadObjectWithValidate(bound, "foo.com:project", "somedataset", "sometable", false);
+    checkReadTableObjectWithValidate(bound, "foo.com:project", "somedataset", "sometable", false);
   }
 
   @Test
-  public void testBuildSourceWithDefaultProject() {
+  public void testBuildQueryBasedSourceWithoutValidation() {
+    // This test just checks that using withoutValidation will not trigger object
+    // construction errors.
+    BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
+        .fromQuery("some_query").withoutValidation();
+    checkReadQueryObjectWithValidate(bound, "some_query", false);
+  }
+
+  @Test
+  public void testBuildTableBasedSourceWithDefaultProject() {
     BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
         .from("somedataset.sometable");
-    checkReadObject(bound, null, "somedataset", "sometable");
+    checkReadTableObject(bound, null, "somedataset", "sometable");
   }
 
   @Test
@@ -121,13 +154,33 @@ public class BigQueryIOTest {
         .setTableId("sometable");
     BigQueryIO.Read.Bound bound = BigQueryIO.Read.named("ReadMyTable")
         .from(table);
-    checkReadObject(bound, "foo.com:project", "somedataset", "sometable");
+    checkReadTableObject(bound, "foo.com:project", "somedataset", "sometable");
   }
 
-  @Test(expected = IllegalStateException.class)
-  public void testBuildSourceWithoutTable() {
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBuildSourceWithoutTableOrQuery() {
     Pipeline p = TestPipeline.create();
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(Matchers.containsString(
+        "Invalid BigQuery read operation, either table reference or query has to be set"));
     p.apply(BigQueryIO.Read.named("ReadMyTable"));
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBuildSourceWithTableAndQuery() {
+    Pipeline p = TestPipeline.create();
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(Matchers.containsString(
+        "Invalid BigQuery read operation. Specifies both a query and a table, only one of these"
+        + " should be provided"));
+    p.apply(
+        BigQueryIO.Read.named("ReadMyTable")
+            .from("foo.com:project:somedataset.sometable")
+            .fromQuery("query"));
+    p.run();
   }
 
   @Test
@@ -172,9 +225,12 @@ public class BigQueryIOTest {
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
   }
 
-  @Test(expected = IllegalStateException.class)
+  @Test
+  @Category(RunnableOnService.class)
   public void testBuildSinkWithoutTable() {
     Pipeline p = TestPipeline.create();
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(Matchers.containsString("must set the table reference"));
     p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
         .apply(BigQueryIO.Write.named("WriteMyTable"));
   }

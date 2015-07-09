@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 
+import static com.google.cloud.dataflow.sdk.io.BigQueryIO.Read.Bound.verifyDatasetPresence;
+import static com.google.cloud.dataflow.sdk.io.BigQueryIO.Read.Bound.verifyTablePresence;
+
 import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
@@ -43,30 +46,26 @@ public class BigQueryIOTranslator {
   public static class ReadTranslator
       implements DataflowPipelineTranslator.TransformTranslator<BigQueryIO.Read.Bound> {
 
-    @Override
-    public void translate(BigQueryIO.Read.Bound transform,
-                          DataflowPipelineTranslator.TranslationContext context) {
-      TableReference table = transform.getTable();
-      if (table.getProjectId() == null) {
-        table.setProjectId(context.getPipelineOptions().getProject());
-      }
-
-      // Check for source table presence for early failure notification.
-      // Note that a presence check can fail if the table or dataset are created by earlier stages
-      // of the pipeline. For these cases the withoutValidation method can be used to disable
-      // the check.
-      if (transform.getValidate()) {
-        verifyDatasetPresence(context.getPipelineOptions(), table);
-        verifyTablePresence(context.getPipelineOptions(), table);
-      }
-
+@Override
+    public void translate(
+        BigQueryIO.Read.Bound transform, DataflowPipelineTranslator.TranslationContext context) {
       // Actual translation.
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, "bigquery");
-      context.addInput(PropertyNames.BIGQUERY_TABLE, table.getTableId());
-      context.addInput(PropertyNames.BIGQUERY_DATASET, table.getDatasetId());
-      if (table.getProjectId() != null) {
-        context.addInput(PropertyNames.BIGQUERY_PROJECT, table.getProjectId());
+
+      if (transform.getQuery() != null) {
+        context.addInput(PropertyNames.BIGQUERY_QUERY, transform.getQuery());
+      } else {
+        TableReference table = transform.getTable();
+        if (table.getProjectId() == null) {
+          table.setProjectId(context.getPipelineOptions().getProject());
+        }
+
+        context.addInput(PropertyNames.BIGQUERY_TABLE, table.getTableId());
+        context.addInput(PropertyNames.BIGQUERY_DATASET, table.getDatasetId());
+        if (table.getProjectId() != null) {
+          context.addInput(PropertyNames.BIGQUERY_PROJECT, table.getProjectId());
+        }
       }
       context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
@@ -134,47 +133,6 @@ public class BigQueryIOTranslator {
       context.addEncodingInput(
           WindowedValue.getValueOnlyCoder(TableRowJsonCoder.of()));
       context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
-    }
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
-
-  private static void verifyDatasetPresence(
-      BigQueryOptions options,
-      TableReference table) {
-    try {
-      Bigquery client = Transport.newBigQueryClient(options).build();
-      client.datasets().get(table.getProjectId(), table.getDatasetId())
-            .execute();
-    } catch (IOException e) {
-      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-      if (errorExtractor.itemNotFound(e)) {
-        throw new IllegalArgumentException(
-            "BigQuery dataset not found for table \"" + BigQueryIO.toTableSpec(table)
-            + "\". Please create the dataset before pipeline execution.");
-      } else {
-        throw new RuntimeException(
-            "unable to confirm BigQuery dataset presence", e);
-      }
-    }
-  }
-
-  private static void verifyTablePresence(
-      BigQueryOptions options,
-      TableReference table) {
-    try {
-      Bigquery client = Transport.newBigQueryClient(options).build();
-      client.tables().get(table.getProjectId(), table.getDatasetId(), table.getTableId())
-            .execute();
-    } catch (IOException e) {
-      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-      if (errorExtractor.itemNotFound(e)) {
-        throw new IllegalArgumentException(
-            "BigQuery table not found: " + BigQueryIO.toTableSpec(table), e);
-      } else {
-        throw new RuntimeException(
-            "unable to confirm BigQuery table presence", e);
-      }
     }
   }
 

@@ -21,6 +21,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
+import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -35,11 +36,22 @@ public class BigQueryReaderFactory {
 
   public static BigQueryReader create(PipelineOptions options, CloudObject spec, Coder<?> coder,
       ExecutionContext executionContext) throws Exception {
-    return new BigQueryReader(
-        options.as(BigQueryOptions.class),
-        new TableReference()
-            .setProjectId(getString(spec, PropertyNames.BIGQUERY_PROJECT))
-            .setDatasetId(getString(spec, PropertyNames.BIGQUERY_DATASET))
-            .setTableId(getString(spec, PropertyNames.BIGQUERY_TABLE)));
+    String query = getString(spec, PropertyNames.BIGQUERY_QUERY, null);
+    if (query != null) {
+      GcpOptions gcpOptions = options.as(GcpOptions.class);
+      return new BigQueryReader(options.as(BigQueryOptions.class), query, gcpOptions.getProject());
+    }
+
+    String tableId = getString(spec, PropertyNames.BIGQUERY_TABLE, null);
+    if (tableId != null) {
+      return new BigQueryReader(
+          options.as(BigQueryOptions.class),
+          new TableReference()
+              .setProjectId(getString(spec, PropertyNames.BIGQUERY_PROJECT))
+              .setDatasetId(getString(spec, PropertyNames.BIGQUERY_DATASET))
+              .setTableId(tableId));
+    }
+
+    throw new IllegalArgumentException("Either a table or a query has to be specified");
   }
 }

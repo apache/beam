@@ -40,6 +40,8 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
   final TableReference tableRef;
   final BigQueryOptions bigQueryOptions;
   final Bigquery bigQueryClient;
+  final String query;
+  final String projectId;
 
   /** Builds a BigQuery source using pipeline options to instantiate a Bigquery client. */
   public BigQueryReader(BigQueryOptions bigQueryOptions, TableReference tableRef) {
@@ -48,6 +50,16 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
     this.bigQueryOptions = bigQueryOptions;
     this.tableRef = tableRef;
     this.bigQueryClient = null;
+    this.query = null;
+    this.projectId = null;
+  }
+
+  public BigQueryReader(BigQueryOptions bigQueryOptions, String query, String projectId) {
+    this.bigQueryOptions = bigQueryOptions;
+    this.tableRef = null;
+    this.bigQueryClient = null;
+    this.query = query;
+    this.projectId = projectId;
   }
 
   /** Builds a BigQueryReader directly using a BigQuery client. */
@@ -55,14 +67,31 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
     this.bigQueryOptions = null;
     this.tableRef = tableRef;
     this.bigQueryClient = bigQueryClient;
+    this.query = null;
+    this.projectId = null;
+  }
+
+  public BigQueryReader(Bigquery bigQueryClient, String query, String projectId) {
+    this.bigQueryOptions = null;
+    this.tableRef = null;
+    this.bigQueryClient = bigQueryClient;
+    this.query = query;
+    this.projectId = projectId;
   }
 
   @Override
   public ReaderIterator<WindowedValue<TableRow>> iterator() throws IOException {
-    return new BigQueryReaderIterator(
-        bigQueryClient != null
-            ? bigQueryClient : Transport.newBigQueryClient(bigQueryOptions).build(),
-        tableRef);
+    if (tableRef != null) {
+      return new BigQueryReaderIterator(
+          bigQueryClient != null
+              ? bigQueryClient : Transport.newBigQueryClient(bigQueryOptions).build(),
+          tableRef);
+    } else {
+      return new BigQueryReaderIterator(
+          bigQueryClient != null
+              ? bigQueryClient : Transport.newBigQueryClient(bigQueryOptions).build(),
+          query, projectId);
+    }
   }
 
   /**
@@ -73,6 +102,10 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
 
     public BigQueryReaderIterator(Bigquery bigQueryClient, TableReference tableRef) {
       rowIterator = new BigQueryTableRowIterator(bigQueryClient, tableRef);
+    }
+
+    public BigQueryReaderIterator(Bigquery bigQueryClient, String query, String projectId) {
+      rowIterator = new BigQueryTableRowIterator(bigQueryClient, query, projectId);
     }
 
     @Override
@@ -98,6 +131,11 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
       // is used only when an entire table needs to be read by each worker (used
       // as a side input for instance).
       return null;
+    }
+
+    @Override
+    public void close() throws IOException {
+      rowIterator.close();
     }
   }
 }

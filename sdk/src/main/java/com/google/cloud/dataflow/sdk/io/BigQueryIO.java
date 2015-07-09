@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.io;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.Preconditions;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -48,7 +49,9 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
+import com.google.cloud.dataflow.sdk.util.ApiErrorExtractor;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
+import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.Transport;
@@ -115,6 +118,23 @@ import java.util.regex.Pattern;
  *         .named("Read")
  *         .from("clouddataflow-readonly:samples.weather_stations");
  * }</pre>
+ *
+ * <p> Users may provide a query to read from rather than reading all of a BigQuery table. If
+ * specified, the result obtained by executing the specified query will be used as the data of the
+ * input transform.
+ *
+ * <pre>{@code
+ * PCollection<TableRow> shakespeare = pipeline.apply(
+ *     BigQueryIO.Read
+ *         .named("Read")
+ *         .fromQuery("SELECT year, mean_temp FROM samples.weather_stations");
+ * }</pre>
+ *
+ * <p> When creating a BigQuery input transform, users should provide either a query or a table.
+ * Pipeline will fail with a validation error in following cases.
+ * (1) Both a query and a table are provided
+ * (2) Neither a query or a table are provided
+ *
  * <p><h3>Writing</h3>
  * To write to a BigQuery table, apply a {@link BigQueryIO.Write} transformation.
  * This consumes a {@code PCollection<TableRow>} as input.
@@ -271,6 +291,13 @@ public class BigQueryIO {
     }
 
     /**
+     * Reads results received after executing the given query.
+     */
+    public static Bound fromQuery(String query) {
+      return new Bound().fromQuery(query);
+    }
+
+    /**
      * Reads a BigQuery table specified as a TableReference object.
      */
     public static Bound from(TableReference table) {
@@ -292,15 +319,33 @@ public class BigQueryIO {
       private static final long serialVersionUID = 0;
 
       TableReference table;
+      final String query;
       final boolean validate;
 
+      private static final String RESOURCE_NOT_FOUND_ERROR =
+          "BigQuery %1$s not found for table \"%2$s\" . Please create the %1$s before pipeline"
+          + " execution. If the %1$s is  created by an earlier stage of the pipeline, this"
+          + " validation can be disabled using #withoutValidation.";
+
+      private static final String UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR =
+          "Unable to confirm BigQuery %1$s presence for table \"%2$s\". If the %1$s is created by"
+          + " an earlier stage of the pipeline, this validation can be disabled using"
+          + " #withoutValidation.";
+
+      private static final String QUERY_VALIDATION_FAILURE_ERROR =
+          "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
+          + "pipeline, This validation can be disabled using #withoutValidation.";
+
       Bound() {
+        query = null;
+        table = null;
         this.validate = true;
       }
 
-      Bound(String name, TableReference reference, boolean validate) {
+      Bound(String name, String query, TableReference reference, boolean validate) {
         super(name);
         this.table = reference;
+        this.query = query;
         this.validate = validate;
       }
 
@@ -308,7 +353,7 @@ public class BigQueryIO {
        * Sets the name associated with this transformation.
        */
       public Bound named(String name) {
-        return new Bound(name, table, validate);
+        return new Bound(name, query, table, validate);
       }
 
       /**
@@ -321,25 +366,114 @@ public class BigQueryIO {
       }
 
       /**
+       * Sets the BigQuery query to be used.
+       */
+      public Bound fromQuery(String query) {
+        return new Bound(name, query, table, validate);
+      }
+
+      /**
        * Sets the table specification.
        */
       public Bound from(TableReference table) {
-        return new Bound(name, table, validate);
+        return new Bound(name, query, table, validate);
       }
 
       /**
        * Disable table validation.
        */
       public Bound withoutValidation() {
-        return new Bound(name, table, false);
+        return new Bound(name, query, table, false);
+      }
+
+      /**
+       * Validates the current {@link PTransform}.
+       */
+      @Override
+      public void validate(PInput input) {
+        if (table == null && query == null) {
+          throw new IllegalStateException(
+              "Invalid BigQuery read operation, either table reference or query has to be set");
+        } else if (table != null && query != null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies both a"
+              + " query and a table, only one of these should be provided");
+        }
+
+        if (validate) {
+          // Check for source table/query presence for early failure notification.
+          // Note that a presence check can fail if the table or dataset are created by earlier
+          // stages of the pipeline or if a query depends on earlier stages of a pipeline. For these
+          // cases the withoutValidation method can be used to disable the check.
+          BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+          if (table != null) {
+            verifyDatasetPresence(bqOptions, table);
+            verifyTablePresence(bqOptions, table);
+          }
+          if (query != null) {
+            dryRunQuery(bqOptions, query);
+          }
+        }
+      }
+
+      private static void dryRunQuery(BigQueryOptions options, String query) {
+        Bigquery client = Transport.newBigQueryClient(options).build();
+        QueryRequest request = new QueryRequest();
+        request.setQuery(query);
+        request.setDryRun(true);
+
+        try {
+          BigQueryTableRowIterator.executeWithBackOff(
+              client.jobs().query(options.getProject(), request), QUERY_VALIDATION_FAILURE_ERROR,
+              query);
+        } catch (Exception e) {
+          throw new IllegalArgumentException(
+              String.format(QUERY_VALIDATION_FAILURE_ERROR, query), e);
+        }
+      }
+
+      public static void verifyDatasetPresence(BigQueryOptions options, TableReference table) {
+        try {
+          Bigquery client = Transport.newBigQueryClient(options).build();
+          BigQueryTableRowIterator.executeWithBackOff(
+              client.datasets().get(table.getProjectId(), table.getDatasetId()),
+              RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table));
+        } catch (Exception e) {
+          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+          if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
+            throw new IllegalArgumentException(
+                String.format(RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table)),
+                e);
+          } else {
+            throw new RuntimeException(
+                String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset",
+                    BigQueryIO.toTableSpec(table)),
+                e);
+          }
+        }
+      }
+
+      public static void verifyTablePresence(BigQueryOptions options, TableReference table) {
+        try {
+          Bigquery client = Transport.newBigQueryClient(options).build();
+          BigQueryTableRowIterator.executeWithBackOff(
+              client.tables().get(table.getProjectId(), table.getDatasetId(), table.getTableId()),
+              RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table));
+        } catch (Exception e) {
+          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+          if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
+            throw new IllegalArgumentException(
+                String.format(RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table)), e);
+          } else {
+            throw new RuntimeException(
+                String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "table",
+                    BigQueryIO.toTableSpec(table)),
+                e);
+          }
+        }
       }
 
       @Override
       public PCollection<TableRow> apply(PInput input) {
-        if (table == null) {
-          throw new IllegalStateException(
-              "must set the table reference of a BigQueryIO.Read transform");
-        }
         return PCollection.<TableRow>createPrimitiveOutputInternal(
             input.getPipeline(),
             WindowingStrategy.globalDefault(),
@@ -371,6 +505,10 @@ public class BigQueryIO {
        */
       public TableReference getTable() {
         return table;
+      }
+
+      public String getQuery() {
+        return query;
       }
 
       /**
@@ -1085,14 +1223,20 @@ public class BigQueryIO {
       Read.Bound transform, DirectPipelineRunner.EvaluationContext context) {
     BigQueryOptions options = context.getPipelineOptions();
     Bigquery client = Transport.newBigQueryClient(options).build();
-    TableReference ref = transform.table;
-    if (ref.getProjectId() == null) {
-      ref.setProjectId(options.getProject());
+    if (transform.table != null && transform.table.getProjectId() == null) {
+      transform.table.setProjectId(options.getProject());
     }
 
-    LOG.info("Reading from BigQuery table {}", toTableSpec(ref));
-    List<WindowedValue<TableRow>> elems =
-        ReaderUtils.readElemsFromReader(new BigQueryReader(client, ref));
+    BigQueryReader reader = null;
+    if (transform.query != null) {
+      LOG.info("Reading from BigQuery query {}", transform.query);
+      reader = new BigQueryReader(client, transform.query, options.getProject());
+    } else {
+      reader = new BigQueryReader(client, transform.table);
+      LOG.info("Reading from BigQuery table {}", toTableSpec(transform.table));
+    }
+
+    List<WindowedValue<TableRow>> elems = ReaderUtils.readElemsFromReader(reader);
     LOG.info("Number of records read from BigQuery: {}", elems.size());
     context.setPCollectionWindowedValue(context.getOutput(transform), elems);
   }

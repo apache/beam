@@ -36,7 +36,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class BigQueryReaderFactoryTest {
-  void runTestCreateBigQueryReader(
+  void runTestCreateBigQueryReaderFromTable(
       String project, String dataset, String table, CloudObject encoding) throws Exception {
     CloudObject spec = CloudObject.forClassName("BigQuerySource");
     addString(spec, "project", project);
@@ -56,9 +56,29 @@ public class BigQueryReaderFactoryTest {
     Assert.assertEquals(table, bigQueryReader.tableRef.getTableId());
   }
 
+  void runTestCreateBigQueryReaderFromQuery(String query, CloudObject encoding) throws Exception {
+    CloudObject spec = CloudObject.forClassName("BigQuerySource");
+    addString(spec, "bigquery_query", query);
+
+    Source cloudSource = new Source();
+    cloudSource.setSpec(spec);
+    cloudSource.setCodec(encoding);
+
+    Reader<?> reader = ReaderFactory.create(
+        PipelineOptionsFactory.create(), cloudSource, DirectModeExecutionContext.create());
+    Assert.assertThat(reader, new IsInstanceOf(BigQueryReader.class));
+    BigQueryReader bigQueryReader = (BigQueryReader) reader;
+    Assert.assertEquals(query, bigQueryReader.query);
+  }
+
   @Test
-  public void testCreateBigQueryReader() throws Exception {
-    runTestCreateBigQueryReader(
+  public void testCreateBigQueryReaderFromQuery() throws Exception {
+    runTestCreateBigQueryReaderFromQuery("somequery", makeCloudEncoding("TableRowJsonCoder"));
+  }
+
+  @Test
+  public void testCreateBigQueryReaderFromTable() throws Exception {
+    runTestCreateBigQueryReaderFromTable(
         "someproject", "somedataset", "sometable", makeCloudEncoding("TableRowJsonCoder"));
   }
 
@@ -66,7 +86,7 @@ public class BigQueryReaderFactoryTest {
   public void testCreateBigQueryReaderCoderIgnored() throws Exception {
     // BigQuery sources do not need a coder because the TableRow objects are read directly from
     // the table using the BigQuery API.
-    runTestCreateBigQueryReader(
+    runTestCreateBigQueryReaderFromTable(
         "someproject", "somedataset", "sometable", makeCloudEncoding("BigEndianIntegerCoder"));
   }
 }
