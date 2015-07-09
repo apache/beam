@@ -675,8 +675,8 @@ public class StreamingDataflowWorkerTest {
     String timer1Tag = "gAAAAAAAAACAAAAAAAAD6P____8P";
     String timer2Tag = "gAAAAAAAAACAAAAAAAAD6AA";
     String timer3Tag = "gAAAAAAAAACAAAAAAAAD6AAAAAA";
-    String bufferTag = "12:MergeWindowsgAAAAAAAAACAAAAAAAAD6A/__buffer";
-    String watermarkHoldTag = "12:MergeWindowsgAAAAAAAAACAAAAAAAAD6A/__watermark_hold";
+    String bufferTag = "MergeWindows:gAAAAAAAAACAAAAAAAAD6A/__buffer";
+    String watermarkHoldTag = "MergeWindows:gAAAAAAAAACAAAAAAAAD6A/__watermark_hold";
     String watermarkHoldData = "\000\\200\\000\\000\\000\\000\\000\\000\\000";
     String bufferData = "\000data0";
     String outputData = "\\377\\377\\377\\377\\001\\005data0\\000";

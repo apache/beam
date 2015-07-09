@@ -172,6 +172,9 @@ public class StreamingDataflowWorker {
   // Map of tokens to commit callbacks.
   private ConcurrentMap<Long, Runnable> commitCallbacks;
 
+  // Map of user state names to system state names.
+  private ConcurrentMap<String, String> stateNameMap;
+
   private ThreadFactory threadFactory;
   private BoundedQueueExecutor workUnitExecutor;
   private ExecutorService commitExecutor;
@@ -192,6 +195,7 @@ public class StreamingDataflowWorker {
     this.mapTaskExecutors = new ConcurrentHashMap<>();
     this.readerCache = new ConcurrentHashMap<>();
     this.commitCallbacks = new ConcurrentHashMap<>();
+    this.stateNameMap = new ConcurrentHashMap<>();
     for (MapTask mapTask : mapTasks) {
       addComputation(mapTask);
     }
@@ -388,7 +392,7 @@ public class StreamingDataflowWorker {
       if (workerAndContext == null) {
         context =
             new StreamingModeExecutionContext(
-                computation, stateFetcher, readerCache.get(computation));
+                computation, stateFetcher, readerCache.get(computation), stateNameMap);
         worker = MapTaskExecutorFactory.create(options, mapTask, context);
         ReadOperation readOperation = worker.getReadOperation();
         // Disable progress updates since its results are unused for streaming
@@ -537,13 +541,18 @@ public class StreamingDataflowWorker {
   private void getConfig(String computation) {
     Windmill.GetConfigRequest request =
         Windmill.GetConfigRequest.newBuilder().addComputations(computation).build();
-    for (String serializedMapTask : windmillServer.getConfig(request).getCloudWorksList()) {
+
+    Windmill.GetConfigResponse response = windmillServer.getConfig(request);
+    for (String serializedMapTask : response.getCloudWorksList()) {
       try {
         addComputation(parseMapTask(serializedMapTask));
       } catch (IOException e) {
         LOG.warn("Parsing MapTask failed: {}", serializedMapTask);
         LOG.warn("Error: ", e);
       }
+    }
+    for (Windmill.GetConfigResponse.NameMapEntry entry : response.getNameMapList()) {
+      stateNameMap.put(entry.getUserName(), entry.getSystemName());
     }
   }
 

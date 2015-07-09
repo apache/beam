@@ -625,9 +625,8 @@ public class BasicSerializableSourceFormatTest {
 
   @Test
   public void testReadUnboundedReader() throws Exception {
-    StreamingModeExecutionContext context =
-        new StreamingModeExecutionContext(
-            null, null, new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>());
+    StreamingModeExecutionContext context = new StreamingModeExecutionContext(
+        null, null, new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>(), null);
 
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);

@@ -59,15 +59,18 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   // Per-key cache of active Reader objects in use by this process.
   private ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache;
   private UnboundedSource.UnboundedReader<?> activeReader;
+  private ConcurrentMap<String, String> stateNameMap;
 
   public StreamingModeExecutionContext(
       String computation,
       StateFetcher stateFetcher,
-      ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache) {
+      ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache,
+      ConcurrentMap<String, String> stateNameMap) {
     this.computation = computation;
     this.stateFetcher = stateFetcher;
     this.sideInputCache = new HashMap<>();
     this.readerCache = readerCache;
+    this.stateNameMap = stateNameMap;
   }
 
   public void start(
@@ -373,12 +376,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     public StepContext(String stepName) {
       super(stepName);
 
-      // Mangle such that there are no partially overlapping prefixes.
-      String mangledPrefix = stepName.length() + ":" + stepName;
+      String prefix =
+          (stateNameMap.containsKey(stepName) ? stateNameMap.get(stepName) : stepName) + ":";
+
       this.tagCache = new KeyedStateCache(
-          mangledPrefix,
-          CacheBuilder.newBuilder().build(new TagLoader(mangledPrefix)),
-          CacheBuilder.newBuilder().build(new TagListLoader(mangledPrefix)));
+          prefix,
+          CacheBuilder.newBuilder().build(new TagLoader(prefix)),
+          CacheBuilder.newBuilder().build(new TagListLoader(prefix)));
     }
 
     @Override
