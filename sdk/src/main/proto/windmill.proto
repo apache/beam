@@ -242,6 +242,14 @@ message GetConfigRequest {
 
 message GetConfigResponse {
   repeated string cloud_works = 1;
+
+  message NameMapEntry {
+    optional string user_name = 1;
+    optional string system_name = 2;
+  }
+
+  // Map of user names to system names
+  repeated NameMapEntry name_map = 2;
 }
 
 // Reporting
