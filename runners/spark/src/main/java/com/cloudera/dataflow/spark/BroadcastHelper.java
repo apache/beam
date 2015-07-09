@@ -38,7 +38,7 @@ abstract class BroadcastHelper<T> implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(BroadcastHelper.class);
 
   public static <T> BroadcastHelper<T> create(T value, Coder<T> coder) {
-    if (Boolean.getBoolean(DIRECT_BROADCAST)) {
+    if (Boolean.parseBoolean(System.getProperty(DIRECT_BROADCAST, "false"))) {
       return new DirectBroadcastHelper<>(value);
     }
     return new CodedBroadcastHelper<>(value, coder);
