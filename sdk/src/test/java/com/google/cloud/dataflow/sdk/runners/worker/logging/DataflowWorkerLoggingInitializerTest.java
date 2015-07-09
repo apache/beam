@@ -28,7 +28,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
@@ -54,7 +53,7 @@ public class DataflowWorkerLoggingInitializerTest {
     Logger rootLogger = LogManager.getLogManager().getLogger("");
     assertEquals(1, rootLogger.getHandlers().length);
     assertEquals(Level.INFO, rootLogger.getLevel());
-    assertTrue(isFileHandler(rootLogger.getHandlers()[0], Level.ALL));
+    assertTrue(isDataflowWorkerLoggingHandler(rootLogger.getHandlers()[0], Level.ALL));
   }
 
   @Test
@@ -69,7 +68,7 @@ public class DataflowWorkerLoggingInitializerTest {
     Logger rootLogger = LogManager.getLogManager().getLogger("");
     assertEquals(1, rootLogger.getHandlers().length);
     assertEquals(Level.WARNING, rootLogger.getLevel());
-    assertTrue(isFileHandler(rootLogger.getHandlers()[0], Level.ALL));
+    assertTrue(isDataflowWorkerLoggingHandler(rootLogger.getHandlers()[0], Level.ALL));
   }
 
   @Test
@@ -96,9 +95,7 @@ public class DataflowWorkerLoggingInitializerTest {
     assertTrue(aLogger.getUseParentHandlers());
   }
 
-  private boolean isFileHandler(Handler handler, Level level) {
-    return handler instanceof FileHandler
-        && level.equals(handler.getLevel())
-        && handler.getFormatter() instanceof DataflowWorkerLoggingFormatter;
+  private boolean isDataflowWorkerLoggingHandler(Handler handler, Level level) {
+    return handler instanceof DataflowWorkerLoggingHandler && level.equals(handler.getLevel());
   }
 }

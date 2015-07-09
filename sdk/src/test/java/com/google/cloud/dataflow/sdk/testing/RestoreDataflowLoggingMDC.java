@@ -16,32 +16,37 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
-import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 
 import org.junit.rules.ExternalResource;
 
 /**
  * Saves and restores the current thread-local logging parameters for tests.
  */
-public class RestoreDataflowLoggingFormatter extends ExternalResource {
+public class RestoreDataflowLoggingMDC extends ExternalResource {
   private String previousJobId;
+  private String previousStageName;
+  private String previousStepName;
   private String previousWorkerId;
   private String previousWorkId;
 
-  public RestoreDataflowLoggingFormatter() {
-  }
+  public RestoreDataflowLoggingMDC() {}
 
   @Override
   protected void before() throws Throwable {
-    previousJobId = DataflowWorkerLoggingFormatter.getJobId();
-    previousWorkerId = DataflowWorkerLoggingFormatter.getWorkerId();
-    previousWorkId = DataflowWorkerLoggingFormatter.getWorkId();
+    previousJobId = DataflowWorkerLoggingMDC.getJobId();
+    previousStageName = DataflowWorkerLoggingMDC.getStageName();
+    previousStepName = DataflowWorkerLoggingMDC.getStepName();
+    previousWorkerId = DataflowWorkerLoggingMDC.getWorkerId();
+    previousWorkId = DataflowWorkerLoggingMDC.getWorkId();
   }
 
   @Override
   protected void after() {
-    DataflowWorkerLoggingFormatter.setJobId(previousJobId);
-    DataflowWorkerLoggingFormatter.setWorkerId(previousWorkerId);
-    DataflowWorkerLoggingFormatter.setWorkId(previousWorkId);
+    DataflowWorkerLoggingMDC.setJobId(previousJobId);
+    DataflowWorkerLoggingMDC.setStageName(previousStageName);
+    DataflowWorkerLoggingMDC.setStepName(previousStepName);
+    DataflowWorkerLoggingMDC.setWorkerId(previousWorkerId);
+    DataflowWorkerLoggingMDC.setWorkId(previousWorkId);
   }
 }

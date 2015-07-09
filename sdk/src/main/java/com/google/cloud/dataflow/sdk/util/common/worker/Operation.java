@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 
 /**
@@ -35,6 +36,9 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
  * finishing its consumers.
  */
 public abstract class Operation {
+  /** The name of this operation. */
+  public final String operationName;
+
   /**
    * The array of consuming receivers, one per operation output
    * "port" (e.g., DoFn main or side output).  A receiver might be
@@ -77,6 +81,7 @@ public abstract class Operation {
                    String counterPrefix,
                    CounterSet.AddCounterMutator addCounterMutator,
                    StateSampler stateSampler) {
+    this.operationName = operationName;
     this.receivers = receivers;
     this.stateSampler = stateSampler;
     startState = stateSampler.stateForName(operationName + "-start");
@@ -135,6 +140,7 @@ public abstract class Operation {
       checkUnstarted();
       initializationState = InitializationState.STARTED;
     }
+    DataflowWorkerLoggingMDC.setStepName(operationName);
   }
 
   /**
@@ -142,6 +148,7 @@ public abstract class Operation {
    * predecessor producing operations have been finished.
    */
   public void finish() throws Exception {
+    DataflowWorkerLoggingMDC.setStepName(null);
     synchronized (initializationStateLock) {
       checkStarted();
       initializationState = InitializationState.FINISHED;

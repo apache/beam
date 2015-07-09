@@ -46,6 +46,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
 import com.google.cloud.dataflow.sdk.runners.dataflow.CountingSource;
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.WorkItemCommitRequest;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -341,9 +342,14 @@ public class StreamingDataflowWorkerTest {
         makeSinkInstruction(StringUtf8Coder.of(), 0));
 
     FakeWindmillServer server = new FakeWindmillServer();
-    StreamingDataflowWorker worker = new StreamingDataflowWorker(
-        Arrays.asList(defaultMapTask(instructions)), server, createTestingPipelineOptions());
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
+    StreamingDataflowWorker worker =
+        new StreamingDataflowWorker(Arrays.asList(defaultMapTask(instructions)), server, options);
     worker.start();
+
+    // Thread locals for the job and worker should have been updated for logging.
+    assertEquals(options.getJobId(), DataflowWorkerLoggingMDC.getJobId());
+    assertEquals(options.getWorkerId(), DataflowWorkerLoggingMDC.getWorkerId());
 
     final int numIters = 2000;
     for (int i = 0; i < numIters; ++i) {

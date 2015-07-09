@@ -31,7 +31,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.logging.FileHandler;
-import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
@@ -39,26 +38,28 @@ import java.util.logging.Logger;
 
 /**
  * Sets up {@link java.util.logging} configuration on the Dataflow worker with a
- * file logger. The file logger uses the {@link DataflowWorkerLoggingFormatter} format.
+ * file logger. The file logger uses the {@link DataflowWorkerLoggingHandler} format.
  * A user can override the logging level by customizing the options found within
  * {@link DataflowWorkerLoggingOptions}. A user can override the location by specifying the
  * Java system property "dataflow.worker.logging.location". The default log level is INFO
- * and the default location is a file named dataflow-worker.log within the systems temporary
+ * and the default location is a file named dataflow.json.log within the systems temporary
  * directory.
  */
 public class DataflowWorkerLoggingInitializer {
-  private static final String DEFAULT_LOGGING_LOCATION =
-      new File(System.getProperty("java.io.tmpdir"), "dataflow-worker.log").getPath();
   private static final String ROOT_LOGGER_NAME = "";
+  private static final String DEFAULT_LOGGING_LOCATION =
+      new File(System.getProperty("java.io.tmpdir"), "dataflow.json.log").getPath();
   private static final String DATAFLOW_WORKER_LOGGING_LOCATION = "dataflow.worker.logging.location";
+  private static final String DATAFLOW_WORKER_JSON_LOGGING_LOCATION =
+      "dataflow.worker.json.logging.location";
   static final ImmutableBiMap<Level, DataflowWorkerLoggingOptions.Level> LEVELS =
       ImmutableBiMap.<Level, DataflowWorkerLoggingOptions.Level>builder()
-      .put(Level.SEVERE, ERROR)
-      .put(Level.WARNING, WARN)
-      .put(Level.INFO, INFO)
-      .put(Level.FINE, DEBUG)
-      .put(Level.FINEST, TRACE)
-      .build();
+          .put(Level.SEVERE, ERROR)
+          .put(Level.WARNING, WARN)
+          .put(Level.INFO, INFO)
+          .put(Level.FINE, DEBUG)
+          .put(Level.FINEST, TRACE)
+          .build();
 
   /**
    * This default log level is overridden by the log level found at
@@ -81,14 +82,12 @@ public class DataflowWorkerLoggingInitializer {
       return;
     }
     try {
-      Level logLevel = LEVELS.inverse().get(DEFAULT_LOG_LEVEL);
-      Formatter formatter = new DataflowWorkerLoggingFormatter();
-
-      fileHandler = new FileHandler(
-          System.getProperty(DATAFLOW_WORKER_LOGGING_LOCATION, DEFAULT_LOGGING_LOCATION),
-          true /* Append so that we don't squash existing logs */);
-      fileHandler.setFormatter(formatter);
-      fileHandler.setLevel(Level.ALL);
+      DataflowWorkerLoggingHandler loggingHandler =
+          new DataflowWorkerLoggingHandler(
+              System.getProperty(
+                  DATAFLOW_WORKER_JSON_LOGGING_LOCATION,
+                  System.getProperty(DATAFLOW_WORKER_LOGGING_LOCATION, DEFAULT_LOGGING_LOCATION)));
+      loggingHandler.setLevel(Level.ALL);
 
       // Reset the global log manager, get the root logger and remove the default log handlers.
       LogManager logManager = LogManager.getLogManager();
@@ -98,8 +97,9 @@ public class DataflowWorkerLoggingInitializer {
         rootLogger.removeHandler(handler);
       }
 
+      Level logLevel = LEVELS.inverse().get(DEFAULT_LOG_LEVEL);
       rootLogger.setLevel(logLevel);
-      rootLogger.addHandler(fileHandler);
+      rootLogger.addHandler(loggingHandler);
     } catch (SecurityException | IOException e) {
       throw new ExceptionInInitializerError(e);
     }
@@ -110,6 +110,7 @@ public class DataflowWorkerLoggingInitializer {
    */
   public static synchronized void configure(DataflowWorkerLoggingOptions options) {
     initialize();
+
     if (options.getDefaultWorkerLogLevel() != null) {
       LogManager.getLogManager().getLogger(ROOT_LOGGER_NAME).setLevel(
           LEVELS.inverse().get(options.getDefaultWorkerLogLevel()));

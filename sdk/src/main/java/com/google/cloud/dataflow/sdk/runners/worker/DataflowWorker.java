@@ -30,7 +30,7 @@ import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
-import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingHandler;
 import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
 import com.google.cloud.dataflow.sdk.util.CloudMetricUtils;
 import com.google.cloud.dataflow.sdk.util.PCollectionViewWindow;
@@ -237,7 +237,7 @@ public class DataflowWorker {
     Status error = new Status();
     error.setCode(2); // Code.UNKNOWN.  TODO: Replace with a generated definition.
     // TODO: Attach the stack trace as exception details, not to the message.
-    error.setMessage(DataflowWorkerLoggingFormatter.formatException(t));
+    error.setMessage(DataflowWorkerLoggingHandler.formatException(t));
 
     reportStatus(options, "Failure", workItem, worker == null ? null : worker.getOutputCounters(),
         worker == null ? null : worker.getOutputMetrics(), null/*sourceOperationResponse*/,

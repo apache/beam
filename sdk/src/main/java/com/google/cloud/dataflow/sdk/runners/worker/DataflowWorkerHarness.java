@@ -32,8 +32,8 @@ import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingInitializer;
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.GcsIOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
@@ -185,8 +185,8 @@ public class DataflowWorkerHarness {
   }
 
   static DataflowWorker create(DataflowWorkerHarnessOptions options) {
-    DataflowWorkerLoggingFormatter.setJobId(options.getJobId());
-    DataflowWorkerLoggingFormatter.setWorkerId(options.getWorkerId());
+    DataflowWorkerLoggingMDC.setJobId(options.getJobId());
+    DataflowWorkerLoggingMDC.setWorkerId(options.getWorkerId());
     options.setAppName(APPLICATION_NAME);
 
     // Configure standard IO factories.
@@ -254,12 +254,12 @@ public class DataflowWorkerHarness {
 
       List<WorkItem> workItems = response.getWorkItems();
       if (workItems == null || workItems.isEmpty()) {
-        // We didn't lease any work
+        // We didn't lease any work.
         return null;
-      } else if (workItems.size() > 1){
+      } else if (workItems.size() > 1) {
         throw new IOException(
             "This version of the SDK expects no more than one work item from the service: "
-            + response);
+                + response);
       }
 
       WorkItem work = response.getWorkItems().get(0);
@@ -267,7 +267,17 @@ public class DataflowWorkerHarness {
         return null;
       }
 
-      DataflowWorkerLoggingFormatter.setWorkId(Long.toString(work.getId()));
+      // Capture the work item's stage name.
+      if (work.getMapTask() != null) {
+        DataflowWorkerLoggingMDC.setStageName(work.getMapTask().getStageName());
+      } else if (work.getSeqMapTask() != null) {
+        DataflowWorkerLoggingMDC.setStageName(work.getSeqMapTask().getStageName());
+      } else {
+        // Only MapTask and SeqMapTask currently have a stage name.
+        DataflowWorkerLoggingMDC.setStageName(null);
+      }
+
+      DataflowWorkerLoggingMDC.setWorkId(Long.toString(work.getId()));
       // Looks like the work's a'ight.
       return work;
     }

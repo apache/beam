@@ -20,8 +20,8 @@ import com.google.api.services.dataflow.model.MapTask;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingFormatter;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingInitializer;
+import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.util.BoundedQueueExecutor;
@@ -234,8 +234,8 @@ public class StreamingDataflowWorker {
     this.clientId = new Random().nextLong();
     this.lastException = new AtomicReference<>();
 
-    DataflowWorkerLoggingFormatter.setJobId(options.getJobId());
-    DataflowWorkerLoggingFormatter.setWorkerId(options.getWorkerId());
+    DataflowWorkerLoggingMDC.setJobId(options.getJobId());
+    DataflowWorkerLoggingMDC.setWorkerId(options.getWorkerId());
   }
 
   public void start() {
@@ -386,8 +386,9 @@ public class StreamingDataflowWorker {
     MapTaskExecutor worker = null;
 
     try {
-      DataflowWorkerLoggingFormatter.setWorkId(
+      DataflowWorkerLoggingMDC.setWorkId(
           work.getKey().toStringUtf8() + "-" + Long.toString(work.getWorkToken()));
+      DataflowWorkerLoggingMDC.setStageName(computation);
       WorkerAndContext workerAndContext = mapTaskExecutors.get(computation).poll();
       if (workerAndContext == null) {
         context =
@@ -482,7 +483,8 @@ public class StreamingDataflowWorker {
         }
       }
     } finally {
-      DataflowWorkerLoggingFormatter.setWorkId(null);
+      DataflowWorkerLoggingMDC.setWorkId(null);
+      DataflowWorkerLoggingMDC.setStageName(null);
     }
   }
 
