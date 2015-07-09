@@ -259,9 +259,6 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       return 0;
     }
 
-    // Perform a lazy seek if not done already.
-    performLazySeek();
-
     int totalBytesRead = 0;
     int retriesAttempted = 0;
 
@@ -269,6 +266,9 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     // in the first read. Therefore, loop till we either read the required number of
     // bytes or we reach end-of-stream.
     do {
+      // Perform a lazy seek if not done already.
+      performLazySeek();
+
       int remainingBeforeRead = buffer.remaining();
       try {
         int numBytesRead = readChannel.read(buffer);
@@ -296,6 +296,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         if (retriesAttempted == maxRetries) {
           LOG.warn("Already attempted max of {} retries while reading '{}'; throwing exception.",
               maxRetries, StorageResourceId.createReadableString(bucketName, objectName));
+          closeReadChannel();
           throw ioe;
         } else {
           if (retriesAttempted == 0) {
@@ -315,6 +316,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
               LOG.warn("BackOff returned false; maximum total elapsed time exhausted. Giving up "
                       + "after {} retries for '{}'", retriesAttempted,
                       StorageResourceId.createReadableString(bucketName, objectName));
+              closeReadChannel();
               throw ioe;
             }
           } catch (InterruptedException ie) {
@@ -322,6 +324,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
                 + "Giving up after {} retries for '{}'", retriesAttempted,
                 StorageResourceId.createReadableString(bucketName, objectName));
             ioe.addSuppressed(ie);
+            closeReadChannel();
             throw ioe;
           }
           LOG.info("Done sleeping before retry for '{}'; retry # {}.",
@@ -337,16 +340,10 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
             currentPosition += partialRead;
           }
 
-          // Force the stream to be reopened by seeking to the current position.
-          long newPosition = currentPosition;
-          currentPosition = -1;
-          position(newPosition);
+          // Close the channel and mark it to be reopened on next performLazySeek.
+          closeReadChannel();
+          lazySeekPending = true;
 
-          // Before performing lazy seek, explicitly close the underlying channel if necessary.
-          if (lazySeekPending && readChannel != null) {
-            closeReadChannel();
-          }
-          performLazySeek();
         }
       } catch (RuntimeException r) {
         closeReadChannel();
@@ -398,7 +395,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
    * this is not possible, and the SSLSocketImpl was already responsible for performing local
    * cleanup at the time the exception was raised.
    */
-  private void closeReadChannel() {
+  protected void closeReadChannel() {
     if (readChannel != null) {
       try {
         readChannel.close();
@@ -652,19 +649,27 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
             StorageResourceId.createReadableString(bucketName, objectName), newPosition);
         throw new IOException(msg, e);
       }
-    } catch (RuntimeException r) {
-      closeReadChannel();
-      throw r;
     }
-
-    InputStream content = response.getContent();
-    // If the file is gzip encoded, we requested the entire file and need to seek in the content
-    // to the desired position.  If it is not, we only requested the bytes we haven't read.
-    setSize(response, fileEncoding == FileEncoding.GZIPPED ? 0 : newPosition);
-    if (fileEncoding == FileEncoding.GZIPPED) {
-      content.skip(newPosition);
+    InputStream content = null;
+    try {
+      content = response.getContent();
+      // If the file is gzip encoded, we requested the entire file and need to seek in the content
+      // to the desired position.  If it is not, we only requested the bytes we haven't read.
+      setSize(response, fileEncoding == FileEncoding.GZIPPED ? 0 : newPosition);
+      if (fileEncoding == FileEncoding.GZIPPED) {
+        content.skip(newPosition);
+      }
+    } catch (IOException e) {
+      try {
+        if (content != null) {
+          content.close();
+        }
+      } catch (IOException closeException) {  // ignore error on close
+        LOG.debug("Caught exception on close after IOException thrown.", closeException);
+        e.addSuppressed(closeException);
+      }
+      throw e;
     }
-
     return content;
   }
 
