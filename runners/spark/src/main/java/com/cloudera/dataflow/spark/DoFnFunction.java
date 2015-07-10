@@ -51,20 +51,12 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
   @Override
   public Iterable<O> call(Iterator<I> iter) throws Exception {
     ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
-    //setup
     mFunction.startBundle(ctxt);
     ctxt.setup();
-    //operation
-    while (iter.hasNext()) {
-      ctxt.element = iter.next();
-      mFunction.processElement(ctxt);
-    }
-    //cleanup
-    mFunction.finishBundle(ctxt);
-    return ctxt.outputs;
+    return ctxt.getOutputIterable(iter, mFunction);
   }
 
-  private class ProcCtxt extends SparkProcessContext<I, O> {
+  private class ProcCtxt extends SparkProcessContext<I, O, O> {
 
     private final List<O> outputs = new LinkedList<>();
 
@@ -77,5 +69,15 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
     public synchronized void output(O o) {
       outputs.add(o);
     }
+
+    @Override
+    protected void clearOutput() {
+      outputs.clear();
+    }
+
+    protected Iterator<O> getOutputIterator() {
+      return outputs.iterator();
+    }
   }
+
 }

@@ -21,7 +21,7 @@ import java.util.Map;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
@@ -55,26 +55,12 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
   @Override
   public Iterable<Tuple2<TupleTag<?>, Object>> call(Iterator<I> iter) throws Exception {
     ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
-    //setup
     mFunction.startBundle(ctxt);
     ctxt.setup();
-    //operation
-    while (iter.hasNext()) {
-      ctxt.element = iter.next();
-      mFunction.processElement(ctxt);
-    }
-    //cleanup
-    mFunction.finishBundle(ctxt);
-    return Iterables.transform(ctxt.outputs.entries(),
-        new Function<Map.Entry<TupleTag<?>, Object>, Tuple2<TupleTag<?>, Object>>() {
-          @Override
-          public Tuple2<TupleTag<?>, Object> apply(Map.Entry<TupleTag<?>, Object> input) {
-            return new Tuple2<TupleTag<?>, Object>(input.getKey(), input.getValue());
-          }
-        });
+    return ctxt.getOutputIterable(iter, mFunction);
   }
 
-  private class ProcCtxt extends SparkProcessContext<I, O> {
+  private class ProcCtxt extends SparkProcessContext<I, O, Tuple2<TupleTag<?>, Object>> {
 
     private final Multimap<TupleTag<?>, Object> outputs = LinkedListMultimap.create();
 
@@ -97,5 +83,21 @@ class MultiDoFnFunction<I, O> implements PairFlatMapFunction<Iterator<I>, TupleT
     public <T> void sideOutputWithTimestamp(TupleTag<T> tupleTag, T t, Instant instant) {
       outputs.put(tupleTag, t);
     }
+
+    @Override
+    protected void clearOutput() {
+      outputs.clear();
+    }
+
+    protected Iterator<Tuple2<TupleTag<?>, Object>> getOutputIterator() {
+      return Iterators.transform(outputs.entries().iterator(),
+          new Function<Map.Entry<TupleTag<?>, Object>, Tuple2<TupleTag<?>, Object>>() {
+        @Override
+        public Tuple2<TupleTag<?>, Object> apply(Map.Entry<TupleTag<?>, Object> input) {
+          return new Tuple2<TupleTag<?>, Object>(input.getKey(), input.getValue());
+        }
+      });
+    }
+
   }
 }

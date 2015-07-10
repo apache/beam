@@ -18,6 +18,7 @@ package com.cloudera.dataflow.spark;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -34,11 +35,12 @@ import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.collect.AbstractIterator;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-abstract class SparkProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
+abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkProcessContext.class);
 
@@ -190,6 +192,62 @@ abstract class SparkProcessContext<I, O> extends DoFn<I, O>.ProcessContext {
             "WindowingInternals#writePCollectionViewData() is not yet supported.");
       }
     };
+  }
+
+  protected abstract void clearOutput();
+  protected abstract Iterator<V> getOutputIterator();
+
+  protected Iterable<V> getOutputIterable(final Iterator<I> iter, final DoFn<I, O> doFn) {
+    return new Iterable<V>() {
+      @Override
+      public Iterator<V> iterator() {
+        return new ProcCtxtIterator(iter, doFn);
+      }
+    };
+  }
+
+  private class ProcCtxtIterator extends AbstractIterator<V> {
+
+    private final Iterator<I> inputIterator;
+    private final DoFn<I, O> doFn;
+    private Iterator<V> outputIterator;
+
+    public ProcCtxtIterator(Iterator<I> iterator, DoFn<I, O> doFn) {
+      this.inputIterator = iterator;
+      this.doFn = doFn;
+    }
+
+    @Override
+    protected V computeNext() {
+      // Process each element from the (input) iterator, which produces, zero, one or more
+      // output elements (of type V) in the output iterator. Note that the output
+      // collection (and iterator) is reset between each call to processElement, so the
+      // collection only holds the output values for each call to processElement, rather
+      // than for the whole partition (which would use too much memory).
+      while (true) {
+        if (outputIterator != null && outputIterator.hasNext()) {
+          return outputIterator.next();
+        }
+        if (inputIterator.hasNext()) {
+          clearOutput();
+          element = inputIterator.next();
+          try {
+            doFn.processElement(SparkProcessContext.this);
+          } catch (Exception e) {
+            throw new IllegalStateException(e);
+          }
+          outputIterator = getOutputIterator();
+          continue; // try to consume outputIterator from start of loop
+        } else {
+          try {
+            doFn.finishBundle(SparkProcessContext.this);
+          } catch (Exception e) {
+            throw new IllegalStateException(e);
+          }
+          return endOfData();
+        }
+      }
+    }
   }
 
 }
