@@ -18,13 +18,10 @@ package com.google.cloud.dataflow.sdk.util;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-
-
-import com.google.api.client.util.BackOff;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,6 +33,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class IntervalBoundedExponentialBackOffTest {
   @Rule public ExpectedException exception = ExpectedException.none();
+
 
   @Test
   public void testUsingInvalidInitialInterval() throws Exception {
@@ -53,28 +51,28 @@ public class IntervalBoundedExponentialBackOffTest {
 
   @Test
   public void testThatcertainNumberOfAttemptsReachesMaxInterval() throws Exception {
-    BackOff backOff = new IntervalBoundedExponentialBackOff(1000, 500);
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(500L), lessThan(1500L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(500L), lessThan(1500L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(500L), lessThan(1500L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(500L), lessThan(1500L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(500L), lessThan(1500L)));
+    IntervalBoundedExponentialBackOff backOff = new IntervalBoundedExponentialBackOff(1000, 500);
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(374L), lessThan(1126L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThan(1500L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThan(1500L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThan(1500L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThan(1500L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThan(1500L)));
   }
 
   @Test
   public void testThatResettingAllowsReuse() throws Exception {
-    BackOff backOff = new IntervalBoundedExponentialBackOff(1000, 500);
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(500L), lessThan(1500L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(500L), lessThan(1500L)));
+    IntervalBoundedExponentialBackOff backOff = new IntervalBoundedExponentialBackOff(1000, 500);
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(374L), lessThan(1126L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThan(1500L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThan(1500L)));
     backOff.reset();
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(500L), lessThan(1500L)));
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(500L), lessThan(1500L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(374L), lessThan(1126L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThan(1500L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThan(1500L)));
   }
 
   @Test
@@ -85,6 +83,6 @@ public class IntervalBoundedExponentialBackOffTest {
     assertFalse(backOff.atMaxInterval());
     backOff.nextBackOffMillis();
     assertTrue(backOff.atMaxInterval());
-    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(500L), lessThan(1500L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L), lessThan(1500L)));
   }
 }
