@@ -38,14 +38,21 @@ import java.util.concurrent.TimeUnit;
  * @param <T> the type of the elements written to the sink
  */
 class PubsubSink<T> extends Sink<WindowedValue<T>> {
-  private String topic;
-  private Coder<WindowedValue<T>> coder;
-  private StreamingModeExecutionContext context;
+  private final String topic;
+  private final String timestampLabel;
+  private final String idLabel;
+  private final Coder<WindowedValue<T>> coder;
+  private final StreamingModeExecutionContext context;
 
-  PubsubSink(String topic,
-             Coder<WindowedValue<T>> coder,
-             StreamingModeExecutionContext context) {
+  PubsubSink(
+      String topic,
+      String timestampLabel,
+      String idLabel,
+      Coder<WindowedValue<T>> coder,
+      StreamingModeExecutionContext context) {
     this.topic = topic;
+    this.timestampLabel = timestampLabel;
+    this.idLabel = idLabel;
     this.coder = coder;
     this.context = context;
   }
@@ -57,7 +64,10 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
                                          CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
     String topic = getString(spec, "pubsub_topic");
-    return new PubsubSink<>(topic, coder, (StreamingModeExecutionContext) context);
+    String timestampLabel = getString(spec, "pubsub_timestamp_label", "");
+    String idLabel = getString(spec, "pubsub_id_label", "");
+    return new PubsubSink<>(
+        topic, timestampLabel, idLabel, coder, (StreamingModeExecutionContext) context);
   }
 
   @Override
@@ -70,7 +80,11 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
     private Windmill.PubSubMessageBundle.Builder outputBuilder;
 
     private PubsubWriter(String topic) {
-      outputBuilder = Windmill.PubSubMessageBundle.newBuilder().setTopic(topic);
+      outputBuilder =
+          Windmill.PubSubMessageBundle.newBuilder()
+              .setTopic(topic)
+              .setTimestampLabel(timestampLabel)
+              .setIdLabel(idLabel);
     }
 
     private <T> ByteString encode(Coder<T> coder, T object) throws IOException {
