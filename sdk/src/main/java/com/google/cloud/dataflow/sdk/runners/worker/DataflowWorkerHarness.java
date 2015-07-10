@@ -34,9 +34,9 @@ import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingInitializer;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
-import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.GcsIOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
+import com.google.cloud.dataflow.sdk.util.IntervalBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkProgressUpdater;
@@ -76,7 +76,7 @@ public class DataflowWorkerHarness {
 
   // ExponentialBackOff parameters for the task retry strategy. Visible for testing.
   static final int BACKOFF_INITIAL_INTERVAL_MILLIS = 5000;  // 5 second
-  static final int BACKOFF_MAX_ATTEMPTS = 10;  // 10 attempts will take approx. 15 min.
+  static final int BACKOFF_MAX_INTERVAL_MILLIS = 5 * 60 * 1000;  // 5 min.
 
   /**
    * This uncaught exception handler logs the {@link Throwable} to the logger, {@link System#err}
@@ -98,8 +98,8 @@ public class DataflowWorkerHarness {
    * Helper for initializing the BackOff used for retries.
    */
   private static BackOff createBackOff() {
-    return new AttemptBoundedExponentialBackOff(
-            BACKOFF_MAX_ATTEMPTS, BACKOFF_INITIAL_INTERVAL_MILLIS);
+    return new IntervalBoundedExponentialBackOff(
+            BACKOFF_MAX_INTERVAL_MILLIS, BACKOFF_INITIAL_INTERVAL_MILLIS);
   }
 
   /**

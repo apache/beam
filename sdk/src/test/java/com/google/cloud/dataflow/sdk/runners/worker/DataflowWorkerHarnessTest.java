@@ -29,6 +29,7 @@ import com.google.api.client.json.Json;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.LeaseWorkItemRequest;
 import com.google.api.services.dataflow.model.LeaseWorkItemResponse;
@@ -41,6 +42,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggin
 import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
 import com.google.cloud.dataflow.sdk.testing.RestoreDataflowLoggingMDC;
 import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
+import com.google.cloud.dataflow.sdk.util.IntervalBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.common.collect.ImmutableList;
@@ -57,10 +59,12 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Unit tests for {@link DataflowWorkerHarness}. */
 @RunWith(JUnit4.class)
 public class DataflowWorkerHarnessTest {
+
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public TestRule restoreLogging = new RestoreDataflowLoggingMDC();
   @Rule public ExpectedException expectedException = ExpectedException.none();
@@ -92,14 +96,32 @@ public class DataflowWorkerHarnessTest {
 
   @Test
   public void testThatWeRetryIfTaskExecutionFailAgainAndAgain() throws Exception {
-    int numWorkers = Math.max(Runtime.getRuntime().availableProcessors(), 1);
+    final int numWorkers = Math.max(Runtime.getRuntime().availableProcessors(), 1);
     when(mockDataflowWorker.getAndPerformWork()).thenReturn(false);
+    final AtomicInteger sleepCount = new AtomicInteger(0);
+    final AtomicInteger illegalIntervalCount = new AtomicInteger(0);
     DataflowWorkerHarness.processWork(
-            pipelineOptions, mockDataflowWorker, fastNanoClockAndSleeper);
-    // Test that the backoff mechanism will retry the BACKOFF_MAX_ATTEMPTS number of times.
-    verify(mockDataflowWorker, times(numWorkers * DataflowWorkerHarness.BACKOFF_MAX_ATTEMPTS))
-        .getAndPerformWork();
+        pipelineOptions,
+        mockDataflowWorker,
+        new Sleeper() {
+          @Override
+          public void sleep(long millis) throws InterruptedException {
+            if ((millis
+                    > DataflowWorkerHarness.BACKOFF_MAX_INTERVAL_MILLIS
+                        * (1 + IntervalBoundedExponentialBackOff.DEFAULT_RANDOMIZATION_FACTOR))) {
+              // We count the times the sleep interval is greater than the backoff max interval with
+              // randomization to make sure it does not happen.
+              illegalIntervalCount.incrementAndGet();
+            }
+            if (sleepCount.incrementAndGet() > 1000) {
+              throw new InterruptedException("Stopping the retry loop.");
+            }
+          }
+        });
+    // Test that the backoff mechanism will allow at least 1000 failures.
+    verify(mockDataflowWorker, times(numWorkers + 1000)).getAndPerformWork();
     verifyNoMoreInteractions(mockDataflowWorker);
+    assertEquals(0, illegalIntervalCount.get());
   }
 
   @Test
