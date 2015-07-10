@@ -667,6 +667,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category(RunnableOnService.class)
   public void testParDoInCustomTransform() {
     Pipeline p = TestPipeline.create();
 
@@ -674,7 +675,7 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of(inputs))
-        .apply(new PTransform<PCollection<Integer>, PCollection<String>>() {
+        .apply("CustomTransform", new PTransform<PCollection<Integer>, PCollection<String>>() {
             @Override
             public PCollection<String> apply(PCollection<Integer> input) {
               return input.apply(ParDo.of(new TestDoFn()));
@@ -969,8 +970,7 @@ public class ParDoTest implements Serializable {
     // Before fix, tuple.get(mainOutputTag).apply(...) would indirectly trigger
     // tuple.get(sideOutputTag).finishSpecifyingOutput(), which would crash
     // on a missing coder.
-    PCollection<Integer> foo = tuple
-        .get(mainOutputTag)
+    tuple.get(mainOutputTag)
         .setCoder(TestDummyCoder.of())
         .apply("Output1", ParDo.of(new DoFn<TestDummy, Integer>() {
           public void processElement(ProcessContext context) {
