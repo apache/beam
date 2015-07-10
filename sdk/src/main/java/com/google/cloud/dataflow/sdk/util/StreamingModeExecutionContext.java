@@ -56,6 +56,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   private StateFetcher stateFetcher;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
   private Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
+
   // Per-key cache of active Reader objects in use by this process.
   private ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache;
   private UnboundedSource.UnboundedReader<?> activeReader;

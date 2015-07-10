@@ -63,6 +63,9 @@ public @interface Experimental {
     TRIGGER,
 
     /** Aggregator-related experimental APIs. */
-    AGGREGATOR
+    AGGREGATOR,
+
+    /** State-related experimental APIs. */
+    STATE
   }
 }
