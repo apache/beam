@@ -128,10 +128,7 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
       @SuppressWarnings("unchecked")
       KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) elemCoder;
 
-      boolean isStreamingPipeline = false;
-      if (options instanceof StreamingOptions) {
-        isStreamingPipeline = ((StreamingOptions) options).isStreaming();
-      }
+      boolean isStreamingPipeline = options.as(StreamingOptions.class).isStreaming();
 
       KeyedCombineFn<?, ?, ?, ?> maybeMergingCombineFn = null;
       if (combineFn != null) {
