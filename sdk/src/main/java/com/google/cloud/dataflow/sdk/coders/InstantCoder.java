@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import com.google.common.base.Converter;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 import org.joda.time.Instant;
@@ -38,25 +41,59 @@ public class InstantCoder extends AtomicCoder<Instant> {
 
   private static final InstantCoder INSTANCE = new InstantCoder();
 
+  private final Coder<Long> longCoder = BigEndianLongCoder.of();
+
   private InstantCoder() {}
+
+  /**
+   * Converts {@link Instant} to a {@code Long} representing its millis-since-epoch,
+   * but shifted so that the byte representation of negative values are lexicographically
+   * ordered before the byte representation of positive values.
+   *
+   * <p>This deliberately utilizes the well-defined overflow for {@code Long} values.
+   * See http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.18.2
+   */
+  private static final Converter<Instant, Long> ORDER_PRESERVING_CONVERTER =
+      new Converter<Instant, Long>() {
+
+        @Override
+        protected Long doForward(Instant instant) {
+          return instant.getMillis() - Long.MIN_VALUE;
+        }
+
+        @Override
+        protected Instant doBackward(Long shiftedMillis) {
+          return new Instant(shiftedMillis + Long.MIN_VALUE);
+        }
+  };
 
   @Override
   public void encode(Instant value, OutputStream outStream, Context context)
       throws CoderException, IOException {
-    // Shift the millis by Long.MIN_VALUE so that negative values sort before positive
-    // values when encoded.  The overflow is well-defined:
-    // http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.18.2
-    BigEndianLongCoder.of().encode(value.getMillis() - Long.MIN_VALUE, outStream, context);
+    longCoder.encode(ORDER_PRESERVING_CONVERTER.convert(value), outStream, context);
   }
 
   @Override
   public Instant decode(InputStream inStream, Context context)
       throws CoderException, IOException {
-      return new Instant(BigEndianLongCoder.of().decode(inStream, context) + Long.MIN_VALUE);
+    return ORDER_PRESERVING_CONVERTER.reverse().convert(longCoder.decode(inStream, context));
   }
 
   @Override
   public boolean consistentWithEquals() {
     return true;
+  }
+
+  @Override
+  public boolean isRegisterByteSizeObserverCheap(Instant value, Context context) {
+    return longCoder.isRegisterByteSizeObserverCheap(
+        ORDER_PRESERVING_CONVERTER.convert(value), context);
+  }
+
+  @Override
+  public void registerByteSizeObserver(
+      Instant value, ElementByteSizeObserver observer, Context context) throws Exception {
+    longCoder.registerByteSizeObserver(
+        ORDER_PRESERVING_CONVERTER.convert(value), observer, context);
   }
 }

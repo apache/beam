@@ -19,12 +19,14 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.DurationCoder;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.ReadableDuration;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,7 +57,7 @@ public class IntervalWindow extends BoundedWindow
     this.end = end;
   }
 
-  public IntervalWindow(Instant start, Duration size) {
+  public IntervalWindow(Instant start, ReadableDuration size) {
     this.start = start;
     this.end = start.plus(size);
   }
@@ -157,17 +159,24 @@ public class IntervalWindow extends BoundedWindow
   }
 
   /**
-   * Returns a Coder suitable for encoding IntervalWindows.
+   * Returns a {@link Coder} suitable for {@link IntervalWindow}.
    */
   public static Coder<IntervalWindow> getCoder() {
     return IntervalWindowCoder.of();
   }
 
-  @SuppressWarnings("serial")
+  /**
+   * Encodes an {@link IntervalWindow} as a pair of its upper bound and duration.
+   */
   private static class IntervalWindowCoder extends AtomicCoder<IntervalWindow> {
+
+    private static final long serialVersionUID = 0L;
+
     private static final IntervalWindowCoder INSTANCE =
         new IntervalWindowCoder();
+
     private static final Coder<Instant> instantCoder = InstantCoder.of();
+    private static final Coder<ReadableDuration> durationCoder = DurationCoder.of();
 
     @JsonCreator
     public static IntervalWindowCoder of() {
@@ -179,16 +188,16 @@ public class IntervalWindow extends BoundedWindow
                        OutputStream outStream,
                        Context context)
         throws IOException, CoderException {
-      instantCoder.encode(window.start, outStream, context.nested());
       instantCoder.encode(window.end, outStream, context.nested());
+      durationCoder.encode(new Duration(window.start, window.end), outStream, context.nested());
     }
 
     @Override
     public IntervalWindow decode(InputStream inStream, Context context)
         throws IOException, CoderException {
-      Instant start = instantCoder.decode(inStream, context.nested());
       Instant end = instantCoder.decode(inStream, context.nested());
-      return new IntervalWindow(start, end);
+      ReadableDuration duration = durationCoder.decode(inStream, context.nested());
+      return new IntervalWindow(end.minus(duration), end);
     }
   }
 }

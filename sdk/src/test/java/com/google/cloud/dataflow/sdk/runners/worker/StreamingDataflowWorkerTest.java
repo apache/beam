@@ -678,11 +678,11 @@ public class StreamingDataflowWorkerTest {
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
     // These tags and data are opaque strings and this is a change detector test.
-    String timer1Tag = "gAAAAAAAAACAAAAAAAAD6P____8P";
-    String timer2Tag = "gAAAAAAAAACAAAAAAAAD6AA";
-    String timer3Tag = "gAAAAAAAAACAAAAAAAAD6AAAAAA";
-    String bufferTag = "MergeWindows:gAAAAAAAAACAAAAAAAAD6A/__buffer";
-    String watermarkHoldTag = "MergeWindows:gAAAAAAAAACAAAAAAAAD6A/__watermark_hold";
+    String timer1Tag = "gAAAAAAAA-joB_____8P";
+    String timer2Tag = "gAAAAAAAA-joBwA";
+    String timer3Tag = timer2Tag + "AAAA";
+    String bufferTag = "MergeWindows:gAAAAAAAA-joBw/__buffer";
+    String watermarkHoldTag = "MergeWindows:gAAAAAAAA-joBw/__watermark_hold";
     String watermarkHoldData = "\000\\200\\000\\000\\000\\000\\000\\000\\000";
     String bufferData = "\000data0";
     String outputData = "\\377\\377\\377\\377\\001\\005data0\\000";
