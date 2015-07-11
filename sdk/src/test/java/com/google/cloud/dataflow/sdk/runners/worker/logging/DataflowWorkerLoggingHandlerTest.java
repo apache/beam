@@ -129,7 +129,9 @@ public class DataflowWorkerLoggingHandlerTest {
             + escapedNewline
             + "\\tat declaringClass2.method2(file2.java:1)"
             + escapedNewline
-            + "\\tat declaringClass3.method3(file3.java:1)\\n\"}"
+            + "\\tat declaringClass3.method3(file3.java:1)"
+            + escapedNewline
+            + "\"}"
             + System.lineSeparator(),
         createJson(createLogRecord("test.message", createThrowable())));
   }
@@ -150,7 +152,9 @@ public class DataflowWorkerLoggingHandlerTest {
             + escapedNewline
             + "\\tat declaringClass2.method2(file2.java:1)"
             + escapedNewline
-            + "\\tat declaringClass3.method3(file3.java:1)\\n\"}"
+            + "\\tat declaringClass3.method3(file3.java:1)"
+            + escapedNewline
+            + "\"}"
             + System.lineSeparator(),
         createJson(createLogRecord(null, createThrowable())));
   }
