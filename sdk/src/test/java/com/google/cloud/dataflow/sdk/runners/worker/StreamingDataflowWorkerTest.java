@@ -58,7 +58,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
-import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.BoundedQueueExecutor;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
@@ -236,12 +235,6 @@ public class StreamingDataflowWorkerTest {
         .setStageName(DEFAULT_MAP_STAGE_NAME)
         .setSystemName(DEFAULT_MAP_SYSTEM_NAME)
         .setInstructions(instructions);
-  }
-
-  private Windmill.GetWorkResponse buildTimerInput(String input) throws Exception {
-    Windmill.GetWorkResponse.Builder builder = Windmill.GetWorkResponse.newBuilder();
-    TextFormat.merge(input, builder);
-    return builder.build();
   }
 
   private Windmill.GetWorkResponse buildInput(String input, byte[] metadata) throws Exception {
@@ -570,29 +563,6 @@ public class StreamingDataflowWorkerTest {
     exception = server.getException();
   }
 
-  /**
-   * An {@link AssignWindowsDoFn} that does not actually assign windows to values,
-   * but extracts their timestamps, which are output in {@code KV} pairs on a fixed key.
-   *
-   * <p>The key and value of the input are both discarded.
-   */
-  private static class TestTimerFn
-      extends AssignWindowsDoFn<KV<String, String>, BoundedWindow> {
-    private static final long serialVersionUID = 0;
-
-    private final String key;
-
-    public TestTimerFn(String key) {
-      super(null);
-      this.key = key;
-    }
-
-    @Override
-    public void processElement(ProcessContext c) {
-      c.output(KV.of(key, Long.toString(c.timestamp().getMillis())));
-    }
-  }
-
   @Test
   public void testAssignWindows() throws Exception {
     Duration gapDuration = Duration.standardSeconds(1);
@@ -712,11 +682,11 @@ public class StreamingDataflowWorkerTest {
     // These tags and data are opaque strings and this is a change detector test.
     String window = "/gAAAAAAAA-joBw/";
     ByteString timerTag = ByteString.copyFromUtf8(window + "+0:999"); // GC timer just has window
-    ByteString bufferTag = ByteString.copyFromUtf8(window + "+__buffer");
-    ByteString finishedTag = ByteString.copyFromUtf8(window + "+__finished_set");
-    ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+__pane_info");
+    ByteString bufferTag = ByteString.copyFromUtf8(window + "+sbuf");
+    ByteString finishedTag = ByteString.copyFromUtf8(window + "+sclosed");
+    ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+spane");
     ByteString watermarkHoldTag =
-        ByteString.copyFromUtf8(window + "+watermark_hold");
+        ByteString.copyFromUtf8(window + "+shold");
     String stateFamily = "MergeWindows";
     ByteString bufferData = ByteString.copyFromUtf8("\000data0");
     ByteString outputData = ByteString.copyFromUtf8("\000\000\000\001\005data0");

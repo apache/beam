@@ -69,7 +69,7 @@ public class WindmillStateInternalsTest {
   }
 
   private ByteString key(String prefix, StateNamespace namespace, String addrId) {
-    return ByteString.copyFromUtf8(prefix + namespace.stringKey() + "+" + addrId);
+    return ByteString.copyFromUtf8(prefix + namespace.stringKey() + "+u" + addrId);
   }
 
   @Before
@@ -270,7 +270,7 @@ public class WindmillStateInternalsTest {
     CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
 
     SettableFuture<Iterable<int[]>> future = SettableFuture.create();
-    when(mockReader.listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), STATE_FAMILY, accumCoder))
+    when(mockReader.listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder))
         .thenReturn(future);
 
     StateContents<Integer> result = value.get();
@@ -310,11 +310,10 @@ public class WindmillStateInternalsTest {
     CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
 
     SettableFuture<Iterable<int[]>> future = SettableFuture.create();
-    when(mockReader.listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), STATE_FAMILY, accumCoder))
+    when(mockReader.listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder))
         .thenReturn(future);
     StateContents<Boolean> result = value.isEmpty();
-    Mockito.verify(mockReader)
-        .listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), STATE_FAMILY, accumCoder);
+    Mockito.verify(mockReader).listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder);
 
     waitAndSet(future, Arrays.asList(new int[]{29}), 200);
     assertThat(result.read(), Matchers.is(false));
@@ -327,7 +326,7 @@ public class WindmillStateInternalsTest {
     value.clear();
     StateContents<Boolean> result = value.isEmpty();
     Mockito.verify(mockReader, never())
-        .listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), STATE_FAMILY, accumCoder);
+        .listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder);
     assertThat(result.read(), Matchers.is(true));
 
     value.add(87);
@@ -348,7 +347,7 @@ public class WindmillStateInternalsTest {
     assertEquals(1, commitBuilder.getListUpdatesCount());
 
     TagList listUpdates = commitBuilder.getListUpdates(0);
-    assertEquals(key(NAMESPACE, COMBINING_ADDR.getId()), listUpdates.getTag());
+    assertEquals(key(NAMESPACE, "combining"), listUpdates.getTag());
     assertEquals(1, listUpdates.getValuesCount());
     assertEquals(11,
         CoderUtils.decodeFromByteArray(accumCoder,
@@ -374,20 +373,19 @@ public class WindmillStateInternalsTest {
     assertEquals(2, commitBuilder.getListUpdatesCount());
 
     TagList listClear = commitBuilder.getListUpdates(0);
-    assertEquals(key(NAMESPACE, COMBINING_ADDR.getId()), listClear.getTag());
+    assertEquals(key(NAMESPACE, "combining"), listClear.getTag());
     assertEquals(Long.MAX_VALUE, listClear.getEndTimestamp());
     assertEquals(0, listClear.getValuesCount());
 
     TagList listUpdates = commitBuilder.getListUpdates(1);
-    assertEquals(key(NAMESPACE, COMBINING_ADDR.getId()), listUpdates.getTag());
+    assertEquals(key(NAMESPACE, "combining"), listUpdates.getTag());
     assertEquals(1, listUpdates.getValuesCount());
     assertEquals(11,
         CoderUtils.decodeFromByteArray(accumCoder,
             listUpdates.getValues(0).getData().substring(1).toByteArray())[0]);
 
     // Blind adds should not need to read the future.
-    Mockito.verify(mockReader)
-        .listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), STATE_FAMILY, accumCoder);
+    Mockito.verify(mockReader).listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder);
     Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }

@@ -99,9 +99,10 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
         (StreamingModeExecutionContext) stepContext.getExecutionContext();
 
     this.blockedMapAddr = blockedMapAddr(windowFn);
-    this.elementsAddr = StateTags.bag("elements",
-        WindowedValue.getFullCoder(doFnInfo.getInputCoder(), windowFn.windowCoder()));
-    this.watermarkHoldingAddr = StateTags.watermarkStateInternal("elementsWatermark");
+    this.elementsAddr = StateTags.makeSystemTagInternal(StateTags.bag("elem",
+        WindowedValue.getFullCoder(doFnInfo.getInputCoder(), windowFn.windowCoder())));
+    this.watermarkHoldingAddr =
+        StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal("hold"));
 
     this.blockedMap = stepContext.stateInternals().state(StateNamespaces.global(), blockedMapAddr)
         .get().read();

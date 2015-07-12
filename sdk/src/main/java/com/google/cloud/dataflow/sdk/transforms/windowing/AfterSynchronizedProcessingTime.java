@@ -15,15 +15,13 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.coders.InstantCoder;
-import com.google.cloud.dataflow.sdk.transforms.Min;
+import static com.google.cloud.dataflow.sdk.transforms.windowing.TimeTrigger.DELAYED_UNTIL_TAG;
+
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
-import com.google.cloud.dataflow.sdk.util.state.StateTag;
-import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.common.base.Objects;
 
 import org.joda.time.Instant;
@@ -33,9 +31,6 @@ import java.util.List;
 class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigger<W> {
 
   private static final long serialVersionUID = 0L;
-
-  private static final StateTag<CombiningValueState<Instant, Instant>> DELAYED_UNTIL_TAG =
-      StateTags.combiningValue("delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder());
 
   public AfterSynchronizedProcessingTime() {
     super(null);

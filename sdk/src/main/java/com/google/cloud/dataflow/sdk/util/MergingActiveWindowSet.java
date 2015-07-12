@@ -63,8 +63,9 @@ public class MergingActiveWindowSet<W extends BoundedWindow>
   public MergingActiveWindowSet(WindowFn<Object, W> windowFn, StateInternals state) {
     this.windowFn = windowFn;
 
-    StateTag<ValueState<Map<W, Set<W>>>> mergeTreeAddr = StateTags.value(
-        "mergeTree", MapCoder.of(windowFn.windowCoder(), SetCoder.of(windowFn.windowCoder())));
+    StateTag<ValueState<Map<W, Set<W>>>> mergeTreeAddr = StateTags.makeSystemTagInternal(
+        StateTags.value("tree",
+            MapCoder.of(windowFn.windowCoder(), SetCoder.of(windowFn.windowCoder()))));
     this.mergeTreeValue = state.state(StateNamespaces.global(), mergeTreeAddr);
     this.mergeTree = emptyIfNull(mergeTreeValue.get().read());
 

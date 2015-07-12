@@ -17,15 +17,11 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.coders.InstantCoder;
-import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
-import com.google.cloud.dataflow.sdk.util.state.StateTag;
-import com.google.cloud.dataflow.sdk.util.state.StateTags;
 
 import org.joda.time.Instant;
 
@@ -43,9 +39,6 @@ public class AfterProcessingTime<W extends BoundedWindow>
     extends TimeTrigger<W, AfterProcessingTime<W>> {
 
   private static final long serialVersionUID = 0L;
-
-  private static final StateTag<CombiningValueState<Instant, Instant>> DELAYED_UNTIL_TAG =
-      StateTags.combiningValue("delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder());
 
   private AfterProcessingTime(List<SerializableFunction<Instant, Instant>> transforms) {
     super(transforms);

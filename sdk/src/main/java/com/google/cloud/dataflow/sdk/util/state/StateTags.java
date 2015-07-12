@@ -31,37 +31,24 @@ import java.util.Objects;
 @Experimental(Kind.STATE)
 public class StateTags {
 
+  private enum StateKind {
+    SYSTEM('s'),
+    USER('u');
+
+    private char prefix;
+
+    StateKind(char prefix) {
+      this.prefix = prefix;
+    }
+  }
+
   private StateTags() { }
 
   /**
    * Create a simple state tag for values of type {@code T}.
    */
   public static <T> StateTag<ValueState<T>> value(String id, Coder<T> valueCoder) {
-    return new ValueStateTag<>(id, valueCoder);
-  }
-
-  private abstract static class StateTagBase<StateT extends State> implements StateTag<StateT> {
-
-    private static final long serialVersionUID = 0;
-
-    private final String id;
-
-    protected StateTagBase(String id) {
-      this.id = id;
-    }
-
-    /**
-     * Returns the identifier for this state cell.
-     */
-    @Override
-    public String getId() {
-      return id;
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(getClass()).add("id", id).toString();
-    }
+    return new ValueStateTag<>(StateKind.USER, id, valueCoder);
   }
 
   /**
@@ -73,11 +60,27 @@ public class StateTags {
     return combiningValueInternal(id, inputCoder, combineFn);
   }
 
+  // TODO: This should use the CoderRegistry from the running pipelie to ensure that it picks up
+  // any custom Coders, but that CoderRegistry isn't currently available on the worker.
+  private static final CoderRegistry REGISTRY = new CoderRegistry();
+  static {
+    REGISTRY.registerStandardCoders();
+  }
+
   private static <InputT, AccumT, OutputT> StateTag<CombiningValueState<InputT, OutputT>>
   combiningValueInternal(
       String id, Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+    Coder<AccumT> accumCoder;
+    try {
+      accumCoder = combineFn.getAccumulatorCoder(REGISTRY, inputCoder);
+    } catch (CannotProvideCoderException e) {
+      throw new RuntimeException(
+          "Unable to determine accumulator coder for combineFn: " + combineFn.getClass(), e);
+    }
+
     StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> internal =
-        new CombiningValueStateTag<InputT, AccumT, OutputT>(id, inputCoder, combineFn);
+        new CombiningValueStateTag<InputT, AccumT, OutputT>(
+            StateKind.USER, id, accumCoder, combineFn);
 
     // This is a safe cast, since StateTag only supports reading, and
     // CombiningValue<InputT, OutputT> is a super-interface of
@@ -92,14 +95,54 @@ public class StateTags {
    * occasionally retrieving all the values that have been added.
    */
   public static <T> StateTag<BagState<T>> bag(String id, Coder<T> elemCoder) {
-    return new BagStateTag<T>(id, elemCoder);
+    return new BagStateTag<T>(StateKind.USER, id, elemCoder);
   }
 
   /**
    * Create a state tag for holding the watermark.
    */
   public static <T> StateTag<WatermarkStateInternal> watermarkStateInternal(String id) {
-    return new WatermarkStateTagInternal(id);
+    return new WatermarkStateTagInternal(StateKind.USER, id);
+  }
+
+  /**
+   * Convert an arbitrary {@code StateTag} to a system-internal tag that is guaranteed not to
+   * collide with any user tags.
+   */
+  public static <StateT extends State> StateTag<StateT> makeSystemTagInternal(
+      StateTag<StateT> tag) {
+    if (!(tag instanceof StateTagBase)) {
+      throw new IllegalArgumentException("Unexpected StateTag " + tag);
+    }
+    return ((StateTagBase<StateT>) tag).asKind(StateKind.SYSTEM);
+  }
+
+  private abstract static class StateTagBase<StateT extends State> implements StateTag<StateT> {
+
+    private static final long serialVersionUID = 0;
+
+    private final StateKind kind;
+    protected final String id;
+
+    protected StateTagBase(StateKind kind, String id) {
+      this.kind = kind;
+      this.id = id;
+    }
+
+    /**
+     * Returns the identifier for this state cell.
+     */
+    @Override
+    public String getId() {
+      return kind.prefix + id;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass()).add("id", id).toString();
+    }
+
+    protected abstract StateTag<StateT> asKind(StateKind kind);
   }
 
   /**
@@ -113,8 +156,8 @@ public class StateTags {
 
     private final Coder<T> coder;
 
-    private ValueStateTag(String id, Coder<T> coder) {
-      super(id);
+    private ValueStateTag(StateKind kind, String id, Coder<T> coder) {
+      super(kind, id);
       this.coder = coder;
     }
 
@@ -142,6 +185,11 @@ public class StateTags {
     public int hashCode() {
       return Objects.hash(getClass(), getId(), coder);
     }
+
+    @Override
+    protected StateTag<ValueState<T>> asKind(StateKind kind) {
+      return new ValueStateTag<T>(kind, id, coder);
+    }
   }
 
   /**
@@ -156,28 +204,15 @@ public class StateTags {
 
     private static final long serialVersionUID = 0;
 
-    // TODO: This should use the CoderRegistry from the running pipelie to ensure that it picks up
-    // any custom Coders, but that CoderRegistry isn't currently available on the worker.
-    private static final CoderRegistry registry = new CoderRegistry();
-    static {
-      registry.registerStandardCoders();
-    }
-
     private final Coder<AccumT> accumCoder;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     private CombiningValueStateTag(
-        String id, Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-      super(id);
-
-      try {
-        this.accumCoder = combineFn.getAccumulatorCoder(registry, inputCoder);
-      } catch (CannotProvideCoderException e) {
-        throw new RuntimeException(
-            "Unable to determine accumulator coder for combineFn: " + combineFn.getClass(), e);
-      }
-
+        StateKind kind, String id,
+        Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+      super(kind, id);
       this.combineFn = combineFn;
+      this.accumCoder = accumCoder;
     }
 
     @Override
@@ -204,6 +239,12 @@ public class StateTags {
     public int hashCode() {
       return Objects.hash(getClass(), getId(), accumCoder);
     }
+
+    @Override
+    protected StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> asKind(
+        StateKind kind) {
+      return new CombiningValueStateTag<>(kind, id, accumCoder, combineFn);
+    }
   }
 
   /**
@@ -218,8 +259,8 @@ public class StateTags {
 
     private final Coder<T> elemCoder;
 
-    private BagStateTag(String id, Coder<T> elemCoder) {
-      super(id);
+    private BagStateTag(StateKind kind, String id, Coder<T> elemCoder) {
+      super(kind, id);
       this.elemCoder = elemCoder;
     }
 
@@ -247,14 +288,19 @@ public class StateTags {
     public int hashCode() {
       return Objects.hash(getClass(), getId(), elemCoder);
     }
+
+    @Override
+    protected StateTag<BagState<T>> asKind(StateKind kind) {
+      return new BagStateTag<>(kind, id, elemCoder);
+    }
   }
 
   private static class WatermarkStateTagInternal extends StateTagBase<WatermarkStateInternal> {
 
     private static final long serialVersionUID = 0;
 
-    private WatermarkStateTagInternal(String id) {
-      super(id);
+    private WatermarkStateTagInternal(StateKind kind, String id) {
+      super(kind, id);
     }
 
     @Override
@@ -279,6 +325,11 @@ public class StateTags {
     @Override
     public int hashCode() {
       return Objects.hash(getClass(), getId());
+    }
+
+    @Override
+    protected StateTag<WatermarkStateInternal> asKind(StateKind kind) {
+      return new WatermarkStateTagInternal(kind, id);
     }
   }
 }

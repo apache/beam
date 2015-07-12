@@ -44,7 +44,8 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   private static final long serialVersionUID = 0L;
 
   private static final StateTag<CombiningValueState<Long, Long>> ELEMENTS_IN_PANE_TAG =
-      StateTags.combiningValue("count", VarLongCoder.of(), new Sum.SumLongFn());
+      StateTags.makeSystemTagInternal(StateTags.combiningValue(
+          "count", VarLongCoder.of(), new Sum.SumLongFn()));
 
   private final int countElems;
 

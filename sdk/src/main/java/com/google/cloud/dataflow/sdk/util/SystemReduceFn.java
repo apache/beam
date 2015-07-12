@@ -42,7 +42,7 @@ class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     extends ReduceFn<K, InputT, OutputT, W> {
 
   private static final long serialVersionUID = 0L;
-  private static final String BUFFER_NAME = "__buffer";
+  private static final String BUFFER_NAME = "buf";
 
   /**
    * Factory that produces {@link SystemReduceFn} instances for specific keys.
@@ -62,7 +62,8 @@ class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
    */
   public static <K, T, W extends BoundedWindow> Factory<K, T, Iterable<T>, W> buffering(
       final Coder<T> inputCoder) {
-    final StateTag<BagState<T>> bufferTag = StateTags.bag(BUFFER_NAME, inputCoder);
+    final StateTag<BagState<T>> bufferTag =
+        StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_NAME, inputCoder));
     return new Factory<K, T, Iterable<T>, W>() {
 
       private static final long serialVersionUID = 0L;
@@ -89,8 +90,8 @@ class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
       @Override
       public ReduceFn<K, InputT, OutputT, W> create(K key) {
         StateTag<CombiningValueState<InputT, OutputT>> bufferTag =
-            StateTags.<InputT, OutputT>combiningValue(
-                BUFFER_NAME, inputCoder, combineFn.forKey(key, keyCoder));
+            StateTags.makeSystemTagInternal(StateTags.<InputT, OutputT>combiningValue(
+                BUFFER_NAME, inputCoder, combineFn.forKey(key, keyCoder)));
         return new SystemReduceFn<K, InputT, OutputT, W>(bufferTag);
       }
     };

@@ -93,7 +93,7 @@ public class TriggerRunner<W extends BoundedWindow> {
   }
 
   @VisibleForTesting static final StateTag<ValueState<BitSet>> FINISHED_BITS_TAG =
-      StateTags.value("__finished_set", BitSetCoder.of());
+      StateTags.makeSystemTagInternal(StateTags.value("closed", BitSetCoder.of()));
 
   private final ExecutableTrigger<W> rootTrigger;
   private final TriggerContextFactory<W> contextFactory;

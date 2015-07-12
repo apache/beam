@@ -38,7 +38,7 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
   private static final long serialVersionUID = 0L;
 
   @VisibleForTesting static final StateTag<WatermarkStateInternal> HOLD_TAG =
-      StateTags.watermarkStateInternal("watermark_hold");
+      StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal("hold"));
 
   private final WindowingStrategy<?, W> windowingStrategy;
 

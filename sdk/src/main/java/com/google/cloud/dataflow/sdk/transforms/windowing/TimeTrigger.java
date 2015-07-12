@@ -17,8 +17,13 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.coders.InstantCoder;
+import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
+import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
@@ -36,6 +41,10 @@ import java.util.List;
 @Experimental(Experimental.Kind.TRIGGER)
 public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger<W, T>>
     extends OnceTrigger<W> {
+
+  protected static final StateTag<CombiningValueState<Instant, Instant>> DELAYED_UNTIL_TAG =
+      StateTags.makeSystemTagInternal(StateTags.combiningValue(
+          "delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder()));
 
   private static final long serialVersionUID = 0L;
 
