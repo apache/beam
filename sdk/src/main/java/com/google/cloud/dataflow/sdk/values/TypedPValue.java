@@ -183,7 +183,7 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
 
     if (inputCoderException != null) {
       messageBuilder
-          .append("\n  Using the Coder from the input PTransform failed: ")
+          .append("\n  Using the default output Coder from the producing PTransform failed: ")
           .append(inputCoderException.getMessage());
     }
 
