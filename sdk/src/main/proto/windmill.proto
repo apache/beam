@@ -106,6 +106,12 @@ message SourceState {
   repeated fixed64 finalize_ids = 2;
 }
 
+message WatermarkHold {
+  required bytes tag = 1;
+  repeated int64 timestamps = 2 [packed=true];
+  optional bool reset = 3;
+}
+
 message WorkItem {
   required bytes key = 1;
   required fixed64 work_token = 2;
@@ -210,7 +216,7 @@ message GlobalDataRequest {
   optional int64 existence_watermark_deadline = 2 [default=0x7FFFFFFFFFFFFFFF];
 }
 
-// next id: 14
+// next id: 15
 message WorkItemCommitRequest {
   required bytes key = 1;
   required fixed64 work_token = 2;
@@ -224,6 +230,7 @@ message WorkItemCommitRequest {
   repeated GlobalData global_data_updates = 10;
   optional SourceState source_state_updates = 12;
   optional int64 source_watermark = 13 [default=-0x8000000000000000];
+  repeated WatermarkHold watermark_holds = 14;
 
   // DEPRECATED
   repeated GlobalDataId global_data_id_requests = 9;
