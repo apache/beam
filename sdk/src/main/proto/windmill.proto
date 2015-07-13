@@ -197,6 +197,12 @@ message Counter {
 
   // Only set for MEAN. Count of elements contributing to the sum.
   optional int64 mean_count = 6;
+
+  // True if this metric is reported as the total cumulative aggregate
+  // value accumulated since the worker started working on this WorkItem.
+  // By default this is false, indicating that this metric is reported
+  // as a delta that is not associated with any WorkItem.
+   optional bool cumulative = 7;
 }
 
 message GlobalDataRequest {
@@ -260,9 +266,9 @@ message Exception {
 }
 
 message ReportStatsRequest {
-  required string computation_id = 1;
-  required bytes key = 2;
-  required fixed64 work_token = 3;
+  optional string computation_id = 1;
+  optional bytes key = 2;
+  optional fixed64 work_token = 3;
   repeated Exception exceptions = 4;
   repeated Counter counter_updates = 5;
 }
