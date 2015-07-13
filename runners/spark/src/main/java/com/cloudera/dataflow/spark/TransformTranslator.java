@@ -520,10 +520,10 @@ public final class TransformTranslator {
     };
   }
 
-  private static <T> TransformEvaluator<Create<T>> create() {
-    return new TransformEvaluator<Create<T>>() {
+  private static <T> TransformEvaluator<Create.Values<T>> create() {
+    return new TransformEvaluator<Create.Values<T>>() {
       @Override
-      public void evaluate(Create<T> transform, EvaluationContext context) {
+      public void evaluate(Create.Values<T> transform, EvaluationContext context) {
         Iterable<T> elems = transform.getElements();
         // Use a coder to convert the objects in the PCollection to byte arrays, so they
         // can be transferred over the network.
@@ -624,7 +624,7 @@ public final class TransformTranslator {
     EVALUATORS.put(Combine.Globally.class, combineGlobally());
     EVALUATORS.put(Combine.PerKey.class, combinePerKey());
     EVALUATORS.put(Flatten.FlattenPCollectionList.class, flattenPColl());
-    EVALUATORS.put(Create.class, create());
+    EVALUATORS.put(Create.Values.class, create());
     EVALUATORS.put(View.AsSingleton.class, viewAsSingleton());
     EVALUATORS.put(View.AsIterable.class, viewAsIter());
     EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());

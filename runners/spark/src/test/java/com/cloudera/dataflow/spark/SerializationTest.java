@@ -112,8 +112,8 @@ public class SerializationTest {
     SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
     options.setRunner(SparkPipelineRunner.class);
     Pipeline p = Pipeline.create(options);
-    PCollection<StringHolder> inputWords = p.apply(Create.of(WORDS)).setCoder
-        (StringHolderUtf8Coder.of());
+    PCollection<StringHolder> inputWords =
+        p.apply(Create.of(WORDS).withCoder(StringHolderUtf8Coder.of()));
     PCollection<StringHolder> output = inputWords.apply(new CountWords());
 
     DataflowAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);

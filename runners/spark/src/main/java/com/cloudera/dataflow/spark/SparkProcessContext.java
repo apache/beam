@@ -148,14 +148,14 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
       }
 
       @Override
-      public <T> void store(CodedTupleTag<T> tag, T value, Instant timestamp)
-          throws IOException {
+      public <T> void writeToTagList(CodedTupleTag<T> tag, T value) throws IOException {
         throw new UnsupportedOperationException(
-            "WindowingInternals#store() is not yet supported.");
+            "WindowingInternals#writeToTagList() is not yet supported.");
       }
 
       @Override
-      public <T> void writeToTagList(CodedTupleTag<T> tag, T value) throws IOException {
+      public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
+          throws IOException {
         throw new UnsupportedOperationException(
             "WindowingInternals#writeToTagList() is not yet supported.");
       }
