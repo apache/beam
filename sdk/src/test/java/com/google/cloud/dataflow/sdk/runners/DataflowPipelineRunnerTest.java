@@ -171,8 +171,9 @@ public class DataflowPipelineRunnerTest {
   @Test
   public void testRunReturnDifferentRequestId() throws IOException {
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage(Matchers.containsString(
-        "If you want to submit a new job in parallel, try again with a different name."));
+    thrown.expectMessage(
+        Matchers.containsString("If you want to submit a second job, try again by setting a "
+            + "different name using --jobName."));
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);

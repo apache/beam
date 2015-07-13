@@ -329,9 +329,17 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     // Error::Already_Exists.
     if (jobResult.getClientRequestId() != null && !jobResult.getClientRequestId().isEmpty()
         && !jobResult.getClientRequestId().equals(requestId)) {
-      throw new RuntimeException("The job you are trying to create with name " + newJob.getName()
-          + " already exists and is active in system with job id: " + jobResult.getId()
-          + ". If you want to submit a new job in parallel, try again with a different name.");
+      // If reloading a job.
+      if (options.getReload()) {
+        throw new RuntimeException("The job named " + newJob.getName() + " with id: " + reloadJobId
+            + " has already been updated into job id: " + jobResult.getId()
+            + " and cannot be updated again. ");
+      } else {
+        throw new RuntimeException("There is already an active job named " + newJob.getName()
+            + " with id: " + jobResult.getId()
+            + ". If you want to submit a second job, try again by setting a "
+            + "different name using --jobName.");
+      }
     }
 
     LOG.info("To access the Dataflow monitoring console, please navigate to {}",
