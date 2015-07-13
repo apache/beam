@@ -256,6 +256,13 @@ message GetConfigResponse {
 
   // Map of user names to system names
   repeated NameMapEntry name_map = 2;
+
+  message SystemNameToComputationIdMapEntry {
+    optional string system_name = 1;
+    optional string computation_id = 2;
+  }
+  repeated SystemNameToComputationIdMapEntry
+    system_name_to_computation_id_map = 3;
 }
 
 // Reporting
