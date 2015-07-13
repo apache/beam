@@ -18,9 +18,7 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -34,6 +32,8 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class IterableCoderTest {
 
+  private static final Coder<Iterable<Integer>> TEST_CODER = IterableCoder.of(VarIntCoder.of());
+
   private static final List<Iterable<Integer>> TEST_VALUES = Arrays.<Iterable<Integer>>asList(
       Collections.<Integer>emptyList(),
       Collections.<Integer>singletonList(13),
@@ -42,10 +42,9 @@ public class IterableCoderTest {
 
   @Test
   public void testDecodeEncodeContentsInSameOrder() throws Exception {
-    Coder<Iterable<Integer>> coder = IterableCoder.of(VarIntCoder.of());
     for (Iterable<Integer> value : TEST_VALUES) {
       CoderProperties.<Integer, Iterable<Integer>>coderDecodeEncodeContentsInSameOrder(
-          coder, value);
+          TEST_CODER, value);
     }
   }
 
@@ -62,5 +61,18 @@ public class IterableCoderTest {
     Iterable<Integer> iterable = Arrays.asList();
     List<Object> components = IterableCoder.getInstanceComponents(iterable);
     assertNull(components);
+  }
+
+  @Test
+  public void testCoderSerializable() throws Exception {
+    CoderProperties.coderSerializable(TEST_CODER);
+  }
+
+  // If this changes, it implies that the binary format has changed.
+  private static final String EXPECTED_ENCODING_ID = "";
+
+  @Test
+  public void testEncodingId() throws Exception {
+    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
 }

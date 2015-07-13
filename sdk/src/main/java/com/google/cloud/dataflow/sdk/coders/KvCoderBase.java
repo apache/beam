@@ -28,11 +28,18 @@ import java.util.List;
  * {@link KvCoder} directly (as of this writing, Jackson2 walks off the end of
  * an array when it tries to deserialize a class with multiple generic type
  * parameters).  This class should be removed when possible.
+ *
  * @param <T> the type of values being transcoded
  */
 public abstract class KvCoderBase<T> extends StandardCoder<T> {
   private static final long serialVersionUID = 0;
 
+  /**
+   * A constructor used only for decoding from JSON.
+   *
+   * @param typeId present in the JSON encoding, but unused
+   * @param isPairLike present in the JSON encoding, but unused
+   */
   @JsonCreator
   public static KvCoderBase<?> of(
       // N.B. typeId is a required parameter here, since a field named "@type"
@@ -46,8 +53,7 @@ public abstract class KvCoderBase<T> extends StandardCoder<T> {
       // deserialization to fail.
       @JsonProperty(value = "@type", required = false) String typeId,
       @JsonProperty(value = PropertyNames.IS_PAIR_LIKE, required = false) boolean isPairLike,
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
+      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components) {
     return KvCoder.of(components);
   }
 

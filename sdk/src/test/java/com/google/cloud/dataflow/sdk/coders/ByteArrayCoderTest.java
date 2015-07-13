@@ -37,14 +37,15 @@ import java.io.IOException;
 @RunWith(JUnit4.class)
 public class ByteArrayCoderTest {
 
+  private static final ByteArrayCoder TEST_CODER = ByteArrayCoder.of();
+
   private static final byte[][] TEST_VALUES = {
     {0xa, 0xb, 0xc}, {}, {}, {0xd, 0xe}, {0xd, 0xe}, {}};
 
   @Test
   public void testDecodeEncodeEquals() throws Exception {
-    ByteArrayCoder coder = ByteArrayCoder.of();
     for (byte[] value : TEST_VALUES) {
-      CoderProperties.coderDecodeEncodeEqual(coder, value);
+      CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
     }
   }
 
@@ -59,12 +60,11 @@ public class ByteArrayCoderTest {
 
   @Test
   public void testStructuralValueConsistentWithEquals() throws Exception {
-    ByteArrayCoder coder = ByteArrayCoder.of();
     // We know that byte array coders are NOT compatible with equals
     // (aka injective w.r.t. Object.equals)
     for (byte[] value1 : TEST_VALUES) {
       for (byte[] value2 : TEST_VALUES) {
-        CoderProperties.structuralValueConsistentWithEquals(coder, value1, value2);
+        CoderProperties.structuralValueConsistentWithEquals(TEST_CODER, value1, value2);
       }
     }
   }
@@ -72,10 +72,9 @@ public class ByteArrayCoderTest {
   @Test
   public void testEncodeThenMutate() throws Exception {
     byte[] input = { 0x7, 0x3, 0xA, 0xf };
-    Coder<byte[]> coder = ByteArrayCoder.of();
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, input);
+    byte[] encoded = CoderUtils.encodeToByteArray(TEST_CODER, input);
     input[1] = 0x9;
-    byte[] decoded = CoderUtils.decodeFromByteArray(coder, encoded);
+    byte[] decoded = CoderUtils.decodeFromByteArray(TEST_CODER, encoded);
 
     // now that I have mutated the input, the output should NOT match
     assertThat(input, not(equalTo(decoded)));
@@ -83,10 +82,9 @@ public class ByteArrayCoderTest {
 
   @Test
   public void testEncodeAndOwn() throws Exception {
-    ByteArrayCoder coder = ByteArrayCoder.of();
     for (byte[] value : TEST_VALUES) {
-      byte[] encodedSlow = CoderUtils.encodeToByteArray(coder, value);
-      byte[] encodedFast = encodeToByteArrayAndOwn(coder, value);
+      byte[] encodedSlow = CoderUtils.encodeToByteArray(TEST_CODER, value);
+      byte[] encodedFast = encodeToByteArrayAndOwn(TEST_CODER, value);
       assertThat(encodedSlow, equalTo(encodedFast));
     }
   }
@@ -101,5 +99,13 @@ public class ByteArrayCoderTest {
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     coder.encodeAndOwn(value, os, context);
     return os.toByteArray();
+  }
+
+  // If this changes, it implies the binary format has changed.
+  private static final String EXPECTED_ENCODING_ID = "";
+
+  @Test
+  public void testEncodingId() throws Exception {
+    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
 }

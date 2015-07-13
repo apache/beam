@@ -36,7 +36,9 @@ import javax.xml.bind.Unmarshaller;
  * @param <T> type of JAXB annotated objects that will be serialized.
  */
 public class JAXBCoder<T> extends AtomicCoder<T> {
+
   private static final long serialVersionUID = 0L;
+
   private final Class<T> jaxbClass;
   private transient Marshaller jaxbMarshaller = null;
   private transient Unmarshaller jaxbUnmarshaller = null;
@@ -87,6 +89,11 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
     } catch (JAXBException e) {
       throw new CoderException(e);
     }
+  }
+
+  @Override
+  public String getEncodingId() {
+    return getJAXBClass().getName();
   }
 
   ////////////////////////////////////////////////////////////////////////////////////

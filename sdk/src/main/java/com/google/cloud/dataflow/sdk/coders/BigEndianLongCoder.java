@@ -29,13 +29,14 @@ import java.io.UTFDataFormatException;
 /**
  * A {@code BigEndianLongCoder} encodes {@code Long}s in 8 bytes, big-endian.
  */
-@SuppressWarnings("serial")
 public class BigEndianLongCoder extends AtomicCoder<Long> {
+
+  private static final long serialVersionUID = 0L;
+
   @JsonCreator
   public static BigEndianLongCoder of() {
     return INSTANCE;
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 

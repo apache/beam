@@ -34,6 +34,8 @@ import java.util.Set;
 @RunWith(JUnit4.class)
 public class SetCoderTest {
 
+  private static final Coder<Set<Integer>> TEST_CODER = SetCoder.of(VarIntCoder.of());
+
   private static final List<Set<Integer>> TEST_VALUES = Arrays.<Set<Integer>>asList(
       Collections.<Integer>emptySet(),
       Collections.singleton(13),
@@ -41,9 +43,16 @@ public class SetCoderTest {
 
   @Test
   public void testDecodeEncodeContentsEqual() throws Exception {
-    Coder<Set<Integer>> coder = SetCoder.of(VarIntCoder.of());
     for (Set<Integer> value : TEST_VALUES) {
-      CoderProperties.coderDecodeEncodeContentsEqual(coder, value);
+      CoderProperties.coderDecodeEncodeContentsEqual(TEST_CODER, value);
     }
+  }
+
+  // If this changes, it implies the binary format has changed.
+  private static final String EXPECTED_ENCODING_ID = "";
+
+  @Test
+  public void testEncodingId() throws Exception {
+    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
 }

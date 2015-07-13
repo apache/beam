@@ -31,18 +31,18 @@ import java.io.UTFDataFormatException;
  * numbers always take 10 bytes, so {@link BigEndianLongCoder} may be preferable for
  * longs that are known to often be large or negative.
  */
-@SuppressWarnings("serial")
 public class VarLongCoder extends AtomicCoder<Long> {
+
+  private static final long serialVersionUID = 0L;
+
   @JsonCreator
   public static VarLongCoder of() {
     return INSTANCE;
   }
 
-
   /////////////////////////////////////////////////////////////////////////////
 
-  private static final VarLongCoder INSTANCE =
-      new VarLongCoder();
+  private static final VarLongCoder INSTANCE = new VarLongCoder();
 
   private VarLongCoder() {}
 

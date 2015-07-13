@@ -29,8 +29,9 @@ import java.util.List;
  *
  * @param <T> the type of the elements of the Lists being transcoded
  */
-@SuppressWarnings("serial")
 public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
+
+  private static final long serialVersionUID = 0L;
 
   public static <T> ListCoder<T> of(Coder<T> elemCoder) {
     return new ListCoder<>(elemCoder);

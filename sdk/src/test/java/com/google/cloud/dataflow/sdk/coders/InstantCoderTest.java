@@ -36,14 +36,15 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class InstantCoderTest {
 
-  private final InstantCoder coder = InstantCoder.of();
+  private static final InstantCoder TEST_CODER = InstantCoder.of();
+
   private final List<Long> timestamps =
       Arrays.asList(0L, 1L, -1L, -255L, 256L, Long.MIN_VALUE, Long.MAX_VALUE);
 
   @Test
   public void testBasicEncoding() throws Exception {
     for (long timestamp : timestamps) {
-      CoderProperties.coderDecodeEncodeEqual(coder, new Instant(timestamp));
+      CoderProperties.coderDecodeEncodeEqual(TEST_CODER, new Instant(timestamp));
     }
   }
 
@@ -54,7 +55,7 @@ public class InstantCoderTest {
 
     List<byte[]> encodings = new ArrayList<>(sortedTimestamps.size());
     for (long timestamp : sortedTimestamps) {
-      encodings.add(CoderUtils.encodeToByteArray(coder, new Instant(timestamp)));
+      encodings.add(CoderUtils.encodeToByteArray(TEST_CODER, new Instant(timestamp)));
     }
 
     // Verify that the encodings were already sorted, since they were generated
@@ -63,5 +64,13 @@ public class InstantCoderTest {
     Collections.sort(sortedEncodings, UnsignedBytes.lexicographicalComparator());
 
     Assert.assertEquals(encodings, sortedEncodings);
+  }
+
+  // If this changes, it implies that the binary format has changed.
+  private static final String EXPECTED_ENCODING_ID = "";
+
+  @Test
+  public void testEncodingId() throws Exception {
+    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
 }

@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -27,8 +28,10 @@ import static org.junit.Assert.fail;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.Serializer;
+import com.google.cloud.dataflow.sdk.util.Structs;
 import com.google.common.collect.Iterables;
 
 import java.io.ByteArrayInputStream;
@@ -36,6 +39,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -197,6 +201,24 @@ public class CoderProperties {
         Arrays.equals(
             encode(coder, context, value1),
             encode(coder, context, value2)));
+  }
+
+  public static <T> void coderHasEncodingId(Coder<T> coder, String encodingId) throws Exception {
+    assertThat(coder.getEncodingId(), equalTo(encodingId));
+    assertThat(Structs.getString(coder.asCloudObject(), PropertyNames.ENCODING_ID, ""),
+        equalTo(encodingId));
+  }
+
+  public static <T> void coderAllowsEncoding(Coder<T> coder, String encodingId) throws Exception {
+    assertThat(coder.getAllowedEncodings(), hasItem(encodingId));
+    assertThat(
+        String.format("Expected to find \"%s\" in property \"%s\" of %s",
+            encodingId, PropertyNames.ALLOWED_ENCODINGS, coder.asCloudObject()),
+        Structs.getStrings(
+            coder.asCloudObject(),
+            PropertyNames.ALLOWED_ENCODINGS,
+            Collections.<String>emptyList()),
+        hasItem(encodingId));
   }
 
   public static <T> void structuralValueConsistentWithEquals(

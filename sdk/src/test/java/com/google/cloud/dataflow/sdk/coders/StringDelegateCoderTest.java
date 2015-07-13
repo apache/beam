@@ -44,7 +44,6 @@ public class StringDelegateCoderTest {
 
   // Tests
 
-  @SuppressWarnings("deprecation")
   @Test
   public void testDeterministic() throws Exception, NonDeterministicException {
     uriCoder.verifyDeterministic();
@@ -63,5 +62,11 @@ public class StringDelegateCoderTest {
   @Test
   public void testSerializable() throws Exception {
     CoderProperties.coderSerializable(uriCoder);
+  }
+
+  @Test
+  public void testEncodingId() throws Exception {
+    StringDelegateCoder<URI> coder = StringDelegateCoder.of(URI.class);
+    CoderProperties.coderHasEncodingId(coder, URI.class.getName());
   }
 }

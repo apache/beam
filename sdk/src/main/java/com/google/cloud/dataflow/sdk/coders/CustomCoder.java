@@ -17,23 +17,28 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.addString;
+import static com.google.cloud.dataflow.sdk.util.Structs.addStringList;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
+import com.google.common.collect.Lists;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
+import java.util.Collection;
 
 /**
  * An abstract base class for writing {@link Coder}s that encodes itself via java
  * serialization.  Subclasses only need to implement the {@link Coder#encode}
  * and {@link Coder#decode} methods.
  *
- * <p>
- * Not to be confused with {@link SerializableCoder} that encodes serializables.
+ * <p>Not to be confused with {@link SerializableCoder} that encodes objects that implement the
+ * {@link Serializable} interface.
  *
  * @param <T> the type of elements handled by this coder
  */
@@ -70,6 +75,18 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
     addString(result, "serialized_coder",
         StringUtils.byteArrayToJsonString(
             SerializableUtils.serializeToByteArray(this)));
+
+    String encodingId = getEncodingId();
+    checkNotNull(encodingId, "Coder.getEncodingId() must not return null.");
+    if (!encodingId.isEmpty()) {
+      addString(result, PropertyNames.ENCODING_ID, encodingId);
+    }
+
+    Collection<String> allowedEncodings = getAllowedEncodings();
+    if (!allowedEncodings.isEmpty()) {
+      addStringList(result, PropertyNames.ALLOWED_ENCODINGS, Lists.newArrayList(allowedEncodings));
+    }
+
     return result;
   }
 

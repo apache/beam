@@ -34,8 +34,10 @@ import java.io.OutputStream;
  * <p> If in a nested context, prefixes the encoded array with its
  * length, encoded via a {@link VarIntCoder}.
  */
-@SuppressWarnings("serial")
 public class ByteArrayCoder extends AtomicCoder<byte[]> {
+
+  private static final long serialVersionUID = 0L;
+
   @JsonCreator
   public static ByteArrayCoder of() {
     return INSTANCE;

@@ -452,7 +452,6 @@ public class CoderRegistry implements CoderProvider {
     // type parameters are not compatible, then the whole thing is certainly not
     // compatible.
     if ((codedType instanceof ParameterizedType) && !isNullOrEmpty(coder.getCoderArguments())) {
-      @SuppressWarnings("unchecked")
       Type[] typeArguments =
           ((ParameterizedType)
            candidateOkDescriptor.getSupertype(codedClass).getType())
@@ -534,7 +533,6 @@ public class CoderRegistry implements CoderProvider {
       return coder;
     }
     if (type instanceof Class<?>) {
-      @SuppressWarnings("unchecked")
       Class<?> clazz = (Class<?>) type;
       return getDefaultCoder(clazz);
     } else if (type instanceof ParameterizedType) {

@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -187,6 +188,26 @@ public interface Coder<T> extends Serializable {
   public void registerByteSizeObserver(
       T value, ElementByteSizeObserver observer, Context context)
       throws Exception;
+
+  /**
+   * An identifier for the binary format written by {@link #encode}.
+   *
+   * <p>This value, along with the fully qualified class name, forms an identifier for the
+   * binary format of this coder. If a {@code Coder} implementation is modified to write a new
+   * backwards-incompatible format, it is imperative that this method be correspondingly modified to
+   * return a distinct value.
+   *
+   * @see #getAllowedEncodings()
+   */
+  public String getEncodingId();
+
+  /**
+   * A collection of encodings supported by {@link #decode} in addition to the encoding
+   * from {@link #getEncodingId()} (which is assumed supported).
+   *
+   * @see #getEncodingId()
+   */
+  public Collection<String> getAllowedEncodings();
 
   /**
    * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is

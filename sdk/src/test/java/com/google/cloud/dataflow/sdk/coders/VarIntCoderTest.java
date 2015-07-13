@@ -31,6 +31,8 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class VarIntCoderTest {
 
+  private static final Coder<Integer> TEST_CODER = VarIntCoder.of();
+
   private static final List<Integer> TEST_VALUES = Arrays.asList(
       -11, -3, -1, 0, 1, 5, 13, 29,
       Integer.MAX_VALUE,
@@ -38,10 +40,17 @@ public class VarIntCoderTest {
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
-    Coder<Integer> coder = VarIntCoder.of();
     for (Integer value : TEST_VALUES) {
-      CoderProperties.coderDecodeEncodeEqual(coder, value);
+      CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
     }
+  }
+
+  // If this changes, it implies the binary format has changed.
+  private static final String EXPECTED_ENCODING_ID = "";
+
+  @Test
+  public void testEncodingId() throws Exception {
+    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
 }
 

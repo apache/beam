@@ -37,6 +37,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -264,7 +265,6 @@ public class CoderRegistryTest {
       return INSTANCE;
     }
 
-    @SuppressWarnings("unused") // this method an "override" of a latent static interface
     public static List<Object> getInstanceComponents(MyValue exampleValue) {
       return Arrays.asList();
     }
@@ -313,6 +313,16 @@ public class CoderRegistryTest {
         MyValue value, ElementByteSizeObserver observer, Context context)
         throws Exception {
       observer.update(0L);
+    }
+
+    @Override
+    public String getEncodingId() {
+      return getClass().getName();
+    }
+
+    @Override
+    public Collection<String> getAllowedEncodings() {
+      return Collections.singletonList(getEncodingId());
     }
   }
 

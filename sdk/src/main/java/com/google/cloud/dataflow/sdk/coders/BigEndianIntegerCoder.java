@@ -29,18 +29,18 @@ import java.io.UTFDataFormatException;
 /**
  * A {@code BigEndianIntegerCoder} encodes {@code Integer}s in 4 bytes, big-endian.
  */
-@SuppressWarnings("serial")
 public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
+
+  private static final long serialVersionUID = 0L;
+
   @JsonCreator
   public static BigEndianIntegerCoder of() {
     return INSTANCE;
   }
 
-
   /////////////////////////////////////////////////////////////////////////////
 
-  private static final BigEndianIntegerCoder INSTANCE =
-      new BigEndianIntegerCoder();
+  private static final BigEndianIntegerCoder INSTANCE = new BigEndianIntegerCoder();
 
   private BigEndianIntegerCoder() {}
 

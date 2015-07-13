@@ -140,7 +140,7 @@ public class AvroCoderTest {
     CloudObject encoding = coder.asCloudObject();
 
     Assert.assertThat(encoding.keySet(),
-        Matchers.containsInAnyOrder("@type", "type", "schema"));
+        Matchers.containsInAnyOrder("@type", "type", "schema", "encoding_id"));
   }
 
   @Test
@@ -149,6 +149,12 @@ public class AvroCoderTest {
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
     CoderProperties.coderDecodeEncodeEqual(coder, value);
+  }
+
+  @Test
+  public void testPojoEncodingId() throws Exception {
+    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+    CoderProperties.coderHasEncodingId(coder, Pojo.class.getName());
   }
 
   @Test
@@ -530,7 +536,6 @@ public class AvroCoderTest {
   private static class HasGenericRecord {
     @AvroSchema("{\"name\": \"bar\", \"type\": \"record\", \"fields\": ["
         + "{\"name\": \"foo\", \"type\": \"int\"}]}")
-    @SuppressWarnings("unused")
     GenericRecord genericRecord;
   }
 
@@ -544,7 +549,6 @@ public class AvroCoderTest {
   private static class HasCustomSchema {
     @AvroSchema("{\"name\": \"bar\", \"type\": \"record\", \"fields\": ["
         + "{\"name\": \"foo\", \"type\": \"int\"}]}")
-    @SuppressWarnings("unused")
     int withCustomSchema;
   }
 

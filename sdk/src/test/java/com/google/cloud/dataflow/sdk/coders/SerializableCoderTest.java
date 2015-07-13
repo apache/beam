@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -52,6 +53,8 @@ public class SerializableCoderTest implements Serializable {
 
   @DefaultCoder(SerializableCoder.class)
   static class MyRecord implements Serializable {
+    private static final long serialVersionUID = 42L;
+
     public String value;
 
     public MyRecord(String value) {
@@ -208,5 +211,13 @@ public class SerializableCoderTest implements Serializable {
       assertNull(coder.decode(is, Coder.Context.NESTED));
       assertEquals(0, is.available());
     }
+  }
+
+  @Test
+  public void testPojoEncodingId() throws Exception {
+    Coder<MyRecord> coder = SerializableCoder.of(MyRecord.class);
+    CoderProperties.coderHasEncodingId(
+        coder,
+        String.format("%s:%s", MyRecord.class.getName(), MyRecord.serialVersionUID));
   }
 }

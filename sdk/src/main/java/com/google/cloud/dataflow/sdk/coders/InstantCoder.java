@@ -30,8 +30,10 @@ import java.io.OutputStream;
 /**
  * A {@code InstantCoder} is a {@link Coder} for a joda {@link Instant}.
  */
-@SuppressWarnings("serial")
 public class InstantCoder extends AtomicCoder<Instant> {
+
+  private static final long serialVersionUID = 0L;
+
   @JsonCreator
   public static InstantCoder of() {
     return INSTANCE;

@@ -27,8 +27,9 @@ import java.io.OutputStream;
 /**
  * An {@code EntityCoder} is a {@link Coder} for {@link Entity} objects.
  */
-@SuppressWarnings("serial")
 public class EntityCoder extends AtomicCoder<Entity> {
+
+  private static final long serialVersionUID = 0L;
 
   @JsonCreator
   public static EntityCoder of() {

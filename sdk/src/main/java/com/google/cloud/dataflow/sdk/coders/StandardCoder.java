@@ -17,17 +17,22 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.addList;
+import static com.google.cloud.dataflow.sdk.util.Structs.addString;
+import static com.google.cloud.dataflow.sdk.util.Structs.addStringList;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.StructuralByteArray;
+import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -42,6 +47,34 @@ public abstract class StandardCoder<T> implements Coder<T> {
   private static final long serialVersionUID = 0;
 
   protected StandardCoder() {}
+
+  /**
+   * A unique identifier for the binary format written by {@link #encode}. If a subclass is
+   * modified to write a new format, it is imperative that this method be overridden to return
+   * a distinct value.
+   *
+   * <p>By default, this is an empty string so only the fully qualified name of the class is
+   * used.
+   *
+   * @see #getAllowedEncodings()
+   */
+  @Override
+  public String getEncodingId() {
+    return "";
+  }
+
+  /**
+   * A collection of encodings supported by {@link #decode} in addition to the value of
+   * {@link #getEncodingId()}.
+   *
+   * <p>By default, this is empty.
+   *
+   *@see #getEncodingId()
+   */
+  @Override
+  public Collection<String> getAllowedEncodings() {
+    return Collections.emptyList();
+  }
 
   /**
    * Returns the list of {@code Coder}s that are components of this
@@ -103,6 +136,17 @@ public abstract class StandardCoder<T> implements Coder<T> {
         cloudComponents.add(coder.asCloudObject());
       }
       addList(result, PropertyNames.COMPONENT_ENCODINGS, cloudComponents);
+    }
+
+    String encodingId = getEncodingId();
+    checkNotNull(encodingId, "Coder.getEncodingId() must not return null.");
+    if (!encodingId.isEmpty()) {
+      addString(result, PropertyNames.ENCODING_ID, encodingId);
+    }
+
+    Collection<String> allowedEncodings = getAllowedEncodings();
+    if (!allowedEncodings.isEmpty()) {
+      addStringList(result, PropertyNames.ALLOWED_ENCODINGS, Lists.newArrayList(allowedEncodings));
     }
 
     return result;

@@ -30,8 +30,9 @@ import java.util.List;
  *
  * @param <T> the type of the elements of the Collections being transcoded
  */
-@SuppressWarnings("serial")
 public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
+
+  private static final long serialVersionUID = 0L;
 
   public static <T> CollectionCoder<T> of(Coder<T> elemCoder) {
     return new CollectionCoder<>(elemCoder);

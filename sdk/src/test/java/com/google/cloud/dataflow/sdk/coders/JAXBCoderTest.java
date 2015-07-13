@@ -16,9 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.SerializableUtils;
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -28,8 +27,8 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 /** Unit tests for {@link JAXBCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class JAXBCoderTest {
+
   @XmlRootElement
   static class TestType {
     private String testString = null;
@@ -88,6 +87,13 @@ public class JAXBCoderTest {
 
   @Test
   public void testEncodable() throws Exception {
-    SerializableUtils.ensureSerializable(JAXBCoder.of(TestType.class));
+    CoderProperties.coderSerializable(JAXBCoder.of(TestType.class));
+  }
+
+  @Test
+  public void testEncodingId() throws Exception {
+    Coder<TestType> coder = JAXBCoder.of(TestType.class);
+    CoderProperties.coderHasEncodingId(
+        coder, TestType.class.getName());
   }
 }

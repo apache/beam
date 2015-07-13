@@ -97,4 +97,14 @@ public class Proto2CoderTest {
         .withExtensionsFrom(Proto2CoderTestMessages.class);
     CoderProperties.coderSerializable(coder);
   }
+
+  @Test
+  public void testEncodingId() throws Exception {
+    Coder<MessageA> coderA = Proto2Coder.of(MessageA.class);
+    CoderProperties.coderHasEncodingId(coderA, MessageA.class.getName());
+
+    Proto2Coder<MessageC> coder = Proto2Coder.of(MessageC.class)
+        .withExtensionsFrom(Proto2CoderTestMessages.class);
+    CoderProperties.coderHasEncodingId(coder, MessageC.class.getName());
+  }
 }

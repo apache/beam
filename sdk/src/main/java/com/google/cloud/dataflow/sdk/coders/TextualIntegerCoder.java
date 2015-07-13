@@ -26,8 +26,9 @@ import java.io.OutputStream;
  * A {@code TextualIntegerCoder} encodes {@code Integer}s
  * as their textual, decimal, representation.
  */
-@SuppressWarnings("serial")
 public class TextualIntegerCoder extends AtomicCoder<Integer> {
+
+  private static final long serialVersionUID = 0L;
 
   @JsonCreator
   public static TextualIntegerCoder of() {
@@ -62,8 +63,8 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
   @Override
   public void verifyDeterministic() { }
 
-  protected long getEncodedElementByteSize(Integer value, Context context)
-      throws Exception {
+  @Override
+  protected long getEncodedElementByteSize(Integer value, Context context) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }

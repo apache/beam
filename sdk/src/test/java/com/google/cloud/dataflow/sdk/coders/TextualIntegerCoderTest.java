@@ -31,6 +31,8 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class TextualIntegerCoderTest {
 
+  private static final Coder<Integer> TEST_CODER = TextualIntegerCoder.of();
+
   private static final List<Integer> TEST_VALUES = Arrays.asList(
       -11, -3, -1, 0, 1, 5, 13, 29,
       Integer.MAX_VALUE,
@@ -38,9 +40,16 @@ public class TextualIntegerCoderTest {
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
-    Coder<Integer> coder = TextualIntegerCoder.of();
     for (Integer value : TEST_VALUES) {
-      CoderProperties.coderDecodeEncodeEqual(coder, value);
+      CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
     }
+  }
+
+  // This should never change. The textual representation of an integer is fixed.
+  private static final String EXPECTED_ENCODING_ID = "";
+
+  @Test
+  public void testEncodingId() throws Exception {
+    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
 }

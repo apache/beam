@@ -175,7 +175,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     if (iterable instanceof ElementByteSizeObservableIterable) {
       observer.setLazy();
       ElementByteSizeObservableIterable<?, ?> observableIterable =
-          (ElementByteSizeObservableIterable) iterable;
+          (ElementByteSizeObservableIterable<?, ?>) iterable;
       observableIterable.addObserver(
           new IteratorObserver(observer, iterable instanceof Collection));
     } else {

@@ -34,8 +34,9 @@ import java.util.List;
  *
  * @param <T> the type of the elements of the Iterables being transcoded
  */
-@SuppressWarnings("serial")
 public class IterableCoder<T> extends IterableLikeCoder<T, Iterable<T>> {
+
+  private static final long serialVersionUID = 0L;
 
   public static <T> IterableCoder<T> of(Coder<T> elemCoder) {
     return new IterableCoder<>(elemCoder);

@@ -29,10 +29,11 @@ import java.io.UTFDataFormatException;
 /**
  * A {@code VarIntCoder} encodes {@code Integer}s using between 1 and 5 bytes. Negative
  * numbers always take 5 bytes, so {@link BigEndianIntegerCoder} may be preferable for
- * ints that are known to often be large or negative.
+ * integers that are known to often be large or negative.
  */
-@SuppressWarnings("serial")
 public class VarIntCoder extends AtomicCoder<Integer> {
+
+  private static final long serialVersionUID = 0L;
 
   @JsonCreator
   public static VarIntCoder of() {

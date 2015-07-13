@@ -20,6 +20,7 @@ package com.google.cloud.dataflow.sdk.util;
  * Constant property names used by the SDK in CloudWorkflow specifications.
  */
 public class PropertyNames {
+  public static final String ALLOWED_ENCODINGS = "allowed_encodings";
   public static final String APPEND_TRAILING_NEWLINES = "append_trailing_newlines";
   public static final String BIGQUERY_CREATE_DISPOSITION = "create_disposition";
   public static final String BIGQUERY_DATASET = "dataset";
@@ -45,6 +46,7 @@ public class PropertyNames {
   public static final String ELEMENT = "element";
   public static final String ELEMENTS = "elements";
   public static final String ENCODING = "encoding";
+  public static final String ENCODING_ID = "encoding_id";
   public static final String END_INDEX = "end_index";
   public static final String END_OFFSET = "end_offset";
   public static final String END_SHUFFLE_POSITION = "end_shuffle_position";

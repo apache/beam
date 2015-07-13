@@ -198,6 +198,7 @@ public final class CoderUtils {
      * if there are no "."s in the ID.
      */
     private static final class Resolver extends TypeIdResolverBase {
+      @SuppressWarnings("unused") // Used via @JsonTypeIdResolver annotation on Mixin
       public Resolver() {
         super(TypeFactory.defaultInstance().constructType(Coder.class),
             TypeFactory.defaultInstance());

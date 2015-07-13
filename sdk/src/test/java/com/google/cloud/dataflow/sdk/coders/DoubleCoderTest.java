@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 
 import org.junit.Test;
@@ -27,41 +26,29 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Test case for {@link TableRowJsonCoder}.
+ * Test case for {@link DoubleCoder}.
  */
 @RunWith(JUnit4.class)
-public class TableRowJsonCoderTest {
+public class DoubleCoderTest {
 
-  private static class TableRowBuilder {
-    private TableRow row;
-    public TableRowBuilder() {
-      row = new TableRow();
-    }
-    public TableRowBuilder set(String fieldName, Object value) {
-      row.set(fieldName, value);
-      return this;
-    }
-    public TableRow build() {
-      return row;
-    }
-  }
+  private static final Coder<Double> TEST_CODER = DoubleCoder.of();
 
-  private static final Coder<TableRow> TEST_CODER = TableRowJsonCoder.of();
-
-  private static final List<TableRow> TEST_VALUES = Arrays.asList(
-      new TableRowBuilder().build(),
-      new TableRowBuilder().set("a", "1").build(),
-      new TableRowBuilder().set("b", 3.14).build(),
-      new TableRowBuilder().set("a", "1").set("b", true).set("c", "hi").build());
+  private static final List<Double> TEST_VALUES = Arrays.asList(
+      0.0, -0.5, 0.5, 0.3, -0.3, 1.0, -43.89568740, 3.14159,
+      Double.MAX_VALUE,
+      Double.MIN_VALUE,
+      Double.POSITIVE_INFINITY,
+      Double.NEGATIVE_INFINITY,
+      Double.NaN);
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
-    for (TableRow value : TEST_VALUES) {
+    for (Double value : TEST_VALUES) {
       CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
     }
   }
 
-  // This identifier should only change if the JSON format of results from the BigQuery API changes.
+  // This should never change. The format is fixed by Java.
   private static final String EXPECTED_ENCODING_ID = "";
 
   @Test

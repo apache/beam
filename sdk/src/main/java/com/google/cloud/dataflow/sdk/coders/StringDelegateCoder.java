@@ -33,6 +33,11 @@ import java.lang.reflect.InvocationTargetException;
  * it must be the case for any instance {@code x} that
  * {@code x.equals(new Clazz(x.toString()))}.
  *
+ * <p> This method of encoding is not designed for ease of evolution of {@code Clazz};
+ * it should only be used in cases where the class is stable or the encoding is not
+ * important. If evolution of the class is important, see {@link Proto2Coder}, {@link AvroCoder},
+ * or {@link JAXBCoder}.
+ *
  * @param <T> The type of objects coded.
  */
 public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
@@ -73,5 +78,13 @@ public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
       });
 
     this.clazz = clazz;
+  }
+
+  /**
+   * The encoding id is the fully qualified name of the encoded/decoded class.
+   */
+  @Override
+  public String getEncodingId() {
+    return clazz.getName();
   }
 }

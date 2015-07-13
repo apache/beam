@@ -65,4 +65,14 @@ public class KvCoderTest {
       }
     }
   }
+
+  // If this changes, it implies the binary format has changed!
+  private static final String EXPECTED_ENCODING_ID = "";
+
+  @Test
+  public void testEncodingId() throws Exception {
+    CoderProperties.coderHasEncodingId(
+        KvCoder.of(VarIntCoder.of(), VarIntCoder.of()),
+        EXPECTED_ENCODING_ID);
+  }
 }

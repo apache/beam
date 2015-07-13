@@ -40,11 +40,12 @@ import java.util.Objects;
 
 /**
  * An encoder using Google Protocol Buffers 2 binary format.
- * <p>
- * To learn more about Protocol Buffers, visit:
+ *
+ * <p>To learn more about Protocol Buffers, visit:
  * <a href="https://developers.google.com/protocol-buffers">https://developers.google.com/protocol-buffers</a>
- * <p>
- * To use, specify the {@code Coder} type on a PCollection:
+ *
+ * <p>To use, specify the {@code Coder} type on a PCollection:
+ *
  * <pre>
  * {@code
  * PCollection<MyProto.Message> records =
@@ -52,9 +53,10 @@ import java.util.Objects;
  *          .setCoder(Proto2Coder.of(MyProto.Message.class));
  * }
  * </pre>
- * <p>
- * Custom message extensions are also supported, but the coder must be made
+ *
+ * <p>Custom message extensions are also supported, but the coder must be made
  * aware of them explicitly:
+ *
  * <pre>
  * {@code
  * PCollection<MyProto.Message> records =
@@ -67,6 +69,7 @@ import java.util.Objects;
  * @param <T> the type of elements handled by this coder, must extend {@code Message}
  */
 public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
+
   private static final long serialVersionUID = 0;
 
   /** The class of Protobuf message to be encoded. */
@@ -175,9 +178,9 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
   @Override
   public T decode(InputStream inStream, Context context) throws IOException {
     if (context.isWholeStream) {
-      return (T) getParser().parseFrom(inStream, getExtensionRegistry());
+      return getParser().parseFrom(inStream, getExtensionRegistry());
     } else {
-      return (T) getParser().parseDelimitedFrom(inStream, getExtensionRegistry());
+      return getParser().parseDelimitedFrom(inStream, getExtensionRegistry());
     }
   }
 
@@ -189,7 +192,6 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
     if (!(other instanceof Proto2Coder)) {
       return false;
     }
-    @SuppressWarnings("unchecked")
     Proto2Coder<?> otherCoder = (Proto2Coder<?>) other;
     return protoMessageClass.equals(otherCoder.protoMessageClass)
         && Sets.newHashSet(extensionHostClasses)
@@ -199,6 +201,39 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
   @Override
   public int hashCode() {
     return Objects.hash(protoMessageClass, extensionHostClasses);
+  }
+
+  /**
+   * The encoding identifier is designed to support evolution as per the design of Protocol
+   * Buffers. In order to use this class effectively, carefully follow the advice in the Protocol
+   * Buffers documentation at
+   * <a href="https://developers.google.com/protocol-buffers/docs/proto#updating">Updating
+   * A Message Type</a>.
+   *
+   * <p>In particular, the encoding identifier is guaranteed to be the same for {@code Proto2Coder}
+   * instances of the same principal message class, and otherwise distinct. Loaded extensions do not
+   * affect the id, nor does it encode the full schema.
+   *
+   * <p>When modifying a message class, here are the broadest guidelines; see the above link
+   * for greater detail.
+   *
+   * <ul>
+   * <li>Do not change the numeric tags for any fields.
+   * <li>Never remove a <code>required</code> field.
+   * <li>Only add <code>optional</code> or <code>repeated</code> fields, with sensible defaults.
+   * <li>When changing the type of a field, consult the Protocol Buffers documentation to ensure
+   * the new and old types are interchangeable.
+   * </ul>
+   *
+   * <p>Code consuming this message class should be prepared to support <i>all</i> versions of
+   * the class until it is certain that no remaining serialized instances exist.
+   *
+   * <p>If backwards incompatible changes must be made, the best recourse is to change the name
+   * of your Protocol Buffers message class.
+   */
+  @Override
+  public String getEncodingId() {
+    return protoMessageClass.getName();
   }
 
   private transient Parser<T> memoizedParser;

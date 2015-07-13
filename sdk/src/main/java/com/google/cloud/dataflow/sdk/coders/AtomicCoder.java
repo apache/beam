@@ -20,11 +20,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * An {@code AtomicCoder} is a {@link Coder} that has no component
- * {@link Coder}s or other state.
+ * An {@code AtomicCoder} is a {@link Coder} that has no component {@link Coder Coders} or other
+ * state.
  *
- * <p> Note that, unless the behavior is overriden,
- * atomic coders are presumed to be deterministic
+ * <p> Note that, unless the behavior is overridden, atomic coders are presumed to be deterministic
  * and all instances are considered equal.
  *
  * @param <T> the type of the values being transcoded
@@ -43,6 +42,9 @@ public abstract class AtomicCoder<T> extends DeterministicStandardCoder<T> {
    * Returns a list of values contained in the provided example
    * value, one per type parameter. If there are no type parameters,
    * returns the empty list.
+   *
+   * @param exampleValue unused, but part of the latent interface expected by
+   * {@link CoderFactories#fromStaticMethods}
    */
   public static <T> List<Object> getInstanceComponents(T exampleValue) {
     return Collections.emptyList();

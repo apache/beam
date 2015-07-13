@@ -27,15 +27,16 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 
 /**
- * A {@code DoubleCoder} encodes {@code Doubles} in 8 bytes.
+ * A {@code DoubleCoder} encodes {@code Double} values in 8 bytes using Java serialization.
  */
-@SuppressWarnings("serial")
 public class DoubleCoder extends AtomicCoder<Double> {
+
+  private static final long serialVersionUID = 0L;
+
   @JsonCreator
   public static DoubleCoder of() {
     return INSTANCE;
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 
