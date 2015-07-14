@@ -49,7 +49,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.util.ApiErrorExtractor;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -62,6 +61,8 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
+
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

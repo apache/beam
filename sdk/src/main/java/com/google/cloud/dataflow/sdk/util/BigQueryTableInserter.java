@@ -27,6 +27,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -294,7 +295,7 @@ public class BigQueryTableInserter {
           .insert(ref.getProjectId(), ref.getDatasetId(), content)
           .execute();
     } catch (IOException e) {
-      if (new ApiErrorExtractor().alreadyExists(e)) {
+      if (new ApiErrorExtractor().itemAlreadyExists(e)) {
         LOG.info("The BigQuery table already exists.");
         return null;
       }

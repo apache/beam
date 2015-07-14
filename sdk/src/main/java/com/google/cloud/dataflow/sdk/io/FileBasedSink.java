@@ -28,7 +28,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.util.ApiErrorExtractor;
 import com.google.cloud.dataflow.sdk.util.FileIOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.GcsIOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
@@ -36,6 +35,7 @@ import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;

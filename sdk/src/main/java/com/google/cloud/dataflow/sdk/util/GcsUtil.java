@@ -26,8 +26,14 @@ import com.google.cloud.dataflow.sdk.options.DefaultValueFactory;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
-import com.google.cloud.dataflow.sdk.util.gcsio.GoogleCloudStorageReadChannel;
-import com.google.cloud.dataflow.sdk.util.gcsio.GoogleCloudStorageWriteChannel;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
+import com.google.cloud.hadoop.gcsio.ObjectWriteConditions;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import com.google.cloud.hadoop.util.ClientRequestHelper;
+import com.google.cloud.hadoop.util.ResilientOperation;
+import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
@@ -38,6 +44,7 @@ import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.NoSuchFileException;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -233,7 +240,8 @@ public class GcsUtil {
   public SeekableByteChannel open(GcsPath path)
       throws IOException {
     return new GoogleCloudStorageReadChannel(storage, path.getBucket(),
-            path.getObject(), errorExtractor);
+            path.getObject(), errorExtractor,
+            new ClientRequestHelper<StorageObject>());
   }
 
   /**
@@ -249,12 +257,18 @@ public class GcsUtil {
    */
   public WritableByteChannel create(GcsPath path,
       String type) throws IOException {
-    return new GoogleCloudStorageWriteChannel(
+    GoogleCloudStorageWriteChannel channel = new GoogleCloudStorageWriteChannel(
         executorService,
         storage,
+        new ClientRequestHelper<StorageObject>(),
         path.getBucket(),
         path.getObject(),
+        (new AsyncWriteChannelOptions.Builder()).build(),
+        new ObjectWriteConditions(),
+        Collections.<String, String>emptyMap(),
         type);
+    channel.initialize();
+    return channel;
   }
 
   /**

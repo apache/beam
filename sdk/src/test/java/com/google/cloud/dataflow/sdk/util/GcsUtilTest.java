@@ -36,7 +36,8 @@ import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
-import com.google.cloud.dataflow.sdk.util.gcsio.GoogleCloudStorageReadChannel;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
+import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
@@ -330,7 +331,8 @@ public class GcsUtilTest {
   @Test
   public void testGCSChannelCloseIdempotent() throws IOException {
     SeekableByteChannel channel =
-        new GoogleCloudStorageReadChannel(null, "dummybucket", "dummyobject", null);
+        new GoogleCloudStorageReadChannel(null, "dummybucket", "dummyobject", null,
+        new ClientRequestHelper<StorageObject>());
     channel.close();
     channel.close();
   }

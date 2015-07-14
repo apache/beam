@@ -26,11 +26,11 @@ import com.google.cloud.dataflow.sdk.coders.TableRowJsonCoder;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
-import com.google.cloud.dataflow.sdk.util.ApiErrorExtractor;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 
 import java.io.IOException;
 
