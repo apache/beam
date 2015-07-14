@@ -151,6 +151,7 @@ message KeyedGetDataRequest {
   required fixed64 work_token = 2;
   repeated TagValue values_to_fetch = 3;
   repeated TagList lists_to_fetch = 4;
+  repeated WatermarkHold watermark_holds_to_fetch = 5;
 }
 
 message ComputationGetDataRequest {
@@ -172,6 +173,7 @@ message KeyedGetDataResponse {
   optional bool failed = 2;
   repeated TagValue values = 3;
   repeated TagList lists = 4;
+  repeated WatermarkHold watermark_holds = 5;
 }
 
 message ComputationGetDataResponse {
