@@ -255,7 +255,9 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
         valueBytes = CoderUtils.encodeToByteArray(windowedElemCoder, windowedElem);
       }
 
-      long bytes = writer.put(new ShuffleEntry(keyBytes, secondaryKeyBytes, valueBytes));
+      ShuffleEntry entry = new ShuffleEntry(keyBytes, secondaryKeyBytes, valueBytes);
+      writer.put(entry);
+      long bytes = entry.length();
       if (perWorkerPerDatasetBytesCounter != null) {
         perWorkerPerDatasetBytesCounter.addValue(bytes);
       }

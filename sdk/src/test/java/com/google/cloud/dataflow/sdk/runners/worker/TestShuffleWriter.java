@@ -32,7 +32,7 @@ public class TestShuffleWriter implements ShuffleEntryWriter {
   public TestShuffleWriter() { }
 
   @Override
-  public long put(ShuffleEntry entry) {
+  public void put(ShuffleEntry entry) {
     if (closed) {
       throw new AssertionError("shuffle writer already closed");
     }
@@ -40,7 +40,6 @@ public class TestShuffleWriter implements ShuffleEntryWriter {
 
     long size = entry.length();
     sizes.add(size);
-    return size;
   }
 
   @Override

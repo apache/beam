@@ -58,9 +58,11 @@ public class ShuffleEntry {
     return value;
   }
 
+  /**
+   * Returns the size of this entry in bytes, excluding {@code position}.
+   */
   public int length() {
-    return (position == null ? 0 : position.length)
-        + (key == null ? 0 : key.length)
+    return (key == null ? 0 : key.length)
         + (secondaryKey == null ? 0 : secondaryKey.length)
         + (value == null ? 0 : value.length);
   }

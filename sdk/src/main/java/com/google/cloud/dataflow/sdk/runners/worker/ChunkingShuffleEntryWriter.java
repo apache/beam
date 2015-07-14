@@ -51,14 +51,14 @@ final class ChunkingShuffleEntryWriter implements ShuffleEntryWriter {
   }
 
   @Override
-  public long put(ShuffleEntry entry) throws IOException {
+  public void put(ShuffleEntry entry) throws IOException {
     if (chunk.size() >= MAX_CHUNK_SIZE) {
       writeChunk();
     }
 
-    return putFixedLengthPrefixedByteArray(entry.getKey(), output)
-        + putFixedLengthPrefixedByteArray(entry.getSecondaryKey(), output)
-        + putFixedLengthPrefixedByteArray(entry.getValue(), output);
+    putFixedLengthPrefixedByteArray(entry.getKey(), output);
+    putFixedLengthPrefixedByteArray(entry.getSecondaryKey(), output);
+    putFixedLengthPrefixedByteArray(entry.getValue(), output);
   }
 
   @Override
@@ -75,15 +75,13 @@ final class ChunkingShuffleEntryWriter implements ShuffleEntryWriter {
     }
   }
 
-  static int putFixedLengthPrefixedByteArray(byte[] data,
-                                             DataOutputStream output)
+  static void putFixedLengthPrefixedByteArray(byte[] data,
+                                              DataOutputStream output)
       throws IOException {
     if (data == null) {
       data = EMPTY_BYTES;
     }
-    int bytesWritten = output.size();
     output.writeInt(data.length);
     output.write(data, 0, data.length);
-    return output.size() - bytesWritten;
   }
 }

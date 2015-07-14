@@ -29,10 +29,9 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 interface ShuffleEntryWriter extends AutoCloseable {
   /**
-   * Writes an entry to a shuffle dataset. Returns the size
-   * in bytes of the data written.
+   * Writes an entry to a shuffle dataset.
    */
-  public long put(ShuffleEntry entry) throws IOException;
+  public void put(ShuffleEntry entry) throws IOException;
 
   @Override
   public void close() throws IOException;
