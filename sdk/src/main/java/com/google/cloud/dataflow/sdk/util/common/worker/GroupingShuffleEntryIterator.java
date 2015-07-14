@@ -72,7 +72,10 @@ public abstract class GroupingShuffleEntryIterator
                 }.start()));
   }
 
-  /** Notifies observers about a new element read. */
+  /**
+   * Notifies observers about a new ShuffleEntry (key and value, not
+   * key and iterable of values) read.
+   */
   protected abstract void notifyElementRead(long byteSize);
 
   @Override

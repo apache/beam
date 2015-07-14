@@ -172,7 +172,9 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
 
     private ShuffleEntryWriter writer;
     private long seqNum = 0;
-    private Counter<Long> perWorkerPerDatasetBytesCounter;
+    private final Counter<Long> perWorkerPerDatasetBytesCounter;
+    // How many bytes were written to a given shuffle session, across all workers.
+    private final Counter<Long> perDatasetBytesCounter;
 
     ShuffleSinkWriter(
         ShuffleEntryWriter writer,
@@ -187,6 +189,8 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
               COUNTER_WORKER_PREFIX + dataflowOptions.getWorkerId()
               + COUNTER_DATASET_PREFIX + datasetId + COUNTER_SUFFIX,
               SUM));
+      this.perDatasetBytesCounter = addCounterMutator.addCounter(
+          Counter.longs("dax-shuffle-" + datasetId + "-written-bytes", SUM));
     }
 
     @Override
@@ -257,9 +261,8 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       ShuffleEntry entry = new ShuffleEntry(keyBytes, secondaryKeyBytes, valueBytes);
       writer.put(entry);
       long bytes = entry.length();
-      if (perWorkerPerDatasetBytesCounter != null) {
-        perWorkerPerDatasetBytesCounter.addValue(bytes);
-      }
+      perWorkerPerDatasetBytesCounter.addValue(bytes);
+      perDatasetBytesCounter.addValue(bytes);
       return bytes;
     }
 

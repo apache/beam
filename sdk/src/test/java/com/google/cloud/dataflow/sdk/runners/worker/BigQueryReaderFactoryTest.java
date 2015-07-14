@@ -48,7 +48,8 @@ public class BigQueryReaderFactoryTest {
     cloudSource.setCodec(encoding);
 
     Reader<?> reader = ReaderFactory.create(
-        PipelineOptionsFactory.create(), cloudSource, DirectModeExecutionContext.create());
+        PipelineOptionsFactory.create(), cloudSource, DirectModeExecutionContext.create(),
+        null, null);
     Assert.assertThat(reader, new IsInstanceOf(BigQueryReader.class));
     BigQueryReader bigQueryReader = (BigQueryReader) reader;
     Assert.assertEquals(project, bigQueryReader.tableRef.getProjectId());
@@ -65,7 +66,8 @@ public class BigQueryReaderFactoryTest {
     cloudSource.setCodec(encoding);
 
     Reader<?> reader = ReaderFactory.create(
-        PipelineOptionsFactory.create(), cloudSource, DirectModeExecutionContext.create());
+        PipelineOptionsFactory.create(), cloudSource, DirectModeExecutionContext.create(),
+        null, null);
     Assert.assertThat(reader, new IsInstanceOf(BigQueryReader.class));
     BigQueryReader bigQueryReader = (BigQueryReader) reader;
     Assert.assertEquals(query, bigQueryReader.query);

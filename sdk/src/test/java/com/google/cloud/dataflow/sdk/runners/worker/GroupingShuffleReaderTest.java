@@ -135,7 +135,7 @@ public class GroupingShuffleReaderTest {
     // Read from shuffle with GroupingShuffleReader.
     BatchModeExecutionContext context = new BatchModeExecutionContext();
     GroupingShuffleReader<Integer, String> groupingShuffleReader = new GroupingShuffleReader<>(
-        PipelineOptionsFactory.create(), null, null, null, sourceElemCoder, context);
+        PipelineOptionsFactory.create(), null, null, null, sourceElemCoder, context, null, null);
     ExecutorTestUtils.TestReaderObserver observer =
         new ExecutorTestUtils.TestReaderObserver(groupingShuffleReader);
 
@@ -293,7 +293,7 @@ public class GroupingShuffleReaderTest {
         WindowedValue.getFullCoder(
             KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
             IntervalWindow.getCoder()),
-        context);
+        context, null, null);
 
     try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
         groupingShuffleReader.iterator(shuffleReader)) {
@@ -343,7 +343,7 @@ public class GroupingShuffleReaderTest {
         WindowedValue.getFullCoder(
             KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
             IntervalWindow.getCoder()),
-        context);
+        context, null, null);
 
     TestShuffleReader shuffleReader = new TestShuffleReader();
     final int kNumRecords = 10;
@@ -427,7 +427,7 @@ public class GroupingShuffleReaderTest {
         WindowedValue.getFullCoder(
             KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
             IntervalWindow.getCoder()),
-        context);
+        context, null, null);
 
     TestShuffleReader shuffleReader = new TestShuffleReader();
     final int kNumRecords = 10;

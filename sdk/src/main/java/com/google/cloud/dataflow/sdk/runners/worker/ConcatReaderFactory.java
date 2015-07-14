@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import java.util.ArrayList;
@@ -39,10 +40,12 @@ import java.util.Map;
  */
 public class ConcatReaderFactory {
   public static <T> Reader<T> create(PipelineOptions options, CloudObject spec,
-      @SuppressWarnings("unused") Coder<T> coder, ExecutionContext executionContext)
+      @SuppressWarnings("unused") Coder<T> coder, ExecutionContext executionContext,
+      CounterSet.AddCounterMutator addCounterMutator, String operationName)
       throws Exception {
     List<Source> sources = getSubSources(spec);
-    return new ConcatReader<T>(options, executionContext, sources);
+    return new ConcatReader<T>(options, executionContext, addCounterMutator,
+                               operationName, sources);
   }
 
   private static List<Source> getSubSources(CloudObject spec) throws Exception {

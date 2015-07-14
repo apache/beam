@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.Serializer;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
@@ -60,7 +61,7 @@ public final class ReaderFactory {
     predefinedReaderFactories.put(
         "PartitioningShuffleSource", PartitioningShuffleReaderFactory.class.getName());
     predefinedReaderFactories.put(
-        "GroupingShuffleSource", GroupingShuffleReaderFactory.class.getName());
+        GroupingShuffleReader.SOURCE_NAME, GroupingShuffleReaderFactory.class.getName());
     predefinedReaderFactories.put("InMemorySource", InMemoryReaderFactory.class.getName());
     predefinedReaderFactories.put("BigQuerySource", BigQueryReaderFactory.class.getName());
     predefinedReaderFactories.put(
@@ -89,7 +90,9 @@ public final class ReaderFactory {
    */
   public static <T> Reader<T> create(
       @Nullable PipelineOptions options, Source cloudSource,
-      @Nullable ExecutionContext executionContext)
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator,
+      @Nullable String operationName)
           throws Exception {
     cloudSource = CloudSourceUtils.flattenBaseSpecs(cloudSource);
 
@@ -107,14 +110,24 @@ public final class ReaderFactory {
       coder = Serializer.deserialize(cloudSource.getCodec(), Coder.class);
     }
     try {
-      return InstanceBuilder.ofType(new TypeDescriptor<Reader<T>>() {})
+      InstanceBuilder<Reader<T>> builder =
+          InstanceBuilder.ofType(new TypeDescriptor<Reader<T>>() {})
           .fromClassName(sourceFactoryClassName)
           .fromFactoryMethod("create")
           .withArg(PipelineOptions.class, options)
           .withArg(CloudObject.class, object)
           .withArg(Coder.class, coder)
-          .withArg(ExecutionContext.class, executionContext)
-          .build();
+          .withArg(ExecutionContext.class, executionContext);
+
+      // These two kinds of sources require two more arguments to create.
+      if (objClassName.equals(GroupingShuffleReader.SOURCE_NAME)
+          || objClassName.equals(ConcatReader.SOURCE_NAME)) {
+        builder
+            .withArg(CounterSet.AddCounterMutator.class, addCounterMutator)
+            .withArg(String.class, operationName);
+      }
+
+      return builder.build();
 
     } catch (ClassNotFoundException exn) {
       throw new Exception("unable to create a source from " + cloudSource, exn);

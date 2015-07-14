@@ -20,6 +20,7 @@ import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
@@ -47,16 +48,22 @@ public class ConcatReader<T> extends Reader<T> {
   private final List<Source> sources;
   private final PipelineOptions options;
   private final ExecutionContext executionContext;
+  private final CounterSet.AddCounterMutator addCounterMutator;
+  private final String operationName;
 
   /**
    * Create a {@code ConcatReader} using a given list of encoded {@code Source}s.
    */
   public ConcatReader(
-      PipelineOptions options, ExecutionContext executionContext, List<Source> sources) {
+      PipelineOptions options, ExecutionContext executionContext,
+      CounterSet.AddCounterMutator addCounterMutator, String operationName,
+      List<Source> sources) {
     Preconditions.checkNotNull(sources);
     this.sources = sources;
     this.options = options;
     this.executionContext = executionContext;
+    this.addCounterMutator = addCounterMutator;
+    this.operationName = operationName;
   }
 
   public Iterator<Source> getSources() {
@@ -65,7 +72,8 @@ public class ConcatReader<T> extends Reader<T> {
 
   @Override
   public ReaderIterator<T> iterator() throws IOException {
-    return new ConcatIterator<T>(options, executionContext, sources);
+    return new ConcatIterator<T>(options, executionContext, addCounterMutator,
+        operationName, sources);
   }
 
   private static class ConcatIterator<T> extends AbstractBoundedReaderIterator<T> {
@@ -74,12 +82,18 @@ public class ConcatReader<T> extends Reader<T> {
     private final List<Source> sources;
     private final PipelineOptions options;
     private final ExecutionContext executionContext;
+    private final CounterSet.AddCounterMutator addCounterMutator;
+    private final String operationName;
 
     public ConcatIterator(
-        PipelineOptions options, ExecutionContext executionContext, List<Source> sources) {
+        PipelineOptions options, ExecutionContext executionContext,
+        CounterSet.AddCounterMutator addCounterMutator, String operationName,
+        List<Source> sources) {
       this.sources = sources;
       this.options = options;
       this.executionContext = executionContext;
+      this.addCounterMutator = addCounterMutator;
+      this.operationName = operationName;
     }
 
     @Override
@@ -103,7 +117,8 @@ public class ConcatReader<T> extends Reader<T> {
         try {
           @SuppressWarnings("unchecked")
           Reader<T> currentReader =
-              (Reader<T>) ReaderFactory.create(options, currentSource, executionContext);
+              (Reader<T>) ReaderFactory.create(options, currentSource, executionContext,
+                  addCounterMutator, operationName);
           currentIterator = currentReader.iterator();
         } catch (Exception e) {
           throw new IOException("Failed to create a reader for source: " + currentSource, e);

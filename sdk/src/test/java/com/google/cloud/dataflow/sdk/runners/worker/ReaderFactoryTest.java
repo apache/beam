@@ -82,7 +82,7 @@ public class ReaderFactoryTest {
     cloudSource.setCodec(makeCloudEncoding("StringUtf8Coder"));
 
     Reader<?> reader = ReaderFactory.create(
-        PipelineOptionsFactory.create(), cloudSource, new BatchModeExecutionContext());
+        PipelineOptionsFactory.create(), cloudSource, new BatchModeExecutionContext(), null, null);
     Assert.assertThat(reader, new IsInstanceOf(TextReader.class));
   }
 
@@ -95,7 +95,7 @@ public class ReaderFactoryTest {
     cloudSource.setCodec(makeCloudEncoding("BigEndianIntegerCoder"));
 
     Reader<?> reader = ReaderFactory.create(
-        PipelineOptionsFactory.create(), cloudSource, new BatchModeExecutionContext());
+        PipelineOptionsFactory.create(), cloudSource, new BatchModeExecutionContext(), null, null);
     Assert.assertThat(reader, new IsInstanceOf(TestReader.class));
   }
 
@@ -107,7 +107,8 @@ public class ReaderFactoryTest {
     cloudSource.setCodec(makeCloudEncoding("StringUtf8Coder"));
     try {
       ReaderFactory.create(
-          PipelineOptionsFactory.create(), cloudSource, new BatchModeExecutionContext());
+          PipelineOptionsFactory.create(), cloudSource, new BatchModeExecutionContext(),
+          null, null);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
       Assert.assertThat(exn.toString(), CoreMatchers.containsString("unable to create a source"));

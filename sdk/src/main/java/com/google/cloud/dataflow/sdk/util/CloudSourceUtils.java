@@ -58,7 +58,8 @@ public class CloudSourceUtils {
 
   public static <T> List<T> readElemsFromSource(PipelineOptions options, Source source) {
     try {
-      return ReaderUtils.readElemsFromReader(ReaderFactory.<T>create(options, source, null));
+      return ReaderUtils.readElemsFromReader(ReaderFactory.<T>create(
+          options, source, null, null, null));
     } catch (Exception e) {
       throw new RuntimeException("Failed to read from source: " + source.toString(), e);
     }

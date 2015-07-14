@@ -356,7 +356,7 @@ public class BasicSerializableSourceFormatTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.create()
         .as(DataflowPipelineOptions.class);
     Reader<WindowedValue<Integer>> reader = ReaderFactory.create(
-        options, translateIOToCloudSource(TestIO.fromRange(10, 20), options), null);
+        options, translateIOToCloudSource(TestIO.fromRange(10, 20), options), null, null, null);
     try (Reader.ReaderIterator<WindowedValue<Integer>> iterator = reader.iterator()) {
       assertTrue(iterator.hasNext());
       assertEquals(

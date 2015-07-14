@@ -136,12 +136,14 @@ public class MapTaskExecutorFactory {
       throws Exception {
     ReadInstruction read = instruction.getRead();
 
-    Reader<?> reader = ReaderFactory.create(options, read.getSource(), executionContext);
+    String operationName = instruction.getSystemName();
+    Reader<?> reader = ReaderFactory.create(options, read.getSource(), executionContext,
+        addCounterMutator, operationName);
 
     OutputReceiver[] receivers =
         createOutputReceivers(instruction, counterPrefix, addCounterMutator, stateSampler, 1);
 
-    return new ReadOperation(instruction.getSystemName(), reader, receivers, counterPrefix,
+    return new ReadOperation(operationName, reader, receivers, counterPrefix,
         addCounterMutator, stateSampler);
   }
 

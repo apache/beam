@@ -95,7 +95,10 @@ public class SideInputUtils {
       Observer observer,
       ExecutionContext executionContext)
       throws Exception {
-    Reader<Object> reader = ReaderFactory.create(options, sideInputSource, executionContext);
+    Reader<Object> reader = ReaderFactory.create(options, sideInputSource, executionContext,
+                                                 // We don't do shuffle sanity check on side inputs,
+                                                 // as they don't have to be read completely.
+                                                 null, null);
     if (observer != null) {
       reader.addObserver(observer);
     }

@@ -66,7 +66,7 @@ public class TextReaderFactoryTest {
     cloudSource.setCodec(encoding);
 
     Reader<?> reader = ReaderFactory.create(
-        PipelineOptionsFactory.create(), cloudSource, new BatchModeExecutionContext());
+        PipelineOptionsFactory.create(), cloudSource, new BatchModeExecutionContext(), null, null);
     Assert.assertThat(reader, new IsInstanceOf(TextReader.class));
     TextReader textReader = (TextReader<?>) reader;
     Assert.assertEquals(filename, textReader.filename);

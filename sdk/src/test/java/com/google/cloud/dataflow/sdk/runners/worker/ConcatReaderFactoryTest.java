@@ -89,7 +89,7 @@ public class ConcatReaderFactoryTest {
     List<List<String>> allData = createInMemorySourceData(1, 10);
 
     Source source = createSourcesWithInMemorySources(allData);
-    Reader<String> reader = ReaderFactory.create(null, source, null);
+    Reader<String> reader = ReaderFactory.create(null, source, null, null, null);
     assertNotNull(reader);
 
     List<String> expected = new ArrayList<>();
@@ -109,7 +109,7 @@ public class ConcatReaderFactoryTest {
     List<List<String>> allData = createInMemorySourceData(15, 10);
 
     Source source = createSourcesWithInMemorySources(allData);
-    Reader<String> reader = ReaderFactory.create(null, source, null);
+    Reader<String> reader = ReaderFactory.create(null, source, null, null, null);
     assertNotNull(reader);
 
     List<String> expected = new ArrayList<>();

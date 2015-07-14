@@ -204,7 +204,7 @@ public class ConcatReaderTest {
       sourceList.add(createSourceForTestReader(createTestReader(items/* recordsPerReader */,
           -1/* recordToFailAt */, false/* failWhenClosing */, expected)));
     }
-    ConcatReader<String> concatReader = new ConcatReader<>(null, null, sourceList);
+    ConcatReader<String> concatReader = new ConcatReader<>(null, null, null, null, sourceList);
 
     List<String> actual = new ArrayList<>();
     readFully(concatReader, actual);
@@ -216,12 +216,13 @@ public class ConcatReaderTest {
   @Test
   public void testCreateFromNull() throws Exception {
     expectedException.expect(NullPointerException.class);
-    new ConcatReader<String>(null, null, null);
+    new ConcatReader<String>(null, null, null, null, null);
   }
 
   @Test
   public void testReadEmptyList() throws Exception {
-    ConcatReader<String> concat = new ConcatReader<>(null, null, new ArrayList<Source>());
+    ConcatReader<String> concat = new ConcatReader<>(null, null, null, null,
+        new ArrayList<Source>());
     ReaderIterator<String> iterator = concat.iterator();
     assertNotNull(iterator);
     assertFalse(concat.iterator().hasNext());
@@ -271,7 +272,7 @@ public class ConcatReaderTest {
         createSourceForTestReader(createTestReader(10/* recordsPerReader */, -1/* recordToFailAt */,
             false/* failWhenClosing */, new ArrayList<String>())));
 
-    ConcatReader<String> concatReader = new ConcatReader<>(null, null, sources);
+    ConcatReader<String> concatReader = new ConcatReader<>(null, null, null, null, sources);
     List<String> actual = new ArrayList<>();
     try {
       readFully(concatReader, actual);
@@ -296,7 +297,7 @@ public class ConcatReaderTest {
     expected = expected.subList(0, 16);
     assertEquals(16, expected.size());
 
-    ConcatReader<String> concatReader = new ConcatReader<>(null, null, sources);
+    ConcatReader<String> concatReader = new ConcatReader<>(null, null, null, null, sources);
     List<String> actual = new ArrayList<>();
     try {
       readFully(concatReader, actual);

@@ -225,6 +225,11 @@ public class ReadOperation extends Operation {
    * This is an observer on the instance of the source. Whenever source reads
    * an element, update() gets called with the byte size of the element, which
    * gets added up into the ReadOperation's byte counter.
+   *
+   * <p>Note that when the reader is a {@link GroupingShuffleReader}, update()
+   * is called for each underlying {@link ShuffleEntry} being read, with the
+   * byte size of the {@code ShuffleEntry} - it is not called for each grouped
+   * shuffle element (i.e. key and iterable of values).
    */
   private class ReaderObserver implements Observer {
     @Override

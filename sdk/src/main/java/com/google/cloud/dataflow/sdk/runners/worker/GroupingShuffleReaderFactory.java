@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 /**
@@ -36,17 +37,21 @@ public class GroupingShuffleReaderFactory {
   private GroupingShuffleReaderFactory() {}
 
   public static <K, V> GroupingShuffleReader<K, V> create(PipelineOptions options, CloudObject spec,
-      Coder<WindowedValue<KV<K, Iterable<V>>>> coder, ExecutionContext executionContext)
+      Coder<WindowedValue<KV<K, Iterable<V>>>> coder, ExecutionContext executionContext,
+      CounterSet.AddCounterMutator addCounterMutator, String operationName)
       throws Exception {
-    return create(options, spec, coder, (BatchModeExecutionContext) executionContext);
+    return create(options, spec, coder, (BatchModeExecutionContext) executionContext,
+                  addCounterMutator, operationName);
   }
 
   static <K, V> GroupingShuffleReader<K, V> create(PipelineOptions options, CloudObject spec,
-      Coder<WindowedValue<KV<K, Iterable<V>>>> coder, BatchModeExecutionContext executionContext)
+      Coder<WindowedValue<KV<K, Iterable<V>>>> coder, BatchModeExecutionContext executionContext,
+      CounterSet.AddCounterMutator addCounterMutator, String operationName)
       throws Exception {
     return new GroupingShuffleReader<>(options,
         decodeBase64(getString(spec, PropertyNames.SHUFFLE_READER_CONFIG)),
         getString(spec, PropertyNames.START_SHUFFLE_POSITION, null),
-        getString(spec, PropertyNames.END_SHUFFLE_POSITION, null), coder, executionContext);
+        getString(spec, PropertyNames.END_SHUFFLE_POSITION, null), coder, executionContext,
+        addCounterMutator, operationName);
   }
 }

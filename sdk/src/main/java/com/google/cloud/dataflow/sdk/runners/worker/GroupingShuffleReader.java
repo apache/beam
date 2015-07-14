@@ -20,6 +20,7 @@ import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 
 import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.ApproximateProgress;
@@ -31,6 +32,7 @@ import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.Reiterator;
@@ -60,12 +62,17 @@ import javax.annotation.Nullable;
  */
 public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reiterable<V>>>> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleReader.class);
+  public static final String SOURCE_NAME = "GroupingShuffleSource";
 
   final byte[] shuffleReaderConfig;
   @Nullable final String startShufflePosition;
   @Nullable final String stopShufflePosition;
   final BatchModeExecutionContext executionContext;
+  @Nullable final CounterSet.AddCounterMutator addCounterMutator;
+  @Nullable final String operationName;
 
+  // Counts how many bytes were from by a given operation from a given shuffle session.
+  @Nullable Counter<Long> perOperationPerDatasetBytesCounter;
   Coder<K> keyCoder;
   Coder<V> valueCoder;
 
@@ -75,20 +82,42 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
       @Nullable String startShufflePosition,
       @Nullable String stopShufflePosition,
       Coder<WindowedValue<KV<K, Iterable<V>>>> coder,
-      BatchModeExecutionContext executionContext)
+      BatchModeExecutionContext executionContext,
+      CounterSet.AddCounterMutator addCounterMutator,
+      String operationName)
       throws Exception {
     this.shuffleReaderConfig = shuffleReaderConfig;
     this.startShufflePosition = startShufflePosition;
     this.stopShufflePosition = stopShufflePosition;
     this.executionContext = executionContext;
+    this.addCounterMutator = addCounterMutator;
+    this.operationName = operationName;
     initCoder(coder);
+    // We cannot initialize perOperationPerDatasetBytesCounter here, as it
+    // depends on shuffleReaderConfig, which isn't populated yet.
+  }
+
+  private synchronized void initCounter(String datasetId) {
+    if (perOperationPerDatasetBytesCounter == null
+        && addCounterMutator != null
+        && operationName != null) {
+      perOperationPerDatasetBytesCounter =
+          addCounterMutator.addCounter(
+              Counter.longs(
+                  "dax-shuffle-" + datasetId + "-wf-" + operationName + "-read-bytes",
+                  SUM));
+    }
   }
 
   @Override
   public ReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> iterator() throws IOException {
     Preconditions.checkArgument(shuffleReaderConfig != null);
+    ApplianceShuffleReader asr = new ApplianceShuffleReader(shuffleReaderConfig);
+    String datasetId = asr.getDatasetId();
+    initCounter(datasetId);
+
     return iterator(new BatchingShuffleEntryReader(
-        new ChunkingShuffleBatchReader(new ApplianceShuffleReader(shuffleReaderConfig))));
+        new ChunkingShuffleBatchReader(asr)));
   }
 
   private void initCoder(Coder<WindowedValue<KV<K, Iterable<V>>>> coder) throws Exception {
@@ -174,6 +203,9 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
                 reader.read(rangeTracker.getStartPosition(), rangeTracker.getStopPosition())) {
               @Override
               protected void notifyElementRead(long byteSize) {
+                if (GroupingShuffleReader.this.perOperationPerDatasetBytesCounter != null) {
+                  GroupingShuffleReader.this.perOperationPerDatasetBytesCounter.addValue(byteSize);
+                }
                 GroupingShuffleReader.this.notifyElementRead(byteSize);
               }
             };
