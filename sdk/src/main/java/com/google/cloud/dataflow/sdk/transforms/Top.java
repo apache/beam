@@ -314,7 +314,7 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
    * A {@code Serializable} {@code Comparator} that that uses the compared elements' natural
    * ordering.
    */
-  public static class Largest<T extends Comparable<T>>
+  public static class Largest<T extends Comparable<? super T>>
       implements Comparator<T>, Serializable {
     private static final long serialVersionUID = 0L;
 
@@ -328,7 +328,7 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
    * {@code Serializable} {@code Comparator} that that uses the reverse of the compared elements'
    * natural ordering.
    */
-  public static class Smallest<T extends Comparable<T>>
+  public static class Smallest<T extends Comparable<? super T>>
       implements Comparator<T>, Serializable {
     private static final long serialVersionUID = 0L;
 

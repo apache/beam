@@ -18,11 +18,13 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import static org.junit.Assert.assertEquals;
 
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -73,6 +75,23 @@ public class SimpleStatsFnsTest {
           1, -3, 2, 6, 3, 4, -3, 5, 6, 1),
       new TestCase<>(3, 3, 3, 3),
       new TestCase<>(Integer.MAX_VALUE, Integer.MIN_VALUE, 0));
+
+  @Test
+  public void testInstantStats() {
+    assertEquals(new Instant(1000), Min.MinFn.<Instant>naturalOrder().apply(
+        Arrays.asList(new Instant(1000), new Instant(2000))));
+    assertEquals(null, Min.MinFn.<Instant>naturalOrder().apply(
+        Collections.<Instant>emptyList()));
+    assertEquals(new Instant(5000), Min.MinFn.<Instant>naturalOrder(new Instant(5000)).apply(
+        Collections.<Instant>emptyList()));
+
+    assertEquals(new Instant(2000), Max.MaxFn.<Instant>naturalOrder().apply(
+        Arrays.asList(new Instant(1000), new Instant(2000))));
+    assertEquals(null, Max.MaxFn.<Instant>naturalOrder().apply(
+        Collections.<Instant>emptyList()));
+    assertEquals(new Instant(5000), Max.MaxFn.<Instant>naturalOrder(new Instant(5000)).apply(
+        Collections.<Instant>emptyList()));
+  }
 
   @Test
   public void testDoubleStats() {
