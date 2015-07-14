@@ -171,14 +171,14 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setPubsubRootUrl(String value);
 
   /**
-   * Whether to reload the currently running pipeline with the same name as this one.
+   * Whether to update the currently running pipeline with the same name as this one.
    */
   @JsonIgnore
   @Description("If set, replace the existing pipeline with the name specified by --jobName with "
       + "this pipeline, preserving state.")
   @Experimental
-  boolean getReload();
-  void setReload(boolean value);
+  boolean getUpdate();
+  void setUpdate(boolean value);
 
   /**
    * Mapping of old PTranform names to new ones, specified as a semicolon-separated list of

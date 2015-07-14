@@ -303,18 +303,20 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       }
     }
 
-    String reloadJobId = null;
-    if (options.getReload()) {
-      reloadJobId = getJobIdFromName(options.getJobName());
+    String jobIdToUpdate = null;
+    if (options.getUpdate()) {
+      jobIdToUpdate = getJobIdFromName(options.getJobName());
       newJob.setTransformNameMapping(options.getTransformNameMapping());
     }
     Job jobResult;
     try {
       Dataflow.Projects.Jobs.Create createRequest =
-          dataflowClient.projects().jobs()
-          .create(options.getProject(), newJob);
-      if (reloadJobId != null) {
-        createRequest.setReplaceJobId(reloadJobId);
+          dataflowClient
+              .projects()
+              .jobs()
+              .create(options.getProject(), newJob);
+      if (jobIdToUpdate != null) {
+        createRequest.setReplaceJobId(jobIdToUpdate);
       }
       jobResult = createRequest.execute();
     } catch (GoogleJsonResponseException e) {
@@ -329,11 +331,12 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     // Error::Already_Exists.
     if (jobResult.getClientRequestId() != null && !jobResult.getClientRequestId().isEmpty()
         && !jobResult.getClientRequestId().equals(requestId)) {
-      // If reloading a job.
-      if (options.getReload()) {
-        throw new RuntimeException("The job named " + newJob.getName() + " with id: " + reloadJobId
-            + " has already been updated into job id: " + jobResult.getId()
-            + " and cannot be updated again. ");
+      // If updating a job.
+      if (options.getUpdate()) {
+        throw new RuntimeException(
+            "The job named " + newJob.getName() + " with id: " + jobIdToUpdate
+                + " has already been updated into job id: " + jobResult.getId()
+                + " and cannot be updated again. ");
       } else {
         throw new RuntimeException("There is already an active job named " + newJob.getName()
             + " with id: " + jobResult.getId()

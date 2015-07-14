@@ -192,11 +192,11 @@ public class DataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testReload() throws IOException {
+  public void testUpdate() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
-    options.setReload(true);
+    options.setUpdate(true);
     options.setJobName("oldJobName");
     DataflowPipeline p = buildDataflowPipeline(options);
     DataflowPipelineJob job = p.run();
@@ -205,13 +205,13 @@ public class DataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testReloadNonExistentPipeline() throws IOException {
+  public void testUpdateNonExistentPipeline() throws IOException {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Could not find running job named badJobName");
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
-    options.setReload(true);
+    options.setUpdate(true);
     options.setJobName("badJobName");
     DataflowPipeline p = buildDataflowPipeline(options);
     p.run();
