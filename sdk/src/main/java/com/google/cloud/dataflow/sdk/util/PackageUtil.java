@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.collect.TreeTraverser;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.Hasher;
@@ -59,6 +60,11 @@ public class PackageUtil {
    * The maximum number of attempts when staging a file.
    */
   private static final int MAX_ATTEMPTS = 5;
+
+  /**
+   * Translates exceptions from API calls.
+   */
+  private static final ApiErrorExtractor ERROR_EXTRACTOR = new ApiErrorExtractor();
 
   /**
    * Creates a DataflowPackage containing information about how a classpath element should be
@@ -165,7 +171,15 @@ public class PackageUtil {
             numUploaded++;
             break;
           } catch (IOException e) {
-            if (!backoff.atMaxAttempts()) {
+            if (ERROR_EXTRACTOR.accessDenied(e)) {
+              String errorMessage = String.format(
+                  "Uploaded failed due to permissions error, will NOT retry staging "
+                  + "of classpath %s. Please verify credentials are valid and that you have "
+                  + "write access to %s. Stale credentials can be resolved by executing "
+                  + "'gcloud auth login'.", classpathElement, target);
+              LOG.error(errorMessage);
+              throw new IOException(errorMessage, e);
+            } else if (!backoff.atMaxAttempts()) {
               LOG.warn("Upload attempt failed, sleeping before retrying staging of classpath: {}",
                   classpathElement, e);
               BackOffUtils.next(retrySleeper, backoff);

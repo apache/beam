@@ -21,6 +21,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.times;
@@ -28,6 +30,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.HttpResponse;
+import com.google.api.client.http.HttpStatusCodes;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.LowLevelHttpRequest;
+import com.google.api.client.json.GenericJson;
+import com.google.api.client.json.Json;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.testing.http.HttpTesting;
+import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.api.client.testing.http.MockLowLevelHttpRequest;
+import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -38,6 +55,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 import com.google.common.io.LineReader;
 
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,6 +72,7 @@ import java.nio.channels.Pipe;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -274,6 +293,38 @@ public class PackageUtilTest {
   }
 
   @Test
+  public void testPackageUploadFailsWithPermissionsErrorGivesDetailedMessage() throws Exception {
+    File tmpFile = tmpFolder.newFile("file.txt");
+    Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
+    GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
+    when(mockGcsUtil.fileSize(any(GcsPath.class)))
+        .thenThrow(new NoSuchFileException("some/path"));
+    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+        .thenThrow(new IOException("Failed to write to GCS path " + gcsStaging,
+            googleJsonResponseException(
+                HttpStatusCodes.STATUS_CODE_FORBIDDEN, "Permission denied", "Test message")));
+
+    try {
+      PackageUtil.stageClasspathElements(
+          ImmutableList.of(tmpFile.getAbsolutePath()),
+          gcsStaging.toString(), fastNanoClockAndSleeper);
+      fail("Expected RuntimeException");
+    } catch (RuntimeException e) {
+      assertTrue("Expected IOException containing detailed message.",
+          e.getCause() instanceof IOException);
+      assertThat(e.getCause().getMessage(),
+          Matchers.allOf(
+              Matchers.containsString("Uploaded failed due to permissions error"),
+              Matchers.containsString(
+                  "Stale credentials can be resolved by executing 'gcloud auth login'")));
+    } finally {
+      verify(mockGcsUtil).fileSize(any(GcsPath.class));
+      verify(mockGcsUtil).create(any(GcsPath.class), anyString());
+      verifyNoMoreInteractions(mockGcsUtil);
+    }
+  }
+
+  @Test
   public void testPackageUploadEventuallySucceeds() throws Exception {
     Pipe pipe = Pipe.open();
     File tmpFile = tmpFolder.newFile("file.txt");
@@ -365,5 +416,37 @@ public class PackageUtilTest {
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
     assertEquals(Collections.EMPTY_LIST, PackageUtil.stageClasspathElements(
         ImmutableList.of(nonExistentFile), gcsStaging.toString()));
+  }
+
+  /**
+   * Builds a fake GoogleJsonResponseException for testing API error handling.
+   */
+  private static GoogleJsonResponseException googleJsonResponseException(
+      final int status, final String reason, final String message) throws IOException {
+    final JsonFactory jsonFactory = new JacksonFactory();
+    HttpTransport transport = new MockHttpTransport() {
+      @Override
+      public LowLevelHttpRequest buildRequest(String method, String url) throws IOException {
+        ErrorInfo errorInfo = new ErrorInfo();
+        errorInfo.setReason(reason);
+        errorInfo.setMessage(message);
+        errorInfo.setFactory(jsonFactory);
+        GenericJson error = new GenericJson();
+        error.set("code", status);
+        error.set("errors", Arrays.asList(errorInfo));
+        error.setFactory(jsonFactory);
+        GenericJson errorResponse = new GenericJson();
+        errorResponse.set("error", error);
+        errorResponse.setFactory(jsonFactory);
+        return new MockLowLevelHttpRequest().setResponse(
+            new MockLowLevelHttpResponse().setContent(errorResponse.toPrettyString())
+            .setContentType(Json.MEDIA_TYPE).setStatusCode(status));
+        }
+    };
+    HttpRequest request =
+        transport.createRequestFactory().buildGetRequest(HttpTesting.SIMPLE_GENERIC_URL);
+    request.setThrowExceptionOnExecuteError(false);
+    HttpResponse response = request.execute();
+    return GoogleJsonResponseException.from(jsonFactory, response);
   }
 }
