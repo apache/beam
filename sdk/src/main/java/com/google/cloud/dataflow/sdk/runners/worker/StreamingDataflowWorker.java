@@ -174,6 +174,7 @@ public class StreamingDataflowWorker {
 
   // Map of user state names to system state names.
   private ConcurrentMap<String, String> stateNameMap;
+  private ConcurrentMap<String, String> systemNameToComputationIdMap;
 
   private ThreadFactory threadFactory;
   private BoundedQueueExecutor workUnitExecutor;
@@ -196,6 +197,7 @@ public class StreamingDataflowWorker {
     this.readerCache = new ConcurrentHashMap<>();
     this.commitCallbacks = new ConcurrentHashMap<>();
     this.stateNameMap = new ConcurrentHashMap<>();
+    this.systemNameToComputationIdMap = new ConcurrentHashMap<>();
     for (MapTask mapTask : mapTasks) {
       addComputation(mapTask);
     }
@@ -290,14 +292,17 @@ public class StreamingDataflowWorker {
   }
 
   private void addComputation(MapTask mapTask) {
-    String computation = mapTask.getSystemName();
-    if (!instructionMap.containsKey(computation)) {
-      LOG.info("Adding config for {}: {}", computation, mapTask);
-      outputMap.put(computation, new ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>());
-      instructionMap.put(computation, mapTask);
-      mapTaskExecutors.put(computation, new ConcurrentLinkedQueue<WorkerAndContext>());
+    String computationId =
+        systemNameToComputationIdMap.containsKey(mapTask.getSystemName())
+            ? systemNameToComputationIdMap.get(mapTask.getSystemName())
+            : mapTask.getSystemName();
+    if (!instructionMap.containsKey(computationId)) {
+      LOG.info("Adding config for {}: {}", computationId, mapTask);
+      outputMap.put(computationId, new ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>());
+      instructionMap.put(computationId, mapTask);
+      mapTaskExecutors.put(computationId, new ConcurrentLinkedQueue<WorkerAndContext>());
       readerCache.put(
-          computation, new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>());
+          computationId, new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>());
     }
   }
 
@@ -545,6 +550,10 @@ public class StreamingDataflowWorker {
         Windmill.GetConfigRequest.newBuilder().addComputations(computation).build();
 
     Windmill.GetConfigResponse response = windmillServer.getConfig(request);
+    for (Windmill.GetConfigResponse.SystemNameToComputationIdMapEntry entry :
+        response.getSystemNameToComputationIdMapList()) {
+      systemNameToComputationIdMap.put(entry.getSystemName(), entry.getComputationId());
+    }
     for (String serializedMapTask : response.getCloudWorksList()) {
       try {
         addComputation(parseMapTask(serializedMapTask));
