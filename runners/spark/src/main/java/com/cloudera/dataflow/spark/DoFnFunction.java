@@ -51,8 +51,8 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
   @Override
   public Iterable<O> call(Iterator<I> iter) throws Exception {
     ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
-    mFunction.startBundle(ctxt);
     ctxt.setup();
+    mFunction.startBundle(ctxt);
     return ctxt.getOutputIterable(iter, mFunction);
   }
 

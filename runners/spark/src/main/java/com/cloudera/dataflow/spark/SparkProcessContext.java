@@ -211,10 +211,12 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
     private final Iterator<I> inputIterator;
     private final DoFn<I, O> doFn;
     private Iterator<V> outputIterator;
+    private boolean calledFinish = false;
 
     public ProcCtxtIterator(Iterator<I> iterator, DoFn<I, O> doFn) {
       this.inputIterator = iterator;
       this.doFn = doFn;
+      this.outputIterator = getOutputIterator();
     }
 
     @Override
@@ -225,10 +227,9 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
       // collection only holds the output values for each call to processElement, rather
       // than for the whole partition (which would use too much memory).
       while (true) {
-        if (outputIterator != null && outputIterator.hasNext()) {
+        if (outputIterator.hasNext()) {
           return outputIterator.next();
-        }
-        if (inputIterator.hasNext()) {
+        } else if (inputIterator.hasNext()) {
           clearOutput();
           element = inputIterator.next();
           try {
@@ -239,10 +240,17 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
           outputIterator = getOutputIterator();
           continue; // try to consume outputIterator from start of loop
         } else {
-          try {
-            doFn.finishBundle(SparkProcessContext.this);
-          } catch (Exception e) {
-            throw new IllegalStateException(e);
+          // no more input to consume, but finishBundle can produce more output
+          if (!calledFinish) {
+            clearOutput();
+            try {
+              calledFinish = true;
+              doFn.finishBundle(SparkProcessContext.this);
+            } catch (Exception e) {
+              throw new IllegalStateException(e);
+            }
+            outputIterator = getOutputIterator();
+            continue; // try to consume outputIterator from start of loop
           }
           return endOfData();
         }
