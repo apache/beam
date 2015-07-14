@@ -44,7 +44,6 @@ import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import org.apache.avro.mapred.AvroKey;
@@ -206,7 +205,8 @@ public final class TransformTranslator {
 
         Coder<O> coder = context.getOutput(transform).getCoder();
         JavaRDD<byte[]> outRdd = context.getSparkContext().parallelize(
-            CoderHelpers.toByteArrays(ImmutableList.of(output), coder));
+            // don't use Guava's ImmutableList.of as output may be null
+            CoderHelpers.toByteArrays(Collections.singleton(output), coder));
         context.setOutputRDD(transform, outRdd.map(CoderHelpers.fromByteFunction(coder)));
       }
     };
