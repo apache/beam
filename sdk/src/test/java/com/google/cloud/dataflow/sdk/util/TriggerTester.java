@@ -16,6 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
@@ -33,17 +37,21 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.WindowingInternals.KeyedState;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
+import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals;
+import com.google.cloud.dataflow.sdk.util.state.MergeableState;
+import com.google.cloud.dataflow.sdk.util.state.State;
+import com.google.cloud.dataflow.sdk.util.state.StateInternals;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -53,11 +61,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -65,8 +71,8 @@ import javax.annotation.Nullable;
 
 /**
  * Test utility that runs a {@link WindowFn}, {@link Trigger} using in-memory stub implementations
- * to provide the {@link TimerManager}, {@link KeyedState}, and {@link WindowingInternals}
- * needed by {@link TriggerExecutor}.
+ * to provide the {@link TimerManager} and {@link WindowingInternals} needed by
+ * {@link TriggerExecutor}.
  *
  * <p>To have all interactions between the trigger and underlying components logged, call
  * {@link #logInteractions(boolean)}.
@@ -115,7 +121,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
     return new TriggerTester<Integer, Iterable<Integer>, W>(
         strategy,
-        new ListOutputBuffer<String, Integer, W>(VarIntCoder.of()),
+        TriggerExecutor.listBuffer(VarIntCoder.of()),
         IterableCoder.of(VarIntCoder.of()));
   }
 
@@ -133,14 +139,13 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
     return new TriggerTester<Integer, OutputT, W>(
         strategy,
-        CombiningOutputBuffer.<String, Integer, AccumT, OutputT, W>create(
-            combineFn, StringUtf8Coder.of(), VarIntCoder.of()),
+        TriggerExecutor.combiningBuffer(KEY, StringUtf8Coder.of(), VarIntCoder.of(), combineFn),
         outputCoder);
   }
 
   private TriggerTester(
       WindowingStrategy<?, W> wildcardStrategy,
-      OutputBuffer<String, InputT, OutputT, W> outputBuffer,
+      StateTag<? extends MergeableState<InputT, OutputT>> buffer,
       Coder<OutputT> outputCoder) throws Exception {
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> objectStrategy = (WindowingStrategy<Object, W>) wildcardStrategy;
@@ -150,7 +155,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     this.outputCoder = outputCoder;
     executableTrigger = wildcardStrategy.getTrigger();
     this.triggerExecutor = TriggerExecutor.create(
-        KEY, objectStrategy, timerManager, outputBuffer, stubContexts,
+        KEY, objectStrategy, timerManager, buffer, stubContexts,
         droppedDueToClosedWindow, droppedDueToLateness);
   }
 
@@ -162,40 +167,51 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     this.logInteractions = logInteractions;
   }
 
-  public boolean isMarkedFinished(W window) throws IOException {
+  public boolean isMarkedFinished(W window) {
     return triggerExecutor.lookupFinishedSet(window).get(0);
   }
 
-  /**
-   * Retrieve the tags of keyed state that is currently stored.
-   * @throws Exception
-   */
-  public Iterable<String> getKeyedStateInUse() throws Exception {
+  @SafeVarargs
+  public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     triggerExecutor.persist();
-    return stubContexts.getKeyedStateInUse();
+
+    Set<StateNamespace> expectedWindowsSet = new HashSet<>();
+    for (W expectedWindow : expectedWindows) {
+      expectedWindowsSet.add(windowNamespace(expectedWindow));
+    }
+    Set<StateNamespace> actualWindows = new HashSet<>();
+
+    for (StateNamespace namespace : stubContexts.state.getNamespacesInUse()) {
+      if (namespace instanceof StateNamespaces.GlobalNamespace) {
+        continue;
+      } else if (namespace instanceof StateNamespaces.WindowNamespace) {
+        Set<StateTag<?>> tagsInUse = stubContexts.state.getTagsInUse(namespace);
+        if (tagsInUse.isEmpty()) {
+          continue;
+        }
+
+        actualWindows.add(namespace);
+        if (!tagsInUse.equals(Collections.singleton(TriggerExecutor.FINISHED_BITS_TAG))) {
+          fail(namespace + " has unexpected states: " + tagsInUse);
+        }
+      } else if (namespace instanceof StateNamespaces.WindowAndTriggerNamespace) {
+        Set<StateTag<?>> tagsInUse = stubContexts.state.getTagsInUse(namespace);
+        assertTrue(namespace + " contains " + tagsInUse, tagsInUse.isEmpty());
+      } else {
+        fail("Unrecognized namespace " + namespace);
+      }
+    }
+
+    assertEquals(expectedWindowsSet, actualWindows);
   }
 
-  public String finishedSet(W window) throws CoderException {
-    return triggerExecutor.finishedSetTag(window).getId();
+  private StateNamespace windowNamespace(W window) {
+    return StateNamespaces.window(windowFn.windowCoder(), window);
   }
 
-  public String bufferTag(W window) throws IOException {
-    return CoderUtils.encodeToBase64(windowFn.windowCoder(), window)
-        + "/" + OutputBuffer.BUFFER_NAME;
-  }
-
-  public String earliestElementTag(W window) throws CoderException {
-    return CoderUtils.encodeToBase64(windowFn.windowCoder(), window)
-        + "/" + WatermarkHold.EARLIEST_ELEMENT_TAG.getId();
-  }
-
-  public Instant getWatermarkHold() throws Exception {
+  public Instant getWatermarkHold() {
     triggerExecutor.persist();
-    return stubContexts.minTagListTimestamp.peek();
-  }
-
-  public boolean isWindowActive(W window) throws Exception {
-    return Iterables.contains(getKeyedStateInUse(), earliestElementTag(window));
+    return stubContexts.state.minimumWatermarkHold();
   }
 
   public long getElementsDroppedDueToClosedWindow() {
@@ -263,15 +279,41 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         new TriggerId<W>(window, trigger.getTriggerIndex()), timestamp, domain);
   }
 
-  private class StubContexts
-      implements WindowingInternals<InputT, KV<String, OutputT>>, WindowingInternals.KeyedState {
+  private static class TestingInMemoryStateInternals extends InMemoryStateInternals {
 
-    private Map<CodedTupleTag<?>, List<?>> tagListValues = new HashMap<>();
-    private Map<CodedTupleTag<?>, Object> tagValues = new HashMap<>();
+    protected Set<StateTag<?>> getTagsInUse(StateNamespace namespace) {
+      Set<StateTag<?>> inUse = new HashSet<>();
+      for (Map.Entry<StateTag<?>, State> entry : inMemoryState.getTagsInUse(namespace).entrySet()) {
+        if (!isEmptyForTesting(entry.getValue())) {
+          inUse.add(entry.getKey());
+        }
+      }
+      return inUse;
+    }
+
+    public Set<StateNamespace> getNamespacesInUse() {
+      return inMemoryState.getNamespacesInUse();
+    }
+
+    public Instant minimumWatermarkHold() {
+      Instant minimum = null;
+      for (State storage : inMemoryState.values()) {
+        if (storage instanceof WatermarkStateInternal) {
+          Instant hold = ((WatermarkStateInternal) storage).get().read();
+          if (minimum == null || (hold != null && hold.isBefore(minimum))) {
+            minimum = hold;
+          }
+        }
+      }
+      return minimum;
+    }
+  }
+
+  private class StubContexts implements WindowingInternals<InputT, KV<String, OutputT>> {
+
+    private TestingInMemoryStateInternals state = new TestingInMemoryStateInternals();
+
     private List<WindowedValue<KV<String, OutputT>>> outputs = new ArrayList<>();
-
-    private Map<CodedTupleTag<?>, Instant> tagListTimestamps = new HashMap<>();
-    private PriorityQueue<Instant> minTagListTimestamp = new PriorityQueue<>();
 
     @Override
     public void outputWindowedValue(KV<String, OutputT> output, Instant timestamp,
@@ -282,65 +324,6 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
       WindowedValue<KV<String, OutputT>> value = WindowedValue.of(copy, timestamp, windows, pane);
       logInteraction("Outputting: %s", value);
       outputs.add(value);
-    }
-
-    public Set<String> getKeyedStateInUse() {
-      return FluentIterable
-          .from(tagListValues.keySet())
-          .append(tagValues.keySet())
-          .transform(new Function<CodedTupleTag<?>, String>() {
-            @Override
-            @Nullable
-            public String apply(CodedTupleTag<?> input) {
-              return input.getId();
-            }
-          })
-          .toSet();
-    }
-
-    @Override
-    public <T> void writeToTagList(CodedTupleTag<T> tag, T value) throws IOException {
-      @SuppressWarnings("unchecked")
-      List<T> values = (List<T>) tagListValues.get(tag);
-      if (values == null) {
-        values = new ArrayList<>();
-        tagListValues.put(tag, values);
-      }
-      values.add(value);
-    }
-
-    @Override
-    public <T> void deleteTagList(CodedTupleTag<T> tag) {
-      tagListValues.remove(tag);
-
-      Instant hold = tagListTimestamps.remove(tag);
-      if (hold != null) {
-        minTagListTimestamp.remove(hold);
-      }
-    }
-
-    @Override
-    public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) {
-      @SuppressWarnings("unchecked")
-      List<T> values = (List<T>) tagListValues.get(tag);
-      if (values == null) {
-        return Collections.emptyList();
-      } else {
-        return values;
-      }
-    }
-
-    @Override
-    public <T> Map<CodedTupleTag<T>, Iterable<T>> readTagList(
-        List<CodedTupleTag<T>> tags) throws IOException {
-      return FluentIterable.from(tags)
-          .toMap(new Function<CodedTupleTag<T>, Iterable<T>>() {
-            @Override
-            @Nullable
-            public Iterable<T> apply(@Nullable CodedTupleTag<T> tag) {
-              return readTagList(tag);
-            }
-          });
     }
 
     @Override
@@ -360,49 +343,6 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
       throw new UnsupportedOperationException(
           "Testing triggers should not use pane from WindowingInternals.");
     }
-
-    @Override
-    public <T> void store(CodedTupleTag<T> tag, T value) throws IOException {
-      tagValues.put(tag, value);
-    }
-
-    @Override
-    public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
-        throws IOException {
-      writeToTagList(tag, value);
-
-      // We never use the timestamp, but for testing purposes we want to keep track of the minimum
-      // timestamp that is currently being stored, since this will be used to hold-up the watermark.
-      Instant old = tagListTimestamps.get(tag);
-      if (old == null || old.isAfter(timestamp)) {
-        minTagListTimestamp.remove(old);
-        tagListTimestamps.put(tag, timestamp);
-        minTagListTimestamp.add(timestamp);
-      }
-    }
-
-    @Override
-    public <T> void remove(CodedTupleTag<T> tag) {
-      tagValues.remove(tag);
-    }
-
-    @Override
-    public <T> T lookup(CodedTupleTag<T> tag) throws IOException {
-      @SuppressWarnings("unchecked")
-      T value = (T) tagValues.get(tag);
-      return value;
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags) throws IOException {
-      LinkedHashMap<CodedTupleTag<?>, Object> result = new LinkedHashMap<>();
-      for (CodedTupleTag<?> tag : tags) {
-        result.put(tag, tagValues.get(tag));
-      }
-      return CodedTupleTagMap.of(result);
-    }
-
     @Override
     public <T> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data,
         Coder<T> elemCoder) throws IOException {
@@ -411,8 +351,8 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public WindowingInternals.KeyedState keyedState() {
-      return this;
+    public StateInternals stateInternals() {
+      return state;
     }
   }
 

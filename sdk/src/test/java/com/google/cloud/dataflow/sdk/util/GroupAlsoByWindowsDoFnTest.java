@@ -360,8 +360,8 @@ public class GroupAlsoByWindowsDoFnTest {
         WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
         KeyedCombineFn<String, Long, ?, Long> combineFn) {
     GroupAlsoByWindowsDoFn<String, Long, Long, IntervalWindow> fn =
-        GroupAlsoByWindowsDoFn.create(
-            windowingStrategy, combineFn, StringUtf8Coder.of(), BigEndianLongCoder.of());
+        GroupAlsoByWindowsDoFn.create(windowingStrategy, combineFn,
+            StringUtf8Coder.of(), BigEndianLongCoder.of());
 
     return makeRunner(windowingStrategy, fn);
   }

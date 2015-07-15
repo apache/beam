@@ -15,18 +15,16 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.util.state.StateTags;
+import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
 import com.google.common.annotations.VisibleForTesting;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Implements the logic needed to hold the output watermark back to emit
@@ -38,8 +36,8 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
 
   private static final long serialVersionUID = 0L;
 
-  @VisibleForTesting static final CodedTupleTag<Instant> EARLIEST_ELEMENT_TAG =
-      CodedTupleTag.of("__watermark_hold", InstantCoder.of());
+  @VisibleForTesting static final StateTag<WatermarkStateInternal> HOLD_TAG =
+      StateTags.watermarkStateInternal("watermark_hold");
 
   private final Duration allowedLateness;
 
@@ -47,60 +45,28 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
     this.allowedLateness = allowedLateness;
   }
 
-  private final Map<W, Instant> inMemoryBuffer = new HashMap<>();
-
-  public void addHold(OutputBuffer.Context<?, W> c, Instant timestamp, boolean isLate) {
+  public void addHold(TriggerExecutor<?, ?, ?, W>.Context c, Instant timestamp, boolean isLate) {
     // If the element was late, then we want to put a hold in at the maxTimestamp for the end
     // of the window plus the allowed lateness to ensure that we don't output something
     // that is dropably late.
     Instant holdTo = isLate
         ? c.window().maxTimestamp().plus(allowedLateness)
         : timestamp;
-    Instant storedEarliest = inMemoryBuffer.get(c.window());
-    if (storedEarliest == null || holdTo.isBefore(storedEarliest)) {
-      inMemoryBuffer.put(c.window(), holdTo);
-    }
+    c.access(HOLD_TAG).add(holdTo);
   }
 
   /**
    * Get the timestamp to use for output. This is computed as the minimum timestamp
    * of any non-late elements that arrived in the current pane.
    */
-  public Instant extractAndRelease(OutputBuffer.Context<?, W> c) throws IOException {
-    // Normally, output at the earliest non-late element in the pane.
-    // If the pane is empty or all the elements were late, output at window.maxTimestamp().
-    Instant earliest = c.window().maxTimestamp();
+  public Instant extractAndRelease(TriggerExecutor<?, ?, ?, W>.Context c) {
+    WatermarkStateInternal holdingBag = c.accessAcrossSources(HOLD_TAG);
 
-    // MIN of already-persisted values for the source windows.
-    for (Instant hold : c.readBuffers(EARLIEST_ELEMENT_TAG, c.sourceWindows())) {
-      if (hold != null && hold.isBefore(earliest)) {
-        earliest = hold;
-      }
+    Instant hold = holdingBag.get().read();
+    if (hold != null && hold.isAfter(c.window().maxTimestamp())) {
+      hold = c.window().maxTimestamp();
     }
-
-    // MIN of not-yet-persisted values for the source windows.
-    for (W window : c.sourceWindows()) {
-      Instant hold = inMemoryBuffer.remove(window);
-      if (hold != null && hold.isBefore(earliest)) {
-        earliest = hold;
-      }
-    }
-
-    c.clearBuffers(EARLIEST_ELEMENT_TAG, c.sourceWindows());
-    return earliest;
-  }
-
-  public void release(OutputBuffer.Context<?, W> c) throws IOException {
-    c.clearBuffers(EARLIEST_ELEMENT_TAG, c.sourceWindows());
-    for (W window : c.sourceWindows()) {
-      inMemoryBuffer.remove(window);
-    }
-  }
-
-  public void flush(OutputBuffer.Context<?, W> c) throws IOException {
-    for (Map.Entry<W, Instant> entry : inMemoryBuffer.entrySet()) {
-      c.addToBuffer(entry.getKey(), EARLIEST_ELEMENT_TAG, entry.getValue(), entry.getValue());
-    }
-    inMemoryBuffer.clear();
+    holdingBag.clear();
+    return hold;
   }
 }

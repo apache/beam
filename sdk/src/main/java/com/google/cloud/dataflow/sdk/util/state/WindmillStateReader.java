@@ -16,10 +16,11 @@
 package com.google.cloud.dataflow.sdk.util.state;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.runners.worker.MetricTrackingWindmillServerStub;
+import com.google.cloud.dataflow.sdk.runners.worker.StreamingDataflowWorker;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagList;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagValue;
-import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.util.concurrent.ForwardingFuture;
@@ -88,20 +89,22 @@ public class WindmillStateReader {
 
     @Override
     public String toString() {
-      return kind + " " + tag;
+      return kind + " " + tag.toStringUtf8();
     }
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(WindmillStateReader.class);
 
-  private final WindmillServerStub windmill;
   private final String computation;
   private final ByteString key;
   private final long workToken;
 
+  private final MetricTrackingWindmillServerStub metrics;
+
   public WindmillStateReader(
-      WindmillServerStub windmill, String computation, ByteString key, long workToken) {
-    this.windmill = windmill;
+      MetricTrackingWindmillServerStub metrics,
+      String computation, ByteString key, long workToken) {
+    this.metrics = metrics;
     this.computation = computation;
     this.key = key;
     this.workToken = workToken;
@@ -180,7 +183,7 @@ public class WindmillStateReader {
   }
 
   public void startBatchAndBlock() {
-    // First, drain work out of the pending lookups into a queue. These will be the items we fetch.
+    // First, drain work out of the pending lookups into a map. These will be the items we fetch.
     Map<ByteString, StateTag> toFetch = new HashMap<>();
     while (!pendingLookups.isEmpty()) {
       StateTag tag = pendingLookups.poll();
@@ -188,11 +191,20 @@ public class WindmillStateReader {
         break;
       }
 
-      toFetch.put(tag.tag, tag);
+      if (toFetch.put(tag.tag, tag) != null) {
+        throw new IllegalStateException("Duplicate tags being fetched.");
+      }
+    }
+
+    // If we failed to drain anything, some other thread pulled it off the queue. We have no work
+    // to do.
+    if (toFetch.isEmpty()) {
+      return;
     }
 
     Windmill.GetDataRequest request = createRequest(toFetch.values());
-    Windmill.GetDataResponse response = windmill.getData(request);
+    Windmill.GetDataResponse response = metrics.getStateData(request);
+
     if (response == null) {
       throw new RuntimeException("Windmill unexpectedly returned null for request " + request);
     }
@@ -229,7 +241,6 @@ public class WindmillStateReader {
 
   private void consumeResponse(
       Windmill.GetDataResponse response, Map<ByteString, StateTag> toFetch) {
-
     // Validate the response is for our computation/key.
     if (response.getDataCount() != 1) {
       throw new RuntimeException(
@@ -244,6 +255,16 @@ public class WindmillStateReader {
     if (response.getData(0).getDataCount() != 1) {
       throw new RuntimeException(
           "Expected exactly one key in response, but was: " + response.getData(0).getDataList());
+    }
+
+    if (response.getData(0).getData(0).getFailed()) {
+      // Set up all the futures for this key to throw an exception:
+      StreamingDataflowWorker.KeyTokenInvalidException keyTokenInvalidException =
+          new StreamingDataflowWorker.KeyTokenInvalidException(key.toStringUtf8());
+      for (StateTag stateTag : toFetch.values()) {
+        futures.get(stateTag).setException(keyTokenInvalidException);
+      }
+      return;
     }
 
     if (!key.equals(response.getData(0).getData(0).getKey())) {

@@ -15,8 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.util.state;
 
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterables;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -62,13 +61,12 @@ class MergedBag<T> implements BagState<T> {
     return new StateContents<Iterable<T>>() {
       @Override
       public Iterable<T> read() {
-        return FluentIterable.from(futures)
-            .transformAndConcat(new Function<StateContents<Iterable<T>>, Iterable<T>>() {
-              @Override
-              public Iterable<T> apply(StateContents<Iterable<T>> input) {
-                return input.read();
-              }
-        });
+        // Can't use FluentIterables#toList because some values may be legitimately null.
+        List<T> result = new ArrayList<>();
+        for (StateContents<Iterable<T>> future : futures) {
+          Iterables.addAll(result, future.read());
+        }
+        return result;
       }
     };
   }

@@ -21,6 +21,8 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 
+import java.io.Serializable;
+
 /**
  * An address for persistent state. This includes a unique identifier for the location, the
  * information necessary to encode the value, and details about the intended access pattern.
@@ -33,7 +35,7 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
  * @param <StateT> The type of state being tagged.
  */
 @Experimental(Kind.STATE)
-public interface StateTag<StateT extends State> {
+public interface StateTag<StateT extends State> extends Serializable {
 
   /**
    * Visitor for binding a {@link StateTag} and to the associated {@link State}.

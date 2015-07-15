@@ -16,9 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import static com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
-
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
+import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals;
+import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,7 +35,7 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
   private List<ValueWithMetadata> output = new ArrayList<>();
   private Map<TupleTag<?>, List<ValueWithMetadata>> sideOutputs = new HashMap<>();
 
-  protected DirectModeExecutionContext() { }
+  protected DirectModeExecutionContext() {}
 
   public static DirectModeExecutionContext create() {
     return new DirectModeExecutionContext();
@@ -45,9 +47,17 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
   }
 
   @Override
+  protected void switchStateKey(Object newKey) {
+    // The direct mode runner may reorder elements, so we need to keep
+    // around the state used for each key.
+    for (ExecutionContext.StepContext stepContext : getAllStepContexts()) {
+      ((StepContext) stepContext).switchKey(newKey);
+    }
+  }
+
+  @Override
   public void noteOutput(WindowedValue<?> outputElem) {
-    output.add(ValueWithMetadata.of(outputElem)
-                                .withKey(getKey()));
+    output.add(ValueWithMetadata.of(outputElem).withKey(getKey()));
   }
 
   @Override
@@ -57,8 +67,7 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
       output = new ArrayList<>();
       sideOutputs.put(tag, output);
     }
-    output.add(ValueWithMetadata.of(outputElem)
-                                .withKey(getKey()));
+    output.add(ValueWithMetadata.of(outputElem).withKey(getKey()));
   }
 
   public <T> List<ValueWithMetadata<T>> getOutput(TupleTag<T> tag) {
@@ -70,6 +79,33 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
       return (List) sideOutputs.get(tag);
     } else {
       return new ArrayList<>();
+    }
+  }
+
+  /**
+   * {@link ExecutionContext.StepContext} used in direct mode.
+   */
+  class StepContext extends ExecutionContext.StepContext {
+
+    private final Map<Object, InMemoryStateInternals> stateInternals = new HashMap<>();
+    private InMemoryStateInternals currentStateInternals = null;
+
+    private StepContext(String stepName) {
+      super(stepName);
+      switchKey(null);
+    }
+
+    public void switchKey(Object newKey) {
+      currentStateInternals = stateInternals.get(newKey);
+      if (currentStateInternals == null) {
+        currentStateInternals = new InMemoryStateInternals();
+        stateInternals.put(newKey, currentStateInternals);
+      }
+    }
+
+    @Override
+    public StateInternals stateInternals() {
+      return Preconditions.checkNotNull(currentStateInternals);
     }
   }
 }

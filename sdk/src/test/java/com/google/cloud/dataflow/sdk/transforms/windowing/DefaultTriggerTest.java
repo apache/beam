@@ -70,7 +70,7 @@ public class DefaultTriggerTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 15, 10, 20),
         isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(30), new Instant(40))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
+    tester.assertHasOnlyGlobalAndFinishedSetsFor();
   }
 
   @Test
@@ -97,7 +97,7 @@ public class DefaultTriggerTest {
         isSingleWindowedValue(Matchers.contains(4), 30, 30, 40)));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(25))));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(30), new Instant(40))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
+    tester.assertHasOnlyGlobalAndFinishedSetsFor();
   }
 
   @Test
@@ -118,6 +118,7 @@ public class DefaultTriggerTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 9, 5, 15)));
 
+    // This data is late, so it will hold the watermark to 109
     tester.injectElement(4, new Instant(8));
 
     // Late data means the merge tree might be empty
@@ -128,7 +129,7 @@ public class DefaultTriggerTest {
 
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(10))));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(5), new Instant(15))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
+    tester.assertHasOnlyGlobalAndFinishedSetsFor();
   }
 
 
@@ -148,7 +149,7 @@ public class DefaultTriggerTest {
     Iterable<WindowedValue<Iterable<Integer>>> extractOutput = tester.extractOutput();
     assertThat(extractOutput, Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 1, 19)));
-    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
+    tester.assertHasOnlyGlobalAndFinishedSetsFor();
   }
 
   @Test
@@ -158,7 +159,6 @@ public class DefaultTriggerTest {
     assertEquals(GlobalWindow.INSTANCE.maxTimestamp(),
         DefaultTrigger.of().getWatermarkThatGuaranteesFiring(GlobalWindow.INSTANCE));
   }
-
 
   @Test
   public void testContinuation() throws Exception {

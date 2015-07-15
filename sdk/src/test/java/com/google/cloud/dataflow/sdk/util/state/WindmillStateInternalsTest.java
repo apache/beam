@@ -17,6 +17,7 @@ package com.google.cloud.dataflow.sdk.util.state;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -170,6 +171,21 @@ public class WindmillStateInternalsTest {
     Mockito.verify(mockReader).listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of());
     Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+  @Test
+  public void testBagPersistEmpty() throws Exception {
+    StateTag<BagState<String>> addr = StateTags.bag("bag", StringUtf8Coder.of());
+    BagState<String> bag = underTest.state(NAMESPACE, addr);
+
+    bag.clear();
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    // 1 list update = the clear
+    assertEquals(1, commitBuilder.getListUpdatesCount());
   }
 
   @Test
@@ -368,6 +384,22 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testWatermarkPersistEmpty() throws Exception {
+    StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal("watermark");
+    WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
+
+    bag.add(new Instant(500));
+    bag.clear();
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    // 1 list update corresponds to deletion. There shouldn't be a list update adding items.
+    assertEquals(1, commitBuilder.getListUpdatesCount());
+  }
+
+  @Test
   public void testValueSetBeforeRead() throws Exception {
     StateTag<ValueState<String>> addr = StateTags.value("value", StringUtf8Coder.of());
     ValueState<String> value = underTest.state(NAMESPACE, addr);
@@ -416,6 +448,7 @@ public class WindmillStateInternalsTest {
     TagValue valueUpdate = commitBuilder.getValueUpdates(0);
     assertEquals(key(NAMESPACE, "value"), valueUpdate.getTag());
     assertEquals("Hi", valueUpdate.getValue().getData().toStringUtf8());
+    assertTrue(valueUpdate.isInitialized());
 
     // Setting a value requires a read to prevent blind writes.
     Mockito.verify(mockReader).valueFuture(key(NAMESPACE, "value"), StringUtf8Coder.of());

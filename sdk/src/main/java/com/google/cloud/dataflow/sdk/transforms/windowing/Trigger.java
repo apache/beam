@@ -19,7 +19,9 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.util.state.MergeableState;
+import com.google.cloud.dataflow.sdk.util.state.State;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 
@@ -79,8 +81,7 @@ import javax.annotation.Nullable;
  *   with it anywhere in the system. A trigger moves to the executing state as soon as it
  *   processes in the current pane.
  *   <li> Executing - while the trigger is receiving items and may fire. While it is in this state,
- *   it may persist book-keeping information to {@code WindowingInternals.KeyedState},
- *   set timers, etc.
+ *   it may persist book-keeping information to persisted state, set timers, etc.
  *   <li> Finished - after a trigger finishes, all of its book-keeping data is cleaned up, and the
  *   system remembers only that it is finished. Entering this state causes us to discard any
  *   elements in the buffer for that window, as well.
@@ -90,8 +91,8 @@ import javax.annotation.Nullable;
  * trigger could reset its sub-triggers.
  *
  * <p> Triggers should not build up any state internally since they may be recreated
- * between invocations of the callbacks. All important values should be persisted to
- * {@code WindowingInternals.KeyedState} before the callback returns.
+ * between invocations of the callbacks. All important values should be persisted using
+ * state before the callback returns.
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
  *            {@code Trigger}
@@ -196,25 +197,16 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     public abstract Instant currentProcessingTime();
 
     /**
-     * Updates the value stored in keyed state for the given {@code tag} and {@code window}.
+     * Access the storage for the given {@code address} in the current window.
      */
-    public abstract <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException;
+    public abstract <StorageT extends State> StorageT access(StateTag<StorageT> address);
 
     /**
-     * Removes the keyed state associated with the given {@code tag} and {@code window}.
+     * Access the storage for the given {@code address} in the all of the windows that
+     * merged into the current window.
      */
-    public abstract <T> void remove(CodedTupleTag<T> tag, W window) throws IOException;
-
-    /**
-     * Lookup the value stored for the given {@code tag} and {@code window}.
-     */
-    public abstract <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException;
-
-    /**
-     * Lookup the value stored for a given {@code tag} in a bunch of {@code window}s.
-     */
-    public abstract <T> Map<W, T> lookup(
-        CodedTupleTag<T> tag, Iterable<W> windows) throws IOException;
+    public abstract <StorageT extends MergeableState<?, ?>> StorageT accessAcrossMergedWindows(
+        StateTag<StorageT> address);
 
     /**
      * Create a {@code TriggerContext} for executing the given trigger.
@@ -345,6 +337,13 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
      */
     @Override
     public abstract OnMergeContext forTrigger(ExecutableTrigger<W> trigger);
+
+    /**
+     * Access a merged view of the storage for the given {@code address}
+     * in all of the windows being merged.
+     */
+    public abstract <StorageT extends MergeableState<?, ?>> StorageT accessAcrossMergingWindows(
+        StateTag<StorageT> address);
   }
 
   /**

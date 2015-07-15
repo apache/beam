@@ -91,8 +91,7 @@ public class AfterFirstTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @Test
@@ -105,8 +104,7 @@ public class AfterFirstTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @SuppressWarnings("unchecked")
@@ -124,8 +122,7 @@ public class AfterFirstTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @SuppressWarnings("unchecked")
@@ -144,8 +141,7 @@ public class AfterFirstTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
 
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @Test
@@ -167,8 +163,9 @@ public class AfterFirstTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(22)))));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(22)));
   }
 
   @Test
@@ -230,8 +227,8 @@ public class AfterFirstTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(9, 10, 11, 12, 13), 6, 0, 50)));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(50))));
     // Because none of the triggers every stay finished (we always immediately reset) there is no
-    // persisted keyed state.
-    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
+    // persisted per-window state.
+    tester.assertHasOnlyGlobalAndFinishedSetsFor();
   }
 
   @Test

@@ -20,8 +20,11 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.state.MergeableState;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
 
@@ -49,20 +52,26 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
    * @param inputCoder the input coder to use
    */
   public static <K, V, W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W>
-  createForIterable(WindowingStrategy<?, W> windowingStrategy, Coder<V> inputCoder) {
+  createForIterable(WindowingStrategy<?, W> windowingStrategy, final Coder<V> inputCoder) {
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
 
     return GroupAlsoByWindowsViaIteratorsDoFn.isSupported(windowingStrategy)
         ? new GroupAlsoByWindowsViaIteratorsDoFn<K, V, W>()
-        : new GABWViaOutputBufferDoFn<>(noWildcard, new ListOutputBuffer<K, V, W>(inputCoder));
+        : new GABWViaOutputBufferDoFn<>(noWildcard,
+            new SerializableFunction<K, StateTag<? extends MergeableState<V, Iterable<V>>>>() {
+          @Override
+          public StateTag<? extends MergeableState<V, Iterable<V>>> apply(K key) {
+            return TriggerExecutor.listBuffer(inputCoder);
+          }
+        });
   }
 
   /**
    * Construct a {@link GroupAlsoByWindowsDoFn} using the {@code combineFn} if available.
    */
   public static <K, InputT, AccumT, OutputT, W extends BoundedWindow>
-      GroupAlsoByWindowsDoFn<K, InputT, OutputT, W>
+  GroupAlsoByWindowsDoFn<K, InputT, OutputT, W>
   create(
       final WindowingStrategy<?, W> windowingStrategy,
       final KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn,
@@ -75,8 +84,12 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
     return GroupAlsoByWindowsAndCombineDoFn.isSupported(windowingStrategy)
         ? new GroupAlsoByWindowsAndCombineDoFn<>(noWildcard.getWindowFn(), combineFn)
         : new GABWViaOutputBufferDoFn<>(noWildcard,
-            CombiningOutputBuffer.<K, InputT, AccumT, OutputT, W>create(
-                combineFn, keyCoder, inputCoder));
+            new SerializableFunction<K, StateTag<? extends MergeableState<InputT, OutputT>>>() {
+              @Override
+              public StateTag<? extends MergeableState<InputT, OutputT>> apply(K key) {
+                return TriggerExecutor.combiningBuffer(key, keyCoder, inputCoder, combineFn);
+              }
+        });
   }
 
   @SystemDoFnInternal
@@ -89,11 +102,12 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
         createAggregator(TriggerExecutor.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
 
     private final WindowingStrategy<Object, W> strategy;
-    private final OutputBuffer<K, InputT, OutputT, W> outputBuffer;
+    private final
+    SerializableFunction<K, StateTag<? extends MergeableState<InputT, OutputT>>> outputBuffer;
 
     public GABWViaOutputBufferDoFn(
         WindowingStrategy<Object, W> windowingStrategy,
-        OutputBuffer<K, InputT, OutputT, W> outputBuffer) {
+        SerializableFunction<K, StateTag<? extends MergeableState<InputT, OutputT>>> outputBuffer) {
       this.strategy = windowingStrategy;
       this.outputBuffer = outputBuffer;
     }
@@ -105,8 +119,11 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
         throws Exception {
       K key = c.element().getKey();
       BatchTimerManager timerManager = new BatchTimerManager(Instant.now());
+
+      StateTag<? extends MergeableState<InputT, OutputT>> buffer = outputBuffer.apply(key);
+
       TriggerExecutor<K, InputT, OutputT, W> triggerExecutor = TriggerExecutor.create(
-          key, strategy, timerManager, outputBuffer, c.windowingInternals(),
+          key, strategy, timerManager, buffer, c.windowingInternals(),
           droppedDueToClosedWindow, droppedDueToLateness);
 
       for (WindowedValue<InputT> e : c.element().getValue()) {

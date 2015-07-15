@@ -626,7 +626,7 @@ public class BasicSerializableSourceFormatTest {
   @Test
   public void testReadUnboundedReader() throws Exception {
     StreamingModeExecutionContext context = new StreamingModeExecutionContext(
-        null, null, new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>(), null);
+        null, new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>(), null);
 
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
@@ -645,6 +645,7 @@ public class BasicSerializableSourceFormatTest {
                   Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
               .build(),
           new Instant(0),
+          null,
           Windmill.WorkItemCommitRequest.newBuilder());
 
       Reader.ReaderIterator<WindowedValue<KV<Integer, Integer>>> reader =

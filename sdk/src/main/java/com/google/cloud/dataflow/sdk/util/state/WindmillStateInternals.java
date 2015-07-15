@@ -72,11 +72,11 @@ public class WindmillStateInternals extends MergingStateInternals {
   };
 
 
-  private final String mangledPrefix;
+  private final String prefix;
   private final WindmillStateReader reader;
 
-  public WindmillStateInternals(String mangledPrefix, WindmillStateReader reader) {
-    this.mangledPrefix = mangledPrefix;
+  public WindmillStateInternals(String prefix, WindmillStateReader reader) {
+    this.prefix = prefix;
     this.reader = reader;
   }
 
@@ -107,7 +107,7 @@ public class WindmillStateInternals extends MergingStateInternals {
 
   private ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
     return ByteString.copyFromUtf8(String.format(
-        "%s/%s/%s", mangledPrefix, namespace.stringKey(), address.getId()));
+        "%s/%s/%s", prefix, namespace.stringKey(), address.getId()));
   }
 
   private interface WindmillState {
@@ -164,7 +164,8 @@ public class WindmillStateInternals extends MergingStateInternals {
     }
 
     @Override
-    public void persist(Windmill.WorkItemCommitRequest.Builder commitBuilder) throws IOException {
+    public void persist(
+        Windmill.WorkItemCommitRequest.Builder commitBuilder) throws IOException {
       if (!modified) {
         // No in-memory changes.
         return;
@@ -183,7 +184,8 @@ public class WindmillStateInternals extends MergingStateInternals {
       commitBuilder.addValueUpdatesBuilder()
           .setTag(stateKey)
           .getValueBuilder()
-          .setData(stream.toByteString());
+          .setData(stream.toByteString())
+          .setTimestamp(Long.MAX_VALUE);
     }
   }
 
@@ -249,22 +251,24 @@ public class WindmillStateInternals extends MergingStateInternals {
             .setEndTimestamp(Long.MAX_VALUE);
       }
 
-      byte[] zero = {0x0};
 
-      Windmill.TagList.Builder listUpdatesBuilder = commitBuilder.addListUpdatesBuilder();
-      listUpdatesBuilder.setTag(stateKey);
-      for (T value : localAdditions) {
-        ByteString.Output stream = ByteString.newOutput();
+      if (!localAdditions.isEmpty()) {
+        byte[] zero = {0x0};
+        Windmill.TagList.Builder listUpdatesBuilder = commitBuilder.addListUpdatesBuilder();
+        listUpdatesBuilder.setTag(stateKey);
+        for (T value : localAdditions) {
+          ByteString.Output stream = ByteString.newOutput();
 
-        // Windmill does not support empty data for tag list state; prepend a zero byte.
-        stream.write(zero);
+          // Windmill does not support empty data for tag list state; prepend a zero byte.
+          stream.write(zero);
 
-        // Encode the value
-        elemCoder.encode(value, stream, Coder.Context.OUTER);
+          // Encode the value
+          elemCoder.encode(value, stream, Coder.Context.OUTER);
 
-        listUpdatesBuilder.addValuesBuilder()
-            .setData(stream.toByteString())
-            .setTimestamp(Long.MAX_VALUE);
+          listUpdatesBuilder.addValuesBuilder()
+              .setData(stream.toByteString())
+              .setTimestamp(Long.MAX_VALUE);
+        }
       }
     }
   }
@@ -328,22 +332,21 @@ public class WindmillStateInternals extends MergingStateInternals {
       // If we do a delete, we need to have done a read
       if (cleared) {
         reader.watermarkFuture(stateKey);
-      }
-
-      if (cleared) {
         commitBuilder.addListUpdatesBuilder()
             .setTag(stateKey)
             .setEndTimestamp(Long.MAX_VALUE);
       }
 
-      ByteString zeroString = ByteString.copyFrom(new byte[] {0x0});
+      if (localAdditions != null) {
+        ByteString zeroString = ByteString.copyFrom(new byte[] {0x0});
 
-      Windmill.TagList.Builder listUpdatesBuilder = commitBuilder.addListUpdatesBuilder();
-      listUpdatesBuilder
-          .setTag(stateKey)
-          .addValuesBuilder()
-              .setData(zeroString)
-              .setTimestamp(TimeUnit.MILLISECONDS.toMicros(localAdditions.getMillis()));
+        Windmill.TagList.Builder listUpdatesBuilder = commitBuilder.addListUpdatesBuilder();
+        listUpdatesBuilder
+            .setTag(stateKey)
+            .addValuesBuilder()
+            .setData(zeroString)
+            .setTimestamp(TimeUnit.MILLISECONDS.toMicros(localAdditions.getMillis()));
+      }
     }
   }
 

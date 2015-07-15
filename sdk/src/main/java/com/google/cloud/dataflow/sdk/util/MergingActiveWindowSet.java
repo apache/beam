@@ -19,11 +19,12 @@ import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.SetCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.util.WindowingInternals.KeyedState;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.util.state.StateInternals;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.util.state.StateTags;
+import com.google.cloud.dataflow.sdk.util.state.ValueState;
 
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,12 +43,6 @@ public class MergingActiveWindowSet<W extends BoundedWindow>
   private final WindowFn<Object, W> windowFn;
 
   /**
-   * Tag for storing the merge tree, the data structure that keeps
-   * track of which windows have been merged together.
-   */
-  private final CodedTupleTag<Map<W, Set<W>>> mergeTreeTag;
-
-  /**
    * A map of live windows to windows that were merged into them.
    *
    * <p> The keys of the map correspond to the set of (merged) windows and the values
@@ -63,23 +58,23 @@ public class MergingActiveWindowSet<W extends BoundedWindow>
    */
   private final Map<W, Set<W>> originalMergeTree;
 
+  private final ValueState<Map<W, Set<W>>> mergeTreeValue;
 
-  public MergingActiveWindowSet(WindowFn<Object, W> windowFn, KeyedState keyedState)
-      throws IOException {
+  public MergingActiveWindowSet(WindowFn<Object, W> windowFn, StateInternals state) {
     this.windowFn = windowFn;
-    mergeTreeTag = CodedTupleTag.of(
-        "mergeTree", MapCoder.of(windowFn.windowCoder(), SetCoder.of(windowFn.windowCoder())));
 
-    mergeTree = emptyIfNull(keyedState.lookup(Arrays.asList(mergeTreeTag))
-        .get(mergeTreeTag));
+    StateTag<ValueState<Map<W, Set<W>>>> mergeTreeAddr = StateTags.value(
+        "mergeTree", MapCoder.of(windowFn.windowCoder(), SetCoder.of(windowFn.windowCoder())));
+    this.mergeTreeValue = state.state(StateNamespaces.global(), mergeTreeAddr);
+    this.mergeTree = emptyIfNull(mergeTreeValue.get().read());
 
     originalMergeTree = deepCopy(mergeTree);
   }
 
   @Override
-  public void persist(KeyedState keyedState) throws IOException {
+  public void persist() {
     if (!mergeTree.equals(originalMergeTree)) {
-      keyedState.store(mergeTreeTag, mergeTree);
+      mergeTreeValue.set(mergeTree);
     }
   }
 

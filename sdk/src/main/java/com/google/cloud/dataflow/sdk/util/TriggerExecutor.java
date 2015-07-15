@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
+import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
@@ -34,13 +35,18 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.ActiveWindowSet.MergeCallback;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
+import com.google.cloud.dataflow.sdk.util.state.MergeableState;
+import com.google.cloud.dataflow.sdk.util.state.State;
+import com.google.cloud.dataflow.sdk.util.state.StateContents;
+import com.google.cloud.dataflow.sdk.util.state.StateInternals;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.util.state.StateTags;
+import com.google.cloud.dataflow.sdk.util.state.ValueState;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
-import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -57,11 +63,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Manages the execution of a trigger.
@@ -72,6 +75,11 @@ import java.util.Set;
  * @param <W> The type of windows this operates on.
  */
 public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
+
+  private static final String BUFFER_NAME = "__buffer";
+
+  @VisibleForTesting static final StateTag<ValueState<BitSet>> FINISHED_BITS_TAG =
+      StateTags.value("finished_set", BitSetCoder.of());
 
   public static final String DROPPED_DUE_TO_CLOSED_WINDOW = "DroppedDueToClosedWindow";
   public static final String DROPPED_DUE_TO_LATENESS_COUNTER = "DroppedDueToLateness";
@@ -85,11 +93,11 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
 
   private final WindowingInternals<?, KV<K, OutputT>> windowingInternals;
   private final TimerManager timerManager;
-  private final WindowingInternals.KeyedState keyedState;
   private final Coder<TriggerId<W>> triggerIdCoder;
   private final ActiveWindowSet<W> activeWindows;
-  private final OutputBuffer<K, InputT, OutputT, W> outputBuffer;
+  private final StateInternals stateInternals;
 
+  @VisibleForTesting final StateTag<? extends MergeableState<InputT, OutputT>> buffer;
   private final WatermarkHold<W> watermarkHolder;
 
   private final K key;
@@ -101,92 +109,42 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       WindowFn<Object, W> windowFn,
       TimerManager timerManager,
       ExecutableTrigger<W> rootTrigger,
-      WindowingInternals.KeyedState keyedState,
       WindowingInternals<?, KV<K, OutputT>> windowingInternals,
       AccumulationMode mode,
       Duration allowedLateness,
       ActiveWindowSet<W> activeWindows,
-      OutputBuffer<K, InputT, OutputT, W> outputBuffer,
+      StateTag<? extends MergeableState<InputT, OutputT>> outputBuffer,
       Aggregator<Long, Long> droppedDueToClosedWindow,
       Aggregator<Long, Long> droppedDueToLateness) {
     this.key = key;
     this.windowFn = windowFn;
     this.rootTrigger = rootTrigger;
-    this.keyedState = keyedState;
     this.windowingInternals = windowingInternals;
     this.allowedLateness = allowedLateness;
     this.activeWindows = activeWindows;
-    this.outputBuffer = outputBuffer;
+    this.buffer = outputBuffer;
     this.droppedDueToClosedWindow = droppedDueToClosedWindow;
     this.droppedDueToLateness = droppedDueToLateness;
     this.watermarkHolder = new WatermarkHold<W>(allowedLateness);
     this.timerManager = timerManager;
     this.mode = mode;
     this.triggerIdCoder = new TriggerIdCoder<>(windowFn.windowCoder());
+    this.stateInternals = windowingInternals.stateInternals();
   }
 
   private boolean isRootFinished(BitSet bitSet) {
     return bitSet.get(0);
   }
 
-  private OutputBuffer.Context<K, W> bufferContext(final W window) {
-    return new OutputBuffer.Context<K, W>() {
-      @Override
-      public K key() {
-        return key;
-      }
-
-      @Override
-      public W window() {
-        return window;
-      }
-
-      @Override
-      public Iterable<W> sourceWindows() {
-        return activeWindows.sourceWindows(window);
-      }
-
-      private <T> CodedTupleTag<T> windowedTag(W window, CodedTupleTag<T> tag)
-          throws CoderException {
-        return CodedTupleTag.of(
-            CoderUtils.encodeToBase64(windowFn.windowCoder(), window) + "/" + tag.getId(),
-            tag.getCoder());
-      }
-
-      @Override
-      public <T> void addToBuffer(W window, CodedTupleTag<T> buffer, T value) throws IOException {
-        windowingInternals.writeToTagList(windowedTag(window, buffer), value);
-      }
-
-      @Override
-      public <T> void addToBuffer(W window, CodedTupleTag<T> buffer, T value, Instant timestamp)
-          throws IOException {
-        windowingInternals.writeToTagList(windowedTag(window, buffer), value, timestamp);
-      }
-
-      @Override
-      public void clearBuffers(CodedTupleTag<?> buffer, Iterable<W> windows) throws IOException {
-        for (W window : windows) {
-          windowingInternals.deleteTagList(windowedTag(window, buffer));
-        }
-      }
-
-      @Override
-      public <T> Iterable<T> readBuffers(CodedTupleTag<T> buffer, Iterable<W> windows)
-          throws IOException {
-        List<CodedTupleTag<T>> tags = new ArrayList<>();
-        for (W window : windows) {
-          tags.add(windowedTag(window, buffer));
-        }
-        return Iterables.concat(windowingInternals.readTagList(tags).values());
-      }
-    };
+  public static <T> StateTag<? extends MergeableState<T, Iterable<T>>> listBuffer(Coder<T> coder) {
+    return StateTags.<T>bag(BUFFER_NAME, coder);
   }
 
-  public CodedTupleTag<BitSet> finishedSetTag(W window) throws CoderException {
-    return CodedTupleTag.of(
-        CoderUtils.encodeToBase64(windowFn.windowCoder(), window) + "/finished-set",
-        BitSetCoder.of());
+  public static <K, InputT, OutputT> StateTag<? extends MergeableState<InputT, OutputT>>
+  combiningBuffer(K key, Coder<K> keyCoder, Coder<InputT> inputCoder,
+      KeyedCombineFn<K, InputT, ?, OutputT> combineFn) {
+    return StateTags.<InputT, OutputT>combiningValue(
+        BUFFER_NAME, inputCoder, combineFn.forKey(key, keyCoder));
   }
 
   public static <K, InputT, OutputT, W extends BoundedWindow>
@@ -194,54 +152,59 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       K key,
       WindowingStrategy<Object, W> windowingStrategy,
       TimerManager timerManager,
-      OutputBuffer<K, InputT, OutputT, W> outputBuffer,
+      StateTag<? extends MergeableState<InputT, OutputT>> outputBuffer,
       WindowingInternals<?, KV<K, OutputT>> windowingInternals,
       Aggregator<Long, Long> droppedDueToClosedWindow,
       Aggregator<Long, Long> droppedDueToLateness) throws Exception {
     ActiveWindowSet<W> activeWindows = windowingStrategy.getWindowFn().isNonMerging()
         ? new NonMergingActiveWindowSet<W>()
         : new MergingActiveWindowSet<W>(
-            windowingStrategy.getWindowFn(), windowingInternals.keyedState());
+            windowingStrategy.getWindowFn(), windowingInternals.stateInternals());
     return new TriggerExecutor<K, InputT, OutputT, W>(key,
         windowingStrategy.getWindowFn(), timerManager, windowingStrategy.getTrigger(),
-        windowingInternals.keyedState(), windowingInternals, windowingStrategy.getMode(),
+        windowingInternals, windowingStrategy.getMode(),
         windowingStrategy.getAllowedLateness(), activeWindows, outputBuffer,
         droppedDueToClosedWindow, droppedDueToLateness);
   }
 
-  private TriggerContextImpl context(BitSet finishedSet, W window) {
-    return new TriggerContextImpl(finishedSet, rootTrigger, window);
+  private Context context(W window) {
+    return new Context(window, StateNamespaces.window(windowFn.windowCoder(), window));
   }
 
-  @VisibleForTesting BitSet lookupFinishedSet(W window) throws IOException {
+  @VisibleForTesting BitSet lookupFinishedSet(W window) {
     // TODO: If we know that no trigger in the tree will ever finish, we don't need to do the
     // lookup. Right now, we special case this for the DefaultTrigger.
     if (rootTrigger.getSpec() instanceof DefaultTrigger) {
       return new BitSet(1);
     }
 
-    BitSet finishedSet = keyedState.lookup(finishedSetTag(window));
+    BitSet finishedSet =
+        stateInternals.state(windowNamespace(window), FINISHED_BITS_TAG).get().read();
     return finishedSet == null ? new BitSet(rootTrigger.getFirstIndexAfterSubtree()) : finishedSet;
   }
 
   /**
    * Issue a load for all the keyed state tags that we know we need for the given windows.
    */
-  private void warmUpCache(Iterable<W> windows) throws IOException {
+  private void warmUpCache(Iterable<W> windows) {
     if ((rootTrigger.getSpec() instanceof DefaultTrigger)) {
       return;
     }
 
     // Prepare the cache by loading keyed state for all the given windows.
-    Set<CodedTupleTag<?>> tags = new HashSet<>();
     for (W window : windows) {
-      tags.add(finishedSetTag(window));
+      stateInternals.state(windowNamespace(window), FINISHED_BITS_TAG).get();
     }
-    keyedState.lookup(tags);
   }
 
   private TriggerId<W> cleanupTimer(W window) {
     return new TriggerId<W>(window, FINAL_CLEANUP_PSEUDO_ID);
+  }
+
+  private Trigger<W>.OnElementContext onElementContext(
+      BitSet finishedSet, W window, WindowedValue<InputT> value) {
+    TriggerContextImpl delegate = new TriggerContextImpl(finishedSet, rootTrigger, window);
+    return new OnElementContextImpl(delegate, value.getValue(), value.getTimestamp());
   }
 
   public void onElement(WindowedValue<InputT> value) throws Exception {
@@ -268,17 +231,18 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       if (activeWindows.add(window)) {
         scheduleCleanup(window);
       }
-      outputBuffer.addValue(bufferContext(window), value.getValue());
-      watermarkHolder.addHold(bufferContext(window), value.getTimestamp(),
-          timerManager.currentWatermarkTime().isAfter(value.getTimestamp()));
 
       BitSet originalFinishedSet = (BitSet) finishedSet.clone();
-      OnElementContextImpl e = new OnElementContextImpl(
-          context(finishedSet, window), value.getValue(), value.getTimestamp());
+      Context context = context(window);
+
+      context.access(buffer).add(value.getValue());
+      watermarkHolder.addHold(context, value.getTimestamp(),
+          timerManager.currentWatermarkTime().isAfter(value.getTimestamp()));
 
       // Update the trigger state as appropriate for the arrival of the element.
       // Must come before merge so the state is updated (for merging).
-      TriggerResult result = rootTrigger.invokeElement(e);
+      TriggerResult result =
+          rootTrigger.invokeElement(onElementContext(finishedSet, window, value));
 
       // Make sure we merge before firing, in case a larger window is produced
       boolean stillExists = true;
@@ -308,19 +272,20 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     TriggerId<W> triggerId = CoderUtils.decodeFromBase64(triggerIdCoder, timerTag);
     W window = triggerId.window();
     BitSet finishedSet = lookupFinishedSet(window);
+    Context context = context(window);
 
     if (triggerId.getTriggerIdx() == FINAL_CLEANUP_PSEUDO_ID) {
       // TODO: Create appropriate Pane here.
       PaneInfo pane = PaneInfo.createPaneInternal();
       if (mergeIfAppropriate(window)) {
-        emitWindow(window, pane);
-        outputBuffer.clear(bufferContext(window));
+        emitWindow(context, pane);
+        context.accessAcrossSources(buffer).clear();
       }
 
       // Perform final cleanup.
       activeWindows.remove(window);
-      rootTrigger.invokeClear(context(finishedSet, window));
-      keyedState.remove(finishedSetTag(window));
+      rootTrigger.invokeClear(new TriggerContextImpl(finishedSet, rootTrigger, window));
+      stateInternals.state(windowNamespace(window), FINISHED_BITS_TAG).clear();
       return;
     }
 
@@ -336,15 +301,20 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     // consideration.
     if (mergeIfAppropriate(window)) {
       BitSet originalFinishedSet = (BitSet) finishedSet.clone();
-      TriggerResult result = rootTrigger.invokeTimer(
-          new OnTimerContextImpl(context(finishedSet, window), triggerId));
+      TriggerResult result =
+          rootTrigger.invokeTimer(onTimerContext(finishedSet, window, triggerId));
       handleResult(rootTrigger, window, originalFinishedSet, finishedSet, result);
     }
   }
 
+  private Trigger<W>.OnTimerContext onTimerContext(
+      BitSet finishedSet, W window, TriggerId<W> triggerId) {
+    TriggerContextImpl delegate = new TriggerContextImpl(finishedSet, rootTrigger, window);
+    return new OnTimerContextImpl(delegate, triggerId);
+  }
+
   private OnMergeContextImpl createMergeEvent(
-      TriggerContextImpl context, Collection<W> toBeMerged, W resultWindow)
-      throws IOException {
+      TriggerContextImpl context, Collection<W> toBeMerged, W resultWindow) {
     warmUpCache(
         toBeMerged.contains(resultWindow)
         ? toBeMerged
@@ -357,19 +327,17 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     return new OnMergeContextImpl(context, toBeMerged, finishedSets.build());
   }
 
-  public void persist() throws Exception {
-    activeWindows.persist(keyedState);
-    outputBuffer.flush(bufferContext(null));
-    watermarkHolder.flush(bufferContext(null));
+  public void persist() {
+    activeWindows.persist();
   }
 
   private void onMerge(Collection<W> toBeMerged, W resultWindow) throws Exception {
     BitSet originalFinishedSet = lookupFinishedSet(resultWindow);
     BitSet finishedSet = (BitSet) originalFinishedSet.clone();
 
-    TriggerContextImpl context = context(finishedSet, resultWindow);
-    OnMergeContextImpl e = createMergeEvent(context, toBeMerged, resultWindow);
-    MergeResult result = rootTrigger.invokeMerge(e);
+    OnMergeContextImpl mergeContext = createMergeEvent(
+        new TriggerContextImpl(finishedSet, rootTrigger, resultWindow), toBeMerged, resultWindow);
+    MergeResult result = rootTrigger.invokeMerge(mergeContext);
     if (MergeResult.ALREADY_FINISHED.equals(result)) {
       throw new IllegalStateException("Root trigger returned MergeResult.ALREADY_FINISHED.");
     }
@@ -381,8 +349,9 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     // Before we finish, we can clean up the state associated with the trigger in the old windows
     for (W windowBeingMerged : toBeMerged) {
       if (!resultWindow.equals(windowBeingMerged)) {
-        rootTrigger.invokeClear(context(lookupFinishedSet(windowBeingMerged), windowBeingMerged));
-        keyedState.remove(finishedSetTag(windowBeingMerged));
+        rootTrigger.invokeClear(new TriggerContextImpl(
+            lookupFinishedSet(windowBeingMerged), rootTrigger, windowBeingMerged));
+        stateInternals.state(windowNamespace(windowBeingMerged), FINISHED_BITS_TAG).clear();
         deleteTimer(cleanupTimer(windowBeingMerged), TimeDomain.EVENT_TIME);
       }
     }
@@ -413,15 +382,16 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
   private void handleResult(
       ExecutableTrigger<W> trigger, W window,
       BitSet originalFinishedSet, BitSet finishedSet, TriggerResult result) throws Exception {
+    Context context = context(window);
     if (result.isFire()) {
       // TODO: Obtain pain from ExecutableTrigger or TriggerResult.
       PaneInfo pane = PaneInfo.createPaneInternal();
-      emitWindow(window, pane);
+      emitWindow(context, pane);
     }
 
     if (result.isFinish()
         || (mode == AccumulationMode.DISCARDING_FIRED_PANES && result.isFire())) {
-      outputBuffer.clear(bufferContext(window));
+      context.accessAcrossSources(buffer).clear();
 
       // Remove the window from management (assume it is "done")
       activeWindows.remove(window);
@@ -430,25 +400,26 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     // If the trigger is finished, we can clear out its state as long as we keep the
     // IS_ROOT_FINISHED bit.
     if (result.isFinish()) {
-      trigger.invokeClear(context(finishedSet, window));
+      trigger.invokeClear(new TriggerContextImpl(finishedSet, rootTrigger, window));
     }
 
     if (!finishedSet.equals(originalFinishedSet)) {
-      keyedState.store(finishedSetTag(window), finishedSet);
+      context.access(FINISHED_BITS_TAG).set(finishedSet);
     }
   }
 
-  private void emitWindow(W window, PaneInfo pane) throws Exception {
-    Instant timestamp = watermarkHolder.extractAndRelease(bufferContext(window));
-    OutputT finalValue = outputBuffer.extract(bufferContext(window));
+  private void emitWindow(Context context, PaneInfo pane) throws Exception {
+    StateContents<OutputT> finalValue = context.accessAcrossSources(buffer).get();
+    Instant timestamp = watermarkHolder.extractAndRelease(context);
 
     // If there were any contents to output in the window, do so.
-    if (finalValue != null) {
+    if (timestamp != null) {
       // Emit the (current) final values for the window
-      KV<K, OutputT> value = KV.of(key, finalValue);
+      KV<K, OutputT> value = KV.of(key, finalValue.read());
 
       // Output the windowed value.
-      windowingInternals.outputWindowedValue(value, timestamp, Arrays.asList(window), pane);
+      windowingInternals.outputWindowedValue(
+          value, timestamp, Arrays.asList(context.window()), pane);
     }
   }
 
@@ -462,22 +433,39 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     timerManager.deleteTimer(CoderUtils.encodeToBase64(triggerIdCoder, triggerId), domain);
   }
 
-  private <T> Map<W, T> lookupKeyedState(
-      Iterable<W> windows, Function<W, CodedTupleTag<T>> tagFn) throws IOException {
-    List<CodedTupleTag<T>> tags = new ArrayList<>();
-    for (W window : windows) {
-      tags.add(tagFn.apply(window));
+  private StateNamespace windowNamespace(W window) {
+    return StateNamespaces.window(windowFn.windowCoder(), window);
+  }
+
+  /**
+   * Context for general trigger execution, without a specific trigger selected.
+   */
+  class Context {
+    private final W window;
+    private final StateNamespace namespace;
+
+    private Context(W window, StateNamespace namespace) {
+      this.window = window;
+      this.namespace = namespace;
     }
 
-    CodedTupleTagMap tagMap = keyedState.lookup(tags);
-
-    Map<W, T> result = new LinkedHashMap<>();
-    int i = 0;
-    for (W window : windows) {
-      result.put(window, tagMap.get(tags.get(i++)));
+    public W window() {
+      return window;
     }
 
-    return result;
+    public <StorageT extends State> StorageT access(StateTag<StorageT> address) {
+      return stateInternals.state(namespace, address);
+    }
+
+    public <StorageT extends MergeableState<?, ?>> StorageT accessAcrossSources(
+        StateTag<StorageT> address) {
+      List<StateNamespace> sourceNamespaces = new ArrayList<>();
+      for (W sourceWindow : activeWindows.sourceWindows(window)) {
+        sourceNamespaces.add(windowNamespace(sourceWindow));
+      }
+
+      return stateInternals.mergedState(sourceNamespaces, namespace, address);
+    }
   }
 
   private class TriggerContextImpl extends Trigger<W>.TriggerContext {
@@ -485,6 +473,7 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     private final BitSet finishedSet;
     private final ExecutableTrigger<W> trigger;
     private final W window;
+    private final StateNamespace namespace;
 
     private TriggerContextImpl(
         BitSet finishedSet, ExecutableTrigger<W> trigger, W window) {
@@ -492,19 +481,12 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
       this.finishedSet = finishedSet;
       this.trigger = trigger;
       this.window = window;
+      this.namespace = StateNamespaces.windowAndTrigger(
+          windowFn.windowCoder(), window, trigger.getTriggerIndex());
     }
 
     private TriggerId<W> triggerId(W window) {
       return new TriggerId<>(window, trigger.getTriggerIndex());
-    }
-
-    private String triggerIdTag(W window) throws CoderException {
-      return CoderUtils.encodeToBase64(triggerIdCoder, triggerId(window));
-    }
-
-    private <T> CodedTupleTag<T> codedTriggerIdTag(CodedTupleTag<T> tag, W window)
-        throws CoderException {
-      return CodedTupleTag.of(tag.getId() + "-" + triggerIdTag(window), tag.getCoder());
     }
 
     @Override
@@ -515,38 +497,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public void deleteTimer(TimeDomain domain) throws IOException {
       TriggerExecutor.this.deleteTimer(triggerId(window), domain);
-    }
-
-    @Override
-    public <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException {
-      CodedTupleTag<T> codedTriggerIdTag = codedTriggerIdTag(tag, window);
-      keyedState.store(codedTriggerIdTag, value);
-    }
-
-    @Override
-    public <T> void remove(CodedTupleTag<T> tag, W window) throws IOException {
-      CodedTupleTag<T> codedTriggerIdTag = codedTriggerIdTag(tag, window);
-      keyedState.remove(codedTriggerIdTag);
-    }
-
-    @Override
-    public <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException {
-      return keyedState.lookup(codedTriggerIdTag(tag, window));
-    }
-
-    @Override
-    public <T> Map<W, T> lookup(
-        final CodedTupleTag<T> tag, final Iterable<W> windows) throws IOException {
-      return lookupKeyedState(windows, new Function<W, CodedTupleTag<T>>() {
-        @Override
-        public CodedTupleTag<T> apply(W window) {
-          try {
-            return codedTriggerIdTag(tag, window);
-          } catch (CoderException e) {
-            throw Throwables.propagate(e);
-          }
-        }
-      });
     }
 
     @Override
@@ -616,6 +566,23 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     public W window() {
       return window;
     }
+
+    @Override
+    public <StorageT extends State> StorageT access(StateTag<StorageT> address) {
+      return stateInternals.state(namespace, address);
+    }
+
+    @Override
+    public <StorageT extends MergeableState<?, ?>> StorageT accessAcrossMergedWindows(
+        StateTag<StorageT> address) {
+      List<StateNamespace> sourceNamespaces = new ArrayList<>();
+      for (W sourceWindow : activeWindows.sourceWindows(window)) {
+        sourceNamespaces.add(StateNamespaces.windowAndTrigger(
+            windowFn.windowCoder(), sourceWindow, trigger.getTriggerIndex()));
+      }
+
+      return stateInternals.mergedState(sourceNamespaces, namespace, address);
+    }
   }
 
   private class OnElementContextImpl extends Trigger<W>.OnElementContext {
@@ -645,26 +612,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public Instant currentProcessingTime() {
       return delegate.currentProcessingTime();
-    }
-
-    @Override
-    public <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException {
-      delegate.store(tag, window, value);
-    }
-
-    @Override
-    public <T> void remove(CodedTupleTag<T> tag, W window) throws IOException {
-      delegate.remove(tag, window);
-    }
-
-    @Override
-    public <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException {
-      return delegate.lookup(tag, window);
-    }
-
-    @Override
-    public <T> Map<W, T> lookup(CodedTupleTag<T> tag, Iterable<W> windows) throws IOException {
-      return delegate.lookup(tag, windows);
     }
 
     @Override
@@ -711,6 +658,17 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     public W window() {
       return delegate.window();
     }
+
+    @Override
+    public <StorageT extends State> StorageT access(StateTag<StorageT> address) {
+      return delegate.access(address);
+    }
+
+    @Override
+    public <StorageT extends MergeableState<?, ?>> StorageT accessAcrossMergedWindows(
+        StateTag<StorageT> address) {
+      return delegate.accessAcrossMergedWindows(address);
+    }
   }
 
   private class OnMergeContextImpl extends Trigger<W>.OnMergeContext {
@@ -742,26 +700,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public Instant currentProcessingTime() {
       return delegate.currentProcessingTime();
-    }
-
-    @Override
-    public <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException {
-      delegate.store(tag, window, value);
-    }
-
-    @Override
-    public <T> void remove(CodedTupleTag<T> tag, W window) throws IOException {
-      delegate.remove(tag, window);
-    }
-
-    @Override
-    public <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException {
-      return delegate.lookup(tag, window);
-    }
-
-    @Override
-    public <T> Map<W, T> lookup(CodedTupleTag<T> tag, Iterable<W> windows) throws IOException {
-      return delegate.lookup(tag, windows);
     }
 
     @Override
@@ -828,6 +766,29 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
         }
       }).keySet();
     }
+
+    @Override
+    public <StorageT extends State> StorageT access(StateTag<StorageT> address) {
+      return delegate.access(address);
+    }
+
+    @Override
+    public <StorageT extends MergeableState<?, ?>> StorageT accessAcrossMergedWindows(
+        StateTag<StorageT> address) {
+      return delegate.accessAcrossMergedWindows(address);
+    }
+
+    @Override
+    public <StorageT extends MergeableState<?, ?>> StorageT accessAcrossMergingWindows(
+        StateTag<StorageT> address) {
+      List<StateNamespace> mergingNamespaces = new ArrayList<>();
+      for (W oldWindow : oldWindows()) {
+        mergingNamespaces.add(StateNamespaces.windowAndTrigger(
+            windowFn.windowCoder(), oldWindow, delegate.trigger.getTriggerIndex()));
+      }
+
+      return stateInternals.mergedState(mergingNamespaces, delegate.namespace, address);
+    }
   }
 
   private class OnTimerContextImpl extends Trigger<W>.OnTimerContext {
@@ -856,26 +817,6 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public Instant currentProcessingTime() {
       return delegate.currentProcessingTime();
-    }
-
-    @Override
-    public <T> void store(CodedTupleTag<T> tag, W window, T value) throws IOException {
-      delegate.store(tag, window, value);
-    }
-
-    @Override
-    public <T> void remove(CodedTupleTag<T> tag, W window) throws IOException {
-      delegate.remove(tag, window);
-    }
-
-    @Override
-    public <T> T lookup(CodedTupleTag<T> tag, W window) throws IOException {
-      return delegate.lookup(tag, window);
-    }
-
-    @Override
-    public <T> Map<W, T> lookup(CodedTupleTag<T> tag, Iterable<W> windows) throws IOException {
-      return delegate.lookup(tag, windows);
     }
 
     @Override
@@ -931,6 +872,17 @@ public class TriggerExecutor<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public W window() {
       return delegate.window();
+    }
+
+    @Override
+    public <StorageT extends State> StorageT access(StateTag<StorageT> address) {
+      return delegate.access(address);
+    }
+
+    @Override
+    public <StorageT extends MergeableState<?, ?>> StorageT accessAcrossMergedWindows(
+        StateTag<StorageT> address) {
+      return delegate.accessAcrossMergedWindows(address);
     }
   }
 

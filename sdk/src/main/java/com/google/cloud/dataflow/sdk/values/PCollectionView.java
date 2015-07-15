@@ -56,7 +56,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
   /**
    * For internal use only.
    */
-  public WindowingStrategy getWindowingStrategyInternal();
+  public WindowingStrategy<?, ?> getWindowingStrategyInternal();
 
   /**
    * For internal use only.

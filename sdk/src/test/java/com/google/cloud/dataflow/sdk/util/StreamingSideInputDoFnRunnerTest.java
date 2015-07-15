@@ -17,16 +17,17 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import static org.hamcrest.Matchers.contains;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
+import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.GlobalDataRequest;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -36,11 +37,14 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
+import com.google.cloud.dataflow.sdk.util.state.ValueState;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.protobuf.ByteString;
 
+import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -50,15 +54,12 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -67,56 +68,66 @@ import java.util.Set;
 @RunWith(JUnit4.class)
 public class StreamingSideInputDoFnRunnerTest {
 
+  private static final FixedWindows WINDOW_FN = FixedWindows.of(Duration.millis(10));
+
   static TupleTag<String> mainOutputTag = new TupleTag<String>();
   @Mock StreamingModeExecutionContext execContext;
   @Mock ExecutionContext.StepContext stepContext;
   @Mock SideInputReader mockSideInputReader;
 
+  private final InMemoryStateInternals state = new InMemoryStateInternals();
+
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     when(stepContext.getExecutionContext()).thenReturn(execContext);
+    when(stepContext.stateInternals()).thenReturn(state);
+  }
+
+  private <T> List<WindowedValue<T>> getReceiver(
+      StreamingSideInputDoFnRunner<?, ?, List<WindowedValue<?>>, ?> runner,
+      TupleTag<T> outputTag) {
+    List<WindowedValue<?>> values = runner.getReceiver(outputTag);
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    List<WindowedValue<T>> typedValues = (List) values;
+    return typedValues;
   }
 
   @Test
   public void testSideInputReady() throws Exception {
     PCollectionView<String> view = createView();
 
-    when(stepContext.lookup(any(CodedTupleTag.class))).thenReturn(new HashMap());
     when(execContext.getSideInputNotifications())
         .thenReturn(Arrays.<Windmill.GlobalDataId>asList());
     when(execContext.issueSideInputFetch(
              eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
         .thenReturn(true);
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    Iterable<PCollectionView<?>> anyIterable = (Iterable) any(Iterable.class);
-    when(execContext.getSideInputReaderForViews(anyIterable)).thenReturn(mockSideInputReader);
+    when(execContext.getSideInputReaderForViews(
+        Mockito.<Iterable<? extends PCollectionView<?>>>any())).thenReturn(mockSideInputReader);
     when(mockSideInputReader.contains(eq(view))).thenReturn(true);
     when(mockSideInputReader.get(eq(view), any(BoundedWindow.class))).thenReturn("data");
 
-    StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> runner =
+    StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
         createRunner(Arrays.asList(view));
 
     runner.startBundle();
     runner.processElement(createDatum("e", 0));
     runner.finishBundle();
 
-    assertThat((List<WindowedValue<String>>) runner.getReceiver(mainOutputTag),
-        contains(createDatum("e:data", 0)));
+    assertThat(getReceiver(runner, mainOutputTag), contains(createDatum("e:data", 0)));
   }
 
   @Test
   public void testSideInputNotReady() throws Exception {
     PCollectionView<String> view = createView();
 
-    when(stepContext.lookup(any(CodedTupleTag.class))).thenReturn(new HashMap());
     when(execContext.getSideInputNotifications())
         .thenReturn(Arrays.<Windmill.GlobalDataId>asList());
     when(execContext.issueSideInputFetch(
              eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
         .thenReturn(false);
 
-    StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> runner =
+    StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
         createRunner(Arrays.asList(view));
 
     runner.startBundle();
@@ -127,9 +138,12 @@ public class StreamingSideInputDoFnRunnerTest {
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
-    verify(stepContext).writeToTagList(
-        any(CodedTupleTag.class), eq(createDatum("e", 0)), eq(new Instant(0)));
-    verify(stepContext).store(any(CodedTupleTag.class), eq(
+    // Verify that we added the element to an appropriate tag list, and that we buffered the element
+    ValueState<Map<IntervalWindow, Set<GlobalDataRequest>>> blockedMapState =
+        state.state(StateNamespaces.global(),
+            StreamingSideInputDoFnRunner.blockedMapAddr(WINDOW_FN));
+    assertEquals(
+        blockedMapState.get().read(),
         Collections.singletonMap(
             window,
             Collections.singleton(Windmill.GlobalDataRequest.newBuilder()
@@ -137,9 +151,12 @@ public class StreamingSideInputDoFnRunnerTest {
                     .setTag(view.getTagInternal().getId())
                     .setVersion(ByteString.copyFrom(CoderUtils.encodeToByteArray(
                         IntervalWindow.getCoder(), window)))
-                    .build())
-                .setExistenceWatermarkDeadline(9000)
-                .build()))));
+                        .build())
+                        .setExistenceWatermarkDeadline(9000)
+                        .build())));
+    assertThat(runner.elementBag(createWindow(0)).get().read(),
+        Matchers.contains(createDatum("e", 0)));
+    assertEquals(runner.watermarkHold(createWindow(0)).get().read(), new Instant(0));
   }
 
   @Test
@@ -158,9 +175,16 @@ public class StreamingSideInputDoFnRunnerTest {
     Map<IntervalWindow, Set<Windmill.GlobalDataRequest>> blockedMap = new HashMap<>();
     blockedMap.put(window, requestSet);
 
-    when(stepContext
-        .lookup(Mockito.<CodedTupleTag<Map<IntervalWindow, Set<Windmill.GlobalDataRequest>>>>any()))
-        .thenReturn(blockedMap);
+    ValueState<Map<IntervalWindow, Set<GlobalDataRequest>>> blockedMapState =
+        state.state(StateNamespaces.global(),
+            StreamingSideInputDoFnRunner.blockedMapAddr(WINDOW_FN));
+    blockedMapState.set(blockedMap);
+
+    StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
+        createRunner(Arrays.asList(view));
+    runner.watermarkHold(createWindow(0)).add(new Instant(0));
+    runner.elementBag(createWindow(0)).add(createDatum("e", 0));
+
     when(execContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
     when(execContext.issueSideInputFetch(
              eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
@@ -168,42 +192,19 @@ public class StreamingSideInputDoFnRunnerTest {
     when(execContext.issueSideInputFetch(
              eq(view), any(BoundedWindow.class), eq(SideInputState.KNOWN_READY)))
         .thenReturn(true);
-    when(execContext.getSideInputReaderForViews(any(Iterable.class)))
-        .thenReturn(mockSideInputReader);
+    when(execContext.getSideInputReaderForViews(
+        Mockito.<Iterable<? extends PCollectionView<?>>>any())).thenReturn(mockSideInputReader);
     when(mockSideInputReader.contains(eq(view))).thenReturn(true);
     when(mockSideInputReader.get(eq(view), any(BoundedWindow.class))).thenReturn("data");
-    when(stepContext.readTagLists(
-        Mockito.<Iterable<CodedTupleTag<WindowedValue<String>>>>any()))
-        .thenAnswer(readTagListAnswer(Arrays.asList(createDatum("e", 0))));
-
-    StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> runner =
-        createRunner(Arrays.asList(view));
 
     runner.startBundle();
     runner.finishBundle();
 
-    assertThat((List<WindowedValue<String>>) runner.getReceiver(mainOutputTag),
-        contains(createDatum("e:data", 0)));
+    assertThat(getReceiver(runner, mainOutputTag), contains(createDatum("e:data", 0)));
 
-    verify(stepContext).store(any(CodedTupleTag.class), eq(new HashMap()));
-  }
-
-  private <T> Answer<Map<CodedTupleTag<T>, Iterable<T>>> readTagListAnswer(
-      final Iterable<T> answer) {
-    return new Answer<Map<CodedTupleTag<T>, Iterable<T>>>() {
-      @Override
-      public Map<CodedTupleTag<T>, Iterable<T>> answer(InvocationOnMock invocation)
-          throws Throwable {
-        Map<CodedTupleTag<T>, Iterable<T>> result = new LinkedHashMap<>();
-        @SuppressWarnings("unchecked")
-        Iterable<CodedTupleTag<T>> tags =
-            (Iterable<CodedTupleTag<T>>) invocation.getArguments()[0];
-        for (CodedTupleTag<T> tag : tags) {
-          result.put(tag, answer);
-        }
-        return result;
-      }
-    };
+    assertThat(blockedMapState.get().read().keySet(), Matchers.empty());
+    assertThat(runner.watermarkHold(createWindow(0)).get().read(), Matchers.nullValue());
+    assertThat(runner.elementBag(createWindow(0)).get().read(), Matchers.emptyIterable());
   }
 
   @Test
@@ -223,56 +224,59 @@ public class StreamingSideInputDoFnRunnerTest {
     Map<IntervalWindow, Set<Windmill.GlobalDataRequest>> blockedMap = new HashMap<>();
     blockedMap.put(window, requestSet);
 
-    when(stepContext.lookup(
-        Mockito.<CodedTupleTag<Map<IntervalWindow, Set<Windmill.GlobalDataRequest>>>>any()))
-        .thenReturn(blockedMap);
+    ValueState<Map<IntervalWindow, Set<GlobalDataRequest>>> blockedMapState =
+        state.state(StateNamespaces.global(),
+            StreamingSideInputDoFnRunner.blockedMapAddr(WINDOW_FN));
+    blockedMapState.set(blockedMap);
+
     when(execContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
     when(execContext.issueSideInputFetch(
              any(PCollectionView.class), any(BoundedWindow.class), any(SideInputState.class)))
         .thenReturn(true);
-    when(execContext.getSideInputReaderForViews(any(Iterable.class)))
-        .thenReturn(mockSideInputReader);
+    when(execContext.getSideInputReaderForViews(
+        Mockito.<Iterable<? extends PCollectionView<?>>>any())).thenReturn(mockSideInputReader);
     when(mockSideInputReader.contains(eq(view1))).thenReturn(true);
     when(mockSideInputReader.contains(eq(view2))).thenReturn(true);
     when(mockSideInputReader.get(eq(view1), any(BoundedWindow.class))).thenReturn("data1");
     when(mockSideInputReader.get(eq(view2), any(BoundedWindow.class))).thenReturn("data2");
-    when(stepContext.readTagLists(
-        Mockito.<Iterable<CodedTupleTag<WindowedValue<String>>>>any()))
-        .thenAnswer(readTagListAnswer(Arrays.asList(createDatum("e1", 0))));
 
-    StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> runner =
+    StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
         createRunner(Arrays.asList(view1, view2));
+    runner.watermarkHold(createWindow(0)).add(new Instant(0));
+    runner.elementBag(createWindow(0)).add(createDatum("e1", 0));
 
     runner.startBundle();
     runner.processElement(createDatum("e2", 2));
     runner.finishBundle();
 
-    System.out.println(runner.getReceiver(mainOutputTag));
-
-    assertThat((List<WindowedValue<String>>) runner.getReceiver(mainOutputTag),
+    assertThat(getReceiver(runner, mainOutputTag),
         contains(createDatum("e1:data1:data2", 0), createDatum("e2:data1:data2", 2)));
 
-    verify(stepContext).store(any(CodedTupleTag.class), eq(new HashMap()));
+    assertThat(blockedMapState.get().read().keySet(), Matchers.empty());
+    assertThat(runner.watermarkHold(createWindow(0)).get().read(), Matchers.nullValue());
+    assertThat(runner.elementBag(createWindow(0)).get().read(), Matchers.emptyIterable());
   }
 
-  private StreamingSideInputDoFnRunner<String, String, List, IntervalWindow> createRunner(
-      List<PCollectionView<String>> views) throws Exception {
-    DoFnInfo doFnInfo = new DoFnInfo<String, String>(
-        new SideInputFn(views),
-        WindowingStrategy.of(FixedWindows.of(Duration.millis(10))),
-        (Iterable) views, StringUtf8Coder.of());
+  private StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow>
+  createRunner(List<PCollectionView<String>> views) throws Exception {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    Iterable<PCollectionView<?>> typedViews = (Iterable) views;
 
-    return new StreamingSideInputDoFnRunner<String, String, List, IntervalWindow>(
+    DoFnInfo<String, String> doFnInfo = new DoFnInfo<String, String>(
+        new SideInputFn(views), WindowingStrategy.of(WINDOW_FN),
+        typedViews, StringUtf8Coder.of());
+
+    return new StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow>(
         PipelineOptionsFactory.create(),
         doFnInfo,
         mockSideInputReader,
-        new DoFnRunner.OutputManager<List>() {
+        new DoFnRunner.OutputManager<List<WindowedValue<?>>>() {
           @Override
-          public List initialize(TupleTag<?> tag) {
+          public List<WindowedValue<?>> initialize(TupleTag<?> tag) {
             return new ArrayList<>();
           }
           @Override
-          public void output(List list, WindowedValue<?> output) {
+          public void output(List<WindowedValue<?>> list, WindowedValue<?> output) {
             list.add(output);
           }
         },
@@ -304,7 +308,7 @@ public class StreamingSideInputDoFnRunnerTest {
   private PCollectionView<String> createView() {
     return TestPipeline.create()
         .apply(Create.<String>of().withCoder(StringUtf8Coder.of()))
-        .apply(Window.<String>into(FixedWindows.of(Duration.millis(10))))
+        .apply(Window.<String>into(WINDOW_FN))
         .apply(View.<String>asSingleton());
   }
 
@@ -312,9 +316,13 @@ public class StreamingSideInputDoFnRunnerTest {
     return WindowedValue.of(
         element,
         new Instant(timestamp),
-        Arrays.asList(new IntervalWindow(
-            new Instant(timestamp - timestamp % 10),
-            new Instant(timestamp - timestamp % 10 + 10))),
+        Arrays.asList(createWindow(timestamp)),
         null);
+  }
+
+  private IntervalWindow createWindow(long timestamp) {
+    return new IntervalWindow(
+        new Instant(timestamp - timestamp % 10),
+        new Instant(timestamp - timestamp % 10 + 10));
   }
 }

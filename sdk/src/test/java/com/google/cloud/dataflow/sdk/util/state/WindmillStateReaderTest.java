@@ -18,12 +18,14 @@ package com.google.cloud.dataflow.sdk.util.state;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.runners.worker.MetricTrackingWindmillServerStub;
+import com.google.cloud.dataflow.sdk.runners.worker.StreamingDataflowWorker;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.KeyedGetDataRequest;
-import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ByteString.Output;
@@ -61,7 +63,7 @@ public class WindmillStateReaderTest {
   private static final ByteString STATE_KEY_2 = ByteString.copyFromUtf8("key2");
 
   @Mock
-  private WindmillServerStub mockWindmill;
+  private MetricTrackingWindmillServerStub mockWindmill;
 
   private WindmillStateReader underTest;
 
@@ -118,10 +120,10 @@ public class WindmillStateReaderTest {
             .addValues(intValue(5, true))
             .addValues(intValue(6, true)));
 
-    Mockito.when(mockWindmill.getData(expectedRequest.build())).thenReturn(response.build());
+    Mockito.when(mockWindmill.getStateData(expectedRequest.build())).thenReturn(response.build());
 
     Iterable<Integer> results = future.get();
-    Mockito.verify(mockWindmill).getData(expectedRequest.build());
+    Mockito.verify(mockWindmill).getStateData(expectedRequest.build());
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     assertThat(results, Matchers.containsInAnyOrder(5, 6));
@@ -145,10 +147,10 @@ public class WindmillStateReaderTest {
         .addValues(Windmill.TagValue.newBuilder()
             .setTag(STATE_KEY_1).setValue(intValue(8, false)));
 
-    Mockito.when(mockWindmill.getData(expectedRequest.build())).thenReturn(response.build());
+    Mockito.when(mockWindmill.getStateData(expectedRequest.build())).thenReturn(response.build());
 
     Integer result = future.get();
-    Mockito.verify(mockWindmill).getData(expectedRequest.build());
+    Mockito.verify(mockWindmill).getStateData(expectedRequest.build());
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     assertThat(result, Matchers.equalTo(8));
@@ -175,10 +177,10 @@ public class WindmillStateReaderTest {
             .addValues(watermarkValue(new Instant(5000)))
             .addValues(watermarkValue(new Instant(6000))));
 
-    Mockito.when(mockWindmill.getData(expectedRequest.build())).thenReturn(response.build());
+    Mockito.when(mockWindmill.getStateData(expectedRequest.build())).thenReturn(response.build());
 
     Instant result = future.get();
-    Mockito.verify(mockWindmill).getData(expectedRequest.build());
+    Mockito.verify(mockWindmill).getStateData(expectedRequest.build());
 
     assertThat(result, Matchers.equalTo(new Instant(5000)));
   }
@@ -207,10 +209,10 @@ public class WindmillStateReaderTest {
            .addValues(intValue(5, true))
            .addValues(intValue(100, true)));
 
-    Mockito.when(mockWindmill.getData(Mockito.isA(Windmill.GetDataRequest.class)))
+    Mockito.when(mockWindmill.getStateData(Mockito.isA(Windmill.GetDataRequest.class)))
         .thenReturn(response.build());
     Instant result = watermarkFuture.get();
-    Mockito.verify(mockWindmill).getData(request.capture());
+    Mockito.verify(mockWindmill).getStateData(request.capture());
 
     // Verify the request looks right.
     assertThat(request.getValue().getRequestsCount(), Matchers.equalTo(1));
@@ -237,6 +239,37 @@ public class WindmillStateReaderTest {
     // And verify that getting a future again returns the already completed future.
     Future<Instant> watermarkFuture2 = underTest.watermarkFuture(STATE_KEY_2);
     assertTrue(watermarkFuture2.isDone());
+  }
+
+  @Test
+  public void testKeyTokenInvalid() throws Exception {
+    // Reads two lists and verifies that we batch them up correctly.
+    Future<Instant> watermarkFuture = underTest.watermarkFuture(STATE_KEY_2);
+    Future<Iterable<Integer>> listFuture = underTest.listFuture(STATE_KEY_1, INT_CODER);
+
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.GetDataResponse.Builder response = Windmill.GetDataResponse.newBuilder();
+    response
+        .addDataBuilder().setComputationId(COMPUTATION)
+        .addDataBuilder().setKey(DATA_KEY).setFailed(true);
+
+    Mockito.when(mockWindmill.getStateData(Mockito.isA(Windmill.GetDataRequest.class)))
+        .thenReturn(response.build());
+
+    try {
+      watermarkFuture.get();
+      fail("Expected KeyTokenInvalidException");
+    } catch (Throwable e) {
+      assertTrue(StreamingDataflowWorker.isKeyTokenInvalidException(e));
+    }
+
+    try {
+      listFuture.get();
+      fail("Expected KeyTokenInvalidException");
+    } catch (Throwable e) {
+      assertTrue(StreamingDataflowWorker.isKeyTokenInvalidException(e));
+    }
   }
 
   /**

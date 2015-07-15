@@ -48,7 +48,10 @@ public class StateNamespaces {
 
   private StateNamespaces() {}
 
-  private static class GlobalNamespace implements StateNamespace {
+  /**
+   * {@link StateNamespace} that is global to the current key being processed.
+   */
+  public static class GlobalNamespace implements StateNamespace {
 
     @Override
     public String stringKey() {
@@ -65,9 +68,17 @@ public class StateNamespaces {
     public int hashCode() {
       return Objects.hash(Namespace.GLOBAL);
     }
+
+    @Override
+    public String toString() {
+      return "Global";
+    }
   }
 
-  private static class WindowNamespace<W extends BoundedWindow> implements StateNamespace {
+  /**
+   * {@link StateNamespace} that is scoped to a specific window.
+   */
+  public static class WindowNamespace<W extends BoundedWindow> implements StateNamespace {
 
     private Coder<W> windowCoder;
     private W window;
@@ -104,9 +115,17 @@ public class StateNamespaces {
     public int hashCode() {
       return Objects.hash(Namespace.WINDOW, window);
     }
+
+    @Override
+    public String toString() {
+      return "Window(" + window + ")";
+    }
   }
 
-  private static class WindowAndTriggerNamespace<W extends BoundedWindow>
+  /**
+   * {@link StateNamespace} that is scoped to a particular window and trigger index.
+   */
+  public static class WindowAndTriggerNamespace<W extends BoundedWindow>
       implements StateNamespace {
 
     private Coder<W> windowCoder;
@@ -146,6 +165,11 @@ public class StateNamespaces {
     @Override
     public int hashCode() {
       return Objects.hash(Namespace.WINDOW_AND_TRIGGER, window, triggerIdx);
+    }
+
+    @Override
+    public String toString() {
+      return "WindowAndTrigger(" + window + "," + triggerIdx + ")";
     }
   }
 }

@@ -71,6 +71,7 @@ import com.google.common.primitives.UnsignedLong;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.TextFormat;
 
+import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -678,130 +679,104 @@ public class StreamingDataflowWorkerTest {
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
     // These tags and data are opaque strings and this is a change detector test.
-    String timer1Tag = "gAAAAAAAA-joB_____8P";
-    String timer2Tag = "gAAAAAAAA-joBwA";
-    String timer3Tag = timer2Tag + "AAAA";
-    String bufferTag = "MergeWindows:gAAAAAAAA-joBw/__buffer";
-    String watermarkHoldTag = "MergeWindows:gAAAAAAAA-joBw/__watermark_hold";
-    String watermarkHoldData = "\000\\200\\000\\000\\000\\000\\000\\000\\000";
-    String bufferData = "\000data0";
-    String outputData = "\\377\\377\\377\\377\\001\\005data0\\000";
-
+    String window = "gAAAAAAAA-joBw";
+    ByteString timer1Tag = ByteString.copyFromUtf8("gAAAAAAAA-joB_____8P");
+    ByteString timer2Tag = ByteString.copyFromUtf8(window + "A");
+    ByteString timer3Tag = ByteString.copyFromUtf8(window + "AAAAA");
+    ByteString bufferTag = ByteString.copyFromUtf8("MergeWindows/" + window + "/__buffer");
+    ByteString watermarkHoldTag =
+        ByteString.copyFromUtf8("MergeWindows/" + window + "/watermark_hold");
+    ByteString bufferData = ByteString.copyFromUtf8("\000data0");
+    ByteString outputData = ByteString.copyFromUtf8("\\377\\377\\377\\377\\001\\005data0\\000");
     // These values are not essential to the change detector test
     long timer1Timestamp = 1000000L;
     long timer2Timestamp = 999000L;
 
-    WorkItemCommitRequest actualOutput = stripCounters(result.get(0L));
+    WorkItemCommitRequest actualOutput = result.get(0L);
 
-    WorkItemCommitRequest expectedOutput = parseCommitRequest(
-        "key: \"" + DEFAULT_KEY_STRING + "\" " +
-            "work_token: 0 " +
-            "output_timers {" +
-            "  tag: \"" + timer1Tag + "\"" +
-            "  timestamp: " + timer1Timestamp +
-            "  type: WATERMARK" +
-            "}" +
-            "output_timers {" +
-            "  tag: \"" + timer2Tag + "\"" +
-            "  timestamp: " + timer2Timestamp +
-            "  type: WATERMARK" +
-            "} " +
-            "list_updates {" +
-            "  tag: \"" + bufferTag + "\"" +
-            "  values {" +
-            "    timestamp: 9223372036854775000" +
-            "    data: \"" + bufferData + "\"" +
-            "  }" +
-            "}" +
-            "list_updates {" +
-            "  tag: \"" + watermarkHoldTag + "\"" +
-            "  values {" +
-            "    timestamp: 0" +
-            "    data: \"" + watermarkHoldData + "\"" +
-            "  }" +
-        "}").build();
+    assertThat(actualOutput.getOutputTimersList(), Matchers.containsInAnyOrder(
+        Matchers.equalTo(Windmill.Timer.newBuilder()
+            .setTag(timer1Tag)
+            .setTimestamp(timer1Timestamp)
+            .setType(Windmill.Timer.Type.WATERMARK).build()),
+        Matchers.equalTo(Windmill.Timer.newBuilder()
+            .setTag(timer2Tag)
+            .setTimestamp(timer2Timestamp)
+            .setType(Windmill.Timer.Type.WATERMARK).build())));
 
-    assertThat(actualOutput.getOutputTimersCount(), equalTo(expectedOutput.getOutputTimersCount()));
-    for (int i = 0; i < actualOutput.getOutputTimersCount(); i++) {
-      assertThat(actualOutput.getOutputTimers(i), equalTo(expectedOutput.getOutputTimers(i)));
-    }
+    assertThat(actualOutput.getListUpdatesList(), Matchers.containsInAnyOrder(
+        Matchers.equalTo(Windmill.TagList.newBuilder()
+            .setTag(bufferTag)
+            .addValues(Windmill.Value.newBuilder()
+                .setTimestamp(Long.MAX_VALUE)
+                .setData(bufferData)
+                .build())
+            .build()),
+        Matchers.equalTo(Windmill.TagList.newBuilder()
+            .setTag(watermarkHoldTag)
+            .addValues(Windmill.Value.newBuilder()
+                .setTimestamp(0)
+                .setData(ByteString.copyFrom(new byte[]{0b0}))
+                .build())
+            .build())));
 
-    assertThat(actualOutput.getListUpdatesCount(), equalTo(expectedOutput.getListUpdatesCount()));
-    for (int i = 0; i < actualOutput.getListUpdatesCount(); i++) {
-      assertThat(actualOutput.getListUpdates(i), equalTo(expectedOutput.getListUpdates(i)));
-    }
+    Windmill.GetWorkResponse.Builder getWorkResponse = Windmill.GetWorkResponse.newBuilder();
+    getWorkResponse.addWorkBuilder()
+        .setComputationId(DEFAULT_COMPUTATION_ID)
+        .setInputDataWatermark(0)
+        .addWorkBuilder()
+        .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING))
+        .setWorkToken(1)
+        .getTimersBuilder().addTimersBuilder()
+        .setTag(timer3Tag)
+        .setTimestamp(timer2Timestamp);
+    server.addWorkToOffer(getWorkResponse.build());
 
-    server.addWorkToOffer(buildTimerInput(
-        "work {" +
-            "  computation_id: \"" + DEFAULT_COMPUTATION_ID + "\"" +
-            "  input_data_watermark: 0" +
-            "  work {" +
-            "    key: \"" + DEFAULT_KEY_STRING + "\"" +
-            "    work_token: 1" +
-            "    timers {" +
-            "      timers {" +
-            "        tag: \"" + timer3Tag + "\"" +
-            "        timestamp: " + timer2Timestamp +
-            "      }" +
-            "    }" +
-            "  }" +
-        "}"));
-
-    server.addDataToOffer(buildData(
-        "data {" +
-            "  computation_id: \"" + DEFAULT_COMPUTATION_ID + "\"" +
-            "  data {" +
-            "    key: \"" + DEFAULT_KEY_STRING + "\"" +
-            "    lists {" +
-            "      tag: \"" + watermarkHoldTag + "\"" +
-            "      values {" +
-            "        timestamp: 0" +
-            "        data: \"" + watermarkHoldData + "\"" +
-            "      }" +
-            "    }" +
-            "  }" +
-        "}"));
-
-    server.addDataToOffer(buildData(
-        "data {" +
-            "  computation_id: \"" + DEFAULT_COMPUTATION_ID + "\"" +
-            "  data {" +
-            "    key: \"" + DEFAULT_KEY_STRING + "\"" +
-            "    lists {" +
-            "      tag: \"" + bufferTag + "\"" +
-            "      values {" +
-            "        timestamp: 0" +
-            "        data: \"" + bufferData + "\"" +
-            "      }" +
-            "    }" +
-            "  }" +
-        "}"));
+    Windmill.GetDataResponse.Builder dataResponse = Windmill.GetDataResponse.newBuilder();
+    Windmill.KeyedGetDataResponse.Builder dataBuilder = dataResponse.addDataBuilder()
+        .setComputationId(DEFAULT_COMPUTATION_ID)
+        .addDataBuilder()
+        .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING));
+    dataBuilder.addListsBuilder()
+        .setTag(bufferTag)
+        .addValuesBuilder()
+        .setTimestamp(0) // is ignored
+        .setData(bufferData);
+    dataBuilder.addListsBuilder()
+        .setTag(watermarkHoldTag)
+        .addValuesBuilder()
+        .setTimestamp(0)
+        .setData(ByteString.copyFrom(new byte[]{0b0}));
+    server.addDataToOffer(dataResponse.build());
 
     result = server.waitForAndGetCommits(1);
 
-    assertThat(stripCounters(result.get(1L)),
-        equalTo(setMessagesMetadata(windowAtZeroBytes(),
-            parseCommitRequest(
-                "key: \"" + DEFAULT_KEY_STRING + "\" " +
-                    "work_token: 1 " +
-                    "output_messages {" +
-                    "  destination_stream_id: \"" + DEFAULT_DESTINATION_STREAM_ID + "\"" +
-                    "  bundles {" +
-                    "    key: \"" + DEFAULT_KEY_STRING + "\"" +
-                    "    messages {" +
-                    "      timestamp: 0" +
-                    "      data: \"" + outputData + "\"" +
-                    "    }" +
-                    "  }" +
-                    "} " +
-                    "list_updates {" +
-                    "  tag: \"" + watermarkHoldTag + "\"" +
-                    "  end_timestamp: 9223372036854775807" +
-                    "}" +
-                    "list_updates {" +
-                    "  tag: \"" + bufferTag + "\"" +
-                    "  end_timestamp: 9223372036854775807" +
-                "}")).build()));
+    actualOutput = result.get(1L);
+
+    assertEquals(addNullPaneTag(ByteString.copyFrom(windowAtZeroBytes())),
+        actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getMetadata());
+
+    Windmill.OutputMessageBundle.Builder expectedOutputMessages =
+        Windmill.OutputMessageBundle.newBuilder();
+    expectedOutputMessages
+        .setDestinationStreamId(DEFAULT_DESTINATION_STREAM_ID)
+        .addBundlesBuilder()
+        .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING))
+        .addMessagesBuilder()
+        .setTimestamp(0)
+        .setData(outputData);
+
+    // Data was deleted
+    assertThat("" + actualOutput.getListUpdatesList(),
+        actualOutput.getListUpdatesList(), Matchers.containsInAnyOrder(
+        Matchers.equalTo(Windmill.TagList.newBuilder()
+            .setTag(bufferTag)
+            .setEndTimestamp(Long.MAX_VALUE)
+            .build()),
+        Matchers.equalTo(Windmill.TagList.newBuilder()
+            .setTag(watermarkHoldTag)
+            .setEndTimestamp(Long.MAX_VALUE)
+            .build())));
   }
 
   static class PrintFn extends DoFn<KV<Integer, Integer>, String> {

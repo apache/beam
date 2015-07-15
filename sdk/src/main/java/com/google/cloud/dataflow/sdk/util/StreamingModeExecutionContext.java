@@ -24,20 +24,18 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
+import com.google.cloud.dataflow.sdk.util.state.StateInternals;
+import com.google.cloud.dataflow.sdk.util.state.WindmillStateInternals;
+import com.google.cloud.dataflow.sdk.util.state.WindmillStateReader;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.base.Optional;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.ByteString;
 
 import org.joda.time.Instant;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +48,6 @@ import java.util.concurrent.TimeUnit;
  * {@link ExecutionContext} for use in streaming mode.
  */
 public class StreamingModeExecutionContext extends DataflowExecutionContext {
-  private String computation;
   private Instant inputDataWatermark;
   private Windmill.WorkItem work;
   private StateFetcher stateFetcher;
@@ -61,13 +58,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   private ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache;
   private UnboundedSource.UnboundedReader<?> activeReader;
   private ConcurrentMap<String, String> stateNameMap;
+  private WindmillStateReader stateReader;
 
   public StreamingModeExecutionContext(
-      String computation,
       StateFetcher stateFetcher,
       ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache,
       ConcurrentMap<String, String> stateNameMap) {
-    this.computation = computation;
     this.stateFetcher = stateFetcher;
     this.sideInputCache = new HashMap<>();
     this.readerCache = readerCache;
@@ -77,16 +73,24 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   public void start(
       Windmill.WorkItem work,
       Instant inputDataWatermark,
+      WindmillStateReader stateReader,
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.work = work;
+    this.stateReader = stateReader;
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
     this.inputDataWatermark = inputDataWatermark;
+
+    for (ExecutionContext.StepContext stepContext : getAllStepContexts()) {
+      ((StepContext) stepContext).start(stateReader);
+    }
   }
 
   @Override
   public ExecutionContext.StepContext createStepContext(String stepName) {
-    return new StepContext(stepName);
+    StepContext context = new StepContext(stepName);
+    context.start(stateReader);
+    return context;
   }
 
   @Override
@@ -280,11 +284,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     Map<Long, Runnable> callbacks = new HashMap<>();
 
     for (ExecutionContext.StepContext stepContext : getAllStepContexts()) {
-      try {
-        ((StepContext) stepContext).flushState();
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to flush state");
-      }
+      ((StepContext) stepContext).flushState();
     }
 
     Windmill.SourceState.Builder sourceStateBuilder = Windmill.SourceState.newBuilder();
@@ -329,106 +329,33 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     return work.getSourceState().getFinalizeIdsList();
   }
 
-  private class TagLoader extends CacheLoader<CodedTupleTag<?>, Optional<?>> {
-
-    private final String mangledPrefix;
-
-    private TagLoader(String mangledPrefix) {
-      this.mangledPrefix = mangledPrefix;
-    }
-
-    @Override
-    public Optional<?> load(CodedTupleTag<?> key) throws Exception {
-      return loadAll(Arrays.asList(key)).get(key);
-    }
-
-    @Override
-    public Map<CodedTupleTag<?>, Optional<?>> loadAll(
-        Iterable<? extends CodedTupleTag<?>> keys) throws Exception {
-      return  stateFetcher.fetch(
-          computation, getSerializedKey(), getWorkToken(), mangledPrefix, keys);
-    }
-  }
-
-  private class TagListLoader extends CacheLoader<CodedTupleTag<?>, List<?>> {
-
-    private final String mangledPrefix;
-
-    private TagListLoader(String mangledPrefix) {
-      this.mangledPrefix = mangledPrefix;
-    }
-
-    @Override
-    public List<?> load(CodedTupleTag<?> key) throws Exception {
-      return loadAll(Arrays.asList(key)).get(key);
-    }
-
-    @Override
-    public Map<CodedTupleTag<?>, List<?>> loadAll(
-        Iterable<? extends CodedTupleTag<?>> keys) throws Exception {
-      return stateFetcher.fetchList(
-          computation, getSerializedKey(), getWorkToken(), mangledPrefix, keys);
-    }
-  }
-
   class StepContext extends ExecutionContext.StepContext {
-    private KeyedStateCache tagCache;
+    private WindmillStateInternals stateInternals;
+    private String prefix;
 
     public StepContext(String stepName) {
       super(stepName);
 
-      String prefix =
-          (stateNameMap.containsKey(stepName) ? stateNameMap.get(stepName) : stepName) + ":";
+      prefix = stateNameMap.get(stepName);
+      if (prefix == null) {
+        prefix = stepName;
+      }
+    }
 
-      this.tagCache = new KeyedStateCache(
-          prefix,
-          CacheBuilder.newBuilder().build(new TagLoader(prefix)),
-          CacheBuilder.newBuilder().build(new TagListLoader(prefix)));
+    /**
+     * Update the {@code stateReader} used by this {@code StepContext}.
+     */
+    public void start(WindmillStateReader stateReader) {
+      this.stateInternals = new WindmillStateInternals(prefix, stateReader);
+    }
+
+    public void flushState() {
+      stateInternals.persist(outputBuilder);
     }
 
     @Override
-    public <T> void store(CodedTupleTag<T> tag, T value, Instant timestamp) {
-      tagCache.store(tag, value, timestamp);
-    }
-
-    @Override
-    public <T> void remove(CodedTupleTag<T> tag) {
-      tagCache.removeTags(tag);
-    }
-
-    @Override
-    public CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags) throws IOException {
-      return CodedTupleTagMap.of(tagCache.lookupTags(tags));
-    }
-
-    @Override
-    public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp) {
-      tagCache.writeToTagList(tag, value, timestamp);
-    }
-
-    @Override
-    public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) throws IOException {
-      return readTagLists(Arrays.asList(tag)).get(tag);
-    }
-
-    @Override
-    public <T> Map<CodedTupleTag<T>, Iterable<T>> readTagLists(Iterable<CodedTupleTag<T>> tags)
-        throws IOException {
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      Iterable<CodedTupleTag<?>> wildcardTags = (Iterable) tags;
-      Map<CodedTupleTag<?>, Iterable<?>> wildcardMap = tagCache.readTagLists(wildcardTags);
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      Map<CodedTupleTag<T>, Iterable<T>> typedMap = (Map) wildcardMap;
-      return typedMap;
-    }
-
-    @Override
-    public <T> void deleteTagList(CodedTupleTag<T> tag) {
-      tagCache.removeTagLists(tag);
-    }
-
-    public void flushState() throws IOException {
-      tagCache.flushTo(outputBuilder);
+    public StateInternals stateInternals() {
+      return Preconditions.checkNotNull(stateInternals);
     }
   }
 

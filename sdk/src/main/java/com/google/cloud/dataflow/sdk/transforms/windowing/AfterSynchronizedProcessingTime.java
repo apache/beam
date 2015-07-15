@@ -16,9 +16,12 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
+import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.common.base.Objects;
 
 import org.joda.time.Instant;
@@ -29,8 +32,8 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
 
   private static final long serialVersionUID = 0L;
 
-  private static final CodedTupleTag<Instant> DELAYED_UNTIL_TAG =
-      CodedTupleTag.of("delayed-until", InstantCoder.of());
+  private static final StateTag<CombiningValueState<Instant, Instant>> DELAYED_UNTIL_TAG =
+      StateTags.combiningValue("delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder());
 
   public AfterSynchronizedProcessingTime() {
     super(null);
@@ -39,11 +42,12 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
   @Override
   public TriggerResult onElement(OnElementContext c)
       throws Exception {
-    Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, c.window());
+    CombiningValueState<Instant, Instant> delayUntilState = c.access(DELAYED_UNTIL_TAG);
+    Instant delayUntil = delayUntilState.get().read();
     if (delayUntil == null) {
       delayUntil = c.currentProcessingTime();
       c.setTimer(delayUntil, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
-      c.store(DELAYED_UNTIL_TAG, c.window(), delayUntil);
+      delayUntilState.add(delayUntil);
     }
 
     return TriggerResult.CONTINUE;
@@ -59,15 +63,12 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
     }
 
     // Otherwise, determine the earliest delay for all of the windows, and delay to that point.
-    Instant earliestTimer = BoundedWindow.TIMESTAMP_MAX_VALUE;
-    for (Instant delayedUntil : c.lookup(DELAYED_UNTIL_TAG, c.oldWindows()).values()) {
-      if (delayedUntil != null && delayedUntil.isBefore(earliestTimer)) {
-        earliestTimer = delayedUntil;
-      }
-    }
-
+    CombiningValueState<Instant, Instant> mergingDelays =
+        c.accessAcrossMergingWindows(DELAYED_UNTIL_TAG);
+    Instant earliestTimer = mergingDelays.get().read();
     if (earliestTimer != null) {
-      c.store(DELAYED_UNTIL_TAG, c.window(), earliestTimer);
+      mergingDelays.clear();
+      mergingDelays.add(earliestTimer);
       c.setTimer(earliestTimer, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     }
 
@@ -81,7 +82,7 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
 
   @Override
   public void clear(TriggerContext c) throws Exception {
-    c.remove(DELAYED_UNTIL_TAG, c.window());
+    c.access(DELAYED_UNTIL_TAG).clear();
     c.deleteTimer(TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
   }
 

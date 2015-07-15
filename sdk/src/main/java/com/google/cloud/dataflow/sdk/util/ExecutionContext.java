@@ -18,15 +18,11 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTagMap;
+import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
-import org.joda.time.Instant;
-
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -95,7 +91,7 @@ public abstract class ExecutionContext {
   /**
    * Per-step, per-key context used for retrieving state.
    */
-  public abstract class StepContext implements WindowingInternals.KeyedState {
+  public abstract class StepContext {
     private final String stepName;
 
     public StepContext(String stepName) {
@@ -118,75 +114,6 @@ public abstract class ExecutionContext {
       ExecutionContext.this.noteSideOutput(tag, output);
     }
 
-    /**
-     * Stores the provided value in per-{@link com.google.cloud.dataflow.sdk.transforms.DoFn},
-     * per-key state.  This state is in the form of a map from tags to arbitrary
-     * encodable values.
-     *
-     * @throws IOException if encoding the given value fails
-     */
-    public abstract <T> void store(CodedTupleTag<T> tag, T value, Instant timestamp)
-        throws IOException;
-
-    @Override
-    public <T> void store(CodedTupleTag<T> tag, T value) throws IOException {
-      store(tag, value, BoundedWindow.TIMESTAMP_MAX_VALUE);
-    }
-
-    /**
-     * Loads the values from the per-{@link com.google.cloud.dataflow.sdk.transforms.DoFn},
-     * per-key state corresponding to the given tags.
-     *
-     * @throws IOException if decoding any of the requested values fails
-     */
-    @Override
-    public abstract CodedTupleTagMap lookup(Iterable<? extends CodedTupleTag<?>> tags)
-        throws IOException;
-
-    /**
-     * Loads the value from the per-{@link com.google.cloud.dataflow.sdk.transforms.DoFn},
-     * per-key state corresponding to the given tag.
-     *
-     * @throws IOException if decoding the value fails
-     */
-    @Override
-    public <T> T lookup(CodedTupleTag<T> tag) throws IOException {
-      return lookup(Arrays.asList(tag)).get(tag);
-    }
-
-    /**
-     * Writes the provided value to the list of values in stored state corresponding to the
-     * provided tag.
-     *
-     * @throws IOException if encoding the given value fails
-     */
-    public <T> void writeToTagList(CodedTupleTag<T> tag, T value) throws IOException {
-      writeToTagList(tag, value, BoundedWindow.TIMESTAMP_MAX_VALUE);
-    }
-
-    public abstract <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
-        throws IOException;
-
-    /**
-     * Deletes the list corresponding to the given tag.
-     */
-    public abstract <T> void deleteTagList(CodedTupleTag<T> tag);
-
-    /**
-     * Reads the elements of the list in stored state corresponding to the provided tag.
-     *
-     * @throws IOException if decoding any of the requested values fails
-     */
-    public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) throws IOException {
-      return readTagLists(Arrays.asList(tag)).get(tag);
-    }
-
-    /**
-     * Reads the elements of the list in stored state corresponding to the provided tag.
-     *
-     * @throws IOException if decoding any of the requested values fails
-     */
-    public abstract <T> Map<CodedTupleTag<T>, Iterable<T>> readTagLists(
-        Iterable<CodedTupleTag<T>> tags) throws IOException;
+    public abstract StateInternals stateInternals();
   }
 }

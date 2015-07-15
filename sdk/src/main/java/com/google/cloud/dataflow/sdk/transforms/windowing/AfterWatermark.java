@@ -18,9 +18,12 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
+import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.util.state.StateTags;
 
 import org.joda.time.Instant;
 
@@ -83,8 +86,8 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     private static final long serialVersionUID = 0L;
 
-    private static final CodedTupleTag<Instant> DELAYED_UNTIL_TAG =
-        CodedTupleTag.of("delayed-until", InstantCoder.of());
+    private static final StateTag<CombiningValueState<Instant, Instant>> DELAYED_UNTIL_TAG =
+        StateTags.combiningValue("delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder());
 
     private FromFirstElementInPane(
         List<SerializableFunction<Instant, Instant>> delayFunction) {
@@ -93,11 +96,12 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     public TriggerResult onElement(OnElementContext c) throws Exception {
-      Instant delayUntil = c.lookup(DELAYED_UNTIL_TAG, c.window());
+      CombiningValueState<Instant, Instant> delayUntilState = c.access(DELAYED_UNTIL_TAG);
+      Instant delayUntil = delayUntilState.get().read();
       if (delayUntil == null) {
         delayUntil = computeTargetTimestamp(c.eventTimestamp());
         c.setTimer(delayUntil, TimeDomain.EVENT_TIME);
-        c.store(DELAYED_UNTIL_TAG, c.window(), delayUntil);
+        delayUntilState.add(delayUntil);
       }
 
       return TriggerResult.CONTINUE;
@@ -115,15 +119,13 @@ public abstract class AfterWatermark<W extends BoundedWindow>
       // To have gotten here, we must not have fired in any of the oldWindows. Determine the event
       // timestamp from the minimum (we could also just pick one, or try to record the arrival times
       // of this first element in each pane).
-      Instant earliestTimer = BoundedWindow.TIMESTAMP_MAX_VALUE;
-      for (Instant delayedUntil : c.lookup(DELAYED_UNTIL_TAG, c.oldWindows()).values()) {
-        if (delayedUntil != null && delayedUntil.isBefore(earliestTimer)) {
-          earliestTimer = delayedUntil;
-        }
-      }
-
+      // Determine the earliest point across all the windows, and delay to that.
+      CombiningValueState<Instant, Instant> mergingDelays =
+          c.accessAcrossMergingWindows(DELAYED_UNTIL_TAG);
+      Instant earliestTimer = mergingDelays.get().read();
       if (earliestTimer != null) {
-        c.store(DELAYED_UNTIL_TAG, c.window(), earliestTimer);
+        mergingDelays.clear();
+        mergingDelays.add(earliestTimer);
         c.setTimer(earliestTimer, TimeDomain.EVENT_TIME);
       }
 
@@ -137,7 +139,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     public void clear(TriggerContext c) throws Exception {
-      c.remove(DELAYED_UNTIL_TAG, c.window());
+      c.access(DELAYED_UNTIL_TAG).clear();
       c.deleteTimer(TimeDomain.EVENT_TIME);
     }
 

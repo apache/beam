@@ -63,8 +63,9 @@ public class AfterPaneTest {
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10)))));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(0), new Instant(10)));
   }
 
   @Test
@@ -89,8 +90,9 @@ public class AfterPaneTest {
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10)))));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(0), new Instant(10)));
   }
 
   @Test
@@ -119,9 +121,10 @@ public class AfterPaneTest {
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 7, 7, 18)));
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(12))),
-        tester.finishedSet(new IntervalWindow(new Instant(7), new Instant(18)))));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(12)),
+        new IntervalWindow(new Instant(7), new Instant(18)));
   }
 
   @Test

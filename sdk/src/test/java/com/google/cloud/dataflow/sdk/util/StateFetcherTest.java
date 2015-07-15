@@ -29,17 +29,15 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
+import com.google.cloud.dataflow.sdk.runners.worker.MetricTrackingWindmillServerStub;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
-import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.protobuf.ByteString;
@@ -54,7 +52,6 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /** Unit tests for {@link StateFetcher}. */
@@ -62,116 +59,11 @@ import java.util.concurrent.TimeUnit;
 public class StateFetcherTest {
 
   @Mock
-  WindmillServerStub server;
+  MetricTrackingWindmillServerStub server;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-  }
-
-  @Test
-  public void testFetch() throws Exception {
-    StateFetcher fetcher = new StateFetcher(server);
-
-    when(server.getData(any(Windmill.GetDataRequest.class))).thenReturn(
-        Windmill.GetDataResponse.newBuilder()
-        .addData(Windmill.ComputationGetDataResponse.newBuilder()
-            .setComputationId("computation")
-            .addData(Windmill.KeyedGetDataResponse.newBuilder()
-                .setKey(ByteString.copyFromUtf8("key"))
-                .addValues(Windmill.TagValue.newBuilder()
-                    .setTag(ByteString.copyFromUtf8("p:tag1"))
-                    .setValue(Windmill.Value.newBuilder()
-                        .setTimestamp(0)
-                        .setData(ByteString.copyFromUtf8("data1"))
-                        .build())
-                    .build())
-                .addValues(Windmill.TagValue.newBuilder()
-                    .setTag(ByteString.copyFromUtf8("p:tag2"))
-                    .setValue(Windmill.Value.newBuilder()
-                        .setTimestamp(0)
-                        .setData(ByteString.copyFromUtf8("data2"))
-                        .build())
-                    .build())
-                .build())
-            .build())
-        .build());
-
-    Map<CodedTupleTag<?>, Optional<?>> data =
-        fetcher.fetch("computation", ByteString.copyFromUtf8("key"), 17L, "p:",
-            Arrays.asList(
-                CodedTupleTag.of("tag1", StringUtf8Coder.of()),
-                CodedTupleTag.of("tag2", StringUtf8Coder.of())));
-
-    verify(server).getData(
-        Windmill.GetDataRequest.newBuilder()
-        .addRequests(Windmill.ComputationGetDataRequest.newBuilder()
-            .setComputationId("computation")
-            .addRequests(Windmill.KeyedGetDataRequest.newBuilder()
-                .setKey(ByteString.copyFromUtf8("key"))
-                .setWorkToken(17L)
-                .addValuesToFetch(Windmill.TagValue.newBuilder()
-                    .setTag(ByteString.copyFromUtf8("p:tag1"))
-                    .build())
-                .addValuesToFetch(Windmill.TagValue.newBuilder()
-                    .setTag(ByteString.copyFromUtf8("p:tag2"))
-                    .build())
-                .build())
-            .build())
-        .build());
-
-    assertEquals(2, data.size());
-    assertEquals("data1", data.get(CodedTupleTag.of("tag1", StringUtf8Coder.of())).get());
-    assertEquals("data2", data.get(CodedTupleTag.of("tag2", StringUtf8Coder.of())).get());
-  }
-
-  @Test
-  public void testFetchList() throws Exception {
-    StateFetcher fetcher = new StateFetcher(server);
-
-    when(server.getData(any(Windmill.GetDataRequest.class))).thenReturn(
-        Windmill.GetDataResponse.newBuilder()
-        .addData(Windmill.ComputationGetDataResponse.newBuilder()
-            .setComputationId("computation")
-            .addData(Windmill.KeyedGetDataResponse.newBuilder()
-                .setKey(ByteString.copyFromUtf8("key"))
-                .addLists(Windmill.TagList.newBuilder()
-                    .setTag(ByteString.copyFromUtf8("p:tag1"))
-                    .addValues(Windmill.Value.newBuilder()
-                        .setTimestamp(0)
-                        .setData(ByteString.copyFromUtf8("\000data1"))
-                        .build())
-                    .addValues(Windmill.Value.newBuilder()
-                        .setTimestamp(1000)
-                        .setData(ByteString.copyFromUtf8("\000data2"))
-                        .build())
-                    .build())
-                .build())
-            .build())
-        .build());
-
-    CodedTupleTag<String> tag = CodedTupleTag.of("tag1", StringUtf8Coder.of());
-    @SuppressWarnings("unchecked")
-    List<String> data =
-        (List<String>) fetcher.fetchList("computation", ByteString.copyFromUtf8("key"), 17L, "p:",
-        Arrays.asList(tag)).get(tag);
-
-    verify(server).getData(
-        Windmill.GetDataRequest.newBuilder()
-        .addRequests(Windmill.ComputationGetDataRequest.newBuilder()
-            .setComputationId("computation")
-            .addRequests(Windmill.KeyedGetDataRequest.newBuilder()
-                .setKey(ByteString.copyFromUtf8("key"))
-                .setWorkToken(17L)
-                .addListsToFetch(Windmill.TagList.newBuilder()
-                    .setTag(ByteString.copyFromUtf8("p:tag1"))
-                    .setEndTimestamp(Long.MAX_VALUE)
-                    .build())
-                .build())
-            .build())
-        .build());
-
-    assertThat(data, contains("data1", "data2"));
   }
 
   @Test
@@ -192,7 +84,7 @@ public class StateFetcherTest {
 
     // Test three calls in a row. First, data is not ready, then data is ready,
     // then the data is already cached.
-    when(server.getData(any(Windmill.GetDataRequest.class))).thenReturn(
+    when(server.getSideInputData(any(Windmill.GetDataRequest.class))).thenReturn(
         buildGlobalDataResponse(tag, ByteString.EMPTY, false, null),
         buildGlobalDataResponse(tag, ByteString.EMPTY, true, encodedIterable));
 
@@ -203,7 +95,7 @@ public class StateFetcherTest {
     assertEquals("data",
         fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, SideInputState.KNOWN_READY));
 
-    verify(server, times(2)).getData(buildGlobalDataRequest(tag, ByteString.EMPTY));
+    verify(server, times(2)).getSideInputData(buildGlobalDataRequest(tag, ByteString.EMPTY));
     verifyNoMoreInteractions(server);
   }
 
@@ -239,7 +131,7 @@ public class StateFetcherTest {
 
     // Test four calls in a row. First, fetch view1, then view2 (which evicts view1 from the cache),
     // then view 1 again twice.
-    when(server.getData(any(Windmill.GetDataRequest.class))).thenReturn(
+    when(server.getSideInputData(any(Windmill.GetDataRequest.class))).thenReturn(
         buildGlobalDataResponse(tag1, ByteString.EMPTY, true, encodedIterable1),
         buildGlobalDataResponse(tag2, ByteString.EMPTY, true, encodedIterable2),
         buildGlobalDataResponse(tag1, ByteString.EMPTY, true, encodedIterable1));
@@ -257,7 +149,7 @@ public class StateFetcherTest {
     ArgumentCaptor<Windmill.GetDataRequest> captor =
         ArgumentCaptor.forClass(Windmill.GetDataRequest.class);
 
-    verify(server, times(3)).getData(captor.capture());
+    verify(server, times(3)).getSideInputData(captor.capture());
     verifyNoMoreInteractions(server);
 
     assertThat(captor.getAllValues(), contains(
@@ -280,13 +172,13 @@ public class StateFetcherTest {
 
     // Test three calls in a row. First, data is not ready, then data is ready,
     // then the data is already cached.
-    when(server.getData(any(Windmill.GetDataRequest.class))).thenReturn(
+    when(server.getSideInputData(any(Windmill.GetDataRequest.class))).thenReturn(
         buildGlobalDataResponse(tag, ByteString.EMPTY, true, encodedIterable));
 
     assertEquals(0L,
         (long) fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, SideInputState.UNKNOWN));
 
-    verify(server).getData(buildGlobalDataRequest(tag, ByteString.EMPTY));
+    verify(server).getSideInputData(buildGlobalDataRequest(tag, ByteString.EMPTY));
     verifyNoMoreInteractions(server);
   }
 

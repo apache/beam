@@ -62,9 +62,32 @@ public class AfterSynchronizedProcessingTimeTest {
     tester.injectElement(6, new Instant(2));
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10)))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(0), new Instant(10)));
   }
+
+  @Test
+  public void testAfterProcessingTimeWithMergingWindow() throws Exception {
+    Duration windowDuration = Duration.millis(10);
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        Sessions.withGapDuration(windowDuration),
+        underTest,
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
+
+    tester.advanceProcessingTime(new Instant(10));
+    tester.injectElement(1, new Instant(1)); // in [1, 11), synchronized timer for 10
+    tester.injectElement(2, new Instant(2)); // in [2, 12), synchronized timer for 10
+    tester.advanceProcessingTime(new Instant(11));
+
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 1, 12)));
+
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(12)));
+  }
+
 
   @Test
   public void testAfterProcessingTimeWithMergingWindowAlreadyFired() throws Exception {
@@ -92,9 +115,9 @@ public class AfterSynchronizedProcessingTimeTest {
         WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 2, 2, 12)));
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(2), new Instant(12))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(11))),
-        tester.finishedSet(new IntervalWindow(new Instant(2), new Instant(12)))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(11)),
+        new IntervalWindow(new Instant(2), new Instant(12)));
   }
 
   @Test

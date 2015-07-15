@@ -31,7 +31,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Throwables;
@@ -529,35 +529,6 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         }
 
         @Override
-        public <T> void writeToTagList(CodedTupleTag<T> tag, T value)
-            throws IOException {
-          context.stepContext.writeToTagList(tag, value);
-        }
-
-        @Override
-        public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
-            throws IOException {
-          context.stepContext.writeToTagList(tag, value, timestamp);
-        }
-
-        @Override
-        public <T> void deleteTagList(CodedTupleTag<T> tag) {
-          context.stepContext.deleteTagList(tag);
-        }
-
-        @Override
-        public <T> Iterable<T> readTagList(CodedTupleTag<T> tag)
-            throws IOException {
-          return context.stepContext.readTagList(tag);
-        }
-
-        @Override
-        public <T> Map<CodedTupleTag<T>, Iterable<T>> readTagList(List<CodedTupleTag<T>> tags)
-            throws IOException {
-          return context.stepContext.readTagLists(tags);
-        }
-
-        @Override
         public Collection<? extends BoundedWindow> windows() {
           return windowedValue.getWindows();
         }
@@ -585,8 +556,8 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         }
 
         @Override
-        public WindowingInternals.KeyedState keyedState() {
-          return context.stepContext;
+        public StateInternals stateInternals() {
+          return context.stepContext.stateInternals();
         }
       };
     }

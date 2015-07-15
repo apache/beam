@@ -499,6 +499,11 @@ public class Combine {
             throws CannotProvideCoderException {
           return CombineFn.this.getDefaultOutputCoder(registry, inputCoder);
         }
+
+        @Override
+        public CombineFn<InputT, AccumT, OutputT> forKey(K key, Coder<K> keyCoder) {
+          return CombineFn.this;
+        }
       };
     }
   }
@@ -1078,6 +1083,46 @@ public class Combine {
      * accumulator are associated with
      */
     public abstract OutputT extractOutput(K key, AccumT accumulator);
+
+    /**
+     * Returns the a regular {@link CombineFn} that operates on a specific key.
+     */
+    public CombineFn<InputT, AccumT, OutputT> forKey(final K key, final Coder<K> keyCoder) {
+      return new CombineFn<InputT, AccumT, OutputT>() {
+
+        @Override
+        public AccumT createAccumulator() {
+          return KeyedCombineFn.this.createAccumulator(key);
+        }
+
+        @Override
+        public AccumT addInput(AccumT accumulator, InputT input) {
+          return KeyedCombineFn.this.addInput(key, accumulator, input);
+        }
+
+        @Override
+        public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
+          return KeyedCombineFn.this.mergeAccumulators(key, accumulators);
+        }
+
+        @Override
+        public OutputT extractOutput(AccumT accumulator) {
+          return KeyedCombineFn.this.extractOutput(key, accumulator);
+        }
+
+        @Override
+        public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
+            throws CannotProvideCoderException {
+          return KeyedCombineFn.this.getAccumulatorCoder(registry, keyCoder, inputCoder);
+        }
+
+        @Override
+        public Coder<OutputT> getDefaultOutputCoder(
+            CoderRegistry registry, Coder<InputT> inputCoder) throws CannotProvideCoderException {
+          return KeyedCombineFn.this.getDefaultOutputCoder(registry, keyCoder, inputCoder);
+        }
+      };
+    }
 
     /**
      * Applies this {@code KeyedCombineFn} to a key and a collection

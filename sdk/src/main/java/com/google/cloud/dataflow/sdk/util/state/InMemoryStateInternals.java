@@ -31,7 +31,11 @@ import java.util.List;
  */
 public class InMemoryStateInternals extends MergingStateInternals {
 
-  private final StateTable inMemoryState = new StateTable() {
+  private interface InMemoryState {
+    boolean isEmptyForTesting();
+  }
+
+  protected final StateTable inMemoryState = new StateTable() {
     @Override
     protected StateBinder binderForNamespace(final StateNamespace namespace) {
       return new StateBinder() {
@@ -63,12 +67,25 @@ public class InMemoryStateInternals extends MergingStateInternals {
     }
   };
 
+  public void clear() {
+    inMemoryState.clear();
+  }
+
+  /**
+   * Return true if the given state is empty. This is used by the test framework to make sure
+   * that the state has been properly cleaned up.
+   */
+  protected boolean isEmptyForTesting(State state) {
+    return ((InMemoryState) state).isEmptyForTesting();
+  }
+
   @Override
   public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
     return inMemoryState.get(namespace, address);
   }
 
-  private final class InMemoryValue<T> implements ValueState<T> {
+  private final class InMemoryValue<T> implements ValueState<T>, InMemoryState {
+    private boolean isCleared = true;
     private T value = null;
 
     @Override
@@ -76,6 +93,7 @@ public class InMemoryStateInternals extends MergingStateInternals {
       // Even though we're clearing we can't remove this from the in-memory state map, since
       // other users may already have a handle on this Value.
       value = null;
+      isCleared = true;
     }
 
     @Override
@@ -90,17 +108,25 @@ public class InMemoryStateInternals extends MergingStateInternals {
 
     @Override
     public void set(T input) {
+      isCleared = false;
       this.value = input;
+    }
+
+    @Override
+    public boolean isEmptyForTesting() {
+       return isCleared;
     }
   }
 
-  private final class WatermarkBagInternalImplementation implements WatermarkStateInternal {
+  private final class WatermarkBagInternalImplementation
+      implements WatermarkStateInternal, InMemoryState {
+
     private Instant minimumHold = null;
 
     @Override
     public void clear() {
       // Even though we're clearing we can't remove this from the in-memory state map, since
-      // other users may already have a handle on this WatermarkBagInteranl.
+      // other users may already have a handle on this WatermarkBagInternal.
       minimumHold = null;
     }
 
@@ -120,11 +146,17 @@ public class InMemoryStateInternals extends MergingStateInternals {
         minimumHold = watermarkHold;
       }
     }
+
+    @Override
+    public boolean isEmptyForTesting() {
+       return minimumHold == null;
+    }
   }
 
   private final class InMemoryCombiningValue<InputT, AccumT, OutputT>
-      implements CombiningValueStateInternal<InputT, AccumT, OutputT> {
+      implements CombiningValueStateInternal<InputT, AccumT, OutputT>, InMemoryState {
 
+    private boolean isCleared = true;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
     private AccumT accum;
 
@@ -138,6 +170,7 @@ public class InMemoryStateInternals extends MergingStateInternals {
       // Even though we're clearing we can't remove this from the in-memory state map, since
       // other users may already have a handle on this CombiningValue.
       accum = combineFn.createAccumulator();
+      isCleared = true;
     }
 
     @Override
@@ -152,6 +185,7 @@ public class InMemoryStateInternals extends MergingStateInternals {
 
     @Override
     public void add(InputT input) {
+      isCleared = false;
       accum = combineFn.addInput(accum, input);
     }
 
@@ -163,16 +197,21 @@ public class InMemoryStateInternals extends MergingStateInternals {
           return accum;
         }
       };
-
     }
 
     @Override
     public void addAccum(AccumT accum) {
+      isCleared = false;
       this.accum = combineFn.mergeAccumulators(Arrays.asList(this.accum, accum));
+    }
+
+    @Override
+    public boolean isEmptyForTesting() {
+       return isCleared;
     }
   }
 
-  private static final class InMemoryBag<T> implements BagState<T> {
+  private static final class InMemoryBag<T> implements BagState<T>, InMemoryState {
     private final List<T> contents = new ArrayList<>();
 
     @Override
@@ -195,6 +234,11 @@ public class InMemoryStateInternals extends MergingStateInternals {
     @Override
     public void add(T input) {
       contents.add(input);
+    }
+
+    @Override
+    public boolean isEmptyForTesting() {
+       return contents.isEmpty();
     }
   }
 }

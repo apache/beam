@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
@@ -95,9 +94,7 @@ public class OrFinallyTriggerTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(2), 2, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        // We're storing that the root trigger has finished.
-        tester.finishedSet(firstWindow)));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @Test
@@ -110,9 +107,6 @@ public class OrFinallyTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        // We're storing that the root trigger has finished.
-        tester.finishedSet(firstWindow)));
   }
 
   @Test
@@ -125,9 +119,7 @@ public class OrFinallyTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        // We're storing that the root trigger has finished.
-        tester.finishedSet(firstWindow)));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @Test
@@ -153,8 +145,8 @@ public class OrFinallyTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @Test
@@ -190,8 +182,8 @@ public class OrFinallyTriggerTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 9, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @Test
@@ -211,8 +203,7 @@ public class OrFinallyTriggerTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
-    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
+    tester.assertHasOnlyGlobalAndFinishedSetsFor();
   }
 
   @Test
@@ -237,9 +228,9 @@ public class OrFinallyTriggerTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     // the until fired during the merge
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        // We're storing that the root has finished
-        tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(22)))));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(22)));
   }
 
   @Test
@@ -292,17 +283,11 @@ public class OrFinallyTriggerTest {
     tester.advanceProcessingTime(new Instant(5));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        Matchers.equalTo(tester.finishedSet(window)),
-        Matchers.equalTo(tester.bufferTag(window)),
-        Matchers.containsString("delayed-until"),
-        Matchers.containsString("elements-in-pane"),
-        Matchers.containsString("elements-in-pane"),
-        Matchers.equalTo(tester.earliestElementTag(window))));
-
     tester.injectElement(4, new Instant(1));
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(0, 1, 2, 3, 4), 0, 0, 50)));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(window);
 
     // Then fire 6 new elements, then processing time
     tester.injectElement(6, new Instant(2));

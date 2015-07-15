@@ -84,10 +84,6 @@ public class RepeatedlyTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
     assertFalse(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.bufferTag(firstWindow),
-        // Holding the earliest not-yet-output element (4) waiting to fire.
-        tester.earliestElementTag(firstWindow)));
   }
 
   @Test
@@ -127,7 +123,8 @@ public class RepeatedlyTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(2), 9, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 9, 0, 10)));
     assertFalse(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor();
   }
 
   @Test
@@ -145,8 +142,8 @@ public class RepeatedlyTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
-    assertFalse(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor();
   }
 
   @Test

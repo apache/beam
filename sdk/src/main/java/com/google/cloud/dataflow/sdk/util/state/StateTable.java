@@ -68,8 +68,12 @@ public abstract class StateTable {
     return stateTable.containsRow(namespace);
   }
 
-  public Set<StateTag<?>> getAddressesInUse(StateNamespace namespace) {
-    return stateTable.row(namespace).keySet();
+  public Map<StateTag<?>, State> getTagsInUse(StateNamespace namespace) {
+    return stateTable.row(namespace);
+  }
+
+  public Set<StateNamespace> getNamespacesInUse() {
+    return stateTable.rowKeySet();
   }
 
   /**

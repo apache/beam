@@ -425,8 +425,7 @@ public class DirectPipelineRunner
      * with this value set.  The key is the last key grouped by in the chain of
      * productions that produced this element.
      * These keys are used internally by {@link DirectPipelineRunner} for keeping
-     * {@link com.google.cloud.dataflow.sdk.util.WindowingInternals.KeyedState} separate
-     * across keys.
+     * persisted state separate across keys.
      */
     public ValueWithMetadata<V> withKey(Object key) {
       return new ValueWithMetadata<>(windowedValue, key);

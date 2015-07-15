@@ -56,7 +56,7 @@ public class WindowMatchers {
         new IntervalWindow(new Instant(windowStart), new Instant(windowEnd));
     return WindowMatchers.<T>isSingleWindowedValue(
         valueMatcher,
-        Matchers.equalTo(new Instant(timestamp)),
+        Matchers.describedAs("%0", Matchers.equalTo(new Instant(timestamp)), timestamp),
         Matchers.<BoundedWindow>equalTo(intervalWindow));
   }
 

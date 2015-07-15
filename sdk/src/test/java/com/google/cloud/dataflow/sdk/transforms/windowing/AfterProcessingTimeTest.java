@@ -73,14 +73,15 @@ public class AfterProcessingTimeTest {
         WindowMatchers.isSingleWindowedValue(Matchers.contains(4), 19, 10, 20),
         WindowMatchers.isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10))),
-        tester.finishedSet(new IntervalWindow(new Instant(10), new Instant(20))),
-        tester.finishedSet(new IntervalWindow(new Instant(30), new Instant(40)))));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(0), new Instant(10)),
+        new IntervalWindow(new Instant(10), new Instant(20)),
+        new IntervalWindow(new Instant(30), new Instant(40)));
   }
 
   @Test
-  public void testAfterProcessingTimeWithMergingWindowAlreadyFired() throws Exception {
+  public void testAfterProcessingTimeWithMergingWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
@@ -91,26 +92,18 @@ public class AfterProcessingTimeTest {
         Duration.millis(100));
 
     tester.advanceProcessingTime(new Instant(10));
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-
     tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
+    tester.advanceProcessingTime(new Instant(11));
+    tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 16
 
-    tester.advanceProcessingTime(new Instant(16));
+    tester.advanceProcessingTime(new Instant(15));
+    // This fires, because the earliest element in [1, 12) arrived at time 10
     assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 1, 11)));
+        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 1, 12)));
 
-    // Because we discarded the previous window, we don't have it around to merge with.
-    tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 21
-
-
-    tester.advanceProcessingTime(new Instant(100));
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 2, 2, 12)));
-
-    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(2), new Instant(12))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(11))),
-        tester.finishedSet(new IntervalWindow(new Instant(2), new Instant(12)))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(12)));
   }
 
   @Test

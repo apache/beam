@@ -63,8 +63,8 @@ public class AfterWatermarkTest {
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10)))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(0), new Instant(10)));
   }
 
   @Test
@@ -77,24 +77,19 @@ public class AfterWatermarkTest {
         Duration.millis(100));
 
     tester.advanceWatermark(new Instant(1));
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 6
-    tester.advanceWatermark(new Instant(7));
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 1, 11)));
-
-    // Because we discarded the previous window, we don't have it around to merge with.
     tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 7
+    tester.advanceWatermark(new Instant(6));
 
-    tester.advanceWatermark(new Instant(100));
+    // We merged, and updated the watermark timer to the earliest timer, which was still 6.
     assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 11, 2, 12)));
+        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 1, 12)));
 
-    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(2), new Instant(12))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(11))),
-        tester.finishedSet(new IntervalWindow(new Instant(2), new Instant(12)))));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(12)));
   }
 
   @Test
@@ -122,8 +117,9 @@ public class AfterWatermarkTest {
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(0), new Instant(10)))));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(0), new Instant(10)));
   }
 
   @Test
@@ -136,24 +132,24 @@ public class AfterWatermarkTest {
         Duration.millis(100));
 
     tester.advanceWatermark(new Instant(1));
+
+    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
+    tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 16
+    tester.advanceWatermark(new Instant(15));
+
+    // We merged, and updated the watermark timer to the end of the new window.
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 16
+    tester.injectElement(3, new Instant(1)); // in [1, 11), timer for 15
     tester.advanceWatermark(new Instant(16));
+
     assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 1, 11)));
+        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 1, 12)));
 
-    // Because we discarded the previous window, we don't have it around to merge with.
-    tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 17
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
 
-    tester.advanceWatermark(new Instant(100));
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 11, 2, 12)));
-
-    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(2), new Instant(12))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(11))),
-        tester.finishedSet(new IntervalWindow(new Instant(2), new Instant(12)))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(12)));
   }
 
   @Test

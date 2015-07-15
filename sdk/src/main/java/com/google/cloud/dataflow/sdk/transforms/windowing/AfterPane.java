@@ -17,14 +17,17 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
+import com.google.cloud.dataflow.sdk.util.state.StateContents;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.util.state.StateTags;
 
 import org.joda.time.Instant;
 
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Objects;
 
 /**
@@ -38,8 +41,8 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
 
   private static final long serialVersionUID = 0L;
 
-  private static final CodedTupleTag<Integer> ELEMENTS_IN_PANE_TAG =
-      CodedTupleTag.of("elements-in-pane", VarIntCoder.of());
+  private static final StateTag<CombiningValueState<Long, Long>> ELEMENTS_IN_PANE_TAG =
+      StateTags.combiningValue("count", VarLongCoder.of(), new Sum.SumLongFn());
 
   private final int countElems;
 
@@ -57,13 +60,13 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
 
   @Override
   public TriggerResult onElement(OnElementContext c) throws Exception {
-    Integer count = c.lookup(ELEMENTS_IN_PANE_TAG, c.window());
-    if (count == null) {
-      count = 0;
-    }
-    count++;
+    CombiningValueState<Long, Long> elementsInPane = c.access(ELEMENTS_IN_PANE_TAG);
+    StateContents<Long> countContents = elementsInPane.get();
+    elementsInPane.add(1L);
 
-    c.store(ELEMENTS_IN_PANE_TAG, c.window(), count);
+    // TODO: Consider waiting to read the value until the end of a bundle, since we don't need to
+    // fire immediately when the count exceeds countElems.
+    long count = countContents.read();
     return count >= countElems ? TriggerResult.FIRE_AND_FINISH : TriggerResult.CONTINUE;
   }
 
@@ -76,20 +79,10 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
     }
 
     // Otherwise, compute the sum of elements in all the active panes
-    int count = 0;
-    for (Entry<W, Integer> old : c.lookup(ELEMENTS_IN_PANE_TAG, c.oldWindows()).entrySet()) {
-      if (old.getValue() != null) {
-        count += old.getValue();
-      }
-    }
-
-    // And determine the final status from that.
-    if (count >= countElems) {
-      return MergeResult.FIRE_AND_FINISH;
-    } else {
-      c.store(ELEMENTS_IN_PANE_TAG, c.window(), count);
-      return MergeResult.CONTINUE;
-    }
+    CombiningValueState<Long, Long> elementsInPane =
+        c.accessAcrossMergingWindows(ELEMENTS_IN_PANE_TAG);
+    long count = elementsInPane.get().read();
+    return count >= countElems ? MergeResult.FIRE_AND_FINISH : MergeResult.CONTINUE;
   }
 
   @Override
@@ -99,7 +92,7 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
 
   @Override
   public void clear(TriggerContext c) throws Exception {
-    c.remove(ELEMENTS_IN_PANE_TAG, c.window());
+    c.access(ELEMENTS_IN_PANE_TAG).clear();
   }
 
   @Override

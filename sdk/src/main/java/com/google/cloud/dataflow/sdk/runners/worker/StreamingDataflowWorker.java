@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
 import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
+import com.google.cloud.dataflow.sdk.util.state.WindmillStateReader;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 
@@ -101,7 +102,7 @@ public class StreamingDataflowWorker {
   /**
    * Returns whether an exception was caused by a {@link KeyTokenInvalidException}.
    */
-  private static boolean isKeyTokenInvalidException(Throwable t) {
+  public static boolean isKeyTokenInvalidException(Throwable t) {
     while (t != null) {
       if (t instanceof KeyTokenInvalidException) {
         return true;
@@ -186,7 +187,8 @@ public class StreamingDataflowWorker {
   private DataflowWorkerHarnessOptions options;
   private long clientId;
   private Server statusServer;
-  private AtomicReference<Throwable> lastException;
+  private final AtomicReference<Throwable> lastException;
+  private final MetricTrackingWindmillServerStub metricTrackingWindmillServer;
 
   public StreamingDataflowWorker(
       List<MapTask> mapTasks, WindmillServerStub server, DataflowWorkerHarnessOptions options) {
@@ -231,8 +233,9 @@ public class StreamingDataflowWorker {
             },
             new ThreadPoolExecutor.DiscardPolicy());
     this.windmillServer = server;
+    this.metricTrackingWindmillServer = new MetricTrackingWindmillServerStub(server);
     this.running = new AtomicBoolean();
-    this.stateFetcher = new StateFetcher(server);
+    this.stateFetcher = new StateFetcher(metricTrackingWindmillServer);
     this.clientId = new Random().nextLong();
     this.lastException = new AtomicReference<>();
 
@@ -396,9 +399,8 @@ public class StreamingDataflowWorker {
       DataflowWorkerLoggingMDC.setStageName(computation);
       WorkerAndContext workerAndContext = mapTaskExecutors.get(computation).poll();
       if (workerAndContext == null) {
-        context =
-            new StreamingModeExecutionContext(
-                computation, stateFetcher, readerCache.get(computation), stateNameMap);
+        context = new StreamingModeExecutionContext(
+            stateFetcher, readerCache.get(computation), stateNameMap);
         worker = MapTaskExecutorFactory.create(options, mapTask, context);
         ReadOperation readOperation = worker.getReadOperation();
         // Disable progress updates since its results are unused for streaming
@@ -411,7 +413,9 @@ public class StreamingDataflowWorker {
         context = workerAndContext.getContext();
       }
 
-      context.start(work, inputDataWatermark, outputBuilder);
+      WindmillStateReader stateReader = new WindmillStateReader(
+          metricTrackingWindmillServer, computation, work.getKey(), work.getWorkToken());
+      context.start(work, inputDataWatermark, stateReader, outputBuilder);
 
       for (Long callbackId : context.getReadyCommitCallbackIds()) {
         final Runnable callback = commitCallbacks.remove(callbackId);
@@ -457,12 +461,9 @@ public class StreamingDataflowWorker {
       t = t instanceof UserCodeException ? t.getCause() : t;
 
       if (isKeyTokenInvalidException(t)) {
-        LOG.debug(
-            "Execution of work for "
-                + computation
-                + " for key "
-                + work.getKey().toStringUtf8()
-                + " failed due to token expiration, will not retry locally.");
+        LOG.debug("Execution of work for {} for key {} failed due to token expiration, "
+            + "will not retry locally.",
+            computation, work.getKey().toStringUtf8());
       } else {
         LOG.error(
             "Execution of work for {} for key {} failed, retrying.",
@@ -723,7 +724,7 @@ public class StreamingDataflowWorker {
       response.println("</li>");
     }
     response.println("</ul>");
-    stateFetcher.printHtml(response);
+    metricTrackingWindmillServer.printHtml(response);
   }
 
   private void printResources(PrintWriter response) {

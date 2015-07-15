@@ -17,9 +17,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.util.WindowingInternals.KeyedState;
 
-import java.io.IOException;
 import java.util.Collections;
 
 /**
@@ -32,7 +30,7 @@ public class NonMergingActiveWindowSet<W extends BoundedWindow>
     implements ActiveWindowSet<W> {
 
   @Override
-  public void persist(KeyedState keyedState) throws IOException {
+  public void persist() {
     // Nothing to persist.
   }
 

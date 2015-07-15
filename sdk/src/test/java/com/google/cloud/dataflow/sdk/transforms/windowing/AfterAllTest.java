@@ -92,8 +92,8 @@ public class AfterAllTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @Test
@@ -106,8 +106,8 @@ public class AfterAllTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @SuppressWarnings("unchecked")
@@ -125,8 +125,8 @@ public class AfterAllTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @SuppressWarnings("unchecked")
@@ -149,8 +149,8 @@ public class AfterAllTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
 
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
+
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @Test
@@ -174,8 +174,8 @@ public class AfterAllTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(new IntervalWindow(new Instant(1), new Instant(22)))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(22)));
   }
 
   @Test
@@ -213,12 +213,6 @@ public class AfterAllTest {
     tester.injectElement(5, new Instant(2));
 
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        Matchers.equalTo(tester.finishedSet(window)),
-        Matchers.equalTo(tester.bufferTag(window)),
-        Matchers.containsString("delayed-until"),
-        Matchers.containsString("elements-in-pane"),
-        Matchers.equalTo(tester.earliestElementTag(window))));
     tester.advanceProcessingTime(new Instant(5));
 
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -237,9 +231,8 @@ public class AfterAllTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(6, 7, 8, 9, 10), 2, 0, 50)));
 
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(50))));
-    // We're holding some finished bits for intermediate state in the AfterAll.
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(window)));
+    // We're holding some finished bits, but that should be it.
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(window);
   }
 
   @Test

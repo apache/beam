@@ -16,9 +16,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.WindowingInternals.KeyedState;
 
-import java.io.IOException;
 import java.util.Collection;
 
 /**
@@ -38,7 +36,7 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
   /**
    * Save any state changes needed.
    */
-  void persist(KeyedState keyedState) throws IOException;
+  void persist();
 
   /**
    * Add a window to the {@code ActiveWindowSet}.

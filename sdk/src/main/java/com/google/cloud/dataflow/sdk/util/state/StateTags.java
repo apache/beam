@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.common.base.MoreObjects;
 
 import java.util.Objects;
 
@@ -41,6 +42,8 @@ public class StateTags {
 
   private abstract static class StateTagBase<StateT extends State> implements StateTag<StateT> {
 
+    private static final long serialVersionUID = 0;
+
     private final String id;
 
     protected StateTagBase(String id) {
@@ -53,6 +56,11 @@ public class StateTags {
     @Override
     public String getId() {
       return id;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass()).add("id", id).toString();
     }
   }
 
@@ -101,6 +109,8 @@ public class StateTags {
    */
   private static class ValueStateTag<T> extends StateTagBase<ValueState<T>> {
 
+    private static final long serialVersionUID = 0;
+
     private final Coder<T> coder;
 
     private ValueStateTag(String id, Coder<T> coder) {
@@ -144,6 +154,8 @@ public class StateTags {
   private static class CombiningValueStateTag<InputT, AccumT, OutputT>
       extends StateTagBase<CombiningValueStateInternal<InputT, AccumT, OutputT>> {
 
+    private static final long serialVersionUID = 0;
+
     private final Coder<AccumT> accumCoder;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
@@ -160,7 +172,8 @@ public class StateTags {
       try {
         this.accumCoder = combineFn.getAccumulatorCoder(registry, inputCoder);
       } catch (CannotProvideCoderException e) {
-        throw new RuntimeException("Unable to determine accumulator coder for combineFn", e);
+        throw new RuntimeException(
+            "Unable to determine accumulator coder for combineFn: " + combineFn.getClass(), e);
       }
 
       this.combineFn = combineFn;
@@ -200,6 +213,8 @@ public class StateTags {
    */
   private static class BagStateTag<T> extends StateTagBase<BagState<T>> {
 
+    private static final long serialVersionUID = 0;
+
     private final Coder<T> elemCoder;
 
     private BagStateTag(String id, Coder<T> elemCoder) {
@@ -234,6 +249,8 @@ public class StateTags {
   }
 
   private static class WatermarkStateTagInternal extends StateTagBase<WatermarkStateInternal> {
+
+    private static final long serialVersionUID = 0;
 
     private WatermarkStateTagInternal(String id) {
       super(id);

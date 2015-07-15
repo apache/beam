@@ -81,10 +81,7 @@ public class TriggerExecutorTest {
         Duration.millis(100));
 
     injectElement(tester, 1, TriggerResult.CONTINUE);
-    assertTrue(tester.isWindowActive(firstWindow));
-
     injectElement(tester, 2, TriggerResult.FIRE);
-    assertFalse(tester.isWindowActive(firstWindow));
 
     injectElement(tester, 3, TriggerResult.FIRE_AND_FINISH);
 
@@ -95,9 +92,7 @@ public class TriggerExecutorTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
-    assertFalse(tester.isWindowActive(firstWindow));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
     assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
     assertEquals(0, tester.getElementsDroppedDueToLateness());
@@ -113,8 +108,6 @@ public class TriggerExecutorTest {
         Duration.millis(100));
 
     injectElement(tester, 1, TriggerResult.CONTINUE);
-    assertTrue(tester.isWindowActive(firstWindow));
-
     injectElement(tester, 2, TriggerResult.FIRE);
     injectElement(tester, 3, TriggerResult.FIRE_AND_FINISH);
 
@@ -125,9 +118,7 @@ public class TriggerExecutorTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 3, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
-    assertFalse(tester.isWindowActive(firstWindow));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @Test
@@ -142,11 +133,7 @@ public class TriggerExecutorTest {
         Duration.millis(100));
 
     injectElement(tester, 2, TriggerResult.CONTINUE);
-    assertTrue(tester.isWindowActive(firstWindow));
-
     injectElement(tester, 3, TriggerResult.FIRE);
-    assertFalse(tester.isWindowActive(firstWindow));
-
     injectElement(tester, 4, TriggerResult.FIRE_AND_FINISH);
 
     // This element shouldn't be seen, because the trigger has finished
@@ -156,9 +143,7 @@ public class TriggerExecutorTest {
         isSingleWindowedValue(Matchers.equalTo(5), 2, 0, 10),
         isSingleWindowedValue(Matchers.equalTo(4), 4, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
-    assertFalse(tester.isWindowActive(firstWindow));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @Test
@@ -173,8 +158,6 @@ public class TriggerExecutorTest {
         Duration.millis(100));
 
     injectElement(tester, 1, TriggerResult.CONTINUE);
-    assertTrue(tester.isWindowActive(firstWindow));
-
     injectElement(tester, 2, TriggerResult.FIRE);
     injectElement(tester, 3, TriggerResult.FIRE_AND_FINISH);
 
@@ -185,9 +168,7 @@ public class TriggerExecutorTest {
         isSingleWindowedValue(Matchers.equalTo(3), 1, 0, 10),
         isSingleWindowedValue(Matchers.equalTo(6), 3, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.containsInAnyOrder(
-        tester.finishedSet(firstWindow)));
-    assertFalse(tester.isWindowActive(firstWindow));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
 
   @Test
@@ -252,8 +233,7 @@ public class TriggerExecutorTest {
 
     // And because we're past the end of window + allowed lateness, everything should be cleaned up.
     assertFalse(tester.isMarkedFinished(firstWindow));
-    assertThat(tester.getKeyedStateInUse(), Matchers.emptyIterable());
-    assertFalse(tester.isWindowActive(firstWindow));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor();
   }
 
   @Test
