@@ -132,9 +132,7 @@ import java.util.regex.Pattern;
  * }</pre>
  *
  * <p> When creating a BigQuery input transform, users should provide either a query or a table.
- * Pipeline will fail with a validation error in following cases.
- * (1) Both a query and a table are provided
- * (2) Neither a query or a table are provided
+ * Pipeline construction will fail with a validation error if neither or both are specified.
  *
  * <p><h3>Writing</h3>
  * To write to a BigQuery table, apply a {@link BigQueryIO.Write} transformation.
@@ -172,11 +170,11 @@ import java.util.regex.Pattern;
  *       .apply(BigQueryIO.Write
  *         .named("Write")
  *         .withSchema(schema)
- *       .to(new SerializableFunction<BoundedWindow, String>() {
- *             public String apply(BoundedWindow window) {
- *               return "my-project:output.output_table-" + window.toString();
- *             }
- *           }));
+ *         .to(new SerializableFunction<BoundedWindow, String>() {
+ *               public String apply(BoundedWindow window) {
+ *                 return "my-project:output.output_table-" + window.toString();
+ *               }
+ *             }));
  *
  * }</pre>
  *
