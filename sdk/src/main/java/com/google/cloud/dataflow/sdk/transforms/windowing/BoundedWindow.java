@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  * be treated as equal by {@code equals()} and {@code hashCode()}.
  */
 public abstract class BoundedWindow {
-  // The min and max timestmaps that won't overflow when they are converted to
+  // The min and max timestamps that won't overflow when they are converted to
   // usec.
   public static final Instant TIMESTAMP_MIN_VALUE =
       new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
