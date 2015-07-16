@@ -68,6 +68,38 @@ public class AfterWatermarkTest {
   }
 
   @Test
+  public void testAlignAndDelay() throws Exception {
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        FixedWindows.of(Duration.standardMinutes(1)),
+        AfterWatermark.<IntervalWindow>pastEndOfWindow()
+            .alignedTo(Duration.standardMinutes(1))
+            .plusDelayOf(Duration.standardMinutes(5)),
+        AccumulationMode.DISCARDING_FIRED_PANES,
+
+        // Don't drop right away at the end of the window, since we have a delay.
+        Duration.standardMinutes(10));
+
+    Instant zero = new Instant(0);
+
+    // first in window [0, 1m), timer set for 6m
+    tester.injectElement(1, zero.plus(Duration.standardSeconds(1)));
+    tester.injectElement(2, zero.plus(Duration.standardSeconds(5)));
+    tester.injectElement(3, zero.plus(Duration.standardSeconds(55)));
+
+    // Advance almost to 6m, but not quite. No output should be produced.
+    tester.advanceWatermark(zero.plus(Duration.standardMinutes(6)).minus(1));
+    assertThat(tester.extractOutput(), Matchers.emptyIterable());
+
+    // Advance to 6m and see our output
+    tester.advanceWatermark(zero.plus(Duration.standardMinutes(6)));
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(
+            Matchers.containsInAnyOrder(1, 2, 3),
+            zero.plus(Duration.standardSeconds(1)).getMillis(),
+            zero.getMillis(), zero.plus(Duration.standardMinutes(1)).getMillis())));
+  }
+
+  @Test
   public void testFirstInPaneWithMerging() throws Exception {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(

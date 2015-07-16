@@ -16,15 +16,20 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting.ConstantViewFn;
+import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespaceForTest;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,6 +38,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for {@link StreamingModeExecutionContext}.
@@ -51,6 +57,25 @@ public class StreamingModeExecutionContextTest {
   // Helper to aid type inference
   private static TupleTag<Iterable<WindowedValue<String>>> newStringTag() {
     return new TupleTag<>();
+  }
+
+  @Test
+  public void testTimerManagerSetTimer() {
+    StreamingModeExecutionContext executionContext =
+        new StreamingModeExecutionContext(stateFetcher, null, null);
+
+    Windmill.WorkItemCommitRequest.Builder outputBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    executionContext.start(null,  null,  null,  outputBuilder);
+    TimerManager timerManager = executionContext.getTimerManager();
+
+    timerManager.setTimer(
+        new StateNamespaceForTest("key"), new Instant(5000), TimeDomain.EVENT_TIME);
+
+    Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
+    assertEquals("key+", timer.getTag().toStringUtf8());
+    assertEquals(TimeUnit.MILLISECONDS.toMicros(5000), timer.getTimestamp());
+    assertEquals(Windmill.Timer.Type.WATERMARK, timer.getType());
   }
 
   /**
