@@ -50,8 +50,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -168,6 +171,7 @@ public class StreamingDataflowWorker {
   private final ConcurrentMap<String, ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>>
       outputMap;
   private final ConcurrentMap<String, ConcurrentLinkedQueue<WorkerAndContext>> mapTaskExecutors;
+  private final ConcurrentMap<String, ActiveWorkForComputation> activeWorkMap;
   // Per computation cache of active readers, keyed by split ID.
   private final ConcurrentMap<String, ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>>>
       readerCache;
@@ -199,13 +203,11 @@ public class StreamingDataflowWorker {
     this.instructionMap = new ConcurrentHashMap<>();
     this.outputMap = new ConcurrentHashMap<>();
     this.mapTaskExecutors = new ConcurrentHashMap<>();
+    this.activeWorkMap = new ConcurrentHashMap<>();
     this.readerCache = new ConcurrentHashMap<>();
     this.commitCallbacks = new ConcurrentHashMap<>();
     this.stateNameMap = new ConcurrentHashMap<>();
     this.systemNameToComputationIdMap = new ConcurrentHashMap<>();
-    for (MapTask mapTask : mapTasks) {
-      addComputation(mapTask);
-    }
     this.threadFactory = new ThreadFactory() {
         @Override
         public Thread newThread(Runnable r) {
@@ -241,6 +243,10 @@ public class StreamingDataflowWorker {
     this.stateFetcher = new StateFetcher(metricTrackingWindmillServer);
     this.clientId = new Random().nextLong();
     this.lastException = new AtomicReference<>();
+
+    for (MapTask mapTask : mapTasks) {
+      addComputation(mapTask);
+    }
 
     DataflowWorkerLoggingMDC.setJobId(options.getJobId());
     DataflowWorkerLoggingMDC.setWorkerId(options.getWorkerId());
@@ -319,6 +325,7 @@ public class StreamingDataflowWorker {
       outputMap.put(computationId, new ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>());
       instructionMap.put(computationId, mapTask);
       mapTaskExecutors.put(computationId, new ConcurrentLinkedQueue<WorkerAndContext>());
+      activeWorkMap.put(computationId, new ActiveWorkForComputation(workUnitExecutor));
       readerCache.put(
           computationId, new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>());
     }
@@ -370,35 +377,49 @@ public class StreamingDataflowWorker {
         if (!instructionMap.containsKey(computation)) {
           getConfig(computation);
         }
+        final MapTask mapTask = instructionMap.get(computation);
+        if (mapTask == null) {
+          LOG.warn(
+              "Received work for unknown computation: {}. Known computations are {}",
+              computation, instructionMap.keySet());
+          continue;
+        }
 
         long watermarkMicros = computationWork.getInputDataWatermark();
         final Instant inputDataWatermark = new Instant(watermarkMicros / 1000);
-
-        for (final Windmill.WorkItem work : computationWork.getWorkList()) {
-          workUnitExecutor.execute(new Runnable() {
+        ActiveWorkForComputation activeWork = activeWorkMap.get(computation);
+        for (final Windmill.WorkItem workItem : computationWork.getWorkList()) {
+          Work work = new Work(workItem.getWorkToken()) {
               @Override
               public void run() {
-                process(computation, inputDataWatermark, work);
+                process(computation, mapTask, inputDataWatermark, workItem);
               }
-            });
+            };
+          if (activeWork.activateWork(workItem.getKey(), work)) {
+            workUnitExecutor.execute(work);
+          }
         }
       }
     }
     LOG.info("Dispatch done");
   }
 
+  abstract static class Work implements Runnable {
+    private final long workToken;
+    public Work(long workToken) {
+      this.workToken = workToken;
+    }
+    public long getWorkToken() {
+      return workToken;
+    }
+  }
+
   private void process(
       final String computation,
+      final MapTask mapTask,
       final Instant inputDataWatermark,
       final Windmill.WorkItem work) {
     LOG.debug("Starting processing for {}:\n{}", computation, work);
-
-    MapTask mapTask = instructionMap.get(computation);
-    if (mapTask == null) {
-      LOG.info("Received work for unknown computation: {}. Known computations are {}",
-          computation, instructionMap.keySet());
-      return;
-    }
 
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         Windmill.WorkItemCommitRequest.newBuilder()
@@ -494,7 +515,7 @@ public class StreamingDataflowWorker {
               new Runnable() {
                 @Override
                 public void run() {
-                  process(computation, inputDataWatermark, work);
+                  process(computation, mapTask, inputDataWatermark, work);
                 }
               });
         } else {
@@ -542,6 +563,15 @@ public class StreamingDataflowWorker {
           Windmill.CommitWorkRequest commitRequest = commitRequestBuilder.build();
           LOG.trace("Commit: {}", commitRequest);
           commitWork(commitRequest);
+          for (Windmill.ComputationCommitWorkRequest computationRequest :
+              commitRequest.getRequestsList()) {
+            ActiveWorkForComputation activeWork =
+                activeWorkMap.get(computationRequest.getComputationId());
+            for (Windmill.WorkItemCommitRequest workRequest :
+                computationRequest.getRequestsList()) {
+              activeWork.completeWork(workRequest.getKey());
+            }
+          }
         } else {
           break;
         }
@@ -701,6 +731,70 @@ public class StreamingDataflowWorker {
     }
   }
 
+  /**
+   * Class representing the state of active work for a computation.
+   *
+   * <p> This class is synchronized, but only used from the dispatch and commit threads, so should
+   * not be heavily contended.  Still, blocking work should not be done by it.
+   */
+  static class ActiveWorkForComputation {
+    private Map<ByteString, Queue<Work>> activeWork = new HashMap<>();
+    private BoundedQueueExecutor executor;
+
+    ActiveWorkForComputation(BoundedQueueExecutor executor) {
+      this.executor = executor;
+    }
+
+    /**
+     * Mark the given key and work as active.  Returns whether the work is ready to be run
+     * immediately.
+     */
+    public synchronized boolean activateWork(ByteString key, Work work) {
+      Queue<Work> queue = activeWork.get(key);
+      if (queue == null) {
+        queue = new LinkedList<>();
+        activeWork.put(key, queue);
+        queue.add(work);
+        return true;
+      }
+      if (queue.peek().getWorkToken() != work.getWorkToken()) {
+        queue.add(work);
+      }
+      return false;
+    }
+
+    /**
+     * Marks the work for a the given key as complete.  Schedules queued work for the key if any.
+     */
+    public synchronized void completeWork(ByteString key) {
+      Queue<Work> queue = activeWork.get(key);
+      queue.poll();
+      if (queue.peek() != null) {
+        executor.forceExecute(queue.peek());
+      } else {
+        activeWork.remove(key);
+      }
+    }
+
+    public synchronized void printActiveWork(PrintWriter writer) {
+      writer.println("<ul>");
+      for (Map.Entry<ByteString, Queue<Work>> entry : activeWork.entrySet()) {
+        Queue<Work> queue = entry.getValue();
+        writer.print("<li>Key: ");
+        writer.print(entry.getKey().toStringUtf8());
+        writer.print(" Token: ");
+        writer.print(queue.peek().getWorkToken());
+        if (queue.size() > 1) {
+          writer.print("(");
+          writer.print(queue.size() - 1);
+          writer.print(" queued)");
+        }
+        writer.println("</li>");
+      }
+      writer.println("</ul>");
+    }
+  }
+
   private static class WorkerAndContext {
     public MapTaskExecutor worker;
     public StreamingModeExecutionContext context;
@@ -770,6 +864,16 @@ public class StreamingDataflowWorker {
       response.print(entry.getKey());
       response.print(": ");
       response.print(entry.getValue().size());
+      response.println("</li>");
+    }
+    response.println("</ul>");
+    response.println("Active Keys: <ul>");
+    for (Map.Entry<String, ActiveWorkForComputation> computationEntry
+             : activeWorkMap.entrySet()) {
+      response.print("<li>");
+      response.print(computationEntry.getKey());
+      response.print(":");
+      computationEntry.getValue().printActiveWork(response);
       response.println("</li>");
     }
     response.println("</ul>");

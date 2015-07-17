@@ -108,6 +108,16 @@ class FakeWindmillServer extends WindmillServerStub {
     }
   }
 
+
+  public void waitForEmptyWorkQueue() {
+    while (!workToOffer.isEmpty()) {
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException expected) {
+      }
+    }
+  }
+
   public Map<Long, WorkItemCommitRequest> waitForAndGetCommits(int numCommits) {
     int maxTries = 10;
     while (maxTries-- > 0 && commitsReceived.size() < commitsRequested + numCommits) {
