@@ -44,6 +44,7 @@ message Timer {
     DEPENDENT_REALTIME = 2;
   }
   optional Type type = 3 [default = WATERMARK];
+  optional string state_family = 4;
 }
 
 message InputMessageBundle {
@@ -82,12 +83,14 @@ message Value {
 message TagValue {
   required bytes tag = 1;
   optional Value value = 2;
+  optional string state_family = 3;
 }
 
 message TagList {
   required bytes tag = 1;
   optional int64 end_timestamp = 2 [default=-0x8000000000000000];
   repeated Value values = 3;
+  optional string state_family = 4;
 }
 
 message GlobalDataId {
