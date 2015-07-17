@@ -96,11 +96,11 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     public TriggerResult onElement(OnElementContext c) throws Exception {
-      CombiningValueState<Instant, Instant> delayUntilState = c.access(DELAYED_UNTIL_TAG);
+      CombiningValueState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
       Instant delayUntil = delayUntilState.get().read();
       if (delayUntil == null) {
         delayUntil = computeTargetTimestamp(c.eventTimestamp());
-        c.setTimer(delayUntil, TimeDomain.EVENT_TIME);
+        c.timers().setTimer(delayUntil, TimeDomain.EVENT_TIME);
         delayUntilState.add(delayUntil);
       }
 
@@ -112,7 +112,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
       // If the watermark time timer has fired in any of the windows being merged, it would have
       // fired at the same point if it had been added to the merged window. So, we just record it as
       // finished.
-      if (c.finishedInAnyMergingWindow()) {
+      if (c.trigger().finishedInAnyMergingWindow()) {
         return MergeResult.ALREADY_FINISHED;
       }
 
@@ -121,12 +121,12 @@ public abstract class AfterWatermark<W extends BoundedWindow>
       // of this first element in each pane).
       // Determine the earliest point across all the windows, and delay to that.
       CombiningValueState<Instant, Instant> mergingDelays =
-          c.accessAcrossMergingWindows(DELAYED_UNTIL_TAG);
+          c.state().accessAcrossMergingWindows(DELAYED_UNTIL_TAG);
       Instant earliestTimer = mergingDelays.get().read();
       if (earliestTimer != null) {
         mergingDelays.clear();
         mergingDelays.add(earliestTimer);
-        c.setTimer(earliestTimer, TimeDomain.EVENT_TIME);
+        c.timers().setTimer(earliestTimer, TimeDomain.EVENT_TIME);
       }
 
       return MergeResult.CONTINUE;
@@ -139,8 +139,8 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     public void clear(TriggerContext c) throws Exception {
-      c.access(DELAYED_UNTIL_TAG).clear();
-      c.deleteTimer(TimeDomain.EVENT_TIME);
+      c.state().access(DELAYED_UNTIL_TAG).clear();
+      c.timers().deleteTimer(TimeDomain.EVENT_TIME);
     }
 
     @Override
@@ -193,7 +193,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     public TriggerResult onElement(OnElementContext c) throws Exception {
-      c.setTimer(computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
+      c.timers().setTimer(computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
       return TriggerResult.CONTINUE;
     }
 
@@ -202,14 +202,14 @@ public abstract class AfterWatermark<W extends BoundedWindow>
       // If the watermark was past the end of a window that is past the end of the new window,
       // then the watermark must also be past the end of this window. What's more, we've already
       // fired some elements for that trigger firing, so we report FINISHED (without firing).
-      for (W finishedWindow : c.getFinishedMergingWindows()) {
+      for (W finishedWindow : c.trigger().getFinishedMergingWindows()) {
         if (finishedWindow.maxTimestamp().isAfter(c.window().maxTimestamp())) {
           return MergeResult.ALREADY_FINISHED;
         }
       }
 
       // Otherwise, set a timer for this window, and return.
-      c.setTimer(computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
+      c.timers().setTimer(computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
       return MergeResult.CONTINUE;
     }
 
@@ -220,7 +220,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     public void clear(TriggerContext c) throws Exception {
-      c.deleteTimer(TimeDomain.EVENT_TIME);
+      c.timers().deleteTimer(TimeDomain.EVENT_TIME);
     }
 
     @Override

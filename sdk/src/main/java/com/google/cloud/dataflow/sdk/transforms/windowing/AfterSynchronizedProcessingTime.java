@@ -42,11 +42,11 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
   @Override
   public TriggerResult onElement(OnElementContext c)
       throws Exception {
-    CombiningValueState<Instant, Instant> delayUntilState = c.access(DELAYED_UNTIL_TAG);
+    CombiningValueState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
     Instant delayUntil = delayUntilState.get().read();
     if (delayUntil == null) {
-      delayUntil = c.currentProcessingTime();
-      c.setTimer(delayUntil, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+      delayUntil = c.timers().currentProcessingTime();
+      c.timers().setTimer(delayUntil, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
       delayUntilState.add(delayUntil);
     }
 
@@ -58,18 +58,18 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
     // If the processing time timer has fired in any of the windows being merged, it would have
     // fired at the same point if it had been added to the merged window. So, we just report it as
     // finished.
-    if (c.finishedInAnyMergingWindow()) {
+    if (c.trigger().finishedInAnyMergingWindow()) {
       return MergeResult.ALREADY_FINISHED;
     }
 
     // Otherwise, determine the earliest delay for all of the windows, and delay to that point.
     CombiningValueState<Instant, Instant> mergingDelays =
-        c.accessAcrossMergingWindows(DELAYED_UNTIL_TAG);
+        c.state().accessAcrossMergingWindows(DELAYED_UNTIL_TAG);
     Instant earliestTimer = mergingDelays.get().read();
     if (earliestTimer != null) {
       mergingDelays.clear();
       mergingDelays.add(earliestTimer);
-      c.setTimer(earliestTimer, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+      c.timers().setTimer(earliestTimer, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     }
 
     return MergeResult.CONTINUE;
@@ -82,8 +82,8 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
 
   @Override
   public void clear(TriggerContext c) throws Exception {
-    c.access(DELAYED_UNTIL_TAG).clear();
-    c.deleteTimer(TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+    c.state().access(DELAYED_UNTIL_TAG).clear();
+    c.timers().deleteTimer(TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
   }
 
   @Override

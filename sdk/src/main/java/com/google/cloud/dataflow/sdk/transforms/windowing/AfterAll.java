@@ -50,7 +50,7 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
 
   private TriggerResult wrapResult(TriggerContext c) {
     // If all children have finished, then they must have each fired at least once.
-    if (c.areAllSubtriggersFinished()) {
+    if (c.trigger().areAllSubtriggersFinished()) {
       return TriggerResult.FIRE_AND_FINISH;
     }
 
@@ -59,7 +59,7 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
 
   @Override
   public TriggerResult onElement(OnElementContext c) throws Exception {
-    for (ExecutableTrigger<W> subTrigger : c.unfinishedSubTriggers()) {
+    for (ExecutableTrigger<W> subTrigger : c.trigger().unfinishedSubTriggers()) {
       // Since subTriggers are all OnceTriggers, they must either CONTINUE or FIRE_AND_FINISH.
       // invokeElement will automatically mark the finish bit if they return FIRE_AND_FINISH.
       subTrigger.invokeElement(c);
@@ -75,7 +75,7 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
     //   *and* FIRE, FIRE_AND_FINISH, or FINISH for all other sub-triggers.
     // FINISH if merging returns FINISH for all sub-triggers.
     boolean fired = false;
-    for (ExecutableTrigger<W> subTrigger : c.subTriggers()) {
+    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
       MergeResult result = subTrigger.invokeMerge(c);
       if (MergeResult.CONTINUE.equals(result)) {
         return MergeResult.CONTINUE;

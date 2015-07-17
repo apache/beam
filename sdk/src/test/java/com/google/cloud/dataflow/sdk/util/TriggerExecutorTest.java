@@ -215,6 +215,7 @@ public class TriggerExecutorTest {
 
     // All very late -- gets dropped.
     tester.advanceWatermark(new Instant(50));
+    assertEquals(null, tester.getWatermarkHold());
     injectElement(tester, 2, TriggerResult.FIRE);
     assertEquals(null, tester.getWatermarkHold());
 

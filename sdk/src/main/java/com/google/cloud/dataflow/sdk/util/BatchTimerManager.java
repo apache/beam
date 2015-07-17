@@ -100,15 +100,13 @@ public class BatchTimerManager implements TimerManager {
     return builder.toString();
   }
 
-  public void advanceWatermark(TriggerExecutor<?, ?, ?, ?> triggerExecutor, Instant newWatermark)
-      throws Exception {
-    advance(triggerExecutor, newWatermark, TimeDomain.EVENT_TIME);
+  public void advanceWatermark(ReduceFnRunner<?, ?, ?, ?> runner, Instant newWatermark) {
+    advance(runner, newWatermark, TimeDomain.EVENT_TIME);
     this.watermarkTime = newWatermark;
   }
 
-  public void advanceProcessingTime(
-      TriggerExecutor<?, ?, ?, ?> triggerExecutor, Instant newProcessingTime) throws Exception {
-    advance(triggerExecutor, newProcessingTime, TimeDomain.PROCESSING_TIME);
+  public void advanceProcessingTime(ReduceFnRunner<?, ?, ?, ?> runner, Instant newProcessingTime) {
+    advance(runner, newProcessingTime, TimeDomain.PROCESSING_TIME);
     this.processingTime = newProcessingTime;
   }
 
@@ -116,14 +114,11 @@ public class BatchTimerManager implements TimerManager {
    * @param domain The time domain that the tag is being fired on.
    */
   protected void fire(
-      TriggerExecutor<?, ?, ?, ?> triggerExecutor, StateNamespace timerTag, TimeDomain domain)
-          throws Exception {
-    triggerExecutor.onTimer(timerTag);
+      ReduceFnRunner<?, ?, ?, ?> runner, StateNamespace timerTag, TimeDomain domain) {
+    runner.onTimer(timerTag);
   }
 
-  private void advance(
-      TriggerExecutor<?, ?, ?, ?> triggerExecutor, Instant newTime, TimeDomain domain)
-          throws Exception {
+  private void advance(ReduceFnRunner<?, ?, ?, ?> runner, Instant newTime, TimeDomain domain) {
 
     PriorityQueue<BatchTimer> timers = queue(domain);
     Map<StateNamespace, BatchTimer> map = map(domain);
@@ -139,7 +134,7 @@ public class BatchTimerManager implements TimerManager {
         timers.remove();
         map.remove(timer.tag);
 
-        fire(triggerExecutor, timer.tag, domain);
+        fire(runner, timer.tag, domain);
       }
     } while (shouldFire);
   }

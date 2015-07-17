@@ -71,7 +71,6 @@ public class WindmillStateInternals extends MergingStateInternals {
     }
   };
 
-
   private final String prefix;
   private final WindmillStateReader reader;
 
@@ -239,6 +238,30 @@ public class WindmillStateInternals extends MergingStateInternals {
     }
 
     @Override
+    public StateContents<Boolean> isEmpty() {
+      // If we clear after calling isEmpty() but before calling read(), technically we didn't need
+      // the underlying windmill read. But, we need to register the desire now if we aren't going to
+      // clear (in order to get it added to the prefetch).
+      final Future<Iterable<T>> persistedData = cleared
+          ? Futures.<Iterable<T>>immediateFuture(Collections.<T>emptyList())
+          : reader.listFuture(stateKey, elemCoder);
+
+      return new StateContents<Boolean>() {
+        @Override
+        public Boolean read() {
+          try {
+            // We need to check cleared again, because it may have become clear in between creating
+            // the future and calling read.
+            Iterable<T> input = cleared ? Collections.<T>emptyList() : persistedData.get();
+            return Iterables.isEmpty(input) && Iterables.isEmpty(localAdditions);
+          } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Unable to read state", e);
+          }
+        }
+      };
+    }
+
+    @Override
     public void add(T input) {
       localAdditions.add(input);
     }
@@ -320,6 +343,27 @@ public class WindmillStateInternals extends MergingStateInternals {
             }
           }
           return value;
+        }
+      };
+    }
+
+    @Override
+    public StateContents<Boolean> isEmpty() {
+      // If we clear after calling get() but before calling read(), technically we didn't need the
+      // underlying windmill read. But, we need to register the desire now if we aren't going to
+      // clear (in order to get it added to the prefetch).
+      final Future<Instant> persistedData = cleared
+          ? Futures.<Instant>immediateFuture(null)
+          : reader.watermarkFuture(stateKey);
+
+      return new StateContents<Boolean>() {
+        @Override
+        public Boolean read() {
+          try {
+            return localAdditions == null && (cleared || persistedData.get() == null);
+          } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Unable to read state", e);
+          }
         }
       };
     }
@@ -428,6 +472,19 @@ public class WindmillStateInternals extends MergingStateInternals {
         }
       };
     }
+
+    @Override
+    public StateContents<Boolean> isEmpty() {
+      final StateContents<Boolean> isEmptyFuture = bag.isEmpty();
+
+      return new StateContents<Boolean>() {
+        @Override
+        public Boolean read() {
+          return !hasLocalAdditions && isEmptyFuture.read();
+        }
+      };
+    }
+
 
     @Override
     public void addAccum(AccumT accum) {

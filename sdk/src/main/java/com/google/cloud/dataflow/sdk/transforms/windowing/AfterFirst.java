@@ -51,7 +51,7 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
 
   @Override
   public TriggerResult onElement(OnElementContext c) throws Exception {
-    for (ExecutableTrigger<W> subTrigger : c.subTriggers()) {
+    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
       if (subTrigger.invokeElement(c).isFire()) {
         return TriggerResult.FIRE_AND_FINISH;
       }
@@ -66,7 +66,7 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
     // FIRE_AND_FINISH if merging returns FIRE or FIRE_AND_FINISH for at least one sub-trigger.
     // CONTINUE otherwise
     boolean fired = false;
-    for (ExecutableTrigger<W> subTrigger : c.subTriggers()) {
+    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
       MergeResult mergeResult = subTrigger.invokeMerge(c);
       if (MergeResult.ALREADY_FINISHED.equals(mergeResult)) {
         return MergeResult.ALREADY_FINISHED;

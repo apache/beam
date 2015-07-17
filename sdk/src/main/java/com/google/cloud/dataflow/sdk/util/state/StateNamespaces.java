@@ -93,6 +93,10 @@ public class StateNamespaces {
       this.window = window;
     }
 
+    public W getWindow() {
+      return window;
+    }
+
     @Override
     public String stringKey() {
       try {
@@ -100,10 +104,6 @@ public class StateNamespaces {
       } catch (CoderException e) {
         throw new RuntimeException("Unable to generate string key from window " + window, e);
       }
-    }
-
-    public W getWindow() {
-      return window;
     }
 
     @Override

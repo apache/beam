@@ -124,14 +124,14 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
    */
   public TriggerResult invokeElement(Trigger<W>.OnElementContext c) throws Exception {
     Trigger<W>.OnElementContext subContext = c.forTrigger(this);
-    if (subContext.isFinished()) {
+    if (subContext.trigger().isFinished()) {
       throw new IllegalStateException("Shouldn't invokeElement on finished triggers.");
     }
 
     Trigger.TriggerResult result = trigger.onElement(subContext);
 
     if (result.isFinish()) {
-      subContext.setFinished(true);
+      subContext.trigger().setFinished(true);
     }
 
     return result;
@@ -143,13 +143,13 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
    */
   public TriggerResult invokeTimer(Trigger<W>.OnTimerContext c) throws Exception {
     Trigger<W>.OnTimerContext subContext = c.forTrigger(this);
-    if (subContext.isFinished()) {
+    if (subContext.trigger().isFinished()) {
       throw new IllegalStateException("Shouldn't invokeTimer on finished triggers.");
     }
 
     Trigger.TriggerResult result = trigger.onTimer(subContext);
     if (result.isFinish()) {
-      subContext.setFinished(true);
+      subContext.trigger().setFinished(true);
     }
     return result;
   }
@@ -161,7 +161,7 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
   public MergeResult invokeMerge(Trigger<W>.OnMergeContext c) throws Exception {
     Trigger<W>.OnMergeContext subContext = c.forTrigger(this);
     Trigger.MergeResult result = trigger.onMerge(subContext);
-    subContext.setFinished(result.isFinish());
+    subContext.trigger().setFinished(result.isFinish());
     return result;
   }
 

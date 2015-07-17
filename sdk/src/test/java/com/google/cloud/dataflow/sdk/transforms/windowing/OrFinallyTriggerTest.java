@@ -171,13 +171,6 @@ public class OrFinallyTriggerTest {
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
     tester.advanceWatermark(new Instant(13));
 
-    // These timers shouldn't do anything -- at this point we've already finished
-    tester.setTimer(firstWindow, new Instant(13), TimeDomain.EVENT_TIME, executableUntil);
-    tester.advanceWatermark(new Instant(14));
-
-    tester.setTimer(firstWindow, new Instant(14), TimeDomain.EVENT_TIME, executableUntil);
-    tester.advanceWatermark(new Instant(15));
-
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 9, 0, 10)));
@@ -271,8 +264,6 @@ public class OrFinallyTriggerTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(50));
-
     // First, fire processing time then the 5 element
 
     tester.advanceProcessingTime(new Instant(0));
@@ -287,7 +278,7 @@ public class OrFinallyTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(0, 1, 2, 3, 4), 0, 0, 50)));
 
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(window);
+    tester.assertHasOnlyGlobalAndFinishedSetsFor();
 
     // Then fire 6 new elements, then processing time
     tester.injectElement(6, new Instant(2));

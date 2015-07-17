@@ -209,7 +209,7 @@ public class WindmillStateReader {
       throw new RuntimeException("Windmill unexpectedly returned null for request " + request);
     }
 
-    consumeResponse(response, toFetch);
+    consumeResponse(request, response, toFetch);
   }
 
   private Windmill.GetDataRequest createRequest(Iterable<StateTag> toFetch) {
@@ -239,12 +239,15 @@ public class WindmillStateReader {
     return request.build();
   }
 
-  private void consumeResponse(
+  private void consumeResponse(Windmill.GetDataRequest request,
       Windmill.GetDataResponse response, Map<ByteString, StateTag> toFetch) {
     // Validate the response is for our computation/key.
-    if (response.getDataCount() != 1) {
+    if (response.getDataCount() == 0) {
       throw new RuntimeException(
-          "Expected exactly one computation in response, but was: " + response.getDataList());
+          "No computation in response to request: " + request);
+    } else if (response.getDataCount() > 1) {
+      throw new RuntimeException(
+          "Expected exactly one computation in response, but got: " + response.getDataList());
     }
 
     if (!computation.equals(response.getData(0).getComputationId())) {
@@ -252,7 +255,10 @@ public class WindmillStateReader {
           + " but was " + response.getData(0).getComputationId());
     }
 
-    if (response.getData(0).getDataCount() != 1) {
+    if (response.getData(0).getDataCount() == 0) {
+      throw new RuntimeException(
+          "No key in response to request: " + request);
+    } else if (response.getData(0).getDataCount() > 1) {
       throw new RuntimeException(
           "Expected exactly one key in response, but was: " + response.getData(0).getDataList());
     }

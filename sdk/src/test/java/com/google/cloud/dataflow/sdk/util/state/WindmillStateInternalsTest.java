@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util.state;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -117,6 +118,48 @@ public class WindmillStateInternalsTest {
 
     // Shouldn't need to read from windmill for this.
     Mockito.verifyZeroInteractions(mockReader);
+  }
+
+  @Test
+  public void testBagIsEmptyFalse() throws Exception {
+    StateTag<BagState<String>> addr = StateTags.bag("bag", StringUtf8Coder.of());
+    BagState<String> bag = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Iterable<String>> future = SettableFuture.create();
+    when(mockReader.listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of())).thenReturn(future);
+    StateContents<Boolean> result = bag.isEmpty();
+    Mockito.verify(mockReader).listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of());
+
+    waitAndSet(future, Arrays.asList("world"), 200);
+    assertThat(result.read(), Matchers.is(false));
+  }
+
+  @Test
+  public void testBagIsEmptyTrue() throws Exception {
+    StateTag<BagState<String>> addr = StateTags.bag("bag", StringUtf8Coder.of());
+    BagState<String> bag = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Iterable<String>> future = SettableFuture.create();
+    when(mockReader.listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of())).thenReturn(future);
+    StateContents<Boolean> result = bag.isEmpty();
+    Mockito.verify(mockReader).listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of());
+
+    waitAndSet(future, Arrays.<String>asList(), 200);
+    assertThat(result.read(), Matchers.is(true));
+  }
+
+  @Test
+  public void testBagIsEmptyAfterClear() throws Exception {
+    StateTag<BagState<String>> addr = StateTags.bag("bag", StringUtf8Coder.of());
+    BagState<String> bag = underTest.state(NAMESPACE, addr);
+
+    bag.clear();
+    StateContents<Boolean> result = bag.isEmpty();
+    Mockito.verify(mockReader, never()).listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of());
+    assertThat(result.read(), Matchers.is(true));
+
+    bag.add("hello");
+    assertThat(result.read(), Matchers.is(false));
   }
 
   @Test
@@ -229,6 +272,34 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testCombiningIsEmpty() throws Exception {
+    CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
+
+    SettableFuture<Iterable<int[]>> future = SettableFuture.create();
+    when(mockReader.listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), accumCoder))
+        .thenReturn(future);
+    StateContents<Boolean> result = value.isEmpty();
+    Mockito.verify(mockReader).listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), accumCoder);
+
+    waitAndSet(future, Arrays.asList(new int[]{29}), 200);
+    assertThat(result.read(), Matchers.is(false));
+  }
+
+  @Test
+  public void testCombiningIsEmptyAfterClear() throws Exception {
+    CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
+
+    value.clear();
+    StateContents<Boolean> result = value.isEmpty();
+    Mockito.verify(mockReader, never())
+        .listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), accumCoder);
+    assertThat(result.read(), Matchers.is(true));
+
+    value.add(87);
+    assertThat(result.read(), Matchers.is(false));
+  }
+
+  @Test
   public void testCombiningAddPersist() throws Exception {
     CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
 
@@ -321,6 +392,48 @@ public class WindmillStateInternalsTest {
 
     // Shouldn't need to read from windmill because the value is already available.
     Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+  @Test
+  public void testWatermarkIsEmptyWindmillHasData() throws Exception {
+    StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal("watermark");
+    WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Instant> future = SettableFuture.create();
+    when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"))).thenReturn(future);
+    StateContents<Boolean> result = bag.isEmpty();
+    Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"));
+
+    waitAndSet(future, new Instant(1000), 200);
+    assertThat(result.read(), Matchers.is(false));
+  }
+
+  @Test
+  public void testWatermarkIsEmpty() throws Exception {
+    StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal("watermark");
+    WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Instant> future = SettableFuture.create();
+    when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"))).thenReturn(future);
+    StateContents<Boolean> result = bag.isEmpty();
+    Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"));
+
+    waitAndSet(future, null, 200);
+    assertThat(result.read(), Matchers.is(true));
+  }
+
+  @Test
+  public void testWatermarkIsEmptyAfterClear() throws Exception {
+    StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal("watermark");
+    WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
+
+    bag.clear();
+    StateContents<Boolean> result = bag.isEmpty();
+    Mockito.verify(mockReader, never()).watermarkFuture(key(NAMESPACE, addr.getId()));
+    assertThat(result.read(), Matchers.is(true));
+
+    bag.add(new Instant(1000));
+    assertThat(result.read(), Matchers.is(false));
   }
 
   @Test

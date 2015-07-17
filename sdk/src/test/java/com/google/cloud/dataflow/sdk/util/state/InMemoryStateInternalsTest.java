@@ -48,7 +48,7 @@ public class InMemoryStateInternalsTest {
   private static final StateTag<BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
   private static final StateTag<WatermarkStateInternal> WATERMARK_BAG_ADDR =
-      StateTags.watermarkStateInternal("watermarkBag");
+      StateTags.watermarkStateInternal("watermark");
 
   InMemoryStateInternals underTest = new InMemoryStateInternals();
 
@@ -94,6 +94,19 @@ public class InMemoryStateInternalsTest {
     value.clear();
     assertThat(value.get().read(), Matchers.emptyIterable());
     assertThat(underTest.state(NAMESPACE_1, STRING_BAG_ADDR), Matchers.sameInstance(value));
+  }
+
+  @Test
+  public void testBagIsEmpty() throws Exception {
+    BagState<String> value = underTest.state(NAMESPACE_1, STRING_BAG_ADDR);
+
+    assertThat(value.isEmpty().read(), Matchers.is(true));
+    StateContents<Boolean> readFuture = value.isEmpty();
+    value.add("hello");
+    assertThat(readFuture.read(), Matchers.is(false));
+
+    value.clear();
+    assertThat(readFuture.read(), Matchers.is(true));
   }
 
   @Test
@@ -165,6 +178,19 @@ public class InMemoryStateInternalsTest {
   }
 
   @Test
+  public void testCombiningIsEmpty() throws Exception {
+    CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
+
+    assertThat(value.isEmpty().read(), Matchers.is(true));
+    StateContents<Boolean> readFuture = value.isEmpty();
+    value.add(5);
+    assertThat(readFuture.read(), Matchers.is(false));
+
+    value.clear();
+    assertThat(readFuture.read(), Matchers.is(true));
+  }
+
+  @Test
   public void testMergeCombiningValueIntoSource() throws Exception {
     CombiningValueState<Integer, Integer> value1 = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
     CombiningValueState<Integer, Integer> value2 = underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR);
@@ -226,7 +252,7 @@ public class InMemoryStateInternalsTest {
   }
 
   @Test
-  public void testWatermarkBag() throws Exception {
+  public void testWatermarkState() throws Exception {
     WatermarkStateInternal value = underTest.state(NAMESPACE_1, WATERMARK_BAG_ADDR);
 
     // State instances are cached, but depend on the namespace.
@@ -250,6 +276,19 @@ public class InMemoryStateInternalsTest {
     value.clear();
     assertThat(readFuture.read(), Matchers.equalTo(null));
     assertThat(underTest.state(NAMESPACE_1, WATERMARK_BAG_ADDR), Matchers.sameInstance(value));
+  }
+
+  @Test
+  public void testWatermarkStateIsEmpty() throws Exception {
+    WatermarkStateInternal value = underTest.state(NAMESPACE_1, WATERMARK_BAG_ADDR);
+
+    assertThat(value.isEmpty().read(), Matchers.is(true));
+    StateContents<Boolean> readFuture = value.isEmpty();
+    value.add(new Instant(1000));
+    assertThat(readFuture.read(), Matchers.is(false));
+
+    value.clear();
+    assertThat(readFuture.read(), Matchers.is(true));
   }
 
   @Test

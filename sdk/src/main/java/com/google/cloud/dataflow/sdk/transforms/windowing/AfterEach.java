@@ -63,7 +63,8 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
   private TriggerResult wrapResult(TriggerContext c, TriggerResult subResult)
       throws Exception {
     if (subResult.isFire()) {
-      return c.areAllSubtriggersFinished() ? TriggerResult.FIRE_AND_FINISH : TriggerResult.FIRE;
+      return c.trigger().areAllSubtriggersFinished()
+          ? TriggerResult.FIRE_AND_FINISH : TriggerResult.FIRE;
     } else {
       return TriggerResult.CONTINUE;
     }
@@ -73,14 +74,14 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
   public TriggerResult onElement(OnElementContext c) throws Exception {
     // If all the sub-triggers have finished, we should have already finished, so we know there is
     // at least one unfinished trigger.
-    ExecutableTrigger<W> subTrigger = c.firstUnfinishedSubTrigger();
+    ExecutableTrigger<W> subTrigger = c.trigger().firstUnfinishedSubTrigger();
     return wrapResult(c, subTrigger.invokeElement(c));
   }
 
   @Override
   public MergeResult onMerge(OnMergeContext c) throws Exception {
     // Iterate over the sub-triggers to identify the "current" sub-trigger.
-    Iterator<ExecutableTrigger<W>> iterator = c.subTriggers().iterator();
+    Iterator<ExecutableTrigger<W>> iterator = c.trigger().subTriggers().iterator();
     while (iterator.hasNext()) {
       ExecutableTrigger<W> subTrigger = iterator.next();
 
@@ -94,7 +95,8 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
         return MergeResult.FIRE;
       } else if (MergeResult.FIRE_AND_FINISH.equals(mergeResult)) {
         resetRemaining(c, iterator);
-        return c.areAllSubtriggersFinished() ? MergeResult.FIRE_AND_FINISH : MergeResult.FIRE;
+        return c.trigger().areAllSubtriggersFinished()
+            ? MergeResult.FIRE_AND_FINISH : MergeResult.FIRE;
       }
     }
 
@@ -110,7 +112,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
   private void resetRemaining(
       TriggerContext c, Iterator<ExecutableTrigger<W>> triggers) throws Exception {
     while (triggers.hasNext()) {
-      c.forTrigger(triggers.next()).resetTree();
+      c.forTrigger(triggers.next()).trigger().resetTree();
     }
   }
 

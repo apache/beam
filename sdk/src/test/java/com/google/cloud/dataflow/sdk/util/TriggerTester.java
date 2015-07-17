@@ -37,7 +37,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals;
-import com.google.cloud.dataflow.sdk.util.state.MergeableState;
 import com.google.cloud.dataflow.sdk.util.state.State;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
@@ -88,7 +87,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   private final BatchTimerManager timerManager = new BatchTimerManager(processingTime);
-  private final TriggerExecutor<String, InputT, OutputT, W> triggerExecutor;
+  private final ReduceFnRunner<String, InputT, OutputT, W> runner;
   private final WindowFn<Object, W> windowFn;
   private final StubContexts stubContexts;
   private final Coder<OutputT> outputCoder;
@@ -98,9 +97,9 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   private ExecutableTrigger<W> executableTrigger;
 
   private final InMemoryLongSumAggregator droppedDueToClosedWindow =
-      new InMemoryLongSumAggregator(TriggerExecutor.DROPPED_DUE_TO_CLOSED_WINDOW);
+      new InMemoryLongSumAggregator(ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
   private final InMemoryLongSumAggregator droppedDueToLateness =
-      new InMemoryLongSumAggregator(TriggerExecutor.DROPPED_DUE_TO_LATENESS_COUNTER);
+      new InMemoryLongSumAggregator(ReduceFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER);
 
   private void logInteraction(String fmt, Object... args) {
     if (logInteractions) {
@@ -119,7 +118,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
     return new TriggerTester<Integer, Iterable<Integer>, W>(
         strategy,
-        TriggerExecutor.listBuffer(VarIntCoder.of()),
+        SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()),
         IterableCoder.of(VarIntCoder.of()));
   }
 
@@ -137,13 +136,14 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
     return new TriggerTester<Integer, OutputT, W>(
         strategy,
-        TriggerExecutor.combiningBuffer(KEY, StringUtf8Coder.of(), VarIntCoder.of(), combineFn),
+        SystemReduceFn.<String, Integer, OutputT, W>combining(
+            StringUtf8Coder.of(), VarIntCoder.of(), combineFn),
         outputCoder);
   }
 
   private TriggerTester(
       WindowingStrategy<?, W> wildcardStrategy,
-      StateTag<? extends MergeableState<InputT, OutputT>> buffer,
+      ReduceFn<String, InputT, OutputT, W> reduceFn,
       Coder<OutputT> outputCoder) throws Exception {
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> objectStrategy = (WindowingStrategy<Object, W>) wildcardStrategy;
@@ -152,9 +152,10 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     this.stubContexts = new StubContexts();
     this.outputCoder = outputCoder;
     executableTrigger = wildcardStrategy.getTrigger();
-    this.triggerExecutor = TriggerExecutor.create(
-        KEY, objectStrategy, timerManager, buffer, stubContexts,
-        droppedDueToClosedWindow, droppedDueToLateness);
+
+    this.runner = new ReduceFnRunner<>(
+        KEY, objectStrategy, timerManager, stubContexts,
+        droppedDueToClosedWindow, droppedDueToLateness, reduceFn);
   }
 
   public ExecutableTrigger<W> getTrigger() {
@@ -166,12 +167,12 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public boolean isMarkedFinished(W window) {
-    return triggerExecutor.lookupFinishedSet(window).get(0);
+    return runner.isFinished(window);
   }
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
-    triggerExecutor.persist();
+    runner.persist();
 
     Set<StateNamespace> expectedWindowsSet = new HashSet<>();
     for (W expectedWindow : expectedWindows) {
@@ -189,7 +190,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         }
 
         actualWindows.add(namespace);
-        if (!tagsInUse.equals(Collections.singleton(TriggerExecutor.FINISHED_BITS_TAG))) {
+        if (!tagsInUse.equals(Collections.singleton(TriggerRunner.FINISHED_BITS_TAG))) {
           fail(namespace + " has unexpected states: " + tagsInUse);
         }
       } else if (namespace instanceof StateNamespaces.WindowAndTriggerNamespace) {
@@ -208,7 +209,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public Instant getWatermarkHold() {
-    triggerExecutor.persist();
+    runner.persist();
     return stubContexts.state.minimumWatermarkHold();
   }
 
@@ -244,7 +245,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         watermark.getMillis(), newWatermark.getMillis());
     logInteraction("Advancing watermark to %d", newWatermark.getMillis());
     watermark = newWatermark;
-    timerManager.advanceWatermark(triggerExecutor, newWatermark);
+    timerManager.advanceWatermark(runner, newWatermark);
   }
 
   /** Advance the processing time to the specified time, firing any timers that should fire. */
@@ -255,7 +256,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         processingTime.getMillis(), newProcessingTime.getMillis());
     logInteraction("Advancing processing time to %d", newProcessingTime.getMillis());
     processingTime = newProcessingTime;
-    timerManager.advanceProcessingTime(triggerExecutor, newProcessingTime);
+    timerManager.advanceProcessingTime(runner, newProcessingTime);
   }
 
   public void injectElement(InputT value, Instant timestamp) throws Exception {
@@ -263,11 +264,11 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
     logInteraction("Element %s at time %d put in windows %s",
         value, timestamp.getMillis(), windows);
-    triggerExecutor.onElement(WindowedValue.of(value, timestamp, windows, null));
+    runner.processElement(WindowedValue.of(value, timestamp, windows, null));
   }
 
   public void doMerge() throws Exception {
-    triggerExecutor.merge();
+    runner.merge();
   }
 
   public void setTimer(

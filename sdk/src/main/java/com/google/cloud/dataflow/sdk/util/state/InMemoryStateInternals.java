@@ -151,6 +151,16 @@ public class InMemoryStateInternals extends MergingStateInternals {
     public boolean isEmptyForTesting() {
        return minimumHold == null;
     }
+
+    @Override
+    public StateContents<Boolean> isEmpty() {
+      return new StateContents<Boolean>() {
+        @Override
+        public Boolean read() {
+          return minimumHold == null;
+        }
+      };
+    }
   }
 
   private final class InMemoryCombiningValue<InputT, AccumT, OutputT>
@@ -200,6 +210,16 @@ public class InMemoryStateInternals extends MergingStateInternals {
     }
 
     @Override
+    public StateContents<Boolean> isEmpty() {
+      return new StateContents<Boolean>() {
+        @Override
+        public Boolean read() {
+          return isCleared;
+        }
+      };
+    }
+
+    @Override
     public void addAccum(AccumT accum) {
       isCleared = false;
       this.accum = combineFn.mergeAccumulators(Arrays.asList(this.accum, accum));
@@ -239,6 +259,16 @@ public class InMemoryStateInternals extends MergingStateInternals {
     @Override
     public boolean isEmptyForTesting() {
        return contents.isEmpty();
+    }
+
+    @Override
+    public StateContents<Boolean> isEmpty() {
+      return new StateContents<Boolean>() {
+        @Override
+        public Boolean read() {
+          return contents.isEmpty();
+        }
+      };
     }
   }
 }

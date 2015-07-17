@@ -20,12 +20,10 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.state.MergeableState;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
-import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
 
@@ -47,15 +45,10 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
           final WindowingStrategy<?, W> windowingStrategy,
           final KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn,
           final Coder<K> keyCoder,
-          final Coder<InputT> inputValueCoder) {
+          final Coder<InputT> inputCoder) {
     Preconditions.checkNotNull(combineFn);
     return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
-        new SerializableFunction<K, StateTag<? extends MergeableState<InputT, OutputT>>>() {
-      @Override
-      public StateTag<? extends MergeableState<InputT, OutputT>> apply(K key) {
-        return TriggerExecutor.combiningBuffer(key, keyCoder, inputValueCoder, combineFn);
-      }
-    });
+        SystemReduceFn.<K, InputT, OutputT, W>combining(keyCoder, inputCoder, combineFn));
   }
 
   public static <K, V, W extends BoundedWindow>
@@ -63,44 +56,36 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
       final WindowingStrategy<?, W> windowingStrategy,
       final Coder<V> inputCoder) {
     return new StreamingGABWViaWindowSetDoFn<>(
-        windowingStrategy,
-        new SerializableFunction<K, StateTag<? extends MergeableState<V, Iterable<V>>>>() {
-          @Override
-          public StateTag<? extends MergeableState<V, Iterable<V>>> apply(K key) {
-            return TriggerExecutor.listBuffer(inputCoder);
-          }
-        });
+        windowingStrategy, SystemReduceFn.<K, V, W>buffering(inputCoder));
   }
 
   private static class StreamingGABWViaWindowSetDoFn<K, InputT, OutputT, W extends BoundedWindow>
   extends StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
 
     private final Aggregator<Long, Long> droppedDueToClosedWindow =
-        createAggregator(TriggerExecutor.DROPPED_DUE_TO_CLOSED_WINDOW, new Sum.SumLongFn());
+        createAggregator(ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, new Sum.SumLongFn());
     private final Aggregator<Long, Long> droppedDueToLateness =
-        createAggregator(TriggerExecutor.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
+        createAggregator(ReduceFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
 
     private final WindowingStrategy<Object, W> windowingStrategy;
-    private final
-    SerializableFunction<K, StateTag<? extends MergeableState<InputT, OutputT>>> outputBuffer;
+    private ReduceFn<K, InputT, OutputT, W> reduceFn;
 
-    private TriggerExecutor<K, InputT, OutputT, W> executor;
+    private transient ReduceFnRunner<K, InputT, OutputT, W> runner;
 
     public StreamingGABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
-        SerializableFunction<K, StateTag<? extends MergeableState<InputT, OutputT>>> outputBuffer) {
+        ReduceFn<K, InputT, OutputT, W> reduceFn) {
       @SuppressWarnings("unchecked")
       WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
       this.windowingStrategy = noWildcard;
-      this.outputBuffer = outputBuffer;
+      this.reduceFn = reduceFn;
     }
 
     private void initForKey(ProcessContext c, K key) throws Exception{
-      if (executor == null) {
+      if (runner == null) {
         TimerManager timerManager = c.windowingInternals().getTimerManager();
-        StateTag<? extends MergeableState<InputT, OutputT>> buffer = outputBuffer.apply(key);
-        executor = TriggerExecutor.create(
-          key, windowingStrategy, timerManager, buffer, c.windowingInternals(),
-          droppedDueToClosedWindow, droppedDueToLateness);
+        runner = new ReduceFnRunner<>(
+            key, windowingStrategy, timerManager, c.windowingInternals(),
+            droppedDueToClosedWindow, droppedDueToLateness, reduceFn);
       }
     }
 
@@ -113,11 +98,12 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
       if (c.element().isTimer()) {
         Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
         String tag = c.element().tag();
-        executor.onTimer(
-            StateNamespaces.fromString(tag.substring(0, tag.length() - 1), windowCoder));
+        StateNamespace namespace = StateNamespaces.fromString(
+            tag.substring(0, tag.length() - 1), windowCoder);
+        runner.onTimer(namespace);
       } else {
         InputT value = c.element().element().getValue();
-        executor.onElement(
+        runner.processElement(
             WindowedValue.of(
                 value,
                 c.timestamp(),
@@ -128,14 +114,14 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
 
     @Override
     public void finishBundle(Context c) throws Exception {
-      if (executor != null) {
+      if (runner != null) {
         // Merge before finishing the bundle in case it causes triggers to fire.
-        executor.merge();
-        executor.persist();
+        runner.merge();
+        runner.persist();
       }
 
       // Prepare this DoFn for reuse.
-      executor = null;
+      runner = null;
     }
   }
 }

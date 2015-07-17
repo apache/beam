@@ -32,4 +32,9 @@ public interface MergeableState<InputT, OutputT> extends State {
    * Return the {@link StateContents} object to use for accessing the contents of the buffer.
    */
   StateContents<OutputT> get();
+
+  /**
+   * Return true if this state is empty.
+   */
+  StateContents<Boolean> isEmpty();
 }

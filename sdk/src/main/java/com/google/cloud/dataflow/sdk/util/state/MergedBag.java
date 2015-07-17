@@ -70,4 +70,26 @@ class MergedBag<T> implements BagState<T> {
       }
     };
   }
+
+  @Override
+  public StateContents<Boolean> isEmpty() {
+    // Initiate the get's right away
+    final List<StateContents<Boolean>> futures = new ArrayList<>(sources.size());
+    for (BagState<T> source : sources) {
+      futures.add(source.isEmpty());
+    }
+
+    // But defer the actual reads until later.
+    return new StateContents<Boolean>() {
+      @Override
+      public Boolean read() {
+        for (StateContents<Boolean> future : futures) {
+          if (!future.read()) {
+            return false;
+          }
+        }
+        return true;
+      }
+    };
+  }
 }

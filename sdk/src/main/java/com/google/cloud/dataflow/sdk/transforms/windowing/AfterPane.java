@@ -60,7 +60,7 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
 
   @Override
   public TriggerResult onElement(OnElementContext c) throws Exception {
-    CombiningValueState<Long, Long> elementsInPane = c.access(ELEMENTS_IN_PANE_TAG);
+    CombiningValueState<Long, Long> elementsInPane = c.state().access(ELEMENTS_IN_PANE_TAG);
     StateContents<Long> countContents = elementsInPane.get();
     elementsInPane.add(1L);
 
@@ -74,13 +74,13 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   public MergeResult onMerge(OnMergeContext c) throws Exception {
     // If we've already received enough elements and finished in some window, then this trigger
     // is just finished.
-    if (c.finishedInAnyMergingWindow()) {
+    if (c.trigger().finishedInAnyMergingWindow()) {
       return MergeResult.ALREADY_FINISHED;
     }
 
     // Otherwise, compute the sum of elements in all the active panes
     CombiningValueState<Long, Long> elementsInPane =
-        c.accessAcrossMergingWindows(ELEMENTS_IN_PANE_TAG);
+        c.state().accessAcrossMergingWindows(ELEMENTS_IN_PANE_TAG);
     long count = elementsInPane.get().read();
     return count >= countElems ? MergeResult.FIRE_AND_FINISH : MergeResult.CONTINUE;
   }
@@ -92,7 +92,7 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
 
   @Override
   public void clear(TriggerContext c) throws Exception {
-    c.access(ELEMENTS_IN_PANE_TAG).clear();
+    c.state().access(ELEMENTS_IN_PANE_TAG).clear();
   }
 
   @Override

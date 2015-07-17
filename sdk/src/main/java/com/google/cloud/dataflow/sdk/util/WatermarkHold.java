@@ -16,6 +16,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
@@ -45,28 +46,36 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
     this.allowedLateness = allowedLateness;
   }
 
-  public void addHold(TriggerExecutor<?, ?, ?, W>.Context c, Instant timestamp, boolean isLate) {
-    // If the element was late, then we want to put a hold in at the maxTimestamp for the end
-    // of the window plus the allowed lateness to ensure that we don't output something
-    // that is dropably late.
+  /**
+   * Update the watermark hold to include the timestamp of the value in {@code c}.
+   *
+   * <p>If the value was late, then we hold to timestamp of the end of the window plus the
+   * allowed lateness to ensure that we don't output something that is dropably late.
+   */
+  public void addHold(ReduceFn<?, ?, ?, W>.ProcessValueContext c, boolean isLate) {
     Instant holdTo = isLate
         ? c.window().maxTimestamp().plus(allowedLateness)
-        : timestamp;
-    c.access(HOLD_TAG).add(holdTo);
+        : c.timestamp();
+    c.state().access(HOLD_TAG).add(holdTo);
   }
 
   /**
    * Get the timestamp to use for output. This is computed as the minimum timestamp
    * of any non-late elements that arrived in the current pane.
    */
-  public Instant extractAndRelease(TriggerExecutor<?, ?, ?, W>.Context c) {
-    WatermarkStateInternal holdingBag = c.accessAcrossSources(HOLD_TAG);
-
-    Instant hold = holdingBag.get().read();
-    if (hold != null && hold.isAfter(c.window().maxTimestamp())) {
-      hold = c.window().maxTimestamp();
-    }
-    holdingBag.clear();
-    return hold;
+  public StateContents<Instant> extractAndRelease(final ReduceFn<?, ?, ?, W>.Context c) {
+    final WatermarkStateInternal holdingBag = c.state().accessAcrossMergedWindows(HOLD_TAG);
+    final StateContents<Instant> holdFuture = holdingBag.get();
+    return new StateContents<Instant>() {
+      @Override
+      public Instant read() {
+        Instant hold = holdFuture.read();
+        if (hold == null || hold.isAfter(c.window().maxTimestamp())) {
+          hold = c.window().maxTimestamp();
+        }
+        holdingBag.clear();
+        return hold;
+      }
+    };
   }
 }

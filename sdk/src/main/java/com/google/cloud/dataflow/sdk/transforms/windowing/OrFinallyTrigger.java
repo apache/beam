@@ -39,24 +39,24 @@ class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
 
   @Override
   public Trigger.TriggerResult onElement(OnElementContext c) throws Exception {
-    Trigger.TriggerResult untilResult = c.subTrigger(UNTIL).invokeElement(c);
+    Trigger.TriggerResult untilResult = c.trigger().subTrigger(UNTIL).invokeElement(c);
     if (untilResult != TriggerResult.CONTINUE) {
       return TriggerResult.FIRE_AND_FINISH;
     }
 
-    return c.subTrigger(ACTUAL).invokeElement(c);
+    return c.trigger().subTrigger(ACTUAL).invokeElement(c);
   }
 
   @Override
   public Trigger.MergeResult onMerge(OnMergeContext c) throws Exception {
-    Trigger.MergeResult untilResult = c.subTrigger(UNTIL).invokeMerge(c);
+    Trigger.MergeResult untilResult = c.trigger().subTrigger(UNTIL).invokeMerge(c);
     if (untilResult == MergeResult.ALREADY_FINISHED) {
       return MergeResult.ALREADY_FINISHED;
     } else if (untilResult.isFire()) {
       return MergeResult.FIRE_AND_FINISH;
     } else {
       // was CONTINUE -- so merge the underlying trigger
-      return c.subTrigger(ACTUAL).invokeMerge(c);
+      return c.trigger().subTrigger(ACTUAL).invokeMerge(c);
     }
   }
 
@@ -68,7 +68,7 @@ class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
 
     ExecutableTrigger<W> destination = c.nextStepTowardsDestination();
     Trigger.TriggerResult result = destination.invokeTimer(c);
-    if (destination == c.subTrigger(UNTIL) && result.isFire()) {
+    if (destination == c.trigger().subTrigger(UNTIL) && result.isFire()) {
       return TriggerResult.FIRE_AND_FINISH;
     }
     return result;
