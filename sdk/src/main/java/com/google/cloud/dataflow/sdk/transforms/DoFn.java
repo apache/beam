@@ -64,6 +64,9 @@ import java.util.UUID;
  *
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
+ *
+ * @see #processElement for details on implementing the transformation
+ * from {@code InputT} to {@code OutputT}.
  */
 @SuppressWarnings("serial")
 public abstract class DoFn<InputT, OutputT> implements Serializable {
@@ -82,8 +85,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
     /**
      * Adds the given element to the main output {@code PCollection}.
      *
-     * <p> Once passed to {@code output} the element should not be modified in
-     * any way.
+     * <p> Once passed to {@code output} the element should be considered
+     * immutable and not be modified in any way. It may be cached or retained
+     * by the Dataflow runtime or later steps in the pipeline, or used in
+     * other unspecified ways.
      *
      * <p> If invoked from {@link DoFn#processElement}, the output
      * element will have the same timestamp and be in the same windows
@@ -224,8 +229,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
     /**
      * Returns the input element to be processed.
      *
-     * <p> The element will not be changed -- it is safe to cache, etc.
-     * without copying.
+     * <p> The element should be considered immutable. The Dataflow runtime will not mutate the
+     * element, so it is safe to cache, etc. The element should not be mutated by any of the
+     * {@link DoFn} methods, because it may be cached elsewhere, retained by the Dataflow runtime,
+     * or used in other unspecified ways.
      */
     public abstract InputT element();
 
@@ -320,7 +327,20 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   }
 
   /**
-   * Processes an input element.
+   * Processes one input element.
+   *
+   * <p> The current element of the input {@code PCollection} is returned by
+   * {@link ProcessContext#element() c.element()}. It should be considered immutable. The Dataflow
+   * runtime will not mutate the element, so it is safe to cache, etc. The element should not be
+   * mutated by any of the {@link DoFn} methods, because it may be cached elsewhere, retained by the
+   * Dataflow runtime, or used in other unspecified ways.
+   *
+   * <p> A value is added to the main output {@code PCollection} by {@link ProcessContext#output}.
+   * Once passed to {@code output} the element should be considered immutable and not be modified in
+   * any way. It may be cached elsewhere, retained by the Dataflow runtime, or used in other
+   * unspecified ways.
+   *
+   * @see ProcessContext
    */
   public abstract void processElement(ProcessContext c) throws Exception;
 
