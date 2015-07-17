@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals;
@@ -317,7 +318,7 @@ public class StreamingSideInputDoFnRunnerTest {
         element,
         new Instant(timestamp),
         Arrays.asList(createWindow(timestamp)),
-        null);
+        PaneInfo.DEFAULT);
   }
 
   private IntervalWindow createWindow(long timestamp) {

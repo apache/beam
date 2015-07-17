@@ -230,8 +230,9 @@ public class AfterAllTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(6, 7, 8, 9, 10), 2, 0, 50)));
 
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(50))));
-    // We've recently fired, so there are no finished sets.
-    tester.assertHasOnlyGlobalAndFinishedSetsFor();
+    // We're holding some finished bits, but that should be it.
+    tester.assertHasOnlyGlobalAndFinishedSetsAndPaneInfoFor(
+        new IntervalWindow(new Instant(0), new Instant(50)));
   }
 
   @Test

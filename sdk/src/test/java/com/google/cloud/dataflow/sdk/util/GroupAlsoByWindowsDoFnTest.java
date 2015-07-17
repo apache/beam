@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -89,17 +90,17 @@ public class GroupAlsoByWindowsDoFnTest {
                 "v1",
                 new Instant(1),
                 Arrays.asList(window(0, 10)),
-                null),
+                PaneInfo.DEFAULT),
             WindowedValue.of(
                 "v2",
                 new Instant(2),
                 Arrays.asList(window(0, 10)),
-                null),
+                PaneInfo.DEFAULT),
             WindowedValue.of(
                 "v3",
                 new Instant(13),
                 Arrays.asList(window(10, 20)),
-                null)))));
+                PaneInfo.DEFAULT)))));
 
     runner.finishBundle();
 
@@ -136,12 +137,12 @@ public class GroupAlsoByWindowsDoFnTest {
                 "v1",
                 new Instant(5),
                 Arrays.asList(window(-10, 10), window(0, 20)),
-                null),
+                PaneInfo.DEFAULT),
             WindowedValue.of(
                 "v2",
                 new Instant(15),
                 Arrays.asList(window(0, 20), window(10, 30)),
-                null)))));
+                PaneInfo.DEFAULT)))));
 
     runner.finishBundle();
 
@@ -186,17 +187,17 @@ public class GroupAlsoByWindowsDoFnTest {
                 1L,
                 new Instant(5),
                 Arrays.asList(window(-10, 10), window(0, 20)),
-                null),
+                PaneInfo.DEFAULT),
             WindowedValue.of(
                 2L,
                 new Instant(15),
                 Arrays.asList(window(0, 20), window(10, 30)),
-                null),
+                PaneInfo.DEFAULT),
             WindowedValue.of(
                 4L,
                 new Instant(18),
                 Arrays.asList(window(0, 20), window(10, 30)),
-                null)))));
+                PaneInfo.DEFAULT)))));
 
     runner.finishBundle();
 
@@ -229,17 +230,17 @@ public class GroupAlsoByWindowsDoFnTest {
                 "v1",
                 new Instant(1),
                 Arrays.asList(window(0, 5)),
-                null),
+                PaneInfo.DEFAULT),
             WindowedValue.of(
                 "v2",
                 new Instant(4),
                 Arrays.asList(window(1, 5)),
-                null),
+                PaneInfo.DEFAULT),
             WindowedValue.of(
                 "v3",
                 new Instant(4),
                 Arrays.asList(window(0, 5)),
-                null)))));
+                PaneInfo.DEFAULT)))));
 
     runner.finishBundle();
 
@@ -275,17 +276,17 @@ public class GroupAlsoByWindowsDoFnTest {
                 "v1",
                 new Instant(0),
                 Arrays.asList(window(0, 10)),
-                null),
+                PaneInfo.DEFAULT),
             WindowedValue.of(
                 "v2",
                 new Instant(5),
                 Arrays.asList(window(5, 15)),
-                null),
+                PaneInfo.DEFAULT),
             WindowedValue.of(
                 "v3",
                 new Instant(15),
                 Arrays.asList(window(15, 25)),
-                null)))));
+                PaneInfo.DEFAULT)))));
 
     runner.finishBundle();
 
@@ -322,17 +323,17 @@ public class GroupAlsoByWindowsDoFnTest {
                 1L,
                 new Instant(0),
                 Arrays.asList(window(0, 10)),
-                null),
+                PaneInfo.DEFAULT),
             WindowedValue.of(
                 2L,
                 new Instant(5),
                 Arrays.asList(window(5, 15)),
-                null),
+                PaneInfo.DEFAULT),
             WindowedValue.of(
                 4L,
                 new Instant(15),
                 Arrays.asList(window(15, 25)),
-                null)))));
+                PaneInfo.DEFAULT)))));
 
     runner.finishBundle();
 

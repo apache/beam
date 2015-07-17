@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 
 import org.joda.time.Instant;
 import org.junit.Assert;
@@ -40,7 +41,7 @@ public class WindowedValueTest {
         new Instant(1234),
         Arrays.asList(new IntervalWindow(timestamp, timestamp.plus(1000)),
                       new IntervalWindow(timestamp.plus(1000), timestamp.plus(2000))),
-        null);
+        PaneInfo.DEFAULT);
 
     Coder<WindowedValue<String>> windowedValueCoder =
         WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());

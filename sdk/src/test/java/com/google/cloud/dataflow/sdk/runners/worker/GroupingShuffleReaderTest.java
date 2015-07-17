@@ -38,6 +38,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -121,7 +122,9 @@ public class GroupingShuffleReaderTest {
         for (String value : kvs.getValue()) {
           ++kvCount;
           actualSizes.add(shuffleSinkWriter.add(
-              WindowedValue.of(KV.of(key, value), timestamp, Lists.newArrayList(window), null)));
+              WindowedValue.of(
+                  KV.of(key, value), timestamp, Lists.newArrayList(window),
+                  PaneInfo.DEFAULT)));
         }
       }
     }

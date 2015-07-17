@@ -281,7 +281,8 @@ public class WindmillStateReader {
     for (Windmill.TagList list : response.getData(0).getData(0).getListsList()) {
       StateTag stateTag = toFetch.remove(list.getTag());
       if (stateTag == null) {
-        throw new IllegalStateException("Received response for unrequested tag " + stateTag);
+        throw new IllegalStateException(
+            "Received response for unrequested tag " + list.getTag().toStringUtf8());
       }
 
       if (stateTag.kind == StateTag.Kind.LIST) {
@@ -296,7 +297,8 @@ public class WindmillStateReader {
     for (Windmill.TagValue value : response.getData(0).getData(0).getValuesList()) {
       StateTag stateTag = toFetch.remove(value.getTag());
       if (stateTag == null) {
-        throw new IllegalStateException("Received response for unrequested tag " + stateTag);
+        throw new IllegalStateException(
+            "Received response for unrequested tag " + value.getTag().toStringUtf8());
       } else if (stateTag.kind != StateTag.Kind.VALUE) {
         throw new IllegalStateException("Unexpected kind for TagList: " + stateTag);
       }

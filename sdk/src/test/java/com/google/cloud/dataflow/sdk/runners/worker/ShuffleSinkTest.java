@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -143,7 +144,7 @@ public class ShuffleSinkTest {
             WindowedValue.of(KV.of(kv.getKey(), kv.getValue()),
                              timestamp,
                              Lists.newArrayList(window),
-                             null)));
+                             PaneInfo.DEFAULT)));
       }
     }
 

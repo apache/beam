@@ -49,6 +49,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -57,7 +59,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -68,8 +69,8 @@ import javax.annotation.Nullable;
 
 /**
  * Test utility that runs a {@link WindowFn}, {@link Trigger} using in-memory stub implementations
- * to provide the {@link TimerManager} and {@link WindowingInternals} needed by
- * {@link TriggerExecutor}.
+ * to provide the {@link TimerManager} and {@link WindowingInternals} needed to run
+ * {@code Trigger}s and {@code ReduceFn}s.
  *
  * <p>To have all interactions between the trigger and underlying components logged, call
  * {@link #logInteractions(boolean)}.
@@ -172,6 +173,32 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
+    assertHasOnlyGlobalAllowedTags(
+        ImmutableSet.copyOf(expectedWindows),
+        ImmutableSet.<StateTag<?>>of(TriggerRunner.FINISHED_BITS_TAG));
+  }
+
+  @SafeVarargs
+  public final void assertHasOnlyGlobalAndFinishedSetsAndPaneInfoFor(W... expectedWindows) {
+    assertHasOnlyGlobalAllowedTags(
+        ImmutableSet.copyOf(expectedWindows),
+        ImmutableSet.<StateTag<?>>of(
+            TriggerRunner.FINISHED_BITS_TAG, PaneInfoTracker.PANE_INFO_TAG));
+  }
+
+  @SafeVarargs
+  public final void assertHasOnlyGlobalAndPaneInfoFor(W... expectedWindows) {
+    assertHasOnlyGlobalAllowedTags(
+        ImmutableSet.copyOf(expectedWindows),
+        ImmutableSet.<StateTag<?>>of(PaneInfoTracker.PANE_INFO_TAG));
+  }
+
+  /**
+   * Verifies that the the set of windows that have any state stored is exactly
+   * {@code expectedWindows} and that each of these windows has only tags from {@code allowedTags}.
+   */
+  private void assertHasOnlyGlobalAllowedTags(
+      Set<W> expectedWindows, Set<StateTag<?>> allowedTags) {
     runner.persist();
 
     Set<StateNamespace> expectedWindowsSet = new HashSet<>();
@@ -188,9 +215,11 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         if (tagsInUse.isEmpty()) {
           continue;
         }
-
         actualWindows.add(namespace);
-        if (!tagsInUse.equals(Collections.singleton(TriggerRunner.FINISHED_BITS_TAG))) {
+        Set<StateTag<?>> unexpected = Sets.difference(tagsInUse, allowedTags);
+        if (unexpected.isEmpty()) {
+          continue;
+        } else {
           fail(namespace + " has unexpected states: " + tagsInUse);
         }
       } else if (namespace instanceof StateNamespaces.WindowAndTriggerNamespace) {
@@ -264,7 +293,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
     logInteraction("Element %s at time %d put in windows %s",
         value, timestamp.getMillis(), windows);
-    runner.processElement(WindowedValue.of(value, timestamp, windows, null));
+    runner.processElement(WindowedValue.of(value, timestamp, windows, PaneInfo.DEFAULT));
   }
 
   public void doMerge() throws Exception {

@@ -226,9 +226,10 @@ public class AfterFirstTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(9, 10, 11, 12, 13), 6, 0, 50)));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(50))));
-    // Because none of the triggers every stay finished (we always immediately reset) there is no
-    // persisted per-window state.
-    tester.assertHasOnlyGlobalAndFinishedSetsFor();
+    // Because none of the triggers ever stay finished (we always immediately reset) there is no
+    // persisted per-window state. But there may be pane-info.
+    tester.assertHasOnlyGlobalAndPaneInfoFor(
+        new IntervalWindow(new Instant(0), new Instant(50)));
   }
 
   @Test

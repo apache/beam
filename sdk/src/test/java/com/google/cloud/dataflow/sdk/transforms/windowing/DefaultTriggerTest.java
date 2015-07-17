@@ -70,7 +70,10 @@ public class DefaultTriggerTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 15, 10, 20),
         isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(30), new Instant(40))));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor();
+    tester.assertHasOnlyGlobalAndPaneInfoFor(
+        new IntervalWindow(new Instant(0), new Instant(10)),
+        new IntervalWindow(new Instant(10), new Instant(20)),
+        new IntervalWindow(new Instant(30), new Instant(40)));
   }
 
   @Test
@@ -97,7 +100,9 @@ public class DefaultTriggerTest {
         isSingleWindowedValue(Matchers.contains(4), 30, 30, 40)));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(25))));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(30), new Instant(40))));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor();
+    tester.assertHasOnlyGlobalAndPaneInfoFor(
+        new IntervalWindow(new Instant(1), new Instant(25)),
+        new IntervalWindow(new Instant(30), new Instant(40)));
   }
 
   @Test
@@ -129,9 +134,11 @@ public class DefaultTriggerTest {
 
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(10))));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(5), new Instant(15))));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor();
+    tester.assertHasOnlyGlobalAndPaneInfoFor(
+        new IntervalWindow(new Instant(-5), new Instant(5)),
+        new IntervalWindow(new Instant(0), new Instant(10)),
+        new IntervalWindow(new Instant(5), new Instant(15)));
   }
-
 
   @Test
   public void testDefaultTriggerWithContainedSessionWindow() throws Exception {
@@ -149,7 +156,8 @@ public class DefaultTriggerTest {
     Iterable<WindowedValue<Iterable<Integer>>> extractOutput = tester.extractOutput();
     assertThat(extractOutput, Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 1, 19)));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor();
+    tester.assertHasOnlyGlobalAndPaneInfoFor(
+        new IntervalWindow(new Instant(1), new Instant(19)));
   }
 
   @Test

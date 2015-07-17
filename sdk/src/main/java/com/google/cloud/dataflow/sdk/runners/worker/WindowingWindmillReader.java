@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.util.TimerOrElement.TimerOrElementCoder;
-
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -28,6 +26,7 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.TimerOrElement;
+import com.google.cloud.dataflow.sdk.util.TimerOrElement.TimerOrElementCoder;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
@@ -109,7 +108,7 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
                                                           key),
                                   new Instant(timestampMillis),
                                   new ArrayList(),
-                                  null);
+                                  PaneInfo.DEFAULT);
         } else {
           throw new RuntimeException("Timer set on non-keyed DoFn");
         }

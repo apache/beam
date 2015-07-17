@@ -90,6 +90,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
   private final ReduceFnContextFactory<K, InputT, OutputT, W> contextFactory;
   private final ReduceFn<K, InputT, OutputT, W> reduceFn;
 
+  private final PaneInfoTracker paneInfo;
+
   public ReduceFnRunner(
       K key,
       WindowingStrategy<?, W> windowingStrategy,
@@ -100,6 +102,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
       ReduceFn<K, InputT, OutputT, W> reduceFn) {
     this.key = key;
     this.timerManager = timerManager;
+    this.paneInfo =  new PaneInfoTracker(timerManager);
     this.windowingInternals = windowingInternals;
     this.droppedDueToClosedWindow = droppedDueToClosedWindow;
     this.droppedDueToLateness = droppedDueToLateness;
@@ -237,7 +240,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
       if (!mergedWindow.equals(resultWindow)) {
         cancelCleanup(mergedWindow);
         try {
-          triggerRunner.clearEverything(contextFactory.base(mergedWindow));
+          ReduceFn<K, InputT, OutputT, W>.Context mergedContext = contextFactory.base(mergedWindow);
+          triggerRunner.clearEverything(mergedContext);
+          paneInfo.clear(mergedContext.state());
         } catch (Exception e) {
           Throwables.propagateIfPossible(e);
           throw new RuntimeException("Exception while clearing trigger state", e);
@@ -312,6 +317,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     // Cleanup the associated state.
     reduceFn.clearState(context);
     triggerRunner.clearEverything(context);
+    paneInfo.clear(context.state());
   }
 
   private void handleTriggerResult(
@@ -358,6 +364,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
       // If we're finishing, clear up the trigger tree as well.
       try {
         triggerRunner.clearState(context);
+        paneInfo.clear(context.state());
       } catch (Exception e) {
         Throwables.propagateIfPossible(e);
         throw new RuntimeException("Exception while clearing trigger state", e);
@@ -380,9 +387,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
 
     // Run the reduceFn, and buffer all the output in outputs.
     final List<OutputT> outputs = new ArrayList<>();
-    PaneInfo pane = PaneInfo.createPaneInternal();
+
+    StateContents<PaneInfo> paneFuture = paneInfo.getNextPaneInfo(context, isFinal);
+
     ReduceFn<K, InputT, OutputT, W>.OnTriggerContext triggerContext = contextFactory.forTrigger(
-        context.window(), pane, new OnTriggerCallbacks<OutputT>() {
+        context.window(), paneFuture, new OnTriggerCallbacks<OutputT>() {
           @Override
           public void output(OutputT toOutput) {
             outputs.add(toOutput);
@@ -398,6 +407,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     // Now actually read the timestamp, and output each of the values.
     Instant outputTimestamp = timestampFuture.read();
     List<W> windows = Collections.singletonList(context.window());
+
+    // Make sure we read the paneFuture even if there is no output, since that commits the updated
+    // pane information.
+    PaneInfo pane = paneFuture.read();
+
+    // Produce the output values containing the pane.
     for (OutputT output : outputs) {
       windowingInternals.outputWindowedValue(KV.of(key, output), outputTimestamp, windows, pane);
     }

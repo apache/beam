@@ -195,7 +195,7 @@ public class AfterEachTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+    tester.assertHasOnlyGlobalAndFinishedSetsAndPaneInfoFor(
         new IntervalWindow(new Instant(1), new Instant(22)));
   }
 

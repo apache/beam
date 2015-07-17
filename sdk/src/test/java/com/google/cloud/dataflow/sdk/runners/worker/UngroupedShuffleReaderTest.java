@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
@@ -67,7 +68,7 @@ public class UngroupedShuffleReaderTest {
              shuffleSink.writer(shuffleWriter, "dataset")) {
       for (Integer value : expected) {
         actualSizes.add(shuffleSinkWriter.add(
-            WindowedValue.of(value, timestamp, Lists.newArrayList(window), null)));
+            WindowedValue.of(value, timestamp, Lists.newArrayList(window), PaneInfo.DEFAULT)));
       }
     }
     List<ShuffleEntry> records = shuffleWriter.getRecords();

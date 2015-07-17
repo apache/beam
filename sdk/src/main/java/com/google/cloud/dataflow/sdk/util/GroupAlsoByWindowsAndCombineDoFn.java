@@ -169,7 +169,7 @@ class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends Bou
         KV.of(key, combineFn.extractOutput(key, accum)),
         timestamp,
         Arrays.asList(w),
-        PaneInfo.DEFAULT_PANE);
+        PaneInfo.ON_TIME_AND_ONLY_FIRING);
   }
 
   private abstract class CombiningMergeContext extends WindowFn<Object, W>.MergeContext {

@@ -124,7 +124,8 @@ public class RepeatedlyTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 9, 0, 10)));
     assertFalse(tester.isMarkedFinished(firstWindow));
 
-    tester.assertHasOnlyGlobalAndFinishedSetsFor();
+    tester.assertHasOnlyGlobalAndPaneInfoFor(
+        new IntervalWindow(new Instant(0), new Instant(10)));
   }
 
   @Test
@@ -143,7 +144,8 @@ public class RepeatedlyTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor();
+    tester.assertHasOnlyGlobalAndPaneInfoFor(
+        new IntervalWindow(new Instant(1), new Instant(22)));
   }
 
   @Test

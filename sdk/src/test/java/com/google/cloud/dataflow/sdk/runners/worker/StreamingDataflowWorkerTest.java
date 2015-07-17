@@ -36,6 +36,8 @@ import com.google.api.services.dataflow.model.Sink;
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.WriteInstruction;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.CollectionCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
@@ -54,6 +56,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
@@ -69,15 +73,18 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.UnsignedLong;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.ByteString.Output;
 import com.google.protobuf.TextFormat;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -244,15 +251,9 @@ public class StreamingDataflowWorkerTest {
           builder.getWorkBuilder(0).getWorkBuilder(0).getMessageBundlesBuilder(0);
       for (Windmill.Message.Builder messageBuilder :
           messageBundleBuilder.getMessagesBuilderList()) {
-        messageBuilder.setMetadata(addNullPaneTag(ByteString.copyFrom(metadata)));
+        messageBuilder.setMetadata(addPaneTag(PaneInfo.DEFAULT, metadata));
       }
     }
-    return builder.build();
-  }
-
-  private Windmill.GetDataResponse buildData(String input) throws Exception {
-    Windmill.GetDataResponse.Builder builder = Windmill.GetDataResponse.newBuilder();
-    TextFormat.merge(input, builder);
     return builder.build();
   }
 
@@ -277,7 +278,9 @@ public class StreamingDataflowWorkerTest {
   }
 
   /**
-   * Returns a {@link WorkItemCommitRequest.Builder} parsed from the provided text format proto.
+   * Returns a
+   * {@link com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.WorkItemCommitRequest}
+   * builder parsed from the provided text format proto.
    */
   private WorkItemCommitRequest.Builder parseCommitRequest(String output) throws Exception {
     WorkItemCommitRequest.Builder builder = Windmill.WorkItemCommitRequest.newBuilder();
@@ -290,19 +293,19 @@ public class StreamingDataflowWorkerTest {
    * (it should only have one message).
    */
   private WorkItemCommitRequest.Builder setMessagesMetadata(
-      byte[] metadata, WorkItemCommitRequest.Builder builder) throws Exception {
-    if (metadata != null) {
+      PaneInfo pane, byte[] windowBytes, WorkItemCommitRequest.Builder builder) throws Exception {
+    if (windowBytes != null) {
       builder.getOutputMessagesBuilder(0)
           .getBundlesBuilder(0)
           .getMessagesBuilder(0)
-          .setMetadata(addNullPaneTag(ByteString.copyFrom(metadata)));
+          .setMetadata(addPaneTag(pane, windowBytes));
     }
     return builder;
   }
 
   private Windmill.WorkItemCommitRequest makeExpectedOutput(int index, long timestamp, String key)
       throws Exception {
-    return setMessagesMetadata(defaultWindowsBytes(),
+    return setMessagesMetadata(PaneInfo.DEFAULT, defaultWindowsBytes(),
         parseCommitRequest(
             "key: \"" + DEFAULT_KEY_STRING + "\" " +
             "work_token: " + index + " " +
@@ -320,8 +323,12 @@ public class StreamingDataflowWorkerTest {
         .build();
   }
 
-  private ByteString addNullPaneTag(ByteString windows) {
-    return ByteString.copyFrom(new byte[1]).concat(windows);
+  private ByteString addPaneTag(PaneInfo pane, byte[] windowBytes)
+      throws CoderException, IOException {
+    Output output = ByteString.newOutput();
+    PaneInfo.PaneInfoCoder.INSTANCE.encode(pane, output, Context.OUTER);
+    output.write(windowBytes);
+    return output.toByteString();
   }
 
   private DataflowWorkerHarnessOptions createTestingPipelineOptions() {
@@ -526,7 +533,7 @@ public class StreamingDataflowWorkerTest {
 
     assertThat(
         stripCounters(result.get(0L)),
-        equalTo(setMessagesMetadata(emptyWindowsBytes(),
+        equalTo(setMessagesMetadata(PaneInfo.DEFAULT, emptyWindowsBytes(),
             parseCommitRequest(
                 "key: \"" + keyStringForIndex(0) + "\" " +
                 "work_token: 0 " +
@@ -585,7 +592,7 @@ public class StreamingDataflowWorkerTest {
 
     assertThat(
         stripCounters(result.get(0L)),
-        equalTo(setMessagesMetadata(windowAtZeroBytes(),
+        equalTo(setMessagesMetadata(PaneInfo.DEFAULT, windowAtZeroBytes(),
             parseCommitRequest(
                 "key: \"" + DEFAULT_KEY_STRING + "\" " +
                 "work_token: 0 " +
@@ -602,7 +609,7 @@ public class StreamingDataflowWorkerTest {
             .build()));
 
     assertThat(stripCounters(result.get(1000000L)),
-        equalTo(setMessagesMetadata(windowAtOneSecondBytes(),
+        equalTo(setMessagesMetadata(PaneInfo.DEFAULT, windowAtOneSecondBytes(),
             parseCommitRequest(
                 "key: \"" + DEFAULT_KEY_STRING + "\" " +
                 "work_token: 1000000 " +
@@ -683,6 +690,7 @@ public class StreamingDataflowWorkerTest {
     ByteString timer1Tag = ByteString.copyFromUtf8(window + "+");   // GC timer just has window
     ByteString timer2Tag = ByteString.copyFromUtf8(window + "0/+"); // Trigger has index as well
     ByteString bufferTag = ByteString.copyFromUtf8("MergeWindows" + window + "+__buffer");
+    ByteString paneInfoTag = ByteString.copyFromUtf8("MergeWindows" + window + "+__pane_info");
     ByteString watermarkHoldTag =
         ByteString.copyFromUtf8("MergeWindows" + window + "+watermark_hold");
     ByteString bufferData = ByteString.copyFromUtf8("\000data0");
@@ -748,14 +756,23 @@ public class StreamingDataflowWorkerTest {
         .addValuesBuilder()
         .setTimestamp(0)
         .setData(ByteString.copyFrom(new byte[]{0b0}));
+    dataBuilder.addValuesBuilder()
+        .setTag(paneInfoTag)
+        .getValueBuilder()
+        .setTimestamp(0)
+        .setData(ByteString.EMPTY);
     server.addDataToOffer(dataResponse.build());
 
     result = server.waitForAndGetCommits(1);
 
     actualOutput = result.get(1L);
 
-    assertEquals(addNullPaneTag(ByteString.copyFrom(windowAtZeroBytes())),
-        actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getMetadata());
+
+    ByteString metadata =
+        actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getMetadata();
+    assertEquals(PaneInfo.createPane(true, false, Timing.EARLY),
+        PaneInfo.decodePane(metadata.byteAt(0)));
+    Assert.assertArrayEquals(windowAtZeroBytes(), metadata.substring(1).toByteArray());
 
     Windmill.OutputMessageBundle.Builder expectedOutputMessages =
         Windmill.OutputMessageBundle.newBuilder();
@@ -842,7 +859,7 @@ public class StreamingDataflowWorkerTest {
         UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
 
     assertThat(commit,
-        equalTo(setMessagesMetadata(
+        equalTo(setMessagesMetadata(PaneInfo.DEFAULT,
             CoderUtils.encodeToByteArray(
                 CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
                 Arrays.asList(GlobalWindow.INSTANCE)),
@@ -917,7 +934,7 @@ public class StreamingDataflowWorkerTest {
     finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
 
     assertThat(commit,
-        equalTo(setMessagesMetadata(
+        equalTo(setMessagesMetadata(PaneInfo.DEFAULT,
             CoderUtils.encodeToByteArray(
                 CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
                 Arrays.asList(GlobalWindow.INSTANCE)),

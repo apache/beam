@@ -196,7 +196,7 @@ public class OrFinallyTriggerTest {
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor();
+    tester.assertHasOnlyGlobalAndPaneInfoFor(new IntervalWindow(new Instant(1), new Instant(22)));
   }
 
   @Test
@@ -278,7 +278,7 @@ public class OrFinallyTriggerTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(0, 1, 2, 3, 4), 0, 0, 50)));
 
-    tester.assertHasOnlyGlobalAndFinishedSetsFor();
+    tester.assertHasOnlyGlobalAndPaneInfoFor(new IntervalWindow(new Instant(0), new Instant(50)));
 
     // Then fire 6 new elements, then processing time
     tester.injectElement(6, new Instant(2));

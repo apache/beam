@@ -103,7 +103,7 @@ class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
               KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
               e.getTimestamp(),
               Arrays.asList(window),
-              PaneInfo.DEFAULT_PANE);
+              PaneInfo.ON_TIME_AND_ONLY_FIRING);
         }
       }
       // Copy the iterator in case the next DoFn cached its version of the iterator instead

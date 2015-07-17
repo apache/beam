@@ -23,11 +23,14 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
@@ -235,6 +238,65 @@ public class TriggerExecutorTest {
     // And because we're past the end of window + allowed lateness, everything should be cleaned up.
     assertFalse(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor();
+  }
+
+  @Test
+  public void testPaneInfoAllStates() throws Exception {
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        FixedWindows.of(Duration.millis(10)),
+        mockTrigger,
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
+
+    tester.advanceWatermark(new Instant(0));
+    injectElement(tester, 1, TriggerResult.FIRE);
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY))));
+
+    injectElement(tester, 2, TriggerResult.FIRE);
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.EARLY))));
+
+    tester.advanceWatermark(new Instant(15));
+    injectElement(tester, 3, TriggerResult.FIRE);
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.ON_TIME))));
+
+    injectElement(tester, 4, TriggerResult.FIRE);
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.LATE))));
+
+    injectElement(tester, 5, TriggerResult.FIRE_AND_FINISH);
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE))));
+  }
+
+  @Test
+  public void testPaneInfoSkipToFinish() throws Exception {
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        FixedWindows.of(Duration.millis(10)),
+        mockTrigger,
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
+
+    tester.advanceWatermark(new Instant(0));
+    injectElement(tester, 1, TriggerResult.FIRE_AND_FINISH);
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, true, Timing.EARLY))));
+  }
+
+  @Test
+  public void testPaneInfoSkipToNonSpeculativeAndFinish() throws Exception {
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        FixedWindows.of(Duration.millis(10)),
+        mockTrigger,
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
+
+    tester.advanceWatermark(new Instant(15));
+    injectElement(tester, 1, TriggerResult.FIRE_AND_FINISH);
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, true, Timing.ON_TIME))));
   }
 
   @Test

@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 
 import org.hamcrest.Description;
@@ -27,6 +28,7 @@ import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Instant;
 
 import java.util.Collection;
+import java.util.Objects;
 
 /**
  * Matchers that are useful for working with Windowing, Timestamps, etc.
@@ -69,6 +71,27 @@ public class WindowMatchers {
 
   public static Matcher<IntervalWindow> intervalWindow(long start, long end) {
     return Matchers.equalTo(new IntervalWindow(new Instant(start), new Instant(end)));
+  }
+
+  public static <T> Matcher<WindowedValue<? extends T>> valueWithPaneInfo(final PaneInfo paneInfo) {
+    return new TypeSafeMatcher<WindowedValue<? extends T>>() {
+      @Override
+      public void describeTo(Description description) {
+        description
+            .appendText("WindowedValue(paneInfo = ").appendValue(paneInfo).appendText(")");
+      }
+
+      @Override
+      protected boolean matchesSafely(WindowedValue<? extends T> item) {
+        return Objects.equals(item.getPane(), paneInfo);
+      }
+
+      @Override
+      protected void describeMismatchSafely(
+          WindowedValue<? extends T> item, Description mismatchDescription) {
+        mismatchDescription.appendValue(item.getPane());
+      }
+    };
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})

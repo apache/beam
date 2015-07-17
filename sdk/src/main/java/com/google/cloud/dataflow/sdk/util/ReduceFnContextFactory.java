@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.MergeableState;
 import com.google.cloud.dataflow.sdk.util.state.State;
+import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
@@ -75,7 +76,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   public ReduceFn<K, InputT, OutputT, W>.OnTriggerContext forTrigger(
-      W window, PaneInfo pane, OnTriggerCallbacks<OutputT> callbacks) {
+      W window, StateContents<PaneInfo> pane, OnTriggerCallbacks<OutputT> callbacks) {
     return new OnTriggerContextImpl(stateContext(window), pane, callbacks);
   }
 
@@ -271,14 +272,14 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
       extends ReduceFn<K, InputT, OutputT, W>.OnTriggerContext {
 
     private final StateContextImpl<W> state;
-    private final PaneInfo paneInfo;
+    private final StateContents<PaneInfo> pane;
     private final OnTriggerCallbacks<OutputT> callbacks;
 
     private OnTriggerContextImpl(StateContextImpl<W> state,
-        PaneInfo paneInfo, OnTriggerCallbacks<OutputT> callbacks) {
+        StateContents<PaneInfo> pane, OnTriggerCallbacks<OutputT> callbacks) {
       reduceFn.super();
       this.state = state;
-      this.paneInfo = paneInfo;
+      this.pane = pane;
       this.callbacks = callbacks;
     }
 
@@ -304,7 +305,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
 
     @Override
     public PaneInfo paneInfo() {
-      return paneInfo;
+      return pane.read();
     }
 
     @Override
