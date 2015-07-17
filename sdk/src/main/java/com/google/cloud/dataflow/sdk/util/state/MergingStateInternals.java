@@ -84,7 +84,7 @@ public abstract class MergingStateInternals implements StateInternals {
         }
         WatermarkStateInternal result = state(resultNamespace, address);
         sources.add(result);
-        return new MergedWatermarkBagInternal(sources, result);
+        return new MergedWatermarkStateInternal(sources, result);
       }
     });
   }

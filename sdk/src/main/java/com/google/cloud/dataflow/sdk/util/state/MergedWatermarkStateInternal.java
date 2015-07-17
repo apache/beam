@@ -25,12 +25,12 @@ import java.util.List;
  * Implementation of {@link WatermarkStateInternal} reading from multiple sources and writing to a
  * single result.
  */
-class MergedWatermarkBagInternal implements WatermarkStateInternal {
+class MergedWatermarkStateInternal implements WatermarkStateInternal {
 
   private final Collection<WatermarkStateInternal> sources;
   private final WatermarkStateInternal result;
 
-  public MergedWatermarkBagInternal(
+  public MergedWatermarkStateInternal(
       Collection<WatermarkStateInternal> sources, WatermarkStateInternal result) {
     this.sources = sources;
     this.result = result;

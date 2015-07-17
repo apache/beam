@@ -51,7 +51,7 @@ public class WindmillStateInternals extends MergingStateInternals {
         @Override
         public <T> WatermarkStateInternal bindWatermark(
             StateTag<WatermarkStateInternal> address) {
-          return new WindmillWatermarkBag(encodeKey(namespace, address), reader);
+          return new WindmillWatermarkState(encodeKey(namespace, address), reader);
         }
 
         @Override
@@ -300,7 +300,7 @@ public class WindmillStateInternals extends MergingStateInternals {
     }
   }
 
-  private static class WindmillWatermarkBag implements WatermarkStateInternal, WindmillState {
+  private static class WindmillWatermarkState implements WatermarkStateInternal, WindmillState {
 
     private final ByteString stateKey;
     private final WindmillStateReader reader;
@@ -308,7 +308,7 @@ public class WindmillStateInternals extends MergingStateInternals {
     private boolean cleared = false;
     private Instant localAdditions = null;
 
-    private WindmillWatermarkBag(ByteString stateKey, WindmillStateReader reader) {
+    private WindmillWatermarkState(ByteString stateKey, WindmillStateReader reader) {
       this.stateKey = stateKey;
       this.reader = reader;
     }

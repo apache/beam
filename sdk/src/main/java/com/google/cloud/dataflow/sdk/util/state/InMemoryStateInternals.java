@@ -61,7 +61,7 @@ public class InMemoryStateInternals extends MergingStateInternals {
 
         @Override
         public <T> WatermarkStateInternal bindWatermark(StateTag<WatermarkStateInternal> address) {
-          return new WatermarkBagInternalImplementation();
+          return new WatermarkStateInternalImplementation();
         }
       };
     }
@@ -118,7 +118,7 @@ public class InMemoryStateInternals extends MergingStateInternals {
     }
   }
 
-  private final class WatermarkBagInternalImplementation
+  private final class WatermarkStateInternalImplementation
       implements WatermarkStateInternal, InMemoryState {
 
     private Instant minimumHold = null;
