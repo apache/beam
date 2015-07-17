@@ -158,6 +158,29 @@ public class BigQueryIOTest {
   }
 
   @Test
+  public void testValidateSetsDefaultProject() {
+    BigQueryOptions options = PipelineOptionsFactory.as(BigQueryOptions.class);
+    options.setProject("someproject");
+
+    Pipeline p = Pipeline.create(options);
+
+    TableReference tableRef = new TableReference();
+    tableRef.setDatasetId("somedataset");
+    tableRef.setTableId("sometable");
+
+    thrown.expect(RuntimeException.class);
+    // Message will be one of following depending on the execution environment.
+    thrown.expectMessage(
+        Matchers.either(Matchers.containsString("Unable to confirm BigQuery dataset presence"))
+            .or(Matchers.containsString("BigQuery dataset not found for table")));
+    try {
+      p.apply(BigQueryIO.Read.named("ReadMyTable").from(tableRef));
+    } finally {
+      Assert.assertEquals("someproject", tableRef.getProjectId());
+    }
+  }
+
+  @Test
   @Category(RunnableOnService.class)
   public void testBuildSourceWithoutTableOrQuery() {
     Pipeline p = TestPipeline.create();

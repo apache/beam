@@ -219,6 +219,11 @@ public class BigQueryIO {
 
   private static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
 
+  public static final String SET_PROJECT_FROM_OPTIONS_WARNING =
+      "No project specified for BigQuery table \"%1$s.%2$s\". Assuming it is in \"%3$s\". If the"
+      + " table is in a different project please specify it as a part of the BigQuery table"
+      + " definition.";
+
   /**
    * Parse a table specification in the form
    * "[project_id]:[dataset_id].[table_id]" or "[dataset_id].[table_id]".
@@ -398,12 +403,20 @@ public class BigQueryIO {
               + " query and a table, only one of these should be provided");
         }
 
+        BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+        if (table != null && table.getProjectId() == null) {
+          // If user does not specify a project we assume the table to be located in the project
+          // that owns the Dataflow job.
+          LOG.warn(String.format(SET_PROJECT_FROM_OPTIONS_WARNING, table.getDatasetId(),
+              table.getTableId(), bqOptions.getProject()));
+          table.setProjectId(bqOptions.getProject());
+        }
+
         if (validate) {
           // Check for source table/query presence for early failure notification.
           // Note that a presence check can fail if the table or dataset are created by earlier
           // stages of the pipeline or if a query depends on earlier stages of a pipeline. For these
           // cases the withoutValidation method can be used to disable the check.
-          BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
           if (table != null) {
             verifyDatasetPresence(bqOptions, table);
             verifyTablePresence(bqOptions, table);

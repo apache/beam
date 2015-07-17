@@ -32,6 +32,9 @@ import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 
 /**
@@ -39,6 +42,7 @@ import java.io.IOException;
  */
 public class BigQueryIOTranslator {
   private static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOTranslator.class);
 
   /**
    * Implements BigQueryIO Read translation for the Dataflow backend.
@@ -58,7 +62,12 @@ public class BigQueryIOTranslator {
       } else {
         TableReference table = transform.getTable();
         if (table.getProjectId() == null) {
-          table.setProjectId(context.getPipelineOptions().getProject());
+          // If user does not specify a project we assume the table to be located in the project
+          // that owns the Dataflow job.
+          String projectIdFromOptions = context.getPipelineOptions().getProject();
+          LOG.warn(String.format(BigQueryIO.SET_PROJECT_FROM_OPTIONS_WARNING, table.getDatasetId(),
+              table.getDatasetId(), table.getTableId(), projectIdFromOptions));
+          table.setProjectId(projectIdFromOptions);
         }
 
         context.addInput(PropertyNames.BIGQUERY_TABLE, table.getTableId());
@@ -88,7 +97,12 @@ public class BigQueryIOTranslator {
 
       TableReference table = transform.getTable();
       if (table.getProjectId() == null) {
-        table.setProjectId(context.getPipelineOptions().getProject());
+        // If user does not specify a project we assume the table to be located in the project
+        // that owns the Dataflow job.
+        String projectIdFromOptions = context.getPipelineOptions().getProject();
+        LOG.warn(String.format(BigQueryIO.SET_PROJECT_FROM_OPTIONS_WARNING, table.getDatasetId(),
+            table.getTableId(), projectIdFromOptions));
+        table.setProjectId(projectIdFromOptions);
       }
 
       // Check for destination table presence and emptiness for early failure notification.
