@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static org.junit.Assert.assertFalse;
+
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.CommitWorkResponse;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.ComputationCommitWorkRequest;
@@ -24,6 +25,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.GetDataRes
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.GetWorkResponse;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.WorkItemCommitRequest;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
+
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,7 +43,6 @@ class FakeWindmillServer extends WindmillServerStub {
   private LinkedBlockingQueue<Windmill.Exception> exceptions;
   private int commitsRequested = 0;
   private AtomicInteger expectedExceptionCount;
-
   public FakeWindmillServer() {
     workToOffer = new ConcurrentLinkedQueue<GetWorkResponse>();
     dataToOffer = new ConcurrentLinkedQueue<GetDataResponse>();
@@ -100,7 +101,7 @@ class FakeWindmillServer extends WindmillServerStub {
       }
     }
 
-    if (expectedExceptionCount.getAndDecrement() > 0) {
+    if (request.getExceptionsList().isEmpty() || expectedExceptionCount.getAndDecrement() > 0) {
       return Windmill.ReportStatsResponse.newBuilder().build();
     } else {
       return Windmill.ReportStatsResponse.newBuilder().setFailed(true).build();

@@ -53,6 +53,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
@@ -189,6 +191,7 @@ public class StreamingDataflowWorker {
   private Server statusServer;
   private final AtomicReference<Throwable> lastException;
   private final MetricTrackingWindmillServerStub metricTrackingWindmillServer;
+  private Timer globalCountersUpdatesTimer;
 
   public StreamingDataflowWorker(
       List<MapTask> mapTasks, WindmillServerStub server, DataflowWorkerHarnessOptions options) {
@@ -246,18 +249,30 @@ public class StreamingDataflowWorker {
   public void start() {
     running.set(true);
     dispatchThread = threadFactory.newThread(new Runnable() {
-        @Override
-        public void run() {
-          dispatchLoop();
-        }
-      });
+      @Override
+      public void run() {
+        dispatchLoop();
+      }
+    });
     dispatchThread.setPriority(Thread.MIN_PRIORITY);
     dispatchThread.setName("DispatchThread");
     dispatchThread.start();
+    globalCountersUpdatesTimer = new Timer("GlobalCountersUpdates");
+    //  Report counters update every second.
+    globalCountersUpdatesTimer.schedule(new TimerTask() {
+      @Override
+      public void run() {
+        reportPeriodicStats();
+      }
+    }, 1000, 1000);
+    reportHarnessStartup();
   }
 
   public void stop() {
     try {
+      if (globalCountersUpdatesTimer != null) {
+        globalCountersUpdatesTimer.cancel();
+      }
       if (statusServer != null) {
         statusServer.stop();
       }
@@ -650,6 +665,40 @@ public class StreamingDataflowWorker {
             .addExceptions(buildExceptionReport(t))
             .build());
     return !response.getFailed();
+  }
+
+  private void reportHarnessStartup() {
+    Windmill.Counter.Builder counterBuilder = Windmill.Counter.newBuilder();
+    counterBuilder =
+        counterBuilder.setName("dataflow_java_harness_restarts")
+            .setKind(Windmill.Counter.Kind.SUM)
+            .setIntScalar(1);
+    Windmill.ReportStatsResponse response = windmillServer.reportStats(
+        Windmill.ReportStatsRequest.newBuilder().addCounterUpdates(counterBuilder).build());
+    if (response.getFailed()) {
+      LOG.warn("Failed to notify windmill on harness startup. dataflow_java_harness_restarts will "
+          + " not be incremented.");
+    }
+  }
+
+  private void reportPeriodicStats() {
+    Runtime rt = Runtime.getRuntime();
+    long usedMemory = rt.totalMemory() - rt.freeMemory();
+    long maxMemory =  rt.maxMemory();
+    Windmill.Counter.Builder counterBuilder = Windmill.Counter.newBuilder();
+    counterBuilder =
+        counterBuilder.setName("dataflow_java_harness_memory_utilization")
+            .setKind(Windmill.Counter.Kind.MEAN)
+            .setCumulative(true)
+            .setIntScalar(usedMemory)
+            .setMeanCount(maxMemory);
+    Windmill.ReportStatsResponse response = windmillServer.reportStats(
+        Windmill.ReportStatsRequest.newBuilder()
+            .addCounterUpdates(counterBuilder)
+            .build());
+    if (response.getFailed()) {
+      LOG.warn("Failed to send periodic counters to windmill.");
+    }
   }
 
   private static class WorkerAndContext {
