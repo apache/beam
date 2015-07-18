@@ -17,16 +17,14 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import com.google.api.client.json.JsonFactory;
+import com.google.api.client.util.Preconditions;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
-import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -38,10 +36,12 @@ import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.BigQueryReader;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.Values;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterFirst;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterProcessingTime;
@@ -61,8 +61,8 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
+
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -84,6 +84,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -796,6 +797,7 @@ public class BigQueryIO {
             writeDisposition, validate);
       }
 
+
       /**
        * Specifies the table schema, used if the table is created.
        */
@@ -910,18 +912,25 @@ public class BigQueryIO {
   /**
    * Implementation of DoFn to perform streaming BigQuery write.
    */
-  private static class StreamingWriteFn
-      extends DoFn<KV<ShardedKey<String>, Iterable<TableRowInfo>>, Void> {
+  private static class StreamingWriteFn extends DoFn<TableRowInfo, Void> {
     private static final long serialVersionUID = 0;
+
+    /** TableReference in JSON.  Use String to make the class Serializable. */
+    private final String jsonTableReference;
 
     /** TableSchema in JSON.  Use String to make the class Serializable. */
     private final String jsonTableSchema;
 
-    /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
-    private transient Map<String, List<TableRow>> tableRows;
+    /** User function mapping windows to TableReference in JSON. */
+    private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+
+    private transient TableReference defaultTableReference;
+
+    /** JsonTableRows to accumulate BigQuery rows. */
+    private transient Map<BoundedWindow, List<TableRow>> tableRows;
 
     /** The list of unique ids for each BigQuery table row. */
-    private transient Map<String, List<String>> uniqueIdsForTableRows;
+    private transient Map<BoundedWindow, List<String>> uniqueIdsForTableRows;
 
     /** The list of tables created so far, so we don't try the creation
         each time. */
@@ -929,8 +938,16 @@ public class BigQueryIO {
         Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
     /** Constructor. */
-    StreamingWriteFn(TableSchema schema) {
+    StreamingWriteFn(TableReference table,
+        SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
+        TableSchema schema) {
       try {
+        if (table != null) {
+          jsonTableReference = JSON_FACTORY.toString(table);
+        } else {
+          jsonTableReference = null;
+        }
+        this.tableRefFunction = tableRefFunction;
         jsonTableSchema = JSON_FACTORY.toString(schema);
       } catch (IOException e) {
         throw new RuntimeException("Cannot initialize BigQuery streaming writer.", e);
@@ -947,54 +964,75 @@ public class BigQueryIO {
     /** Accumulates the input into JsonTableRows and uniqueIdsForTableRows. */
     @Override
     public void processElement(ProcessContext context) {
-      String tableSpec = context.element().getKey().getKey();
-      List<TableRow> rows = getOrCreateMapListValue(tableRows, tableSpec);
-      List<String> uniqueIds = getOrCreateMapListValue(uniqueIdsForTableRows, tableSpec);
-      for (TableRowInfo rowInfo : context.element().getValue()) {
-        rows.add(rowInfo.tableRow);
-        uniqueIds.add(rowInfo.uniqueId);
-      }
+      TableRowInfo rowInfo = context.element();
+      List<TableRow> rows = getOrCreateMapListValue(tableRows, rowInfo.window);
+      rows.add(rowInfo.tableRow);
+      List<String> uniqueIds = getOrCreateMapListValue(uniqueIdsForTableRows, rowInfo.window);
+      uniqueIds.add(rowInfo.uniqueId);
     }
 
     /** Writes the accumulated rows into BigQuery with streaming API. */
     @Override
-    public void finishBundle(Context context) throws Exception {
+    public void finishBundle(Context context) {
       BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
-      Bigquery client = Transport.newBigQueryClient(options).build();
 
-      for (String tableSpec : tableRows.keySet()) {
-        TableReference tableReference = getOrCreateTable(options, tableSpec);
-        flushRows(client, tableReference, tableRows.get(tableSpec),
-            uniqueIdsForTableRows.get(tableSpec));
+      for (BoundedWindow window : tableRows.keySet()) {
+        TableReference tableReference = getOrCreateTableForWindow(options, window);
+        flushRows(options, tableReference, tableRows.get(window),
+            uniqueIdsForTableRows.get(window));
       }
       tableRows.clear();
       uniqueIdsForTableRows.clear();
     }
 
-    public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
-        throws IOException {
-      TableReference tableReference = parseTableSpec(tableSpec);
-      if (!createdTables.contains(tableSpec)) {
-        synchronized (createdTables) {
-          // Another thread may have succeeded in creating the table in the meanwhile, so
-          // check again. This check isn't needed for correctness, but we add it to prevent
-          // every thread from attempting a create and overwhelming our BigQuery quota.
-          if (!createdTables.contains(tableSpec)) {
-            TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
-            Bigquery client = Transport.newBigQueryClient(options).build();
-            BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
-            inserter.tryCreateTable(tableSchema);
-            createdTables.add(tableSpec);
+    public TableReference getOrCreateTableForWindow(BigQueryOptions options, BoundedWindow window) {
+     try {
+       if (defaultTableReference != null) {
+         return defaultTableReference;
+       }
+
+       TableReference tableReference;
+       if (tableRefFunction != null) {
+         tableReference = tableRefFunction.apply(window);
+       } else {
+         tableReference = JSON_FACTORY.fromString(jsonTableReference, TableReference.class);
+       }
+       String tableSpec = toTableSpec(tableReference);
+
+       if (tableReference.getProjectId() == null) {
+         tableReference.setProjectId(options.getProject());
+       }
+
+       if (!createdTables.contains(tableSpec)) {
+          synchronized (createdTables) {
+            // Another thread may have succeeded in creating the table in the meanwhile, so
+            // check again. This check isn't needed for correctness, but we add it to prevent
+            // every thread from attempting a create and overwhelming our BigQuery quota.
+            if (!createdTables.contains(tableSpec)) {
+              TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
+              Bigquery client = Transport.newBigQueryClient(options).build();
+              BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
+              inserter.tryCreateTable(tableSchema);
+              createdTables.add(tableSpec);
+            }
           }
         }
-      }
-      return tableReference;
+       if (tableRefFunction == null) {
+         // A constant table spec is used, and we've already created it. Cache that value so that we
+         // can elide the parsing/lookup on future calls to getOrCreateTableForWindow.
+         defaultTableReference = tableReference;
+       }
+       return tableReference;
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+     }
     }
 
     /** Writes the accumulated rows into BigQuery with streaming API. */
-    private void flushRows(Bigquery client, TableReference tableReference,
+    private void flushRows(BigQueryOptions options, TableReference tableReference,
         List<TableRow> tableRows, List<String> uniqueIds) {
       if (!tableRows.isEmpty()) {
+        Bigquery client = Transport.newBigQueryClient(options).build();
         try {
           BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
           inserter.insertAll(tableRows, uniqueIds);
@@ -1005,91 +1043,36 @@ public class BigQueryIO {
     }
   }
 
-  @DefaultCoder(AvroCoder.class)
-  private static class ShardedKey<K> {
-    private final K key;
-    private final int shardNumber;
 
-    public static <K> ShardedKey<K> of(K key, int shardNumber) {
-      return new ShardedKey<K>(key, shardNumber);
-    }
-
-    private ShardedKey(K key, int shardNumber) {
-      this.key = key;
-      this.shardNumber = shardNumber;
-    }
-
-    public K getKey() {
-      return key;
-    }
-
-    public int getShardNumber() {
-      return shardNumber;
-    }
-  }
-
-  /**
-   * A {@link Coder} for {@code ShardedKey}, using a wrapped key {@code Coder}.
-   */
-  public static class ShardedKeyCoder<KeyT>
-      extends StandardCoder<ShardedKey<KeyT>> {
+  private static class TableRowInfoCoder extends StandardCoder<TableRowInfo> {
     private static final long serialVersionUID = 0;
 
-    public static <KeyT> ShardedKeyCoder<KeyT> of(Coder<KeyT> keyCoder) {
-      return new ShardedKeyCoder<>(keyCoder);
+    public static TableRowInfoCoder of(Coder<? extends BoundedWindow> windowCoder) {
+      return new TableRowInfoCoder(windowCoder);
     }
 
     @JsonCreator
-    public static <KeyT> ShardedKeyCoder<KeyT> of(
+    public static TableRowInfoCoder of(
          @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<KeyT>> components) {
+         List<Coder<? extends BoundedWindow>> components) {
       Preconditions.checkArgument(components.size() == 1,
           "Expecting 1 component, got " + components.size());
       return of(components.get(0));
     }
 
-    protected ShardedKeyCoder(Coder<KeyT> keyCoder) {
-      this.keyCoder = keyCoder;
-      this.shardNumberCoder = VarIntCoder.of();
+    protected TableRowInfoCoder(Coder<? extends BoundedWindow> windowCoder) {
+      this.tableRowCoder = TableRowJsonCoder.of();
+      this.idCoder = StringUtf8Coder.of();
+      @SuppressWarnings("unchecked")
+      Coder<BoundedWindow> boundedWindowCoder = (Coder<BoundedWindow>) windowCoder;
+      this.windowCoder = boundedWindowCoder;
     }
 
-    @Override
+     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return Arrays.asList(keyCoder);
+      return Arrays.asList(windowCoder);
     }
 
-    @Override
-    public void encode(ShardedKey<KeyT> key, OutputStream outStream, Context context)
-        throws IOException {
-      keyCoder.encode(key.getKey(), outStream, context.nested());
-      shardNumberCoder.encode(key.getShardNumber(), outStream, context);
-    }
-
-    @Override
-    public ShardedKey<KeyT> decode(InputStream inStream, Context context)
-        throws IOException {
-      return new ShardedKey<KeyT>(
-          keyCoder.decode(inStream, context.nested()),
-          shardNumberCoder.decode(inStream, context));
-    }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-      keyCoder.verifyDeterministic();
-    }
-
-    Coder<KeyT> keyCoder;
-    VarIntCoder shardNumberCoder;
-  }
-
-  private static class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
-    private static final long serialVersionUID = 0;
-    private static final TableRowInfoCoder INSTANCE = new TableRowInfoCoder();
-
-    @JsonCreator
-    public static TableRowInfoCoder of() {
-      return INSTANCE;
-    }
 
     @Override
     public void encode(TableRowInfo value, OutputStream outStream, Context context)
@@ -1099,6 +1082,7 @@ public class BigQueryIO {
       }
       tableRowCoder.encode(value.tableRow, outStream, context.nested());
       idCoder.encode(value.uniqueId, outStream, context.nested());
+      windowCoder.encode(value.window, outStream, context.nested());
     }
 
     @Override
@@ -1106,7 +1090,8 @@ public class BigQueryIO {
       throws IOException {
       return new TableRowInfo(
           tableRowCoder.decode(inStream, context.nested()),
-          idCoder.decode(inStream, context.nested()));
+          idCoder.decode(inStream, context.nested()),
+          windowCoder.decode(inStream, context.nested()));
     }
 
     @Override
@@ -1114,87 +1099,53 @@ public class BigQueryIO {
       throw new NonDeterministicException(this, "TableRows are not deterministic.");
     }
 
-    TableRowJsonCoder tableRowCoder = TableRowJsonCoder.of();
-    StringUtf8Coder idCoder = StringUtf8Coder.of();
+    TableRowJsonCoder tableRowCoder;
+    StringUtf8Coder idCoder;
+    Coder<BoundedWindow> windowCoder;
   }
 
-  private static class TableRowInfo {
-    TableRowInfo(TableRow tableRow, String uniqueId) {
-      this.tableRow = tableRow;
-      this.uniqueId = uniqueId;
-    }
+   private static class TableRowInfo {
+     TableRowInfo(TableRow tableRow, String uniqueId, BoundedWindow window) {
+       this.tableRow = tableRow;
+       this.uniqueId = uniqueId;
+       this.window = window;
+     }
 
-    final TableRow tableRow;
-    final String uniqueId;
-  };
+     final TableRow tableRow;
+     final String uniqueId;
+     final BoundedWindow window;
+   };
 
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Fn that tags each table row with a unique id and destination table.
+   * Fn that tags each table row with a unique id.
    * To avoid calling UUID.randomUUID() for each element, which can be costly,
    * a randomUUID is generated only once per bucket of data. The actual unique
    * id is created by concatenating this randomUUID with a sequential number.
    */
-  private static class TagWithUniqueIdsAndTable
-      extends DoFn<TableRow, KV<ShardedKey<String>, TableRowInfo>>
-      implements DoFn.RequiresWindowAccess {
+  private static class TagWithUniqueIdsAndWindow extends DoFn<TableRow, KV<Integer, TableRowInfo>>
+        implements DoFn.RequiresWindowAccess {
     private static final long serialVersionUID = 0;
 
-    /** TableSpec to write to. */
-    private final String tableSpec;
-
-    /** User function mapping windows to TableReference in JSON. */
-    private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
-
     private transient String randomUUID;
-    private transient long sequenceNo = 0L;
-
-    TagWithUniqueIdsAndTable(BigQueryOptions options, TableReference table,
-        SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
-      Preconditions.checkArgument(table == null ^ tableRefFunction == null,
-          "Exactly one of table or tableRefFunction should be set");
-      if (table != null) {
-        if (table.getProjectId() == null) {
-          table.setProjectId(options.as(BigQueryOptions.class).getProject());
-        }
-        this.tableSpec = toTableSpec(table);
-      } else {
-        tableSpec = null;
-      }
-      this.tableRefFunction = tableRefFunction;
-    }
-
+    private transient AtomicLong sequenceNo;
 
     @Override
     public void startBundle(Context context) {
       randomUUID = UUID.randomUUID().toString();
+      sequenceNo = new AtomicLong();
     }
 
     /** Tag the input with a unique id. */
     @Override
-    public void processElement(ProcessContext context) throws IOException {
-      String uniqueId = randomUUID + sequenceNo++;
+    public void processElement(ProcessContext context) {
+      String uniqueId = randomUUID + Long.toString(sequenceNo.getAndIncrement());
       ThreadLocalRandom randomGenerator = ThreadLocalRandom.current();
-      String tableSpec = tableSpecFromWindow(
-          context.getPipelineOptions().as(BigQueryOptions.class), context.window());
       // We output on keys 0-50 to ensure that there's enough batching for
       // BigQuery.
-      context.output(KV.of(ShardedKey.of(tableSpec, randomGenerator.nextInt(0, 50)),
-          new TableRowInfo(context.element(), uniqueId)));
-    }
-
-    private String tableSpecFromWindow(BigQueryOptions options, BoundedWindow window)
-        throws IOException {
-      if (tableSpec != null) {
-        return tableSpec;
-      } else {
-        TableReference table = tableRefFunction.apply(window);
-        if (table.getProjectId() == null) {
-          table.setProjectId(options.getProject());
-        }
-        return toTableSpec(table);
-      }
+      context.output(KV.of(randomGenerator.nextInt(0, 50),
+          new TableRowInfo(context.element(), uniqueId, context.window())));
     }
   }
 
@@ -1241,23 +1192,27 @@ public class BigQueryIO {
       // To use this mechanism, each input TableRow is tagged with a generated
       // unique id, which is then passed to BigQuery and used to ignore duplicates.
 
-      PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged = input.apply(ParDo.of(
-          new TagWithUniqueIdsAndTable(input.getPipeline().getOptions().as(BigQueryOptions.class),
-              tableReference, tableRefFunction)));
+      PCollection<KV<Integer, TableRowInfo>> tagged =
+          input.apply(ParDo.of(new TagWithUniqueIdsAndWindow()));
 
       // To prevent having the same TableRow processed more than once with regenerated
       // different unique ids, this implementation relies on "checkpointing", which is
       // achieved as a side effect of having StreamingWriteFn immediately follow a GBK.
       tagged
-          .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
-          .apply(
-              Window.<KV<ShardedKey<String>, TableRowInfo>>into(new GlobalWindows())
-                  .triggering(Repeatedly.forever(AfterFirst.of(
-                      AfterProcessingTime.pastFirstElementInPane().plusDelayOf(WRITE_BUFFER_WAIT),
-                      AfterPane.elementCountAtLeast(WRITE_BUFFER_COUNT))))
-                  .discardingFiredPanes())
-          .apply(GroupByKey.<ShardedKey<String>, TableRowInfo>create())
-          .apply(ParDo.of(new StreamingWriteFn(tableSchema)));
+          .setCoder(KvCoder.of(VarIntCoder.of(),
+              TableRowInfoCoder.of(
+              tagged.getWindowingStrategy().getWindowFn().windowCoder())))
+          .apply(Window.<KV<Integer, TableRowInfo>>into(new GlobalWindows())
+                       .triggering(Repeatedly.forever(
+                           AfterFirst.of(
+                               AfterProcessingTime.pastFirstElementInPane()
+                                                  .plusDelayOf(WRITE_BUFFER_WAIT),
+                               AfterPane.elementCountAtLeast(WRITE_BUFFER_COUNT))))
+                       .discardingFiredPanes())
+          .apply(GroupByKey.<Integer, TableRowInfo>create())
+          .apply(Values.<Iterable<TableRowInfo>>create())
+          .apply(Flatten.<TableRowInfo>iterables())
+          .apply(ParDo.of(new StreamingWriteFn(tableReference, tableRefFunction, tableSchema)));
 
       // Note that the implementation to return PDone here breaks the
       // implicit assumption about the job execution order.  If a user

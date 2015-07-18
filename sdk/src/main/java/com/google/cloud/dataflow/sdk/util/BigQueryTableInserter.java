@@ -28,7 +28,6 @@ import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.common.base.Throwables;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,10 +36,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
 
@@ -65,8 +60,6 @@ public class BigQueryTableInserter {
   private final Bigquery client;
   private final TableReference ref;
   private final long maxRowsPerBatch;
-
-  private static final ExecutorService executor = Executors.newFixedThreadPool(100);
 
   /**
    * Constructs a new row inserter.
@@ -109,26 +102,26 @@ public class BigQueryTableInserter {
           + "as many elements as rowList");
     }
 
+
     AttemptBoundedExponentialBackOff backoff = new AttemptBoundedExponentialBackOff(
         MAX_INSERT_ATTEMPTS,
         INITIAL_INSERT_BACKOFF_INTERVAL_MS);
 
-    final List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
+    List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
     // These lists contain the rows to publish. Initially the contain the entire list. If there are
     // failures, they will contain only the failed rows to be retried.
     List<TableRow> rowsToPublish = rowList;
     List<String> idsToPublish = insertIdList;
     while (true) {
-      final List<TableRow> retryRows = new ArrayList<>();
-      final List<String> retryIds = (idsToPublish != null) ? new ArrayList<String>() : null;
-
+      List<TableRow> retryRows = new ArrayList<>();
+      List<String> retryIds = null;
+      if (idsToPublish != null) {
+        retryIds = new ArrayList<>();
+      }
       int strideIndex = 0;
       // Upload in batches.
       List<TableDataInsertAllRequest.Rows> rows = new LinkedList<>();
       int dataSize = 0;
-
-      List<Future<?>> futures = new ArrayList<>();
-
       for (int i = 0; i < rowsToPublish.size(); ++i) {
         TableRow row = rowsToPublish.get(i);
         TableDataInsertAllRequest.Rows out = new TableDataInsertAllRequest.Rows();
@@ -144,56 +137,30 @@ public class BigQueryTableInserter {
           TableDataInsertAllRequest content = new TableDataInsertAllRequest();
           content.setRows(rows);
 
-          final Bigquery.Tabledata.InsertAll insert = client.tabledata()
+          Bigquery.Tabledata.InsertAll insert = client.tabledata()
               .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(),
                   content);
-
-          final int finalStrideIndex = strideIndex;
-          final List<TableRow> finalRowsToPublish = rowsToPublish;
-          final List<String> finalIdsToPublish = idsToPublish;
-
-          futures.add(executor.submit(new Runnable() {
-              @Override
-              public void run() {
-                try {
-                  TableDataInsertAllResponse response = insert.execute();
-
-                  List<TableDataInsertAllResponse.InsertErrors> errors = response.getInsertErrors();
-                  if (errors != null) {
-                    synchronized (this) {
-                      allErrors.addAll(errors);
-                      for (TableDataInsertAllResponse.InsertErrors error : errors) {
-                        if (error.getIndex() == null) {
-                          throw new IOException("Insert failed: " + allErrors);
-                        }
-
-                        int errorIndex = error.getIndex().intValue() + finalStrideIndex;
-                        retryRows.add(finalRowsToPublish.get(errorIndex));
-                        if (retryIds != null) {
-                          retryIds.add(finalIdsToPublish.get(errorIndex));
-                        }
-                      }
-                    }
-                  }
-                } catch (IOException e) {
-                  throw new RuntimeException(e);
-                }
+          TableDataInsertAllResponse response = insert.execute();
+          List<TableDataInsertAllResponse.InsertErrors> errors = response.getInsertErrors();
+          if (errors != null) {
+            allErrors.addAll(errors);
+            for (TableDataInsertAllResponse.InsertErrors error : errors) {
+              if (error.getIndex() == null) {
+                throw new IOException("Insert failed: " + allErrors);
               }
-            }));
+
+              int errorIndex = error.getIndex().intValue() + strideIndex;
+              retryRows.add(rowsToPublish.get(errorIndex));
+              if (retryIds != null) {
+                retryIds.add(idsToPublish.get(errorIndex));
+              }
+            }
+          }
 
           dataSize = 0;
           strideIndex = i + 1;
-          rows = new LinkedList<>();
+          rows.clear();
         }
-      }
-
-      try {
-        for (Future<?> future : futures) {
-          future.get();
-        }
-      } catch (InterruptedException e) {
-      } catch (ExecutionException e) {
-        Throwables.propagate(e.getCause());
       }
 
       if (!allErrors.isEmpty() && !backoff.atMaxAttempts()) {
