@@ -50,13 +50,16 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
+import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
+import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
@@ -171,8 +174,10 @@ public class BasicSerializableSourceFormat implements SourceFormat {
         }
       };
     } else if (source instanceof UnboundedSource) {
-      return new UnboundedReader<T>(
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Reader<WindowedValue<T>> reader = new UnboundedReader(
           options, spec, (StreamingModeExecutionContext) executionContext);
+      return reader;
     } else {
       throw new IllegalArgumentException("Unexpected source kind: " + source.getClass());
     }
@@ -181,7 +186,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   /**
    * {@link Reader} for reading from {@link UnboundedSource UnboundedSources}.
    */
-  private static class UnboundedReader<T> extends Reader<WindowedValue<T>> {
+  private static class UnboundedReader<T> extends Reader<WindowedValue<ValueWithRecordId<T>>> {
     private final PipelineOptions options;
     private final CloudObject spec;
     private final StreamingModeExecutionContext context;
@@ -195,7 +200,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Reader.ReaderIterator<WindowedValue<T>> iterator() {
+    public Reader.ReaderIterator<WindowedValue<ValueWithRecordId<T>>> iterator() {
       UnboundedSource.UnboundedReader<T> reader =
           (UnboundedSource.UnboundedReader<T>) context.getCachedReader();
       final boolean started = reader != null;
@@ -366,14 +371,10 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   public static <T> void evaluateReadHelper(
-      Read.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
+      Read.Bounded<T> transform, DirectPipelineRunner.EvaluationContext context) {
     try {
       List<DirectPipelineRunner.ValueWithMetadata<T>> output = new ArrayList<>();
-      Source<T> anySource = transform.getSource();
-      if (!(anySource instanceof BoundedSource)) {
-        throw new IllegalArgumentException("Unexpected read from a user-defined unbounded source");
-      }
-      BoundedSource<T> source = (BoundedSource<T>) anySource;
+      BoundedSource<T> source = transform.getSource();
       try (BoundedSource.BoundedReader<T> reader =
           source.createReader(context.getPipelineOptions(), null)) {
         for (boolean available = reader.start(); available; available = reader.advance()) {
@@ -389,10 +390,10 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     }
   }
 
-  public static <T> void translateReadHelper(
-      Read.Bound<T> transform, DataflowPipelineTranslator.TranslationContext context) {
+  public static <T> void translateReadHelper(Source<T> source,
+      PTransform<?, ? extends PValue> transform,
+      DataflowPipelineTranslator.TranslationContext context) {
     try {
-      Source<T> source = transform.getSource();
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);
       context.addInput(
@@ -558,7 +559,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   private static class UnboundedReaderIterator<T>
-      implements Reader.ReaderIterator<WindowedValue<T>> {
+      implements Reader.ReaderIterator<WindowedValue<ValueWithRecordId<T>>> {
     // Commit at least once every 10 seconds or 10k records.  This keeps the watermark advancing
     // smoothly, and ensures that not too much work will have to be reprocessed in the event of
     // a crash.
@@ -566,11 +567,13 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     private static final Duration MAX_BUNDLE_READ_TIME = Duration.standardSeconds(10);
 
     private ReaderToIteratorAdapter<T> iteratorAdapter;
+    private UnboundedSource.UnboundedReader<T> reader;
     private Instant endTime;
     private int elemsRead;
 
     private UnboundedReaderIterator(UnboundedSource.UnboundedReader<T> reader, boolean started) {
       this.iteratorAdapter = new ReaderToIteratorAdapter<>(reader, started);
+      this.reader = reader;
       this.endTime = Instant.now().plus(MAX_BUNDLE_READ_TIME);
       this.elemsRead = 0;
     }
@@ -585,10 +588,11 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     }
 
     @Override
-    public WindowedValue<T> next() throws IOException {
+    public WindowedValue<ValueWithRecordId<T>> next() throws IOException {
       WindowedValue<T> result = iteratorAdapter.next();
       elemsRead++;
-      return result;
+      return result.withValue(
+          new ValueWithRecordId<>(result.getValue(), reader.getCurrentRecordId()));
     }
 
     @Override

@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 
+import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.DelegateCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -27,6 +29,7 @@ import com.google.cloud.dataflow.sdk.values.KV;
 
 import org.joda.time.Instant;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -47,22 +50,28 @@ public class CountingSource
   private static List<Integer> finalizeTracker;
   private final int numMessagesPerShard;
   private final int shardNumber;
+  private final boolean dedup;
 
   public static void setFinalizeTracker(List<Integer> finalizeTracker) {
     CountingSource.finalizeTracker = finalizeTracker;
   }
 
   public CountingSource(int numMessagesPerShard) {
-    this(numMessagesPerShard, -1);
+    this(numMessagesPerShard, -1, false);
+  }
+
+  public CountingSource withDedup() {
+    return new CountingSource(numMessagesPerShard, shardNumber, true);
   }
 
   private CountingSource withShardNumber(int shardNumber) {
-    return new CountingSource(numMessagesPerShard, shardNumber);
+    return new CountingSource(numMessagesPerShard, shardNumber, dedup);
   }
 
-  private CountingSource(int numMessagesPerShard, int shardNumber) {
+  private CountingSource(int numMessagesPerShard, int shardNumber, boolean dedup) {
     this.numMessagesPerShard = numMessagesPerShard;
     this.shardNumber = shardNumber;
+    this.dedup = dedup;
   }
 
   public int getShardNumber() {
@@ -112,6 +121,11 @@ public class CountingSource
         });
   }
 
+  @Override
+  public boolean requiresDeduping() {
+    return dedup;
+  }
+
   private class CountingSourceReader implements UnboundedReader<KV<Integer, Integer>> {
     private int current;
     private boolean done = false;
@@ -128,8 +142,14 @@ public class CountingSource
     @Override
     public boolean advance() {
       if (current < numMessagesPerShard - 1) {
+        // Occasionally return false to break apart bundles
         if (ThreadLocalRandom.current().nextInt(10) == 0) {
           return false;
+        }
+
+        // If testing dedup, occasionally insert a duplicate value;
+        if (dedup && ThreadLocalRandom.current().nextInt(5) == 0) {
+          return true;
         }
         current++;
         return true;
@@ -151,9 +171,11 @@ public class CountingSource
 
     @Override
     public byte[] getCurrentRecordId() {
-      byte[] id = new byte[16];
-      ThreadLocalRandom.current().nextBytes(id);
-      return id;
+      try {
+        return encodeToByteArray(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()), getCurrent());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override

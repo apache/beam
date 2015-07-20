@@ -104,7 +104,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * underlying {@link FileBasedSource} after decompressing it with a {@link
    * DecompressingChannelFactory}.
    */
-  public static <T> Read.Bound<T> readFromSource(
+  public static <T> Read.Bounded<T> readFromSource(
       FileBasedSource<T> sourceDelegate, DecompressingChannelFactory channelFactory) {
     return Read.from(new CompressedSource<>(sourceDelegate, channelFactory));
   }

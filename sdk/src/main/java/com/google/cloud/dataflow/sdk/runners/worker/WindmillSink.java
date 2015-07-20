@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
+import static com.google.cloud.dataflow.sdk.util.ValueWithRecordId.ValueWithRecordIdCoder;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -28,6 +29,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.PaneInfoCoder
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
+import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -114,16 +116,28 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     @Override
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
+      ByteString id = ByteString.EMPTY;
       ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPane());
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = (KV) data.getValue();
         key = encode(kvCoder.getKeyCoder(), kv.getKey());
-        value = encode(kvCoder.getValueCoder(), kv.getValue());
+        Coder valueCoder = kvCoder.getValueCoder();
+        // If ids are explicitly provided, use that instead of the windmill-generated id.
+        // This is used when reading an UnboundedSource to deduplicate records.
+        if (valueCoder instanceof ValueWithRecordIdCoder) {
+          ValueWithRecordId valueAndId = (ValueWithRecordId) kv.getValue();
+          value =
+              encode(((ValueWithRecordIdCoder) valueCoder).getValueCoder(), valueAndId.getValue());
+          id = ByteString.copyFrom(valueAndId.getId());
+        } else {
+          value = encode(valueCoder, kv.getValue());
+        }
       } else {
         key = context.getSerializedKey();
         value = encode(valueCoder, data.getValue());
       }
+
       Windmill.KeyedMessageBundle.Builder keyedOutput = productionMap.get(key);
       if (keyedOutput == null) {
         keyedOutput = Windmill.KeyedMessageBundle.newBuilder().setKey(key);
@@ -136,7 +150,8 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           .setData(value)
           .setMetadata(metadata);
       keyedOutput.addMessages(builder.build());
-      return key.size() + value.size() + metadata.size();
+      keyedOutput.addMessagesIds(id);
+      return key.size() + value.size() + metadata.size() + id.size();
     }
 
     @Override

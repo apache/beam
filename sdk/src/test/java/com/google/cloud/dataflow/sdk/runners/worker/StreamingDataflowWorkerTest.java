@@ -67,6 +67,7 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.TimerOrElement.TimerOrElementCoder;
+import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
@@ -331,6 +332,7 @@ public class StreamingDataflowWorkerTest {
             "      data: \"" + dataStringForIndex(index) + "\"" +
             "      metadata: \"\"" +
             "    }" +
+            "    messages_ids: \"\"" +
             "  }" +
             "}"));
   }
@@ -643,6 +645,7 @@ public class StreamingDataflowWorkerTest {
                 "      timestamp: " + timestamp +
                 "      data: \"" + TimeUnit.MILLISECONDS.toSeconds(timestamp) + "\"" +
                 "    }" +
+                "    messages_ids: \"\"" +
                 "  }" +
                 "} "))
             .build()));
@@ -768,7 +771,7 @@ public class StreamingDataflowWorkerTest {
     ByteString watermarkHoldTag =
         ByteString.copyFromUtf8("MergeWindows" + window + "+watermark_hold");
     ByteString bufferData = ByteString.copyFromUtf8("\000data0");
-    ByteString outputData = ByteString.copyFromUtf8("\\377\\377\\377\\377\\001\\005data0\\000");
+    ByteString outputData = ByteString.copyFromUtf8("\000\000\000\001\005data0");
     // These values are not essential to the change detector test
     long timer1Timestamp = 1000000L;
     long timer2Timestamp = 999000L;
@@ -841,7 +844,6 @@ public class StreamingDataflowWorkerTest {
 
     actualOutput = result.get(1L);
 
-
     ByteString metadata =
         actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getMetadata();
     assertEquals(PaneInfo.createPane(true, false, Timing.EARLY),
@@ -850,13 +852,17 @@ public class StreamingDataflowWorkerTest {
 
     Windmill.OutputMessageBundle.Builder expectedOutputMessages =
         Windmill.OutputMessageBundle.newBuilder();
-    expectedOutputMessages
+    Windmill.KeyedMessageBundle.Builder keyedBuilder = expectedOutputMessages
         .setDestinationStreamId(DEFAULT_DESTINATION_STREAM_ID)
         .addBundlesBuilder()
-        .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING))
-        .addMessagesBuilder()
+        .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING));
+    keyedBuilder.addMessagesBuilder()
         .setTimestamp(0)
-        .setData(outputData);
+        .setData(outputData)
+        .setMetadata(
+            ByteString.copyFrom(new byte[] {0b1}).concat(ByteString.copyFrom(windowAtZeroBytes())));
+    keyedBuilder.addMessagesIds(ByteString.EMPTY);
+    assertEquals(expectedOutputMessages.build(), actualOutput.getOutputMessages(0));
 
     // Data was deleted
     assertThat("" + actualOutput.getListUpdatesList(),
@@ -871,12 +877,12 @@ public class StreamingDataflowWorkerTest {
             .build())));
   }
 
-  static class PrintFn extends DoFn<KV<Integer, Integer>, String> {
+  static class PrintFn extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
     private static final long serialVersionUID = 0;
 
     @Override
     public void processElement(ProcessContext c) {
-      KV<Integer, Integer> elem = c.element();
+      KV<Integer, Integer> elem = c.element().getValue();
       c.output(elem.getKey() + ":" + elem.getValue());
     }
   }
@@ -890,20 +896,24 @@ public class StreamingDataflowWorkerTest {
     options.setNumWorkers(1);
 
     List<ParallelInstruction> instructions =
-        Arrays.asList(new ParallelInstruction()
-            .setSystemName("Read")
-            .setRead(new ReadInstruction()
-                .setSource(
-                    BasicSerializableSourceFormat.serializeToCloudSource(
-                        new CountingSource(1), options)))
-            .setOutputs(
-                Arrays.asList(new InstructionOutput()
-                    .setName("read_output")
-                    .setCodec(
-                        WindowedValue.getFullCoder(
-                            KvCoder.of(VarIntCoder.of(), VarIntCoder.of()),
-                            GlobalWindow.Coder.INSTANCE)
-                        .asCloudObject()))),
+        Arrays.asList(
+            new ParallelInstruction()
+                .setSystemName("Read")
+                .setRead(
+                    new ReadInstruction()
+                        .setSource(
+                            BasicSerializableSourceFormat.serializeToCloudSource(
+                                new CountingSource(1), options)))
+                .setOutputs(
+                    Arrays.asList(
+                        new InstructionOutput()
+                            .setName("read_output")
+                            .setCodec(
+                                WindowedValue.getFullCoder(
+                                        ValueWithRecordId.ValueWithRecordIdCoder.of(
+                                            KvCoder.of(VarIntCoder.of(), VarIntCoder.of())),
+                                        GlobalWindow.Coder.INSTANCE)
+                                    .asCloudObject()))),
             makeDoFnInstruction(
                 new PrintFn(), 0, StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
             makeSinkInstruction(StringUtf8Coder.of(), 1, GlobalWindow.Coder.INSTANCE));
@@ -948,6 +958,7 @@ public class StreamingDataflowWorkerTest {
                 "      timestamp: 0" +
                 "      data: \"0:0\"" +
                 "    }" +
+                "    messages_ids: \"\"" +
                 "  }" +
                 "} " +
                 "source_state_updates {" +
@@ -1023,6 +1034,7 @@ public class StreamingDataflowWorkerTest {
                 "      timestamp: 5000" +
                 "      data: \"1:5\"" +
                 "    }" +
+                "    messages_ids: \"\"" +
                 "  }" +
                 "} " +
                 "source_state_updates {" +

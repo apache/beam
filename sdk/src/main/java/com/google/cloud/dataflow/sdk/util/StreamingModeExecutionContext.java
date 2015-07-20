@@ -264,7 +264,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   }
 
   public void setActiveReader(UnboundedSource.UnboundedReader<?> reader) {
-    readerCache.put(getSerializedKey(), reader);
     activeReader = reader;
   }
 
@@ -322,6 +321,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
       }
       outputBuilder.setSourceStateUpdates(sourceStateBuilder.build());
       outputBuilder.setSourceWatermark(TimeUnit.MILLISECONDS.toMicros(watermark.getMillis()));
+
+      readerCache.put(getSerializedKey(), activeReader);
     }
     return callbacks;
   }

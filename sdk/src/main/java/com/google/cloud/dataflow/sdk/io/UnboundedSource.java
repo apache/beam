@@ -83,7 +83,19 @@ public abstract class UnboundedSource<
    * Returns a {@link Coder} for encoding and decoding the checkpoints for this source, or
    * null if the checkpoints do not need to be durably committed.
    */
-  @Nullable public abstract Coder<CheckpointMarkT> getCheckpointMarkCoder();
+  @Nullable
+  public abstract Coder<CheckpointMarkT> getCheckpointMarkCoder();
+
+  /**
+   * Returns whether this source requires explicit deduping.
+   *
+   * <p> This is needed if the underlying data source can return the same record multiple times,
+   * such a queuing system with a pull-ack model.  Sources where the records read are uniquely
+   * identified by the persisted state in the CheckpointMark do not need this.
+   */
+  public boolean requiresDeduping() {
+    return false;
+  }
 
   /**
    * A marker representing the progress and state of an {@link UnboundedReader}.
@@ -145,8 +157,6 @@ public abstract class UnboundedSource<
      *
      * <p> This method has the same restrictions on when it can be called as {@link #getCurrent} and
      * {@link #getCurrentTimestamp}.
-     *
-     * <p> Note: this is not yet supported by the DataflowPipelineRunner, and it will be ignored.
      *
      * @throws NoSuchElementException if the reader is at the beginning of the input and
      *         {@link #start} or {@link #advance} wasn't called, or if the last {@link #start} or

@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners;
 
+import static com.google.cloud.dataflow.sdk.util.StringUtils.approximateSimpleName;
+
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.Joiner;
 import com.google.api.services.dataflow.Dataflow;
@@ -29,10 +31,13 @@ import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
+import com.google.cloud.dataflow.sdk.io.Read;
+import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.JobSpecification;
+import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
 import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowAggregatorTransforms;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -41,10 +46,13 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.View;
+import com.google.cloud.dataflow.sdk.transforms.WithKeys;
 import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
@@ -56,8 +64,11 @@ import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.StreamingPCollectionViewWriterFn;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
@@ -189,6 +200,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         .put(View.AsIterable.class, StreamingViewAsIterable.class)
         .put(Write.Bound.class, StreamingWrite.class)
         .put(PubsubIO.Write.Bound.class, StreamingPubsubIOWrite.class)
+        .put(Read.Unbounded.class, StreamingUnboundedRead.class)
         .build();
   }
 
@@ -444,6 +456,143 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     @Override
     protected String getKindString() {
       return "StreamingPubsubIOWrite";
+    }
+  }
+
+  /**
+   * Specialized implementation for {@link Read.Unbounded} for the Dataflow runner in streaming
+   * mode.
+   *
+   * <p> In particular, if an UnboundedSource requires deduplication, then features of WindmillSink
+   * are leveraged to do the deduplication.
+   */
+  private static class StreamingUnboundedRead<T> extends PTransform<PInput, PCollection<T>> {
+    private static final long serialVersionUID = 0L;
+
+    private final UnboundedSource<T, ?> source;
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in apply()
+    public StreamingUnboundedRead(Read.Unbounded<T> transform) {
+      this.source = transform.getSource();;
+    }
+
+    @Override
+    protected Coder<T> getDefaultOutputCoder() {
+      return source.getDefaultOutputCoder();
+    }
+
+    @Override
+    public final PCollection<T> apply(PInput input) {
+      source.validate();
+
+      if (source.requiresDeduping()) {
+        return Pipeline.applyTransform(input, new ReadWithIds<T>(source))
+            .apply(new Deduplicate<T>());
+      } else {
+        return Pipeline.applyTransform(input, new ReadWithIds<T>(source))
+            .apply(ParDo.named("StripIds").of(
+                new DoFn<ValueWithRecordId<T>, T>() {
+                  private static final long serialVersionUID = 0L;
+
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    c.output(c.element().getValue());
+                  }
+                }));
+      }
+    }
+
+    /**
+     * {@link PTransform} that reads {@code (record,recordId)} pairs from an
+     * {@link UnboundedSource}.
+     */
+    private static class ReadWithIds<T>
+        extends PTransform<PInput, PCollection<ValueWithRecordId<T>>> {
+      private static final long serialVersionUID = 0L;
+      private final UnboundedSource<T, ?> source;
+
+      private ReadWithIds(UnboundedSource<T, ?> source) {
+        this.source = source;
+      }
+
+      @Override
+      public final PCollection<ValueWithRecordId<T>> apply(PInput input) {
+        return PCollection.<ValueWithRecordId<T>>createPrimitiveOutputInternal(
+            input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED);
+      }
+
+      @Override
+      protected Coder<ValueWithRecordId<T>> getDefaultOutputCoder() {
+        return ValueWithRecordId.ValueWithRecordIdCoder.of(source.getDefaultOutputCoder());
+      }
+
+      public UnboundedSource<T, ?> getSource() {
+        return source;
+      }
+    }
+
+    @Override
+    public String getKindString() {
+      return "Read(" + approximateSimpleName(source.getClass()) + ")";
+    }
+
+    static {
+      DataflowPipelineTranslator.registerTransformTranslator(
+          ReadWithIds.class, new ReadWithIdsTranslator());
+    }
+
+    private static class ReadWithIdsTranslator
+        implements DataflowPipelineTranslator.TransformTranslator<ReadWithIds<?>> {
+      @Override
+      public void translate(ReadWithIds<?> transform,
+          DataflowPipelineTranslator.TranslationContext context) {
+        BasicSerializableSourceFormat.translateReadHelper(
+            transform.getSource(), transform, context);
+      }
+    }
+  }
+
+  /**
+   * Remove values with duplicate ids.
+   */
+  private static class Deduplicate<T>
+      extends PTransform<PCollection<ValueWithRecordId<T>>, PCollection<T>> {
+    private static final long serialVersionUID = 0L;
+    // Use a finite set of keys to improve bundling.  Without this, the key space
+    // will be the space of ids which is potentially very large, which results in much
+    // more per-key overhead.
+    private static final int NUM_RESHARD_KEYS = 10000;
+    @Override
+    public PCollection<T> apply(PCollection<ValueWithRecordId<T>> input) {
+      return input
+          .apply(WithKeys.of(new SerializableFunction<ValueWithRecordId<T>, Integer>() {
+                    private static final long serialVersionUID = 0L;
+
+                    @Override
+                    public Integer apply(ValueWithRecordId<T> value) {
+                      return Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS;
+                    }
+                  }))
+          .apply(
+              Window.<KV<Integer, ValueWithRecordId<T>>>into(new GlobalWindows())
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  .discardingFiredPanes())
+          // WindmillSink will dedup based on ids in ValueWithRecordId.
+          .apply(GroupByKey.<Integer, ValueWithRecordId<T>>create())
+          .apply(ParDo.named("StripIds").of(
+              new DoFn<KV<Integer, Iterable<ValueWithRecordId<T>>>, T>() {
+                private static final long serialVersionUID = 0L;
+
+                @Override
+                public void processElement(ProcessContext c) {
+                  for (ValueWithRecordId<T> value : c.element().getValue()) {
+                    c.output(value.getValue());
+                  }
+                }
+              }));
     }
   }
 

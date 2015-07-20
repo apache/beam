@@ -138,7 +138,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * Creates a {@code Read} transform that will read from an {@code AvroSource} that is configured
    * to read records of the given type from a file pattern.
    */
-  public static <T> Read.Bound<T> readFromFileWithClass(String filePattern, Class<T> clazz) {
+  public static <T> Read.Bounded<T> readFromFileWithClass(String filePattern, Class<T> clazz) {
     return Read.from(new AvroSource<T>(filePattern, DEFAULT_MIN_BUNDLE_SIZE,
         ReflectData.get().getSchema(clazz).toString(), clazz, null, null));
   }

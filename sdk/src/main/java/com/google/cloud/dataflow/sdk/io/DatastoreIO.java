@@ -169,7 +169,7 @@ public class DatastoreIO {
    * Returns a {@code PTransform} that reads Datastore entities from the query
    * against the given dataset.
    */
-  public static Read.Bound<Entity> readFrom(String datasetId, Query query) {
+  public static Read.Bounded<Entity> readFrom(String datasetId, Query query) {
     return Read.from(new Source(DEFAULT_HOST, datasetId, query));
   }
 
@@ -177,7 +177,7 @@ public class DatastoreIO {
    * Returns a {@code PTransform} that reads Datastore entities from the query
    * against the given dataset and host.
    */
-  public static Read.Bound<Entity> readFrom(String host, String datasetId, Query query) {
+  public static Read.Bounded<Entity> readFrom(String host, String datasetId, Query query) {
     return Read.from(new Source(host, datasetId, query));
   }
 

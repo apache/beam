@@ -23,6 +23,7 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.dictionaryToCloudSource;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceOperationResponseToCloudSourceOperationResponse;
+import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.deserializeFromByteArray;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
@@ -33,6 +34,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -51,6 +53,8 @@ import com.google.api.services.dataflow.model.Step;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
@@ -73,6 +77,7 @@ import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
+import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
@@ -634,7 +639,7 @@ public class BasicSerializableSourceFormatTest {
 
     ByteString state = ByteString.EMPTY;
     for (int i = 0; i < 100; /* Incremented in inner loop */) {
-      WindowedValue<KV<Integer, Integer>> value;
+      WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value;
 
       // Initialize streaming context with state from previous iteration.
       context.start(
@@ -648,8 +653,8 @@ public class BasicSerializableSourceFormatTest {
           null,
           Windmill.WorkItemCommitRequest.newBuilder());
 
-      Reader.ReaderIterator<WindowedValue<KV<Integer, Integer>>> reader =
-          BasicSerializableSourceFormat.<KV<Integer, Integer>>create(
+      Reader.ReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
+          BasicSerializableSourceFormat.<ValueWithRecordId<KV<Integer, Integer>>>create(
                   options,
                   (CloudObject)
                       BasicSerializableSourceFormat.serializeToCloudSource(
@@ -662,7 +667,10 @@ public class BasicSerializableSourceFormatTest {
       // Verify data.
       while (reader.hasNext()) {
         value = reader.next();
-        assertEquals(KV.of(0, i), value.getValue());
+        assertEquals(KV.of(0, i), value.getValue().getValue());
+        assertArrayEquals(
+            encodeToByteArray(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()), KV.of(0, i)),
+            value.getValue().getId());
         assertThat(value.getWindows(), contains((BoundedWindow) GlobalWindow.INSTANCE));
         assertEquals(i, value.getTimestamp().getMillis());
         i++;
