@@ -14,10 +14,10 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.examples;
+package com.google.cloud.dataflow.examples.complete;
 
-import com.google.cloud.dataflow.examples.AutoComplete.CompletionCandidate;
-import com.google.cloud.dataflow.examples.AutoComplete.ComputeTopCompletions;
+import com.google.cloud.dataflow.examples.complete.AutoComplete.CompletionCandidate;
+import com.google.cloud.dataflow.examples.complete.AutoComplete.ComputeTopCompletions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;

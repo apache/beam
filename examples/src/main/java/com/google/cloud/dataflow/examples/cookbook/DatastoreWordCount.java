@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.examples;
+package com.google.cloud.dataflow.examples.cookbook;
 
 import com.google.api.services.datastore.DatastoreV1;
 import com.google.api.services.datastore.DatastoreV1.Entity;
@@ -23,6 +23,7 @@ import com.google.api.services.datastore.DatastoreV1.Property;
 import com.google.api.services.datastore.DatastoreV1.Query;
 import com.google.api.services.datastore.DatastoreV1.Value;
 import com.google.api.services.datastore.client.DatastoreHelper;
+import com.google.cloud.dataflow.examples.WordCount;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.DatastoreIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;

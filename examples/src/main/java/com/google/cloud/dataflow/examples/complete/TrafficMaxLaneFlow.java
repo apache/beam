@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.examples;
+package com.google.cloud.dataflow.examples.complete;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;

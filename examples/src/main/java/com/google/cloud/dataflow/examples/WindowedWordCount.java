@@ -96,7 +96,7 @@ import java.util.List;
  * To run with unbounded input, set:
  * {@code --unbounded=true}.
  * Then, optionally specify the Google Cloud PubSub topic to read from via
- * {@code --pubsubTopic=/topics/PROJECT ID/YOUR-TOPIC-NAME}.
+ * {@code --pubsubTopic=projects/PROJECT ID/topics/YOUR_TOPIC_NAME}
  * If the topic does not exist, the pipeline will create one for you.  It will delete this topic
  * when it terminates.
  * The pipeline will automatically launch an auxiliary batch pipeline to populate the given

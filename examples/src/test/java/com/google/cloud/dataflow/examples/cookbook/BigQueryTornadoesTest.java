@@ -14,11 +14,11 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.examples;
+package com.google.cloud.dataflow.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.dataflow.examples.BigQueryTornadoes.ExtractTornadoesFn;
-import com.google.cloud.dataflow.examples.BigQueryTornadoes.FormatCountsFn;
+import com.google.cloud.dataflow.examples.cookbook.BigQueryTornadoes.ExtractTornadoesFn;
+import com.google.cloud.dataflow.examples.cookbook.BigQueryTornadoes.FormatCountsFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
 import com.google.cloud.dataflow.sdk.values.KV;
 
