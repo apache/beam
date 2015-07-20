@@ -261,6 +261,20 @@ public class View {
     }
 
     /**
+     * Returns whether this transform has a default value.
+     */
+    public boolean hasDefaultValue() {
+      return hasDefault;
+    }
+
+    /**
+     * Returns the default value of this transform, or null if there isn't one.
+     */
+    public T defaultValue() {
+      return defaultValue;
+    }
+
+    /**
      * Default value to return for windows with no value in them.
      */
     public AsSingleton<T> withDefaultValue(T defaultValue) {

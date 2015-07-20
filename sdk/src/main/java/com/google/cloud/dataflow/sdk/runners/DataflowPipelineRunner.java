@@ -790,19 +790,23 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       extends PTransform<PCollection<T>, PCollectionView<T>> {
     private static final long serialVersionUID = 0L;
 
+    private View.AsSingleton<T> transform;
+
     /**
      * Builds an instance of this class from the overridden transform.
      */
     @SuppressWarnings("unused") // used via reflection in apply()
-    public StreamingViewAsSingleton(View.AsSingleton<T> transform) { }
+    public StreamingViewAsSingleton(View.AsSingleton<T> transform) {
+      this.transform = transform;
+    }
 
     @Override
     public PCollectionView<T> apply(PCollection<T> input) {
       PCollectionView<T> view = PCollectionViews.singletonView(
           input.getPipeline(),
           input.getWindowingStrategy(),
-          false, // no default
-          null,  // unused default value
+          transform.hasDefaultValue(),
+          transform.defaultValue(),
           input.getCoder());
       return input
           .apply(ParDo.of(new WrapAsList<T>()))
