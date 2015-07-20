@@ -113,6 +113,7 @@ message WatermarkHold {
   required bytes tag = 1;
   repeated int64 timestamps = 2 [packed=true];
   optional bool reset = 3;
+  optional string state_family = 4;
 }
 
 message WorkItem {
