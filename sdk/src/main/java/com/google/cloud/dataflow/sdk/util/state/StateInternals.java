@@ -19,6 +19,15 @@ package com.google.cloud.dataflow.sdk.util.state;
  * {@code StateInternals} describes the functionality a runner needs to provide for the
  * State API to be supported.
  *
+ * <p> The SDK will only use this after elements have been partitioned by key. For instance, after a
+ * {@code GroupByKey} operation. The runner implementation must ensure that any writes using
+ * {@code StaeIntetrnals} are implicitly scoped to the key being processed and the specific step
+ * accessing state.
+ *
+ * <p>The runner implementation must also ensure that any writes to the associated state objects
+ * are persisted together with the completion status of the processing that produced these
+ * writes.
+ *
  * <p> This is a low-level API intended for use by the Dataflow SDK. It should not be
  * used directly, and is highly likely to change.
  */
