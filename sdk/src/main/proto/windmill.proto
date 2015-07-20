@@ -102,6 +102,7 @@ message GlobalData {
   required GlobalDataId data_id = 1;
   optional bool is_ready = 2;
   optional bytes data = 3;
+  optional string state_family = 4;
 }
 
 message SourceState {
@@ -220,6 +221,7 @@ message Counter {
 message GlobalDataRequest {
   required GlobalDataId data_id = 1;
   optional int64 existence_watermark_deadline = 2 [default=0x7FFFFFFFFFFFFFFF];
+  optional string state_family = 3;
 }
 
 // next id: 15
