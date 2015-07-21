@@ -607,6 +607,31 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.fromArgs(args).create();
   }
 
+  interface SuggestedOptions extends PipelineOptions {
+    String getAbc();
+    void setAbc(String value);
+
+    String getAbcdefg();
+    void setAbcdefg(String value);
+  }
+
+  @Test
+  public void testUsingArgumentWithMisspelledPropertyGivesASuggestion() {
+    String[] args = new String[] {"--ab=value"};
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("missing a property named 'ab'. Did you mean 'abc'?");
+    PipelineOptionsFactory.fromArgs(args).as(SuggestedOptions.class);
+  }
+
+  @Test
+  public void testUsingArgumentWithMisspelledPropertyGivesMultipleSuggestions() {
+    String[] args = new String[] {"--abcde=value"};
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "missing a property named 'abcde'. Did you mean one of [abc, abcdefg]?");
+    PipelineOptionsFactory.fromArgs(args).as(SuggestedOptions.class);
+  }
+
   @Test
   public void testUsingArgumentWithUnknownPropertyIsIgnoredWithoutStrictParsing() {
     String[] args = new String[] {"--unknownProperty=value"};

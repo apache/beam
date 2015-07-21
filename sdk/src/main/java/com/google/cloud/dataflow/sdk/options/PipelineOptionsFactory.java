@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
 import com.google.cloud.dataflow.sdk.runners.worker.DataflowWorkerHarness;
+import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -73,6 +74,8 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeSet;
+
+import javax.annotation.Nullable;
 
 /**
  * Constructs a {@link PipelineOptions} or any derived interface that is composable to any other
@@ -1216,10 +1219,33 @@ public class PipelineOptionsFactory {
       propertyNamesToGetters.put(descriptor.getName(), descriptor.getReadMethod());
     }
     Map<String, Object> convertedOptions = Maps.newHashMap();
-    for (Map.Entry<String, Collection<String>> entry : options.asMap().entrySet()) {
+    for (final Map.Entry<String, Collection<String>> entry : options.asMap().entrySet()) {
       try {
-        Preconditions.checkArgument(propertyNamesToGetters.containsKey(entry.getKey()),
-            "Class %s missing a property named '%s'", klass, entry.getKey());
+        // Search for close matches for missing properties.
+        // Either off by one or off by two character errors.
+        if (!propertyNamesToGetters.containsKey(entry.getKey())) {
+          SortedSet<String> closestMatches = new TreeSet<String>(
+              Sets.filter(propertyNamesToGetters.keySet(), new Predicate<String>() {
+                @Override
+                public boolean apply(@Nullable String input) {
+                  return StringUtils.getLevenshteinDistance(entry.getKey(), input) <= 2;
+                }
+          }));
+          switch (closestMatches.size()) {
+            case 0:
+              throw new IllegalArgumentException(
+                  String.format("Class %s missing a property named '%s'.",
+                      klass, entry.getKey()));
+            case 1:
+              throw new IllegalArgumentException(
+                  String.format("Class %s missing a property named '%s'. Did you mean '%s'?",
+                      klass, entry.getKey(), Iterables.getOnlyElement(closestMatches)));
+            default:
+              throw new IllegalArgumentException(
+                  String.format("Class %s missing a property named '%s'. Did you mean one of %s?",
+                      klass, entry.getKey(), closestMatches));
+          }
+        }
 
         Method method = propertyNamesToGetters.get(entry.getKey());
         // Only allow empty argument values for String, String Array, and Collection.

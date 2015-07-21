@@ -137,4 +137,15 @@ private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
         StringUtils.approximatePTransformName(
             anonymousClassObj.getInnerClassInstance().getClass()));
   }
+
+  @Test
+  public void testLevenshteinDistance() {
+    assertEquals(0, StringUtils.getLevenshteinDistance("", "")); // equal
+    assertEquals(3, StringUtils.getLevenshteinDistance("", "abc")); // first empty
+    assertEquals(3, StringUtils.getLevenshteinDistance("abc", "")); // second empty
+    assertEquals(5, StringUtils.getLevenshteinDistance("abc", "12345")); // completely different
+    assertEquals(1, StringUtils.getLevenshteinDistance("abc", "ac")); // deletion
+    assertEquals(1, StringUtils.getLevenshteinDistance("abc", "ab1c")); // insertion
+    assertEquals(1, StringUtils.getLevenshteinDistance("abc", "a1c")); // modification
+  }
 }
