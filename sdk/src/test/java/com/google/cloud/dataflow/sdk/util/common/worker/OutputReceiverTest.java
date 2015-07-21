@@ -16,16 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
-
-import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.ElementByteSizeObservableCoder;
-import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReceiver;
+import com.google.cloud.dataflow.sdk.util.common.worker.TestOutputReceiver.TestOutputCounter;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
@@ -38,91 +31,43 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class OutputReceiverTest {
-  // We test OutputReceiver where every element is sampled.
-  static class TestOutputReceiver extends OutputReceiver {
-    public TestOutputReceiver() {
-      this(new CounterSet());
-    }
-
-    @SuppressWarnings("rawtypes")
-    public TestOutputReceiver(CounterSet counters) {
-      super("output_name",
-            new ElementByteSizeObservableCoder(StringUtf8Coder.of()),
-            "test-",
-            counters.getAddCounterMutator());
-    }
-
-    @Override
-    protected boolean sampleElement() {
-      return true;
-    }
-  }
 
   @Test
   public void testEmptyOutputReceiver() throws Exception {
-    TestOutputReceiver fanOut = new TestOutputReceiver();
+    OutputReceiver fanOut = new OutputReceiver();
+    TestOutputCounter outputCounter = new TestOutputCounter();
+    fanOut.addOutputCounter(outputCounter);
     fanOut.process("hi");
     fanOut.process("bob");
 
-    Assert.assertEquals("output_name", fanOut.getName());
-    Assert.assertEquals(2, (long) fanOut.getElementCount().getAggregate());
-
-    CounterMean<Long> meanByteCount = fanOut.getMeanByteCount().getMean();
+    CounterMean<Long> meanByteCount = outputCounter.getMeanByteCount().getMean();
     Assert.assertEquals(5, (long) meanByteCount.getAggregate());
     Assert.assertEquals(2, meanByteCount.getCount());
   }
 
   @Test
   public void testMultipleOutputReceiver() throws Exception {
-    TestOutputReceiver fanOut = new TestOutputReceiver();
+    OutputReceiver fanOut = new OutputReceiver();
+    TestOutputCounter outputCounter = new TestOutputCounter();
+    fanOut.addOutputCounter(outputCounter);
 
     CounterSet counters = new CounterSet();
-    String counterPrefix = "test-";
 
-    TestReceiver receiver1 = new TestReceiver(counters, counterPrefix);
+    TestOutputReceiver receiver1 = new TestOutputReceiver(counters);
     fanOut.addOutput(receiver1);
 
-    TestReceiver receiver2 = new TestReceiver(counters, counterPrefix);
+    TestOutputReceiver receiver2 = new TestOutputReceiver(counters);
     fanOut.addOutput(receiver2);
 
     fanOut.process("hi");
     fanOut.process("bob");
 
-    Assert.assertEquals("output_name", fanOut.getName());
-    Assert.assertEquals(2, (long) fanOut.getElementCount().getAggregate());
-
-    CounterMean<Long> meanByteCount = fanOut.getMeanByteCount().getMean();
+    CounterMean<Long> meanByteCount = outputCounter.getMeanByteCount().getMean();
     Assert.assertEquals(5, meanByteCount.getAggregate().longValue());
     Assert.assertEquals(2, meanByteCount.getCount());
     Assert.assertThat(receiver1.outputElems,
         CoreMatchers.<Object>hasItems("hi", "bob"));
     Assert.assertThat(receiver2.outputElems,
         CoreMatchers.<Object>hasItems("hi", "bob"));
-  }
-
-  @Test(expected = ClassCastException.class)
-  public void testIncorrectType() throws Exception {
-    TestOutputReceiver fanOut = new TestOutputReceiver();
-    fanOut.process(5);
-  }
-
-  @Test(expected = CoderException.class)
-  public void testNullArgument() throws Exception {
-    TestOutputReceiver fanOut = new TestOutputReceiver();
-    fanOut.process(null);
-  }
-
-  @Test
-  public void testAddingCountersIntoCounterSet() throws Exception {
-    CounterSet counters = new CounterSet();
-    new TestOutputReceiver(counters);
-
-    Assert.assertEquals(
-        new CounterSet(
-            Counter.longs("output_name-ElementCount", SUM)
-                .resetToValue(0L),
-            Counter.longs("output_name-MeanByteCount", MEAN)
-                .resetMeanToValue(0, 0L)),
-        counters);
   }
 }

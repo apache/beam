@@ -26,6 +26,8 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
+import static com.google.cloud.dataflow.sdk.util.common.worker.TestOutputReceiver.TestOutputCounter.getMeanByteCounterName;
+import static com.google.cloud.dataflow.sdk.util.common.worker.TestOutputReceiver.TestOutputCounter.getObjectCounterName;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -41,7 +43,6 @@ import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReader;
-import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReceiver;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -91,7 +92,7 @@ public class ReadOperationTest {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    TestReceiver receiver = new TestReceiver(counterSet, counterPrefix);
+    TestOutputReceiver receiver = new TestOutputReceiver(counterSet);
 
     ReadOperation readOperation = new ReadOperation(
         reader, receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
@@ -102,8 +103,8 @@ public class ReadOperationTest {
     assertThat(receiver.outputElems, containsInAnyOrder((Object) "hi", "there", "", "bob"));
 
     assertCounterKindAndContents(counterSet, "ReadOperation-ByteCount", SUM, 2L + 5 + 0 + 3);
-    assertCounterKindAndContents(counterSet, "test_receiver_out-ElementCount", SUM, 4L);
-    assertCounterMean(counterSet, "test_receiver_out-MeanByteCount", 4, 10L);
+    assertCounterKindAndContents(counterSet, getObjectCounterName("test_receiver_out"), SUM, 4L);
+    assertCounterMean(counterSet, getMeanByteCounterName("test_receiver_out"), 4, 10L);
     assertCounterKind(counterSet, "test-ReadOperation-start-msecs", SUM);
     assertCounterKind(counterSet, "test-ReadOperation-process-msecs", SUM);
     assertCounterKind(counterSet, "test-ReadOperation-finish-msecs", SUM);
@@ -115,7 +116,7 @@ public class ReadOperationTest {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     final ReadOperation readOperation = new ReadOperation(new MockReader(iterator),
-        new OutputReceiver("out", "test-", counterSet.getAddCounterMutator()), counterPrefix,
+        new TestOutputReceiver("out", null, counterSet), counterPrefix,
         counterSet.getAddCounterMutator(),
         new StateSampler(counterPrefix, counterSet.getAddCounterMutator()));
     // Update progress not continuously, but so that it's never more than 1 record stale.
@@ -137,7 +138,7 @@ public class ReadOperationTest {
   public void testDynamicSplit() throws Exception {
     MockReaderIterator iterator = new MockReaderIterator(0, 10);
     CounterSet counterSet = new CounterSet();
-    MockOutputReceiver receiver = new MockOutputReceiver(counterSet.getAddCounterMutator());
+    MockOutputReceiver receiver = new MockOutputReceiver();
     ReadOperation readOperation = new ReadOperation(new MockReader(iterator), receiver, "test-",
         counterSet.getAddCounterMutator(),
         new StateSampler("test-", counterSet.getAddCounterMutator()));
@@ -191,7 +192,7 @@ public class ReadOperationTest {
   public void testDynamicSplitDoesNotBlock() throws Exception {
     MockReaderIterator iterator = new MockReaderIterator(0, 10);
     CounterSet counterSet = new CounterSet();
-    MockOutputReceiver receiver = new MockOutputReceiver(counterSet.getAddCounterMutator());
+    MockOutputReceiver receiver = new MockOutputReceiver();
     ReadOperation readOperation = new ReadOperation(new MockReader(iterator), receiver, "test-",
         counterSet.getAddCounterMutator(),
         new StateSampler("test-", counterSet.getAddCounterMutator()));
@@ -295,12 +296,11 @@ public class ReadOperationTest {
     }
   }
 
+  /**
+   * A mock {@link OutputReceiver} that blocks the read loop in {@link ReadOperation}.
+   */
   private static class MockOutputReceiver extends OutputReceiver {
     private Exchanger<Object> exchanger = new Exchanger<>();
-
-    MockOutputReceiver(CounterSet.AddCounterMutator mutator) {
-      super("out", "test-", mutator);
-    }
 
     @Override
     public void process(Object elem) throws Exception {

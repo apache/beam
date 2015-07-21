@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.util.common.worker;
 
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
+import static com.google.cloud.dataflow.sdk.util.common.worker.TestOutputReceiver.TestOutputCounter.getMeanByteCounterName;
+import static com.google.cloud.dataflow.sdk.util.common.worker.TestOutputReceiver.TestOutputCounter.getObjectCounterName;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
@@ -38,7 +40,6 @@ import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.Windo
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReceiver;
 import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.BufferingGroupingTable;
 import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.Combiner;
 import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.CombiningGroupingTable;
@@ -73,12 +74,12 @@ public class PartialGroupByKeyOperationTest {
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(
         counterPrefix, counterSet.getAddCounterMutator());
-    TestReceiver receiver =
-        new TestReceiver(
+    TestOutputReceiver receiver =
+        new TestOutputReceiver(
             new ElementByteSizeObservableCoder(
                 WindowedValue.getValueOnlyCoder(
                     KvCoder.of(keyCoder, IterableCoder.of(valueCoder)))),
-            counterSet, counterPrefix);
+            counterSet);
 
     PartialGroupByKeyOperation pgbkOperation =
         new PartialGroupByKeyOperation(
@@ -121,9 +122,8 @@ public class PartialGroupByKeyOperationTest {
             Counter.longs("test-PartialGroupByKeyOperation-finish-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
                     "test-PartialGroupByKeyOperation-finish-msecs")).getAggregate()),
-            Counter.longs("test_receiver_out-ElementCount", SUM)
-                .resetToValue(3L),
-            Counter.longs("test_receiver_out-MeanByteCount", MEAN)
+            Counter.longs(getObjectCounterName("test_receiver_out"), SUM).resetToValue(3L),
+            Counter.longs(getMeanByteCounterName("test_receiver_out"), MEAN)
                 .resetMeanToValue(3, 49L)),
         counterSet);
   }
@@ -137,10 +137,10 @@ public class PartialGroupByKeyOperationTest {
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(
         counterPrefix, counterSet.getAddCounterMutator());
-    TestReceiver receiver =
-        new TestReceiver(new ElementByteSizeObservableCoder(
-                             WindowedValue.getValueOnlyCoder(KvCoder.of(keyCoder, valueCoder))),
-            counterSet, counterPrefix);
+    TestOutputReceiver receiver = new TestOutputReceiver(
+        new ElementByteSizeObservableCoder(
+            WindowedValue.getValueOnlyCoder(KvCoder.of(keyCoder, valueCoder))),
+        counterSet);
 
     Combiner<WindowedValue<String>, Integer, Integer, Integer> combineFn =
         new Combiner<WindowedValue<String>, Integer, Integer, Integer>() {
@@ -204,9 +204,8 @@ public class PartialGroupByKeyOperationTest {
             Counter.longs("test-PartialGroupByKeyOperation-finish-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
                     "test-PartialGroupByKeyOperation-finish-msecs")).getAggregate()),
-            Counter.longs("test_receiver_out-ElementCount", SUM)
-                .resetToValue(3L),
-            Counter.longs("test_receiver_out-MeanByteCount", MEAN)
+            Counter.longs(getObjectCounterName("test_receiver_out"), SUM).resetToValue(3L),
+            Counter.longs(getMeanByteCounterName("test_receiver_out"), MEAN)
                 .resetMeanToValue(3, 25L)),
         counterSet);
   }
@@ -269,7 +268,7 @@ public class PartialGroupByKeyOperationTest {
         new BufferingGroupingTable<>(
             1000, new IdentityGroupingKeyCreator(), new KvPairInfo(),
             new StringPowerSizeEstimator(), new StringPowerSizeEstimator());
-    TestReceiver receiver = new TestReceiver(
+    TestOutputReceiver receiver = new TestOutputReceiver(
         KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
 
     table.put("A", "a", receiver);
@@ -323,7 +322,7 @@ public class PartialGroupByKeyOperationTest {
             summingCombineFn,
             new StringPowerSizeEstimator(), new IdentitySizeEstimator());
 
-    TestReceiver receiver = new TestReceiver(
+    TestOutputReceiver receiver = new TestOutputReceiver(
         KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()));
 
     table.put("A", 1, receiver);

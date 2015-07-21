@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.util.common.worker;
 
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
+import static com.google.cloud.dataflow.sdk.util.common.worker.TestOutputReceiver.TestOutputCounter.getMeanByteCounterName;
+import static com.google.cloud.dataflow.sdk.util.common.worker.TestOutputReceiver.TestOutputCounter.getObjectCounterName;
 
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -68,8 +70,7 @@ public class ParDoOperationTest {
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(
         counterPrefix, counterSet.getAddCounterMutator());
-    ExecutorTestUtils.TestReceiver receiver =
-        new ExecutorTestUtils.TestReceiver(counterSet);
+    TestOutputReceiver receiver = new TestOutputReceiver(counterSet);
 
     ParDoOperation parDoOperation =
         new ParDoOperation(
@@ -97,17 +98,16 @@ public class ParDoOperationTest {
     Assert.assertEquals(
         new CounterSet(
             Counter.longs("test-ParDoOperation-start-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-ParDoOperation-start-msecs")).getAggregate()),
+                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                    "test-ParDoOperation-start-msecs")).getAggregate()),
             Counter.longs("test-ParDoOperation-process-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-ParDoOperation-process-msecs")).getAggregate()),
+                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                    "test-ParDoOperation-process-msecs")).getAggregate()),
             Counter.longs("test-ParDoOperation-finish-msecs", SUM)
-              .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
-                  "test-ParDoOperation-finish-msecs")).getAggregate()),
-            Counter.longs("test_receiver_out-ElementCount", SUM)
-                .resetToValue(6L),
-            Counter.longs("test_receiver_out-MeanByteCount", MEAN)
+                .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
+                    "test-ParDoOperation-finish-msecs")).getAggregate()),
+            Counter.longs(getObjectCounterName("test_receiver_out"), SUM).resetToValue(6L),
+            Counter.longs(getMeanByteCounterName("test_receiver_out"), MEAN)
                 .resetMeanToValue(6, 33L)),
         counterSet);
   }

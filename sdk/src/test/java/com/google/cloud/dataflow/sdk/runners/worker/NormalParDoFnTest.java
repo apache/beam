@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.DataflowOutputCounter.getElementCounterName;
+import static com.google.cloud.dataflow.sdk.runners.worker.DataflowOutputCounter.getObjectCounterName;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -340,12 +342,12 @@ public class NormalParDoFnTest {
 
     assertEquals(
         new CounterSet(
-            Counter.longs("implicit-undecl1-ElementCount", SUM)
-            .resetToValue(3L),
-            Counter.longs("implicit-undecl2-ElementCount", SUM)
-            .resetToValue(3L),
-            Counter.longs("implicit-undecl3-ElementCount", SUM)
-            .resetToValue(3L)),
+            Counter.longs(getElementCounterName("implicit-undecl1"), SUM).resetToValue(3L),
+            Counter.longs(getObjectCounterName("implicit-undecl1"), SUM).resetToValue(3L),
+            Counter.longs(getElementCounterName("implicit-undecl2"), SUM).resetToValue(3L),
+            Counter.longs(getObjectCounterName("implicit-undecl2"), SUM).resetToValue(3L),
+            Counter.longs(getElementCounterName("implicit-undecl3"), SUM).resetToValue(3L),
+            Counter.longs(getObjectCounterName("implicit-undecl3"), SUM).resetToValue(3L)),
         counters);
   }
 }

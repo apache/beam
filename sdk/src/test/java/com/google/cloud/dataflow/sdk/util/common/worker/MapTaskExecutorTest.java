@@ -31,7 +31,6 @@ import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet.AddCounterMutator;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReader;
-import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReceiver;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
@@ -220,7 +219,7 @@ public class MapTaskExecutorTest {
 
     executor.close();
 
-    TestReceiver receiver = new TestReceiver(counterSet, counterPrefix);
+    TestOutputReceiver receiver = new TestOutputReceiver(counterSet);
     operations = Arrays.asList(new Operation[] {new TestReadOperation(
         receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler)});
     executor = new MapTaskExecutor(operations, counterSet, stateSampler);
@@ -233,7 +232,7 @@ public class MapTaskExecutorTest {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    TestReceiver receiver = new TestReceiver(counterSet, counterPrefix);
+    TestOutputReceiver receiver = new TestOutputReceiver(counterSet);
     TestReadOperation operation = new TestReadOperation(
         receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
     MapTaskExecutor executor =

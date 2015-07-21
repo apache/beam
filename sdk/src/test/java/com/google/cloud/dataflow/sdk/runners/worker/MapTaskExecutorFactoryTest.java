@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.DataflowOutputCounter.getElementCounterName;
+import static com.google.cloud.dataflow.sdk.runners.worker.DataflowOutputCounter.getMeanByteCounterName;
+import static com.google.cloud.dataflow.sdk.runners.worker.DataflowOutputCounter.getObjectCounterName;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.makeCloudEncoding;
 import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
@@ -114,24 +117,31 @@ public class MapTaskExecutorFactoryTest {
         (Counter<Long>) counterSet.getExistingCounter("test-other-msecs");
 
     assertEquals(
-        new CounterSet(Counter.longs("read_output_name-ElementCount", SUM).resetToValue(0L),
-            Counter.longs("read_output_name-MeanByteCount", MEAN).resetMeanToValue(0, 0L),
+        new CounterSet(
+            Counter.longs(getElementCounterName("read_output_name"), SUM).resetToValue(0L),
+            Counter.longs(getObjectCounterName("read_output_name"), SUM).resetToValue(0L),
+            Counter.longs(getMeanByteCounterName("read_output_name"), MEAN).resetMeanToValue(0, 0L),
             Counter.longs("Read-ByteCount", SUM).resetToValue(0L),
             Counter.longs("test-Read-start-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Read-process-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Read-finish-msecs", SUM).resetToValue(0L),
-            Counter.longs("DoFn1_output-ElementCount", SUM).resetToValue(0L),
-            Counter.longs("DoFn1_output-MeanByteCount", MEAN).resetMeanToValue(0, 0L),
+            Counter.longs(getElementCounterName("DoFn1_output"), SUM).resetToValue(0L),
+            Counter.longs(getObjectCounterName("DoFn1_output"), SUM).resetToValue(0L),
+            Counter.longs(getMeanByteCounterName("DoFn1_output"), MEAN).resetMeanToValue(0, 0L),
             Counter.longs("test-DoFn1-start-msecs", SUM).resetToValue(0L),
             Counter.longs("test-DoFn1-process-msecs", SUM).resetToValue(0L),
             Counter.longs("test-DoFn1-finish-msecs", SUM).resetToValue(0L),
-            Counter.longs("DoFnWithContext_output-ElementCount", SUM).resetToValue(0L),
-            Counter.longs("DoFnWithContext_output-MeanByteCount", MEAN).resetMeanToValue(0, 0L),
+            Counter.longs(getElementCounterName("DoFnWithContext_output"), SUM).resetToValue(0L),
+            Counter.longs(getObjectCounterName("DoFnWithContext_output"), SUM).resetToValue(0L),
+            Counter.longs(
+                getMeanByteCounterName("DoFnWithContext_output"), MEAN).resetMeanToValue(0, 0L),
             Counter.longs("test-DoFnWithContext-start-msecs", SUM).resetToValue(0L),
             Counter.longs("test-DoFnWithContext-process-msecs", SUM).resetToValue(0L),
             Counter.longs("test-DoFnWithContext-finish-msecs", SUM).resetToValue(0L),
-            Counter.longs("flatten_output_name-ElementCount", SUM).resetToValue(0L),
-            Counter.longs("flatten_output_name-MeanByteCount", MEAN).resetMeanToValue(0, 0L),
+            Counter.longs(getElementCounterName("flatten_output_name"), SUM).resetToValue(0L),
+            Counter.longs(getObjectCounterName("flatten_output_name"), SUM).resetToValue(0L),
+            Counter.longs(
+                getMeanByteCounterName("flatten_output_name"), MEAN).resetMeanToValue(0, 0L),
             Counter.longs("test-Flatten-start-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Flatten-process-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Flatten-finish-msecs", SUM).resetToValue(0L),
@@ -208,11 +218,12 @@ public class MapTaskExecutorFactoryTest {
     assertEquals(
         new CounterSet(
             Counter.longs("test-Read-start-msecs", SUM).resetToValue(0L),
-            Counter.longs("read_output_name-MeanByteCount", MEAN).resetMeanToValue(0, 0L),
             Counter.longs("Read-ByteCount", SUM).resetToValue(0L),
             Counter.longs("test-Read-finish-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Read-process-msecs", SUM),
-            Counter.longs("read_output_name-ElementCount", SUM).resetToValue(0L)),
+            Counter.longs(getMeanByteCounterName("read_output_name"), MEAN).resetMeanToValue(0, 0L),
+            Counter.longs(getElementCounterName("read_output_name"), SUM).resetToValue(0L),
+            Counter.longs(getObjectCounterName("read_output_name"), SUM).resetToValue(0L)),
         counterSet);
   }
 

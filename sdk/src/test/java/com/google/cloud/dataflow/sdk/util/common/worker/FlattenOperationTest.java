@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.util.common.worker;
 
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
+import static com.google.cloud.dataflow.sdk.util.common.worker.TestOutputReceiver.TestOutputCounter.getMeanByteCounterName;
+import static com.google.cloud.dataflow.sdk.util.common.worker.TestOutputReceiver.TestOutputCounter.getObjectCounterName;
 
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -40,8 +42,7 @@ public class FlattenOperationTest {
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(
         counterPrefix, counterSet.getAddCounterMutator());
-    ExecutorTestUtils.TestReceiver receiver =
-        new ExecutorTestUtils.TestReceiver(counterSet, counterPrefix);
+    TestOutputReceiver receiver = new TestOutputReceiver(counterSet);
 
     FlattenOperation flattenOperation =
         new FlattenOperation(receiver,
@@ -71,8 +72,9 @@ public class FlattenOperationTest {
             Counter.longs("test-FlattenOperation-finish-msecs", SUM)
                 .resetToValue(((Counter<Long>) counterSet.getExistingCounter(
                                    "test-FlattenOperation-finish-msecs")).getAggregate()),
-            Counter.longs("test_receiver_out-ElementCount", SUM).resetToValue(4L),
-            Counter.longs("test_receiver_out-MeanByteCount", MEAN).resetMeanToValue(4, 10L)),
+            Counter.longs(getObjectCounterName("test_receiver_out"), SUM).resetToValue(4L),
+            Counter.longs(getMeanByteCounterName("test_receiver_out"), MEAN)
+                .resetMeanToValue(4, 10L)),
         counterSet);
   }
 }

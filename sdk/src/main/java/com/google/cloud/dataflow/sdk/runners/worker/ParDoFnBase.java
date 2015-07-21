@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.StreamingSideInputDoFnRunner;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.ElementCounter;
 import com.google.cloud.dataflow.sdk.util.common.worker.OutputReceiver;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.Receiver;
@@ -138,9 +139,9 @@ public abstract class ParDoFnBase implements ParDoFn {
           // make it available to the OutputReceiver class in case
           // it wants to use it in naming output counters.  (It
           // doesn't today.)
-          String counterPrefix = "";
-          receiver = new OutputReceiver(
-              outputName, counterPrefix, addCounterMutator);
+          receiver = new OutputReceiver();
+          ElementCounter outputCounter = new DataflowOutputCounter(outputName, addCounterMutator);
+          receiver.addOutputCounter(outputCounter);
           undeclaredOutputs.put(tag, receiver);
         }
         return receiver;

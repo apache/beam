@@ -43,6 +43,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObservable;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import com.google.cloud.dataflow.sdk.util.common.worker.ElementCounter;
 import com.google.cloud.dataflow.sdk.util.common.worker.FlattenOperation;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
 import com.google.cloud.dataflow.sdk.util.common.worker.Operation;
@@ -386,10 +387,15 @@ public class MapTaskExecutorFactory {
     OutputReceiver[] receivers = new OutputReceiver[numOutputs];
     for (int i = 0; i < numOutputs; i++) {
       InstructionOutput cloudOutput = instruction.getOutputs().get(i);
-      receivers[i] = new OutputReceiver(cloudOutput.getName(),
-          new ElementByteSizeObservableCoder(Serializer.deserialize(
-              cloudOutput.getCodec(), Coder.class)),
-          counterPrefix, addCounterMutator);
+      receivers[i] = new OutputReceiver();
+
+      @SuppressWarnings("unchecked")
+      ElementCounter outputCounter = new DataflowOutputCounter(
+          cloudOutput.getName(),
+          new ElementByteSizeObservableCoder<>(
+              Serializer.deserialize(cloudOutput.getCodec(), Coder.class)),
+          addCounterMutator);
+      receivers[i].addOutputCounter(outputCounter);
     }
     return receivers;
   }

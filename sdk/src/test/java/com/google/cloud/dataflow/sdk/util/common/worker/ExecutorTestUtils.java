@@ -16,11 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.ElementByteSizeObservableCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObservable;
 
 import org.junit.Assert;
 
@@ -57,73 +55,21 @@ public class ExecutorTestUtils {
     TestOperation(int numOutputs, String counterPrefix,
         CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) {
       super("TestOperation",
-          createOutputReceivers(numOutputs, counterPrefix, addCounterMutator, stateSampler),
+          createOutputReceivers(numOutputs, counterPrefix, addCounterMutator),
           counterPrefix, addCounterMutator, stateSampler);
     }
 
     private static OutputReceiver[] createOutputReceivers(int numOutputs, String counterPrefix,
-        CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) {
+        CounterSet.AddCounterMutator addCounterMutator) {
       OutputReceiver[] receivers = new OutputReceiver[numOutputs];
       for (int i = 0; i < numOutputs; i++) {
-        receivers[i] =
-            new OutputReceiver("out_" + i, new ElementByteSizeObservableCoder(StringUtf8Coder.of()),
-                counterPrefix, addCounterMutator);
+        receivers[i] = new TestOutputReceiver("out_" + i,
+            new ElementByteSizeObservableCoder(StringUtf8Coder.of()), addCounterMutator);
       }
       return receivers;
     }
   }
 
-  /** An OutputReceiver that allows the output elements to be retrieved. */
-  public static class TestReceiver extends OutputReceiver {
-    List<Object> outputElems = new ArrayList<>();
-
-    public TestReceiver(CounterSet counterSet) {
-      this("test_receiver_out", counterSet);
-    }
-
-    public TestReceiver(Coder<?> coder) {
-      this(coder, new CounterSet());
-    }
-
-    public TestReceiver(Coder<?> coder, CounterSet counterSet) {
-      this("test_receiver_out", new ElementByteSizeObservableCoder(coder), counterSet, "test-");
-    }
-
-    public TestReceiver(CounterSet counterSet, String counterPrefix) {
-      this("test_receiver_out", counterSet, counterPrefix);
-    }
-
-    public TestReceiver(String outputName, CounterSet counterSet) {
-      this(outputName, counterSet, "test-");
-    }
-
-    public TestReceiver(String outputName, CounterSet counterSet, String counterPrefix) {
-      this(outputName, new ElementByteSizeObservableCoder(StringUtf8Coder.of()), counterSet,
-          counterPrefix);
-    }
-
-    public TestReceiver(ElementByteSizeObservable elementByteSizeObservable, CounterSet counterSet,
-        String counterPrefix) {
-      this("test_receiver_out", elementByteSizeObservable, counterSet, counterPrefix);
-    }
-
-    public TestReceiver(String outputName, ElementByteSizeObservable elementByteSizeObservable,
-        CounterSet counterSet, String counterPrefix) {
-      super(
-          outputName, elementByteSizeObservable, counterPrefix, counterSet.getAddCounterMutator());
-    }
-
-    @Override
-    public void process(Object elem) throws Exception {
-      super.process(elem);
-      outputElems.add(elem);
-    }
-
-    @Override
-    protected boolean sampleElement() {
-      return true;
-    }
-  }
 
   /** A {@code Reader<String>} that yields a specified set of values. */
   public static class TestReader extends Reader<String> {
