@@ -76,11 +76,6 @@ public class BatchModeExecutionContext extends ExecutionContext {
     return key;
   }
 
-  @Override
-  public TimerManager getTimerManager() {
-    return null;
-  }
-
   /**
    * {@link ExecutionContext.StepContext} used in batch mode.
    */
@@ -95,6 +90,11 @@ public class BatchModeExecutionContext extends ExecutionContext {
     @Override
     public StateInternals stateInternals() {
       return stateInternals;
+    }
+
+    @Override
+    public TimerInternals timerInternals() {
+      throw new UnsupportedOperationException("Batch mode cannot return timerInternals");
     }
   }
 }

@@ -107,5 +107,10 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
     public StateInternals stateInternals() {
       return Preconditions.checkNotNull(currentStateInternals);
     }
+
+    @Override
+    public TimerInternals timerInternals() {
+      throw new UnsupportedOperationException("Direct mode cannot return timerInternals");
+    }
   }
 }

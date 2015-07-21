@@ -18,12 +18,11 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import org.joda.time.Instant;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -43,9 +42,8 @@ public class TimerOrElement<ElemT> {
    *
    * @param <ElemT> the element type
    */
-  public static <ElemT> TimerOrElement<ElemT> timer(
-      String tag, Instant timestamp, Object key) {
-    return new TimerOrElement<>(tag, timestamp, key);
+  public static <ElemT> TimerOrElement<ElemT> timer(Object key, TimerData timerData) {
+    return new TimerOrElement<>(key, timerData);
   }
 
   /**
@@ -61,34 +59,24 @@ public class TimerOrElement<ElemT> {
    * Returns whether this is a timer or an element.
    */
   public boolean isTimer() {
-    return isTimer;
+    return timer != null;
   }
 
   /**
-   * If this is a timer, returns its tag, otherwise throws an exception.
+   * If this is a timer, returns the associated {@link TimerData}. Otherwise, throws an exception.
    */
-  public String tag() {
-    if (!isTimer) {
-      throw new IllegalStateException("tag() called, but this is an element");
+  public TimerData getTimer() {
+    if (!isTimer()) {
+      throw new IllegalStateException("getTimer() called, but this is an element");
     }
-    return tag;
-  }
-
-  /**
-   * If this is a timer, returns its timestamp, otherwise throws an exception.
-   */
-  public Instant timestamp() {
-    if (!isTimer) {
-      throw new IllegalStateException("timestamp() called, but this is an element");
-    }
-    return timestamp;
+    return timer;
   }
 
   /**
    * If this is a timer, returns its key, otherwise throws an exception.
    */
   public Object key() {
-    if (!isTimer) {
+    if (!isTimer()) {
       throw new IllegalStateException("key() called, but this is an element");
     }
     return key;
@@ -98,7 +86,7 @@ public class TimerOrElement<ElemT> {
    * If this is an element, returns it, otherwise throws an exception.
    */
   public ElemT element() {
-    if (isTimer) {
+    if (isTimer()) {
       throw new IllegalStateException("element() called, but this is a timer");
     }
     return element;
@@ -177,21 +165,19 @@ public class TimerOrElement<ElemT> {
 
   //////////////////////////////////////////////////////////////////////////////
 
-  private boolean isTimer;
-  private String tag;
-  private Instant timestamp;
-  private Object key;
-  private ElemT element;
+  private final Object key;
+  private final TimerData timer;
+  private final ElemT element;
 
-  TimerOrElement(String tag, Instant timestamp, Object key) {
-    this.isTimer = true;
-    this.tag = tag;
-    this.timestamp = timestamp;
+  TimerOrElement(Object key, TimerData timer) {
     this.key = key;
+    this.timer = timer;
+    this.element = null;
   }
 
   TimerOrElement(ElemT element) {
-    this.isTimer = false;
+    this.key = null;
+    this.timer = null;
     this.element = element;
   }
 }

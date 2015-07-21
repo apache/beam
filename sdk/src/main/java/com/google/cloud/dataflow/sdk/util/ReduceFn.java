@@ -17,6 +17,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.util.state.MergeableState;
 import com.google.cloud.dataflow.sdk.util.state.State;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
@@ -57,7 +58,6 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
 
   /** Interface for interacting with persistent state within {@link #onMerge}. */
   public interface MergingStateContext extends StateContext {
-
     /**
      * Access a merged view of the storage for the given {@code address}
      * in all of the windows being merged.
@@ -68,6 +68,34 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     /** Access a map from windows being merged to the associated {@code StateT}. */
     public abstract <StateT extends State> Map<BoundedWindow, StateT> accessInEachMergingWindow(
         StateTag<StateT> address);
+  }
+
+  /**
+   * Interface for interacting with time.
+   */
+  public interface Timers {
+    /**
+     * Sets a timer to fire when the watermark or processing time is beyond the given timestamp.
+     * Timers are not guaranteed to fire immediately, but will be delivered at some time afterwards.
+     *
+     * <p>As with {@link StateContext}, timers are implicitly scoped to the current window. All
+     * timer firings for a window will be received, but the implementation should choose to ignore
+     * those that are not applicable.
+     *
+     * @param timestamp the time at which the trigger’s {@link Trigger#onTimer} callback should
+     *        execute
+     * @param timeDomain the domain that the {@code timestamp} applies to
+     */
+    public abstract void setTimer(Instant timestamp, TimeDomain timeDomain);
+
+    /**
+     * Removes the timer set in this trigger context for the given {@code window}, {@code timestmap}
+     * and {@code timeDomain}.
+     */
+    public abstract void deleteTimer(Instant timestamp, TimeDomain timeDomain);
+
+    /** Returns the current processing time. */
+    public abstract Instant currentProcessingTime();
   }
 
   /** Information accessible to all the processing methods in this {@code ReduceFn}. */
@@ -81,10 +109,11 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     /** Access the current {@link WindowingStrategy}. */
     public abstract WindowingStrategy<?, W> windowingStrategy();
 
-    /**
-     * Return the interface for accessing state.
-     */
+    /** Return the interface for accessing state. */
     public abstract StateContext state();
+
+    /** Return the interface for accessing timers. */
+    public abstract Timers timers();
   }
 
   /** Information accessible within {@link #processValue}. */

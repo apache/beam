@@ -79,10 +79,6 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
 
   @Override
   public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    if (c.isDestination()) {
-      throw new RuntimeException("Repeatedly shouldn't receive timers.");
-    }
-
     TriggerResult result = c.trigger().subTrigger(REPEATED).invokeTimer(c);
     if (result.isFinish()) {
       c.forTrigger(c.trigger().subTrigger(REPEATED)).trigger().resetTree();

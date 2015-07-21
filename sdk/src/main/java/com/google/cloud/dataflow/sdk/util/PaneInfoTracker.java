@@ -33,10 +33,10 @@ import org.joda.time.Instant;
  */
 public class PaneInfoTracker {
 
-  private TimerManager timerManager;
+  private TimerInternals timerInternals;
 
-  public PaneInfoTracker(TimerManager timerManager) {
-    this.timerManager = timerManager;
+  public PaneInfoTracker(TimerInternals timerInternals) {
+    this.timerInternals = timerInternals;
   }
 
   @VisibleForTesting static final StateTag<ValueState<PaneInfo>> PANE_INFO_TAG =
@@ -69,7 +69,7 @@ public class PaneInfoTracker {
   }
 
   private <W> PaneInfo describePane(Instant endOfWindow, PaneInfo previousPane, boolean isFinal) {
-    boolean isSpeculative = endOfWindow.isAfter(timerManager.currentWatermarkTime());
+    boolean isSpeculative = endOfWindow.isAfter(timerInternals.currentWatermarkTime());
     boolean isFirst = (previousPane == null);
 
     Timing timing = Timing.EARLY;

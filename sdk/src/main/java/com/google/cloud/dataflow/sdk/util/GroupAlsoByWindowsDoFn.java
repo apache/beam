@@ -103,10 +103,13 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
         KV<K, OutputT>>.ProcessContext c)
         throws Exception {
       K key = c.element().getKey();
-      BatchTimerManager timerManager = new BatchTimerManager(Instant.now());
+      // Used with Batch, we know that all the data is available for this key. We can't use the
+      // timer manager from the context because it doesn't exist. So we create one and emulate the
+      // watermark, knowing that we have all data and it is in timestamp order.
+      BatchTimerInternals timerInternals = new BatchTimerInternals(Instant.now());
 
       ReduceFnRunner<K, InputT, OutputT, W> runner = new ReduceFnRunner<>(
-          key, strategy, timerManager, c.windowingInternals(),
+          key, strategy, timerInternals, c.windowingInternals(),
           droppedDueToClosedWindow, droppedDueToLateness, reduceFn);
 
       for (WindowedValue<InputT> e : c.element().getValue()) {
@@ -115,20 +118,20 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
 
         // Then, since elements are sorted by their timestamp, advance the watermark and fire any
         // timers that need to be fired.
-        timerManager.advanceWatermark(runner, e.getTimestamp());
+        timerInternals.advanceWatermark(runner, e.getTimestamp());
 
         // Also, fire any processing timers that need to fire
-        timerManager.advanceProcessingTime(runner, Instant.now());
+        timerInternals.advanceProcessingTime(runner, Instant.now());
       }
 
       // Merge the active windows for the current key, to fire any data-based triggers.
       runner.merge();
 
       // Finish any pending windows by advancing the watermark to infinity.
-      timerManager.advanceWatermark(runner, new Instant(Long.MAX_VALUE));
+      timerInternals.advanceWatermark(runner, new Instant(Long.MAX_VALUE));
 
       // Finally, advance the processing time to infinity to fire any timers.
-      timerManager.advanceProcessingTime(runner, new Instant(Long.MAX_VALUE));
+      timerInternals.advanceProcessingTime(runner, new Instant(Long.MAX_VALUE));
 
       runner.persist();
     }

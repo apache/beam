@@ -36,7 +36,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
 import org.hamcrest.Matchers;
@@ -322,10 +321,10 @@ public class TriggerExecutorTest {
     injectElement(tester, 10, TriggerResult.CONTINUE); // [10-20)
 
     // Create a fake timer to fire
-    tester.setTimer(
-        new IntervalWindow(new Instant(1), new Instant(20)), new Instant(20),
-        TimeDomain.EVENT_TIME, tester.getTrigger());
     tester.advanceWatermark(new Instant(100));
+    tester.fireTimer(
+        new IntervalWindow(new Instant(1), new Instant(20)), new Instant(20),
+        TimeDomain.EVENT_TIME);
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 10), 1, 1, 20)));
   }

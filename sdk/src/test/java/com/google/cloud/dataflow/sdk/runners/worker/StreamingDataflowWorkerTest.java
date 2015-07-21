@@ -597,61 +597,6 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
-  public void testTimers() throws Exception {
-    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
-
-    long timestamp = 3000L;
-    String key = keyStringForIndex(0);
-
-    List<ParallelInstruction> instructions = Arrays.asList(
-        makeWindowingSourceInstruction(kvCoder),
-        makeDoFnInstruction(new TestTimerFn(key), 0, kvCoder),
-        makeSinkInstruction(kvCoder, 1));
-
-    FakeWindmillServer server = new FakeWindmillServer();
-
-    server.addWorkToOffer(buildTimerInput(
-        "work {" +
-        "  computation_id: \"" + DEFAULT_COMPUTATION_ID + "\"" +
-        "  work {" +
-        "    key: \"" + key + "\"" +
-        "    work_token: 0" +
-        "    timers {" +
-        "      timers {" +
-        "        tag: \"tag\"" +
-        "        timestamp: " + timestamp +
-        "      }" +
-        "    }" +
-        "  }" +
-        "}"));
-
-    StreamingDataflowWorker worker = new StreamingDataflowWorker(
-        Arrays.asList(defaultMapTask(instructions)), server, createTestingPipelineOptions());
-    worker.start();
-
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
-
-    assertThat(
-        stripCounters(result.get(0L)),
-        equalTo(setMessagesMetadata(PaneInfo.DEFAULT, emptyWindowsBytes(),
-            parseCommitRequest(
-                "key: \"" + keyStringForIndex(0) + "\" " +
-                "work_token: 0 " +
-                "output_messages {" +
-                "  destination_stream_id: \"" + DEFAULT_DESTINATION_STREAM_ID + "\"" +
-                "  bundles {" +
-                "    key: \"" + keyStringForIndex(0) + "\"" +
-                "    messages {" +
-                "      timestamp: " + timestamp +
-                "      data: \"" + TimeUnit.MILLISECONDS.toSeconds(timestamp) + "\"" +
-                "    }" +
-                "    messages_ids: \"\"" +
-                "  }" +
-                "} "))
-            .build()));
-  }
-
-  @Test
   public void testAssignWindows() throws Exception {
     Duration gapDuration = Duration.standardSeconds(1);
     CloudObject spec = CloudObject.forClassName("AssignWindowsDoFn");
@@ -764,29 +709,24 @@ public class StreamingDataflowWorkerTest {
 
     // These tags and data are opaque strings and this is a change detector test.
     String window = "/gAAAAAAAA-joBw/";
-    ByteString timer1Tag = ByteString.copyFromUtf8(window + "+");   // GC timer just has window
-    ByteString timer2Tag = ByteString.copyFromUtf8(window + "0/+"); // Trigger has index as well
+    ByteString timerTag = ByteString.copyFromUtf8(window + "+0:999"); // GC timer just has window
     ByteString bufferTag = ByteString.copyFromUtf8("MergeWindows" + window + "+__buffer");
+    ByteString finishedTag = ByteString.copyFromUtf8("MergeWindows" + window + "+__finished_set");
     ByteString paneInfoTag = ByteString.copyFromUtf8("MergeWindows" + window + "+__pane_info");
     ByteString watermarkHoldTag =
         ByteString.copyFromUtf8("MergeWindows" + window + "+watermark_hold");
     ByteString bufferData = ByteString.copyFromUtf8("\000data0");
     ByteString outputData = ByteString.copyFromUtf8("\000\000\000\001\005data0");
     // These values are not essential to the change detector test
-    long timer1Timestamp = 1000000L;
-    long timer2Timestamp = 999000L;
+    long timerTimestamp = 999000L;
 
     WorkItemCommitRequest actualOutput = result.get(0L);
 
-    // Set timer1 and timer2
-    assertThat(actualOutput.getOutputTimersList(), Matchers.containsInAnyOrder(
+    // Set timer
+    assertThat(actualOutput.getOutputTimersList(), Matchers.contains(
         Matchers.equalTo(Windmill.Timer.newBuilder()
-            .setTag(timer1Tag)
-            .setTimestamp(timer1Timestamp)
-            .setType(Windmill.Timer.Type.WATERMARK).build()),
-        Matchers.equalTo(Windmill.Timer.newBuilder()
-            .setTag(timer2Tag)
-            .setTimestamp(timer2Timestamp)
+            .setTag(timerTag)
+            .setTimestamp(timerTimestamp)
             .setType(Windmill.Timer.Type.WATERMARK).build())));
 
     assertThat(actualOutput.getListUpdatesList(), Matchers.containsInAnyOrder(
@@ -806,16 +746,15 @@ public class StreamingDataflowWorkerTest {
             .build())));
 
     Windmill.GetWorkResponse.Builder getWorkResponse = Windmill.GetWorkResponse.newBuilder();
-    // Timer2 has an earlier timestamp, so fire that first.
     getWorkResponse.addWorkBuilder()
         .setComputationId(DEFAULT_COMPUTATION_ID)
-        .setInputDataWatermark(0)
+        .setInputDataWatermark(timerTimestamp)
         .addWorkBuilder()
         .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING))
         .setWorkToken(1)
         .getTimersBuilder().addTimersBuilder()
-        .setTag(timer2Tag)
-        .setTimestamp(timer2Timestamp);
+        .setTag(timerTag)
+        .setTimestamp(timerTimestamp);
     server.addWorkToOffer(getWorkResponse.build());
 
     Windmill.GetDataResponse.Builder dataResponse = Windmill.GetDataResponse.newBuilder();
@@ -840,31 +779,49 @@ public class StreamingDataflowWorkerTest {
         .setData(ByteString.EMPTY);
     server.addDataToOffer(dataResponse.build());
 
+    // Read from the finished set to prevent blind write
+    dataBuilder.clearLists();
+    dataBuilder.clearValues();
+    dataBuilder.addValuesBuilder()
+        .setTag(finishedTag)
+        .getValueBuilder()
+        .setTimestamp(0)
+        .setData(ByteString.EMPTY);
+    server.addDataToOffer(dataResponse.build());
+
     result = server.waitForAndGetCommits(1);
 
     actualOutput = result.get(1L);
 
+    assertEquals(DEFAULT_DESTINATION_STREAM_ID,
+        actualOutput.getOutputMessages(0).getDestinationStreamId());
+    assertEquals(DEFAULT_KEY_STRING,
+        actualOutput.getOutputMessages(0).getBundles(0).getKey().toStringUtf8());
+    assertEquals(0,
+        actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getTimestamp());
+    assertEquals(
+        outputData, actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getData());
+
     ByteString metadata =
         actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getMetadata();
-    assertEquals(PaneInfo.createPane(true, false, Timing.EARLY),
+    assertEquals(PaneInfo.createPane(true, true, Timing.ON_TIME),
         PaneInfo.decodePane(metadata.byteAt(0)));
     Assert.assertArrayEquals(windowAtZeroBytes(), metadata.substring(1).toByteArray());
 
-    Windmill.OutputMessageBundle.Builder expectedOutputMessages =
-        Windmill.OutputMessageBundle.newBuilder();
-    Windmill.KeyedMessageBundle.Builder keyedBuilder = expectedOutputMessages
-        .setDestinationStreamId(DEFAULT_DESTINATION_STREAM_ID)
-        .addBundlesBuilder()
-        .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING));
-    keyedBuilder.addMessagesBuilder()
-        .setTimestamp(0)
-        .setData(outputData)
-        .setMetadata(
-            ByteString.copyFrom(new byte[] {0b1}).concat(ByteString.copyFrom(windowAtZeroBytes())));
-    keyedBuilder.addMessagesIds(ByteString.EMPTY);
-    assertEquals(expectedOutputMessages.build(), actualOutput.getOutputMessages(0));
-
     // Data was deleted
+    assertThat("" + actualOutput.getValueUpdatesList(),
+        actualOutput.getValueUpdatesList(), Matchers.containsInAnyOrder(
+            Matchers.equalTo(Windmill.TagValue.newBuilder()
+                .setTag(paneInfoTag)
+                .setValue(Windmill.Value.newBuilder()
+                     .setTimestamp(Long.MAX_VALUE).setData(ByteString.EMPTY))
+                .build()),
+            Matchers.equalTo(Windmill.TagValue.newBuilder()
+                .setTag(finishedTag)
+                .setValue(Windmill.Value.newBuilder()
+                    .setTimestamp(Long.MAX_VALUE).setData(ByteString.EMPTY))
+                .build())));
+
     assertThat("" + actualOutput.getListUpdatesList(),
         actualOutput.getListUpdatesList(), Matchers.containsInAnyOrder(
         Matchers.equalTo(Windmill.TagList.newBuilder()

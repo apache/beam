@@ -15,7 +15,6 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.common.annotations.VisibleForTesting;
 
 import org.joda.time.Instant;
@@ -62,16 +61,12 @@ class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
 
   @Override
   public Trigger.TriggerResult onTimer(OnTimerContext c) throws Exception {
-    if (c.isDestination()) {
-      throw new IllegalStateException("OrFinally shouldn't receive any timers.");
-    }
-
-    ExecutableTrigger<W> destination = c.nextStepTowardsDestination();
-    Trigger.TriggerResult result = destination.invokeTimer(c);
-    if (destination == c.trigger().subTrigger(UNTIL) && result.isFire()) {
+    Trigger.TriggerResult untilResult = c.trigger().subTrigger(UNTIL).invokeTimer(c);
+    if (untilResult != TriggerResult.CONTINUE) {
       return TriggerResult.FIRE_AND_FINISH;
     }
-    return result;
+
+    return c.trigger().subTrigger(ACTUAL).invokeTimer(c);
   }
 
   @Override

@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.TimeDomain;
 
 import org.joda.time.Instant;
 
@@ -64,7 +64,7 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
 
   @Override
   public void clear(TriggerContext c) throws Exception {
-    c.timers().deleteTimer(TimeDomain.EVENT_TIME);
+    c.timers().deleteTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
   }
 
   @Override

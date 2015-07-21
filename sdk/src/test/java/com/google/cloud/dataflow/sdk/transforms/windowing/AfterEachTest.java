@@ -28,8 +28,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
@@ -51,7 +50,6 @@ public class AfterEachTest {
 
   @Mock private Trigger<IntervalWindow> mockTrigger1;
   @Mock private Trigger<IntervalWindow> mockTrigger2;
-  private ExecutableTrigger<IntervalWindow> executable1;
 
   private TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester;
   private IntervalWindow firstWindow;
@@ -62,7 +60,6 @@ public class AfterEachTest {
         windowFn, AfterEach.inOrder(mockTrigger1, mockTrigger2),
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
-    executable1 = tester.getTrigger().subTriggers().get(0);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
 
@@ -120,10 +117,9 @@ public class AfterEachTest {
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
-    tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, executable1);
     when(mockTrigger1.onTimer(Mockito.isA(OnTimerContext.class)))
         .thenReturn(TriggerResult.FIRE);
-    tester.advanceWatermark(new Instant(12));
+    tester.fireTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME);
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
@@ -138,9 +134,9 @@ public class AfterEachTest {
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
-    tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, executable1);
     when(mockTrigger1.onTimer(Mockito.isA(OnTimerContext.class)))
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
+    tester.fireTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME);
 
     tester.advanceWatermark(new Instant(12));
     assertThat(tester.extractOutput(), Matchers.contains(

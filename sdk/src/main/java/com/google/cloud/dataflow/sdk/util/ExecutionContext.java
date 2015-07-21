@@ -60,11 +60,6 @@ public abstract class ExecutionContext {
   public abstract StepContext createStepContext(String stepName);
 
   /**
-   * Return the {@link TimerManager} to use with this context, or null if it should be emulated.
-   */
-  public abstract TimerManager getTimerManager();
-
-  /**
    * Hook for subclasses to implement that will be called whenever
    * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#output}
    * is called.
@@ -115,5 +110,6 @@ public abstract class ExecutionContext {
     }
 
     public abstract StateInternals stateInternals();
+    public abstract TimerInternals timerInternals();
   }
 }

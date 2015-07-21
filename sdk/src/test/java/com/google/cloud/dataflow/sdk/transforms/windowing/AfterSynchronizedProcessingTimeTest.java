@@ -20,6 +20,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
+import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
@@ -88,7 +89,6 @@ public class AfterSynchronizedProcessingTimeTest {
         new IntervalWindow(new Instant(1), new Instant(12)));
   }
 
-
   @Test
   public void testAfterProcessingTimeWithMergingWindowAlreadyFired() throws Exception {
     Duration windowDuration = Duration.millis(10);
@@ -118,6 +118,23 @@ public class AfterSynchronizedProcessingTimeTest {
     tester.assertHasOnlyGlobalAndFinishedSetsFor(
         new IntervalWindow(new Instant(1), new Instant(11)),
         new IntervalWindow(new Instant(2), new Instant(12)));
+  }
+
+  @Test
+  public void testAfterSynchronizedProcessingTimeIgnoresTimer() throws Exception {
+    Duration windowDuration = Duration.millis(10);
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        FixedWindows.of(windowDuration),
+        new AfterSynchronizedProcessingTime<IntervalWindow>(),
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
+
+    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
+        new Instant(15), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+    tester.advanceProcessingTime(new Instant(5));
+    tester.injectElement(1, new Instant(1));
+    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
+        new Instant(0), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
   }
 
   @Test

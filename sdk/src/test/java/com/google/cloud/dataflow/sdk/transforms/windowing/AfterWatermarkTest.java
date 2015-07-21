@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
+import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
@@ -182,6 +183,22 @@ public class AfterWatermarkTest {
 
     tester.assertHasOnlyGlobalAndFinishedSetsFor(
         new IntervalWindow(new Instant(1), new Instant(12)));
+  }
+
+  @Test
+  public void testEndOfWindowIgnoresTimer() throws Exception {
+    Duration windowDuration = Duration.millis(10);
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        FixedWindows.of(windowDuration),
+        AfterWatermark.<IntervalWindow>pastEndOfWindow(),
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
+
+    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
+        new Instant(15), TimeDomain.EVENT_TIME);
+    tester.injectElement(1, new Instant(1));
+    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
+        new Instant(9), TimeDomain.EVENT_TIME);
   }
 
   @Test

@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
@@ -163,11 +164,11 @@ public class TriggerRunner<W extends BoundedWindow> {
   /**
    * Run the trigger logic appropriate for receiving a timer with the specified destination ID.
    */
-  public Result onTimer(ReduceFn<?, ?, ?, W>.Context c, int destinationId) throws Exception {
+  public Result onTimer(ReduceFn<?, ?, ?, W>.Context c, TimerData timer) throws Exception {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     BitSet finishedSet = (BitSet) readFinishedBits(c.state().access(FINISHED_BITS_TAG)).clone();
     Trigger<W>.OnTimerContext triggerContext =
-        contextFactory.create(c, rootTrigger, finishedSet, destinationId);
+        contextFactory.create(c, rootTrigger, finishedSet, timer.getTimestamp(), timer.getDomain());
     TriggerResult result = rootTrigger.invokeTimer(triggerContext);
     return new Result(result, isFinishedSetNeeded(), finishedSet);
   }

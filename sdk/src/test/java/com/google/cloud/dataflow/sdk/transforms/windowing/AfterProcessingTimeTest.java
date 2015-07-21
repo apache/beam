@@ -21,6 +21,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
+import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
@@ -36,6 +37,24 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class AfterProcessingTimeTest {
+  @Test
+  public void testAfterProcessingTimeIgnoresTimer() throws Exception {
+    Duration windowDuration = Duration.millis(10);
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        FixedWindows.of(windowDuration),
+        AfterProcessingTime
+            .<IntervalWindow>pastFirstElementInPane()
+            .plusDelayOf(Duration.millis(5)),
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
+
+    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
+        new Instant(15), TimeDomain.PROCESSING_TIME);
+    tester.injectElement(1, new Instant(1));
+    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
+        new Instant(5), TimeDomain.PROCESSING_TIME);
+  }
+
   @Test
   public void testAfterProcessingTimeWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);

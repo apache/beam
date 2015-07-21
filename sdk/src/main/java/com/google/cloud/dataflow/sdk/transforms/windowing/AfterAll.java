@@ -48,7 +48,7 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
     return new AfterAll<W>(Arrays.<Trigger<W>>asList(triggers));
   }
 
-  private TriggerResult wrapResult(TriggerContext c) {
+  private TriggerResult result(TriggerContext c) {
     // If all children have finished, then they must have each fired at least once.
     if (c.trigger().areAllSubtriggersFinished()) {
       return TriggerResult.FIRE_AND_FINISH;
@@ -65,7 +65,7 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
       subTrigger.invokeElement(c);
     }
 
-    return wrapResult(c);
+    return result(c);
   }
 
   @Override
@@ -88,13 +88,13 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
 
   @Override
   public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    if (c.isDestination()) {
-      throw new IllegalStateException("AfterAll shouldn't receive any timers.");
+    for (ExecutableTrigger<W> subTrigger : c.trigger().unfinishedSubTriggers()) {
+      // Since subTriggers are all OnceTriggers, they must either CONTINUE or FIRE_AND_FINISH.
+      // invokeTimer will automatically mark the finish bit if they return FIRE_AND_FINISH.
+      subTrigger.invokeTimer(c);
     }
 
-    ExecutableTrigger<W> subTrigger = c.nextStepTowardsDestination();
-    subTrigger.invokeTimer(c);
-    return wrapResult(c);
+    return result(c);
   }
 
   @Override

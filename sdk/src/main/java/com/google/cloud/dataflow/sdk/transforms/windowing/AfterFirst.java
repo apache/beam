@@ -79,14 +79,12 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
 
   @Override
   public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    if (c.isDestination()) {
-      throw new IllegalStateException("AfterFirst shouldn't receive any timers.");
+    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
+      if (subTrigger.invokeTimer(c).isFire()) {
+        return TriggerResult.FIRE_AND_FINISH;
+      }
     }
-
-    ExecutableTrigger<W> subTrigger = c.nextStepTowardsDestination();
-    return subTrigger.invokeTimer(c).isFire()
-        ? TriggerResult.FIRE_AND_FINISH
-        : TriggerResult.CONTINUE;
+    return TriggerResult.CONTINUE;
   }
 
   @Override

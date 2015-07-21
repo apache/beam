@@ -549,8 +549,8 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         }
 
         @Override
-        public TimerManager getTimerManager() {
-          return context.stepContext.getExecutionContext().getTimerManager();
+        public TimerInternals timerInternals() {
+          return context.stepContext.timerInternals();
         }
 
         @Override
@@ -558,6 +558,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
             TupleTag<?> tag,
             Iterable<WindowedValue<T>> data,
             Coder<T> elemCoder) throws IOException {
+          @SuppressWarnings("unchecked")
           Coder<BoundedWindow> windowCoder = context.windowFn.windowCoder();
 
           context.stepContext.getExecutionContext().writePCollectionViewData(

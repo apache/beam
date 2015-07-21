@@ -26,8 +26,7 @@ import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
@@ -48,7 +47,6 @@ import org.mockito.MockitoAnnotations;
 public class OrFinallyTriggerTest {
   @Mock private Trigger<IntervalWindow> mockActual;
   @Mock private OnceTrigger<IntervalWindow> mockUntil;
-  private ExecutableTrigger<IntervalWindow> executableUntil;
 
   private TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester;
   private IntervalWindow firstWindow;
@@ -62,7 +60,6 @@ public class OrFinallyTriggerTest {
     tester = TriggerTester.nonCombining(
         windowFn, underTest, AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
-    executableUntil = tester.getTrigger().subTriggers().get(1);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
 
@@ -124,57 +121,30 @@ public class OrFinallyTriggerTest {
   }
 
   @Test
-  public void testOnTimerFiresWithUntil() throws Exception {
-    setUp(FixedWindows.of(Duration.millis(10)));
-
-    injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-
-    // Timer fires for until, which says continue
-    tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, executableUntil);
-    when(mockUntil.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
-        .thenReturn(TriggerResult.CONTINUE);
-    tester.advanceWatermark(new Instant(12));
-
-    injectElement(2, TriggerResult.FIRE, TriggerResult.CONTINUE);
-
-    // Timer fires for until, which says fire, so we stop repeating.
-    tester.setTimer(firstWindow, new Instant(12), TimeDomain.EVENT_TIME, executableUntil);
-    when(mockUntil.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
-        .thenReturn(TriggerResult.FIRE_AND_FINISH);
-    tester.advanceWatermark(new Instant(13));
-
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
-    assertTrue(tester.isMarkedFinished(firstWindow));
-
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
-  }
-
-  @Test
   public void testOnTimerFinishesUntil() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
 
     injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
     // Timer fires for until, which says continue
-    tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, executableUntil);
     when(mockUntil.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.CONTINUE);
-    tester.advanceWatermark(new Instant(12));
+    when(mockActual.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
+    tester.fireTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME);
 
     injectElement(2, TriggerResult.FIRE, TriggerResult.CONTINUE);
 
     injectElement(3, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
     // Timer fires for until, which says FIRE, so we fire and finish
-    tester.setTimer(firstWindow, new Instant(12), TimeDomain.EVENT_TIME, executableUntil);
     when(mockUntil.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
-    tester.advanceWatermark(new Instant(13));
+    tester.fireTimer(firstWindow, new Instant(12), TimeDomain.EVENT_TIME);
 
-    assertThat(tester.extractOutput(), Matchers.contains(
+    assertThat(tester.extractOutput(), Matchers.containsInAnyOrder(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(3), 9, 0, 10)));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
 
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);

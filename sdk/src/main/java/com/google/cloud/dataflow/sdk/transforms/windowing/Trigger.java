@@ -18,14 +18,14 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
+import com.google.cloud.dataflow.sdk.util.ReduceFn;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.common.base.Joiner;
 
 import org.joda.time.Instant;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -234,33 +234,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   }
 
   /**
-   * Interface for interacting with time.
-   */
-  public interface Timers {
-    /**
-     * Sets a timer to fire when the watermark or processing time is beyond the given timestamp.
-     * Timers are not gauranteed to fire immediately, but will be delivered at some time afterwards.
-     *
-     * <p>Each trigger can have a single timer in per {@code timeDomain} and {@code window}. If the
-     * trigger has already set a timer for a given domain and window, then setting overwrites it.
-     *
-     * @param timestamp the time at which the trigger’s {@link Trigger#onTimer} callback should
-     *        execute
-     * @param timeDomain the domain that the {@code timestamp} applies to
-     */
-    public abstract void setTimer(Instant timestamp, TimeDomain timeDomain) throws IOException;
-
-    /**
-     * Removes the timer set in this trigger context for the given {@code window} and
-     * {@code timeDomain}.
-     */
-    public abstract void deleteTimer(TimeDomain timeDomain) throws IOException;
-
-    /** Returns the current processing time. */
-    public abstract Instant currentProcessingTime();
-  }
-
-  /**
    * Information accessible to all of the callbacks that are executed on a {@link Trigger}.
    */
   public abstract class TriggerContext {
@@ -275,7 +248,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     public abstract W window();
 
     /** Returns the interface for accessing timers. */
-    public abstract Timers timers();
+    public abstract ReduceFn.Timers timers();
 
     /** Create a sub-context for the given sub-trigger. */
     public abstract TriggerContext forTrigger(ExecutableTrigger<W> trigger);
@@ -319,14 +292,11 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    */
   public abstract class OnTimerContext extends TriggerContext {
 
-    /**
-     * Returns the sub-trigger of the current trigger that is the next step towards the trigger
-     * that set the timer that is being processed.
-     */
-    public abstract ExecutableTrigger<W> nextStepTowardsDestination();
+    /** Returns the time that the timer was set for. */
+    public abstract Instant timestamp();
 
-    /** Returns true if the timer corresponds to the current trigger. */
-    public abstract boolean isDestination();
+    /** Returns the time domain that thet timer was set for. */
+    public abstract TimeDomain timeDomain();
 
     /**
      * Create an {@code OnTimerContext} for executing the given trigger.
@@ -363,10 +333,11 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   public abstract MergeResult onMerge(OnMergeContext c) throws Exception;
 
   /**
-   * Called when a timer has fired for the trigger or one of its sub-triggers.
+   * Called when a timer has fired for the current window. Composite triggers should pass the event
+   * to all sub-triggers. Triggers that set timers should verify the timer matches what they set
+   * before processing the firing.
    */
   public abstract TriggerResult onTimer(OnTimerContext c) throws Exception;
-
   /**
    * Clear any state associated with this trigger in the given window.
    *

@@ -34,7 +34,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals;
 import com.google.cloud.dataflow.sdk.util.state.State;
@@ -69,7 +69,7 @@ import javax.annotation.Nullable;
 
 /**
  * Test utility that runs a {@link WindowFn}, {@link Trigger} using in-memory stub implementations
- * to provide the {@link TimerManager} and {@link WindowingInternals} needed to run
+ * to provide the {@link TimerInternals} and {@link WindowingInternals} needed to run
  * {@code Trigger}s and {@code ReduceFn}s.
  *
  * <p>To have all interactions between the trigger and underlying components logged, call
@@ -87,7 +87,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   private Instant watermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-  private final BatchTimerManager timerManager = new BatchTimerManager(processingTime);
+  private final BatchTimerInternals timerInternals = new BatchTimerInternals(processingTime);
   private final ReduceFnRunner<String, InputT, OutputT, W> runner;
   private final WindowFn<Object, W> windowFn;
   private final StubContexts stubContexts;
@@ -155,7 +155,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     executableTrigger = wildcardStrategy.getTrigger();
 
     this.runner = new ReduceFnRunner<>(
-        KEY, objectStrategy, timerManager, stubContexts,
+        KEY, objectStrategy, timerInternals, stubContexts,
         droppedDueToClosedWindow, droppedDueToLateness, reduceFn);
   }
 
@@ -274,7 +274,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         watermark.getMillis(), newWatermark.getMillis());
     logInteraction("Advancing watermark to %d", newWatermark.getMillis());
     watermark = newWatermark;
-    timerManager.advanceWatermark(runner, newWatermark);
+    timerInternals.advanceWatermark(runner, newWatermark);
   }
 
   /** Advance the processing time to the specified time, firing any timers that should fire. */
@@ -285,7 +285,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         processingTime.getMillis(), newProcessingTime.getMillis());
     logInteraction("Advancing processing time to %d", newProcessingTime.getMillis());
     processingTime = newProcessingTime;
-    timerManager.advanceProcessingTime(runner, newProcessingTime);
+    timerInternals.advanceProcessingTime(runner, newProcessingTime);
   }
 
   public void injectElement(InputT value, Instant timestamp) throws Exception {
@@ -300,11 +300,9 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     runner.merge();
   }
 
-  public void setTimer(
-      W window, Instant timestamp, TimeDomain domain, ExecutableTrigger<W> trigger) {
-    timerManager.setTimer(
-        StateNamespaces.windowAndTrigger(windowFn.windowCoder(), window, trigger.getTriggerIndex()),
-        timestamp, domain);
+  public void fireTimer(W window, Instant timestamp, TimeDomain domain) {
+    runner.onTimer(TimerData.of(
+        StateNamespaces.window(windowFn.windowCoder(), window), timestamp, domain));
   }
 
   private static class TestingInMemoryStateInternals extends InMemoryStateInternals {
@@ -355,9 +353,9 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public TimerManager getTimerManager() {
+    public TimerInternals timerInternals() {
       throw new UnsupportedOperationException(
-          "getTimerManager() should not be called on StubContexts.");
+          "getTimerInternals() should not be called on StubContexts.");
     }
 
     @Override

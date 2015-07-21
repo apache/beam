@@ -60,7 +60,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
     return new AfterEach<W>(Arrays.<Trigger<W>>asList(triggers));
   }
 
-  private TriggerResult wrapResult(TriggerContext c, TriggerResult subResult)
+  private TriggerResult result(TriggerContext c, TriggerResult subResult)
       throws Exception {
     if (subResult.isFire()) {
       return c.trigger().areAllSubtriggersFinished()
@@ -92,7 +92,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
       }
     }
 
-    return wrapResult(c, firstResult);
+    return result(c, firstResult);
   }
 
   @Override
@@ -135,12 +135,8 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
 
   @Override
   public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    if (c.isDestination()) {
-      throw new IllegalStateException("AfterEach shouldn't receive timers.");
-    }
-
-    ExecutableTrigger<W> timerChild = c.nextStepTowardsDestination();
-    return wrapResult(c, timerChild.invokeTimer(c));
+    // Only deliver to the currently active subtrigger
+    return result(c, c.trigger().firstUnfinishedSubTrigger().invokeTimer(c));
   }
 
   @Override

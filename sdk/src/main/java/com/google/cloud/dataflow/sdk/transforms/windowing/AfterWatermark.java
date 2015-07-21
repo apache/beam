@@ -20,7 +20,7 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
@@ -134,13 +134,26 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     public TriggerResult onTimer(OnTimerContext c) throws Exception {
+      if (c.timeDomain() != TimeDomain.EVENT_TIME) {
+        return TriggerResult.CONTINUE;
+      }
+
+      Instant delayedUntil = c.state().access(DELAYED_UNTIL_TAG).get().read();
+      if (delayedUntil == null || delayedUntil.isAfter(c.timestamp())) {
+        return TriggerResult.CONTINUE;
+      }
+
       return TriggerResult.FIRE_AND_FINISH;
     }
 
     @Override
     public void clear(TriggerContext c) throws Exception {
-      c.state().access(DELAYED_UNTIL_TAG).clear();
-      c.timers().deleteTimer(TimeDomain.EVENT_TIME);
+      CombiningValueState<Instant, Instant> delayed = c.state().access(DELAYED_UNTIL_TAG);
+      Instant timestamp = delayed.get().read();
+      delayed.clear();
+      if (timestamp != null) {
+        c.timers().deleteTimer(timestamp, TimeDomain.EVENT_TIME);
+      }
     }
 
     @Override
@@ -215,12 +228,18 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     public TriggerResult onTimer(OnTimerContext c) throws Exception {
-      return TriggerResult.FIRE_AND_FINISH;
+      if (c.timeDomain() != TimeDomain.EVENT_TIME
+          || c.timestamp().isBefore(computeTargetTimestamp(c.window().maxTimestamp()))) {
+        return TriggerResult.CONTINUE;
+      } else {
+        return TriggerResult.FIRE_AND_FINISH;
+      }
     }
 
     @Override
     public void clear(TriggerContext c) throws Exception {
-      c.timers().deleteTimer(TimeDomain.EVENT_TIME);
+      c.timers().deleteTimer(
+          computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
     }
 
     @Override

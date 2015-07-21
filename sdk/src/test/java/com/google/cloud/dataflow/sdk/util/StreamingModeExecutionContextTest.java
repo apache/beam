@@ -24,8 +24,10 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting.ConstantViewFn;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaceForTest;
+import com.google.cloud.dataflow.sdk.util.state.WindmillStateReader;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
@@ -38,6 +40,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.Arrays;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -47,7 +50,9 @@ import java.util.concurrent.TimeUnit;
 public class StreamingModeExecutionContextTest {
 
   @Mock
-  StateFetcher stateFetcher;
+  private StateFetcher stateFetcher;
+  @Mock
+  private WindmillStateReader stateReader;
 
   @Before
   public void setUp() {
@@ -60,20 +65,23 @@ public class StreamingModeExecutionContextTest {
   }
 
   @Test
-  public void testTimerManagerSetTimer() {
-    StreamingModeExecutionContext executionContext =
-        new StreamingModeExecutionContext(stateFetcher, null, null);
+  public void testTimerInternalsSetTimer() {
+    StreamingModeExecutionContext executionContext = new StreamingModeExecutionContext(
+        stateFetcher, null, new ConcurrentHashMap<String, String>());
 
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
-    executionContext.start(null,  null,  null,  outputBuilder);
-    TimerManager timerManager = executionContext.getTimerManager();
+    executionContext.start(null, new Instant(1000), stateReader, outputBuilder);
+    StepContext step = executionContext.getStepContext("step");
 
-    timerManager.setTimer(
-        new StateNamespaceForTest("key"), new Instant(5000), TimeDomain.EVENT_TIME);
+    TimerInternals timerInternals = step.timerInternals();
+
+    timerInternals.setTimer(
+        TimerData.of(new StateNamespaceForTest("key"), new Instant(5000), TimeDomain.EVENT_TIME));
+    executionContext.flushState();
 
     Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
-    assertEquals("key+", timer.getTag().toStringUtf8());
+    assertEquals("key+0:5000", timer.getTag().toStringUtf8());
     assertEquals(TimeUnit.MILLISECONDS.toMicros(5000), timer.getTimestamp());
     assertEquals(Windmill.Timer.Type.WATERMARK, timer.getType());
   }

@@ -51,7 +51,7 @@ public interface WindowingInternals<InputT, OutputT> {
    * Return the timer manager provided by the underlying system, or null if Timers need
    * to be emulated.
    */
-  TimerManager getTimerManager();
+  TimerInternals timerInternals();
 
   /**
    * Access the windows the element is being processed in without "exploding" it.

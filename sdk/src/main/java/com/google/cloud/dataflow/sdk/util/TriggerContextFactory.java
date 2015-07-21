@@ -19,13 +19,12 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergingTriggerInfo;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.Timers;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerInfo;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
+import com.google.cloud.dataflow.sdk.util.ReduceFn.Timers;
 import com.google.cloud.dataflow.sdk.util.ReduceFnContextFactory.MergingStateContextImpl;
 import com.google.cloud.dataflow.sdk.util.ReduceFnContextFactory.StateContextImpl;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
@@ -36,7 +35,6 @@ import com.google.common.collect.Maps;
 
 import org.joda.time.Instant;
 
-import java.io.IOException;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Map;
@@ -46,15 +44,12 @@ import java.util.Map;
  */
 class TriggerContextFactory<W extends BoundedWindow> {
 
-  private TimerManager timerManager;
-
   private final WindowingStrategy<?, W> windowingStrategy;
   private StateInternals stateInternals;
   private ActiveWindowSet<W> activeWindows;
 
-  TriggerContextFactory(TimerManager timerManager, WindowingStrategy<?, W> windowingStrategy,
-      StateInternals stateInternals, ActiveWindowSet<W> activeWindows) {
-    this.timerManager = timerManager;
+  TriggerContextFactory(WindowingStrategy<?, W> windowingStrategy, StateInternals stateInternals,
+      ActiveWindowSet<W> activeWindows) {
     this.windowingStrategy = windowingStrategy;
     this.stateInternals = stateInternals;
     this.activeWindows = activeWindows;
@@ -62,29 +57,30 @@ class TriggerContextFactory<W extends BoundedWindow> {
 
   public Trigger<W>.TriggerContext base(
       ReduceFn<?, ?, ?, W>.Context context, ExecutableTrigger<W> rootTrigger, BitSet finishedSet) {
-    return new TriggerContextImpl(context.window(), rootTrigger, finishedSet);
+    return new TriggerContextImpl(context.window(), context.timers(), rootTrigger, finishedSet);
   }
 
   public Trigger<W>.OnElementContext create(
       ReduceFn<?, ?, ?, W>.ProcessValueContext context,
       ExecutableTrigger<W> rootTrigger, BitSet finishedSet) {
     return new OnElementContextImpl(
-        context.window(), rootTrigger, finishedSet,
+        context.window(), context.timers(), rootTrigger, finishedSet,
         context.value(), context.timestamp());
   }
 
   public Trigger<W>.OnTimerContext create(
       ReduceFn<?, ?, ?, W>.Context context,
       ExecutableTrigger<W> rootTrigger, BitSet finishedSet,
-      int destinationIndex) {
-    return new OnTimerContextImpl(context.window(), rootTrigger, finishedSet, destinationIndex);
+      Instant timestamp, TimeDomain domain) {
+    return new OnTimerContextImpl(
+        context.window(), context.timers(), rootTrigger, finishedSet, timestamp, domain);
   }
 
   public Trigger<W>.OnMergeContext create(
       ReduceFn<?, ?, ?, W>.OnMergeContext context,
       ExecutableTrigger<W> rootTrigger, BitSet finishedSet,
       Map<W, BitSet> finishedSets) {
-    return new OnMergeContextImpl(context.window(), rootTrigger, finishedSet,
+    return new OnMergeContextImpl(context.window(), context.timers(), rootTrigger, finishedSet,
         context.mergingWindows(), finishedSets);
   }
 
@@ -195,30 +191,6 @@ class TriggerContextFactory<W extends BoundedWindow> {
     }
   }
 
-  private class TimersImpl implements Trigger.Timers {
-
-    private final StateNamespace namespace;
-
-    public TimersImpl(StateNamespace namespace) {
-      this.namespace = namespace;
-    }
-
-    @Override
-    public void setTimer(Instant timestamp, TimeDomain timeDomain) throws IOException {
-      timerManager.setTimer(namespace, timestamp, timeDomain);
-    }
-
-    @Override
-    public void deleteTimer(TimeDomain timeDomain) throws IOException {
-      timerManager.deleteTimer(namespace, timeDomain);
-    }
-
-    @Override
-    public Instant currentProcessingTime() {
-      return timerManager.currentProcessingTime();
-    }
-  }
-
   private StateContextImpl<W> triggerState(W window, ExecutableTrigger<W> trigger) {
     return new TriggerStateContextImpl<W>(
         activeWindows, windowingStrategy.getWindowFn().windowCoder(),
@@ -249,22 +221,23 @@ class TriggerContextFactory<W extends BoundedWindow> {
   private class TriggerContextImpl extends Trigger<W>.TriggerContext {
 
     private final StateContextImpl<W> state;
-    private final TimersImpl timers;
+    private final Timers timers;
     private final TriggerInfoImpl triggerInfo;
 
     private TriggerContextImpl(
         W window,
+        Timers timers,
         ExecutableTrigger<W> trigger,
         BitSet finishedSet) {
       trigger.getSpec().super();
       this.state = triggerState(window, trigger);
-      this.timers = new TimersImpl(state.namespace());
+      this.timers = timers;
       this.triggerInfo = new TriggerInfoImpl(trigger, finishedSet, this);
     }
 
     @Override
     public Trigger<W>.TriggerContext forTrigger(ExecutableTrigger<W> trigger) {
-      return new TriggerContextImpl(state.window(), trigger, triggerInfo.finishedSet);
+      return new TriggerContextImpl(state.window(), timers, trigger, triggerInfo.finishedSet);
     }
 
     @Override
@@ -283,7 +256,7 @@ class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public Timers timers() {
+    public ReduceFn.Timers timers() {
       return timers;
     }
   }
@@ -292,20 +265,21 @@ class TriggerContextFactory<W extends BoundedWindow> {
   private class OnElementContextImpl extends Trigger<W>.OnElementContext {
 
     private final StateContextImpl<W> state;
-    private final TimersImpl timers;
+    private final Timers timers;
     private final TriggerInfoImpl triggerInfo;
     private final Object element;
     private final Instant eventTimestamp;
 
     private OnElementContextImpl(
         W window,
+        Timers timers,
         ExecutableTrigger<W> trigger,
         BitSet finishedSet,
         Object element,
         Instant eventTimestamp) {
       trigger.getSpec().super();
       this.state = triggerState(window, trigger);
-      this.timers = new TimersImpl(state.namespace());
+      this.timers = timers;
       this.triggerInfo = new TriggerInfoImpl(trigger, finishedSet, this);
       this.element = element;
       this.eventTimestamp = eventTimestamp;
@@ -324,7 +298,7 @@ class TriggerContextFactory<W extends BoundedWindow> {
     @Override
     public Trigger<W>.OnElementContext forTrigger(ExecutableTrigger<W> trigger) {
       return new OnElementContextImpl(
-          state.window(), trigger, triggerInfo.finishedSet, element, eventTimestamp);
+          state.window(), timers, trigger, triggerInfo.finishedSet, element, eventTimestamp);
     }
 
     @Override
@@ -343,7 +317,7 @@ class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public Timers timers() {
+    public ReduceFn.Timers timers() {
       return timers;
     }
   }
@@ -351,26 +325,30 @@ class TriggerContextFactory<W extends BoundedWindow> {
   private class OnTimerContextImpl extends Trigger<W>.OnTimerContext {
 
     private final StateContextImpl<W> state;
-    private final TimersImpl timers;
+    private final Timers timers;
     private final TriggerInfoImpl triggerInfo;
-    private final int destinationIndex;
+    private final Instant timestamp;
+    private final TimeDomain domain;
 
     private OnTimerContextImpl(
         W window,
+        Timers timers,
         ExecutableTrigger<W> trigger,
         BitSet finishedSet,
-        int destinationIndex) {
+        Instant timestamp,
+        TimeDomain domain) {
       trigger.getSpec().super();
       this.state = triggerState(window, trigger);
-      this.timers = new TimersImpl(state.namespace());
+      this.timers = timers;
       this.triggerInfo = new TriggerInfoImpl(trigger, finishedSet, this);
-      this.destinationIndex = destinationIndex;
+      this.timestamp = timestamp;
+      this.domain = domain;
     }
 
     @Override
     public Trigger<W>.OnTimerContext forTrigger(ExecutableTrigger<W> trigger) {
       return new OnTimerContextImpl(
-          state.window(), trigger, triggerInfo.finishedSet, destinationIndex);
+          state.window(), timers, trigger, triggerInfo.finishedSet, timestamp, domain);
     }
 
     @Override
@@ -389,43 +367,44 @@ class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public Timers timers() {
+    public ReduceFn.Timers timers() {
       return timers;
     }
 
     @Override
-    public ExecutableTrigger<W> nextStepTowardsDestination() {
-      return triggerInfo.trigger.getSubTriggerContaining(destinationIndex);
+    public Instant timestamp() {
+      return timestamp;
     }
 
     @Override
-    public boolean isDestination() {
-      return triggerInfo.trigger.getTriggerIndex() == destinationIndex;
+    public TimeDomain timeDomain() {
+      return domain;
     }
   }
 
   private class OnMergeContextImpl extends Trigger<W>.OnMergeContext {
 
     private final MergingStateContextImpl<W> state;
-    private final TimersImpl timers;
+    private final Timers timers;
     private final MergingTriggerInfoImpl triggerInfo;
 
     private OnMergeContextImpl(
         W window,
+        Timers timers,
         ExecutableTrigger<W> trigger,
         BitSet finishedSet,
         Collection<W> mergingWindows,
         Map<W, BitSet> finishedSets) {
       trigger.getSpec().super();
       this.state = new MergingStateContextImpl<>(triggerState(window, trigger), mergingWindows);
-      this.timers = new TimersImpl(state.namespace());
+      this.timers = timers;
       this.triggerInfo = new MergingTriggerInfoImpl(trigger, finishedSet, this, finishedSets);
     }
 
     @Override
     public Trigger<W>.OnMergeContext forTrigger(ExecutableTrigger<W> trigger) {
       return new OnMergeContextImpl(
-          state.window(), trigger, triggerInfo.finishedSet,
+          state.window(), timers, trigger, triggerInfo.finishedSet,
           state.mergingWindows(), triggerInfo.finishedSets);
     }
 
@@ -450,7 +429,7 @@ class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public Timers timers() {
+    public ReduceFn.Timers timers() {
       return timers;
     }
   }

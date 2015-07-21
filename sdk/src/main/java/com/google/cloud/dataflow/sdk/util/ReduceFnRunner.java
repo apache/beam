@@ -21,19 +21,15 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.ActiveWindowSet.MergeCallback;
 import com.google.cloud.dataflow.sdk.util.ReduceFnContextFactory.OnTriggerCallbacks;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
-import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
-import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
-import com.google.cloud.dataflow.sdk.util.state.StateNamespaces.WindowAndTriggerNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces.WindowNamespace;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +72,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
   public static final String DROPPED_DUE_TO_LATENESS_COUNTER = "DroppedDueToLateness";
 
   private final WindowingStrategy<Object, W> windowingStrategy;
-  private final TimerManager timerManager;
+  private final TimerInternals timerInternals;
   private final WindowingInternals<?, KV<K, OutputT>> windowingInternals;
 
   private final Aggregator<Long, Long> droppedDueToClosedWindow;
@@ -95,14 +91,14 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
   public ReduceFnRunner(
       K key,
       WindowingStrategy<?, W> windowingStrategy,
-      TimerManager timerManager,
+      TimerInternals timerInternals,
       WindowingInternals<?, KV<K, OutputT>> windowingInternals,
       Aggregator<Long, Long> droppedDueToClosedWindow,
       Aggregator<Long, Long> droppedDueToLateness,
       ReduceFn<K, InputT, OutputT, W> reduceFn) {
     this.key = key;
-    this.timerManager = timerManager;
-    this.paneInfo =  new PaneInfoTracker(timerManager);
+    this.timerInternals = timerInternals;
+    this.paneInfo =  new PaneInfoTracker(timerInternals);
     this.windowingInternals = windowingInternals;
     this.droppedDueToClosedWindow = droppedDueToClosedWindow;
     this.droppedDueToLateness = droppedDueToLateness;
@@ -116,13 +112,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     this.activeWindows = createActiveWindowSet();
     this.contextFactory = new ReduceFnContextFactory<K, InputT, OutputT, W>(
         key, reduceFn, this.windowingStrategy, this.windowingInternals.stateInternals(),
-        this.activeWindows);
+        this.activeWindows, timerInternals);
 
     this.watermarkHold = new WatermarkHold<>(windowingStrategy);
     this.triggerRunner = new TriggerRunner<>(
         windowingStrategy.getTrigger(),
-        new TriggerContextFactory<>(timerManager, windowingStrategy,
-            this.windowingInternals.stateInternals(),
+        new TriggerContextFactory<>(windowingStrategy, this.windowingInternals.stateInternals(),
             activeWindows));
   }
 
@@ -167,7 +162,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
       }
 
       if (activeWindows.add(window)) {
-        scheduleCleanup(window);
+        scheduleCleanup(context);
       }
 
       // Update the watermark hold since the value will be part of the next pane.
@@ -224,7 +219,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
 
     // Schedule cleanup if the window is new.
     if (isResultWindowNew) {
-      scheduleCleanup(resultWindow);
+      scheduleCleanup(context);
     }
 
     // Have the trigger merge state as needed, and handle the result.
@@ -238,9 +233,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     // Cleanup the trigger state in the old windows.
     for (W mergedWindow : mergedWindows) {
       if (!mergedWindow.equals(resultWindow)) {
-        cancelCleanup(mergedWindow);
         try {
           ReduceFn<K, InputT, OutputT, W>.Context mergedContext = contextFactory.base(mergedWindow);
+          cancelCleanup(mergedContext);
           triggerRunner.clearEverything(mergedContext);
           paneInfo.clear(mergedContext.state());
         } catch (Exception e) {
@@ -254,35 +249,37 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
   /**
    * Called when a timer fires.
    */
-  public void onTimer(StateNamespace namespace) {
-    // Currently, individual ReduceFn's don't specify timers. So, we either have a timer for
-    // the window (in general) which corresponds to the GC (cleanup) timer or a timer that was
-    // set by one of the triggers. Distinguish which one based on namespace, and dispatch
-    // accordingly.
-    if (namespace instanceof WindowNamespace) {
-      @SuppressWarnings("unchecked")
-      WindowNamespace<W> windowNamespace = (WindowNamespace<W>) namespace;
+  public void onTimer(TimerData timer) {
+    if (!(timer.getNamespace() instanceof WindowNamespace)) {
+      throw new IllegalArgumentException(
+          "Expected WindowNamespace, but was " + timer.getNamespace());
+    }
 
+    @SuppressWarnings("unchecked")
+    WindowNamespace<W> windowNamespace = (WindowNamespace<W>) timer.getNamespace();
+    W window = windowNamespace.getWindow();
+
+    if (TimeDomain.EVENT_TIME == timer.getDomain() && isCleanupTime(window, timer.getTimestamp())) {
       try {
         doCleanup(windowNamespace.getWindow());
       } catch (Exception e) {
         LOG.error("Exception while garbage collecting window {}", windowNamespace.getWindow(), e);
       }
-    } else if (namespace instanceof WindowAndTriggerNamespace) {
-      @SuppressWarnings("unchecked")
-      WindowAndTriggerNamespace<W> windowNamespace = (WindowAndTriggerNamespace<W>) namespace;
-      int triggerIndex = windowNamespace.getTriggerIndex();
+    } else {
       ReduceFn<K, InputT, OutputT, W>.Context context =
           contextFactory.base(windowNamespace.getWindow());
 
+      if (triggerRunner.isClosed(context.state())) {
+        LOG.info("Skipping timer for closed window " + context.window());
+        return;
+      }
+
       try {
-        handleTriggerResult(context, triggerRunner.onTimer(context, triggerIndex));
+        handleTriggerResult(context, triggerRunner.onTimer(context, timer));
       } catch (Exception e) {
         Throwables.propagateIfPossible(e);
         throw new RuntimeException("Exception in onTimer for trigger", e);
       }
-    } else {
-      throw new IllegalArgumentException("Unexpected namespace for timer " + namespace);
     }
   }
 
@@ -418,22 +415,20 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     }
   }
 
-  private StateNamespace windowNamespace(W window) {
-    return StateNamespaces.window(windowingStrategy.getWindowFn().windowCoder(), window);
+  private Instant cleanupTime(W window) {
+    return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
   }
 
-  private void scheduleCleanup(W window) {
-    // Set the timer for final cleanup. We add an extra millisecond since
-    // maxTimestamp will be the maximum timestamp in the window, and we
-    // want the maximum timestamp of an element outside the window.
-    Instant cleanupTime = window.maxTimestamp()
-        .plus(windowingStrategy.getAllowedLateness())
-        .plus(Duration.millis(1));
-    timerManager.setTimer(windowNamespace(window), cleanupTime, TimeDomain.EVENT_TIME);
+  private boolean isCleanupTime(W window, Instant timestamp) {
+    return !timestamp.isBefore(cleanupTime(window));
   }
 
-  private void cancelCleanup(W window) {
-    timerManager.deleteTimer(windowNamespace(window), TimeDomain.EVENT_TIME);
+  private void scheduleCleanup(ReduceFn<?, ?, ?, W>.Context context) {
+    context.timers().setTimer(cleanupTime(context.window()), TimeDomain.EVENT_TIME);
+  }
+
+  private void cancelCleanup(ReduceFn<?, ?, ?, W>.Context context) {
+    context.timers().deleteTimer(cleanupTime(context.window()), TimeDomain.EVENT_TIME);
   }
 
   private boolean shouldDiscardAfterFiring(TriggerRunner.Result result) {
@@ -460,10 +455,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
 
   private Lateness getLateness(WindowedValue<InputT> value) {
     Instant latestAllowed =
-        timerManager.currentWatermarkTime().minus(windowingStrategy.getAllowedLateness());
+        timerInternals.currentWatermarkTime().minus(windowingStrategy.getAllowedLateness());
     if (value.getTimestamp().isBefore(latestAllowed)) {
       return Lateness.PAST_ALLOWED_LATENESS;
-    } else if (value.getTimestamp().isBefore(timerManager.currentWatermarkTime())) {
+    } else if (value.getTimestamp().isBefore(timerInternals.currentWatermarkTime())) {
       return Lateness.LATE;
     } else {
       return Lateness.NOT_LATE;

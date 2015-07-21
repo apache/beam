@@ -22,8 +22,6 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
-import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
 
@@ -82,34 +80,40 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
 
     private void initForKey(ProcessContext c, K key) throws Exception{
       if (runner == null) {
-        TimerManager timerManager = c.windowingInternals().getTimerManager();
+        TimerInternals timerInternals = c.windowingInternals().timerInternals();
         runner = new ReduceFnRunner<>(
-            key, windowingStrategy, timerManager, c.windowingInternals(),
+            key, windowingStrategy, timerInternals, c.windowingInternals(),
             droppedDueToClosedWindow, droppedDueToLateness, reduceFn);
       }
     }
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      @SuppressWarnings("unchecked")
-      K key = c.element().isTimer() ? (K) c.element().key() : c.element().element().getKey();
-      initForKey(c, key);
-
       if (c.element().isTimer()) {
-        Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
-        String tag = c.element().tag();
-        StateNamespace namespace = StateNamespaces.fromString(
-            tag.substring(0, tag.length() - 1), windowCoder);
-        runner.onTimer(namespace);
+        processTimer(c);
       } else {
-        InputT value = c.element().element().getValue();
-        runner.processElement(
-            WindowedValue.of(
-                value,
-                c.timestamp(),
-                c.windowingInternals().windows(),
-                c.pane()));
+        processValue(c);
       }
+    }
+
+
+    private void processTimer(ProcessContext c) throws Exception {
+      @SuppressWarnings("unchecked")
+      K key = (K) c.element().key();
+      initForKey(c, key);
+      runner.onTimer(c.element().getTimer());
+    }
+
+    private void processValue(ProcessContext c) throws Exception {
+      K key = c.element().element().getKey();
+      initForKey(c, key);
+      InputT value = c.element().element().getValue();
+      runner.processElement(
+          WindowedValue.of(
+              value,
+              c.timestamp(),
+              c.windowingInternals().windows(),
+              c.pane()));
     }
 
     @Override

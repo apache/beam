@@ -23,9 +23,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.DataflowExecutionContext;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
-import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
-import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.WindmillStateInternals;
 import com.google.cloud.dataflow.sdk.util.state.WindmillStateReader;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -40,6 +38,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -49,7 +48,6 @@ import java.util.concurrent.TimeUnit;
  * {@link ExecutionContext} for use in streaming mode.
  */
 public class StreamingModeExecutionContext extends DataflowExecutionContext {
-  private Instant inputDataWatermark;
   private Windmill.WorkItem work;
   private StateFetcher stateFetcher;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
@@ -60,6 +58,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   private UnboundedSource.UnboundedReader<?> activeReader;
   private ConcurrentMap<String, String> stateNameMap;
   private WindmillStateReader stateReader;
+  private Instant inputDataWatermark;
 
   public StreamingModeExecutionContext(
       StateFetcher stateFetcher,
@@ -77,66 +76,21 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
       WindmillStateReader stateReader,
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.work = work;
+    this.inputDataWatermark = inputDataWatermark;
     this.stateReader = stateReader;
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
-    this.inputDataWatermark = inputDataWatermark;
 
     for (ExecutionContext.StepContext stepContext : getAllStepContexts()) {
-      ((StepContext) stepContext).start(stateReader);
+      ((StepContext) stepContext).start(stateReader, inputDataWatermark);
     }
   }
 
   @Override
   public ExecutionContext.StepContext createStepContext(String stepName) {
     StepContext context = new StepContext(stepName);
-    context.start(stateReader);
+    context.start(stateReader, inputDataWatermark);
     return context;
-  }
-
-  @Override
-  public TimerManager getTimerManager() {
-    return new TimerManager() {
-      @Override
-      public void setTimer(StateNamespace timer, Instant timestamp, TimeDomain domain) {
-        long timestampMicros = TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis());
-        outputBuilder.addOutputTimers(
-            Windmill.Timer.newBuilder()
-            .setTimestamp(timestampMicros)
-            .setTag(ByteString.copyFromUtf8(timer.stringKey() + "+"))
-            .setType(timerType(domain))
-            .build());
-      }
-
-      @Override
-      public void deleteTimer(StateNamespace timer, TimeDomain domain) {
-        outputBuilder.addOutputTimers(
-            Windmill.Timer.newBuilder()
-            .setTag(ByteString.copyFromUtf8(timer.stringKey() + "+"))
-            .setType(timerType(domain))
-            .build());
-      }
-
-      @Override
-      public Instant currentProcessingTime() {
-        return Instant.now();
-      }
-
-      @Override
-      public Instant currentWatermarkTime() {
-        return inputDataWatermark;
-      }
-    };
-  }
-
-  private Windmill.Timer.Type timerType(TimeDomain domain) {
-    switch (domain) {
-      case EVENT_TIME: return Windmill.Timer.Type.WATERMARK;
-      case PROCESSING_TIME: return Windmill.Timer.Type.REALTIME;
-      case SYNCHRONIZED_PROCESSING_TIME: return Windmill.Timer.Type.DEPENDENT_REALTIME;
-      default:
-        throw new IllegalArgumentException("Unrecgonized TimeDomain: " + domain);
-    }
   }
 
   @Override
@@ -287,9 +241,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
       ((StepContext) stepContext).flushState();
     }
 
-    Windmill.SourceState.Builder sourceStateBuilder = Windmill.SourceState.newBuilder();
 
     if (activeReader != null) {
+      Windmill.SourceState.Builder sourceStateBuilder =
+          outputBuilder.getSourceStateUpdatesBuilder();
       final UnboundedSource.CheckpointMark checkpointMark = activeReader.getCheckpointMark();
       final Instant watermark = activeReader.getWatermark();
       long id = ThreadLocalRandom.current().nextLong();
@@ -319,7 +274,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
         }
         sourceStateBuilder.setState(stream.toByteString());
       }
-      outputBuilder.setSourceStateUpdates(sourceStateBuilder.build());
       outputBuilder.setSourceWatermark(TimeUnit.MILLISECONDS.toMicros(watermark.getMillis()));
 
       readerCache.put(getSerializedKey(), activeReader);
@@ -331,8 +285,78 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     return work.getSourceState().getFinalizeIdsList();
   }
 
+  private static class WindmillTimerInternals implements TimerInternals {
+
+    private Map<TimerData, Boolean> timers = new HashMap<>();
+    private Instant inputDataWatermark;
+
+    public WindmillTimerInternals(Instant inputDataWatermark) {
+      this.inputDataWatermark = inputDataWatermark;
+    }
+
+    @Override
+    public void setTimer(TimerData timerKey) {
+      timers.put(timerKey, true);
+    }
+
+    @Override
+    public void deleteTimer(TimerData timerKey) {
+      timers.put(timerKey, false);
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      return Instant.now();
+    }
+
+    @Override
+    public Instant currentWatermarkTime() {
+      return inputDataWatermark;
+    }
+
+    /**
+     * Produce a tag that is guaranteed to be unique for the given namespace, domain and timestamp.
+     *
+     * <p> This is necessary because Windmill will deduplicate based only on this tag.
+     */
+    private ByteString timerTag(TimerData key) {
+      String tagString = String.format("%s+%d:%d",
+          key.getNamespace().stringKey(), key.getDomain().ordinal(),
+          key.getTimestamp().getMillis());
+      return ByteString.copyFromUtf8(tagString);
+    }
+
+    public void persistTo(Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+      for (Entry<TimerData, Boolean> entry : timers.entrySet()) {
+        Windmill.Timer.Builder timer = outputBuilder.addOutputTimersBuilder()
+            .setTag(timerTag(entry.getKey()))
+            .setType(timerType(entry.getKey().getDomain()));
+
+        // If the timer was being set (not deleted) then set a timestamp for it.
+        if (entry.getValue()) {
+          long timestampMicros =
+              TimeUnit.MILLISECONDS.toMicros(entry.getKey().getTimestamp().getMillis());
+          timer.setTimestamp(timestampMicros);
+        }
+      }
+      timers.clear();
+    }
+
+    private Windmill.Timer.Type timerType(TimeDomain domain) {
+      switch (domain) {
+        case EVENT_TIME: return Windmill.Timer.Type.WATERMARK;
+        case PROCESSING_TIME: return Windmill.Timer.Type.REALTIME;
+        case SYNCHRONIZED_PROCESSING_TIME: return Windmill.Timer.Type.DEPENDENT_REALTIME;
+        default:
+          throw new IllegalArgumentException("Unrecgonized TimeDomain: " + domain);
+      }
+    }
+  }
+
+
   class StepContext extends ExecutionContext.StepContext {
     private WindmillStateInternals stateInternals;
+    private WindmillTimerInternals timerInternals;
     private String prefix;
 
     public StepContext(String stepName) {
@@ -347,17 +371,25 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     /**
      * Update the {@code stateReader} used by this {@code StepContext}.
      */
-    public void start(WindmillStateReader stateReader) {
+    public void start(WindmillStateReader stateReader, Instant inputDataWatermark) {
       this.stateInternals = new WindmillStateInternals(prefix, stateReader);
+      this.timerInternals = new WindmillTimerInternals(
+          Preconditions.checkNotNull(inputDataWatermark));
     }
 
     public void flushState() {
       stateInternals.persist(outputBuilder);
+      timerInternals.persistTo(outputBuilder);
     }
 
     @Override
     public StateInternals stateInternals() {
       return Preconditions.checkNotNull(stateInternals);
+    }
+
+    @Override
+    public TimerInternals timerInternals() {
+      return Preconditions.checkNotNull(timerInternals);
     }
   }
 

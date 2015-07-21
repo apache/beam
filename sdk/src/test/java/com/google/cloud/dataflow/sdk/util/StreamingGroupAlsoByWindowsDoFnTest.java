@@ -32,7 +32,9 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -45,6 +47,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
@@ -55,19 +58,24 @@ import java.util.List;
 @RunWith(JUnit4.class)
 @SuppressWarnings("rawtypes")
 public class StreamingGroupAlsoByWindowsDoFnTest {
-  ExecutionContext execContext;
-  CounterSet counters;
-  TupleTag<KV<String, Iterable<String>>> outputTag;
+  private ExecutionContext execContext;
+  private CounterSet counters;
+  private TupleTag<KV<String, Iterable<String>>> outputTag;
 
   @Mock
-  private TimerManager mockTimerManager;
+  private TimerInternals mockTimerInternals;
 
   @Before public void setUp() {
     MockitoAnnotations.initMocks(this);
     execContext = new DirectModeExecutionContext() {
+      // Normally timerInternals doesn't come from the execution context, but
+      // StreamingGroupAlsoByWindows expects it to. So, hook that up.
+
       @Override
-      public TimerManager getTimerManager() {
-        return mockTimerManager;
+      public ExecutionContext.StepContext createStepContext(String stepName) {
+        ExecutionContext.StepContext context = Mockito.spy(super.createStepContext(stepName));
+        Mockito.doReturn(mockTimerInternals).when(context).timerInternals();
+        return context;
       }
     };
     counters = new CounterSet();
@@ -87,8 +95,10 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertEquals(0, result.size());
   }
 
-  private <W extends BoundedWindow> String timerString(Coder<W> windowCoder, W window) {
-    return StateNamespaces.windowAndTrigger(windowCoder, window, 0).stringKey() + "+";
+  private <W extends BoundedWindow, V> TimerOrElement<KV<String, V>> timer(
+      Coder<W> windowCoder, W window, Instant timestamp, TimeDomain domain) {
+    StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+    return TimerOrElement.<KV<String, V>>timer("k", TimerData.of(namespace, timestamp, domain));
   }
 
   @Test public void testFixedWindows() throws Exception {
@@ -99,7 +109,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     Coder<IntervalWindow> windowCoder = FixedWindows.of(Duration.millis(10)).windowCoder();
 
     runner.startBundle();
-    when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
+    when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v1")),
@@ -125,15 +135,11 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         Arrays.asList(window(10, 20)),
         PaneInfo.DEFAULT));
 
-    runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, String>>timer(
-            timerString(windowCoder, window(0, 10)),
-            new Instant(9), "k")));
+    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
+            windowCoder, window(0, 10), new Instant(9), TimeDomain.EVENT_TIME)));
 
-    runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, String>>timer(
-            timerString(windowCoder, window(10, 20)),
-            new Instant(19), "k")));
+    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
+        windowCoder, window(10, 20), new Instant(19), TimeDomain.EVENT_TIME)));
 
     runner.finishBundle();
 
@@ -165,7 +171,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         SlidingWindows.of(Duration.millis(10)).every(Duration.millis(10)).windowCoder();
 
     runner.startBundle();
-    when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
+    when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v1")),
@@ -179,10 +185,8 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         Arrays.asList(window(-10, 10), window(0, 20)),
         PaneInfo.DEFAULT));
 
-    runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, String>>timer(
-            timerString(windowCoder, window(-10, 10)),
-            new Instant(9), "k")));
+    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
+        windowCoder, window(-10, 10), new Instant(9), TimeDomain.EVENT_TIME)));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v2")),
@@ -190,15 +194,10 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         Arrays.asList(window(0, 20), window(10, 30)),
         PaneInfo.DEFAULT));
 
-    runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, String>>timer(
-            timerString(windowCoder, window(0, 20)),
-            new Instant(19), "k")));
-
-    runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, String>>timer(
-            timerString(windowCoder, window(10, 30)),
-            new Instant(29), "k")));
+    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
+        windowCoder, window(0, 20), new Instant(19), TimeDomain.EVENT_TIME)));
+    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
+        windowCoder, window(10, 30), new Instant(29), TimeDomain.EVENT_TIME)));
 
     runner.finishBundle();
 
@@ -236,7 +235,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     Coder<IntervalWindow> windowCoder =
         Sessions.withGapDuration(Duration.millis(10)).windowCoder();
     runner.startBundle();
-    when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
+    when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v1")),
@@ -262,20 +261,12 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         Arrays.asList(window(3, 13)),
         PaneInfo.DEFAULT));
 
-    runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, String>>timer(
-            timerString(windowCoder, window(0, 10)),
-            new Instant(9), "k")));
-
-    runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, String>>timer(
-            timerString(windowCoder, window(0, 15)),
-            new Instant(14), "k")));
-
-    runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, String>>timer(
-            timerString(windowCoder, window(15, 25)),
-            new Instant(24), "k")));
+    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
+        windowCoder, window(0, 10), new Instant(9), TimeDomain.EVENT_TIME)));
+    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
+        windowCoder, window(0, 15), new Instant(14), TimeDomain.EVENT_TIME)));
+    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
+        windowCoder, window(15, 25), new Instant(24), TimeDomain.EVENT_TIME)));
 
     runner.finishBundle();
 
@@ -340,7 +331,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         Sessions.withGapDuration(Duration.millis(10)).windowCoder();
 
     runner.startBundle();
-    when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
+    when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", 1L)),
@@ -366,22 +357,12 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         Arrays.asList(window(3, 13)),
         PaneInfo.DEFAULT));
 
-    // TODO: To simplify tests, create a timer manager that can sweep a watermark past some timers
-    // and fire them as appropriate. This would essentially be the batch timer context.
-    runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, Long>>timer(
-            timerString(windowCoder, window(0, 10)),
-            new Instant(9), "k")));
-
-    runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, Long>>timer(
-            timerString(windowCoder, window(0, 15)),
-            new Instant(14), "k")));
-
-    runner.processElement(WindowedValue.valueInEmptyWindows(
-        TimerOrElement.<KV<String, Long>>timer(
-            timerString(windowCoder, window(15, 25)),
-            new Instant(24), "k")));
+    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, Long>timer(
+        windowCoder, window(0, 10), new Instant(9), TimeDomain.EVENT_TIME)));
+    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, Long>timer(
+        windowCoder, window(0, 15), new Instant(14), TimeDomain.EVENT_TIME)));
+    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, Long>timer(
+        windowCoder, window(15, 25), new Instant(24), TimeDomain.EVENT_TIME)));
 
     runner.finishBundle();
 

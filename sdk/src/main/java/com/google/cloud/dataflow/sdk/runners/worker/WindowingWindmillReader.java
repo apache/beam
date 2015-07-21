@@ -25,11 +25,15 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
+import com.google.cloud.dataflow.sdk.util.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.TimerOrElement;
 import com.google.cloud.dataflow.sdk.util.TimerOrElement.TimerOrElementCoder;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import org.joda.time.Instant;
@@ -46,6 +50,7 @@ import java.util.concurrent.TimeUnit;
  */
 class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>> {
   private final Coder<T> valueCoder;
+  private final Coder<? extends BoundedWindow> windowCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
   private StreamingModeExecutionContext context;
 
@@ -54,6 +59,7 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
     FullWindowedValueCoder<TimerOrElement<T>> inputCoder =
         (FullWindowedValueCoder<TimerOrElement<T>>) coder;
     this.windowsCoder = inputCoder.getWindowsCoder();
+    this.windowCoder = inputCoder.getWindowCoder();
     this.valueCoder = ((TimerOrElementCoder<T>) inputCoder.getValueCoder()).getElementCoder();
     this.context = context;
   }
@@ -92,23 +98,43 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
       return hasMoreMessages() || hasMoreTimers();
     }
 
+    private TimeDomain getTimeDomain(Windmill.Timer.Type type) {
+      switch (type) {
+        case REALTIME:
+          return TimeDomain.PROCESSING_TIME;
+        case DEPENDENT_REALTIME:
+          return TimeDomain.SYNCHRONIZED_PROCESSING_TIME;
+        case WATERMARK:
+          return TimeDomain.EVENT_TIME;
+        default:
+          throw new IllegalArgumentException("Unsupported timer type " + type);
+      }
+    }
+
+    private <W extends BoundedWindow> WindowedValue<TimerOrElement<T>> createTimer(
+        Object key, Windmill.Timer timer) {
+      String tag = timer.getTag().toStringUtf8();
+      String namespaceString = tag.substring(0, tag.indexOf('+'));
+      StateNamespace namespace = StateNamespaces.fromString(namespaceString, windowCoder);
+
+      Instant timestamp = new Instant(TimeUnit.MICROSECONDS.toMillis(timer.getTimestamp()));
+      TimerData timerData = TimerData.of(namespace, timestamp, getTimeDomain(timer.getType()));
+
+      return WindowedValue.<TimerOrElement<T>>of(
+          TimerOrElement.<T>timer(key, timerData), timestamp, new ArrayList<W>(), PaneInfo.DEFAULT);
+    }
+
     @Override
     public WindowedValue<TimerOrElement<T>> next() throws IOException {
       if (hasMoreTimers()) {
         if (valueCoder instanceof KvCoder) {
           Windmill.Timer timer = context.getWork().getTimers().getTimers(timerIndex++);
-          long timestampMillis = TimeUnit.MICROSECONDS.toMillis(timer.getTimestamp());
 
           KvCoder kvCoder = (KvCoder) valueCoder;
           Object key = kvCoder.getKeyCoder().decode(
               context.getSerializedKey().newInput(), Coder.Context.OUTER);
 
-          return WindowedValue.of(TimerOrElement.<T>timer(timer.getTag().toStringUtf8(),
-                                                          new Instant(timestampMillis),
-                                                          key),
-                                  new Instant(timestampMillis),
-                                  new ArrayList(),
-                                  PaneInfo.DEFAULT);
+          return createTimer(key, timer);
         } else {
           throw new RuntimeException("Timer set on non-keyed DoFn");
         }
