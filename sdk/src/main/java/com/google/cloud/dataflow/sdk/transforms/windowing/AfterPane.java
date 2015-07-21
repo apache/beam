@@ -20,6 +20,8 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
+import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
+import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
@@ -88,6 +90,20 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   @Override
   public TriggerResult onTimer(OnTimerContext c) {
     return TriggerResult.CONTINUE;
+  }
+
+  @Override
+  public void prefetchOnElement(StateContext state) {
+    state.access(ELEMENTS_IN_PANE_TAG).get();
+  }
+
+  @Override
+  public void prefetchOnMerge(MergingStateContext state) {
+    state.accessAcrossMergingWindows(ELEMENTS_IN_PANE_TAG).get();
+  }
+
+  @Override
+  public void prefetchOnTimer(StateContext state) {
   }
 
   @Override

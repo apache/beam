@@ -196,6 +196,7 @@ public class TriggerRunner<W extends BoundedWindow> {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).get();
     }
+    rootTrigger.getSpec().prefetchOnElement(state);
   }
 
   public void prefetchForMerge(ReduceFn.MergingStateContext state) {
@@ -204,6 +205,14 @@ public class TriggerRunner<W extends BoundedWindow> {
         value.get();
       }
     }
+    rootTrigger.getSpec().prefetchOnMerge(state);
+  }
+
+  public void prefetchForTimer(ReduceFn.StateContext state) {
+    if (isFinishedSetNeeded()) {
+      state.access(FINISHED_BITS_TAG).get();
+    }
+    rootTrigger.getSpec().prefetchOnElement(state);
   }
 
   private boolean isFinishedSetNeeded() {

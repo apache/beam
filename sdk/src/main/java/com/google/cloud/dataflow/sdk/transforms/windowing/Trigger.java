@@ -338,6 +338,49 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    * before processing the firing.
    */
   public abstract TriggerResult onTimer(OnTimerContext c) throws Exception;
+
+  /**
+   * Called to allow the trigger to prefetch any state it will likely need to read from during
+   * an {@link #onElement} call.
+   *
+   * @param state StateContext to prefetch from.
+   */
+  public void prefetchOnElement(StateContext state) {
+    if (subTriggers != null) {
+      for (Trigger<W> trigger : subTriggers) {
+        trigger.prefetchOnElement(state);
+      }
+    }
+  }
+
+  /**
+   * Called to allow the trigger to prefetch any state it will likely need to read from during
+   * an {@link #onMerge} call.
+   *
+   * @param state StateContext to prefetch from.
+   */
+  public void prefetchOnMerge(MergingStateContext state) {
+    if (subTriggers != null) {
+      for (Trigger<W> trigger : subTriggers) {
+        trigger.prefetchOnMerge(state);
+      }
+    }
+  }
+
+  /**
+   * Called to allow the trigger to prefetch any state it will likely need to read from during
+   * an {@link #onTimer} call.
+   *
+   * @param state StateContext to prefetch from.
+   */
+  public void prefetchOnTimer(StateContext state) {
+    if (subTriggers != null) {
+      for (Trigger<W> trigger : subTriggers) {
+        trigger.prefetchOnTimer(state);
+      }
+    }
+  }
+
   /**
    * Clear any state associated with this trigger in the given window.
    *

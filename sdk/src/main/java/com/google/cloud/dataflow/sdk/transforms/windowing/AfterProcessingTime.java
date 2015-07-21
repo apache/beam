@@ -20,6 +20,8 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
+import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
@@ -111,6 +113,21 @@ public class AfterProcessingTime<W extends BoundedWindow>
     }
 
     return TriggerResult.FIRE_AND_FINISH;
+  }
+
+  @Override
+  public void prefetchOnElement(StateContext state) {
+    state.access(DELAYED_UNTIL_TAG).get();
+  }
+
+  @Override
+  public void prefetchOnMerge(MergingStateContext state) {
+    state.accessAcrossMergingWindows(DELAYED_UNTIL_TAG).get();
+  }
+
+  @Override
+  public void prefetchOnTimer(StateContext state) {
+    state.access(DELAYED_UNTIL_TAG).get();
   }
 
   @Override

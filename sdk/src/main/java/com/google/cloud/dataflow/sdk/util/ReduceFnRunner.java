@@ -269,6 +269,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
       ReduceFn<K, InputT, OutputT, W>.Context context =
           contextFactory.base(windowNamespace.getWindow());
 
+      triggerRunner.prefetchForTimer(context.state());
       if (triggerRunner.isClosed(context.state())) {
         LOG.info("Skipping timer for closed window " + context.window());
         return;
