@@ -120,8 +120,8 @@ public class DefaultTriggerTest {
     tester.advanceWatermark(new Instant(100));
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, -5, 5),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(3), 9, 5, 15)));
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 5, 0, 10),
+        isSingleWindowedValue(Matchers.containsInAnyOrder(3), 10, 5, 15)));
 
     // This data is late, so it will hold the watermark to 109
     tester.injectElement(4, new Instant(8));

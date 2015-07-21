@@ -216,13 +216,15 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1", "v2"));
-    assertEquals(new Instant(2), item1.getTimestamp());
+    // For this sliding window, the minimum output timestmap was 10, since we didn't want to overlap
+    // with the previous window that was [-10, 10).
+    assertEquals(new Instant(10), item1.getTimestamp());
     assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(0, 20)));
 
     WindowedValue<KV<String, Iterable<String>>> item2 = result.get(2);
     assertEquals("k", item2.getValue().getKey());
     assertThat(item2.getValue().getValue(), Matchers.containsInAnyOrder("v2"));
-    assertEquals(new Instant(5), item2.getTimestamp());
+    assertEquals(new Instant(20), item2.getTimestamp());
     assertThat(item2.getWindows(), Matchers.<BoundedWindow>contains(window(10, 30)));
   }
 

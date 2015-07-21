@@ -118,7 +118,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
         key, reduceFn, this.windowingStrategy, this.windowingInternals.stateInternals(),
         this.activeWindows);
 
-    this.watermarkHold = new WatermarkHold<>(windowingStrategy.getAllowedLateness());
+    this.watermarkHold = new WatermarkHold<>(windowingStrategy);
     this.triggerRunner = new TriggerRunner<>(
         windowingStrategy.getTrigger(),
         new TriggerContextFactory<>(timerManager, windowingStrategy,
