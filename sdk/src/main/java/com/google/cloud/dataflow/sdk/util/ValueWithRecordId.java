@@ -19,6 +19,10 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.coders.ByteArrayCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -108,5 +112,19 @@ public class ValueWithRecordId<ValueT> {
 
     Coder<ValueT> valueCoder;
     ByteArrayCoder idCoder;
+  }
+
+  public static <T>
+      PTransform<PCollection<? extends ValueWithRecordId<T>>, PCollection<T>> stripIds() {
+    return ParDo.named("StripIds")
+        .of(
+            new DoFn<ValueWithRecordId<T>, T>() {
+              private static final long serialVersionUID = 0L;
+
+              @Override
+              public void processElement(ProcessContext c) {
+                c.output(c.element().getValue());
+              }
+            });
   }
 }

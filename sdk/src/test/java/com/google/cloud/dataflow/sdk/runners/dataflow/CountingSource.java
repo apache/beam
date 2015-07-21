@@ -57,7 +57,7 @@ public class CountingSource
   }
 
   public CountingSource(int numMessagesPerShard) {
-    this(numMessagesPerShard, -1, false);
+    this(numMessagesPerShard, 0, false);
   }
 
   public CountingSource withDedup() {

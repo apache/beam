@@ -27,6 +27,8 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
+import org.joda.time.Duration;
+
 import javax.annotation.Nullable;
 
 /**
@@ -178,6 +180,27 @@ public class Read {
      */
     public Unbounded<T> named(String name) {
       return new Unbounded<T>(name, source);
+    }
+
+    /**
+     * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount
+     * of data from the given {@link UnboundedSource}.  The bound is specified as a number
+     * of records to read.
+     *
+     * <p> This may take a long time to execute if the splits of this source are slow to read
+     * records.
+     */
+    public BoundedReadFromUnboundedSource<T> withMaxNumRecords(long maxNumRecords) {
+      return new BoundedReadFromUnboundedSource<T>(source, maxNumRecords, null);
+    }
+
+    /**
+     * Returns a new {@link BoundedReadFromUnboundedSource} that reads a bounded amount
+     * of data from the given {@link UnboundedSource}.  The bound is specified as an amount
+     * of time to read for.  Each split of the source will read for this much time.
+     */
+    public BoundedReadFromUnboundedSource<T> withMaxReadTime(Duration maxReadTime) {
+      return new BoundedReadFromUnboundedSource<T>(source, Long.MAX_VALUE, maxReadTime);
     }
 
     @Override

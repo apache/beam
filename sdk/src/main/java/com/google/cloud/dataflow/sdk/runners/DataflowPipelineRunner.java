@@ -493,15 +493,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
             .apply(new Deduplicate<T>());
       } else {
         return Pipeline.applyTransform(input, new ReadWithIds<T>(source))
-            .apply(ParDo.named("StripIds").of(
-                new DoFn<ValueWithRecordId<T>, T>() {
-                  private static final long serialVersionUID = 0L;
-
-                  @Override
-                  public void processElement(ProcessContext c) {
-                    c.output(c.element().getValue());
-                  }
-                }));
+            .apply(ValueWithRecordId.<T>stripIds());
       }
     }
 

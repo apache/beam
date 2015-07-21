@@ -16,11 +16,15 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import org.junit.Test;
@@ -29,7 +33,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tests for RemovedDuplicates.
@@ -78,6 +84,52 @@ public class RemoveDuplicatesTest {
 
     DataflowAssert.that(output)
         .containsInAnyOrder();
+    p.run();
+  }
+
+  private static class Keys implements SerializableFunction<KV<String, String>, String> {
+    private static final long serialVersionUID = 0L;
+    @Override
+    public String apply(KV<String, String> input) {
+      return input.getKey();
+    }
+  }
+
+  private static class Checker implements SerializableFunction<Iterable<KV<String, String>>, Void> {
+    private static final long serialVersionUID = 0L;
+
+    @Override
+    public Void apply(Iterable<KV<String, String>> input) {
+      Map<String, String> values = new HashMap<>();
+      for (KV<String, String> kv : input) {
+        values.put(kv.getKey(), kv.getValue());
+      }
+      assertEquals(2, values.size());
+      assertTrue(values.get("k1").equals("v1") || values.get("k1").equals("v2"));
+      assertEquals("v1", values.get("k2"));
+      return null;
+    }
+  }
+
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testRemoveDuplicatesWithRepresentativeValue() {
+    List<KV<String, String>> strings = Arrays.asList(
+        KV.of("k1", "v1"),
+        KV.of("k1", "v2"),
+        KV.of("k2", "v1"));
+
+    Pipeline p = TestPipeline.create();
+
+    PCollection<KV<String, String>> input = p.apply(Create.of(strings));
+
+    PCollection<KV<String, String>> output =
+        input.apply(RemoveDuplicates.withRepresentativeValueFn(new Keys()));
+
+
+    DataflowAssert.that(output).satisfies(new Checker());
+
     p.run();
   }
 }

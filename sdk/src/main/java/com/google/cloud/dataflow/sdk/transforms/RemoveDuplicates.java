@@ -31,6 +31,10 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * comparing the encoded bytes.  This admits efficient parallel
  * evaluation.
  *
+ * <p> Optionally, a function may be provided that maps each element to a representative
+ * value.  In this case, two elements will be considered duplicates if they have equal
+ * representative values, with equality being determined as above.
+ *
  * <p> By default, the {@code Coder} of the output {@code PCollection}
  * is the same as the {@code Coder} of the input {@code PCollection}.
  *
@@ -62,29 +66,61 @@ public class RemoveDuplicates<T> extends PTransform<PCollection<T>,
    * {@code PCollection}s
    */
   public static <T> RemoveDuplicates<T> create() {
-    return new RemoveDuplicates<>();
+    return new RemoveDuplicates<T>();
   }
 
-  private RemoveDuplicates() { }
+  /**
+   * Returns a {@code RemoveDuplicates<T, IdT>} {@code PTransform}.
+   *
+   * @param <T> the type of the elements of the input and output
+   * {@code PCollection}s
+   * @param <IdT> the type of the representative value used to dedup
+   */
+  public static <T, IdT> WithRepresentativeValues<T, IdT> withRepresentativeValueFn(
+      SerializableFunction<T, IdT> fn) {
+    return new WithRepresentativeValues<T, IdT>(fn);
+  }
 
   @Override
   public PCollection<T> apply(PCollection<T> in) {
-    return
-        in
+    return in
         .apply(ParDo.named("CreateIndex")
             .of(new DoFn<T, KV<T, Void>>() {
-              @Override
-              public void processElement(ProcessContext c) {
-                c.output(KV.of(c.element(), (Void) null));
-              }
-            }))
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    c.output(KV.of(c.element(), (Void) null));
+                  }
+                }))
         .apply(Combine.<T, Void>perKey(
             new SerializableFunction<Iterable<Void>, Void>() {
               @Override
               public Void apply(Iterable<Void> iter) {
                 return null; // ignore input
-              }
+                }
             }))
         .apply(Keys.<T>create());
+  }
+
+  private static class WithRepresentativeValues<T, IdT>
+      extends PTransform<PCollection<T>, PCollection<T>> {
+    private SerializableFunction<T, IdT> fn;
+
+    private WithRepresentativeValues(SerializableFunction<T, IdT> fn) {
+      this.fn = fn;
+    }
+
+    @Override
+    public PCollection<T> apply(PCollection<T> in) {
+      return in
+          .apply(WithKeys.of(fn))
+          .apply(Combine.<IdT, T, T>perKey(
+              new Combine.BinaryCombineFn<T>() {
+                @Override
+                public T apply(T left, T right) {
+                  return left;
+                }
+              }))
+          .apply(Values.<T>create());
+    }
   }
 }
