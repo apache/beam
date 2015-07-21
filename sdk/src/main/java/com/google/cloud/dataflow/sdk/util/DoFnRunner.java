@@ -147,6 +147,10 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
    * the current element.
    */
   public void processElement(WindowedValue<InputT> elem) {
+    // Setup new thread local logging before running user code, and restore it after.
+    // Needs to happen here (per-element) since fusion may be running this as part of a call to
+    // output in an earlier step.
+    String previousStepName = DataflowWorkerLoggingMDC.getStepName();
     DataflowWorkerLoggingMDC.setStepName(context.stepContext.getStepName());
     try {
       if (elem.getWindows().size() <= 1
@@ -162,7 +166,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         }
       }
     } finally {
-      DataflowWorkerLoggingMDC.setStepName(null);
+      DataflowWorkerLoggingMDC.setStepName(previousStepName);
     }
   }
 
