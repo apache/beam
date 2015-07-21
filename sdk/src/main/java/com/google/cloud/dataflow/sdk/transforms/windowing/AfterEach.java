@@ -37,7 +37,7 @@ import java.util.List;
  * <p> The following properties hold:
  * <ul>
  *   <li> {@code AfterEach.inOrder(AfterEach.inOrder(a, b), c)} behaves the same as
- *   {@code AfterEach.inOrder(a, b, c)}
+ *   {@code AfterEach.inOrder(a, b, c)} and {@code AfterEach.inOrder(a, AfterEach.inOrder(b, c)}.
  *   <li> {@code AfterEach.inOrder(Repeatedly.forever(a), b)} behaves the same as
  *   {@code Repeatedly.forever(a)}, since the repeated trigger never finishes.
  * </ul>
@@ -72,10 +72,27 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
 
   @Override
   public TriggerResult onElement(OnElementContext c) throws Exception {
+    Iterator<ExecutableTrigger<W>> iterator = c.trigger().unfinishedSubTriggers().iterator();
+
     // If all the sub-triggers have finished, we should have already finished, so we know there is
     // at least one unfinished trigger.
-    ExecutableTrigger<W> subTrigger = c.trigger().firstUnfinishedSubTrigger();
-    return wrapResult(c, subTrigger.invokeElement(c));
+    TriggerResult firstResult = iterator.next().invokeElement(c);
+
+    // If onMerge might be called, we need to make sure we have proper state for future triggers.
+    if (c.trigger().isMerging()) {
+      if (firstResult.isFire()) {
+        // If we're firing, clear out all of the later subtriggers, since we don't want to pollute
+        // their state.
+        resetRemaining(c, iterator);
+      } else {
+        // Otherwise, iterate over all of them to build up some state.
+        while (iterator.hasNext()) {
+          iterator.next().invokeElement(c);
+        }
+      }
+    }
+
+    return wrapResult(c, firstResult);
   }
 
   @Override

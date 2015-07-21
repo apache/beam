@@ -171,6 +171,14 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   public interface TriggerInfo<W extends BoundedWindow> {
 
     /**
+     * Returns true if the windowing strategy of the current {@code PCollection} is a merging
+     * WindowFn. If true, the trigger execution needs to keep enough information to support the
+     * possibility of {@link Trigger#onMerge} being called. If false, {@link Trigger#onMerge} will
+     * never be called.
+     */
+    boolean isMerging();
+
+    /**
      * Access the executable versions of the sub-triggers of the current trigger.
      */
     Iterable<ExecutableTrigger<W>> subTriggers();

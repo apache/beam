@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
@@ -298,6 +299,37 @@ public class OrFinallyTriggerTest {
     tester.injectElement(101, new Instant(1));
     tester.injectElement(102, new Instant(1));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
+  }
+
+  @Test
+  public void testOrFinallyMergingWindowSomeFinished() throws Exception {
+    Duration windowDuration = Duration.millis(10);
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        Sessions.withGapDuration(windowDuration),
+        AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
+            .plusDelayOf(Duration.millis(5))
+            .orFinally(AfterPane.<IntervalWindow>elementCountAtLeast(5)),
+        AccumulationMode.ACCUMULATING_FIRED_PANES,
+        Duration.millis(100));
+
+    tester.advanceProcessingTime(new Instant(10));
+    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
+    tester.injectElement(2, new Instant(1)); // in [1, 11) count = 1
+    tester.injectElement(3, new Instant(2)); // in [2, 12), timer for 16
+
+    // Enough data comes in for 2 that combined, we should fire
+    tester.injectElement(4, new Instant(2));
+    tester.injectElement(5, new Instant(2));
+
+    tester.doMerge();
+
+    // This fires, because the earliest element in [1, 12) arrived at time 10
+    assertThat(tester.extractOutput(), Matchers.contains(WindowMatchers.isSingleWindowedValue(
+        Matchers.containsInAnyOrder(1, 2, 3, 4, 5), 1, 1, 12)));
+
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(12)));
   }
 
   @Test

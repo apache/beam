@@ -102,6 +102,11 @@ class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
+    public boolean isMerging() {
+      return !windowingStrategy.getWindowFn().isNonMerging();
+    }
+
+    @Override
     public Iterable<ExecutableTrigger<W>> subTriggers() {
       return trigger.subTriggers();
     }

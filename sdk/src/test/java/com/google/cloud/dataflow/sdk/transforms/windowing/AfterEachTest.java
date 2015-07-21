@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnTimerContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
@@ -84,7 +85,7 @@ public class AfterEachTest {
   public void testOnElementT1Fires() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
 
-    injectElement(1, TriggerResult.CONTINUE, null);
+    injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     injectElement(2, TriggerResult.FIRE, null);
@@ -117,7 +118,7 @@ public class AfterEachTest {
   public void testOnTimerFire() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
 
-    injectElement(1, TriggerResult.CONTINUE, null);
+    injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
     tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, executable1);
     when(mockTrigger1.onTimer(Mockito.isA(OnTimerContext.class)))
@@ -135,7 +136,7 @@ public class AfterEachTest {
   public void testOnTimerFinish() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
 
-    injectElement(1, TriggerResult.CONTINUE, null);
+    injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
 
     tester.setTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME, executable1);
     when(mockTrigger1.onTimer(Mockito.isA(OnTimerContext.class)))
@@ -239,6 +240,45 @@ public class AfterEachTest {
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(50))));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(
         new IntervalWindow(new Instant(0), new Instant(50)));
+  }
+
+  @Test
+  public void testAfterEachMergingWindowSomeFinished() throws Exception {
+    Duration windowDuration = Duration.millis(10);
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        Sessions.withGapDuration(windowDuration),
+        AfterEach.<IntervalWindow>inOrder(
+            AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
+                .plusDelayOf(Duration.millis(5)),
+            AfterPane.<IntervalWindow>elementCountAtLeast(5)),
+        AccumulationMode.ACCUMULATING_FIRED_PANES,
+        Duration.millis(100));
+
+    tester.advanceProcessingTime(new Instant(10));
+    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
+    tester.advanceProcessingTime(new Instant(15));
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 1, 11)));
+
+    tester.injectElement(2, new Instant(1)); // in [1, 11) count = 1
+    tester.injectElement(3, new Instant(2)); // in [2, 12), timer for 16
+
+    // [2, 12) tries to fire, but gets merged; count = 2
+    tester.advanceProcessingTime(new Instant(30));
+
+    tester.injectElement(4, new Instant(1));
+    tester.injectElement(5, new Instant(2));
+    tester.injectElement(6, new Instant(1)); // count = 5, but need to call merge to discover this
+
+    tester.doMerge();
+
+    // This fires, because the earliest element in [1, 12) arrived at time 10
+    assertThat(tester.extractOutput(), Matchers.contains(WindowMatchers.isSingleWindowedValue(
+        Matchers.containsInAnyOrder(1, 2, 3, 4, 5, 6), 1, 1, 12)));
+
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(12)));
   }
 
   @Test
