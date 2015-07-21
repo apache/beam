@@ -22,6 +22,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils;
+
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -171,5 +173,21 @@ public class SlidingWindowsTest {
         new IntervalWindow(new Instant(640), new Instant(1640)),
         slidingWindows.getSideInputWindow(
             new IntervalWindow(new Instant(0), new Instant(1341))));
+  }
+
+  @Test
+  public void testValidOutputTimes() throws Exception {
+    for (long timestamp : Arrays.asList(200, 800, 499, 500, 501, 700, 1000)) {
+      WindowFnTestUtils.validateGetOutputTimestamp(
+          SlidingWindows.of(new Duration(1000)).every(new Duration(500)), timestamp);
+    }
+  }
+
+  @Test
+  public void testOutputTimesNonInterference() throws Exception {
+    for (long timestamp : Arrays.asList(200, 800, 700)) {
+      WindowFnTestUtils.validateNonInterferingOutputTimes(
+          SlidingWindows.of(new Duration(1000)).every(new Duration(500)), timestamp);
+    }
   }
 }

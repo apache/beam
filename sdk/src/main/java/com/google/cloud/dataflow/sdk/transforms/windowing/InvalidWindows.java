@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 
+import org.joda.time.Instant;
+
 import java.util.Collection;
 
 /**
@@ -78,5 +80,10 @@ public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W>
   @Override
   public W getSideInputWindow(BoundedWindow window) {
     throw new UnsupportedOperationException("InvalidWindows is not allowed in side inputs");
+  }
+
+  @Override
+  public Instant getOutputTime(Instant inputTimestamp, W window) {
+    return inputTimestamp;
   }
 }

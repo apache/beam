@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -87,5 +88,10 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
 
   public Duration getGapDuration() {
     return gapDuration;
+  }
+
+  @Override
+  public Instant getOutputTime(Instant inputTimestamp, IntervalWindow window) {
+    return inputTimestamp;
   }
 }

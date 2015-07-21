@@ -21,6 +21,8 @@ import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils;
+
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -96,5 +98,13 @@ public class SessionsTest {
     assertTrue(
         Sessions.withGapDuration(new Duration(10)).isCompatible(
             Sessions.withGapDuration(new Duration(20))));
+  }
+
+  @Test
+  public void testValidOutputTimes() throws Exception {
+    for (long timestamp : Arrays.asList(200, 800, 700)) {
+      WindowFnTestUtils.validateGetOutputTimestamp(
+          Sessions.withGapDuration(new Duration(500)), timestamp);
+    }
   }
 }

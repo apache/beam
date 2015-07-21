@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 
@@ -23,6 +26,8 @@ import org.joda.time.Instant;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -68,6 +73,11 @@ public class WindowFnTestUtils {
       actual.put(window, windowSet.get(window));
     }
     return actual;
+  }
+
+  public static <T, W extends BoundedWindow> Collection<W> assignedWindows(
+      WindowFn<T, W> windowFn, long timestamp) throws Exception {
+    return windowFn.assignWindows(new TestAssignContext<T, W>(new Instant(timestamp), windowFn));
   }
 
   private static String timestampValue(long timestamp) {
@@ -180,6 +190,67 @@ public class WindowFnTestUtils {
 
     public Set<V> get(W window) {
       return elements.get(window);
+    }
+  }
+
+  /**
+   * Assigns the given {@code timestamp} to windows using the specified {@code windowFn}, and
+   * verifies that result of {@code windowFn.getOutputTimestamp} for each window is within the
+   * proper bound.
+   */
+  public static <T, W extends BoundedWindow> void validateNonInterferingOutputTimes(
+      WindowFn<T, W> windowFn, long timestamp) throws Exception {
+    Collection<W> windows = WindowFnTestUtils.<T, W>assignedWindows(windowFn, timestamp);
+
+    Instant instant = new Instant(timestamp);
+    for (W window : windows) {
+      Instant outputTimestamp = windowFn.getOutputTime(instant, window);
+      assertFalse("getOutputTime must be greater than or equal to input timestamp",
+          outputTimestamp.isBefore(instant));
+      assertFalse("getOutputTime must be less than or equal to the max timestamp",
+          outputTimestamp.isAfter(window.maxTimestamp()));
+    }
+  }
+
+  /**
+   * Assigns the given {@code timestamp} to windows using the specified {@code windowFn}, and
+   * verifies that result of {@code windowFn.getOutputTimestamp} for later windows (as defined by
+   * {@code maxTimestamp} won't prevent the watermark from passing the end of earlier windows.
+   *
+   * <p> This verifies that overlapping windows don't interfere at all. Depending on the
+   * {@code windowFn} this may be stricter than desired.
+   */
+  public static <T, W extends BoundedWindow> void validateGetOutputTimestamp(
+      WindowFn<T, W> windowFn, long timestamp) throws Exception {
+    Collection<W> windows = WindowFnTestUtils.<T, W>assignedWindows(windowFn, timestamp);
+    List<W> sortedWindows = new ArrayList<>(windows);
+    Collections.sort(sortedWindows, new Comparator<BoundedWindow>() {
+      @Override
+      public int compare(BoundedWindow o1, BoundedWindow o2) {
+        return o1.maxTimestamp().compareTo(o2.maxTimestamp());
+      }
+    });
+
+    Instant instant = new Instant(timestamp);
+    Instant endOfPrevious = null;
+    for (W window : sortedWindows) {
+      Instant outputTimestamp = windowFn.getOutputTime(instant, window);
+      if (endOfPrevious == null) {
+        // If this is the first window, the output timestamp can be anything, as long as it is in
+        // the valid range.
+        assertFalse("getOutputTime must be greater than or equal to input timestamp",
+            outputTimestamp.isBefore(instant));
+        assertFalse("getOutputTime must be less than or equal to the max timestamp",
+            outputTimestamp.isAfter(window.maxTimestamp()));
+      } else {
+        // If this is a later window, the output timestamp must be after the end of the previous
+        // window
+        assertTrue("getOutputTime must be greater than the end of the previous window",
+            outputTimestamp.isAfter(endOfPrevious));
+        assertFalse("getOutputTime must be less than or equal to the max timestamp",
+            outputTimestamp.isAfter(window.maxTimestamp()));
+      }
+      endOfPrevious = window.maxTimestamp();
     }
   }
 }

@@ -58,7 +58,7 @@ public abstract class WindowFn<T, W extends BoundedWindow>
 
     /**
      * Returns the windows the current element was in, prior to this
-     * {@code AssignFn} being called.
+     * {@code WindowFn} being called.
      */
     public abstract Collection<? extends BoundedWindow> windows();
   }
@@ -123,6 +123,25 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    * <p> Authors of custom {@code WindowFn}s should override this.
    */
   public abstract W getSideInputWindow(final BoundedWindow window);
+
+  /**
+   * Returns the output timestamp to use for data depending on the given {@code inputTimestamp}
+   * in the specified {@code window}.
+   *
+    * <p> The result must be between {@code inputTimestamp} and {@code window.maxTimestamp()}
+   * (inclusive on both sides). If this {@link WindowFn} doesn't produce overlapping windows,
+   * this can (and typically should) just return {@code inputTimestamp}. If this does produce
+   * overlapping windows, it is suggested that the that the result in later overlapping windows is
+   * past the end of earlier windows so that the later windows don't prevent the watermark from
+   * progressing past the end of the earlier window.
+   *
+   * <p> Each {@code KV<K, Iterable<V>>} produced from a {@code GroupByKey} will be output at a
+   * timestamp that is the minimum of {@code getOutputTime} applied to the timestamp of all of
+   * the non-late {@code KV<K, V>} that were used as input to the {@code GroupByKey}. The watermark
+   * is also prevented from advancing past this minimum timestamp until after the
+   * {@code KV<K, Iterable<V>>} has been output.
+   */
+  public abstract Instant getOutputTime(Instant inputTimestamp, W window);
 
   /**
    * Returns true if this {@code WindowFn} never needs to merge any windows.

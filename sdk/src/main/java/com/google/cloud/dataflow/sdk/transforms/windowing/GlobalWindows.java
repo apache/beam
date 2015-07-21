@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 
+import org.joda.time.Instant;
+
 import java.util.Collection;
 import java.util.Collections;
 
@@ -53,5 +55,10 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
   @Override
   public boolean assignsToSingleWindow() {
     return true;
+  }
+
+  @Override
+  public Instant getOutputTime(Instant inputTimestamp, GlobalWindow window) {
+    return inputTimestamp;
   }
 }

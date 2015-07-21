@@ -25,6 +25,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils;
+
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -110,5 +112,13 @@ public class FixedWindowsTest {
     assertFalse(FixedWindows.of(new Duration(10)).isCompatible(FixedWindows.of(new Duration(20))));
     assertFalse(FixedWindows.of(new Duration(10)).isCompatible(
         FixedWindows.of(new Duration(20))));
+  }
+
+  @Test
+  public void testValidOutputTimes() throws Exception {
+    for (long timestamp : Arrays.asList(200, 800, 700)) {
+      WindowFnTestUtils.validateGetOutputTimestamp(
+          FixedWindows.of(new Duration(500)), timestamp);
+    }
   }
 }

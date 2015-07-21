@@ -55,4 +55,9 @@ public abstract class PartitioningWindowFn<T, W extends BoundedWindow>
   public boolean assignsToSingleWindow() {
     return true;
   }
+
+  @Override
+  public Instant getOutputTime(Instant inputTimestamp, W window) {
+    return inputTimestamp;
+  }
 }
