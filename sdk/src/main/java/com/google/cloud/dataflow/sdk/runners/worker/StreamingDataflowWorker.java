@@ -339,27 +339,39 @@ public class StreamingDataflowWorker {
     }
   }
 
+  private static long lastPushbackLog = 0;
+
+  protected static boolean inPushback(Runtime rt) {
+    // If free memory is less than a percentage of total memory, block
+    // until current work drains and memory is released.
+    // Also force a GC to try to get under the memory threshold if possible.
+    long currentMemorySize = rt.totalMemory();
+    long memoryUsed = currentMemorySize - rt.freeMemory();
+    long maxMemory = rt.maxMemory();
+
+    if (memoryUsed <= maxMemory * PUSHBACK_THRESHOLD_RATIO) {
+      return false;
+    }
+
+    if (lastPushbackLog < System.currentTimeMillis() - 60 * 1000) {
+      LOG.warn(
+          "In pushback, not accepting new work. Using {}MB / {}MB ({}MB currently used by JVM)",
+          memoryUsed >> 20, maxMemory >> 20, currentMemorySize >> 20);
+      lastPushbackLog = System.currentTimeMillis();
+    }
+
+    return true;
+  }
+
   private void dispatchLoop() {
     LOG.info("Dispatch starting");
     Runtime rt = Runtime.getRuntime();
-    long lastPushbackLog = 0;
     while (running.get()) {
-
-      // If free memory is less than a percentage of total memory, block
-      // until current work drains and memory is released.
-      // Also force a GC to try to get under the memory threshold if possible.
-      long currentMemorySize = rt.totalMemory();
-      long memoryUsed = currentMemorySize - rt.freeMemory();
-      long maxMemory = rt.maxMemory();
-
-      while (memoryUsed > maxMemory * PUSHBACK_THRESHOLD_RATIO) {
-        if (lastPushbackLog < (lastPushbackLog = System.currentTimeMillis()) - 60 * 1000) {
-          LOG.warn(
-              "In pushback, not accepting new work. Using {}MB / {}MB ({}MB currently used by JVM)",
-              memoryUsed >> 20, maxMemory >> 20, currentMemorySize >> 20);
-          System.gc();
+      if (inPushback(rt)) {
+        System.gc();
+        while (inPushback(rt)) {
+          sleep(10);
         }
-        sleep(10);
       }
 
       int backoff = 1;
