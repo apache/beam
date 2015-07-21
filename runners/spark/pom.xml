@@ -205,7 +205,7 @@ License.
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>0.7.4.201502262128</version>
+                    <version>0.7.5.201505241946</version>
                     <executions>
                         <execution>
                             <goals>
@@ -224,7 +224,7 @@ License.
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>
-                    <version>2.3</version>
+                    <version>2.4.1</version>
                     <executions>
                         <execution>
                             <phase>package</phase>
