@@ -49,6 +49,8 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+import java.util.List;
+
 /**
  * Tests for {@link TriggerExecutor}.
  */
@@ -224,7 +226,8 @@ public class TriggerExecutorTest {
     assertEquals(1, tester.getElementsDroppedDueToLateness());
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 
-    assertThat(tester.extractOutput(), Matchers.contains(
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertThat(output, Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3, 2, 3, 4, 5), 4, 0, 10),
         // Output time is end of the window, because all the new data was late
@@ -233,6 +236,11 @@ public class TriggerExecutorTest {
         // Output time is not end of the window, because the new data (8) wasn't late
         isSingleWindowedValue(Matchers.containsInAnyOrder(
             1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 8), 8, 0, 10)));
+
+    assertThat(
+        output.get(0).getPane(), Matchers.equalTo(PaneInfo.createPane(true, false, Timing.EARLY)));
+    assertThat(
+        output.get(3).getPane(), Matchers.equalTo(PaneInfo.createPane(false, true, Timing.EARLY)));
 
     // And because we're past the end of window + allowed lateness, everything should be cleaned up.
     assertFalse(tester.isMarkedFinished(firstWindow));
@@ -308,25 +316,21 @@ public class TriggerExecutorTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(0));
 
-    when(mockTrigger.onMerge(
-        Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
-        .thenReturn(MergeResult.CONTINUE);
-
-    when(mockTrigger.onTimer(
-        Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
-        .thenReturn(TriggerResult.FIRE);
-
     // All on time data, verify watermark hold.
     injectElement(tester, 1, TriggerResult.CONTINUE); // [1-11)
     injectElement(tester, 10, TriggerResult.CONTINUE); // [10-20)
 
-    // Create a fake timer to fire
+    // Finalizing forces us to merge to merge, but we aren't ready to fire yet.
+    when(mockTrigger.onMerge(
+        Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
+        .thenReturn(MergeResult.CONTINUE);
+
     tester.advanceWatermark(new Instant(100));
-    tester.fireTimer(
-        new IntervalWindow(new Instant(1), new Instant(20)), new Instant(20),
-        TimeDomain.EVENT_TIME);
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 10), 1, 1, 20)));
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertThat(output.size(), Matchers.equalTo(1));
+    assertThat(output.get(0), isSingleWindowedValue(Matchers.containsInAnyOrder(1, 10), 1, 1, 20));
+    assertThat(output.get(0).getPane(),
+        Matchers.equalTo(PaneInfo.createPane(true, true, Timing.EARLY)));
   }
 
   @Test

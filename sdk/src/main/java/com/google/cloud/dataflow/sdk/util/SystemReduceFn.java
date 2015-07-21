@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
 import com.google.cloud.dataflow.sdk.util.state.MergeableState;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
@@ -93,7 +94,10 @@ abstract class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     MergeableState<InputT, OutputT> buffer =
         c.state().accessAcrossMergedWindows(bufferTag(c.key()));
     StateContents<OutputT> output = buffer.get();
-    if (!buffer.isEmpty().read()) {
+
+    // Skip empty panes unless they have interesting pane info.
+    if (!buffer.isEmpty().read()
+        || c.paneInfo().isLast() || Timing.ON_TIME == c.paneInfo().getTiming()) {
       c.output(output.read());
     }
   }

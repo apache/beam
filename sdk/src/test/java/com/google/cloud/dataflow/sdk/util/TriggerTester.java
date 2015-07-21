@@ -59,6 +59,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -173,22 +174,27 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
-    assertHasOnlyGlobalAllowedTags(
+    assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
         ImmutableSet.<StateTag<?>>of(TriggerRunner.FINISHED_BITS_TAG));
   }
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndFinishedSetsAndPaneInfoFor(W... expectedWindows) {
-    assertHasOnlyGlobalAllowedTags(
+    assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
         ImmutableSet.<StateTag<?>>of(
             TriggerRunner.FINISHED_BITS_TAG, PaneInfoTracker.PANE_INFO_TAG));
   }
 
+  public final void assertHasOnlyGlobalState() {
+    assertHasOnlyGlobalAndAllowedTags(
+        Collections.<W>emptySet(), Collections.<StateTag<?>>emptySet());
+  }
+
   @SafeVarargs
   public final void assertHasOnlyGlobalAndPaneInfoFor(W... expectedWindows) {
-    assertHasOnlyGlobalAllowedTags(
+    assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
         ImmutableSet.<StateTag<?>>of(PaneInfoTracker.PANE_INFO_TAG));
   }
@@ -197,7 +203,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
    * Verifies that the the set of windows that have any state stored is exactly
    * {@code expectedWindows} and that each of these windows has only tags from {@code allowedTags}.
    */
-  private void assertHasOnlyGlobalAllowedTags(
+  private void assertHasOnlyGlobalAndAllowedTags(
       Set<W> expectedWindows, Set<StateTag<?>> allowedTags) {
     runner.persist();
 
@@ -253,7 +259,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   /**
    * Retrieve the values that have been output to this time, and clear out the output accumulator.
    */
-  public Iterable<WindowedValue<OutputT>> extractOutput() {
+  public List<WindowedValue<OutputT>> extractOutput() {
     ImmutableList<WindowedValue<OutputT>> result = FluentIterable.from(stubContexts.outputs)
         .transform(new Function<WindowedValue<KV<String, OutputT>>, WindowedValue<OutputT>>() {
           @Override

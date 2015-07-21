@@ -32,6 +32,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.List;
+
 /**
  * Tests the {@link DefaultTrigger} in a variety of windowing modes.
  */
@@ -126,18 +128,18 @@ public class DefaultTriggerTest {
     // This data is late, so it will hold the watermark to 109
     tester.injectElement(4, new Instant(8));
 
-    // Late data means the merge tree might be empty
     tester.advanceWatermark(new Instant(101));
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(4), 9, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(4), 14, 5, 15)));
+    assertThat(tester.getWatermarkHold(), Matchers.equalTo(new Instant(109)));
+    tester.advanceWatermark(new Instant(120));
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertThat(output, Matchers.contains(
+        isSingleWindowedValue(Matchers.<Integer>emptyIterable(), 4, -5, 5),
+        isSingleWindowedValue(Matchers.contains(4), 9, 0, 10),
+        isSingleWindowedValue(Matchers.contains(4), 14, 5, 15)));
 
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(10))));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(5), new Instant(15))));
-    tester.assertHasOnlyGlobalAndPaneInfoFor(
-        new IntervalWindow(new Instant(-5), new Instant(5)),
-        new IntervalWindow(new Instant(0), new Instant(10)),
-        new IntervalWindow(new Instant(5), new Instant(15)));
+    tester.assertHasOnlyGlobalState();
   }
 
   @Test

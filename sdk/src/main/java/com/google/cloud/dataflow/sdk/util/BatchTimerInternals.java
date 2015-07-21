@@ -21,13 +21,19 @@ import com.google.common.base.MoreObjects;
 
 import org.joda.time.Instant;
 
+import java.util.HashSet;
 import java.util.PriorityQueue;
+import java.util.Set;
 
 /**
  * TimerInternals that uses priority queues to manage the timers that are ready to fire.
  */
 public class BatchTimerInternals implements TimerInternals {
 
+  /** Set of timers that are scheduled used for deduplicating timers. */
+  private Set<TimerData> existingTimers = new HashSet<>();
+
+  // Keep these queues separate so we can advance over them separately.
   private PriorityQueue<TimerData> watermarkTimers = new PriorityQueue<>(11);
   private PriorityQueue<TimerData> processingTimers = new PriorityQueue<>(11);
 
@@ -45,7 +51,9 @@ public class BatchTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(TimerData timer) {
-    queue(timer.getDomain()).add(timer);
+    if (existingTimers.add(timer)) {
+      queue(timer.getDomain()).add(timer);
+    }
   }
 
   @Override
