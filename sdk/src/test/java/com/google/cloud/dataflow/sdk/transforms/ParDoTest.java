@@ -361,7 +361,7 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of(inputs).withCoder(VarIntCoder.of()))
-        .apply(ParDo.of(new TestDoFn()));
+        .apply("TestDoFn", ParDo.of(new TestDoFn()));
 
     DataflowAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
