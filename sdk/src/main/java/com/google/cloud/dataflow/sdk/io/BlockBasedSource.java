@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.io;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
@@ -88,8 +87,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    * Creates a {@code BlockBasedReader}.
    */
   @Override
-  public abstract BlockBasedReader<T> createSingleFileReader(
-      PipelineOptions options, ExecutionContext context);
+  public abstract BlockBasedReader<T> createSingleFileReader(PipelineOptions options);
 
   /**
    * A {@code Block} represents a block of records that can be read.

@@ -37,7 +37,7 @@ public class SourceTestUtils {
    */
   public static <T> List<T> readFromSource(BoundedSource<T> source, PipelineOptions options)
       throws IOException {
-    try (BoundedSource.BoundedReader<T> reader = source.createReader(options, null)) {
+    try (BoundedSource.BoundedReader<T> reader = source.createReader(options)) {
       return readFromUnstartedReader(reader);
     }
   }
@@ -144,7 +144,7 @@ public class SourceTestUtils {
       BoundedSource<T> source, int numItemsToReadBeforeSplit, double splitFraction,
       ExpectedSplitOutcome expectedOutcome, PipelineOptions options) throws IOException {
     List<T> expectedItems = readFromSource(source, options);
-    try (BoundedSource.BoundedReader<T> reader = source.createReader(options, null)) {
+    try (BoundedSource.BoundedReader<T> reader = source.createReader(options)) {
       List<T> currentItems = new ArrayList<>();
       currentItems.addAll(readNItemsFromUnstartedReader(reader, numItemsToReadBeforeSplit));
       BoundedSource<T> residual = reader.splitAtFraction(splitFraction);

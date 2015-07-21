@@ -74,7 +74,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
@@ -102,8 +101,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-
-import javax.annotation.Nullable;
 
 /**
  * Tests for {@code BasicSerializableSourceFormat}.
@@ -160,8 +157,7 @@ public class BasicSerializableSourceFormatTest {
       }
 
       @Override
-      public BoundedReader<Integer> createReader(
-          PipelineOptions options, @Nullable ExecutionContext executionContext) throws IOException {
+      public BoundedReader<Integer> createReader(PipelineOptions options) throws IOException {
         return new RangeReader(this);
       }
 
@@ -314,7 +310,7 @@ public class BasicSerializableSourceFormatTest {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     TestIO.Read source = TestIO.fromRange(10, 20);
-    try (BoundedSource.BoundedReader<Integer> reader = source.createReader(options, null)) {
+    try (BoundedSource.BoundedReader<Integer> reader = source.createReader(options)) {
       assertEquals(0, reader.getFractionConsumed().intValue());
       assertTrue(reader.start());
       assertEquals(0.1, reader.getFractionConsumed(), 1e-6);
@@ -423,8 +419,7 @@ public class BasicSerializableSourceFormatTest {
     }
 
     @Override
-    public BoundedReader<Integer> createReader(PipelineOptions options, ExecutionContext context)
-        throws IOException {
+    public BoundedReader<Integer> createReader(PipelineOptions options) throws IOException {
       throw new UnsupportedOperationException();
     }
 
@@ -536,8 +531,7 @@ public class BasicSerializableSourceFormatTest {
     private static final long serialVersionUID = -1288303253742972653L;
 
     @Override
-    public BoundedReader<Integer> createReader(
-        PipelineOptions options, @Nullable ExecutionContext executionContext) throws IOException {
+    public BoundedReader<Integer> createReader(PipelineOptions options) throws IOException {
       return new FailingReader(this);
     }
 

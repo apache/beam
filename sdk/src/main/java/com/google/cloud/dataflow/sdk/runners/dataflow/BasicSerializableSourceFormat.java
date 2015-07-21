@@ -160,7 +160,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
    */
   public static <T> Reader<WindowedValue<T>> create(
       final PipelineOptions options, final CloudObject spec, Coder<WindowedValue<T>> coder,
-      final ExecutionContext executionContext) throws Exception {
+      ExecutionContext executionContext) throws Exception {
     // The parameter "coder" is deliberately never used. It is an artifact of ReaderFactory:
     // some readers need a coder, some don't (i.e. for some it doesn't even make sense),
     // but ReaderFactory passes it to all readers anyway.
@@ -170,7 +170,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
         @Override
         public Reader.ReaderIterator<WindowedValue<T>> iterator() throws IOException {
           return new BoundedReaderIterator<>(
-              ((BoundedSource<T>) source).createReader(options, executionContext));
+              ((BoundedSource<T>) source).createReader(options));
         }
       };
     } else if (source instanceof UnboundedSource) {
@@ -376,7 +376,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       List<DirectPipelineRunner.ValueWithMetadata<T>> output = new ArrayList<>();
       BoundedSource<T> source = transform.getSource();
       try (BoundedSource.BoundedReader<T> reader =
-          source.createReader(context.getPipelineOptions(), null)) {
+          source.createReader(context.getPipelineOptions())) {
         for (boolean available = reader.start(); available; available = reader.advance()) {
           output.add(
               DirectPipelineRunner.ValueWithMetadata.of(

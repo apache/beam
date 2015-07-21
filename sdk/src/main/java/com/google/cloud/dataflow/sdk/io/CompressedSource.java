@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.FileBasedSource.FileBasedReader;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.common.base.Preconditions;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
@@ -187,10 +186,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * <p>Uses the delegate source to create a single file reader for the delegate source.
    */
   @Override
-  public final CompressedReader<T> createSingleFileReader(
-      PipelineOptions options, ExecutionContext executionContext) {
+  public final CompressedReader<T> createSingleFileReader(PipelineOptions options) {
     return new CompressedReader<T>(
-        this, sourceDelegate.createSingleFileReader(options, executionContext));
+        this, sourceDelegate.createSingleFileReader(options));
   }
 
   /**

@@ -25,7 +25,6 @@ import static org.junit.Assert.assertTrue;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,8 +34,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-
-import javax.annotation.Nullable;
 
 /**
  * Tests code common to all offset-based sources.
@@ -86,9 +83,7 @@ public class ByteOffsetBasedSourceTest {
     }
 
     @Override
-    public BoundedReader<Integer> createReader(
-        PipelineOptions options, @Nullable ExecutionContext executionContext)
-        throws IOException {
+    public BoundedReader<Integer> createReader(PipelineOptions options) throws IOException {
       return new CoarseByteRangeReader(this);
     }
   }
@@ -195,7 +190,7 @@ public class ByteOffsetBasedSourceTest {
     // in the face of that.
     PipelineOptions options = PipelineOptionsFactory.create();
     CoarseByteRangeSource source = new CoarseByteRangeSource(13, 35, 1, 10);
-    try (BoundedSource.BoundedReader<Integer> reader = source.createReader(options, null)) {
+    try (BoundedSource.BoundedReader<Integer> reader = source.createReader(options)) {
       List<Integer> items = new ArrayList<>();
 
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
@@ -215,7 +210,7 @@ public class ByteOffsetBasedSourceTest {
 
       source = new CoarseByteRangeSource(13, 17, 1, 10);
     }
-    try (BoundedSource.BoundedReader<Integer> reader = source.createReader(options, null)) {
+    try (BoundedSource.BoundedReader<Integer> reader = source.createReader(options)) {
       assertFalse(reader.start());
     }
   }
@@ -224,8 +219,7 @@ public class ByteOffsetBasedSourceTest {
   public void testSplitAtFraction() throws IOException {
     PipelineOptions options = PipelineOptionsFactory.create();
     CoarseByteRangeSource source = new CoarseByteRangeSource(13, 35, 1, 10);
-    try (CoarseByteRangeReader reader =
-            (CoarseByteRangeReader) source.createReader(options, null)) {
+    try (CoarseByteRangeReader reader = (CoarseByteRangeReader) source.createReader(options)) {
       List<Integer> originalItems = new ArrayList<>();
       assertTrue(reader.start());
       originalItems.add(reader.getCurrent());

@@ -18,7 +18,6 @@ import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.JAXBCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 
 import org.codehaus.stax2.XMLInputFactory2;
 
@@ -181,8 +180,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
   }
 
   @Override
-  public FileBasedReader<T> createSingleFileReader(
-      PipelineOptions options, ExecutionContext executionContext) {
+  public FileBasedReader<T> createSingleFileReader(PipelineOptions options) {
     return new XMLReader<T>(this);
   }
 

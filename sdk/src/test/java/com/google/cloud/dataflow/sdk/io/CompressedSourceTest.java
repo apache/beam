@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.io.CompressedSource.CompressionMode;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.primitives.Bytes;
 
@@ -194,8 +193,7 @@ public class CompressedSourceTest {
     }
 
     @Override
-    public ByteReader createSingleFileReader(
-        PipelineOptions options, ExecutionContext executionContext) {
+    public ByteReader createSingleFileReader(PipelineOptions options) {
       return new ByteReader(this);
     }
 

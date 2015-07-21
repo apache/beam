@@ -18,12 +18,9 @@ package com.google.cloud.dataflow.sdk.io;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 
 import java.io.IOException;
 import java.util.List;
-
-import javax.annotation.Nullable;
 
 /**
  * A {@link Source} that reads a finite amount of input and, because of that, supports
@@ -67,8 +64,10 @@ public abstract class BoundedSource<T> extends Source<T> {
    */
   public abstract boolean producesSortedKeys(PipelineOptions options) throws Exception;
 
-  public abstract BoundedReader<T> createReader(
-      PipelineOptions options, @Nullable ExecutionContext executionContext) throws IOException;
+  /**
+   * Returns a new {@link BoundedReader} that reads from this source.
+   */
+  public abstract BoundedReader<T> createReader(PipelineOptions options) throws IOException;
 
   /**
    * A {@code Reader} that reads a bounded amount of input and supports some additional

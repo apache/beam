@@ -35,7 +35,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -120,8 +119,7 @@ public class FileBasedSourceTest {
     }
 
     @Override
-    public FileBasedReader<String> createSingleFileReader(
-        PipelineOptions options, ExecutionContext executionContext) {
+    public FileBasedReader<String> createSingleFileReader(PipelineOptions options) {
       if (splitHeader == null) {
         return new TestReader(this);
       } else {
@@ -390,7 +388,7 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source =
         new TestFileBasedSource(new File(file1.getParent(), "file*").getPath(), 64, null);
-    Reader<String> reader = source.createReader(options, null);
+    Reader<String> reader = source.createReader(options);
     // Closing an unstarted FilePatternReader should not throw an exception.
     try {
       reader.close();
@@ -412,7 +410,7 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source =
         new TestFileBasedSource(file1.getParent() + "/" + "file*", 1024, null);
-    try (BoundedSource.BoundedReader<String> reader = source.createReader(null, null)) {
+    try (BoundedSource.BoundedReader<String> reader = source.createReader(null)) {
       double lastFractionConsumed = 0.0;
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
       assertTrue(reader.start());

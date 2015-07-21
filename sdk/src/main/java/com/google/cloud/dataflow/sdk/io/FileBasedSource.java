@@ -16,7 +16,6 @@ package com.google.cloud.dataflow.sdk.io;
 
 import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.common.collect.ImmutableList;
@@ -155,8 +154,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * source assuming the source represents a single file. File patterns will be handled by
    * {@code FileBasedSource} implementation automatically.
    */
-  public abstract FileBasedReader<T> createSingleFileReader(PipelineOptions options,
-                                                            ExecutionContext executionContext);
+  public abstract FileBasedReader<T> createSingleFileReader(PipelineOptions options);
 
   @Override
   public final long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
@@ -232,8 +230,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   }
 
   @Override
-  public final BoundedReader<T> createReader(PipelineOptions options,
-                                             ExecutionContext executionContext) throws IOException {
+  public final BoundedReader<T> createReader(PipelineOptions options) throws IOException {
     // Validate the current source prior to creating a reader for it.
     this.validate();
 
@@ -249,14 +246,14 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
           LOG.warn("Failed to get size of " + fileName, e);
           endOffset = Long.MAX_VALUE;
         }
-        fileReaders.add(createForSubrangeOfFile(fileName, 0, endOffset).createSingleFileReader(
-            options, executionContext));
+        fileReaders.add(
+            createForSubrangeOfFile(fileName, 0, endOffset).createSingleFileReader(options));
       }
       LOG.debug("Creating a reader for file pattern " + fileOrPatternSpec + " took "
           + (System.currentTimeMillis() - startTime) + " ms");
       return new FilePatternReader(this, fileReaders);
     } else {
-      return createSingleFileReader(options, executionContext);
+      return createSingleFileReader(options);
     }
   }
 

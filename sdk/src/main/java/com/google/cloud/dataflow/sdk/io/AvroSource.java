@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.io;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
@@ -318,7 +317,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   @Override
-  public AvroReader<T> createSingleFileReader(PipelineOptions options, ExecutionContext context) {
+  public AvroReader<T> createSingleFileReader(PipelineOptions options) {
     return new AvroReader<T>(this);
   }
 

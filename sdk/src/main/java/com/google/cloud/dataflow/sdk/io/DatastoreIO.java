@@ -51,7 +51,6 @@ import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.RetryHttpRequestInitializer;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
@@ -322,8 +321,7 @@ public class DatastoreIO {
     }
 
     @Override
-    public BoundedReader<Entity> createReader(
-        PipelineOptions pipelineOptions, ExecutionContext executionContext) throws IOException {
+    public BoundedReader<Entity> createReader(PipelineOptions pipelineOptions) throws IOException {
       return new DatastoreReader(this, getDatastore(pipelineOptions));
     }
 

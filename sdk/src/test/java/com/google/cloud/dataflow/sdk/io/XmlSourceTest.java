@@ -277,7 +277,7 @@ public class XmlSourceTest {
     assertThat(
         trainsToStrings(expectedResults),
         containsInAnyOrder(
-            trainsToStrings(readEverythingFromReader(source.createReader(null, null))).toArray()));
+            trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
 
   @Test
@@ -300,7 +300,7 @@ public class XmlSourceTest {
     assertThat(
         trainsToStrings(expectedResults),
         containsInAnyOrder(
-            trainsToStrings(readEverythingFromReader(source.createReader(null, null))).toArray()));
+            trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
 
   @Test
@@ -323,7 +323,7 @@ public class XmlSourceTest {
     assertThat(
         trainsToStrings(expectedResults),
         containsInAnyOrder(
-            trainsToStrings(readEverythingFromReader(source.createReader(null, null))).toArray()));
+            trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
 
   @Test
@@ -343,7 +343,7 @@ public class XmlSourceTest {
 
     List<Train> results = new ArrayList<>();
     for (FileBasedSource<Train> split : splits) {
-      results.addAll(readEverythingFromReader(split.createReader(null, null)));
+      results.addAll(readEverythingFromReader(split.createReader(null)));
     }
 
     List<Train> expectedResults = ImmutableList.of(
@@ -383,7 +383,7 @@ public class XmlSourceTest {
     assertThat(
         trainsToStrings(expectedResults),
         containsInAnyOrder(
-            trainsToStrings(readEverythingFromReader(source.createReader(null, null))).toArray()));
+            trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
 
   @Test
@@ -399,7 +399,7 @@ public class XmlSourceTest {
     exception.expect(NullPointerException.class);
     exception.expectMessage(
         "rootElement is null. Use builder method withRootElement() to set this.");
-    readEverythingFromReader(source.createReader(null, null));
+    readEverythingFromReader(source.createReader(null));
   }
 
   @Test
@@ -415,7 +415,7 @@ public class XmlSourceTest {
     exception.expect(NullPointerException.class);
     exception.expectMessage(
         "recordElement is null. Use builder method withRecordElement() to set this.");
-    readEverythingFromReader(source.createReader(null, null));
+    readEverythingFromReader(source.createReader(null));
   }
 
   @Test
@@ -431,7 +431,7 @@ public class XmlSourceTest {
     exception.expect(NullPointerException.class);
     exception.expectMessage(
         "recordClass is null. Use builder method withRecordClass() to set this.");
-    readEverythingFromReader(source.createReader(null, null));
+    readEverythingFromReader(source.createReader(null));
   }
 
   @Test
@@ -446,7 +446,7 @@ public class XmlSourceTest {
             .withRecordClass(Train.class);
 
     exception.expectMessage("Unexpected close tag </trains>; expected </something>.");
-    readEverythingFromReader(source.createReader(null, null));
+    readEverythingFromReader(source.createReader(null));
   }
 
   @Test
@@ -460,7 +460,7 @@ public class XmlSourceTest {
             .withRecordElement("something")
             .withRecordClass(Train.class);
 
-    assertEquals(readEverythingFromReader(source.createReader(null, null)), new ArrayList<Train>());
+    assertEquals(readEverythingFromReader(source.createReader(null)), new ArrayList<Train>());
   }
 
   @XmlRootElement
@@ -483,7 +483,7 @@ public class XmlSourceTest {
 
     // JAXB internationalizes the error message. So this is all we can match for.
     exception.expectMessage(both(containsString("name")).and(Matchers.containsString("something")));
-    try (Reader<WrongTrainType> reader = source.createReader(null, null)) {
+    try (Reader<WrongTrainType> reader = source.createReader(null)) {
 
       List<WrongTrainType> results = new ArrayList<>();
       for (boolean available = reader.start(); available; available = reader.advance()) {
@@ -512,7 +512,7 @@ public class XmlSourceTest {
     assertThat(
         trainsToStrings(expectedResults),
         containsInAnyOrder(
-            trainsToStrings(readEverythingFromReader(source.createReader(null, null))).toArray()));
+            trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
 
 
@@ -536,7 +536,7 @@ public class XmlSourceTest {
     assertThat(
         trainsToStrings(expectedResults),
         containsInAnyOrder(
-            trainsToStrings(readEverythingFromReader(source.createReader(null, null))).toArray()));
+            trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
 
   @Test
@@ -584,7 +584,7 @@ public class XmlSourceTest {
     assertThat(
         trainsToStrings(expectedResults),
         containsInAnyOrder(
-            trainsToStrings(readEverythingFromReader(source.createReader(null, null))).toArray()));
+            trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
 
   @Test
@@ -607,7 +607,7 @@ public class XmlSourceTest {
     assertThat(
         trainsToStrings(expectedResults),
         containsInAnyOrder(
-            trainsToStrings(readEverythingFromReader(source.createReader(null, null))).toArray()));
+            trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
 
   @Test
@@ -626,7 +626,7 @@ public class XmlSourceTest {
     assertThat(
         trainsToStrings(trains),
         containsInAnyOrder(
-            trainsToStrings(readEverythingFromReader(source.createReader(null, null))).toArray()));
+            trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
 
   @Test
@@ -666,7 +666,7 @@ public class XmlSourceTest {
 
     List<Train> results = new ArrayList<>();
     for (FileBasedSource<Train> split : splits) {
-      results.addAll(readEverythingFromReader(split.createReader(null, null)));
+      results.addAll(readEverythingFromReader(split.createReader(null)));
     }
 
     assertThat(trainsToStrings(trains), containsInAnyOrder(trainsToStrings(results).toArray()));
@@ -691,7 +691,7 @@ public class XmlSourceTest {
 
     List<Train> results = new ArrayList<>();
     for (FileBasedSource<Train> split : splits) {
-      results.addAll(readEverythingFromReader(split.createReader(null, null)));
+      results.addAll(readEverythingFromReader(split.createReader(null)));
     }
     assertThat(trainsToStrings(trains), containsInAnyOrder(trainsToStrings(results).toArray()));
   }
@@ -713,7 +713,7 @@ public class XmlSourceTest {
     List<? extends FileBasedSource<Train>> splits =
         fileSource.splitIntoBundles(file.length() / 3, null);
     for (BoundedSource<Train> splitSource : splits) {
-      int numItems = readEverythingFromReader(splitSource.createReader(null, null)).size();
+      int numItems = readEverythingFromReader(splitSource.createReader(null)).size();
       // Should not split while unstarted.
       assertSplitAtFractionFails(splitSource, 0, 0.7, options);
       assertSplitAtFractionSucceedsAndConsistent(splitSource, 1, 0.7, options);
