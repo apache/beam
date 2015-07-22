@@ -38,6 +38,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 /**
  * An encoder using Google Protocol Buffers 2 binary format.
  *
@@ -288,14 +290,16 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
   @JsonCreator
   public static <T extends Message> Proto2Coder<T> of(
       @JsonProperty(PROTO_MESSAGE_CLASS) String protoMessageClassName,
-      @JsonProperty(PROTO_EXTENSION_HOSTS) List<String> extensionHostClassNames) {
+      @Nullable @JsonProperty(PROTO_EXTENSION_HOSTS) List<String> extensionHostClassNames) {
 
     try {
       @SuppressWarnings("unchecked")
       Class<T> protoMessageClass = (Class<T>) Class.forName(protoMessageClassName);
       List<Class<?>> extensionHostClasses = Lists.newArrayList();
-      for (String extensionHostClassName : extensionHostClassNames) {
-        extensionHostClasses.add(Class.forName(extensionHostClassName));
+      if (extensionHostClassNames != null) {
+        for (String extensionHostClassName : extensionHostClassNames) {
+          extensionHostClasses.add(Class.forName(extensionHostClassName));
+        }
       }
       return of(protoMessageClass).withExtensionsFrom(extensionHostClasses);
     } catch (ClassNotFoundException e) {
