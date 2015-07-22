@@ -39,37 +39,33 @@ import com.google.cloud.dataflow.sdk.values.KV;
  * for more detailed examples that introduce additional concepts.
  *
  * <p> Concepts:
- * <ol>
- *   <li>Reading data from text files.</li>
- *   <li>Specifying 'inline' transforms.</li>
- *   <li>Counting a PCollection.</li>
- *   <li>Writing data to Cloud Storage as text files.</li>
- * </ol>
+ * <pre>
+ *   1. Reading data from text files
+ *   2. Specifying 'inline' transforms
+ *   3. Counting a PCollection
+ *   4. Writing data to Cloud Storage as text files
+ * </pre>
  *
- * <p> To execute this pipeline, first edit the code to set your project name and Google Cloud
- * Storage values. The specified GCS bucket(s) must already exist.
+ * <p> To execute this pipeline, first edit the code to set your project name, the staging
+ * location, and the output location. The specified GCS bucket(s) must already exist.
  *
  * <p> Then, run the pipeline as described in the README. It will be deployed and run using the
  * Dataflow service. No args are required to run the pipeline. You can see the results in your
  * output bucket in the GCS browser.
  */
-
-
 public class MinimalWordCount {
 
   public static void main(String[] args) {
-
     // Create a DataflowPipelineOptions object. This object lets us set various execution
     // options for our pipeline, such as the associated Cloud Platform project and a location in
     // Google Cloud Storage to stage files.
     DataflowPipelineOptions options = PipelineOptionsFactory.create()
       .as(DataflowPipelineOptions.class);
     options.setRunner(BlockingDataflowPipelineRunner.class);
-    // TODO: CHANGE THE FOLLOWING TWO SETTINGS.
-    // Your project name is required in order to run your pipeline on the Google Cloud.
-    options.setProject("SET-YOUR-PROJECT-NAME-HERE");
-    // Your Google Cloud Storage path for staging local files.
-    options.setStagingLocation("gs://SET-YOUR-BUCKET-NAME-HERE");
+    // CHANGE 1/3: Your project name is required in order to run your pipeline on the Google Cloud.
+    options.setProject("SET_YOUR_PROJECT_NAME_HERE");
+    // CHANGE 2/3: Your Google Cloud Storage path is required for staging local files.
+    options.setStagingLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_STAGING_DIRECTORY");
 
     // Create the Pipeline object with the options we defined above.
     Pipeline p = Pipeline.create(options);
@@ -108,11 +104,11 @@ public class MinimalWordCount {
                          c.output(c.element().getKey() + ": " + c.element().getValue());
                        }
                      }))
-     // TODO: SPECIFY YOUR OUTPUT GCS PATH
      // Concept #4: Apply a write transform, TextIO.Write, at the end of the pipeline.
      // TextIO.Write writes the contents of a PCollection (in this case, our PCollection of
      // formatted strings) to a series of text files in Google Cloud Storage.
-     .apply(TextIO.Write.to("gs://YOUR-OUTPUT-BUCKET/AND-PREFIX"));
+     // CHANGE 3/3: The Google Cloud Storage path is required for outputting the results to.
+     .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
 
     // Run the pipeline.
     p.run();

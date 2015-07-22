@@ -34,8 +34,6 @@ import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
-import java.io.IOException;
-
 
 /**
  * An example that counts words in Shakespeare and includes Dataflow best practices.
@@ -54,11 +52,13 @@ import java.io.IOException;
  * Reading text files; counting a PCollection; writing to GCS.
  *
  * <p> New Concepts:
- * 1. Executing a Pipeline both locally and using the Dataflow service
- * 2. Using ParDo with static DoFns defined out-of-line
- * 3. Creating a custom aggregator
- * 4. Building a composite transform
- * 5. Using command-line arguments to set pipeline options
+ * <pre>
+ *   1. Executing a Pipeline both locally and using the Dataflow service
+ *   2. Using ParDo with static DoFns defined out-of-line
+ *   3. Creating a custom aggregator
+ *   4. Building a composite transform
+ *   5. Defining your own pipeline options
+ * </pre>
  *
  * <p> Concept #1: you can execute this pipeline either locally or using the Dataflow service.
  * These are now command-line options and not hard-coded as they were in the MinimalWordCount
@@ -98,9 +98,11 @@ public class WordCount {
   static class ExtractWordsFn extends DoFn<String, String> {
     private static final long serialVersionUID = 0;
 
-    // Concept #3: A custom aggregator can track values in your pipeline as it runs, and that value
-    // can be displayed in the Dataflow monitoring UI. This aggregator tracks the number of empty
-    // lines that ExtractWordsFn encounters.
+    /**
+     * Concept #3: A custom aggregator can track values in your pipeline as it runs, and that value
+     * can be displayed in the Dataflow Monitoring UI. This aggregator tracks the number of empty
+     * lines that ExtractWordsFn encounters.
+     */
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
 
@@ -164,9 +166,9 @@ public class WordCount {
   /**
    * Options supported by {@link WordCount}.
    *
-   * <p> Concept #5: defining your own configuration options. Here, you can add your own args to be
-   * processed by the command-line parser, and specify default values for them. You can then access
-   * the options values in your pipeline code.
+   * <p> Concept #5: Defining your own configuration options. Here, you can add your own arguments
+   * to be processed by the command-line parser, and specify default values for them. You can then
+   * access the options values in your pipeline code.
    *
    * <p> Inherits standard configuration options.
    */
@@ -182,7 +184,7 @@ public class WordCount {
     void setOutput(String value);
 
     /**
-     * Returns gs://${STAGING_LOCATION}/"counts.txt" as the default destination.
+     * Returns "gs://${YOUR_STAGING_DIRECTORY}/counts.txt" as the default destination.
      */
     public static class OutputFactory implements DefaultValueFactory<String> {
       @Override
@@ -199,7 +201,7 @@ public class WordCount {
 
   }
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) {
     WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
       .as(WordCountOptions.class);
     Pipeline p = Pipeline.create(options);
