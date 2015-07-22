@@ -79,7 +79,7 @@ public class Combine {
    */
   public static <V> Globally<V, V> globally(
       SerializableFunction<Iterable<V>, V> combiner) {
-    return globally(SimpleCombineFn.of(combiner));
+    return globally(IterableCombineFn.of(combiner));
   }
 
   /**
@@ -120,7 +120,7 @@ public class Combine {
    */
   public static <K, V> PerKey<K, V, V> perKey(
       SerializableFunction<Iterable<V>, V> fn) {
-    return perKey(Combine.SimpleCombineFn.of(fn));
+    return perKey(Combine.IterableCombineFn.of(fn));
   }
 
   /**
@@ -197,7 +197,7 @@ public class Combine {
    */
   public static <K, V> GroupedValues<K, V, V> groupedValues(
       SerializableFunction<Iterable<V>, V> fn) {
-    return groupedValues(SimpleCombineFn.of(fn));
+    return groupedValues(IterableCombineFn.of(fn));
   }
 
   /**
@@ -1438,27 +1438,42 @@ public class Combine {
    * {@link #perKey(SerializableFunction)}, and
    * {@link #groupedValues(SerializableFunction)}.
    */
-  public static class SimpleCombineFn<V> extends CombineFn<V, List<V>, V> {
+  public static class IterableCombineFn<V> extends CombineFn<V, List<V>, V> {
     /**
      * Returns a {@code CombineFn} that uses the given
      * {@code SerializableFunction} to combine values.
      */
-    public static <V> SimpleCombineFn<V> of(
+    public static <V> IterableCombineFn<V> of(
         SerializableFunction<Iterable<V>, V> combiner) {
-      return new SimpleCombineFn<>(combiner);
+      return of(combiner, DEFAULT_BUFFER_SIZE);
     }
+
+    /**
+     * Returns a {@code CombineFn} that uses the given
+     * {@code SerializableFunction} to combine values,
+     * attempting to buffer at least {@code bufferSize}
+     * values between invocations.
+     */
+    public static <V> IterableCombineFn<V> of(
+        SerializableFunction<Iterable<V>, V> combiner, int bufferSize) {
+      return new IterableCombineFn<>(combiner, bufferSize);
+    }
+
+    private static final int DEFAULT_BUFFER_SIZE = 20;
+
+    /** The combiner function. */
+    private final SerializableFunction<Iterable<V>, V> combiner;
 
     /**
      * The number of values to accumulate before invoking the combiner
      * function to combine them.
      */
-    private static final int BUFFER_SIZE = 20;
+    private final int bufferSize;
 
-    /** The combiner function. */
-    private final SerializableFunction<Iterable<V>, V> combiner;
-
-    private SimpleCombineFn(SerializableFunction<Iterable<V>, V> combiner) {
+    private IterableCombineFn(
+        SerializableFunction<Iterable<V>, V> combiner, int bufferSize) {
       this.combiner = combiner;
+      this.bufferSize = bufferSize;
     }
 
     @Override
@@ -1469,7 +1484,7 @@ public class Combine {
     @Override
     public List<V> addInput(List<V> accumulator, V input) {
       accumulator.add(input);
-      if (accumulator.size() > BUFFER_SIZE) {
+      if (accumulator.size() > bufferSize) {
         return mergeToSingleton(accumulator);
       } else {
         return accumulator;
@@ -1490,6 +1505,31 @@ public class Combine {
       List<V> singleton = new ArrayList<>();
       singleton.add(combiner.apply(values));
       return singleton;
+    }
+  }
+
+  /**
+   * Converts a {@link SerializableFunction} from {@code Iterable<V>}s
+   * to {@code V}s into a simple {@link CombineFn} over {@code V}s.
+   *
+   * <p> @deprecated Use {@link IterableCombineFn} or the more space efficient
+   * {@link BinaryCombineFn} instead (which avoids buffering values).
+   */
+  @Deprecated
+  public static class SimpleCombineFn<V> extends IterableCombineFn<V> {
+
+    /**
+     * Returns a {@code CombineFn} that uses the given
+     * {@code SerializableFunction} to combine values.
+     */
+    @Deprecated
+    public static <V> SimpleCombineFn<V> of(
+        SerializableFunction<Iterable<V>, V> combiner) {
+      return new SimpleCombineFn<>(combiner);
+    }
+
+    protected SimpleCombineFn(SerializableFunction<Iterable<V>, V> combiner) {
+      super(combiner, IterableCombineFn.DEFAULT_BUFFER_SIZE);
     }
   }
 

@@ -425,7 +425,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   protected final <AggInputT> Aggregator<AggInputT, AggInputT> createAggregator(String name,
       SerializableFunction<Iterable<AggInputT>, AggInputT> combiner) {
     checkNotNull(combiner, "combiner cannot be null.");
-    return createAggregator(name, Combine.SimpleCombineFn.of(combiner));
+    return createAggregator(name, Combine.IterableCombineFn.of(combiner));
   }
 
   /**

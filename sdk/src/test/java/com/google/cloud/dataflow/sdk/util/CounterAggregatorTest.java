@@ -29,7 +29,7 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
-import com.google.cloud.dataflow.sdk.transforms.Combine.SimpleCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Combine.IterableCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Max;
 import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
@@ -245,7 +245,7 @@ public class CounterAggregatorTest {
   public void testUnsupportedSerializableFunction() throws Exception {
     expectedEx.expect(IllegalArgumentException.class);
     expectedEx.expectMessage(Matchers.containsString("unsupported combiner"));
-    CombineFn<Integer, List<Integer>, Integer> combiner = SimpleCombineFn
+    CombineFn<Integer, List<Integer>, Integer> combiner = IterableCombineFn
         .<Integer>of(new SerializableFunction<Iterable<Integer>, Integer>() {
           @Override
           public Integer apply(Iterable<Integer> input) {
