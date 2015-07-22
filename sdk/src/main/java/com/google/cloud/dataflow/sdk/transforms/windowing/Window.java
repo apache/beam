@@ -250,9 +250,34 @@ public class Window {
      * has more details on the available triggers.
      */
     @Experimental(Experimental.Kind.TRIGGER)
-    public Triggering<T> triggering(Trigger<?> trigger) {
-      return new Triggering<T>(name, windowingStrategy.withTrigger(trigger));
+    public Bound<T> triggering(Trigger<?> trigger) {
+      return new Bound<T>(name, windowingStrategy.withTrigger(trigger));
     }
+
+   /**
+    * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
+    * Triggering behavior, and that discards elements in a pane after they are triggered.
+    *
+    * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
+    * specified to be applied, but more properties can still be specified.
+    */
+   public Bound<T> discardingFiredPanes() {
+     return new Bound<>(
+         name, windowingStrategy.withMode(AccumulationMode.DISCARDING_FIRED_PANES));
+   }
+
+   /**
+    * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
+    * Triggering behavior, and that accumulates elements in a pane after they are triggered.
+    *
+    * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
+    * specified to be applied, but more properties can still be specified.
+    */
+   @Experimental(Kind.TRIGGER)
+   public Bound<T> accumulatingFiredPanes() {
+     return new Bound<>(
+         name, windowingStrategy.withMode(AccumulationMode.ACCUMULATING_FIRED_PANES));
+   }
 
     /**
      * Override the amount of lateness allowed for data elements in the pipeline. Like
@@ -293,55 +318,6 @@ public class Window {
     @Override
     protected String getKindString() {
       return "Window.Into(" + windowingStrategy + ")";
-    }
-  }
-
-  /**
-   * An incomplete {@code Window} transform that has a trigger specified but has an unspecified
-   * accumulation mode.
-   *
-   * <p> The currently available accumulation modes are:
-   *
-   * <ul>
-   *   <li> {@link Window.Triggering#discardingFiredPanes}, which causes the elements in a pane to
-   *   be discarded after the trigger fires and output is produced.
-   * </ul>
-   *
-   * <p> After specifying the accumulation mode the PTransform is complete and can be applied.
-   */
-  public static class Triggering<T> {
-
-    String name;
-    WindowingStrategy<? super T, ?> windowingStrategy;
-
-    Triggering(String name, WindowingStrategy<? super T, ?> windowingStrategy) {
-      this.name = name;
-      this.windowingStrategy = windowingStrategy;
-    }
-
-    /**
-     * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
-     * Triggering behavior, and that discards elements in a pane after they are triggered.
-     *
-     * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
-     * specified to be applied, but more properties can still be specified.
-     */
-    public Bound<T> discardingFiredPanes() {
-      return new Bound<>(
-          name, windowingStrategy.withMode(AccumulationMode.DISCARDING_FIRED_PANES));
-    }
-
-    /**
-     * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
-     * Triggering behavior, and that accumulates elements in a pane after they are triggered.
-     *
-     * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
-     * specified to be applied, but more properties can still be specified.
-     */
-    @Experimental(Kind.TRIGGER)
-    public Bound<T> accumulatingFiredPanes() {
-      return new Bound<>(
-          name, windowingStrategy.withMode(AccumulationMode.ACCUMULATING_FIRED_PANES));
     }
   }
 
