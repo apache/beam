@@ -147,12 +147,11 @@ public class DataflowPipelineJobTest {
     assertEquals(null, state);
   }
 
-  @Test
-  public void testWaitToFinish() throws Exception {
+  public State mockWaitToFinishInState(State state) throws Exception {
     Dataflow.Projects.Jobs.Get statusRequest = mock(Dataflow.Projects.Jobs.Get.class);
 
     Job statusResponse = new Job();
-    statusResponse.setCurrentState("JOB_STATE_" + State.DONE.name());
+    statusResponse.setCurrentState("JOB_STATE_" + state.name());
 
     when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
@@ -162,8 +161,43 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job = new DataflowPipelineJob(
         PROJECT_ID, JOB_ID, mockWorkflowClient, dataflowAggregatorTransforms);
 
-    State state = job.waitToFinish(1, TimeUnit.MINUTES, null, fastClock, fastClock);
-    assertEquals(State.DONE, state);
+    return job.waitToFinish(1, TimeUnit.MINUTES, null, fastClock, fastClock);
+  }
+
+  /**
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#DONE DONE}
+   * state is terminal.
+   */
+  @Test
+  public void testWaitToFinishDone() throws Exception {
+    assertEquals(State.DONE, mockWaitToFinishInState(State.DONE));
+  }
+
+  /**
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#FAILED FAILED}
+   * state is terminal.
+   */
+  @Test
+  public void testWaitToFinishFailed() throws Exception {
+    assertEquals(State.FAILED, mockWaitToFinishInState(State.FAILED));
+  }
+
+  /**
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#FAILED FAILED}
+   * state is terminal.
+   */
+  @Test
+  public void testWaitToFinishCancelled() throws Exception {
+    assertEquals(State.CANCELLED, mockWaitToFinishInState(State.CANCELLED));
+  }
+
+  /**
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#FAILED FAILED}
+   * state is terminal.
+   */
+  @Test
+  public void testWaitToFinishUpdated() throws Exception {
+    assertEquals(State.UPDATED, mockWaitToFinishInState(State.UPDATED));
   }
 
   @Test

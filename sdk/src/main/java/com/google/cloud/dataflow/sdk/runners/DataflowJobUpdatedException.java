@@ -16,20 +16,30 @@
 
 package com.google.cloud.dataflow.sdk.runners;
 
-import javax.annotation.Nullable;
-
 /**
- * Signals that a job run by a {@link BlockingDataflowPipelineRunner} fails during execution, and
- * provides access to the failed job.
+ * Signals that a job run by a {@link BlockingDataflowPipelineRunner} was updated during execution.
  */
-public class JobExecutionException extends AbstractJobException {
+public class DataflowJobUpdatedException extends DataflowJobException {
   private static final long serialVersionUID = 0L;
 
-  JobExecutionException(DataflowPipelineJob job, String message) {
-    this(job, message, null);
+  private DataflowPipelineJob replacedByJob;
+
+  public DataflowJobUpdatedException(
+      DataflowPipelineJob job, String message, DataflowPipelineJob replacedByJob) {
+    this(job, message, replacedByJob, null);
   }
 
-  JobExecutionException(DataflowPipelineJob job, String message, @Nullable Throwable cause) {
+  public DataflowJobUpdatedException(
+      DataflowPipelineJob job, String message, DataflowPipelineJob replacedByJob, Throwable cause) {
     super(job, message, cause);
+    this.replacedByJob = replacedByJob;
+  }
+
+  /**
+   * The new job that replaces the job terminated with this exception.
+   */
+  public DataflowPipelineJob getReplacedByJob() {
+    return replacedByJob;
   }
 }
+

@@ -47,22 +47,27 @@ public interface PipelineResult {
   /** Named constants for common values for the job state. */
   public enum State {
     /** The job state could not be obtained or was not specified. */
-    UNKNOWN(false),
+    UNKNOWN(false, false),
     /** The job has been paused, or has not yet started. */
-    STOPPED(false),
+    STOPPED(false, false),
     /** The job is currently running. */
-    RUNNING(false),
+    RUNNING(false, false),
     /** The job has successfully completed. */
-    DONE(true),
+    DONE(true, false),
     /** The job has failed. */
-    FAILED(true),
+    FAILED(true, false),
     /** The job has been explicitly cancelled. */
-    CANCELLED(true);
+    CANCELLED(true, false),
+    /** The job has been updated. */
+    UPDATED(true, true);
 
     private final boolean terminal;
 
-    private State(boolean terminal) {
+    private final boolean hasReplacement;
+
+    private State(boolean terminal, boolean hasReplacement) {
       this.terminal = terminal;
+      this.hasReplacement = hasReplacement;
     }
 
     /**
@@ -72,6 +77,13 @@ public interface PipelineResult {
      */
     public final boolean isTerminal() {
       return terminal;
+    }
+
+    /**
+     * Returns {@code true} if this job state indicates that a replacement job exists.
+     */
+    public final boolean hasReplacementJob() {
+      return hasReplacement;
     }
 
   }

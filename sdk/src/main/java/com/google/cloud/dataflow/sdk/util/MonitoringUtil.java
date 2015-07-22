@@ -58,6 +58,7 @@ public final class MonitoringUtil {
           .put("JOB_STATE_DONE", State.DONE)
           .put("JOB_STATE_FAILED", State.FAILED)
           .put("JOB_STATE_CANCELLED", State.CANCELLED)
+          .put("JOB_STATE_UPDATED", State.UPDATED)
           .build();
 
   private String projectId;

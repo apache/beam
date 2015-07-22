@@ -19,16 +19,18 @@ package com.google.cloud.dataflow.sdk.runners;
 import javax.annotation.Nullable;
 
 /**
- * Signals there was an error retrieving information about a job from the Cloud Dataflow Service.
+ * Signals that a job run by a {@link BlockingDataflowPipelineRunner} fails during execution, and
+ * provides access to the failed job.
  */
-public class ServiceException extends AbstractJobException {
+public class DataflowJobExecutionException extends DataflowJobException {
   private static final long serialVersionUID = 0L;
 
-  ServiceException(DataflowPipelineJob job, String message) {
+  DataflowJobExecutionException(DataflowPipelineJob job, String message) {
     this(job, message, null);
   }
 
-  ServiceException(DataflowPipelineJob job, String message, @Nullable Throwable cause) {
+  DataflowJobExecutionException(
+      DataflowPipelineJob job, String message, @Nullable Throwable cause) {
     super(job, message, cause);
   }
 }

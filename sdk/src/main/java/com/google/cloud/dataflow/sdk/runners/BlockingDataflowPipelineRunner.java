@@ -78,8 +78,8 @@ public class BlockingDataflowPipelineRunner extends
   /**
    * {@inheritDoc}
    *
-   * @throws JobExecutionException if there is an exception during job execution.
-   * @throws ServiceException if there is an exception retrieving information about the job.
+   * @throws DataflowJobExecutionException if there is an exception during job execution.
+   * @throws DataflowServiceException if there is an exception retrieving information about the job.
    */
   @Override
   public DataflowPipelineJob run(Pipeline p) {
@@ -110,12 +110,12 @@ public class BlockingDataflowPipelineRunner extends
             new MonitoringUtil.PrintHandler(options.getJobMessageOutput()));
       } catch (IOException | InterruptedException ex) {
         LOG.debug("Exception caught while retrieving status for job {}", job.getJobId(), ex);
-        throw new ServiceException(
+        throw new DataflowServiceException(
             job, "Exception caught while retrieving status for job " + job.getJobId(), ex);
       }
 
       if (result == null) {
-        throw new ServiceException(
+        throw new DataflowServiceException(
             job, "Timed out while retrieving status for job " + job.getJobId());
       }
 
@@ -127,11 +127,24 @@ public class BlockingDataflowPipelineRunner extends
 
       if (result == State.DONE) {
         return job;
+      } else if (result == State.UPDATED) {
+        DataflowPipelineJob newJob = job.getReplacedByJob();
+        LOG.info("Job {} has been updated and is running as the new job with id {}."
+            + "To access the updated job on the Dataflow monitoring console, please navigate to {}",
+            job.getJobId(),
+            newJob.getJobId(),
+            MonitoringUtil.getJobMonitoringPageURL(newJob.getProjectId(), newJob.getJobId()));
+        throw new DataflowJobUpdatedException(
+            job,
+            String.format("Job %s updated; new job is %s.", job.getJobId(), newJob.getJobId()),
+            newJob);
+      } else if (result == State.CANCELLED) {
+        String message = String.format("Job %s cancelled by user", job.getJobId());
+        LOG.info(message);
+        throw new DataflowJobCancelledException(job, message);
       } else {
-        // TODO: introduce an exception that can wrap a JobState,
-        // so that detailed error information can be retrieved.
-        throw new JobExecutionException(job, "Job " + job.getJobId()
-            + " finished unsuccessfully with status " + result);
+        throw new DataflowJobExecutionException(job, "Job " + job.getJobId()
+            + " failed with status " + result);
       }
     } finally {
       Runtime.getRuntime().removeShutdownHook(shutdownHook);

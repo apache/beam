@@ -18,8 +18,6 @@ package com.google.cloud.dataflow.sdk.runners;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
@@ -43,11 +41,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
-import java.io.IOException;
-import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -55,10 +49,55 @@ import java.util.concurrent.TimeUnit;
  */
 @RunWith(JUnit4.class)
 public class BlockingDataflowPipelineRunnerTest {
-  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(BlockingDataflowPipelineRunner.class);
-  @Rule public ExpectedException expectedThrown = ExpectedException.none();
 
-  private static class JobIdMatcher<T extends AbstractJobException> extends TypeSafeMatcher<T> {
+  @Rule
+  public ExpectedLogs expectedLogs = ExpectedLogs.none(BlockingDataflowPipelineRunner.class);
+
+  @Rule
+  public ExpectedException expectedThrown = ExpectedException.none();
+
+  /**
+   * A {@link Matcher} for a {@link DataflowJobException} that applies an underlying {@link Matcher}
+   * to the {@link DataflowPipelineJob} returned by {@link DataflowJobException#getJob()}.
+   */
+  private static class DataflowJobExceptionMatcher<T extends DataflowJobException>
+      extends TypeSafeMatcher<T> {
+
+    private final Matcher<DataflowPipelineJob> matcher;
+
+    public DataflowJobExceptionMatcher(Matcher<DataflowPipelineJob> matcher) {
+        this.matcher = matcher;
+    }
+
+    @Override
+    public boolean matchesSafely(T ex) {
+      return matcher.matches(ex.getJob());
+    }
+
+    @Override
+    protected void describeMismatchSafely(T item, Description description) {
+        description.appendText("job ");
+        matcher.describeMismatch(item.getMessage(), description);
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description.appendText("exception with job matching ");
+      description.appendDescriptionOf(matcher);
+    }
+
+    @Factory
+    public static <T extends DataflowJobException> Matcher<T> expectJob(
+        Matcher<DataflowPipelineJob> matcher) {
+      return new DataflowJobExceptionMatcher<T>(matcher);
+    }
+  }
+
+  /**
+   * A {@link Matcher} for a {@link DataflowPipelineJob} that applies an underlying {@link Matcher}
+   * to the return value of {@link DataflowPipelineJob#getJobId()}.
+   */
+  private static class JobIdMatcher<T extends DataflowPipelineJob> extends TypeSafeMatcher<T> {
 
     private final Matcher<String> matcher;
 
@@ -67,181 +106,183 @@ public class BlockingDataflowPipelineRunnerTest {
     }
 
     @Override
-    public boolean matchesSafely(T ex) {
-      return matcher.matches(ex.getJob().getJobId());
+    public boolean matchesSafely(T job) {
+      return matcher.matches(job.getJobId());
     }
 
     @Override
     protected void describeMismatchSafely(T item, Description description) {
         description.appendText("jobId ");
+        matcher.describeMismatch(item.getJobId(), description);
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description.appendText("job with jobId ");
+      description.appendDescriptionOf(matcher);
+    }
+
+    @Factory
+    public static <T extends DataflowPipelineJob> Matcher<T> expectJobId(final String jobId) {
+      return new JobIdMatcher<T>(equalTo(jobId));
+    }
+  }
+
+  /**
+   * A {@link Matcher} for a {@link DataflowJobUpdatedException} that applies an underlying
+   * {@link Matcher} to the {@link DataflowPipelineJob} returned by
+   * {@link DataflowJobUpdatedException#getReplacedByJob()}.
+   */
+  private static class ReplacedByJobMatcher<T extends DataflowJobUpdatedException>
+      extends TypeSafeMatcher<T> {
+
+    private final Matcher<DataflowPipelineJob> matcher;
+
+    public ReplacedByJobMatcher(Matcher<DataflowPipelineJob> matcher) {
+        this.matcher = matcher;
+    }
+
+    @Override
+    public boolean matchesSafely(T ex) {
+      return matcher.matches(ex.getReplacedByJob());
+    }
+
+    @Override
+    protected void describeMismatchSafely(T item, Description description) {
+        description.appendText("job ");
         matcher.describeMismatch(item.getMessage(), description);
     }
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("exception with jobId ");
+      description.appendText("exception with replacedByJob() ");
       description.appendDescriptionOf(matcher);
     }
 
     @Factory
-    public static <T extends AbstractJobException> Matcher<T> expectJobId(final String jobId) {
-      return new JobIdMatcher<T>(equalTo(jobId));
-    }
-
-  }
-
-  // This class mocks a call to DataflowPipelineJob.waitToFinish():
-  //    it blocks the thread to simulate waiting,
-  //    and releases the blocking once signaled
-  static class MockWaitToFinish implements Answer<State> {
-    NotificationHelper jobCompleted = new NotificationHelper();
-
-    @Override
-    public State answer(
-        InvocationOnMock invocation) throws InterruptedException {
-      System.out.println("MockWaitToFinish.answer(): Wait for signaling job completion.");
-      assertTrue("Test did not receive mock job completion signal",
-          jobCompleted.waitTillSet(10000));
-
-      System.out.println("MockWaitToFinish.answer(): job completed.");
-      return State.DONE;
-    }
-
-    public void signalJobComplete() {
-      jobCompleted.set();
+    public static <T extends DataflowJobUpdatedException> Matcher<T> expectReplacedBy(
+        Matcher<DataflowPipelineJob> matcher) {
+      return new ReplacedByJobMatcher<T>(matcher);
     }
   }
 
-  // Mini helper class for wait-notify
-  static class NotificationHelper {
-    private boolean isSet = false;
-
-    public synchronized void set() {
-      isSet = true;
-      notifyAll();
-    }
-
-    public synchronized boolean check() {
-      return isSet;
-    }
-
-    public synchronized boolean waitTillSet(long timeout) throws InterruptedException {
-      long remainingTimeout = timeout;
-      long startTime = new Date().getTime();
-      while (!isSet && remainingTimeout > 0) {
-        wait(remainingTimeout);
-        remainingTimeout = timeout - (new Date().getTime() - startTime);
-      }
-
-      return isSet;
-    }
-  }
-
-  @Test
-  public void testJobWaitComplete() throws IOException, InterruptedException {
-
-    DataflowPipelineRunner mockDataflowPipelineRunner = mock(DataflowPipelineRunner.class);
+  /**
+   * Creates a mocked {@link DataflowPipelineJob} with the given {@code projectId} and {@code jobId}
+   * that will immediately terminate in the provided {@code terminalState}.
+   *
+   * <p> The return value may be further mocked.
+   */
+  private DataflowPipelineJob createMockJob(
+      String projectId, String jobId, State terminalState) throws Exception {
     DataflowPipelineJob mockJob = mock(DataflowPipelineJob.class);
-    MockWaitToFinish mockWait = new MockWaitToFinish();
-
+    when(mockJob.getProjectId()).thenReturn(projectId);
+    when(mockJob.getJobId()).thenReturn(jobId);
     when(mockJob.waitToFinish(
         anyLong(), isA(TimeUnit.class), isA(MonitoringUtil.JobMessagesHandler.class)))
-        .thenAnswer(mockWait);
-    when(mockDataflowPipelineRunner.run(isA(Pipeline.class))).thenReturn(mockJob);
+        .thenReturn(terminalState);
+    return mockJob;
+  }
 
-    // Construct a BlockingDataflowPipelineRunner with mockDataflowPipelineRunner inside
-    final BlockingDataflowPipelineRunner blockingRunner =
-        new BlockingDataflowPipelineRunner(
-            mockDataflowPipelineRunner,
-            PipelineOptionsFactory.as(TestDataflowPipelineOptions.class));
+  /**
+   * Returns a {@link BlockingDataflowPipelineRunner} that will return the provided a job to return.
+   * Some {@link PipelineOptions} will be extracted from the job, such as the project ID.
+   */
+  private BlockingDataflowPipelineRunner createMockRunner(DataflowPipelineJob job)
+      throws Exception {
+    DataflowPipelineRunner mockRunner = mock(DataflowPipelineRunner.class);
+    TestDataflowPipelineOptions options =
+        PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
+    options.setProject(job.getProjectId());
 
-    final NotificationHelper executionStarted = new NotificationHelper();
-    final NotificationHelper jobCompleted = new NotificationHelper();
+    when(mockRunner.run(isA(Pipeline.class))).thenReturn(job);
 
-    new Thread() {
-      @Override
-      public void run() {
-        executionStarted.set();
+    return new BlockingDataflowPipelineRunner(mockRunner, options);
+  }
 
-        // Run on an empty test pipeline.
-        blockingRunner.run(DirectPipeline.createForTest());
-
-        // Test following code is not reached till mock job completion signal.
-        jobCompleted.set();
-      }
-    }.start();
-
-    assertTrue("'executionStarted' event not set till timeout.",
-        executionStarted.waitTillSet(2000));
-    assertFalse("Code after job completion should not be reached before mock signal.",
-        jobCompleted.check());
-
-    mockWait.signalJobComplete();
-    assertTrue("run() should return after job completion is mocked.",
-        jobCompleted.waitTillSet(2000));
+  /**
+   * Tests that the {@link BlockingDataflowPipelineRunner} returns normally when a job terminates in
+   * the {@link State#DONE DONE} state.
+   */
+  @Test
+  public void testJobDoneComplete() throws Exception {
+    createMockRunner(createMockJob("testJobDone-projectId", "testJobDone-jobId", State.DONE))
+        .run(DirectPipeline.createForTest());
     expectedLogs.verifyInfo("Job finished with status DONE");
   }
 
   /**
-   * Returns a {@link BlockingDataflowPipelineRunner} that will execute
-   * a mock job with specified jobId and final state.
-   *
-   * @param jobId the id of the mock job.
-   * @param jobState the state of the mock job after the runner waits for it to finish.
+   * Tests that the {@link BlockingDataflowPipelineRunner} throws the appropriate exception
+   * when a job terminates in the {@link State#FAILED FAILED} state.
    */
-  private BlockingDataflowPipelineRunner mockBlockingRunnerHelper(String jobId, State jobState)
-      throws IOException, InterruptedException {
-    DataflowPipelineRunner mockDataflowPipelineRunner = mock(DataflowPipelineRunner.class);
-    DataflowPipelineJob mockJob = mock(DataflowPipelineJob.class);
-
-    when(mockJob.waitToFinish(
-        anyLong(), isA(TimeUnit.class), isA(MonitoringUtil.JobMessagesHandler.class)))
-        .thenReturn(jobState);
-    when(mockJob.getJobId()).thenReturn(jobId);
-    when(mockDataflowPipelineRunner.run(isA(Pipeline.class))).thenReturn(mockJob);
-
-    // Construct a BlockingDataflowPipelineRunner with mockDataflowPipelineRunner inside.
-    final BlockingDataflowPipelineRunner blockingRunner =
-        new BlockingDataflowPipelineRunner(
-            mockDataflowPipelineRunner,
-            PipelineOptionsFactory.as(TestDataflowPipelineOptions.class));
-
-    return blockingRunner;
+  @Test
+  public void testFailedJobThrowsException() throws Exception {
+    expectedThrown.expect(DataflowJobExecutionException.class);
+    expectedThrown.expect(DataflowJobExceptionMatcher.expectJob(
+        JobIdMatcher.expectJobId("testFailedJob-jobId")));
+    createMockRunner(createMockJob("testFailedJob-projectId", "testFailedJob-jobId", State.FAILED))
+        .run(DirectPipeline.createForTest());
   }
 
+  /**
+   * Tests that the {@link BlockingDataflowPipelineRunner} throws the appropriate exception
+   * when a job terminates in the {@link State#CANCELLED CANCELLED} state.
+   */
   @Test
-  public void testFailedJobThrowsException() throws IOException, InterruptedException {
-    final BlockingDataflowPipelineRunner blockingRunner =
-        mockBlockingRunnerHelper("testFailedJob", State.FAILED);
-    expectedThrown.expect(JobExecutionException.class);
-    expectedThrown.expect(JobIdMatcher.expectJobId("testFailedJob"));
-    blockingRunner.run(DirectPipeline.createForTest());
+  public void testCancelledJobThrowsException() throws Exception {
+    expectedThrown.expect(DataflowJobCancelledException.class);
+    expectedThrown.expect(DataflowJobExceptionMatcher.expectJob(
+        JobIdMatcher.expectJobId("testCancelledJob-jobId")));
+    createMockRunner(
+        createMockJob("testCancelledJob-projectId", "testCancelledJob-jobId", State.CANCELLED))
+        .run(DirectPipeline.createForTest());
   }
 
+  /**
+   * Tests that the {@link BlockingDataflowPipelineRunner} throws the appropriate exception
+   * when a job terminates in the {@link State#UPDATED UPDATED} state.
+   */
   @Test
-  public void testCanceledJobThrowsException() throws IOException, InterruptedException {
-    final BlockingDataflowPipelineRunner blockingRunner =
-        mockBlockingRunnerHelper("testCanceledJob", State.CANCELLED);
-    expectedThrown.expect(JobExecutionException.class);
-    expectedThrown.expect(JobIdMatcher.expectJobId("testCanceledJob"));
-    blockingRunner.run(DirectPipeline.createForTest());
+  public void testUpdatedJobThrowsException() throws Exception {
+    expectedThrown.expect(DataflowJobUpdatedException.class);
+    expectedThrown.expect(DataflowJobExceptionMatcher.expectJob(
+        JobIdMatcher.expectJobId("testUpdatedJob-jobId")));
+    expectedThrown.expect(ReplacedByJobMatcher.expectReplacedBy(
+        JobIdMatcher.expectJobId("testUpdatedJob-replacedByJobId")));
+    DataflowPipelineJob job =
+        createMockJob("testUpdatedJob-projectId", "testUpdatedJob-jobId", State.UPDATED);
+    DataflowPipelineJob replacedByJob =
+        createMockJob("testUpdatedJob-projectId", "testUpdatedJob-replacedByJobId", State.DONE);
+    when(job.getReplacedByJob()).thenReturn(replacedByJob);
+    createMockRunner(job).run(DirectPipeline.createForTest());
   }
 
+  /**
+   * Tests that the {@link BlockingDataflowPipelineRunner} throws the appropriate exception
+   * when a job terminates in the {@link State#UNKNOWN UNKNOWN} state, indicating that the
+   * Dataflow service returned a state that the SDK is unfamiliar with (possibly because it
+   * is an old SDK relative the service).
+   */
   @Test
-  public void testUnknownJobThrowsServiceException() throws IOException, InterruptedException {
-    final BlockingDataflowPipelineRunner blockingRunner =
-        mockBlockingRunnerHelper("testUnknownJob", State.UNKNOWN);
+  public void testUnknownJobThrowsException() throws Exception {
     expectedThrown.expect(IllegalStateException.class);
-    blockingRunner.run(DirectPipeline.createForTest());
+    createMockRunner(
+        createMockJob("testUnknownJob-projectId", "testUnknownJob-jobId", State.UNKNOWN))
+        .run(DirectPipeline.createForTest());
   }
 
+  /**
+   * Tests that the {@link BlockingDataflowPipelineRunner} throws the appropriate exception
+   * when a job returns a {@code null} state, indicating that it failed to contact the service,
+   * including all of its built-in resilience logic.
+   */
   @Test
-  public void testNullJobThrowsServiceException() throws IOException, InterruptedException {
-    final BlockingDataflowPipelineRunner blockingRunner =
-        mockBlockingRunnerHelper("testNullJob", null);
-    expectedThrown.expect(ServiceException.class);
-    expectedThrown.expect(JobIdMatcher.expectJobId("testNullJob"));
-    blockingRunner.run(DirectPipeline.createForTest());
+  public void testNullJobThrowsException() throws Exception {
+    expectedThrown.expect(DataflowServiceException.class);
+    expectedThrown.expect(DataflowJobExceptionMatcher.expectJob(
+        JobIdMatcher.expectJobId("testNullJob-jobId")));
+    createMockRunner(
+        createMockJob("testNullJob-projectId", "testNullJob-jobId", null))
+        .run(DirectPipeline.createForTest());
   }
 
   @Test
