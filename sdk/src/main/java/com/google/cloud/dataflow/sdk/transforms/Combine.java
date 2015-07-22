@@ -1417,8 +1417,8 @@ public class Combine {
 
     @Override
     public PCollectionView<OutputT> apply(PCollection<InputT> input) {
-      PCollection<OutputT> combined = input
-          .apply(Combine.globally(fn).withoutDefaults().withFanout(fanout));
+      PCollection<OutputT> combined =
+          input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
       if (insertDefault) {
         return combined
             .apply(View.<OutputT>asSingleton().withDefaultValue(
