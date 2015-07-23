@@ -442,8 +442,7 @@ public class DataflowPipelineTranslator {
       if (options.getDiskSizeGb() > 0) {
         workerPool.setDiskSizeGb(options.getDiskSizeGb());
       }
-      if (options.getAutoscalingAlgorithm() != null
-          && !options.getAutoscalingAlgorithm().equals(AutoscalingAlgorithmType.NONE)) {
+      if (!options.getAutoscalingAlgorithm().equals(AutoscalingAlgorithmType.NONE)) {
         AutoscalingSettings settings = new AutoscalingSettings();
         settings.setAlgorithm(options.getAutoscalingAlgorithm().getAlgorithm());
         settings.setMaxNumWorkers(options.getMaxNumWorkers());

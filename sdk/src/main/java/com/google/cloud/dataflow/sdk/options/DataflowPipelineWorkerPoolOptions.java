@@ -41,8 +41,8 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    */
   @Description("Number of workers to use when executing the Dataflow job. Note that "
       + "selection of an autoscaling algorithm other then \"NONE\" will affect the "
-      + "size of the worker pool. If left unspecified, the Dataflow service will "
-      + "determine the number of workers.")
+      + "size of the worker pool.")
+  @Default.Integer(3)
   int getNumWorkers();
   void setNumWorkers(int value);
 
@@ -72,6 +72,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   @Description("[Experimental] The autoscaling algorithm to use for the workerpool. "
       + "NONE: does not change the size of the worker pool. "
       + "BASIC: autoscale the worker pool size up to maxNumWorkers until the job completes.")
+  @Default.Enum("NONE")
   @Experimental(Experimental.Kind.AUTOSCALING)
   AutoscalingAlgorithmType getAutoscalingAlgorithm();
   void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);
@@ -80,7 +81,8 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * The maximum number of workers to use when using workerpool autoscaling.
    */
   @Description("[Experimental] The maximum number of workers to use when using workerpool "
-      + "autoscaling. If left unspecified, the Dataflow service will compute a ceiling.")
+      + "autoscaling.")
+  @Default.Integer(20)
   @Experimental(Experimental.Kind.AUTOSCALING)
   int getMaxNumWorkers();
   void setMaxNumWorkers(int value);
@@ -135,6 +137,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * Type of API for handling cluster management, i.e. resizing, healthchecking, etc.
    */
   @Description("Type of API for handling cluster management, i.e. resizing, healthchecking, etc.")
+  @Default.Enum("COMPUTE_ENGINE")
   ClusterManagerApiType getClusterManagerApi();
   void setClusterManagerApi(ClusterManagerApiType value);
 
@@ -201,7 +204,6 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   @Description("Specifies what type of worker pool should be used. Should never be modified when "
       + "using the Dataflow service")
   @Default.String("harness")
-  @Hidden
   String getWorkerPoolType();
   void setWorkerPoolType(String value);
 
@@ -209,6 +211,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * Specifies what type of persistent disk should be used.
    */
   @Description("Specifies what type of persistent disk should be used.")
+  @Default.String("compute.googleapis.com/projects//zones//diskTypes/pd-standard")
   String getWorkerDiskType();
   void setWorkerDiskType(String value);
 }

@@ -282,10 +282,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           dataflowOptions.getPathValidator().verifyPath(options.getTempLocation()));
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
-    if (options.getClusterManagerApi() != null) {
-      newJob.getEnvironment().setClusterManagerApiService(
-          options.getClusterManagerApi().getApiServiceName());
-    }
+    newJob.getEnvironment().setClusterManagerApiService(
+        options.getClusterManagerApi().getApiServiceName());
     newJob.getEnvironment().setExperiments(options.getExperiments());
 
     // Requirements about the service.
