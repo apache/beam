@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
+
 import org.joda.time.Instant;
 
 /**
@@ -56,12 +58,12 @@ public interface TimerManager {
    * timestamp.  Timers are identified by their name, and can be moved
    * by calling {@code setTimer} again, or deleted with {@link #deleteTimer}.
    */
-  void setTimer(String timer, Instant timestamp, TimeDomain domain);
+  void setTimer(StateNamespace timer, Instant timestamp, TimeDomain domain);
 
   /**
    * Deletes the given timer.
    */
-  void deleteTimer(String timer, TimeDomain domain);
+  void deleteTimer(StateNamespace timer, TimeDomain domain);
 
   /**
    * Returns the current timestamp in the {@link TimeDomain#PROCESSING_TIME} time domain.

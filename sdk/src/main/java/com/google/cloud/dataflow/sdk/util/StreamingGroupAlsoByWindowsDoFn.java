@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.state.MergeableState;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
@@ -110,7 +111,10 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
       initForKey(c, key);
 
       if (c.element().isTimer()) {
-        executor.onTimer(c.element().tag());
+        Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
+        String tag = c.element().tag();
+        executor.onTimer(
+            StateNamespaces.fromString(tag.substring(0, tag.length() - 1), windowCoder));
       } else {
         InputT value = c.element().element().getValue();
         executor.onElement(

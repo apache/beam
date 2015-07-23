@@ -31,9 +31,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
-import com.google.cloud.dataflow.sdk.util.TriggerExecutor.TriggerIdCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
@@ -87,14 +86,16 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertEquals(0, result.size());
   }
 
+  private <W extends BoundedWindow> String timerString(Coder<W> windowCoder, W window) {
+    return StateNamespaces.windowAndTrigger(windowCoder, window, 0).stringKey() + "+";
+  }
+
   @Test public void testFixedWindows() throws Exception {
     DoFnRunner<TimerOrElement<KV<String, String>>,
         KV<String, Iterable<String>>, List> runner =
         makeRunner(WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
     Coder<IntervalWindow> windowCoder = FixedWindows.of(Duration.millis(10)).windowCoder();
-    Coder<TriggerId<IntervalWindow>> triggerIdCoder =
-        new TriggerIdCoder<IntervalWindow>(windowCoder);
 
     runner.startBundle();
     when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
@@ -125,12 +126,12 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 10), 0)),
+            timerString(windowCoder, window(0, 10)),
             new Instant(9), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(10, 20), 0)),
+            timerString(windowCoder, window(10, 20)),
             new Instant(19), "k")));
 
     runner.finishBundle();
@@ -161,8 +162,6 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     Coder<IntervalWindow> windowCoder =
         SlidingWindows.of(Duration.millis(10)).every(Duration.millis(10)).windowCoder();
-    Coder<TriggerId<IntervalWindow>> triggerIdCoder =
-        new TriggerIdCoder<IntervalWindow>(windowCoder);
 
     runner.startBundle();
     when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
@@ -181,7 +180,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(-10, 10), 0)),
+            timerString(windowCoder, window(-10, 10)),
             new Instant(9), "k")));
 
     runner.processElement(WindowedValue.of(
@@ -192,12 +191,12 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 20), 0)),
+            timerString(windowCoder, window(0, 20)),
             new Instant(19), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(10, 30), 0)),
+            timerString(windowCoder, window(10, 30)),
             new Instant(29), "k")));
 
     runner.finishBundle();
@@ -233,9 +232,6 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     Coder<IntervalWindow> windowCoder =
         Sessions.withGapDuration(Duration.millis(10)).windowCoder();
-    Coder<TriggerId<IntervalWindow>> triggerIdCoder =
-        new TriggerIdCoder<IntervalWindow>(windowCoder);
-
     runner.startBundle();
     when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
 
@@ -265,17 +261,17 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 10), 0)),
+            timerString(windowCoder, window(0, 10)),
             new Instant(9), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 15), 0)),
+            timerString(windowCoder, window(0, 15)),
             new Instant(14), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, String>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(15, 25), 0)),
+            timerString(windowCoder, window(15, 25)),
             new Instant(24), "k")));
 
     runner.finishBundle();
@@ -339,8 +335,6 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
     Coder<IntervalWindow> windowCoder =
         Sessions.withGapDuration(Duration.millis(10)).windowCoder();
-    Coder<TriggerId<IntervalWindow>> triggerIdCoder =
-        new TriggerIdCoder<IntervalWindow>(windowCoder);
 
     runner.startBundle();
     when(mockTimerManager.currentWatermarkTime()).thenReturn(new Instant(0));
@@ -373,17 +367,17 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     // and fire them as appropriate. This would essentially be the batch timer context.
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, Long>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 10), 0)),
+            timerString(windowCoder, window(0, 10)),
             new Instant(9), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, Long>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(0, 15), 0)),
+            timerString(windowCoder, window(0, 15)),
             new Instant(14), "k")));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
         TimerOrElement.<KV<String, Long>>timer(
-            CoderUtils.encodeToBase64(triggerIdCoder, new TriggerId<>(window(15, 25), 0)),
+            timerString(windowCoder, window(15, 25)),
             new Instant(24), "k")));
 
     runner.finishBundle();

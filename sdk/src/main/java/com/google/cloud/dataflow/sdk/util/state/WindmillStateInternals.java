@@ -107,7 +107,11 @@ public class WindmillStateInternals extends MergingStateInternals {
 
   private ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
     return ByteString.copyFromUtf8(String.format(
-        "%s/%s/%s", prefix, namespace.stringKey(), address.getId()));
+        // stringKey starts and ends with a slash. We don't need to seperate it from prefix, because
+        // the prefix is guaranteed to be unique and non-overlapping. We separate it from the
+        // StateTag ID by a '+' (which is guaranteed not to be in the stringKey) because the
+        // ID comes from the user.
+        "%s%s+%s", prefix, namespace.stringKey(), address.getId()));
   }
 
   private interface WindmillState {

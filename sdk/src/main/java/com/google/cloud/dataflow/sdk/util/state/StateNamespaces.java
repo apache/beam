@@ -19,7 +19,9 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.common.base.Splitter;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -53,10 +55,11 @@ public class StateNamespaces {
    */
   public static class GlobalNamespace implements StateNamespace {
 
+    private static final String GLOBAL_STRING = "/";
+
     @Override
     public String stringKey() {
-      // + and / will never be produced by CoderUtils.encodeToBase64
-      return "+global+";
+      return GLOBAL_STRING;
     }
 
     @Override
@@ -80,6 +83,8 @@ public class StateNamespaces {
    */
   public static class WindowNamespace<W extends BoundedWindow> implements StateNamespace {
 
+    private static final String WINDOW_FORMAT = "/%s/";
+
     private Coder<W> windowCoder;
     private W window;
 
@@ -91,10 +96,14 @@ public class StateNamespaces {
     @Override
     public String stringKey() {
       try {
-        return CoderUtils.encodeToBase64(windowCoder, window);
+        return String.format(WINDOW_FORMAT, CoderUtils.encodeToBase64(windowCoder, window));
       } catch (CoderException e) {
         throw new RuntimeException("Unable to generate string key from window " + window, e);
       }
+    }
+
+    public W getWindow() {
+      return window;
     }
 
     @Override
@@ -128,20 +137,35 @@ public class StateNamespaces {
   public static class WindowAndTriggerNamespace<W extends BoundedWindow>
       implements StateNamespace {
 
+    private static final String WINDOW_AND_TRIGGER_FORMAT = "/%s/%s/";
+
+    private static final int TRIGGER_RADIX = 36;
     private Coder<W> windowCoder;
     private W window;
-    private int triggerIdx;
+    private int triggerIndex;
 
-    private WindowAndTriggerNamespace(Coder<W> windowCoder, W window, int triggerIdx) {
+    private WindowAndTriggerNamespace(Coder<W> windowCoder, W window, int triggerIndex) {
       this.windowCoder = windowCoder;
       this.window = window;
-      this.triggerIdx = triggerIdx;
+      this.triggerIndex = triggerIndex;
+    }
+
+    public W getWindow() {
+      return window;
+    }
+
+    public int getTriggerIndex() {
+      return triggerIndex;
     }
 
     @Override
     public String stringKey() {
       try {
-        return CoderUtils.encodeToBase64(windowCoder, window) + "/" + triggerIdx;
+        return String.format(WINDOW_AND_TRIGGER_FORMAT,
+            CoderUtils.encodeToBase64(windowCoder, window),
+            // Use base 36 so that can address 36 triggers in a single byte and still be human
+            // readable.
+            Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase());
       } catch (CoderException e) {
         throw new RuntimeException("Unable to generate string key from window " + window, e);
       }
@@ -158,18 +182,57 @@ public class StateNamespaces {
       }
 
       WindowAndTriggerNamespace<?> that = (WindowAndTriggerNamespace<?>) obj;
-      return this.triggerIdx == that.triggerIdx
+      return this.triggerIndex == that.triggerIndex
           && Objects.equals(this.window, that.window);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(Namespace.WINDOW_AND_TRIGGER, window, triggerIdx);
+      return Objects.hash(Namespace.WINDOW_AND_TRIGGER, window, triggerIndex);
     }
 
     @Override
     public String toString() {
-      return "WindowAndTrigger(" + window + "," + triggerIdx + ")";
+      return "WindowAndTrigger(" + window + "," + triggerIndex + ")";
+    }
+  }
+
+  private static final Splitter SLASH_SPLITTER = Splitter.on('/');
+
+  /**
+   * Convert a {@code stringKey} produced using {@link StateNamespace#stringKey}
+   * on one of the namespaces produced by this class into the original
+   * {@link StateNamespace}.
+   */
+  public static <W extends BoundedWindow> StateNamespace fromString(
+      String stringKey, Coder<W> windowCoder) {
+    if (!stringKey.startsWith("/") || !stringKey.endsWith("/")) {
+      throw new RuntimeException("Invalid namespace string: '" + stringKey + "'");
+    }
+
+    if (GlobalNamespace.GLOBAL_STRING.equals(stringKey)) {
+      return global();
+    }
+
+    List<String> parts = SLASH_SPLITTER.splitToList(stringKey);
+    if (parts.size() != 3 && parts.size() != 4) {
+      throw new RuntimeException("Invalid namespace string: '" + stringKey + "'");
+    }
+    // Ends should be empty (we start and end with /)
+    if (!parts.get(0).isEmpty() || !parts.get(parts.size() - 1).isEmpty()) {
+      throw new RuntimeException("Invalid namespace string: '" + stringKey + "'");
+    }
+
+    try {
+      W window = CoderUtils.decodeFromBase64(windowCoder, parts.get(1));
+      if (parts.size() > 3) {
+        int index = Integer.parseInt(parts.get(2), WindowAndTriggerNamespace.TRIGGER_RADIX);
+        return windowAndTrigger(windowCoder, window, index);
+      } else {
+        return window(windowCoder, window);
+      }
+    } catch (Exception  e) {
+      throw new RuntimeException("Invalid namespace string: '" + stringKey + "'", e);
     }
   }
 }

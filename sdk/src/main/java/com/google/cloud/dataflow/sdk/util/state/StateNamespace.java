@@ -29,6 +29,10 @@ public interface StateNamespace {
    *
    * <p> This will encode the actual namespace as a {@code String}. It is
    * preferable to use the {@code StateNamespace} object when possible.
+   *
+   * <p> The string produced by the standard implementations will not contain a '+' character. This
+   * enables adding a '+' between the actual namespace and other information, if needed, to separate
+   * the two.
    */
   String stringKey();
 }

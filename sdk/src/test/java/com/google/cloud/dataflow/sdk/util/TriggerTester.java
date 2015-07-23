@@ -21,7 +21,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -34,7 +33,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerId;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
@@ -89,7 +87,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   private Instant watermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-  private final BatchTimerManager timerManager = new LoggingBatchTimerManager(processingTime);
+  private final BatchTimerManager timerManager = new BatchTimerManager(processingTime);
   private final TriggerExecutor<String, InputT, OutputT, W> triggerExecutor;
   private final WindowFn<Object, W> windowFn;
   private final StubContexts stubContexts;
@@ -273,10 +271,10 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public void setTimer(
-      W window, Instant timestamp, TimeDomain domain, ExecutableTrigger<W> trigger)
-          throws CoderException {
-    triggerExecutor.setTimer(
-        new TriggerId<W>(window, trigger.getTriggerIndex()), timestamp, domain);
+      W window, Instant timestamp, TimeDomain domain, ExecutableTrigger<W> trigger) {
+    timerManager.setTimer(
+        StateNamespaces.windowAndTrigger(windowFn.windowCoder(), window, trigger.getTriggerIndex()),
+        timestamp, domain);
   }
 
   private static class TestingInMemoryStateInternals extends InMemoryStateInternals {
@@ -353,33 +351,6 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     @Override
     public StateInternals stateInternals() {
       return state;
-    }
-  }
-
-  private class LoggingBatchTimerManager extends BatchTimerManager {
-
-    public LoggingBatchTimerManager(Instant processingTime) {
-      super(processingTime);
-    }
-
-    @Override
-    public void setTimer(String tag, Instant timestamp, TimeDomain domain) {
-      logInteraction("Setting timer '%s' for time %d in domain %s",
-          tag, timestamp.getMillis(), domain);
-      super.setTimer(tag, timestamp, domain);
-    }
-
-    @Override
-    public void deleteTimer(String tag, TimeDomain domain) {
-      logInteraction("Delete timer '%s' in domain %s", tag, domain);
-      super.deleteTimer(tag, domain);
-    }
-
-    @Override
-    protected void fire(TriggerExecutor<?, ?, ?, ?> triggerExecutor,
-        String tag, TimeDomain domain) throws Exception {
-      logInteraction("Firing timer '%s' in domain %s", tag, domain);
-      super.fire(triggerExecutor, tag, domain);
     }
   }
 

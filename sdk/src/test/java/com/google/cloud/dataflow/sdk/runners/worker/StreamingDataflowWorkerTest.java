@@ -679,13 +679,12 @@ public class StreamingDataflowWorkerTest {
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
     // These tags and data are opaque strings and this is a change detector test.
-    String window = "gAAAAAAAA-joBw";
-    ByteString timer1Tag = ByteString.copyFromUtf8("gAAAAAAAA-joB_____8P");
-    ByteString timer2Tag = ByteString.copyFromUtf8(window + "A");
-    ByteString timer3Tag = ByteString.copyFromUtf8(window + "AAAAA");
-    ByteString bufferTag = ByteString.copyFromUtf8("MergeWindows/" + window + "/__buffer");
+    String window = "/gAAAAAAAA-joBw/";
+    ByteString timer1Tag = ByteString.copyFromUtf8(window + "+");   // GC timer just has window
+    ByteString timer2Tag = ByteString.copyFromUtf8(window + "0/+"); // Trigger has index as well
+    ByteString bufferTag = ByteString.copyFromUtf8("MergeWindows" + window + "+__buffer");
     ByteString watermarkHoldTag =
-        ByteString.copyFromUtf8("MergeWindows/" + window + "/watermark_hold");
+        ByteString.copyFromUtf8("MergeWindows" + window + "+watermark_hold");
     ByteString bufferData = ByteString.copyFromUtf8("\000data0");
     ByteString outputData = ByteString.copyFromUtf8("\\377\\377\\377\\377\\001\\005data0\\000");
     // These values are not essential to the change detector test
@@ -694,6 +693,7 @@ public class StreamingDataflowWorkerTest {
 
     WorkItemCommitRequest actualOutput = result.get(0L);
 
+    // Set timer1 and timer2
     assertThat(actualOutput.getOutputTimersList(), Matchers.containsInAnyOrder(
         Matchers.equalTo(Windmill.Timer.newBuilder()
             .setTag(timer1Tag)
@@ -721,6 +721,7 @@ public class StreamingDataflowWorkerTest {
             .build())));
 
     Windmill.GetWorkResponse.Builder getWorkResponse = Windmill.GetWorkResponse.newBuilder();
+    // Timer2 has an earlier timestamp, so fire that first.
     getWorkResponse.addWorkBuilder()
         .setComputationId(DEFAULT_COMPUTATION_ID)
         .setInputDataWatermark(0)
@@ -728,7 +729,7 @@ public class StreamingDataflowWorkerTest {
         .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING))
         .setWorkToken(1)
         .getTimersBuilder().addTimersBuilder()
-        .setTag(timer3Tag)
+        .setTag(timer2Tag)
         .setTimestamp(timer2Timestamp);
     server.addWorkToOffer(getWorkResponse.build());
 

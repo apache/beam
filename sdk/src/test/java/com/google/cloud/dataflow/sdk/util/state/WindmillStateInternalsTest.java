@@ -64,7 +64,7 @@ public class WindmillStateInternalsTest {
   private WindmillStateInternals underTest;
 
   private ByteString key(StateNamespace namespace, String addrId) {
-    return ByteString.copyFromUtf8(MANGLED_PREFIX + "/" + namespace.stringKey() + "/" + addrId);
+    return ByteString.copyFromUtf8(MANGLED_PREFIX + namespace.stringKey() + "+" + addrId);
   }
 
   @Before

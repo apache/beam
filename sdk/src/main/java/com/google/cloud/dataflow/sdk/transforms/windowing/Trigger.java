@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.util.state.MergeableState;
 import com.google.cloud.dataflow.sdk.util.state.State;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.common.base.Joiner;
-import com.google.common.base.Objects;
 
 import org.joda.time.Instant;
 
@@ -33,6 +32,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
@@ -367,14 +367,14 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    */
   public abstract class OnTimerContext extends TriggerContext {
 
-    protected final TriggerId<W> destinationId;
+    protected final int destinationIndex;
 
-    public OnTimerContext(TriggerId<W> destinationId) {
-      this.destinationId = destinationId;
+    public OnTimerContext(int destinationIndex) {
+      this.destinationIndex = destinationIndex;
     }
 
     public int getDestinationIndex() {
-      return destinationId.getTriggerIdx();
+      return destinationIndex;
     }
 
     /**
@@ -508,38 +508,13 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
     }
     @SuppressWarnings("unchecked")
     Trigger<W> that = (Trigger<W>) obj;
-    return Objects.equal(getClass(), that.getClass())
-        && Objects.equal(subTriggers, that.subTriggers);
+    return Objects.equals(getClass(), that.getClass())
+        && Objects.equals(subTriggers, that.subTriggers);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(getClass(), subTriggers);
-  }
-
-  /**
-   * Identifies a unique {@link Trigger} instance, by the window it is in and the identifier of the
-   * trigger within the trigger tree.
-   *
-   * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
-   *            {@code TriggerId}
-   */
-  public static class TriggerId<W extends BoundedWindow> {
-    private final W window;
-    private final int triggerId;
-
-    public TriggerId(W window, int triggerId) {
-      this.window = window;
-      this.triggerId = triggerId;
-    }
-
-    public W window() {
-      return window;
-    }
-
-    public int getTriggerIdx() {
-      return triggerId;
-    }
+    return Objects.hash(getClass(), subTriggers);
   }
 
   /**

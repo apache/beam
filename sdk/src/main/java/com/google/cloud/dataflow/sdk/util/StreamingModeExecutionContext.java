@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.util.TimerManager.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.WindmillStateInternals;
 import com.google.cloud.dataflow.sdk.util.state.WindmillStateReader;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -97,21 +98,21 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   public TimerManager getTimerManager() {
     return new TimerManager() {
       @Override
-      public void setTimer(String timer, Instant timestamp, TimeDomain domain) {
+      public void setTimer(StateNamespace timer, Instant timestamp, TimeDomain domain) {
         long timestampMicros = TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis());
         outputBuilder.addOutputTimers(
             Windmill.Timer.newBuilder()
             .setTimestamp(timestampMicros)
-            .setTag(ByteString.copyFromUtf8(timer))
+            .setTag(ByteString.copyFromUtf8(timer.stringKey() + "+"))
             .setType(timerType(domain))
             .build());
       }
 
       @Override
-      public void deleteTimer(String timer, TimeDomain domain) {
+      public void deleteTimer(StateNamespace timer, TimeDomain domain) {
         outputBuilder.addOutputTimers(
             Windmill.Timer.newBuilder()
-            .setTag(ByteString.copyFromUtf8(timer))
+            .setTag(ByteString.copyFromUtf8(timer.stringKey() + "+"))
             .setType(timerType(domain))
             .build());
       }

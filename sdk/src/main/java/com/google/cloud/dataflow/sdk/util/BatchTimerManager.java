@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 
 import org.joda.time.Instant;
 
@@ -31,10 +32,10 @@ import java.util.PriorityQueue;
 public class BatchTimerManager implements TimerManager {
 
   private PriorityQueue<BatchTimerManager.BatchTimer> watermarkTimers = new PriorityQueue<>(11);
-  private Map<String, BatchTimerManager.BatchTimer> watermarkTagToTimer = new HashMap<>();
+  private Map<StateNamespace, BatchTimerManager.BatchTimer> watermarkTagToTimer = new HashMap<>();
 
   private PriorityQueue<BatchTimerManager.BatchTimer> processingTimers = new PriorityQueue<>(11);
-  private Map<String, BatchTimerManager.BatchTimer> processingTagToTimer = new HashMap<>();
+  private Map<StateNamespace, BatchTimerManager.BatchTimer> processingTagToTimer = new HashMap<>();
 
   private Instant watermarkTime;
   private Instant processingTime;
@@ -43,10 +44,11 @@ public class BatchTimerManager implements TimerManager {
     return TimeDomain.EVENT_TIME.equals(domain) ? watermarkTimers : processingTimers;
   }
 
-  private Map<String, BatchTimer> map(TimeDomain domain) {
+  private Map<StateNamespace, BatchTimer> map(TimeDomain domain) {
     switch (domain) {
       case EVENT_TIME: return watermarkTagToTimer;
-      case PROCESSING_TIME: case SYNCHRONIZED_PROCESSING_TIME:
+      case PROCESSING_TIME:
+      case SYNCHRONIZED_PROCESSING_TIME:
         // Batch fires timers in order, and only starts a stage after the previous stage is done.
         // As a result, SYNCHRONIZED_PROCESSING_TIME is the same as PROCESSING_TIME.
         return processingTagToTimer;
@@ -60,7 +62,7 @@ public class BatchTimerManager implements TimerManager {
   }
 
   @Override
-  public void setTimer(String tag, Instant timestamp, TimeDomain domain) {
+  public void setTimer(StateNamespace tag, Instant timestamp, TimeDomain domain) {
     BatchTimerManager.BatchTimer newTimer = new BatchTimerManager.BatchTimer(tag, timestamp);
 
     BatchTimerManager.BatchTimer oldTimer = map(domain).put(tag, newTimer);
@@ -71,7 +73,7 @@ public class BatchTimerManager implements TimerManager {
   }
 
   @Override
-  public void deleteTimer(String tag, TimeDomain domain) {
+  public void deleteTimer(StateNamespace tag, TimeDomain domain) {
     queue(domain).remove(map(domain).get(tag));
   }
 
@@ -114,7 +116,7 @@ public class BatchTimerManager implements TimerManager {
    * @param domain The time domain that the tag is being fired on.
    */
   protected void fire(
-      TriggerExecutor<?, ?, ?, ?> triggerExecutor, String timerTag, TimeDomain domain)
+      TriggerExecutor<?, ?, ?, ?> triggerExecutor, StateNamespace timerTag, TimeDomain domain)
           throws Exception {
     triggerExecutor.onTimer(timerTag);
   }
@@ -124,7 +126,7 @@ public class BatchTimerManager implements TimerManager {
           throws Exception {
 
     PriorityQueue<BatchTimer> timers = queue(domain);
-    Map<String, BatchTimer> map = map(domain);
+    Map<StateNamespace, BatchTimer> map = map(domain);
     boolean shouldFire = false;
 
     do {
@@ -147,10 +149,10 @@ public class BatchTimerManager implements TimerManager {
    */
   private static class BatchTimer implements Comparable<BatchTimer> {
 
-    final String tag;
+    final StateNamespace tag;
     final Instant time;
 
-    public BatchTimer(String tag, Instant time) {
+    public BatchTimer(StateNamespace tag, Instant time) {
       this.tag = tag;
       this.time = time;
     }
