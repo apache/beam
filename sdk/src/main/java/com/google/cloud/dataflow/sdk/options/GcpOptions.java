@@ -20,12 +20,22 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.dataflow.sdk.util.CredentialFactory;
 import com.google.cloud.dataflow.sdk.util.GcpCredentialFactory;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.io.Files;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Options used to configure Google Cloud Platform project and credentials.
@@ -65,6 +75,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    */
   @Description("Project id. Required when running a Dataflow in the cloud. "
       + "See https://cloud.google.com/storage/docs/projects for further details.")
+  @Default.InstanceFactory(DefaultProjectFactory.class)
   String getProject();
   void setProject(String value);
 
@@ -167,6 +178,70 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   @Hidden
   Credential getGcpCredential();
   void setGcpCredential(Credential value);
+
+  /**
+   * Attempts to get infer the default project based upon the environment this application
+   * is executing within. Currently this only supports getting the default project from gCloud.
+   */
+  public static class DefaultProjectFactory implements DefaultValueFactory<String> {
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultProjectFactory.class);
+
+    @Override
+    public String create(PipelineOptions options) {
+      try {
+        File configDir;
+        if (getEnvironment().containsKey("CLOUDSDK_CONFIG")) {
+          configDir = new File(getEnvironment().get("CLOUDSDK_CONFIG"));
+        } else if (isWindows() && getEnvironment().containsKey("APPDATA")) {
+          configDir = new File(getEnvironment().get("APPDATA"), "gcloud");
+        } else {
+          configDir = new File(System.getProperty("user.home"), ".config/gcloud");
+        }
+        String section = null;
+        Pattern projectPattern = Pattern.compile("^project\\s*=\\s*(.*)$");
+        Pattern sectionPattern = Pattern.compile("^\\[(.*)\\]$");
+        for (String line : Files.readLines(
+            new File(configDir, "properties"), StandardCharsets.UTF_8)) {
+          line = line.trim();
+          if (line.isEmpty() || line.startsWith(";")) {
+            continue;
+          }
+          Matcher matcher = sectionPattern.matcher(line);
+          if (matcher.matches()) {
+            section = matcher.group(1);
+          } else if (section == null || section.equals("core")) {
+            matcher = projectPattern.matcher(line);
+            if (matcher.matches()) {
+              String project = matcher.group(1).trim();
+              LOG.info("Inferred default GCP project '{}' from gCloud. If this is the incorrect "
+                  + "project, please cancel this Pipeline and specify the command-line "
+                  + "argument --project.", project);
+              return project;
+            }
+          }
+        }
+      } catch (IOException expected) {
+        LOG.debug("Failed to find default project.", expected);
+      }
+      // return null if can't determine
+      return null;
+    }
+
+    /**
+     * Returns true if running on the Windows OS.
+     */
+    private static boolean isWindows() {
+      return System.getProperty("os.name").toLowerCase(Locale.ENGLISH).contains("windows");
+    }
+
+    /**
+     * Used to mock out getting environment variables.
+     */
+    @VisibleForTesting
+    Map<String, String> getEnvironment() {
+        return System.getenv();
+    }
+  }
 
   /**
    * Attempts to load the GCP credentials. See
