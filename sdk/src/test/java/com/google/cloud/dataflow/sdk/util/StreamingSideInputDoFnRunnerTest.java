@@ -73,7 +73,7 @@ public class StreamingSideInputDoFnRunnerTest {
 
   static TupleTag<String> mainOutputTag = new TupleTag<String>();
   @Mock StreamingModeExecutionContext execContext;
-  @Mock ExecutionContext.StepContext stepContext;
+  @Mock StreamingModeExecutionContext.StepContext stepContext;
   @Mock SideInputReader mockSideInputReader;
 
   private final InMemoryStateInternals state = new InMemoryStateInternals();
@@ -100,7 +100,7 @@ public class StreamingSideInputDoFnRunnerTest {
 
     when(execContext.getSideInputNotifications())
         .thenReturn(Arrays.<Windmill.GlobalDataId>asList());
-    when(execContext.issueSideInputFetch(
+    when(stepContext.issueSideInputFetch(
              eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
         .thenReturn(true);
     when(execContext.getSideInputReaderForViews(
@@ -124,7 +124,7 @@ public class StreamingSideInputDoFnRunnerTest {
 
     when(execContext.getSideInputNotifications())
         .thenReturn(Arrays.<Windmill.GlobalDataId>asList());
-    when(execContext.issueSideInputFetch(
+    when(stepContext.issueSideInputFetch(
              eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
         .thenReturn(false);
 
@@ -187,10 +187,10 @@ public class StreamingSideInputDoFnRunnerTest {
     runner.elementBag(createWindow(0)).add(createDatum("e", 0));
 
     when(execContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
-    when(execContext.issueSideInputFetch(
+    when(stepContext.issueSideInputFetch(
              eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
         .thenReturn(false);
-    when(execContext.issueSideInputFetch(
+    when(stepContext.issueSideInputFetch(
              eq(view), any(BoundedWindow.class), eq(SideInputState.KNOWN_READY)))
         .thenReturn(true);
     when(execContext.getSideInputReaderForViews(
@@ -231,7 +231,7 @@ public class StreamingSideInputDoFnRunnerTest {
     blockedMapState.set(blockedMap);
 
     when(execContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
-    when(execContext.issueSideInputFetch(
+    when(stepContext.issueSideInputFetch(
              any(PCollectionView.class), any(BoundedWindow.class), any(SideInputState.class)))
         .thenReturn(true);
     when(execContext.getSideInputReaderForViews(

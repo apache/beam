@@ -54,6 +54,7 @@ class NormalParDoFn extends ParDoFnBase {
       SideInputReader sideInputReader,
       List<String> outputTags,
       String stepName,
+      String transformName,
       DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     return new NormalParDoFn(
@@ -62,6 +63,7 @@ class NormalParDoFn extends ParDoFnBase {
         sideInputReader,
         outputTags,
         stepName,
+        transformName,
         executionContext,
         addCounterMutator);
   }
@@ -76,6 +78,7 @@ class NormalParDoFn extends ParDoFnBase {
         PipelineOptions options,
         final CloudObject cloudUserFn,
         String stepName,
+        String transformName,
         @Nullable List<SideInputInfo> sideInputInfos,
         @Nullable List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
@@ -136,6 +139,7 @@ class NormalParDoFn extends ParDoFnBase {
           sideInputReader,
           outputTags,
           stepName,
+          transformName,
           executionContext,
           addCounterMutator);
     }
@@ -150,9 +154,11 @@ class NormalParDoFn extends ParDoFnBase {
       SideInputReader sideInputReader,
       List<String> outputTags,
       String stepName,
+      String transformName,
       ExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
-    super(options, sideInputReader, outputTags, stepName, executionContext, addCounterMutator);
+    super(options, sideInputReader, outputTags, stepName, transformName, executionContext,
+        addCounterMutator);
     // The userDoFn is serialized because a fresh copy is provided each time it is accessed.
     this.serializedDoFn = SerializableUtils.serializeToByteArray(doFnInfo.getDoFn());
     this.doFnInfo = doFnInfo;

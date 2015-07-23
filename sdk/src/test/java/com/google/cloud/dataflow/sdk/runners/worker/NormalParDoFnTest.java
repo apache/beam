@@ -161,6 +161,7 @@ public class NormalParDoFnTest {
         DirectSideInputReader.of(sideInputValues),
         outputTags,
         "doFn",
+        "doFn",
         DataflowExecutionContext.withoutSideInputs(),
         (new CounterSet()).getAddCounterMutator());
 
@@ -223,6 +224,7 @@ public class NormalParDoFnTest {
         DirectSideInputReader.of(sideInputValues),
         outputTags,
         "doFn",
+        "doFn",
         DataflowExecutionContext.withoutSideInputs(),
         (new CounterSet()).getAddCounterMutator());
 
@@ -264,6 +266,7 @@ public class NormalParDoFnTest {
         fnInfo,
         DirectSideInputReader.of(sideInputValues),
         outputTags,
+        "doFn",
         "doFn",
         DataflowExecutionContext.withoutSideInputs(),
         (new CounterSet()).getAddCounterMutator());
@@ -332,6 +335,7 @@ public class NormalParDoFnTest {
         fnInfo,
         NullSideInputReader.empty(),
         Arrays.asList("output", "declared"),
+        "doFn",
         "doFn",
         DataflowExecutionContext.withoutSideInputs(),
         counters.getAddCounterMutator());

@@ -62,11 +62,12 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
       PipelineOptions options,
       DoFn<?, ?> groupAlsoByWindowsDoFn,
       String stepName,
+      String transformName,
       DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
-    return new GroupAlsoByWindowsParDoFn(
-        options, groupAlsoByWindowsDoFn, stepName, executionContext, addCounterMutator);
+    return new GroupAlsoByWindowsParDoFn(options, groupAlsoByWindowsDoFn, stepName, transformName,
+        executionContext, addCounterMutator);
   }
 
   /**
@@ -79,6 +80,7 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
         PipelineOptions options,
         CloudObject cloudUserFn,
         String stepName,
+        String transformName,
         @Nullable List<SideInputInfo> sideInputInfos,
         @Nullable List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
@@ -150,6 +152,7 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
           options,
           groupAlsoByWindowsDoFn,
           stepName,
+          transformName,
           executionContext,
           addCounterMutator);
     }
@@ -234,6 +237,7 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
       PipelineOptions options,
       DoFn<?, ?> groupAlsoByWindowsDoFn,
       String stepName,
+      String transformName,
       DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
@@ -241,6 +245,7 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
         NullSideInputReader.empty(),
         Arrays.asList("output"),
         stepName,
+        transformName,
         executionContext,
         addCounterMutator);
     this.groupAlsoByWindowsDoFn = groupAlsoByWindowsDoFn;

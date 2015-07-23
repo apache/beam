@@ -252,6 +252,10 @@ public class StreamingDataflowWorker {
     DataflowWorkerLoggingMDC.setWorkerId(options.getWorkerId());
   }
 
+  void addStateNameMappings(Map<String, String> nameMap) {
+    stateNameMap.putAll(nameMap);
+  }
+
   public void start() {
     running.set(true);
     dispatchThread = threadFactory.newThread(new Runnable() {

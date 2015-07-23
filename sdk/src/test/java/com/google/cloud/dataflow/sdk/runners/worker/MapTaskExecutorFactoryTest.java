@@ -155,9 +155,10 @@ public class MapTaskExecutorFactoryTest {
 
   @Test
   public void testExecutionContextPlumbing() throws Exception {
-    List<ParallelInstruction> instructions =
-        Arrays.asList(createReadInstruction("Read"), createParDoInstruction(0, 0, "DoFn1"),
-            createParDoInstruction(1, 0, "DoFnWithContext"), createWriteInstruction(2, 0, "Write"));
+    List<ParallelInstruction> instructions = Arrays.asList(createReadInstruction("Read"),
+        createParDoInstruction(0, 0, "DoFn1", "DoFnUserName"),
+        createParDoInstruction(1, 0, "DoFnWithContext", "DoFnWithContextUserName"),
+        createWriteInstruction(2, 0, "Write"));
 
     MapTask mapTask = new MapTask();
     mapTask.setInstructions(instructions);
@@ -301,6 +302,11 @@ public class MapTaskExecutorFactoryTest {
 
   static ParallelInstruction createParDoInstruction(
       int producerIndex, int producerOutputNum, String systemName) {
+    return createParDoInstruction(producerIndex, producerOutputNum, systemName, "");
+  }
+
+  static ParallelInstruction createParDoInstruction(
+      int producerIndex, int producerOutputNum, String systemName, String userName) {
     InstructionInput cloudInput = new InstructionInput();
     cloudInput.setProducerInstructionIndex(producerIndex);
     cloudInput.setOutputNum(producerOutputNum);
@@ -328,6 +334,7 @@ public class MapTaskExecutorFactoryTest {
     instruction.setParDo(parDoInstruction);
     instruction.setOutputs(Arrays.asList(output));
     instruction.setSystemName(systemName);
+    instruction.setName(userName);
     return instruction;
   }
 

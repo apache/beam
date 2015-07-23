@@ -364,7 +364,7 @@ public class DoFnTester<InputT, OutputT> {
         DirectSideInputReader.of(runnerSideInputs),
         mainOutputTag,
         sideOutputTags,
-        DirectModeExecutionContext.create().createStepContext("stepName"),
+        DirectModeExecutionContext.create().createStepContext("stepName", "stepName"),
         counterSet.getAddCounterMutator(),
         WindowingStrategy.globalDefault());
   }

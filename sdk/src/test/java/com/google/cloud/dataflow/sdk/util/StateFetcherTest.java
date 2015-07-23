@@ -57,6 +57,7 @@ import java.util.concurrent.TimeUnit;
 /** Unit tests for {@link StateFetcher}. */
 @RunWith(JUnit4.class)
 public class StateFetcherTest {
+  private static final String STATE_FAMILY = "state";
 
   @Mock
   MetricTrackingWindmillServerStub server;
@@ -88,12 +89,14 @@ public class StateFetcherTest {
         buildGlobalDataResponse(tag, ByteString.EMPTY, false, null),
         buildGlobalDataResponse(tag, ByteString.EMPTY, true, encodedIterable));
 
-    assertEquals(null, fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, SideInputState.UNKNOWN));
-    assertEquals(null, fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, SideInputState.UNKNOWN));
-    assertEquals("data",
-        fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, SideInputState.KNOWN_READY));
-    assertEquals("data",
-        fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, SideInputState.KNOWN_READY));
+    assertEquals(null,
+        fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
+    assertEquals(null,
+        fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
+    assertEquals("data", fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, STATE_FAMILY,
+                             SideInputState.KNOWN_READY));
+    assertEquals("data", fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, STATE_FAMILY,
+                             SideInputState.KNOWN_READY));
 
     verify(server, times(2)).getSideInputData(buildGlobalDataRequest(tag, ByteString.EMPTY));
     verifyNoMoreInteractions(server);
@@ -137,14 +140,14 @@ public class StateFetcherTest {
         buildGlobalDataResponse(tag1, ByteString.EMPTY, true, encodedIterable1));
 
     assertEquals("data1",
-        fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, SideInputState.UNKNOWN));
+        fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
     assertEquals("data2",
-        fetcher.fetchSideInput(view2, GlobalWindow.INSTANCE, SideInputState.UNKNOWN));
+        fetcher.fetchSideInput(view2, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
     cache.invalidateAll();
     assertEquals("data1",
-        fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, SideInputState.UNKNOWN));
+        fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
     assertEquals("data1",
-        fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, SideInputState.UNKNOWN));
+        fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
 
     ArgumentCaptor<Windmill.GetDataRequest> captor =
         ArgumentCaptor.forClass(Windmill.GetDataRequest.class);
@@ -175,8 +178,8 @@ public class StateFetcherTest {
     when(server.getSideInputData(any(Windmill.GetDataRequest.class))).thenReturn(
         buildGlobalDataResponse(tag, ByteString.EMPTY, true, encodedIterable));
 
-    assertEquals(0L,
-        (long) fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, SideInputState.UNKNOWN));
+    assertEquals(0L, (long) fetcher.fetchSideInput(
+        view, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
 
     verify(server).getSideInputData(buildGlobalDataRequest(tag, ByteString.EMPTY));
     verifyNoMoreInteractions(server);
@@ -208,6 +211,7 @@ public class StateFetcherTest {
         .addGlobalDataFetchRequests(
              Windmill.GlobalDataRequest.newBuilder()
                  .setDataId(id)
+                 .setStateFamily(STATE_FAMILY)
                  .setExistenceWatermarkDeadline(
                       TimeUnit.MILLISECONDS.toMicros(
                           GlobalWindow.INSTANCE.maxTimestamp().getMillis()))

@@ -72,8 +72,9 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
       // StreamingGroupAlsoByWindows expects it to. So, hook that up.
 
       @Override
-      public ExecutionContext.StepContext createStepContext(String stepName) {
-        ExecutionContext.StepContext context = Mockito.spy(super.createStepContext(stepName));
+      public ExecutionContext.StepContext createStepContext(String stepName, String transformName) {
+        ExecutionContext.StepContext context =
+            Mockito.spy(super.createStepContext(stepName, transformName));
         Mockito.doReturn(mockTimerInternals).when(context).timerInternals();
         return context;
       }
@@ -413,7 +414,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
             NullSideInputReader.empty(),
             (TupleTag<KV<String, OutputT>>) (TupleTag) outputTag,
             new ArrayList<TupleTag<?>>(),
-            execContext.createStepContext("merge"),
+            execContext.createStepContext("merge", "merge"),
             counters.getAddCounterMutator(),
             windowingStrategy);
   }

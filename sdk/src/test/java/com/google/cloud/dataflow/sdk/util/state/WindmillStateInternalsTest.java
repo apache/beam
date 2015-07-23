@@ -52,7 +52,7 @@ import java.util.concurrent.TimeUnit;
 public class WindmillStateInternalsTest {
 
   private static final StateNamespace NAMESPACE = new StateNamespaceForTest("ns");
-  private static final String MANGLED_PREFIX = "mangled";
+  private static final String STATE_FAMILY = "family";
 
   private static final StateTag<CombiningValueState<Integer, Integer>> COMBINING_ADDR =
       StateTags.combiningValue("combining", VarIntCoder.of(), new Sum.SumIntegerFn());
@@ -65,13 +65,17 @@ public class WindmillStateInternalsTest {
   private WindmillStateInternals underTest;
 
   private ByteString key(StateNamespace namespace, String addrId) {
-    return ByteString.copyFromUtf8(MANGLED_PREFIX + namespace.stringKey() + "+" + addrId);
+    return key("", namespace, addrId);
+  }
+
+  private ByteString key(String prefix, StateNamespace namespace, String addrId) {
+    return ByteString.copyFromUtf8(prefix + namespace.stringKey() + "+" + addrId);
   }
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    underTest = new WindmillStateInternals(MANGLED_PREFIX, mockReader);
+    underTest = new WindmillStateInternals(STATE_FAMILY, true, mockReader);
   }
 
   private <T> void waitAndSet(
@@ -95,7 +99,8 @@ public class WindmillStateInternalsTest {
     BagState<String> bag = underTest.state(NAMESPACE, addr);
 
     SettableFuture<Iterable<String>> future = SettableFuture.create();
-    when(mockReader.listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of())).thenReturn(future);
+    when(mockReader.listFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of()))
+        .thenReturn(future);
 
     StateContents<Iterable<String>> result = bag.get();
 
@@ -126,9 +131,11 @@ public class WindmillStateInternalsTest {
     BagState<String> bag = underTest.state(NAMESPACE, addr);
 
     SettableFuture<Iterable<String>> future = SettableFuture.create();
-    when(mockReader.listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of())).thenReturn(future);
+    when(mockReader.listFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of()))
+        .thenReturn(future);
     StateContents<Boolean> result = bag.isEmpty();
-    Mockito.verify(mockReader).listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of());
+    Mockito.verify(mockReader)
+        .listFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of());
 
     waitAndSet(future, Arrays.asList("world"), 200);
     assertThat(result.read(), Matchers.is(false));
@@ -140,9 +147,11 @@ public class WindmillStateInternalsTest {
     BagState<String> bag = underTest.state(NAMESPACE, addr);
 
     SettableFuture<Iterable<String>> future = SettableFuture.create();
-    when(mockReader.listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of())).thenReturn(future);
+    when(mockReader.listFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of()))
+        .thenReturn(future);
     StateContents<Boolean> result = bag.isEmpty();
-    Mockito.verify(mockReader).listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of());
+    Mockito.verify(mockReader)
+        .listFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of());
 
     waitAndSet(future, Arrays.<String>asList(), 200);
     assertThat(result.read(), Matchers.is(true));
@@ -155,7 +164,8 @@ public class WindmillStateInternalsTest {
 
     bag.clear();
     StateContents<Boolean> result = bag.isEmpty();
-    Mockito.verify(mockReader, never()).listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of());
+    Mockito.verify(mockReader, never())
+        .listFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of());
     assertThat(result.read(), Matchers.is(true));
 
     bag.add("hello");
@@ -211,7 +221,8 @@ public class WindmillStateInternalsTest {
     assertEquals("world", listUpdates.getValues(0).getData().substring(1).toStringUtf8());
 
     // Clear should need to read the future.
-    Mockito.verify(mockReader).listFuture(key(NAMESPACE, "bag"), StringUtf8Coder.of());
+    Mockito.verify(mockReader)
+        .listFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of());
     Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
@@ -232,11 +243,34 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testBagNoStateFamilies() throws Exception {
+    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader);
+
+    StateTag<BagState<String>> addr = StateTags.bag("bag", StringUtf8Coder.of());
+    BagState<String> bag = underTest.state(NAMESPACE, addr);
+
+    bag.add("hello");
+    bag.clear();
+    bag.add("world");
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    // Clear should need to read the future.
+    Mockito.verify(mockReader)
+        .listFuture(key(STATE_FAMILY, NAMESPACE, "bag"), "", StringUtf8Coder.of());
+    Mockito.verify(mockReader).startBatchAndBlock();
+    Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+
+  @Test
   public void testCombiningAddBeforeRead() throws Exception {
     CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
 
     SettableFuture<Iterable<int[]>> future = SettableFuture.create();
-    when(mockReader.listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), accumCoder))
+    when(mockReader.listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), STATE_FAMILY, accumCoder))
         .thenReturn(future);
 
     StateContents<Integer> result = value.get();
@@ -276,10 +310,11 @@ public class WindmillStateInternalsTest {
     CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
 
     SettableFuture<Iterable<int[]>> future = SettableFuture.create();
-    when(mockReader.listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), accumCoder))
+    when(mockReader.listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), STATE_FAMILY, accumCoder))
         .thenReturn(future);
     StateContents<Boolean> result = value.isEmpty();
-    Mockito.verify(mockReader).listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), accumCoder);
+    Mockito.verify(mockReader)
+        .listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), STATE_FAMILY, accumCoder);
 
     waitAndSet(future, Arrays.asList(new int[]{29}), 200);
     assertThat(result.read(), Matchers.is(false));
@@ -292,7 +327,7 @@ public class WindmillStateInternalsTest {
     value.clear();
     StateContents<Boolean> result = value.isEmpty();
     Mockito.verify(mockReader, never())
-        .listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), accumCoder);
+        .listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), STATE_FAMILY, accumCoder);
     assertThat(result.read(), Matchers.is(true));
 
     value.add(87);
@@ -351,7 +386,8 @@ public class WindmillStateInternalsTest {
             listUpdates.getValues(0).getData().substring(1).toByteArray())[0]);
 
     // Blind adds should not need to read the future.
-    Mockito.verify(mockReader).listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), accumCoder);
+    Mockito.verify(mockReader)
+        .listFuture(key(NAMESPACE, COMBINING_ADDR.getId()), STATE_FAMILY, accumCoder);
     Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
@@ -362,7 +398,7 @@ public class WindmillStateInternalsTest {
     WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
 
     SettableFuture<Instant> future = SettableFuture.create();
-    when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"))).thenReturn(future);
+    when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY)).thenReturn(future);
 
     StateContents<Instant> result = bag.get();
 
@@ -370,7 +406,7 @@ public class WindmillStateInternalsTest {
     waitAndSet(future, new Instant(2000), 200);
     assertThat(result.read(), Matchers.equalTo(new Instant(2000)));
 
-    Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"));
+    Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
     Mockito.verifyNoMoreInteractions(mockReader);
 
     // Adding another value doesn't create another future, but does update the result.
@@ -400,9 +436,9 @@ public class WindmillStateInternalsTest {
     WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
 
     SettableFuture<Instant> future = SettableFuture.create();
-    when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"))).thenReturn(future);
+    when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY)).thenReturn(future);
     StateContents<Boolean> result = bag.isEmpty();
-    Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"));
+    Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
 
     waitAndSet(future, new Instant(1000), 200);
     assertThat(result.read(), Matchers.is(false));
@@ -414,9 +450,9 @@ public class WindmillStateInternalsTest {
     WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
 
     SettableFuture<Instant> future = SettableFuture.create();
-    when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"))).thenReturn(future);
+    when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY)).thenReturn(future);
     StateContents<Boolean> result = bag.isEmpty();
-    Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"));
+    Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
 
     waitAndSet(future, null, 200);
     assertThat(result.read(), Matchers.is(true));
@@ -429,7 +465,7 @@ public class WindmillStateInternalsTest {
 
     bag.clear();
     StateContents<Boolean> result = bag.isEmpty();
-    Mockito.verify(mockReader, never()).watermarkFuture(key(NAMESPACE, addr.getId()));
+    Mockito.verify(mockReader, never()).watermarkFuture(key(NAMESPACE, addr.getId()), STATE_FAMILY);
     assertThat(result.read(), Matchers.is(true));
 
     bag.add(new Instant(1000));
@@ -491,7 +527,7 @@ public class WindmillStateInternalsTest {
     assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), listUpdates.getValues(0).getTimestamp());
 
     // Clearing requires reading the future.
-    Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"));
+    Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
     Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
@@ -511,6 +547,17 @@ public class WindmillStateInternalsTest {
     // 1 list update corresponds to deletion. There shouldn't be a list update adding items.
     assertEquals(1, commitBuilder.getListUpdatesCount());
   }
+
+  @Test
+  public void testWatermarkNoStateFamilies() throws Exception {
+    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader);
+
+    StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal("watermark");
+    WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
+    bag.get();
+    Mockito.verify(mockReader).watermarkFuture(key(STATE_FAMILY, NAMESPACE, "watermark"), "");
+  }
+
 
   @Test
   public void testValueSetBeforeRead() throws Exception {
@@ -540,7 +587,8 @@ public class WindmillStateInternalsTest {
     ValueState<String> value = underTest.state(NAMESPACE, addr);
 
     SettableFuture<String> future = SettableFuture.create();
-    when(mockReader.valueFuture(key(NAMESPACE, "value"), StringUtf8Coder.of())).thenReturn(future);
+    when(mockReader.valueFuture(key(NAMESPACE, "value"), STATE_FAMILY, StringUtf8Coder.of()))
+        .thenReturn(future);
     waitAndSet(future, "World", 200);
 
     assertEquals("World", value.get().read());
@@ -564,7 +612,8 @@ public class WindmillStateInternalsTest {
     assertTrue(valueUpdate.isInitialized());
 
     // Setting a value requires a read to prevent blind writes.
-    Mockito.verify(mockReader).valueFuture(key(NAMESPACE, "value"), StringUtf8Coder.of());
+    Mockito.verify(mockReader)
+        .valueFuture(key(NAMESPACE, "value"), STATE_FAMILY, StringUtf8Coder.of());
     Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
@@ -587,7 +636,8 @@ public class WindmillStateInternalsTest {
     assertEquals(0, valueUpdate.getValue().getData().size());
 
     // Setting a value requires a read to prevent blind writes.
-    Mockito.verify(mockReader).valueFuture(key(NAMESPACE, "value"), StringUtf8Coder.of());
+    Mockito.verify(mockReader)
+        .valueFuture(key(NAMESPACE, "value"), STATE_FAMILY, StringUtf8Coder.of());
     Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
@@ -606,5 +656,20 @@ public class WindmillStateInternalsTest {
     // No changes shouldn't require getting any futures
     Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+  @Test
+  public void testValueNoStateFamilies() throws Exception {
+    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader);
+
+    StateTag<ValueState<String>> addr = StateTags.value("value", StringUtf8Coder.of());
+    ValueState<String> value = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<String> future = SettableFuture.create();
+    when(mockReader.valueFuture(key(STATE_FAMILY, NAMESPACE, "value"), "", StringUtf8Coder.of()))
+        .thenReturn(future);
+    waitAndSet(future, "World", 200);
+
+    assertEquals("World", value.get().read());
   }
 }

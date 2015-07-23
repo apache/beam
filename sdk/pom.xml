@@ -343,7 +343,7 @@
     <dependency>
       <groupId>com.google.cloud.dataflow</groupId>
       <artifactId>google-cloud-dataflow-java-proto-library-all</artifactId>
-      <version>0.4.150713</version>
+      <version>0.4.150721</version>
     </dependency>
 
     <dependency>

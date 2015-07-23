@@ -90,7 +90,7 @@ import org.mockito.Mockito;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -127,17 +127,13 @@ public class StreamingDataflowWorkerTest {
         DEFAULT_WINDOW_COLLECTION_CODER, Arrays.asList(WINDOW_AT_ONE_SECOND));
   }
 
-  private static final byte[] emptyWindowsBytes() throws Exception {
-    return CoderUtils.encodeToByteArray(
-        DEFAULT_WINDOW_COLLECTION_CODER, Collections.<IntervalWindow>emptyList());
-  }
-
   // Default values that are unimportant for correctness, but must be consistent
   // between pieces of this test suite
   private static final String DEFAULT_COMPUTATION_ID = "computation";
   private static final String DEFAULT_MAP_STAGE_NAME = "computation";
   private static final String DEFAULT_MAP_SYSTEM_NAME = "computation";
   private static final String DEFAULT_PARDO_SYSTEM_NAME = "parDo";
+  private static final String DEFAULT_PARDO_USER_NAME = "parDoUserName";
   private static final String DEFAULT_SOURCE_SYSTEM_NAME = "source";
   private static final String DEFAULT_SINK_SYSTEM_NAME = "sink";
   private static final String DEFAULT_SOURCE_COMPUTATION_ID = "upstream";
@@ -194,6 +190,7 @@ public class StreamingDataflowWorkerTest {
             SerializableUtils.serializeToByteArray(new DoFnInfo<>(doFn, null))));
     return new ParallelInstruction()
         .setSystemName(DEFAULT_PARDO_SYSTEM_NAME)
+        .setName(DEFAULT_PARDO_USER_NAME)
         .setParDo(new ParDoInstruction()
             .setInput(
                 new InstructionInput().setProducerInstructionIndex(producerIndex).setOutputNum(0))
@@ -608,6 +605,7 @@ public class StreamingDataflowWorkerTest {
     ParallelInstruction addWindowsInstruction =
         new ParallelInstruction()
         .setSystemName("AssignWindows")
+        .setName("AssignWindows")
         .setParDo(new ParDoInstruction()
             .setInput(new InstructionInput().setProducerInstructionIndex(0).setOutputNum(0))
             .setNumOutputs(1)
@@ -667,7 +665,8 @@ public class StreamingDataflowWorkerTest {
 
     ParallelInstruction mergeWindowsInstruction =
         new ParallelInstruction()
-        .setSystemName("MergeWindows")
+        .setSystemName("MergeWindows-System")
+        .setName("MergeWindowsStep")
         .setParDo(new ParDoInstruction()
             .setInput(new InstructionInput().setProducerInstructionIndex(0).setOutputNum(0))
             .setNumOutputs(1)
@@ -685,6 +684,9 @@ public class StreamingDataflowWorkerTest {
 
     StreamingDataflowWorker worker = new StreamingDataflowWorker(
         Arrays.asList(defaultMapTask(instructions)), server, createTestingPipelineOptions());
+    Map<String, String> nameMap = new HashMap<>();
+    nameMap.put("MergeWindowsStep", "MergeWindows");
+    worker.addStateNameMappings(nameMap);
     worker.start();
 
     server.addWorkToOffer(buildInput(
@@ -710,11 +712,12 @@ public class StreamingDataflowWorkerTest {
     // These tags and data are opaque strings and this is a change detector test.
     String window = "/gAAAAAAAA-joBw/";
     ByteString timerTag = ByteString.copyFromUtf8(window + "+0:999"); // GC timer just has window
-    ByteString bufferTag = ByteString.copyFromUtf8("MergeWindows" + window + "+__buffer");
-    ByteString finishedTag = ByteString.copyFromUtf8("MergeWindows" + window + "+__finished_set");
-    ByteString paneInfoTag = ByteString.copyFromUtf8("MergeWindows" + window + "+__pane_info");
+    ByteString bufferTag = ByteString.copyFromUtf8(window + "+__buffer");
+    ByteString finishedTag = ByteString.copyFromUtf8(window + "+__finished_set");
+    ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+__pane_info");
     ByteString watermarkHoldTag =
-        ByteString.copyFromUtf8("MergeWindows" + window + "+watermark_hold");
+        ByteString.copyFromUtf8(window + "+watermark_hold");
+    String stateFamily = "MergeWindows";
     ByteString bufferData = ByteString.copyFromUtf8("\000data0");
     ByteString outputData = ByteString.copyFromUtf8("\000\000\000\001\005data0");
     // These values are not essential to the change detector test
@@ -726,12 +729,14 @@ public class StreamingDataflowWorkerTest {
     assertThat(actualOutput.getOutputTimersList(), Matchers.contains(
         Matchers.equalTo(Windmill.Timer.newBuilder()
             .setTag(timerTag)
+            .setStateFamily(stateFamily)
             .setTimestamp(timerTimestamp)
             .setType(Windmill.Timer.Type.WATERMARK).build())));
 
     assertThat(actualOutput.getListUpdatesList(), Matchers.containsInAnyOrder(
         Matchers.equalTo(Windmill.TagList.newBuilder()
             .setTag(bufferTag)
+            .setStateFamily(stateFamily)
             .addValues(Windmill.Value.newBuilder()
                 .setTimestamp(Long.MAX_VALUE)
                 .setData(bufferData)
@@ -739,6 +744,7 @@ public class StreamingDataflowWorkerTest {
             .build()),
         Matchers.equalTo(Windmill.TagList.newBuilder()
             .setTag(watermarkHoldTag)
+            .setStateFamily(stateFamily)
             .addValues(Windmill.Value.newBuilder()
                 .setTimestamp(0)
                 .setData(ByteString.copyFrom(new byte[]{0b0}))
@@ -754,6 +760,7 @@ public class StreamingDataflowWorkerTest {
         .setWorkToken(1)
         .getTimersBuilder().addTimersBuilder()
         .setTag(timerTag)
+        .setStateFamily(stateFamily)
         .setTimestamp(timerTimestamp);
     server.addWorkToOffer(getWorkResponse.build());
 
@@ -764,16 +771,19 @@ public class StreamingDataflowWorkerTest {
         .setKey(ByteString.copyFromUtf8(DEFAULT_KEY_STRING));
     dataBuilder.addListsBuilder()
         .setTag(bufferTag)
+        .setStateFamily(stateFamily)
         .addValuesBuilder()
         .setTimestamp(0) // is ignored
         .setData(bufferData);
     dataBuilder.addListsBuilder()
         .setTag(watermarkHoldTag)
+        .setStateFamily(stateFamily)
         .addValuesBuilder()
         .setTimestamp(0)
         .setData(ByteString.copyFrom(new byte[]{0b0}));
     dataBuilder.addValuesBuilder()
         .setTag(paneInfoTag)
+        .setStateFamily(stateFamily)
         .getValueBuilder()
         .setTimestamp(0)
         .setData(ByteString.EMPTY);
@@ -784,6 +794,7 @@ public class StreamingDataflowWorkerTest {
     dataBuilder.clearValues();
     dataBuilder.addValuesBuilder()
         .setTag(finishedTag)
+        .setStateFamily(stateFamily)
         .getValueBuilder()
         .setTimestamp(0)
         .setData(ByteString.EMPTY);
@@ -813,11 +824,13 @@ public class StreamingDataflowWorkerTest {
         actualOutput.getValueUpdatesList(), Matchers.containsInAnyOrder(
             Matchers.equalTo(Windmill.TagValue.newBuilder()
                 .setTag(paneInfoTag)
+                .setStateFamily(stateFamily)
                 .setValue(Windmill.Value.newBuilder()
                      .setTimestamp(Long.MAX_VALUE).setData(ByteString.EMPTY))
                 .build()),
             Matchers.equalTo(Windmill.TagValue.newBuilder()
                 .setTag(finishedTag)
+                .setStateFamily(stateFamily)
                 .setValue(Windmill.Value.newBuilder()
                     .setTimestamp(Long.MAX_VALUE).setData(ByteString.EMPTY))
                 .build())));
@@ -826,10 +839,12 @@ public class StreamingDataflowWorkerTest {
         actualOutput.getListUpdatesList(), Matchers.containsInAnyOrder(
         Matchers.equalTo(Windmill.TagList.newBuilder()
             .setTag(bufferTag)
+            .setStateFamily(stateFamily)
             .setEndTimestamp(Long.MAX_VALUE)
             .build()),
         Matchers.equalTo(Windmill.TagList.newBuilder()
             .setTag(watermarkHoldTag)
+            .setStateFamily(stateFamily)
             .setEndTimestamp(Long.MAX_VALUE)
             .build())));
   }

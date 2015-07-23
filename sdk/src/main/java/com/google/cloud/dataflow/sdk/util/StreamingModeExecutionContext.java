@@ -87,8 +87,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   }
 
   @Override
-  public ExecutionContext.StepContext createStepContext(String stepName) {
-    StepContext context = new StepContext(stepName);
+  public ExecutionContext.StepContext createStepContext(String stepName, String transformName) {
+    StepContext context = new StepContext(stepName, transformName);
     context.start(stateReader, inputDataWatermark);
     return context;
   }
@@ -107,22 +107,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   }
 
   /**
-   * Fetch the given side input asynchronously and return true if it is present.
-   */
-  public boolean issueSideInputFetch(
-      PCollectionView<?> view, BoundedWindow mainInputWindow, SideInputState state) {
-    BoundedWindow sideInputWindow =
-        view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
-    return fetchSideInput(view, sideInputWindow, state) != null;
-  }
-
-  /**
    * Fetches the requested sideInput, and maintains a view of the cache that doesn't remove
    * items until the active work item is finished.
    */
-  private <T> T fetchSideInput(
-      PCollectionView<T> view, BoundedWindow sideInputWindow, SideInputState state) {
-
+  private <T> T fetchSideInput(PCollectionView<T> view, BoundedWindow sideInputWindow,
+      String stateFamily, SideInputState state) {
     Map<BoundedWindow, Object> tagCache = sideInputCache.get(view.getTagInternal());
     if (tagCache == null) {
       tagCache = new HashMap<>();
@@ -137,7 +126,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
             "Expected side input to be cached. Tag: "
             + view.getTagInternal().getId());
       }
-      T typed = stateFetcher.fetchSideInput(view, sideInputWindow, state);
+      T typed = stateFetcher.fetchSideInput(view, sideInputWindow, stateFamily, state);
       sideInput = typed;
       if (sideInput != null) {
         tagCache.put(sideInputWindow, sideInput);
@@ -150,51 +139,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     }
   }
 
-  @Override
-  public <T, W extends BoundedWindow> void writePCollectionViewData(
-      TupleTag<?> tag,
-      Iterable<WindowedValue<T>> data, Coder<Iterable<WindowedValue<T>>> dataCoder,
-      W window, Coder<W> windowCoder) throws IOException {
-    if (getSerializedKey().size() != 0) {
-      throw new IllegalStateException("writePCollectionViewData must follow a Combine.globally");
-    }
-
-    ByteString.Output dataStream = ByteString.newOutput();
-    dataCoder.encode(data, dataStream, Coder.Context.OUTER);
-
-    ByteString.Output windowStream = ByteString.newOutput();
-    windowCoder.encode(window, windowStream, Coder.Context.OUTER);
-
-    outputBuilder.addGlobalDataUpdates(
-        Windmill.GlobalData.newBuilder()
-        .setDataId(
-            Windmill.GlobalDataId.newBuilder()
-            .setTag(tag.getId())
-            .setVersion(windowStream.toByteString())
-            .build())
-        .setData(dataStream.toByteString())
-        .build());
-  }
-
   public Iterable<Windmill.GlobalDataId> getSideInputNotifications() {
     return work.getGlobalDataIdNotificationsList();
-  }
-
-  /**
-   * Note that there is data on the current key that is blocked on the given side input.
-   */
-  public void addBlockingSideInput(Windmill.GlobalDataRequest sideInput) {
-    outputBuilder.addGlobalDataRequests(sideInput);
-    outputBuilder.addGlobalDataIdRequests(sideInput.getDataId());
-  }
-
-  /**
-   * Note that there is data on the current key that is blocked on the given side inputs.
-   */
-  public void addBlockingSideInputs(Iterable<Windmill.GlobalDataRequest> sideInputs) {
-    for (Windmill.GlobalDataRequest sideInput : sideInputs) {
-      addBlockingSideInput(sideInput);
-    }
   }
 
   public ByteString getSerializedKey() {
@@ -289,9 +235,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
 
     private Map<TimerData, Boolean> timers = new HashMap<>();
     private Instant inputDataWatermark;
+    private String stateFamily;
 
-    public WindmillTimerInternals(Instant inputDataWatermark) {
+    public WindmillTimerInternals(String stateFamily, Instant inputDataWatermark) {
       this.inputDataWatermark = inputDataWatermark;
+      this.stateFamily = stateFamily;
     }
 
     @Override
@@ -331,6 +279,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
         Windmill.Timer.Builder timer = outputBuilder.addOutputTimersBuilder()
             .setTag(timerTag(entry.getKey()))
             .setType(timerType(entry.getKey().getDomain()));
+        if (stateFamily != null) {
+          timer.setStateFamily(stateFamily);
+        }
 
         // If the timer was being set (not deleted) then set a timestamp for it.
         if (entry.getValue()) {
@@ -358,13 +309,20 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     private WindmillStateInternals stateInternals;
     private WindmillTimerInternals timerInternals;
     private String prefix;
+    private String stateFamily;
 
-    public StepContext(String stepName) {
-      super(stepName);
+    public StepContext(String stepName, String transformName) {
+      super(stepName, transformName);
 
-      prefix = stateNameMap.get(stepName);
-      if (prefix == null) {
-        prefix = stepName;
+      if (stateNameMap.isEmpty()) {
+        this.prefix = transformName;
+        this.stateFamily = "";
+      } else {
+        this.prefix = stateNameMap.get(transformName);
+        if (prefix == null) {
+          this.prefix = "";
+        }
+        this.stateFamily = prefix;
       }
     }
 
@@ -372,15 +330,77 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
      * Update the {@code stateReader} used by this {@code StepContext}.
      */
     public void start(WindmillStateReader stateReader, Instant inputDataWatermark) {
-      this.stateInternals = new WindmillStateInternals(prefix, stateReader);
+      boolean useStateFamilies = !stateNameMap.isEmpty();
+      this.stateInternals = new WindmillStateInternals(prefix, useStateFamilies, stateReader);
       this.timerInternals = new WindmillTimerInternals(
-          Preconditions.checkNotNull(inputDataWatermark));
+          stateFamily, Preconditions.checkNotNull(inputDataWatermark));
     }
 
     public void flushState() {
       stateInternals.persist(outputBuilder);
       timerInternals.persistTo(outputBuilder);
     }
+
+    @Override
+    public <T, W extends BoundedWindow> void writePCollectionViewData(
+        TupleTag<?> tag,
+        Iterable<WindowedValue<T>> data, Coder<Iterable<WindowedValue<T>>> dataCoder,
+        W window, Coder<W> windowCoder) throws IOException {
+      if (getSerializedKey().size() != 0) {
+        throw new IllegalStateException("writePCollectionViewData must follow a Combine.globally");
+      }
+
+      ByteString.Output dataStream = ByteString.newOutput();
+      dataCoder.encode(data, dataStream, Coder.Context.OUTER);
+
+      ByteString.Output windowStream = ByteString.newOutput();
+      windowCoder.encode(window, windowStream, Coder.Context.OUTER);
+
+      Windmill.GlobalData.Builder builder = Windmill.GlobalData.newBuilder()
+          .setDataId(
+              Windmill.GlobalDataId.newBuilder()
+              .setTag(tag.getId())
+              .setVersion(windowStream.toByteString())
+              .build())
+          .setData(dataStream.toByteString());
+      if (stateFamily != null) {
+        builder.setStateFamily(stateFamily);
+      }
+
+      outputBuilder.addGlobalDataUpdates(builder.build());
+    }
+
+    /**
+     * Fetch the given side input asynchronously and return true if it is present.
+     */
+    public boolean issueSideInputFetch(
+        PCollectionView<?> view, BoundedWindow mainInputWindow, SideInputState state) {
+      BoundedWindow sideInputWindow =
+          view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
+      return fetchSideInput(view, sideInputWindow, stateFamily, state) != null;
+    }
+
+    /**
+     * Note that there is data on the current key that is blocked on the given side input.
+     */
+    public void addBlockingSideInput(Windmill.GlobalDataRequest sideInput) {
+      if (stateFamily != null) {
+        sideInput =
+            Windmill.GlobalDataRequest.newBuilder(sideInput).setStateFamily(stateFamily).build();
+      }
+      outputBuilder.addGlobalDataRequests(sideInput);
+      outputBuilder.addGlobalDataIdRequests(sideInput.getDataId());
+    }
+
+    /**
+     * Note that there is data on the current key that is blocked on the given side inputs.
+     */
+    public void addBlockingSideInputs(Iterable<Windmill.GlobalDataRequest> sideInputs) {
+      for (Windmill.GlobalDataRequest sideInput : sideInputs) {
+        addBlockingSideInput(sideInput);
+      }
+    }
+
 
     @Override
     public StateInternals stateInternals() {
@@ -418,7 +438,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
         throw new RuntimeException("get() called with unknown view");
       }
 
-      return context.fetchSideInput(view, window, SideInputState.CACHED_IN_WORKITEM);
+      return context.fetchSideInput(
+          view, window, null /* unused stateFamily */, SideInputState.CACHED_IN_WORKITEM);
     }
 
     @Override

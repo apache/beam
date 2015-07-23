@@ -1095,7 +1095,7 @@ public class ParDo {
             DirectSideInputReader.of(sideInputValues),
             mainOutputTag,
             sideOutputTags,
-            executionContext.getStepContext(name),
+            executionContext.getStepContext(name, name),
             context.getAddCounterMutator(),
             input.getWindowingStrategy());
 

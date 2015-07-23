@@ -36,8 +36,8 @@ public class BatchModeExecutionContext extends ExecutionContext {
    * Create a new {@link ExecutionContext.StepContext}.
    */
   @Override
-  public ExecutionContext.StepContext createStepContext(String stepName) {
-    return new StepContext(stepName);
+  public ExecutionContext.StepContext createStepContext(String stepName, String transformName) {
+    return new StepContext(stepName, transformName);
   }
 
   /**
@@ -83,8 +83,8 @@ public class BatchModeExecutionContext extends ExecutionContext {
 
     private final InMemoryStateInternals stateInternals = new InMemoryStateInternals();
 
-    private StepContext(String stepName) {
-      super(stepName);
+    private StepContext(String stepName, String transformName) {
+      super(stepName, transformName);
     }
 
     @Override

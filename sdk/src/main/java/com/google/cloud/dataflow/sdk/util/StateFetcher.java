@@ -78,8 +78,8 @@ public class StateFetcher {
    * <p> If state is KNOWN_READY, attempt to fetch the data regardless of whether a
    * not-ready entry was cached.
    */
-  public <T, SideWindowT extends BoundedWindow> T fetchSideInput(
-      final PCollectionView<T> view, final SideWindowT sideWindow, SideInputState state) {
+  public <T, SideWindowT extends BoundedWindow> T fetchSideInput(final PCollectionView<T> view,
+      final SideWindowT sideWindow, final String stateFamily, SideInputState state) {
     final SideInputId id = new SideInputId(view.getTagInternal(), sideWindow);
 
     Callable<SideInputCacheEntry> fetchCallable = new Callable<SideInputCacheEntry>() {
@@ -101,6 +101,7 @@ public class StateFetcher {
                     .setTag(view.getTagInternal().getId())
                     .setVersion(windowStream.toByteString())
                     .build())
+                .setStateFamily(stateFamily)
                 .setExistenceWatermarkDeadline(
                      TimeUnit.MILLISECONDS.toMicros(sideWindowStrategy
                          .getTrigger().getSpec()

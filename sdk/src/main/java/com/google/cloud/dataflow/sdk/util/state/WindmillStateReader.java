@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagList;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ForwardingFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
@@ -35,9 +36,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -61,10 +62,12 @@ public class WindmillStateReader {
 
     private final Kind kind;
     private final ByteString tag;
+    private final String stateFamily;
 
-    private StateTag(Kind kind, ByteString tag) {
+    private StateTag(Kind kind, ByteString tag, String stateFamily) {
       this.kind = kind;
       this.tag = tag;
+      this.stateFamily = Preconditions.checkNotNull(stateFamily);
     }
 
     @Override
@@ -79,17 +82,18 @@ public class WindmillStateReader {
 
       StateTag that = (StateTag) obj;
       return Objects.equal(this.kind, that.kind)
-          && Objects.equal(this.tag, that.tag);
+          && Objects.equal(this.tag, that.tag)
+          && Objects.equal(this.stateFamily, that.stateFamily);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(kind, tag);
+      return Objects.hashCode(kind, tag, stateFamily);
     }
 
     @Override
     public String toString() {
-      return kind + " " + tag.toStringUtf8();
+      return "Tag(" + kind + "," + tag.toStringUtf8() + "," + stateFamily + ")";
     }
   }
 
@@ -139,16 +143,17 @@ public class WindmillStateReader {
     return wrappedFuture(typedFuture);
   }
 
-  public Future<Instant> watermarkFuture(ByteString encodedTag) {
-    return stateFuture(new StateTag(StateTag.Kind.WATERMARK, encodedTag), null);
+  public Future<Instant> watermarkFuture(ByteString encodedTag, String stateFamily) {
+    return stateFuture(new StateTag(StateTag.Kind.WATERMARK, encodedTag, stateFamily), null);
   }
 
-  public <T> Future<T> valueFuture(ByteString encodedTag, Coder<T> coder) {
-    return stateFuture(new StateTag(StateTag.Kind.VALUE, encodedTag), coder);
+  public <T> Future<T> valueFuture(ByteString encodedTag, String stateFamily, Coder<T> coder) {
+    return stateFuture(new StateTag(StateTag.Kind.VALUE, encodedTag, stateFamily), coder);
   }
 
-  public <T> Future<Iterable<T>> listFuture(ByteString encodedTag, Coder<T> elemCoder) {
-    return stateFuture(new StateTag(StateTag.Kind.LIST, encodedTag), elemCoder);
+  public <T> Future<Iterable<T>> listFuture(ByteString encodedTag, String stateFamily,
+      Coder<T> elemCoder) {
+    return stateFuture(new StateTag(StateTag.Kind.LIST, encodedTag, stateFamily), elemCoder);
   }
 
   private <T> Future<T> wrappedFuture(final Future<T> future) {
@@ -183,15 +188,15 @@ public class WindmillStateReader {
   }
 
   public void startBatchAndBlock() {
-    // First, drain work out of the pending lookups into a map. These will be the items we fetch.
-    Map<ByteString, StateTag> toFetch = new HashMap<>();
+    // First, drain work out of the pending lookups into a set. These will be the items we fetch.
+    HashSet<StateTag> toFetch = new HashSet<>();
     while (!pendingLookups.isEmpty()) {
       StateTag tag = pendingLookups.poll();
       if (tag == null) {
         break;
       }
 
-      if (toFetch.put(tag.tag, tag) != null) {
+      if (!toFetch.add(tag)) {
         throw new IllegalStateException("Duplicate tags being fetched.");
       }
     }
@@ -202,7 +207,7 @@ public class WindmillStateReader {
       return;
     }
 
-    Windmill.GetDataRequest request = createRequest(toFetch.values());
+    Windmill.GetDataRequest request = createRequest(toFetch);
     Windmill.GetDataResponse response = metrics.getStateData(request);
 
     if (response == null) {
@@ -224,11 +229,14 @@ public class WindmillStateReader {
         case WATERMARK:
           keyedDataBuilder.addListsToFetchBuilder()
               .setTag(tag.tag)
+              .setStateFamily(tag.stateFamily)
               .setEndTimestamp(Long.MAX_VALUE);
           break;
 
         case VALUE:
-          keyedDataBuilder.addValuesToFetchBuilder().setTag(tag.tag);
+          keyedDataBuilder.addValuesToFetchBuilder()
+              .setTag(tag.tag)
+              .setStateFamily(tag.stateFamily);
           break;
 
         default:
@@ -240,7 +248,7 @@ public class WindmillStateReader {
   }
 
   private void consumeResponse(Windmill.GetDataRequest request,
-      Windmill.GetDataResponse response, Map<ByteString, StateTag> toFetch) {
+      Windmill.GetDataResponse response, Set<StateTag> toFetch) {
     // Validate the response is for our computation/key.
     if (response.getDataCount() == 0) {
       throw new RuntimeException(
@@ -267,7 +275,7 @@ public class WindmillStateReader {
       // Set up all the futures for this key to throw an exception:
       StreamingDataflowWorker.KeyTokenInvalidException keyTokenInvalidException =
           new StreamingDataflowWorker.KeyTokenInvalidException(key.toStringUtf8());
-      for (StateTag stateTag : toFetch.values()) {
+      for (StateTag stateTag : toFetch) {
         futures.get(stateTag).setException(keyTokenInvalidException);
       }
       return;
@@ -279,36 +287,40 @@ public class WindmillStateReader {
     }
 
     for (Windmill.TagList list : response.getData(0).getData(0).getListsList()) {
-      StateTag stateTag = toFetch.remove(list.getTag());
-      if (stateTag == null) {
-        throw new IllegalStateException(
-            "Received response for unrequested tag " + list.getTag().toStringUtf8());
+      String stateFamily = list.getStateFamily();
+      StateTag stateTagList = new StateTag(
+          StateTag.Kind.LIST, list.getTag(), stateFamily);
+      if (toFetch.remove(stateTagList)) {
+        consumeTagList(list, stateTagList);
+        continue;
       }
 
-      if (stateTag.kind == StateTag.Kind.LIST) {
-        consumeTagList(list, stateTag);
-      } else if (stateTag.kind == StateTag.Kind.WATERMARK) {
-        consumeWatermark(list, stateTag);
-      } else {
-        throw new IllegalStateException("Unexpected kind for TagList: " + stateTag);
+      StateTag stateTagWatermark = new StateTag(
+          StateTag.Kind.WATERMARK, list.getTag(), stateFamily);
+      if (toFetch.remove(stateTagWatermark)) {
+        consumeWatermark(list, stateTagWatermark);
+        continue;
       }
+
+      throw new IllegalStateException(
+          "Received response for unrequested tag " + list.getTag().toStringUtf8());
     }
 
     for (Windmill.TagValue value : response.getData(0).getData(0).getValuesList()) {
-      StateTag stateTag = toFetch.remove(value.getTag());
-      if (stateTag == null) {
-        throw new IllegalStateException(
-            "Received response for unrequested tag " + value.getTag().toStringUtf8());
-      } else if (stateTag.kind != StateTag.Kind.VALUE) {
-        throw new IllegalStateException("Unexpected kind for TagList: " + stateTag);
+      String stateFamily = value.getStateFamily();
+      StateTag stateTag = new StateTag(
+          StateTag.Kind.VALUE, value.getTag(), stateFamily);
+      if (toFetch.remove(stateTag)) {
+        consumeTagValue(value, stateTag);
+        continue;
       }
-
-      consumeTagValue(value, stateTag);
+      throw new IllegalStateException(
+          "Received response for unrequested tag " + value.getTag().toStringUtf8());
     }
 
     if (!toFetch.isEmpty()) {
       throw new IllegalStateException(
-          "Didn't receive responses for all pending fetches. Missing: " + toFetch.values());
+          "Didn't receive responses for all pending fetches. Missing: " + toFetch);
     }
   }
 

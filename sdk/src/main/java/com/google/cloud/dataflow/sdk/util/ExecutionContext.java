@@ -37,10 +37,10 @@ public abstract class ExecutionContext {
   /**
    * Returns the {@link StepContext} associated with the given step.
    */
-  public StepContext getStepContext(String stepName) {
+  public StepContext getStepContext(String stepName, String transformName) {
     StepContext context = cachedStepContexts.get(stepName);
     if (context == null) {
-      context = createStepContext(stepName);
+      context = createStepContext(stepName, transformName);
       cachedStepContexts.put(stepName, context);
     }
     return context;
@@ -57,7 +57,7 @@ public abstract class ExecutionContext {
    * Implementations should override this to create the specific type
    * of {@link StepContext} they neeed.
    */
-  public abstract StepContext createStepContext(String stepName);
+  public abstract StepContext createStepContext(String stepName, String transformName);
 
   /**
    * Hook for subclasses to implement that will be called whenever
@@ -74,27 +74,23 @@ public abstract class ExecutionContext {
   public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {}
 
   /**
-   * Writes the given {@link PCollectionView} data to a globally accessible location.
-   */
-  public <T, W extends BoundedWindow> void writePCollectionViewData(
-      TupleTag<?> tag,
-      Iterable<WindowedValue<T>> data, Coder<Iterable<WindowedValue<T>>> dataCoder,
-      W window, Coder<W> windowCoder) throws IOException {
-    throw new UnsupportedOperationException("Not implemented.");
-  }
-
-  /**
    * Per-step, per-key context used for retrieving state.
    */
   public abstract class StepContext {
     private final String stepName;
+    private final String transformName;
 
-    public StepContext(String stepName) {
+    public StepContext(String stepName, String transformName) {
       this.stepName = stepName;
+      this.transformName = transformName;
     }
 
     public String getStepName() {
       return stepName;
+    }
+
+    public String getTransformName() {
+      return transformName;
     }
 
     public ExecutionContext getExecutionContext() {
@@ -107,6 +103,16 @@ public abstract class ExecutionContext {
 
     public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {
       ExecutionContext.this.noteSideOutput(tag, output);
+    }
+
+    /**
+     * Writes the given {@link PCollectionView} data to a globally accessible location.
+     */
+    public <T, W extends BoundedWindow> void writePCollectionViewData(
+        TupleTag<?> tag,
+        Iterable<WindowedValue<T>> data, Coder<Iterable<WindowedValue<T>>> dataCoder,
+        W window, Coder<W> windowCoder) throws IOException {
+      throw new UnsupportedOperationException("Not implemented.");
     }
 
     public abstract StateInternals stateInternals();

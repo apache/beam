@@ -198,6 +198,7 @@ public class CombineValuesFnTest {
             PipelineOptionsFactory.create(),
             spec,
             "name",
+            "transformName",
             null, // no side inputs
             null, // no side outputs
             1, // single main output

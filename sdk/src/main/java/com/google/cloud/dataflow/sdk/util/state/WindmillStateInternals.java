@@ -45,13 +45,13 @@ public class WindmillStateInternals extends MergingStateInternals {
       return new StateBinder() {
         @Override
         public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
-          return new WindmillBag<>(encodeKey(namespace, address), elemCoder, reader);
+          return new WindmillBag<>(encodeKey(namespace, address), stateFamily, elemCoder, reader);
         }
 
         @Override
         public <T> WatermarkStateInternal bindWatermark(
             StateTag<WatermarkStateInternal> address) {
-          return new WindmillWatermarkState(encodeKey(namespace, address), reader);
+          return new WindmillWatermarkState(encodeKey(namespace, address), stateFamily, reader);
         }
 
         @Override
@@ -60,23 +60,32 @@ public class WindmillStateInternals extends MergingStateInternals {
             StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
           return new WindmillCombiningValue<>(
-              encodeKey(namespace, address), accumCoder, combineFn, reader);
+              encodeKey(namespace, address), stateFamily, accumCoder, combineFn, reader);
         }
 
         @Override
         public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
-          return new WindmillValue<>(encodeKey(namespace, address), coder, reader);
+          return new WindmillValue<>(encodeKey(namespace, address), stateFamily, coder, reader);
         }
       };
     }
   };
 
   private final String prefix;
+  private final String stateFamily;
   private final WindmillStateReader reader;
+  private final boolean useStateFamilies;
 
-  public WindmillStateInternals(String prefix, WindmillStateReader reader) {
+  public WindmillStateInternals(String prefix, boolean useStateFamilies,
+      WindmillStateReader reader) {
     this.prefix = prefix;
+    if (useStateFamilies) {
+      this.stateFamily = prefix;
+    } else {
+      this.stateFamily = "";
+    }
     this.reader = reader;
+    this.useStateFamilies = useStateFamilies;
   }
 
   public void persist(final Windmill.WorkItemCommitRequest.Builder commitBuilder) {
@@ -105,12 +114,18 @@ public class WindmillStateInternals extends MergingStateInternals {
   }
 
   private ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
-    return ByteString.copyFromUtf8(String.format(
-        // stringKey starts and ends with a slash. We don't need to seperate it from prefix, because
-        // the prefix is guaranteed to be unique and non-overlapping. We separate it from the
-        // StateTag ID by a '+' (which is guaranteed not to be in the stringKey) because the
-        // ID comes from the user.
-        "%s%s+%s", prefix, namespace.stringKey(), address.getId()));
+    if (useStateFamilies) {
+      // We don't use prefix here, since it's being set as the stateFamily.
+      return ByteString.copyFromUtf8(
+          String.format("%s+%s", namespace.stringKey(), address.getId()));
+    } else {
+      // stringKey starts and ends with a slash. We don't need to seperate it from prefix, because
+      // the prefix is guaranteed to be unique and non-overlapping. We separate it from the
+      // StateTag ID by a '+' (which is guaranteed not to be in the stringKey) because the
+      // ID comes from the user.
+      return ByteString.copyFromUtf8(String.format(
+          "%s%s+%s", prefix, namespace.stringKey(), address.getId()));
+    }
   }
 
   private interface WindmillState {
@@ -125,6 +140,7 @@ public class WindmillStateInternals extends MergingStateInternals {
   private static class WindmillValue<T> implements ValueState<T>, WindmillState {
 
     private final ByteString stateKey;
+    private final String stateFamily;
     private final Coder<T> coder;
     private final WindmillStateReader reader;
 
@@ -132,8 +148,10 @@ public class WindmillStateInternals extends MergingStateInternals {
     private boolean modified = false;
     private T modifiedValue;
 
-    private WindmillValue(ByteString stateKey, Coder<T> coder, WindmillStateReader reader) {
+    private WindmillValue(ByteString stateKey, String stateFamily, Coder<T> coder,
+        WindmillStateReader reader) {
       this.stateKey = stateKey;
+      this.stateFamily = stateFamily;
       this.coder = coder;
       this.reader = reader;
     }
@@ -146,7 +164,7 @@ public class WindmillStateInternals extends MergingStateInternals {
 
     @Override
     public StateContents<T> get() {
-      final Future<T> future = modified ? null : reader.valueFuture(stateKey, coder);
+      final Future<T> future = modified ? null : reader.valueFuture(stateKey, stateFamily, coder);
 
       return new StateContents<T>() {
         @Override
@@ -177,15 +195,17 @@ public class WindmillStateInternals extends MergingStateInternals {
       // We can't write without doing a read, so we need to kick off a read if we get here.
       // Call reader.valueFuture directly, since our read() method will avoid actually reading from
       // Windmill since the value is already inMemory.
-      reader.valueFuture(stateKey, coder);
+      reader.valueFuture(stateKey, stateFamily, coder);
 
       ByteString.Output stream = ByteString.newOutput();
       if (modifiedValue != null) {
         coder.encode(modifiedValue, stream, Coder.Context.OUTER);
       }
 
-      commitBuilder.addValueUpdatesBuilder()
+      commitBuilder
+          .addValueUpdatesBuilder()
           .setTag(stateKey)
+          .setStateFamily(stateFamily)
           .getValueBuilder()
           .setData(stream.toByteString())
           .setTimestamp(Long.MAX_VALUE);
@@ -195,14 +215,17 @@ public class WindmillStateInternals extends MergingStateInternals {
   private static class WindmillBag<T> implements BagState<T>, WindmillState {
 
     private final ByteString stateKey;
+    private final String stateFamily;
     private final Coder<T> elemCoder;
     private final WindmillStateReader reader;
 
     private boolean cleared = false;
     private final List<T> localAdditions = new ArrayList<>();
 
-    private WindmillBag(ByteString stateKey, Coder<T> elemCoder, WindmillStateReader reader) {
+    private WindmillBag(ByteString stateKey, String stateFamily, Coder<T> elemCoder,
+        WindmillStateReader reader) {
       this.stateKey = stateKey;
+      this.stateFamily = stateFamily;
       this.elemCoder = elemCoder;
       this.reader = reader;
     }
@@ -220,7 +243,7 @@ public class WindmillStateInternals extends MergingStateInternals {
       // clear (in order to get it added to the prefetch).
       final Future<Iterable<T>> persistedData = cleared
           ? Futures.<Iterable<T>>immediateFuture(Collections.<T>emptyList())
-          : reader.listFuture(stateKey, elemCoder);
+          : reader.listFuture(stateKey, stateFamily, elemCoder);
 
       return new StateContents<Iterable<T>>() {
         @Override
@@ -244,7 +267,7 @@ public class WindmillStateInternals extends MergingStateInternals {
       // clear (in order to get it added to the prefetch).
       final Future<Iterable<T>> persistedData = cleared
           ? Futures.<Iterable<T>>immediateFuture(Collections.<T>emptyList())
-          : reader.listFuture(stateKey, elemCoder);
+          : reader.listFuture(stateKey, stateFamily, elemCoder);
 
       return new StateContents<Boolean>() {
         @Override
@@ -272,17 +295,18 @@ public class WindmillStateInternals extends MergingStateInternals {
         // If we do a delete, we need to have done a read to prevent Windmill complaining about
         // blind deletes. We use the underlying reader, because we normally skip the actual read
         // if we've already cleared the state.
-        reader.listFuture(stateKey, elemCoder);
+        reader.listFuture(stateKey, stateFamily, elemCoder);
         commitBuilder.addListUpdatesBuilder()
             .setTag(stateKey)
+            .setStateFamily(stateFamily)
             .setEndTimestamp(Long.MAX_VALUE);
       }
 
 
       if (!localAdditions.isEmpty()) {
         byte[] zero = {0x0};
-        Windmill.TagList.Builder listUpdatesBuilder = commitBuilder.addListUpdatesBuilder();
-        listUpdatesBuilder.setTag(stateKey);
+        Windmill.TagList.Builder listUpdatesBuilder =
+            commitBuilder.addListUpdatesBuilder().setTag(stateKey).setStateFamily(stateFamily);
         for (T value : localAdditions) {
           ByteString.Output stream = ByteString.newOutput();
 
@@ -303,13 +327,16 @@ public class WindmillStateInternals extends MergingStateInternals {
   private static class WindmillWatermarkState implements WatermarkStateInternal, WindmillState {
 
     private final ByteString stateKey;
+    private final String stateFamily;
     private final WindmillStateReader reader;
 
     private boolean cleared = false;
     private Instant localAdditions = null;
 
-    private WindmillWatermarkState(ByteString stateKey, WindmillStateReader reader) {
+    private WindmillWatermarkState(ByteString stateKey, String stateFamily,
+        WindmillStateReader reader) {
       this.stateKey = stateKey;
+      this.stateFamily = stateFamily;
       this.reader = reader;
     }
 
@@ -326,7 +353,7 @@ public class WindmillStateInternals extends MergingStateInternals {
       // clear (in order to get it added to the prefetch).
       final Future<Instant> persistedData = cleared
           ? Futures.<Instant>immediateFuture(null)
-          : reader.watermarkFuture(stateKey);
+          : reader.watermarkFuture(stateKey, stateFamily);
 
       return new StateContents<Instant>() {
         @Override
@@ -354,7 +381,7 @@ public class WindmillStateInternals extends MergingStateInternals {
       // clear (in order to get it added to the prefetch).
       final Future<Instant> persistedData = cleared
           ? Futures.<Instant>immediateFuture(null)
-          : reader.watermarkFuture(stateKey);
+          : reader.watermarkFuture(stateKey, stateFamily);
 
       return new StateContents<Boolean>() {
         @Override
@@ -379,18 +406,19 @@ public class WindmillStateInternals extends MergingStateInternals {
     public void persist(Windmill.WorkItemCommitRequest.Builder commitBuilder) {
       // If we do a delete, we need to have done a read
       if (cleared) {
-        reader.watermarkFuture(stateKey);
+        reader.watermarkFuture(stateKey, stateFamily);
         commitBuilder.addListUpdatesBuilder()
             .setTag(stateKey)
+            .setStateFamily(stateFamily)
             .setEndTimestamp(Long.MAX_VALUE);
       }
 
       if (localAdditions != null) {
         ByteString zeroString = ByteString.copyFrom(new byte[] {0x0});
 
-        Windmill.TagList.Builder listUpdatesBuilder = commitBuilder.addListUpdatesBuilder();
-        listUpdatesBuilder
+        commitBuilder.addListUpdatesBuilder()
             .setTag(stateKey)
+            .setStateFamily(stateFamily)
             .addValuesBuilder()
             .setData(zeroString)
             .setTimestamp(TimeUnit.MILLISECONDS.toMicros(localAdditions.getMillis()));
@@ -411,10 +439,11 @@ public class WindmillStateInternals extends MergingStateInternals {
     private AccumT localAdditionsAccum;
     private boolean hasLocalAdditions = false;
 
-    private WindmillCombiningValue(ByteString stateKey, Coder<AccumT> accumCoder,
+    private WindmillCombiningValue(ByteString stateKey, String stateFamily,
+        Coder<AccumT> accumCoder,
         CombineFn<InputT, AccumT, OutputT> combineFn,
         WindmillStateReader reader) {
-      this.bag = new WindmillBag<>(stateKey, accumCoder, reader);
+      this.bag = new WindmillBag<>(stateKey, stateFamily, accumCoder, reader);
       this.combineFn = combineFn;
       this.localAdditionsAccum = combineFn.createAccumulator();
     }

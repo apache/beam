@@ -72,7 +72,7 @@ public class StreamingModeExecutionContextTest {
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
     executionContext.start(null, new Instant(1000), stateReader, outputBuilder);
-    StepContext step = executionContext.getStepContext("step");
+    StepContext step = executionContext.getStepContext("step", "transform");
 
     TimerInternals timerInternals = step.timerInternals();
 

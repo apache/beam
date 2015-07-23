@@ -59,7 +59,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends BoundedWindow>
     extends DoFnRunner<InputT, OutputT, ReceiverT> {
-  private StepContext stepContext;
+  private StreamingModeExecutionContext.StepContext stepContext;
   private StreamingModeExecutionContext execContext;
   private Map<String, PCollectionView<?>> sideInputViews;
 
@@ -83,7 +83,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
     super(options, doFnInfo.getDoFn(), sideInputReader, outputManager,
         mainOutputTag, sideOutputTags, stepContext,
         addCounterMutator, doFnInfo.getWindowingStrategy());
-    this.stepContext = stepContext;
+    this.stepContext = (StreamingModeExecutionContext.StepContext) stepContext;
 
     WindowFn<?, ? extends BoundedWindow> wildcardWindowFn =
         doFnInfo.getWindowingStrategy().getWindowFn();
@@ -147,10 +147,10 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
             W window = entry.getKey();
             boolean allSideInputsCached = true;
             for (PCollectionView<?> view : sideInputViews.values()) {
-              if (!execContext.issueSideInputFetch(
+              if (!stepContext.issueSideInputFetch(
                   view, window, SideInputState.KNOWN_READY)) {
                 Windmill.GlobalDataRequest request = buildGlobalDataRequest(view, window);
-                execContext.addBlockingSideInput(request);
+                stepContext.addBlockingSideInput(request);
                 windowBlockedSet.add(request);
                 allSideInputsCached = false;
               }
@@ -211,7 +211,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
     Set<Windmill.GlobalDataRequest> blocked = blockedMap.get(window);
     if (blocked == null) {
       for (PCollectionView<?> view : sideInputViews.values()) {
-        if (!execContext.issueSideInputFetch(view, window, SideInputState.UNKNOWN)) {
+        if (!stepContext.issueSideInputFetch(view, window, SideInputState.UNKNOWN)) {
           if (blocked == null) {
             blocked = new HashSet<>();
             blockedMap.put(window, blocked);
@@ -247,7 +247,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
         elementBag(window).add(elem);
         watermarkHold(window).add(elem.getTimestamp());
 
-        execContext.addBlockingSideInputs(blocked);
+        stepContext.addBlockingSideInputs(blocked);
       }
     } catch (Throwable t) {
       // Exception in user code.

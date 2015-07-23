@@ -65,11 +65,12 @@ class CombineValuesFn extends ParDoFnBase {
       Combine.KeyedCombineFn<?, ?, ?, ?> combineFn,
       String phase,
       String stepName,
+      String transformName,
       DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
     return new CombineValuesFn(
-        options, combineFn, phase, stepName, executionContext, addCounterMutator);
+        options, combineFn, phase, stepName, transformName, executionContext, addCounterMutator);
   }
 
   /**
@@ -82,6 +83,7 @@ class CombineValuesFn extends ParDoFnBase {
         PipelineOptions options,
         final CloudObject cloudUserFn,
         String stepName,
+        String transformName,
         @Nullable List<SideInputInfo> sideInputInfos,
         @Nullable List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
@@ -114,6 +116,7 @@ class CombineValuesFn extends ParDoFnBase {
           combineFn,
           phase,
           stepName,
+          transformName,
           executionContext,
           addCounterMutator);
     }
@@ -150,6 +153,7 @@ class CombineValuesFn extends ParDoFnBase {
       Combine.KeyedCombineFn<?, ?, ?, ?> combineFn,
       String phase,
       String stepName,
+      String transformName,
       DataflowExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     super(
@@ -157,6 +161,7 @@ class CombineValuesFn extends ParDoFnBase {
         NullSideInputReader.empty(),
         Arrays.asList("output"),
         stepName,
+        transformName,
         executionContext,
         addCounterMutator);
     this.phase = phase;

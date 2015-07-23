@@ -42,8 +42,8 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
   }
 
   @Override
-  public ExecutionContext.StepContext createStepContext(String stepName) {
-    return new StepContext(stepName);
+  public ExecutionContext.StepContext createStepContext(String stepName, String transformName) {
+    return new StepContext(stepName, transformName);
   }
 
   @Override
@@ -90,8 +90,8 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
     private final Map<Object, InMemoryStateInternals> stateInternals = new HashMap<>();
     private InMemoryStateInternals currentStateInternals = null;
 
-    private StepContext(String stepName) {
-      super(stepName);
+    private StepContext(String stepName, String transformName) {
+      super(stepName, transformName);
       switchKey(null);
     }
 

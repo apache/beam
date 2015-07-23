@@ -181,6 +181,7 @@ public class MapTaskExecutorFactory {
         options,
         CloudObject.fromSpec(parDo.getUserFn()),
         instruction.getSystemName(),
+        instruction.getName(),
         parDo.getSideInputs(),
         parDo.getMultiOutputInfos(),
         parDo.getNumOutputs(),

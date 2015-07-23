@@ -561,7 +561,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
           @SuppressWarnings("unchecked")
           Coder<BoundedWindow> windowCoder = context.windowFn.windowCoder();
 
-          context.stepContext.getExecutionContext().writePCollectionViewData(
+          context.stepContext.writePCollectionViewData(
               tag, data, IterableCoder.of(WindowedValue.getFullCoder(elemCoder, windowCoder)),
               window(), windowCoder);
         }

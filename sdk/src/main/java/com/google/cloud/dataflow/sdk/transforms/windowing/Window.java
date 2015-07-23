@@ -387,6 +387,7 @@ public class Window {
 
     TupleTag<T> outputTag = new TupleTag<>();
     DoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(transform.windowingStrategy.getWindowFn());
+    String name = context.getStepName(transform);
     DoFnRunner<T, T, List> addWindowsRunner =
         DoFnRunner.createWithListOutputs(
             context.getPipelineOptions(),
@@ -394,7 +395,7 @@ public class Window {
             NullSideInputReader.empty(),
             outputTag,
             new ArrayList<TupleTag<?>>(),
-            executionContext.getStepContext(context.getStepName(transform)),
+            executionContext.getStepContext(name, name),
             context.getAddCounterMutator(),
             transform.windowingStrategy);
 

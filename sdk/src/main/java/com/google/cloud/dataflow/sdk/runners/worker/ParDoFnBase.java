@@ -56,6 +56,7 @@ public abstract class ParDoFnBase implements ParDoFn {
   private final TupleTag<Object> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
   private final String stepName;
+  private final String transformName;
   private final ExecutionContext executionContext;
   private final CounterSet.AddCounterMutator addCounterMutator;
 
@@ -74,6 +75,7 @@ public abstract class ParDoFnBase implements ParDoFn {
       SideInputReader sideInputReader,
       List<String> outputTags,
       String stepName,
+      String transformName,
       ExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator) {
     this.options = options;
@@ -91,6 +93,7 @@ public abstract class ParDoFnBase implements ParDoFn {
       }
     }
     this.stepName = stepName;
+    this.transformName = transformName;
     this.executionContext = executionContext;
     this.addCounterMutator = addCounterMutator;
   }
@@ -109,7 +112,7 @@ public abstract class ParDoFnBase implements ParDoFn {
 
     StepContext stepContext = null;
     if (executionContext != null) {
-      stepContext = executionContext.getStepContext(stepName);
+      stepContext = executionContext.getStepContext(stepName, transformName);
     }
 
     @SuppressWarnings("unchecked")
