@@ -74,4 +74,21 @@ public class EntityCoderTest {
   public void testEncodingId() throws Exception {
     CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+      "AAAAGwoZEhcKCFRlc3RLaW5kGgtlbXB0eUVudGl0eQ",
+      "AAAAnQoiEiAKCFRlc3RLaW5kGhR0ZXN0U2ltcGxlUHJvcGVydGllcxISCgx0cnVlUHJvcGVydHkiAggBEhMKDWZhbHNl"
+          + "UHJvcGVydHkiAggAEhoKDnN0cmluZ1Byb3BlcnR5IgiKAQVoZWxsbxIVCg9pbnRlZ2VyUHJvcGVydHkiAhADEh"
+          + "sKDmRvdWJsZVByb3BlcnR5IgkZ8ZvCSgVV-b8",
+      "AAAAVAoeEhwKCFRlc3RLaW5kGhB0ZXN0TmVzdGVkRW50aXR5EjIKDmVudGl0eVByb3BlcnR5IiAyHhIcCg5zdHJpbmdQ"
+          + "cm9wZXJ0eSIKigEHZ29vZGJ5ZQ");
+
+  @Test
+  public void testWireFormatEncode() throws Exception {
+      CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
+  }
 }

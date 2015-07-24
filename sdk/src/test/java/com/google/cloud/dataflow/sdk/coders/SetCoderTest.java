@@ -24,9 +24,9 @@ import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Test case for {@link SetCoder}.
@@ -39,7 +39,7 @@ public class SetCoderTest {
   private static final List<Set<Integer>> TEST_VALUES = Arrays.<Set<Integer>>asList(
       Collections.<Integer>emptySet(),
       Collections.singleton(13),
-      new HashSet<>(Arrays.asList(31, -5, 83)));
+      new TreeSet<>(Arrays.asList(31, -5, 83)));
 
   @Test
   public void testDecodeEncodeContentsEqual() throws Exception {
@@ -54,5 +54,19 @@ public class SetCoderTest {
   @Test
   public void testEncodingId() throws Exception {
     CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
+  }
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+      "AAAAAA",
+      "AAAAAQ0",
+      "AAAAA_v___8PH1M");
+
+  @Test
+  public void testWireFormatEncode() throws Exception {
+    CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 }

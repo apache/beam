@@ -52,5 +52,26 @@ public class VarIntCoderTest {
   public void testEncodingId() throws Exception {
     CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+      "9f___w8",
+      "_f___w8",
+      "_____w8",
+      "AA",
+      "AQ",
+      "BQ",
+      "DQ",
+      "HQ",
+      "_____wc",
+      "gICAgAg");
+
+  @Test
+  public void testWireFormatEncode() throws Exception {
+    CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
+  }
 }
 

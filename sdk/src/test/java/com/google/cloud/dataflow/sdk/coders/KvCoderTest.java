@@ -26,6 +26,7 @@ import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -74,5 +75,30 @@ public class KvCoderTest {
     CoderProperties.coderHasEncodingId(
         KvCoder.of(VarIntCoder.of(), VarIntCoder.of()),
         EXPECTED_ENCODING_ID);
+  }
+
+  /**
+   * Homogeneously typed test value for ease of use with the wire format test utility.
+   */
+  private static final Coder<KV<String, Integer>> TEST_CODER =
+      KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
+
+  private static final List<KV<String, Integer>> TEST_VALUES = Arrays.asList(
+      KV.of("", -1),
+      KV.of("hello", 0),
+      KV.of("goodbye", Integer.MAX_VALUE));
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+      "AP____8P",
+      "BWhlbGxvAA",
+      "B2dvb2RieWX_____Bw");
+
+  @Test
+  public void testWireFormatEncode() throws Exception {
+    CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 }

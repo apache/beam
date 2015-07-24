@@ -55,4 +55,28 @@ public class DoubleCoderTest {
   public void testEncodingId() throws Exception {
     CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+      "AAAAAAAAAAA",
+      "v-AAAAAAAAA",
+      "P-AAAAAAAAA",
+      "P9MzMzMzMzM",
+      "v9MzMzMzMzM",
+      "P_AAAAAAAAA",
+      "wEXypeJ9ODo",
+      "QAkh-fAbhm4",
+      "f-________8",
+      "AAAAAAAAAAE",
+      "f_AAAAAAAAA",
+      "__AAAAAAAAA",
+      "f_gAAAAAAAA");
+
+  @Test
+  public void testWireFormatEncode() throws Exception {
+    CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
+  }
 }

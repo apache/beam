@@ -54,4 +54,27 @@ public class BigEndianLongCoderTest {
   public void testEncodingId() throws Exception {
     CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+      "__________U",
+      "__________0",
+      "__________8",
+      "AAAAAAAAAAA",
+      "AAAAAAAAAAE",
+      "AAAAAAAAAAU",
+      "AAAAAAAAAA0",
+      "AAAAAAAAAB0",
+      "AAAAAIAAAII",
+      "_____3___-M",
+      "f_________8",
+      "gAAAAAAAAAA");
+
+  @Test
+  public void testWireFormatEncode() throws Exception {
+    CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
+  }
 }

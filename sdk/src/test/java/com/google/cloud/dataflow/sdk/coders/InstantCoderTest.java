@@ -18,10 +18,10 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.common.collect.Lists;
 import com.google.common.primitives.UnsignedBytes;
 
 import org.joda.time.Instant;
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -38,19 +38,28 @@ public class InstantCoderTest {
 
   private static final InstantCoder TEST_CODER = InstantCoder.of();
 
-  private final List<Long> timestamps =
+  private static final List<Long> TEST_TIMESTAMPS =
       Arrays.asList(0L, 1L, -1L, -255L, 256L, Long.MIN_VALUE, Long.MAX_VALUE);
+
+  private static final List<Instant> TEST_VALUES;
+
+  static {
+    TEST_VALUES = Lists.newArrayList();
+    for (long timestamp : TEST_TIMESTAMPS) {
+      TEST_VALUES.add(new Instant(timestamp));
+    }
+  }
 
   @Test
   public void testBasicEncoding() throws Exception {
-    for (long timestamp : timestamps) {
-      CoderProperties.coderDecodeEncodeEqual(TEST_CODER, new Instant(timestamp));
+    for (Instant value : TEST_VALUES) {
+      CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
     }
   }
 
   @Test
   public void testOrderedEncoding() throws Exception {
-    List<Long> sortedTimestamps = new ArrayList<>(timestamps);
+    List<Long> sortedTimestamps = new ArrayList<>(TEST_TIMESTAMPS);
     Collections.sort(sortedTimestamps);
 
     List<byte[]> encodings = new ArrayList<>(sortedTimestamps.size());
@@ -72,5 +81,23 @@ public class InstantCoderTest {
   @Test
   public void testEncodingId() throws Exception {
     CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
+  }
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+      "gAAAAAAAAAA",
+      "gAAAAAAAAAE",
+      "f_________8",
+      "f________wE",
+      "gAAAAAAAAQA",
+      "AAAAAAAAAAA",
+      "__________8");
+
+  @Test
+  public void testWireFormatEncode() throws Exception {
+    CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 }

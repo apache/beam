@@ -31,6 +31,8 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class StringUtf8CoderTest {
 
+  private static final Coder<String> TEST_CODER = StringUtf8Coder.of();
+
   private static final List<String> TEST_VALUES = Arrays.asList(
       "", "a", "13", "hello",
       "a longer string with spaces and all that",
@@ -39,9 +41,26 @@ public class StringUtf8CoderTest {
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
-    Coder<String> coder = StringUtf8Coder.of();
     for (String value : TEST_VALUES) {
-      CoderProperties.coderDecodeEncodeEqual(coder, value);
+      CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
     }
+  }
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+      "",
+      "YQ",
+      "MTM",
+      "aGVsbG8",
+      "YSBsb25nZXIgc3RyaW5nIHdpdGggc3BhY2VzIGFuZCBhbGwgdGhhdA",
+      "YSBzdHJpbmcgd2l0aCBhIAogbmV3bGluZQ",
+      "44K544K_44Oq44Oz44Kw");
+
+  @Test
+  public void testWireFormatEncode() throws Exception {
+    CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 }

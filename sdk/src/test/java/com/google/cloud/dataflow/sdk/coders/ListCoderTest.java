@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 
 import org.junit.Test;
@@ -82,5 +83,20 @@ public class ListCoderTest {
   @Test
   public void testEncodingId() throws Exception {
     CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
+  }
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+      "AAAAAA",
+      "AAAAASs",
+      "AAAABAECAwQ",
+      "AAAAAwcGBQ");
+
+  @Test
+  public void testWireFormatEncode() throws Exception {
+      CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 }

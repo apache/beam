@@ -30,6 +30,8 @@ import org.junit.runners.JUnit4;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Unit tests for {@link ByteArrayCoder}.
@@ -39,8 +41,11 @@ public class ByteArrayCoderTest {
 
   private static final ByteArrayCoder TEST_CODER = ByteArrayCoder.of();
 
-  private static final byte[][] TEST_VALUES = {
-    {0xa, 0xb, 0xc}, {}, {}, {0xd, 0xe}, {0xd, 0xe}, {}};
+  private static final List<byte[]> TEST_VALUES = Arrays.asList(
+    new byte[]{0xa, 0xb, 0xc},
+    new byte[]{0xd, 0x3},
+    new byte[]{0xd, 0xe},
+    new byte[]{});
 
   @Test
   public void testDecodeEncodeEquals() throws Exception {
@@ -107,5 +112,20 @@ public class ByteArrayCoderTest {
   @Test
   public void testEncodingId() throws Exception {
     CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
+  }
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+      "CgsM",
+      "DQM",
+      "DQ4",
+      "");
+
+  @Test
+  public void testWireFormatEncode() throws Exception {
+    CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 }

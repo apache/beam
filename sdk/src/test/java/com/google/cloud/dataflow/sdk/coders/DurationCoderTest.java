@@ -18,11 +18,14 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.common.collect.Lists;
+
 import org.joda.time.Duration;
+import org.joda.time.ReadableDuration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.Arrays;
 import java.util.List;
 
 /** Unit tests for {@link DurationCoder}. */
@@ -33,10 +36,37 @@ public class DurationCoderTest {
   private static final List<Long> TEST_MILLIS =
       Lists.newArrayList(0L, 1L, -1L, -255L, 256L, Long.MIN_VALUE, Long.MAX_VALUE);
 
+  private static final List<ReadableDuration> TEST_VALUES;
+
+  static {
+    TEST_VALUES = Lists.newArrayList();
+    for (long millis : TEST_MILLIS) {
+      TEST_VALUES.add(Duration.millis(millis));
+    }
+  }
+
   @Test
   public void testBasicEncoding() throws Exception {
-    for (long millis : TEST_MILLIS) {
-      CoderProperties.coderDecodeEncodeEqual(TEST_CODER, Duration.millis(millis));
+    for (ReadableDuration value : TEST_VALUES) {
+      CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
     }
+  }
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+      "AA",
+      "AQ",
+      "____________AQ",
+      "gf7_________AQ",
+      "gAI",
+      "gICAgICAgICAAQ",
+      "__________9_");
+
+  @Test
+  public void testWireFormatEncode() throws Exception {
+    CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 }
