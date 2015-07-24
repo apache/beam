@@ -50,7 +50,7 @@ import javax.annotation.Nullable;
 public class ShuffleReaderFactoryTest {
   <T extends Reader> T runTestCreateShuffleReader(byte[] shuffleReaderConfig,
       @Nullable String start, @Nullable String end, CloudObject encoding,
-      BatchModeExecutionContext context, Class<?> shuffleReaderClass, String shuffleSourceAlias)
+      BatchModeExecutionContext context, Class<T> shuffleReaderClass, String shuffleSourceAlias)
       throws Exception {
     CloudObject spec = CloudObject.forClassName(shuffleSourceAlias);
     addString(spec, "shuffle_reader_config", encodeBase64String(shuffleReaderConfig));
