@@ -66,16 +66,16 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
         createAggregator(ReduceFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
 
     private final WindowingStrategy<Object, W> windowingStrategy;
-    private ReduceFn<K, InputT, OutputT, W> reduceFn;
+    private SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory;
 
     private transient ReduceFnRunner<K, InputT, OutputT, W> runner;
 
     public StreamingGABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
-        ReduceFn<K, InputT, OutputT, W> reduceFn) {
+        SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory) {
       @SuppressWarnings("unchecked")
       WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
       this.windowingStrategy = noWildcard;
-      this.reduceFn = reduceFn;
+      this.reduceFnFactory = reduceFnFactory;
     }
 
     private void initForKey(ProcessContext c, K key) throws Exception{
@@ -83,7 +83,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
         TimerInternals timerInternals = c.windowingInternals().timerInternals();
         runner = new ReduceFnRunner<>(
             key, windowingStrategy, timerInternals, c.windowingInternals(),
-            droppedDueToClosedWindow, droppedDueToLateness, reduceFn);
+            droppedDueToClosedWindow, droppedDueToLateness, reduceFnFactory.create(key));
       }
     }
 

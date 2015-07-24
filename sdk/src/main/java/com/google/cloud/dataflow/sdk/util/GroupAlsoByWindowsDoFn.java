@@ -88,13 +88,13 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
         createAggregator(ReduceFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
 
     private final WindowingStrategy<Object, W> strategy;
-    private ReduceFn<K, InputT, OutputT, W> reduceFn;
+    private SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory;
 
     public GABWViaOutputBufferDoFn(
         WindowingStrategy<Object, W> windowingStrategy,
-        ReduceFn<K, InputT, OutputT, W> reduceFn) {
+        SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory) {
       this.strategy = windowingStrategy;
-      this.reduceFn = reduceFn;
+      this.reduceFnFactory = reduceFnFactory;
     }
 
     @Override
@@ -110,7 +110,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
 
       ReduceFnRunner<K, InputT, OutputT, W> runner = new ReduceFnRunner<>(
           key, strategy, timerInternals, c.windowingInternals(),
-          droppedDueToClosedWindow, droppedDueToLateness, reduceFn);
+          droppedDueToClosedWindow, droppedDueToLateness, reduceFnFactory.create(key));
 
       for (WindowedValue<InputT> e : c.element().getValue()) {
         // First, handle anything that needs to happen for this element

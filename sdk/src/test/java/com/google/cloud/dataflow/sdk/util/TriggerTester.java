@@ -120,7 +120,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
     return new TriggerTester<Integer, Iterable<Integer>, W>(
         strategy,
-        SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()),
+        SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()).create(KEY),
         IterableCoder.of(VarIntCoder.of()));
   }
 
@@ -139,7 +139,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     return new TriggerTester<Integer, OutputT, W>(
         strategy,
         SystemReduceFn.<String, Integer, OutputT, W>combining(
-            StringUtf8Coder.of(), VarIntCoder.of(), combineFn),
+            StringUtf8Coder.of(), VarIntCoder.of(), combineFn).create(KEY),
         outputCoder);
   }
 

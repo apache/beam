@@ -156,18 +156,19 @@ public class StateTags {
 
     private static final long serialVersionUID = 0;
 
+    // TODO: This should use the CoderRegistry from the running pipelie to ensure that it picks up
+    // any custom Coders, but that CoderRegistry isn't currently available on the worker.
+    private static final CoderRegistry registry = new CoderRegistry();
+    static {
+      registry.registerStandardCoders();
+    }
+
     private final Coder<AccumT> accumCoder;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     private CombiningValueStateTag(
         String id, Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
       super(id);
-
-      // TODO: This should use the actual CoderRegistry to ensure that it picks up
-      // any custom Coders, but that CoderRegistry isn't currently available on the
-      // worker.
-      CoderRegistry registry = new CoderRegistry();
-      registry.registerStandardCoders();
 
       try {
         this.accumCoder = combineFn.getAccumulatorCoder(registry, inputCoder);

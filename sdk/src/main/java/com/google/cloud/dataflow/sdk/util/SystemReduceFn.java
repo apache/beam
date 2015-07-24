@@ -21,10 +21,14 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
+import com.google.cloud.dataflow.sdk.util.state.BagState;
+import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 import com.google.cloud.dataflow.sdk.util.state.MergeableState;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
+
+import java.io.Serializable;
 
 /**
  * {@link ReduceFn} implementing the default reduction behaviors of {@link GroupByKey}.
@@ -34,52 +38,73 @@ import com.google.cloud.dataflow.sdk.util.state.StateTags;
  * @param <OutputT> The output type that will be produced for each key.
  * @param <W> The type of windows this operates on.
  */
-abstract class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
+class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     extends ReduceFn<K, InputT, OutputT, W> {
 
   private static final long serialVersionUID = 0L;
   private static final String BUFFER_NAME = "__buffer";
 
   /**
-   * Create a {@link SystemReduceFn} that buffers all of the input values in persistent state,
-   * and produces an {@code Iterable<T>}.
+   * Factory that produces {@link SystemReduceFn} instances for specific keys.
+   *
+   * @param <K> The type of key being processed.
+   * @param <InputT> The type of values associated with the key.
+   * @param <OutputT> The output type that will be produced for each key.
+   * @param <W> The type of windows this operates on.
    */
-  public static <K, T, W extends BoundedWindow> ReduceFn<K, T, Iterable<T>, W> buffering(
+  public interface Factory<K, InputT, OutputT, W extends BoundedWindow> extends Serializable {
+    ReduceFn<K, InputT, OutputT, W> create(K key);
+  }
+
+  /**
+   * Create a factory that produces {@link SystemReduceFn} instances that that buffer all of the
+   * input values in persistent state and produces an {@code Iterable<T>}.
+   */
+  public static <K, T, W extends BoundedWindow> Factory<K, T, Iterable<T>, W> buffering(
       final Coder<T> inputCoder) {
-    return new SystemReduceFn<K, T, Iterable<T>, W>() {
+    final StateTag<BagState<T>> bufferTag = StateTags.bag(BUFFER_NAME, inputCoder);
+    return new Factory<K, T, Iterable<T>, W>() {
+
       private static final long serialVersionUID = 0L;
 
       @Override
-      protected StateTag<? extends MergeableState<T, Iterable<T>>> bufferTag(K key) {
-        return StateTags.bag(BUFFER_NAME, inputCoder);
+      public ReduceFn<K, T, Iterable<T>, W> create(K key) {
+        return new SystemReduceFn<K, T, Iterable<T>, W>(bufferTag);
       }
     };
   }
 
   /**
-   * Create a {@link SystemReduceFn} that combines all of the input values using a
-   * {@link CombineFn}.
+   * Create a factory that produces {@link SystemReduceFn} instances that combine all of the input
+   * values using a {@link CombineFn}.
    */
   public static
-  <K, InputT, OutputT, W extends BoundedWindow> ReduceFn<K, InputT, OutputT, W> combining(
+  <K, InputT, OutputT, W extends BoundedWindow> Factory<K, InputT, OutputT, W> combining(
       final Coder<K> keyCoder, final Coder<InputT> inputCoder,
       final KeyedCombineFn<K, InputT, ?, OutputT> combineFn) {
-    return new SystemReduceFn<K, InputT, OutputT, W>() {
+    return new Factory<K, InputT, OutputT, W>() {
+
       private static final long serialVersionUID = 0L;
 
       @Override
-      protected StateTag<? extends MergeableState<InputT, OutputT>> bufferTag(K key) {
-        return StateTags.<InputT, OutputT>combiningValue(
-            BUFFER_NAME, inputCoder, combineFn.forKey(key, keyCoder));
+      public ReduceFn<K, InputT, OutputT, W> create(K key) {
+        StateTag<CombiningValueState<InputT, OutputT>> bufferTag =
+            StateTags.<InputT, OutputT>combiningValue(
+                BUFFER_NAME, inputCoder, combineFn.forKey(key, keyCoder));
+        return new SystemReduceFn<K, InputT, OutputT, W>(bufferTag);
       }
     };
   }
 
-  protected abstract StateTag<? extends MergeableState<InputT, OutputT>> bufferTag(K key);
+  private StateTag<? extends MergeableState<InputT, OutputT>> bufferTag;
+
+  public SystemReduceFn(StateTag<? extends MergeableState<InputT, OutputT>> bufferTag) {
+    this.bufferTag = bufferTag;
+  }
 
   @Override
   public void processValue(ProcessValueContext c) throws Exception {
-    c.state().access(bufferTag(c.key())).add(c.value());
+    c.state().access(bufferTag).add(c.value());
   }
 
   @Override
@@ -92,7 +117,7 @@ abstract class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   @Override
   public void onTrigger(OnTriggerContext c) throws Exception {
     MergeableState<InputT, OutputT> buffer =
-        c.state().accessAcrossMergedWindows(bufferTag(c.key()));
+        c.state().accessAcrossMergedWindows(bufferTag);
     StateContents<OutputT> output = buffer.get();
 
     // Skip empty panes unless they have interesting pane info.
@@ -104,6 +129,6 @@ abstract class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
 
   @Override
   public void clearState(Context c) throws Exception {
-    c.state().accessAcrossMergedWindows(bufferTag(c.key())).clear();
+    c.state().accessAcrossMergedWindows(bufferTag).clear();
   }
 }
