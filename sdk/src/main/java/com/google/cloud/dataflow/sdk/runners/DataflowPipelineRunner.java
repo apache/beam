@@ -569,7 +569,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
                       return Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS;
                     }
                   }))
-          // Reshuffle will dedup based on ids in ValueWithRecordId by sing the data through
+          // Reshuffle will dedup based on ids in ValueWithRecordId by passing the data through
           // WindmillSink.
           .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())
           .apply(ParDo.named("StripIds").of(
