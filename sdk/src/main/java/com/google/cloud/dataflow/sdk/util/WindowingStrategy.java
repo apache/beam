@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
@@ -56,55 +55,37 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   private final ExecutableTrigger<W> trigger;
   private final AccumulationMode mode;
   private final Duration allowedLateness;
+  private final boolean triggerSpecified;
+  private final boolean modeSpecified;
+  private final boolean allowedLatenessSpecified;
 
   private WindowingStrategy(
-      WindowFn<T, W> windowFn, ExecutableTrigger<W> trigger, AccumulationMode mode,
-      Duration allowedLateness) {
+      WindowFn<T, W> windowFn,
+      ExecutableTrigger<W> trigger, boolean triggerSpecified,
+      AccumulationMode mode, boolean modeSpecified,
+      Duration allowedLateness, boolean allowedLatenessSpecified) {
     this.windowFn = windowFn;
     this.trigger = trigger;
+    this.triggerSpecified = triggerSpecified;
     this.mode = mode;
+    this.modeSpecified = modeSpecified;
     this.allowedLateness = allowedLateness;
+    this.allowedLatenessSpecified = allowedLatenessSpecified;
   }
 
+  /**
+   * Return a fully specified, default windowing strategy.
+   */
   public static WindowingStrategy<Object, GlobalWindow> globalDefault() {
     return DEFAULT;
   }
 
-  /**
-   * Create a {@code WindowingStrategy} for the given {@code windowFn}, using the
-   * {@link DefaultTrigger}.
-   */
-  public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(WindowFn<T, W> windowFn) {
-    try {
-      windowFn.windowCoder().verifyDeterministic();
-    } catch (NonDeterministicException e) {
-      throw new IllegalArgumentException("Window coders must be deterministic.", e);
-    }
-
-    ExecutableTrigger<W> defaultTrigger = ExecutableTrigger.create(DefaultTrigger.<W>of());
-    return new WindowingStrategy<>(
-        windowFn, defaultTrigger, AccumulationMode.DISCARDING_FIRED_PANES, null);
-  }
-
-  public WindowingStrategy<T, W> withTrigger(Trigger<?> wildcardTrigger) {
-    @SuppressWarnings("unchecked")
-    Trigger<W> trigger = (Trigger<W>) wildcardTrigger;
-    return new WindowingStrategy<T, W>(
-        windowFn, ExecutableTrigger.create(trigger), mode, allowedLateness);
-  }
-
-  public WindowingStrategy<T, W> withMode(AccumulationMode mode) {
-    return new WindowingStrategy<T, W>(windowFn, trigger, mode, allowedLateness);
-  }
-
-  public WindowingStrategy<T, W> withWindowFn(WindowFn<?, ?> wildcardWindowFn) {
-    @SuppressWarnings("unchecked")
-    WindowFn<T, W> windowFn = (WindowFn<T, W>) wildcardWindowFn;
-    return new WindowingStrategy<T, W>(windowFn, trigger, mode, allowedLateness);
-  }
-
-  public WindowingStrategy<T, W> withAllowedLateness(Duration allowedLateness) {
-    return new WindowingStrategy<T, W>(windowFn, trigger, mode, allowedLateness);
+  public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(
+      WindowFn<T, W> windowFn) {
+    return new WindowingStrategy<>(windowFn,
+        ExecutableTrigger.create(DefaultTrigger.<W>of()), false,
+        AccumulationMode.DISCARDING_FIRED_PANES, false,
+        DEFAULT_ALLOWED_LATENESS, false);
   }
 
   public WindowFn<T, W> getWindowFn() {
@@ -115,16 +96,76 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return trigger;
   }
 
-  public Duration getAllowedLateness() {
-    return allowedLateness == null ? DEFAULT_ALLOWED_LATENESS : allowedLateness;
+  public boolean isTriggerSpecified() {
+    return triggerSpecified;
   }
 
-  public boolean isDefaultAllowedLateness() {
-    return allowedLateness == null;
+  public Duration getAllowedLateness() {
+    return allowedLateness;
+  }
+
+  public boolean isAllowedLatenessSpecified() {
+    return allowedLatenessSpecified;
   }
 
   public AccumulationMode getMode() {
     return mode;
+  }
+
+  public boolean isModeSpecified() {
+    return modeSpecified;
+  }
+
+  /**
+   * Returns a {@link WindowingStrategy} identical to {@code this} but with the trigger set to
+   * {@code wildcardTrigger}.
+   */
+  public WindowingStrategy<T, W> withTrigger(Trigger<?> wildcardTrigger) {
+    @SuppressWarnings("unchecked")
+    Trigger<W> typedTrigger = (Trigger<W>) wildcardTrigger;
+    return new WindowingStrategy<T, W>(
+        windowFn,
+        ExecutableTrigger.create(typedTrigger), true,
+        mode, modeSpecified,
+        allowedLateness, allowedLatenessSpecified);
+  }
+
+  /**
+   * Returns a {@link WindowingStrategy} identical to {@code this} but with the accumulation mode
+   * set to {@code mode}.
+   */
+  public WindowingStrategy<T, W> withMode(AccumulationMode mode) {
+    return new WindowingStrategy<T, W>(
+        windowFn,
+        trigger, triggerSpecified,
+        mode, true,
+        allowedLateness, allowedLatenessSpecified);
+  }
+
+  /**
+   * Returns a {@link WindowingStrategy} identical to {@code this} but with the window function
+   * set to {@code wildcardWindowFn}.
+   */
+  public WindowingStrategy<T, W> withWindowFn(WindowFn<?, ?> wildcardWindowFn) {
+    @SuppressWarnings("unchecked")
+    WindowFn<T, W> typedWindowFn = (WindowFn<T, W>) wildcardWindowFn;
+    return new WindowingStrategy<T, W>(
+        typedWindowFn,
+        trigger, triggerSpecified,
+        mode, modeSpecified,
+        allowedLateness, allowedLatenessSpecified);
+  }
+
+  /**
+   * Returns a {@link WindowingStrategy} identical to {@code this} but with the allowed lateness
+   * set to {@code allowedLateness}.
+   */
+  public WindowingStrategy<T, W> withAllowedLateness(Duration allowedLateness) {
+    return new WindowingStrategy<T, W>(
+        windowFn,
+        trigger, triggerSpecified,
+        mode, modeSpecified,
+        allowedLateness, true);
   }
 
   @Override

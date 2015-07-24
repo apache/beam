@@ -52,7 +52,6 @@ import com.google.cloud.dataflow.sdk.transforms.WithKeys;
 import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
@@ -62,6 +61,7 @@ import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
 import com.google.cloud.dataflow.sdk.util.PCollectionViews;
 import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.Reshuffle;
 import com.google.cloud.dataflow.sdk.util.StreamingPCollectionViewWriterFn;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
@@ -79,6 +79,7 @@ import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -568,21 +569,16 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
                       return Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS;
                     }
                   }))
-          .apply(
-              Window.<KV<Integer, ValueWithRecordId<T>>>into(new GlobalWindows())
-                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-                  .discardingFiredPanes())
-          // WindmillSink will dedup based on ids in ValueWithRecordId.
-          .apply(GroupByKey.<Integer, ValueWithRecordId<T>>create())
+          // Reshuffle will dedup based on ids in ValueWithRecordId by sing the data through
+          // WindmillSink.
+          .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())
           .apply(ParDo.named("StripIds").of(
-              new DoFn<KV<Integer, Iterable<ValueWithRecordId<T>>>, T>() {
+              new DoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
                 private static final long serialVersionUID = 0L;
 
                 @Override
                 public void processElement(ProcessContext c) {
-                  for (ValueWithRecordId<T> value : c.element().getValue()) {
-                    c.output(value.getValue());
-                  }
+                  c.output(c.element().getValue().getValue());
                 }
               }));
     }
@@ -658,11 +654,15 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
             .apply(ParDo.of(new OutputNullKv()))
             .apply("GlobalSingleton", Window.<KV<Void, Void>>into(new GlobalWindows())
                 .triggering(AfterPane.elementCountAtLeast(1))
+                .withAllowedLateness(Duration.ZERO)
                 .discardingFiredPanes())
-                .apply(GroupByKey.<Void, Void>create())
-                .apply(Window.<KV<Void, Iterable<Void>>>into(new GlobalWindows()))
-                .apply(ParDo.of(new OutputElements<>(transform.getElements(), coder)))
-                .setCoder(coder);
+            .apply(GroupByKey.<Void, Void>create())
+            // Go back to the default windowing strategy, so that our setting allowed lateness
+            // doesn't count as the user having set it.
+            .setWindowingStrategyInternal(WindowingStrategy.globalDefault())
+            .apply(Window.<KV<Void, Iterable<Void>>>into(new GlobalWindows()))
+            .apply(ParDo.of(new OutputElements<>(transform.getElements(), coder)))
+            .setCoder(coder);
       } catch (CannotProvideCoderException e) {
         throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
             + "Please set a coder by invoking Create.withCoder() explicitly.", e);

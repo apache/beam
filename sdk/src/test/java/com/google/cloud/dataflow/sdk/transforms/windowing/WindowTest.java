@@ -47,7 +47,7 @@ public class WindowTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testBasicWindowIntoSettings() {
+  public void testWindowIntoSetWindowfn() {
     WindowingStrategy<?, ?> strategy = TestPipeline.create()
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
       .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(10))))
@@ -59,40 +59,64 @@ public class WindowTest {
 
   @Test
   public void testWindowIntoTriggersAndAccumulating() {
+    FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
+    Repeatedly<BoundedWindow> trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
     WindowingStrategy<?, ?> strategy = TestPipeline.create()
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
-      .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(10)))
-          .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))
-          .accumulatingFiredPanes())
+      .apply(Window.<String>into(fixed10)
+          .triggering(trigger)
+          .accumulatingFiredPanes()
+          .withAllowedLateness(Duration.ZERO))
       .getWindowingStrategy();
 
-    assertTrue(strategy.getWindowFn() instanceof FixedWindows);
-    assertTrue(strategy.getTrigger().getSpec() instanceof Repeatedly);
+    assertEquals(fixed10, strategy.getWindowFn());
+    assertEquals(trigger, strategy.getTrigger().getSpec());
     assertEquals(AccumulationMode.ACCUMULATING_FIRED_PANES, strategy.getMode());
   }
 
   @Test
-  public void testWindowIntoPropagatesLateness() {
+  public void testWindowPropagatesEachPart() {
+    FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
+    Repeatedly<BoundedWindow> trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
     WindowingStrategy<?, ?> strategy = TestPipeline.create()
-        .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(10)))
-            .withAllowedLateness(Duration.standardDays(1))
-            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))
-            .accumulatingFiredPanes())
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(25))))
-        .getWindowingStrategy();
+      .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
+      .apply("Mode", Window.<String>accumulatingFiredPanes())
+      .apply("Lateness", Window.<String>withAllowedLateness(Duration.standardDays(1)))
+      .apply("Trigger", Window.<String>triggering(trigger))
+      .apply("Window", Window.<String>into(fixed10))
+      .getWindowingStrategy();
 
+    assertEquals(fixed10, strategy.getWindowFn());
+    assertEquals(trigger, strategy.getTrigger().getSpec());
+    assertEquals(AccumulationMode.ACCUMULATING_FIRED_PANES, strategy.getMode());
     assertEquals(Duration.standardDays(1), strategy.getAllowedLateness());
   }
 
   @Test
+  public void testWindowIntoPropagatesLateness() {
+    FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
+    FixedWindows fixed25 = FixedWindows.of(Duration.standardMinutes(25));
+    WindowingStrategy<?, ?> strategy = TestPipeline.create()
+        .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
+        .apply(Window.named("WindowInto10").<String>into(fixed10)
+            .withAllowedLateness(Duration.standardDays(1))
+            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(5)))
+            .accumulatingFiredPanes())
+        .apply(Window.named("WindowInto25").<String>into(fixed25))
+        .getWindowingStrategy();
+
+    assertEquals(Duration.standardDays(1), strategy.getAllowedLateness());
+    assertEquals(fixed25, strategy.getWindowFn());
+  }
+
+  @Test
   public void testWindowGetName() {
-    assertEquals("Window.Into(FixedWindows, DefaultTrigger, DISCARDING_FIRED_PANES)",
+    assertEquals("Window.Into()",
         Window.<String>into(FixedWindows.of(Duration.standardMinutes(10))).getName());
   }
 
   @Test
-  public void testNonDeterministicWindowing() throws NonDeterministicException {
+  public void testNonDeterministicWindowCoder() throws NonDeterministicException {
     FixedWindows mockWindowFn = Mockito.mock(FixedWindows.class);
     @SuppressWarnings({"unchecked", "rawtypes"})
     Class<Coder<IntervalWindow>> coderClazz = (Class) Coder.class;
@@ -106,5 +130,33 @@ public class WindowTest {
     thrown.expectCause(Matchers.sameInstance(toBeThrown));
     thrown.expectMessage("Window coders must be deterministic");
     Window.into(mockWindowFn);
+  }
+
+  @Test
+  public void testMissingMode() {
+    FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
+    Repeatedly<BoundedWindow> trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("requires that the accumulation mode");
+    TestPipeline.create()
+      .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
+      .apply("Window", Window.<String>into(fixed10))
+      .apply("Lateness", Window.<String>withAllowedLateness(Duration.standardDays(1)))
+      .apply("Trigger", Window.<String>triggering(trigger));
+  }
+
+  @Test
+  public void testMissingLateness() {
+    FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
+    Repeatedly<BoundedWindow> trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("requires that the allowed lateness");
+    TestPipeline.create()
+      .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
+      .apply("Mode", Window.<String>accumulatingFiredPanes())
+      .apply("Window", Window.<String>into(fixed10))
+      .apply("Trigger", Window.<String>triggering(trigger));
   }
 }

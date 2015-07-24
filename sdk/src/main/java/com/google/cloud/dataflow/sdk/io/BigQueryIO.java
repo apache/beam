@@ -36,21 +36,15 @@ import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.BigQueryReader;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterFirst;
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterProcessingTime;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.ReaderUtils;
+import com.google.cloud.dataflow.sdk.util.Reshuffle;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
@@ -65,7 +59,6 @@ import com.google.common.base.Preconditions;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -909,7 +902,7 @@ public class BigQueryIO {
    * Implementation of DoFn to perform streaming BigQuery write.
    */
   private static class StreamingWriteFn
-      extends DoFn<KV<ShardedKey<String>, Iterable<TableRowInfo>>, Void> {
+      extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
     private static final long serialVersionUID = 0;
 
     /** TableSchema in JSON.  Use String to make the class Serializable. */
@@ -948,10 +941,9 @@ public class BigQueryIO {
       String tableSpec = context.element().getKey().getKey();
       List<TableRow> rows = getOrCreateMapListValue(tableRows, tableSpec);
       List<String> uniqueIds = getOrCreateMapListValue(uniqueIdsForTableRows, tableSpec);
-      for (TableRowInfo rowInfo : context.element().getValue()) {
-        rows.add(rowInfo.tableRow);
-        uniqueIds.add(rowInfo.uniqueId);
-      }
+
+      rows.add(context.element().getValue().tableRow);
+      uniqueIds.add(context.element().getValue().uniqueId);
     }
 
     /** Writes the accumulated rows into BigQuery with streaming API. */
@@ -1123,7 +1115,7 @@ public class BigQueryIO {
 
     final TableRow tableRow;
     final String uniqueId;
-  };
+  }
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -1181,8 +1173,7 @@ public class BigQueryIO {
           new TableRowInfo(context.element(), uniqueId)));
     }
 
-    private String tableSpecFromWindow(BigQueryOptions options, BoundedWindow window)
-        throws IOException {
+    private String tableSpecFromWindow(BigQueryOptions options, BoundedWindow window) {
       if (tableSpec != null) {
         return tableSpec;
       } else {
@@ -1203,10 +1194,6 @@ public class BigQueryIO {
    */
   private static class StreamWithDeDup extends PTransform<PCollection<TableRow>, PDone> {
     private static final long serialVersionUID = 0;
-
-    // TODO: Consider making these configurable.
-    private static final int WRITE_BUFFER_COUNT = 100;
-    private static final Duration WRITE_BUFFER_WAIT = Duration.standardSeconds(1);
 
     private final transient TableReference tableReference;
     private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
@@ -1244,16 +1231,11 @@ public class BigQueryIO {
 
       // To prevent having the same TableRow processed more than once with regenerated
       // different unique ids, this implementation relies on "checkpointing", which is
-      // achieved as a side effect of having StreamingWriteFn immediately follow a GBK.
+      // achieved as a side effect of having StreamingWriteFn immediately follow a GBK,
+      // performed by Reshuffle.
       tagged
           .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
-          .apply(
-              Window.<KV<ShardedKey<String>, TableRowInfo>>into(new GlobalWindows())
-                  .triggering(Repeatedly.forever(AfterFirst.of(
-                      AfterProcessingTime.pastFirstElementInPane().plusDelayOf(WRITE_BUFFER_WAIT),
-                      AfterPane.elementCountAtLeast(WRITE_BUFFER_COUNT))))
-                  .discardingFiredPanes())
-          .apply(GroupByKey.<ShardedKey<String>, TableRowInfo>create())
+          .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
           .apply(ParDo.of(new StreamingWriteFn(tableSchema)));
 
       // Note that the implementation to return PDone here breaks the
