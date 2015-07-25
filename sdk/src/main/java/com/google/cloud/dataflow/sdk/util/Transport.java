@@ -163,7 +163,7 @@ public class Transport {
         new RetryHttpRequestInitializer(
             // Do not log the code 404. Code up the stack will deal with 404's if needed, and
             // logging it by default clutters the output during file staging.
-            options.getGcpCredential(), ImmutableList.of(404)))
+            options.getGcpCredential(), ImmutableList.of(404), new UploadIdResponseInterceptor()))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     if (servicePath != null) {

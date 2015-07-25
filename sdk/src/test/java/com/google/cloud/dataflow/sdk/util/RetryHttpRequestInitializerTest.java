@@ -30,6 +30,7 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpResponseException;
+import com.google.api.client.http.HttpResponseInterceptor;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.LowLevelHttpRequest;
 import com.google.api.client.http.LowLevelHttpResponse;
@@ -65,6 +66,7 @@ public class RetryHttpRequestInitializerTest {
   @Mock private PrivateKey mockPrivateKey;
   @Mock private LowLevelHttpRequest mockLowLevelRequest;
   @Mock private LowLevelHttpResponse mockLowLevelResponse;
+  @Mock private HttpResponseInterceptor mockHttpResponseInterceptor;
 
   private final JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
   private Storage storage;
@@ -100,7 +102,7 @@ public class RetryHttpRequestInitializerTest {
         mockCredential, new MockNanoClock(), new Sleeper() {
           @Override
           public void sleep(long millis) throws InterruptedException {}
-        }, Arrays.asList(418 /* I'm a teapot */));
+        }, Arrays.asList(418 /* I'm a teapot */), mockHttpResponseInterceptor);
     storage = new Storage.Builder(lowLevelTransport, jsonFactory, initializer)
         .setApplicationName("test").build();
   }
@@ -110,6 +112,7 @@ public class RetryHttpRequestInitializerTest {
     verifyNoMoreInteractions(mockPrivateKey);
     verifyNoMoreInteractions(mockLowLevelRequest);
     verifyNoMoreInteractions(mockCredential);
+    verifyNoMoreInteractions(mockHttpResponseInterceptor);
   }
 
   @Test
@@ -124,6 +127,7 @@ public class RetryHttpRequestInitializerTest {
     assertNotNull(response);
 
     verify(mockCredential).initialize(any(HttpRequest.class));
+    verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
     verify(mockLowLevelRequest, atLeastOnce())
         .addHeader(anyString(), anyString());
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
@@ -151,6 +155,7 @@ public class RetryHttpRequestInitializerTest {
     }
 
     verify(mockCredential).initialize(any(HttpRequest.class));
+    verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
     verify(mockLowLevelRequest, atLeastOnce())
         .addHeader(anyString(), anyString());
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
@@ -177,6 +182,7 @@ public class RetryHttpRequestInitializerTest {
     assertNotNull(response);
 
     verify(mockCredential).initialize(any(HttpRequest.class));
+    verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
     verify(mockLowLevelRequest, atLeastOnce())
         .addHeader(anyString(), anyString());
     verify(mockLowLevelRequest, times(3)).setTimeout(anyInt(), anyInt());
@@ -200,6 +206,7 @@ public class RetryHttpRequestInitializerTest {
     assertNotNull(response);
 
     verify(mockCredential).initialize(any(HttpRequest.class));
+    verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
     verify(mockLowLevelRequest, atLeastOnce())
         .addHeader(anyString(), anyString());
     verify(mockLowLevelRequest, times(2)).setTimeout(anyInt(), anyInt());
@@ -226,6 +233,7 @@ public class RetryHttpRequestInitializerTest {
     assertNotNull(response);
 
     verify(mockCredential).initialize(any(HttpRequest.class));
+    verify(mockHttpResponseInterceptor).interceptResponse(any(HttpResponse.class));
     verify(mockLowLevelRequest, atLeastOnce()).addHeader(anyString(),
         anyString());
     verify(mockLowLevelRequest, times(retries)).setTimeout(anyInt(), anyInt());

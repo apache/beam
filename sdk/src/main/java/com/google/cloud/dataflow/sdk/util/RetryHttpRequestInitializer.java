@@ -21,6 +21,7 @@ import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpResponse;
+import com.google.api.client.http.HttpResponseInterceptor;
 import com.google.api.client.http.HttpUnsuccessfulResponseHandler;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.ExponentialBackOff;
@@ -46,6 +47,8 @@ import javax.annotation.Nullable;
  * <p>This allows chaining through to another HttpRequestInitializer, since
  * clients have exactly one HttpRequestInitializer, and Credential is also
  * a required HttpRequestInitializer.
+ *
+ * <p>Also can take a HttpResponseInterceptor to be applied to the responses.
  */
 public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
@@ -122,6 +125,8 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
   private final HttpRequestInitializer chained;
 
+  private final HttpResponseInterceptor responseInterceptor;  // response Interceptor to use
+
   private final NanoClock nanoClock;  // used for testing
 
   private final Sleeper sleeper;  // used for testing
@@ -143,7 +148,21 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
    */
   public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained,
       Collection<Integer> additionalIgnoredResponseCodes) {
-    this(chained, NanoClock.SYSTEM, Sleeper.DEFAULT, additionalIgnoredResponseCodes);
+    this(chained, NanoClock.SYSTEM, Sleeper.DEFAULT, additionalIgnoredResponseCodes, null);
+  }
+
+  /**
+   * @param chained a downstream HttpRequestInitializer, which will also be applied to HttpRequest
+   * initialization.  May be null.
+   * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
+   * @param responseInterceptor HttpResponseInterceptor to be applied on all requests. May be null.
+   */
+  public RetryHttpRequestInitializer(
+      @Nullable HttpRequestInitializer chained,
+      Collection<Integer> additionalIgnoredResponseCodes,
+      @Nullable HttpResponseInterceptor responseInterceptor) {
+    this(chained, NanoClock.SYSTEM, Sleeper.DEFAULT, additionalIgnoredResponseCodes,
+        responseInterceptor);
   }
 
   /**
@@ -156,11 +175,13 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
    * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
    */
   RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained,
-      NanoClock nanoClock, Sleeper sleeper, Collection<Integer> additionalIgnoredResponseCodes) {
+      NanoClock nanoClock, Sleeper sleeper, Collection<Integer> additionalIgnoredResponseCodes,
+      HttpResponseInterceptor responseInterceptor) {
     this.chained = chained;
     this.nanoClock = nanoClock;
     this.sleeper = sleeper;
     this.ignoredResponseCodes.addAll(additionalIgnoredResponseCodes);
+    this.responseInterceptor = responseInterceptor;
   }
 
   @Override
@@ -187,5 +208,10 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     LoggingHttpBackOffIOExceptionHandler loggingBackoffHandler =
         new LoggingHttpBackOffIOExceptionHandler(BackOff.ZERO_BACKOFF);
     request.setIOExceptionHandler(loggingBackoffHandler);
+
+    // Set response initializer
+    if (responseInterceptor != null) {
+      request.setResponseInterceptor(responseInterceptor);
+    }
   }
 }
