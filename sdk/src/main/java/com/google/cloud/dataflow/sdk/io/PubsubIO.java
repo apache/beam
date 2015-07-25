@@ -95,7 +95,7 @@ public class PubsubIO {
       Pattern.compile("/topics/([^/]+)/(.+)");
 
   private static final Pattern PUBSUB_NAME_REGEXP =
-      Pattern.compile("[a-z][-._a-z0-9]+[a-z0-9]");
+      Pattern.compile("[a-zA-Z][-._~%+a-zA-Z0-9]+");
 
   private static final int PUBSUB_NAME_MAX_LENGTH = 255;
 

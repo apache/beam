@@ -18,7 +18,9 @@ package com.google.cloud.dataflow.sdk.io;
 
 import static org.junit.Assert.assertEquals;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -27,6 +29,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class PubsubIOTest {
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testPubsubIOGetName() {
@@ -38,5 +42,35 @@ public class PubsubIOTest {
         PubsubIO.Read.named("ReadMyTopic").topic("projects/myproject/topics/mytopic").getName());
     assertEquals("WriteMyTopic",
         PubsubIO.Write.named("WriteMyTopic").topic("projects/myproject/topics/mytopic").getName());
+  }
+
+  @Test
+  public void testTopicValidationSuccess() throws Exception {
+    PubsubIO.Read.topic("projects/my-project/topics/abc");
+    PubsubIO.Read.topic("projects/my-project/topics/ABC");
+    PubsubIO.Read.topic("projects/my-project/topics/AbC-DeF");
+    PubsubIO.Read.topic("projects/my-project/topics/AbC-1234");
+    PubsubIO.Read.topic("projects/my-project/topics/AbC-1234-_.~%+-_.~%+-_.~%+-abc");
+    PubsubIO.Read.topic(new StringBuilder().append("projects/my-project/topics/A-really-long-one-")
+        .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
+        .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
+        .append("11111111111111111111111111111111111111111111111111111111111111111111111111")
+        .toString());
+  }
+
+  @Test
+  public void testTopicValidationBadCharacter() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    PubsubIO.Read.topic("projects/my-project/topics/abc-*-abc");
+  }
+
+  @Test
+  public void testTopicValidationTooLong() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    PubsubIO.Read.topic(new StringBuilder().append("projects/my-project/topics/A-really-long-one-")
+        .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
+        .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
+        .append("1111111111111111111111111111111111111111111111111111111111111111111111111111")
+        .toString());
   }
 }
