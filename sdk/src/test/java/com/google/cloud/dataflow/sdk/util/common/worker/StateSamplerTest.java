@@ -31,6 +31,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class StateSamplerTest {
   public static long getCounterLongValue(CounterSet counters, String name) {
+    @SuppressWarnings("unchecked")
     Counter<Long> counter = (Counter<Long>) counters.getExistingCounter(name);
     return counter.getAggregate();
   }
@@ -60,12 +61,11 @@ public class StateSamplerTest {
     long s1 = getCounterLongValue(counters, "test-1-msecs");
     long s2 = getCounterLongValue(counters, "test-2-msecs");
 
-    System.out.println("basic s1: " + s1);
-    System.out.println("basic s2: " + s2);
-
     long toleranceMs = periodMs;
     assertTrue(s1 + s2 >= 4 * periodMs - toleranceMs);
     assertTrue(s1 + s2 <= 10 * periodMs + toleranceMs);
+
+    stateSampler.close();
   }
 
   @Test
@@ -103,13 +103,11 @@ public class StateSamplerTest {
     long s2 = getCounterLongValue(counters, "test-2-msecs");
     long s3 = getCounterLongValue(counters, "test-3-msecs");
 
-    System.out.println("s1: " + s1);
-    System.out.println("s2: " + s2);
-    System.out.println("s3: " + s3);
-
     long toleranceMs = periodMs;
     assertTrue(s1 + s2 + s3 >= 4 * periodMs - toleranceMs);
     assertTrue(s1 + s2 + s3 <= 16 * periodMs + toleranceMs);
+
+    stateSampler.close();
   }
 
   @Test
@@ -125,8 +123,10 @@ public class StateSamplerTest {
     stateSampler.setState(previousState);
     long tolerance = periodMs;
     long s = getCounterLongValue(counters, "test-1-msecs");
-    System.out.println("s: " + s);
+
     assertTrue(s >= periodMs - tolerance);
     assertTrue(s <= 4 * periodMs + tolerance);
+
+    stateSampler.close();
   }
 }
