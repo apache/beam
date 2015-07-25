@@ -37,11 +37,12 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import org.joda.time.Instant;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -105,29 +106,31 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
         mainOutputTag, sideOutputTags, stepContext, addCounterMutator, windowingStrategy);
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  public static <InputT, OutputT> DoFnRunner<InputT, OutputT, List> createWithListOutputs(
-      PipelineOptions options,
-      DoFn<InputT, OutputT> fn,
-      SideInputReader sideInputReader,
-      TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
-      StepContext stepContext,
-      CounterSet.AddCounterMutator addCounterMutator,
-      WindowingStrategy<?, ?> windowingStrategy) {
-    return create(
-        options, fn, sideInputReader,
-        new OutputManager<List>() {
-          @Override
-          public List initialize(TupleTag<?> tag) {
-            return new ArrayList<>();
-          }
-          @Override
-          public void output(List list, WindowedValue<?> output) {
-            list.add(output);
-          }
-        },
-        mainOutputTag, sideOutputTags, stepContext, addCounterMutator, windowingStrategy);
+  /**
+   * An implementation of {@link OutputManager} using simple lists, for testing and in-memory
+   * contexts such as the {@link com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner}.
+   */
+  public static class ListOutputManager implements OutputManager<List<WindowedValue<?>>> {
+
+    private Map<TupleTag<?>, List<WindowedValue<?>>> outputLists = Maps.newHashMap();
+
+    @Override
+    public List<WindowedValue<?>> initialize(TupleTag<?> tag) {
+      List<WindowedValue<?>> list = Lists.newArrayList();
+      outputLists.put(tag, list);
+      return list;
+    }
+    @Override
+    public void output(List<WindowedValue<?>> list, WindowedValue<?> output) {
+      list.add(output);
+    }
+
+    public <T> List<WindowedValue<T>> getOutput(TupleTag<T> tag) {
+      // Safe cast by design, inexpressible in Java without rawtypes
+      @SuppressWarnings({"rawtypes", "unchecked"})
+      List<WindowedValue<T>> outputList = (List) outputLists.get(tag);
+      return outputList;
+    }
   }
 
   /** Calls {@link DoFn#startBundle}. */

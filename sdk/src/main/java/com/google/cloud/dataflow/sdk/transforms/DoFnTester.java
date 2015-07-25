@@ -324,7 +324,7 @@ public class DoFnTester<InputT, OutputT> {
   DoFn<InputT, OutputT> fn;
 
   /** The DoFnRunner if processing is in progress. */
-  DoFnRunner<InputT, OutputT, List> fnRunner;
+  DoFnRunner<InputT, OutputT, List<WindowedValue<?>>> fnRunner;
 
   /** Counters for user-defined Aggregators if processing is in progress. */
   CounterSet counterSet;
@@ -358,10 +358,11 @@ public class DoFnTester<InputT, OutputT> {
         : sideInputs.entrySet()) {
       runnerSideInputs = runnerSideInputs.and(entry.getKey().getTagInternal(), entry.getValue());
     }
-    fnRunner = DoFnRunner.createWithListOutputs(
+    fnRunner = DoFnRunner.create(
         options,
         fn,
         DirectSideInputReader.of(runnerSideInputs),
+        new DoFnRunner.ListOutputManager(),
         mainOutputTag,
         sideOutputTags,
         DirectModeExecutionContext.create().createStepContext("stepName", "stepName"),

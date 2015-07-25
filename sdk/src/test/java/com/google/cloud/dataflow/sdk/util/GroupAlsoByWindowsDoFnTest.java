@@ -65,21 +65,21 @@ public class GroupAlsoByWindowsDoFnTest {
 
   @Test public void testEmpty() throws Exception {
     DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-        KV<String, Iterable<String>>, List> runner =
+        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
         makeRunner(WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
     runner.startBundle();
 
     runner.finishBundle();
 
-    List<KV<String, Iterable<String>>> result = runner.getReceiver(outputTag);
+    List<KV<String, Iterable<String>>> result = (List) runner.getReceiver(outputTag);
 
     assertEquals(0, result.size());
   }
 
   @Test public void testFixedWindows() throws Exception {
     DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-        KV<String, Iterable<String>>, List> runner =
+        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
         makeRunner(WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
     runner.startBundle();
@@ -104,7 +104,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
     runner.finishBundle();
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result = runner.getReceiver(outputTag);
+    List<WindowedValue<KV<String, Iterable<String>>>> result = (List) runner.getReceiver(outputTag);
 
     assertEquals(2, result.size());
 
@@ -125,7 +125,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
   @Test public void testSlidingWindows() throws Exception {
     DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-        KV<String, Iterable<String>>, List> runner =
+        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
         makeRunner(WindowingStrategy.of(
             SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10))));
 
@@ -146,7 +146,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
     runner.finishBundle();
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result = runner.getReceiver(outputTag);
+    List<WindowedValue<KV<String, Iterable<String>>>> result = (List) runner.getReceiver(outputTag);
 
     assertEquals(3, result.size());
 
@@ -174,7 +174,8 @@ public class GroupAlsoByWindowsDoFnTest {
 
   @Test public void testSlidingWindowsCombine() throws Exception {
     CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
-    DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>, List> runner =
+    DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>,
+        List<WindowedValue<?>>> runner =
         makeRunner(
             WindowingStrategy.of(SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10))),
             combineFn.<String>asKeyedFn());
@@ -201,7 +202,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
     runner.finishBundle();
 
-    List<WindowedValue<KV<String, Long>>> result = runner.getReceiver(outputTag);
+    List<WindowedValue<KV<String, Long>>> result = (List) runner.getReceiver(outputTag);
 
     assertEquals(3, result.size());
 
@@ -219,7 +220,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
   @Test public void testDiscontiguousWindows() throws Exception {
     DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-        KV<String, Iterable<String>>, List> runner =
+        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
         makeRunner(WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
     runner.startBundle();
@@ -244,7 +245,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
     runner.finishBundle();
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result = runner.getReceiver(outputTag);
+    List<WindowedValue<KV<String, Iterable<String>>>> result = (List) runner.getReceiver(outputTag);
 
     assertEquals(2, result.size());
 
@@ -265,7 +266,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
   @Test public void testSessions() throws Exception {
     DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-        KV<String, Iterable<String>>, List> runner =
+        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
         makeRunner(WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))));
 
     runner.startBundle();
@@ -290,7 +291,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
     runner.finishBundle();
 
-    List<WindowedValue<KV<String, Iterable<String>>>> result = runner.getReceiver(outputTag);
+    List<WindowedValue<KV<String, Iterable<String>>>> result = (List) runner.getReceiver(outputTag);
 
     assertEquals(2, result.size());
 
@@ -312,7 +313,7 @@ public class GroupAlsoByWindowsDoFnTest {
   @Test public void testSessionsCombine() throws Exception {
     CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
     DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>,
-        KV<String, Long>, List> runner =
+        KV<String, Long>, List<WindowedValue<?>>> runner =
         makeRunner(WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))),
                    combineFn.<String>asKeyedFn());
     runner.startBundle();
@@ -337,7 +338,7 @@ public class GroupAlsoByWindowsDoFnTest {
 
     runner.finishBundle();
 
-    List<WindowedValue<KV<String, Long>>> result = runner.getReceiver(outputTag);
+    List<WindowedValue<KV<String, Long>>> result = (List) runner.getReceiver(outputTag);
 
     assertThat(result, Matchers.contains(
         WindowMatchers.isSingleWindowedValue(
@@ -349,7 +350,7 @@ public class GroupAlsoByWindowsDoFnTest {
   }
 
   private DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-      KV<String, Iterable<String>>, List> makeRunner(
+      KV<String, Iterable<String>>, List<WindowedValue<?>>> makeRunner(
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy) {
     GroupAlsoByWindowsDoFn<String, String, Iterable<String>, IntervalWindow> fn =
         GroupAlsoByWindowsDoFn.createForIterable(windowingStrategy, StringUtf8Coder.of());
@@ -357,7 +358,7 @@ public class GroupAlsoByWindowsDoFnTest {
   }
 
   private DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>,
-      KV<String, Long>, List> makeRunner(
+      KV<String, Long>, List<WindowedValue<?>>> makeRunner(
         WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
         KeyedCombineFn<String, Long, ?, Long> combineFn) {
     GroupAlsoByWindowsDoFn<String, Long, Long, IntervalWindow> fn =
@@ -368,14 +369,15 @@ public class GroupAlsoByWindowsDoFnTest {
   }
 
   private <InputT, OutputT> DoFnRunner<KV<String, Iterable<WindowedValue<InputT>>>,
-    KV<String, OutputT>, List> makeRunner(
+    KV<String, OutputT>, List<WindowedValue<?>>> makeRunner(
         WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
         GroupAlsoByWindowsDoFn<String, InputT, OutputT, IntervalWindow> fn) {
     return
-        DoFnRunner.createWithListOutputs(
+        DoFnRunner.create(
             PipelineOptionsFactory.create(),
             fn,
             NullSideInputReader.empty(),
+            new DoFnRunner.ListOutputManager(),
             (TupleTag<KV<String, OutputT>>) (TupleTag) outputTag,
             new ArrayList<TupleTag<?>>(),
             execContext.getStepContext("merge", "merge"),

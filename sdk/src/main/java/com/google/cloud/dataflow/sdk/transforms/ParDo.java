@@ -1088,11 +1088,12 @@ public class ParDo {
           context.getPCollectionView(view));
     }
 
-    DoFnRunner<InputT, OutputT, List> fnRunner =
-        DoFnRunner.createWithListOutputs(
+    DoFnRunner<InputT, OutputT, List<WindowedValue<?>>> fnRunner =
+        DoFnRunner.create(
             context.getPipelineOptions(),
             fn,
             DirectSideInputReader.of(sideInputValues),
+            new DoFnRunner.ListOutputManager(),
             mainOutputTag,
             sideOutputTags,
             executionContext.getStepContext(name, name),
