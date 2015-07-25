@@ -87,8 +87,10 @@ public final class ReaderFactory {
    * @throws Exception if the source could not be decoded and
    * constructed
    */
-  public static <T> Reader<T> create(@Nullable PipelineOptions options, Source cloudSource,
-      @Nullable ExecutionContext executionContext) throws Exception {
+  public static <T> Reader<T> create(
+      @Nullable PipelineOptions options, Source cloudSource,
+      @Nullable ExecutionContext executionContext)
+          throws Exception {
     cloudSource = CloudSourceUtils.flattenBaseSpecs(cloudSource);
 
     CloudObject object = CloudObject.fromSpec(cloudSource.getSpec());

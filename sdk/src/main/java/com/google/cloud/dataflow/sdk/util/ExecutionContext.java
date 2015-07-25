@@ -19,103 +19,87 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
-import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Context for the current execution. This is guaranteed to exist during processing,
  * but does not necessarily persist between different batches of work.
  */
-public abstract class ExecutionContext {
-  private Map<String, StepContext> cachedStepContexts = new HashMap<>();
-
+public interface ExecutionContext {
   /**
    * Returns the {@link StepContext} associated with the given step.
    */
-  public StepContext getStepContext(String stepName, String transformName) {
-    StepContext context = cachedStepContexts.get(stepName);
-    if (context == null) {
-      context = createStepContext(stepName, transformName);
-      cachedStepContexts.put(stepName, context);
-    }
-    return context;
-  }
+  StepContext getStepContext(String stepName, String transformName);
 
   /**
    * Returns a collection view of all of the {@link StepContext}s.
    */
-  public Collection<StepContext> getAllStepContexts() {
-    return cachedStepContexts.values();
-  }
-
-  /**
-   * Implementations should override this to create the specific type
-   * of {@link StepContext} they neeed.
-   */
-  public abstract StepContext createStepContext(String stepName, String transformName);
+  Collection<StepContext> getAllStepContexts();
 
   /**
    * Hook for subclasses to implement that will be called whenever
    * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#output}
    * is called.
    */
-  public void noteOutput(WindowedValue<?> output) {}
+  void noteOutput(WindowedValue<?> output);
 
   /**
    * Hook for subclasses to implement that will be called whenever
    * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#sideOutput}
    * is called.
    */
-  public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {}
+  void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output);
 
   /**
    * Per-step, per-key context used for retrieving state.
    */
-  public abstract class StepContext {
-    private final String stepName;
-    private final String transformName;
+  public interface StepContext {
 
-    public StepContext(String stepName, String transformName) {
-      this.stepName = stepName;
-      this.transformName = transformName;
-    }
+    /**
+     * The name of the step.
+     */
+    String getStepName();
 
-    public String getStepName() {
-      return stepName;
-    }
+    /**
+     * The name of the transform for the step.
+     */
+    String getTransformName();
 
-    public String getTransformName() {
-      return transformName;
-    }
+    /**
+     * The context in which this step is executing.
+     */
+    ExecutionContext getExecutionContext();
 
-    public ExecutionContext getExecutionContext() {
-      return ExecutionContext.this;
-    }
+    /**
+     * Hook for subclasses to implement that will be called whenever
+     * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#output}
+     * is called.
+     */
+    void noteOutput(WindowedValue<?> output);
 
-    public void noteOutput(WindowedValue<?> output) {
-      ExecutionContext.this.noteOutput(output);
-    }
-
-    public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {
-      ExecutionContext.this.noteSideOutput(tag, output);
-    }
+    /**
+     * Hook for subclasses to implement that will be called whenever
+     * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#sideOutput}
+     * is called.
+     */
+    void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output);
 
     /**
      * Writes the given {@link PCollectionView} data to a globally accessible location.
      */
-    public <T, W extends BoundedWindow> void writePCollectionViewData(
+    <T, W extends BoundedWindow> void writePCollectionViewData(
         TupleTag<?> tag,
-        Iterable<WindowedValue<T>> data, Coder<Iterable<WindowedValue<T>>> dataCoder,
-        W window, Coder<W> windowCoder) throws IOException {
-      throw new UnsupportedOperationException("Not implemented.");
-    }
+        Iterable<WindowedValue<T>> data,
+        Coder<Iterable<WindowedValue<T>>> dataCoder,
+        W window,
+        Coder<W> windowCoder)
+            throws IOException;
 
-    public abstract StateInternals stateInternals();
-    public abstract TimerInternals timerInternals();
+    StateInternals stateInternals();
+
+    TimerInternals timerInternals();
   }
 }

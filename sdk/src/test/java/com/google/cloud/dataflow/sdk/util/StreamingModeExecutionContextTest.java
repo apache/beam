@@ -24,7 +24,6 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting.ConstantViewFn;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaceForTest;
 import com.google.cloud.dataflow.sdk.util.state.WindmillStateReader;
@@ -72,7 +71,7 @@ public class StreamingModeExecutionContextTest {
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
     executionContext.start(null, new Instant(1000), stateReader, outputBuilder);
-    StepContext step = executionContext.getStepContext("step", "transform");
+    ExecutionContext.StepContext step = executionContext.getStepContext("step", "transform");
 
     TimerInternals timerInternals = step.timerInternals();
 

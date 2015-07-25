@@ -24,7 +24,7 @@ import java.util.Objects;
 /**
  * {@link ExecutionContext} for use in batch mode.
  */
-public class BatchModeExecutionContext extends ExecutionContext {
+public class BatchModeExecutionContext extends BaseExecutionContext {
   private Object key;
 
   /**
@@ -79,12 +79,12 @@ public class BatchModeExecutionContext extends ExecutionContext {
   /**
    * {@link ExecutionContext.StepContext} used in batch mode.
    */
-  class StepContext extends ExecutionContext.StepContext {
+  class StepContext extends BaseExecutionContext.StepContext {
 
     private final InMemoryStateInternals stateInternals = new InMemoryStateInternals();
 
     private StepContext(String stepName, String transformName) {
-      super(stepName, transformName);
+      super(BatchModeExecutionContext.this, stepName, transformName);
     }
 
     @Override

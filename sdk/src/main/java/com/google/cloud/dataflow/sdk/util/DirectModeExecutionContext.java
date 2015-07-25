@@ -85,13 +85,13 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
   /**
    * {@link ExecutionContext.StepContext} used in direct mode.
    */
-  class StepContext extends ExecutionContext.StepContext {
+  class StepContext extends BaseExecutionContext.StepContext {
 
     private final Map<Object, InMemoryStateInternals> stateInternals = new HashMap<>();
     private InMemoryStateInternals currentStateInternals = null;
 
     private StepContext(String stepName, String transformName) {
-      super(stepName, transformName);
+      super(DirectModeExecutionContext.this, stepName, transformName);
       switchKey(null);
     }
 

@@ -414,7 +414,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
             NullSideInputReader.empty(),
             (TupleTag<KV<String, OutputT>>) (TupleTag) outputTag,
             new ArrayList<TupleTag<?>>(),
-            execContext.createStepContext("merge", "merge"),
+            execContext.getStepContext("merge", "merge"),
             counters.getAddCounterMutator(),
             windowingStrategy);
   }

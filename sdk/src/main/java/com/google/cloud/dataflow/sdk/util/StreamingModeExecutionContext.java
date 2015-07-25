@@ -305,14 +305,14 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   }
 
 
-  class StepContext extends ExecutionContext.StepContext {
+  class StepContext extends BaseExecutionContext.StepContext {
     private WindmillStateInternals stateInternals;
     private WindmillTimerInternals timerInternals;
     private String prefix;
     private String stateFamily;
 
     public StepContext(String stepName, String transformName) {
-      super(stepName, transformName);
+      super(StreamingModeExecutionContext.this, stepName, transformName);
 
       if (stateNameMap.isEmpty()) {
         this.prefix = transformName;
