@@ -66,7 +66,6 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
 
     /** Outputs a single element to the provided receiver. */
     public void output(ReceiverT receiver, WindowedValue<?> output);
-
   }
 
   /** The DoFn being run. */
@@ -195,11 +194,6 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
       Throwables.propagateIfInstanceOf(t, UserCodeException.class);
       throw new UserCodeException(t);
     }
-  }
-
-  /** Returns the receiver who gets outputs with the provided tag. */
-  public ReceiverT getReceiver(TupleTag<?> tag) {
-    return context.getReceiver(tag);
   }
 
   /**

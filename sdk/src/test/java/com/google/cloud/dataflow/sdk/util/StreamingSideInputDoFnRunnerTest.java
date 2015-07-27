@@ -56,7 +56,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -85,15 +84,6 @@ public class StreamingSideInputDoFnRunnerTest {
     when(stepContext.stateInternals()).thenReturn(state);
   }
 
-  private <T> List<WindowedValue<T>> getReceiver(
-      StreamingSideInputDoFnRunner<?, ?, List<WindowedValue<?>>, ?> runner,
-      TupleTag<T> outputTag) {
-    List<WindowedValue<?>> values = runner.getReceiver(outputTag);
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    List<WindowedValue<T>> typedValues = (List) values;
-    return typedValues;
-  }
-
   @Test
   public void testSideInputReady() throws Exception {
     PCollectionView<String> view = createView();
@@ -108,14 +98,15 @@ public class StreamingSideInputDoFnRunnerTest {
     when(mockSideInputReader.contains(eq(view))).thenReturn(true);
     when(mockSideInputReader.get(eq(view), any(BoundedWindow.class))).thenReturn("data");
 
+    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
     StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
-        createRunner(Arrays.asList(view));
+        createRunner(outputManager, Arrays.asList(view));
 
     runner.startBundle();
     runner.processElement(createDatum("e", 0));
     runner.finishBundle();
 
-    assertThat(getReceiver(runner, mainOutputTag), contains(createDatum("e:data", 0)));
+    assertThat(outputManager.getOutput(mainOutputTag), contains(createDatum("e:data", 0)));
   }
 
   @Test
@@ -128,14 +119,15 @@ public class StreamingSideInputDoFnRunnerTest {
              eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
         .thenReturn(false);
 
+    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
     StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
-        createRunner(Arrays.asList(view));
+        createRunner(outputManager, Arrays.asList(view));
 
     runner.startBundle();
     runner.processElement(createDatum("e", 0));
     runner.finishBundle();
 
-    assertTrue(runner.getReceiver(mainOutputTag).isEmpty());
+    assertTrue(outputManager.getOutput(mainOutputTag).isEmpty());
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
@@ -181,8 +173,9 @@ public class StreamingSideInputDoFnRunnerTest {
             StreamingSideInputDoFnRunner.blockedMapAddr(WINDOW_FN));
     blockedMapState.set(blockedMap);
 
+    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
     StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
-        createRunner(Arrays.asList(view));
+        createRunner(outputManager, Arrays.asList(view));
     runner.watermarkHold(createWindow(0)).add(new Instant(0));
     runner.elementBag(createWindow(0)).add(createDatum("e", 0));
 
@@ -201,7 +194,7 @@ public class StreamingSideInputDoFnRunnerTest {
     runner.startBundle();
     runner.finishBundle();
 
-    assertThat(getReceiver(runner, mainOutputTag), contains(createDatum("e:data", 0)));
+    assertThat(outputManager.getOutput(mainOutputTag), contains(createDatum("e:data", 0)));
 
     assertThat(blockedMapState.get().read().keySet(), Matchers.empty());
     assertThat(runner.watermarkHold(createWindow(0)).get().read(), Matchers.nullValue());
@@ -241,8 +234,9 @@ public class StreamingSideInputDoFnRunnerTest {
     when(mockSideInputReader.get(eq(view1), any(BoundedWindow.class))).thenReturn("data1");
     when(mockSideInputReader.get(eq(view2), any(BoundedWindow.class))).thenReturn("data2");
 
+    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
     StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
-        createRunner(Arrays.asList(view1, view2));
+        createRunner(outputManager, Arrays.asList(view1, view2));
     runner.watermarkHold(createWindow(0)).add(new Instant(0));
     runner.elementBag(createWindow(0)).add(createDatum("e1", 0));
 
@@ -250,7 +244,7 @@ public class StreamingSideInputDoFnRunnerTest {
     runner.processElement(createDatum("e2", 2));
     runner.finishBundle();
 
-    assertThat(getReceiver(runner, mainOutputTag),
+    assertThat(outputManager.getOutput(mainOutputTag),
         contains(createDatum("e1:data1:data2", 0), createDatum("e2:data1:data2", 2)));
 
     assertThat(blockedMapState.get().read().keySet(), Matchers.empty());
@@ -258,8 +252,10 @@ public class StreamingSideInputDoFnRunnerTest {
     assertThat(runner.elementBag(createWindow(0)).get().read(), Matchers.emptyIterable());
   }
 
-  private StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow>
-  createRunner(List<PCollectionView<String>> views) throws Exception {
+  private <ReceiverT> StreamingSideInputDoFnRunner<String, String, ReceiverT, IntervalWindow>
+      createRunner(
+          DoFnRunner.OutputManager<ReceiverT> outputManager, List<PCollectionView<String>> views)
+          throws Exception {
     @SuppressWarnings({"unchecked", "rawtypes"})
     Iterable<PCollectionView<?>> typedViews = (Iterable) views;
 
@@ -267,20 +263,11 @@ public class StreamingSideInputDoFnRunnerTest {
         new SideInputFn(views), WindowingStrategy.of(WINDOW_FN),
         typedViews, StringUtf8Coder.of());
 
-    return new StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow>(
+    return new StreamingSideInputDoFnRunner<String, String, ReceiverT, IntervalWindow>(
         PipelineOptionsFactory.create(),
         doFnInfo,
         mockSideInputReader,
-        new DoFnRunner.OutputManager<List<WindowedValue<?>>>() {
-          @Override
-          public List<WindowedValue<?>> initialize(TupleTag<?> tag) {
-            return new ArrayList<>();
-          }
-          @Override
-          public void output(List<WindowedValue<?>> list, WindowedValue<?> output) {
-            list.add(output);
-          }
-        },
+        outputManager,
         mainOutputTag,
         Arrays.<TupleTag<?>>asList(),
         stepContext,
