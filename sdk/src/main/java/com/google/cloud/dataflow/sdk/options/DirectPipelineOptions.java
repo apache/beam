@@ -17,6 +17,9 @@
 package com.google.cloud.dataflow.sdk.options;
 
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * Options that can be used to configure the {@link DirectPipeline}.
@@ -25,4 +28,13 @@ public interface DirectPipelineOptions extends
     ApplicationNameOptions, BigQueryOptions, GcsOptions, GcpOptions,
     PipelineOptions, StreamingOptions {
 
+  /**
+   * The random seed to use for pseudorandom behaviors in the {@link DirectPipelineRunner}.
+   * If not explicitly specified, a random seed will be generated.
+   */
+  @JsonIgnore
+  @Description("The random seed to use for pseudorandom behaviors in the DirectPipelineRunner."
+      + " If not explicitly specified, a random seed will be generated.")
+  Long getDirectPipelineRunnerRandomSeed();
+  void setDirectPipelineRunnerRandomSeed(Long value);
 }

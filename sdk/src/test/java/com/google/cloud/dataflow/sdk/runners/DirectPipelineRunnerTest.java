@@ -17,9 +17,11 @@
 package com.google.cloud.dataflow.sdk.runners;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -90,5 +92,11 @@ public class DirectPipelineRunnerTest implements Serializable {
         .setCoder(new CrashingCoder<String>());
 
     pipeline.run();
+  }
+
+  @Test
+  public void testDirectPipelineOptions() {
+    DirectPipelineOptions options = PipelineOptionsFactory.create().as(DirectPipelineOptions.class);
+    assertNull(options.getDirectPipelineRunnerRandomSeed());
   }
 }

@@ -80,6 +80,11 @@ public class DirectPipelineRunner
   private static final Logger LOG = LoggerFactory.getLogger(DirectPipelineRunner.class);
 
   /**
+   * A source of random data, which can be seeded if determinism is desired.
+   */
+  private Random rand;
+
+  /**
    * A map from PTransform class to the corresponding
    * TransformEvaluator to use to evaluate that transform.
    *
@@ -225,7 +230,7 @@ public class DirectPipelineRunner
       PCollection<KV<K, Iterable<InputT>>> input) {
 
     PCollection<KV<K, OutputT>> output = input
-        .apply(ParDo.of(TestCombineDoFn.create(transform, input, testSerializability)));
+        .apply(ParDo.of(TestCombineDoFn.create(transform, input, testSerializability, rand)));
 
     try {
       output.setCoder(transform.getDefaultOutputCoder(input));
@@ -236,30 +241,27 @@ public class DirectPipelineRunner
   }
 
   /**
-   * The implementation may split the {@link KeyedCombineFn} into ADD, MERGE
-   * and EXTRACT phases (see {@code com.google.cloud.dataflow.sdk.runners.worker.CombineValuesFn}).
-   * In order to emulate
-   * this for the {@link DirectPipelineRunner} and provide an experience
-   * closer to the service, go through heavy seralizability checks for
-   * the equivalent of the results of the ADD phase, but after the
-   * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
-   * shuffle, and the MERGE phase. Doing these checks
-   * ensure that not only is the accumulator coder serializable, but
-   * the accumulator coder can actually serialize the data in
-   * question.
+   * The implementation may split the {@link KeyedCombineFn} into ADD, MERGE and EXTRACT phases (
+   * see {@code com.google.cloud.dataflow.sdk.runners.worker.CombineValuesFn}). In order to emulate
+   * this for the {@link DirectPipelineRunner} and provide an experience closer to the service, go
+   * through heavy serializability checks for the equivalent of the results of the ADD phase, but
+   * after the {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} shuffle, and the MERGE
+   * phase. Doing these checks ensure that not only is the accumulator coder serializable, but
+   * the accumulator coder can actually serialize the data in question.
    */
-  // @VisibleForTesting
-  @SuppressWarnings("serial")
   public static class TestCombineDoFn<K, InputT, AccumT, OutputT>
       extends DoFn<KV<K, Iterable<InputT>>, KV<K, OutputT>> {
+    private static final long serialVersionUID = 0L;
     private final KeyedCombineFn<? super K, ? super InputT, AccumT, OutputT> fn;
     private final Coder<AccumT> accumCoder;
     private final boolean testSerializability;
+    private final Random rand;
 
     public static <K, InputT, AccumT, OutputT> TestCombineDoFn<K, InputT, AccumT, OutputT> create(
         Combine.GroupedValues<K, InputT, OutputT> transform,
         PCollection<KV<K, Iterable<InputT>>> input,
-        boolean testSerializability) {
+        boolean testSerializability,
+        Random rand) {
 
       Coder<AccumT> accumCoder;
       try {
@@ -273,16 +275,19 @@ public class DirectPipelineRunner
       return new TestCombineDoFn(
           transform.getFn(),
           accumCoder,
-          testSerializability);
+          testSerializability,
+          rand);
     }
 
     public TestCombineDoFn(
         KeyedCombineFn<? super K, ? super InputT, AccumT, OutputT> fn,
         Coder<AccumT> accumCoder,
-        boolean testSerializability) {
+        boolean testSerializability,
+        Random rand) {
       this.fn = fn;
       this.accumCoder = accumCoder;
       this.testSerializability = testSerializability;
+      this.rand = rand;
     }
 
     @Override
@@ -291,7 +296,7 @@ public class DirectPipelineRunner
       Iterable<InputT> values = c.element().getValue();
       List<AccumT> groupedPostShuffle =
           ensureSerializableByCoder(ListCoder.of(accumCoder),
-              addInputsRandomly(fn, key, values, new Random()),
+              addInputsRandomly(fn, key, values, rand),
               "After addInputs of KeyedCombineFn " + fn.toString());
       AccumT merged =
           ensureSerializableByCoder(accumCoder,
@@ -302,8 +307,11 @@ public class DirectPipelineRunner
       c.output(KV.of(key, fn.extractOutput(key, merged)));
     }
 
-    // Create a random list of accumulators from the given list of values
-    // @VisibleForTesting
+    /**
+     * Create a random list of accumulators from the given list of values.
+     *
+     * <p>Visible for testing purposes only.
+     */
     public static <K, AccumT, InputT> List<AccumT> addInputsRandomly(
         KeyedCombineFn<? super K, ? super InputT, AccumT, ?> fn,
         K key,
@@ -352,7 +360,7 @@ public class DirectPipelineRunner
   public EvaluationResults run(Pipeline pipeline) {
     LOG.info("Executing pipeline using the DirectPipelineRunner.");
 
-    Evaluator evaluator = new Evaluator();
+    Evaluator evaluator = new Evaluator(rand);
     evaluator.run(pipeline);
 
     // Log all counter values for debugging purposes.
@@ -630,12 +638,15 @@ public class DirectPipelineRunner
      */
     private final Map<PTransform<?, ?>, String> fullNames = new HashMap<>();
 
-    // Use a random number generator with a fixed seed, so execution
-    // using this evaluator is deterministic.  (If the user-defined
-    // functions, transforms, and coders are deterministic.)
-    Random rand = new Random(0);
+    private Random rand;
 
-    public Evaluator() {}
+    public Evaluator() {
+      this(new Random());
+    }
+
+    public Evaluator(Random rand) {
+      this.rand = rand;
+    }
 
     public void run(Pipeline pipeline) {
       pipeline.traverseTopologically(this);
@@ -953,6 +964,15 @@ public class DirectPipelineRunner
     this.options = options;
     // (Re-)register standard IO factories. Clobbers any prior credentials.
     IOChannelUtils.registerStandardIOFactories(options);
+    long randomSeed;
+    if (options.getDirectPipelineRunnerRandomSeed() != null) {
+      randomSeed = options.getDirectPipelineRunnerRandomSeed();
+    } else {
+      randomSeed = new Random().nextLong();
+    }
+
+    LOG.info("DirectPipelineRunner using random seed {}.", randomSeed);
+    rand = new Random(randomSeed);
   }
 
   public DirectPipelineOptions getPipelineOptions() {
