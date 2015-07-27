@@ -116,32 +116,6 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setZone(String value);
 
   /**
-   * Type of API for handling cluster management, i.e. resizing, healthchecking, etc.
-   */
-  public enum ClusterManagerApiType {
-    COMPUTE_ENGINE("compute.googleapis.com"),
-    REPLICA_POOL("replicapool.googleapis.com");
-
-    private final String apiServiceName;
-
-    private ClusterManagerApiType(String apiServiceName) {
-      this.apiServiceName = apiServiceName;
-    }
-
-    public String getApiServiceName() {
-      return this.apiServiceName;
-    }
-  }
-
-  /**
-   * Type of API for handling cluster management, i.e. resizing, healthchecking, etc.
-   */
-  @Description("Type of API for handling cluster management, i.e. resizing, healthchecking, etc.")
-  @Default.Enum("COMPUTE_ENGINE")
-  ClusterManagerApiType getClusterManagerApi();
-  void setClusterManagerApi(ClusterManagerApiType value);
-
-  /**
    * Machine type to create Dataflow worker VMs as.
    * <p>
    * See <a href="https://cloud.google.com/compute/docs/machine-types">GCE machine types</a>
