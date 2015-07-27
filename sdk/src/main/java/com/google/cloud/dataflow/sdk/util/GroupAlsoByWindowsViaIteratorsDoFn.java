@@ -48,6 +48,7 @@ import java.util.NoSuchElementException;
 @SuppressWarnings("serial")
 class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
     extends GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W> {
+  private final WindowingStrategy<?, W> strategy;
 
   public static boolean isSupported(WindowingStrategy<?, ?> strategy) {
     if (!strategy.getWindowFn().isNonMerging()) {
@@ -68,6 +69,10 @@ class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
     }
 
     return true;
+  }
+
+  public GroupAlsoByWindowsViaIteratorsDoFn(WindowingStrategy<?, W> strategy) {
+    this.strategy = strategy;
   }
 
   @Override
@@ -101,7 +106,7 @@ class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
           windows.put(window.maxTimestamp(), window);
           c.windowingInternals().outputWindowedValue(
               KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
-              e.getTimestamp(),
+              strategy.getWindowFn().getOutputTime(e.getTimestamp(), (W) window),
               Arrays.asList(window),
               PaneInfo.ON_TIME_AND_ONLY_FIRING);
         }

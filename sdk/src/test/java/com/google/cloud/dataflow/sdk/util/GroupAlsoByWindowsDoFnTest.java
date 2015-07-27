@@ -168,14 +168,14 @@ public class GroupAlsoByWindowsDoFnTest {
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertEquals("k", item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v1", "v2"));
-    assertEquals(new Instant(5), item1.getTimestamp());
+    assertEquals(new Instant(10), item1.getTimestamp());
     assertThat(item1.getWindows(),
         Matchers.contains(window(0, 20)));
 
     WindowedValue<KV<String, Iterable<String>>> item2 = result.get(2);
     assertEquals("k", item2.getValue().getKey());
     assertThat(item2.getValue().getValue(), Matchers.contains("v2"));
-    assertEquals(new Instant(15), item2.getTimestamp());
+    assertEquals(new Instant(20), item2.getTimestamp());
     assertThat(item2.getWindows(),
         Matchers.contains(window(10, 30)));
   }
@@ -224,10 +224,10 @@ public class GroupAlsoByWindowsDoFnTest {
             5, -10, 10),
         WindowMatchers.isSingleWindowedValue(
             KvMatcher.isKv(Matchers.equalTo("k"), Matchers.equalTo(7L)),
-            5, 0, 20),
+            10, 0, 20),
         WindowMatchers.isSingleWindowedValue(
             KvMatcher.isKv(Matchers.equalTo("k"), Matchers.equalTo(6L)),
-            15, 10, 30)));
+            20, 10, 30)));
   }
 
   @Test public void testDiscontiguousWindows() throws Exception {

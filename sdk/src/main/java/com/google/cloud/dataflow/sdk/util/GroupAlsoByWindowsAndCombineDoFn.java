@@ -167,7 +167,7 @@ class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends Bou
     checkState(accum != null && timestamp != null);
     c.windowingInternals().outputWindowedValue(
         KV.of(key, combineFn.extractOutput(key, accum)),
-        timestamp,
+        windowFn.getOutputTime(timestamp, w),
         Arrays.asList(w),
         PaneInfo.ON_TIME_AND_ONLY_FIRING);
   }

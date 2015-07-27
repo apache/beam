@@ -54,7 +54,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
     WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
 
     return GroupAlsoByWindowsViaIteratorsDoFn.isSupported(windowingStrategy)
-        ? new GroupAlsoByWindowsViaIteratorsDoFn<K, V, W>()
+        ? new GroupAlsoByWindowsViaIteratorsDoFn<K, V, W>(windowingStrategy)
         : new GABWViaOutputBufferDoFn<>(noWildcard, SystemReduceFn.<K, V, W>buffering(inputCoder));
   }
 

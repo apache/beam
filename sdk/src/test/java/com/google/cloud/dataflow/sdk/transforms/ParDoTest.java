@@ -1072,6 +1072,41 @@ public class ParDoTest implements Serializable {
     p.run();
   }
 
+  private static class Checker implements SerializableFunction<Iterable<String>, Void> {
+    private static long serialVersionUID = 0L;
+    @Override
+    public Void apply(Iterable<String> input) {
+      boolean foundStart = false;
+      boolean foundElement = false;
+      boolean foundFinish = false;
+      for (String str : input) {
+        if (str.equals("elem:1:1")) {
+          if (foundElement) {
+            throw new AssertionError("Received duplicate element");
+          }
+          foundElement = true;
+        } else if (str.equals("start:2:2")) {
+          foundStart = true;
+        } else if (str.equals("finish:3:3")) {
+          foundFinish = true;
+        } else {
+          throw new AssertionError("Got unexpected value: " + str);
+        }
+      }
+      if (!foundStart) {
+        throw new AssertionError("Missing \"start:2:2\"");
+      }
+      if (!foundElement) {
+        throw new AssertionError("Missing \"elem:1:1\"");
+      }
+      if (!foundFinish) {
+        throw new AssertionError("Missing \"finish:3:3\"");
+      }
+
+      return null;
+    }
+  }
+
   @Test
   @Category(RunnableOnService.class)
   public void testWindowingInStartAndFinishBundle() {
@@ -1101,7 +1136,7 @@ public class ParDoTest implements Serializable {
                 }))
         .apply(ParDo.of(new PrintingDoFn()));
 
-    DataflowAssert.that(output).containsInAnyOrder("elem:1:1", "start:2:2", "finish:3:3");
+    DataflowAssert.that(output).satisfies(new Checker());
 
     p.run();
   }

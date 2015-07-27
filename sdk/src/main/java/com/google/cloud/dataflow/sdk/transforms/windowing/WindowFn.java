@@ -140,6 +140,9 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    * the non-late {@code KV<K, V>} that were used as input to the {@code GroupByKey}. The watermark
    * is also prevented from advancing past this minimum timestamp until after the
    * {@code KV<K, Iterable<V>>} has been output.
+   *
+   * <p> This function should be monotonic across input timestamps. Specifically, if {@code A < B},
+   * then {@code getOutputTime(A, window) <= getOutputTime(B, window)}.
    */
   public abstract Instant getOutputTime(Instant inputTimestamp, W window);
 
