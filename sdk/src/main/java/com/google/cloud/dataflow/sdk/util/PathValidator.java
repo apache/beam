@@ -37,7 +37,8 @@ public interface PathValidator {
   public String validateOutputFilePrefixSupported(String filePrefix);
 
   /**
-   * Validate that a path is conforming.
+   * Validate that a path is a valid path and that the path
+   * is accessible.
    *
    * @param path The path to verify.
    * @return The post-validation path.

@@ -151,10 +151,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
     PathValidator validator = dataflowOptions.getPathValidator();
     if (dataflowOptions.getStagingLocation() != null) {
-      validator.verifyPath(dataflowOptions.getStagingLocation());
+      validator.validateOutputFilePrefixSupported(dataflowOptions.getStagingLocation());
     }
     if (dataflowOptions.getTempLocation() != null) {
-      validator.verifyPath(dataflowOptions.getTempLocation());
+      validator.validateOutputFilePrefixSupported(dataflowOptions.getTempLocation());
     }
     if (Strings.isNullOrEmpty(dataflowOptions.getTempLocation())) {
       dataflowOptions.setTempLocation(dataflowOptions.getStagingLocation());

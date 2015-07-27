@@ -16,9 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.when;
+
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
+import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -26,19 +31,26 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DataflowPathValidator}. */
 @RunWith(JUnit4.class)
 public class DataflowPathValidatorTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
+  @Mock private GcsUtil mockGcsUtil;
   private DataflowPathValidator validator;
 
   @Before
-  public void setUp() {
+  public void setUp() throws Exception {
+    MockitoAnnotations.initMocks(this);
+    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(true);
+    when(mockGcsUtil.isGcsPatternSupported(anyString())).thenCallRealMethod();
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setGcpCredential(new TestCredential());
     options.setRunner(DataflowPipelineRunner.class);
+    options.setGcsUtil(mockGcsUtil);
     validator = new DataflowPathValidator(options);
   }
 
@@ -53,6 +65,15 @@ public class DataflowPathValidatorTest {
     expectedException.expectMessage(
         "DataflowPipelineRunner expected a valid 'gs://' path but was given '/local/path'");
     validator.validateInputFilePatternSupported("/local/path");
+  }
+
+  @Test
+  public void testWhenBucketDoesNotExist() throws Exception {
+    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(false);
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Could not find file gs://non-existent-bucket/location");
+    validator.validateInputFilePatternSupported("gs://non-existent-bucket/location");
   }
 
   @Test

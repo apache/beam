@@ -37,6 +37,8 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineJob;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.util.GcsUtil;
+import com.google.cloud.dataflow.sdk.util.NoopPathValidator;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -62,6 +64,7 @@ public class TestDataflowPipelineRunnerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Mock private MockHttpTransport transport;
   @Mock private MockLowLevelHttpRequest request;
+  @Mock private GcsUtil mockGcsUtil;
 
   private TestDataflowPipelineOptions options;
   private Dataflow service;
@@ -80,6 +83,7 @@ public class TestDataflowPipelineRunnerTest {
     options.setGcpCredential(new TestCredential());
     options.setDataflowClient(service);
     options.setRunner(TestDataflowPipelineRunner.class);
+    options.setPathValidatorClass(NoopPathValidator.class);
   }
 
   @Test

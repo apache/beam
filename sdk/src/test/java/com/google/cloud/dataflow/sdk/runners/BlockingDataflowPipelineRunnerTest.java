@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
+import com.google.cloud.dataflow.sdk.util.NoopPathValidator;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 
 import org.hamcrest.Description;
@@ -292,6 +293,7 @@ public class BlockingDataflowPipelineRunnerTest {
     options.setProject("TestProject");
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
+    options.setPathValidatorClass(NoopPathValidator.class);
     assertEquals("BlockingDataflowPipelineRunner#TestJobName",
         BlockingDataflowPipelineRunner.fromOptions(options).toString());
   }

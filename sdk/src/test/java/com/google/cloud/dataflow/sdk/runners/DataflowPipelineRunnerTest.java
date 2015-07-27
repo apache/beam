@@ -45,6 +45,7 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
 import com.google.cloud.dataflow.sdk.util.GcsUtil;
+import com.google.cloud.dataflow.sdk.util.NoopPathValidator;
 import com.google.cloud.dataflow.sdk.util.PackageUtil;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
@@ -133,7 +134,7 @@ public class DataflowPipelineRunnerTest {
     return mockDataflowClient;
   }
 
-  private GcsUtil buildMockGcsUtil() throws IOException {
+  private GcsUtil buildMockGcsUtil(boolean bucketExists) throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.create(
         any(GcsPath.class), anyString()))
@@ -141,6 +142,7 @@ public class DataflowPipelineRunnerTest {
             Files.createTempFile("channel-", ".tmp"),
             StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE));
     when(mockGcsUtil.isGcsPatternSupported(anyString())).thenReturn(true);
+    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(bucketExists);
     return mockGcsUtil;
   }
 
@@ -152,7 +154,7 @@ public class DataflowPipelineRunnerTest {
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
     options.setFilesToStage(new LinkedList<String>());
     options.setDataflowClient(buildMockDataflow(jobCaptor));
-    options.setGcsUtil(buildMockGcsUtil());
+    options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
     return options;
   }
@@ -221,7 +223,7 @@ public class DataflowPipelineRunnerTest {
   public void testRunWithFiles() throws IOException {
     // Test that the function DataflowPipelineRunner.stageFiles works as
     // expected.
-    GcsUtil mockGcsUtil = buildMockGcsUtil();
+    GcsUtil mockGcsUtil = buildMockGcsUtil(true /* bucket exists */);
     final String gcsStaging = "gs://somebucket/some/path";
     final String gcsTemp = "gs://somebucket/some/temp/path";
     final String cloudDataflowDataset = "somedataset";
@@ -332,7 +334,7 @@ public class DataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testGcsStagingLocationInitialization() {
+  public void testGcsStagingLocationInitialization() throws Exception {
     // Test that the staging location is initialized correctly.
     String gcsTemp = "gs://somebucket/some/temp/path";
 
@@ -341,6 +343,8 @@ public class DataflowPipelineRunnerTest {
     options.setTempLocation(gcsTemp);
     options.setProject("testProject");
     options.setGcpCredential(new TestCredential());
+    options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
+
     DataflowPipelineRunner.fromOptions(options);
 
     assertNotNull(options.getStagingLocation());
@@ -437,6 +441,38 @@ public class DataflowPipelineRunnerTest {
   }
 
   @Test
+  public void testNonExistentTempLocation() throws IOException {
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+
+    GcsUtil mockGcsUtil = buildMockGcsUtil(false /* bucket exists */);
+    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    options.setGcsUtil(mockGcsUtil);
+    options.setTempLocation("gs://non-existent-bucket/location");
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(containsString(
+        "Output path does not exist or is not writeable: gs://non-existent-bucket/location"));
+    DataflowPipelineRunner.fromOptions(options);
+    assertValidJob(jobCaptor.getValue());
+  }
+
+  @Test
+  public void testNonExistentStagingLocation() throws IOException {
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+
+    GcsUtil mockGcsUtil = buildMockGcsUtil(false /* bucket exists */);
+    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    options.setGcsUtil(mockGcsUtil);
+    options.setStagingLocation("gs://non-existent-bucket/location");
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(containsString(
+        "Output path does not exist or is not writeable: gs://non-existent-bucket/location"));
+    DataflowPipelineRunner.fromOptions(options);
+    assertValidJob(jobCaptor.getValue());
+  }
+
+  @Test
   public void testNoProjectFails() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
 
@@ -465,23 +501,25 @@ public class DataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testStagingLocationAndNoTempLocationSucceeds() {
+  public void testStagingLocationAndNoTempLocationSucceeds() throws Exception {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowPipelineRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setProject("foo");
     options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
     DataflowPipelineRunner.fromOptions(options);
   }
 
   @Test
-  public void testTempLocationAndNoStagingLocationSucceeds() {
+  public void testTempLocationAndNoStagingLocationSucceeds() throws Exception {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowPipelineRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setProject("foo");
     options.setTempLocation("gs://spam/ham/eggs");
+    options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
     DataflowPipelineRunner.fromOptions(options);
   }
@@ -659,6 +697,7 @@ public class DataflowPipelineRunnerTest {
     options.setProject("TestProject");
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
+    options.setPathValidatorClass(NoopPathValidator.class);
     assertEquals("DataflowPipelineRunner#TestJobName",
         DataflowPipelineRunner.fromOptions(options).toString());
   }

@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Preconditions;
 import com.google.api.client.util.Sleeper;
@@ -269,6 +270,51 @@ public class GcsUtil {
         type);
     channel.initialize();
     return channel;
+  }
+
+  /**
+   * Returns whether the GCS bucket exists. If the bucket exists, it must
+   * be accessible otherwise the permissions exception will be propagated.
+   */
+  public boolean bucketExists(GcsPath path) throws IOException {
+    return bucketExists(path, new AttemptBoundedExponentialBackOff(4, 200), Sleeper.DEFAULT);
+  }
+
+  /**
+   * Returns whether the GCS bucket exists. This will return false if the bucket
+   * is inaccessible due to permissions.
+   */
+  @VisibleForTesting
+  boolean bucketExists(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+    Storage.Buckets.Get getBucket =
+        storage.buckets().get(path.getBucket());
+
+      try {
+        ResilientOperation.retry(
+            ResilientOperation.getGoogleRequestCallable(getBucket),
+            backoff,
+            new RetryDeterminer<IOException>() {
+              @Override
+              public boolean shouldRetry(IOException e) {
+                if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
+                  return false;
+                }
+                return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+              }
+            },
+            IOException.class,
+            sleeper);
+        return true;
+      } catch (GoogleJsonResponseException e) {
+        if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
+          return false;
+        }
+        throw e;
+      } catch (InterruptedException e) {
+        throw new IOException(
+            String.format("Error while attempting to verify existence of bucket gs://%s",
+                path.getBucket()), e);
+     }
   }
 
   /**

@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.util.NoopPathValidator;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 
 import org.junit.Test;
@@ -36,6 +37,7 @@ public class DataflowPipelineTest {
     options.setProject("TestProject");
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
+    options.setPathValidatorClass(NoopPathValidator.class);
     assertEquals("DataflowPipeline#TestJobName",
         DataflowPipeline.create(options).toString());
   }

@@ -21,6 +21,8 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 
+import java.io.IOException;
+
 /**
  * GCP implementation of {@link PathValidator}. Only GCS paths are allowed.
  */
@@ -36,17 +38,29 @@ public class DataflowPathValidator implements PathValidator {
     return new DataflowPathValidator(options.as(DataflowPipelineOptions.class));
   }
 
+  /**
+   * Validates the the input GCS path is accessible and that the path
+   * is well formed.
+   */
   @Override
   public String validateInputFilePatternSupported(String filepattern) {
     GcsPath gcsPath = getGcsPath(filepattern);
     Preconditions.checkArgument(
         dataflowOptions.getGcsUtil().isGcsPatternSupported(gcsPath.getObject()));
-    return verifyPath(filepattern);
+    String returnValue = verifyPath(filepattern);
+    verifyPathIsAccessible(filepattern, "Could not find file %s");
+    return returnValue;
   }
 
+  /**
+   * Validates the the output GCS path is accessible and that the path
+   * is well formed.
+   */
   @Override
   public String validateOutputFilePrefixSupported(String filePrefix) {
-    return verifyPath(filePrefix);
+    String returnValue = verifyPath(filePrefix);
+    verifyPathIsAccessible(filePrefix, "Output path does not exist or is not writeable: %s");
+    return returnValue;
   }
 
   @Override
@@ -57,6 +71,18 @@ public class DataflowPathValidator implements PathValidator {
     Preconditions.checkArgument(!gcsPath.getObject().contains("//"),
         "Dataflow Service does not allow objects with consecutive slashes");
     return gcsPath.toResourceName();
+  }
+
+  private void verifyPathIsAccessible(String path, String errorMessage) {
+    GcsPath gcsPath = getGcsPath(path);
+    try {
+      Preconditions.checkArgument(dataflowOptions.getGcsUtil().bucketExists(gcsPath),
+        errorMessage, path);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Unable to verify that GCS bucket gs://%s exists.", gcsPath.getBucket()),
+          e);
+    }
   }
 
   private GcsPath getGcsPath(String path) {
