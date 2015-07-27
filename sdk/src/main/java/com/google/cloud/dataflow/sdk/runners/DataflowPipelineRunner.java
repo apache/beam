@@ -73,6 +73,7 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -188,7 +189,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     return new DataflowPipelineRunner(dataflowOptions);
   }
 
-  private DataflowPipelineRunner(DataflowPipelineOptions options) {
+  @VisibleForTesting protected DataflowPipelineRunner(DataflowPipelineOptions options) {
     this.options = options;
     this.dataflowClient = options.getDataflowClient();
     this.translator = DataflowPipelineTranslator.fromOptions(options);
@@ -224,7 +225,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       @SuppressWarnings("unchecked")
       OutputT outputT = (OutputT) PCollection.createPrimitiveOutputInternal(
           pc.getPipeline(),
-          pc.getWindowingStrategy(),
+          transform instanceof GroupByKey
+              ? ((GroupByKey<?, ?>) transform).updateWindowingStrategy(pc.getWindowingStrategy())
+              : pc.getWindowingStrategy(),
           pc.isBounded());
       return outputT;
 
@@ -662,7 +665,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
             .setWindowingStrategyInternal(WindowingStrategy.globalDefault())
             .apply(Window.<KV<Void, Iterable<Void>>>into(new GlobalWindows()))
             .apply(ParDo.of(new OutputElements<>(transform.getElements(), coder)))
-            .setCoder(coder);
+            .setCoder(coder).setIsBoundedInternal(IsBounded.BOUNDED);
       } catch (CannotProvideCoderException e) {
         throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
             + "Please set a coder by invoking Create.withCoder() explicitly.", e);

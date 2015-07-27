@@ -181,7 +181,6 @@ public class PCollection<T> extends TypedPValue<T> {
     return isBounded;
   }
 
-
   /////////////////////////////////////////////////////////////////////////////
   // Internal details below here.
 
@@ -223,8 +222,10 @@ public class PCollection<T> extends TypedPValue<T> {
 
   /**
    * Sets the {@link PCollection.IsBounded} of this {@code PCollection}.
+   *
+   * <p> For use by internal transformations only.
    */
-  private PCollection<T> setIsBoundedInternal(IsBounded isBounded) {
+  public PCollection<T> setIsBoundedInternal(IsBounded isBounded) {
     this.isBounded = isBounded;
     return this;
   }

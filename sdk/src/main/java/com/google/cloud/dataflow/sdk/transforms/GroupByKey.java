@@ -176,18 +176,60 @@ public class GroupByKey<K, V>
   /////////////////////////////////////////////////////////////////////////////
 
   @Override
-  public PCollection<KV<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
-    // This operation groups by the combination of key and window,
-    // merging windows as needed, using the windows assigned to the
-    // key/value input elements and the window merge operation of the
-    // window function associated with the input PCollection.
+  public void validate(PCollection<KV<K, V>> input) {
     WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+    // Verify that the input PCollection is bounded, or that there is windowing/triggering being
+    // used. Without this, the watermark (at end of global window) will never be reached.
+    if (windowingStrategy.getWindowFn() instanceof GlobalWindows
+        && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
+        && input.isBounded() != IsBounded.BOUNDED) {
+      throw new IllegalStateException("GroupByKey cannot be applied to non-bounded PCollection in "
+          + "the GlobalWindow without a trigger. Use a Window.into or Window.triggering transform "
+          + "prior to GroupByKey.");
+    }
+
+    // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
+    // the key coder is deterministic.
+    Coder<K> keyCoder = getKeyCoder(input.getCoder());
+    try {
+      keyCoder.verifyDeterministic();
+    } catch (NonDeterministicException e) {
+      throw new IllegalStateException(
+          "the keyCoder of a GroupByKey must be deterministic", e);
+    }
+
+    // Validate the window merge function.
     if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
       String cause = ((InvalidWindows<?>) windowingStrategy.getWindowFn()).getCause();
       throw new IllegalStateException(
           "GroupByKey must have a valid Window merge function.  "
           + "Invalid because: " + cause);
     }
+  }
+
+  public WindowingStrategy<?, ?> updateWindowingStrategy(WindowingStrategy<?, ?> inputStrategy) {
+    WindowFn<?, ?> inputWindowFn = inputStrategy.getWindowFn();
+    if (!inputWindowFn.isNonMerging()) {
+      // Prevent merging windows again, without explicit user
+      // involvement, e.g., by Window.into() or Window.remerge().
+      inputWindowFn = new InvalidWindows<>(
+          "WindowFn has already been consumed by previous GroupByKey", inputWindowFn);
+    }
+
+    // We also switch to the continuation trigger associated with the current trigger.
+    return inputStrategy
+        .withWindowFn(inputWindowFn)
+        .withTrigger(inputStrategy.getTrigger().getSpec().getContinuationTrigger());
+  }
+
+  @Override
+  public PCollection<KV<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
+    // This operation groups by the combination of key and window,
+    // merging windows as needed, using the windows assigned to the
+    // key/value input elements and the window merge operation of the
+    // window function associated with the input PCollection.
+    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+
     // By default, implement GroupByKey[AndWindow] via a series of lower-level
     // operations.
     return input
@@ -206,7 +248,10 @@ public class GroupByKey<K, V>
         .apply(new SortValuesByTimestamp<K, V>())
 
         // Group each key's values by window, merging windows as needed.
-        .apply(new GroupAlsoByWindow<K, V>(windowingStrategy));
+        .apply(new GroupAlsoByWindow<K, V>(windowingStrategy))
+
+        // And update the windowing strategy as appropriate.
+        .setWindowingStrategyInternal(updateWindowingStrategy(windowingStrategy));
   }
 
   @Override
@@ -383,46 +428,12 @@ public class GroupByKey<K, V>
   public static class GroupByKeyOnly<K, V>
       extends PTransform<PCollection<KV<K, V>>,
                          PCollection<KV<K, Iterable<V>>>> {
-    @Override
-    public void validate(PCollection<KV<K, V>> input) {
-      WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-      if (windowingStrategy.getWindowFn() instanceof GlobalWindows
-          && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
-          && input.isBounded() != IsBounded.BOUNDED) {
-        throw new IllegalStateException("Non-bounded PCollection cannot be "
-            + "processed with GlobalWindow and DefaultTrigger for GroupByKey."
-            + "Use Window.into transform prior to GroupByKey.");
-      }
-      // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
-      // the key coder is deterministic.
-      Coder<K> keyCoder = getKeyCoder(input.getCoder());
-      try {
-        keyCoder.verifyDeterministic();
-      } catch (NonDeterministicException e) {
-        throw new IllegalStateException(
-            "the keyCoder of a GroupByKey must be deterministic", e);
-      }
-    }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     public PCollection<KV<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
-      WindowingStrategy<?, ?> oldWindowingStrategy = input.getWindowingStrategy();
-      WindowFn<?, ?> newWindowFn = oldWindowingStrategy.getWindowFn();
-      if (!newWindowFn.isNonMerging()) {
-        // Prevent merging windows again, without explicit user
-        // involvement, e.g., by Window.into() or Window.remerge().
-        newWindowFn = new InvalidWindows(
-            "WindowFn has already been consumed by previous GroupByKey", newWindowFn);
-      }
-
-      // We also switch to the continuation trigger associated with the current trigger.
-      WindowingStrategy<?, ?> newWindowingStrategy = oldWindowingStrategy
-          .withWindowFn(newWindowFn)
-          .withTrigger(oldWindowingStrategy.getTrigger().getSpec().getContinuationTrigger());
-
       return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
-          input.getPipeline(), newWindowingStrategy, input.isBounded());
+          input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
     }
 
     /**
