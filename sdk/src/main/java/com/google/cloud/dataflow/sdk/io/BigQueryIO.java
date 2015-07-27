@@ -318,7 +318,7 @@ public class BigQueryIO {
 
       private static final String RESOURCE_NOT_FOUND_ERROR =
           "BigQuery %1$s not found for table \"%2$s\" . Please create the %1$s before pipeline"
-          + " execution. If the %1$s is  created by an earlier stage of the pipeline, this"
+          + " execution. If the %1$s is created by an earlier stage of the pipeline, this"
           + " validation can be disabled using #withoutValidation.";
 
       private static final String UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR =
@@ -328,7 +328,7 @@ public class BigQueryIO {
 
       private static final String QUERY_VALIDATION_FAILURE_ERROR =
           "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
-          + "pipeline, This validation can be disabled using #withoutValidation.";
+          + " pipeline, This validation can be disabled using #withoutValidation.";
 
       Bound() {
         query = null;
