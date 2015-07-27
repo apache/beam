@@ -971,7 +971,7 @@ public class DirectPipelineRunner
       randomSeed = new Random().nextLong();
     }
 
-    LOG.info("DirectPipelineRunner using random seed {}.", randomSeed);
+    LOG.debug("DirectPipelineRunner using random seed {}.", randomSeed);
     rand = new Random(randomSeed);
   }
 
