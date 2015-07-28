@@ -43,6 +43,15 @@ import javax.annotation.Nullable;
  *
  * <p> Returns the final job state, or throws an exception if the job
  * fails or cannot be monitored.
+ *
+ * <p><h3>Permissions</h3>
+ * When reading from a Dataflow source or writing to a Dataflow sink using
+ * {@code BlockingDataflowPipelineRunner}, the Google cloudservices account and the Google compute
+ * engine service account of the GCP project running the Dataflow Job will need access to the
+ * corresponding source/sink.
+ *
+ * <p> Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
+ * Dataflow Security and Permissions</a> for more details.
  */
 public class BlockingDataflowPipelineRunner extends
     PipelineRunner<DataflowPipelineJob> {

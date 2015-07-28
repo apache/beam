@@ -73,6 +73,15 @@ import java.util.Random;
  * any optimization.  Useful for small local execution and tests.
  *
  * <p> Throws an exception from {@link #run} if execution fails.
+ *
+ * <p><h3>Permissions</h3>
+ * When reading from a Dataflow source or writing to a Dataflow sink using
+ * {@code DirectPipelineRunner}, the Cloud Platform account that you configured with the
+ * <a href="https://cloud.google.com/sdk/gcloud">gcloud</a> executable will need access to the
+ * corresponding source/sink.
+ *
+ * <p> Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
+ * Dataflow Security and Permissions</a> for more details.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class DirectPipelineRunner

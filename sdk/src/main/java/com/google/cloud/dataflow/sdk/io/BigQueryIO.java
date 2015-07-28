@@ -171,6 +171,15 @@ import java.util.regex.Pattern;
  * <p> Per-window tables are not yet supported in batch mode.
  *
  * @see <a href="https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/com/google/api/services/bigquery/model/TableRow.html">TableRow</a>
+ *
+ * <p><h3>Permissions</h3>
+ * Permission requirements depend on the
+ * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner PipelineRunner} that is
+ * used to execute the Dataflow job. Please refer to the documentation of corresponding
+ * {@code PipelineRunner}s for more details.
+ *
+ * <p>Please see <a href="https://cloud.google.com/bigquery/access-control">BigQuery Access Control
+ * </a> for security and permission related information specific to BigQuery.
  */
 public class BigQueryIO {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIO.class);

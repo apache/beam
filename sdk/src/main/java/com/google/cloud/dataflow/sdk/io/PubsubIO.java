@@ -62,6 +62,12 @@ import javax.annotation.Nullable;
 /**
  * Read and Write {@link PTransform}s for Pub/Sub streams. These transforms create
  * and consume unbounded {@link com.google.cloud.dataflow.sdk.values.PCollection}s.
+ *
+ * <p><h3>Permissions</h3>
+ * Permission requirements depend on the
+ * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner PipelineRunner} that is
+ * used to execute the Dataflow job. Please refer to the documentation of corresponding
+ * {@code PipelineRunner}s for more details.
  */
 public class PubsubIO {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubIO.class);

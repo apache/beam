@@ -103,6 +103,12 @@ import java.util.zip.InflaterInputStream;
  * </pre>
  *
  * @param <T> The type of records to be read from the source.
+ *
+ * <p><h3>Permissions</h3>
+ * Permission requirements depend on the
+ * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner PipelineRunner} that is
+ * used to execute the Dataflow job. Please refer to the documentation of corresponding
+ * {@code PipelineRunner}s for more details.
  */
 // JAVADOCSTYLE ON
 @Experimental(Experimental.Kind.SOURCE_SINK)

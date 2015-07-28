@@ -144,6 +144,15 @@ import java.util.NoSuchElementException;
  * or insert) mutations. Please read
  * <a href="https://cloud.google.com/datastore/docs/concepts/entities">Entities, Properties, and
  * Keys</a> for more information about entity keys.
+ *
+ * <p><h3>Permissions</h3>
+ * Permission requirements depend on the
+ * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner PipelineRunner} that is
+ * used to execute the Dataflow job. Please refer to the documentation of corresponding
+ * {@code PipelineRunner}s for more details.
+ *
+ * <p>Please see <a href="https://cloud.google.com/datastore/docs/activate">Cloud Datastore Sign Up
+ * </a>for security and permission related information specific to Datastore.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class DatastoreIO {

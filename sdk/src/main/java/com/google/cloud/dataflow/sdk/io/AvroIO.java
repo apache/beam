@@ -114,6 +114,12 @@ import javax.annotation.Nullable;
  *                           .withSchema(schema)
  *                           .withSuffix(".avro"));
  * } </pre>
+ *
+ * <p><h3>Permissions</h3>
+ * Permission requirements depend on the
+ * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner PipelineRunner} that is
+ * used to execute the Dataflow job. Please refer to the documentation of corresponding
+ * {@code PipelineRunner}s for more details.
  */
 public class AvroIO {
   /**
