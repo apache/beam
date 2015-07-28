@@ -330,18 +330,15 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     if (options.getUpdate()) {
       jobIdToUpdate = getJobIdFromName(options.getJobName());
       newJob.setTransformNameMapping(options.getTransformNameMapping());
+      newJob.setReplaceJobId(jobIdToUpdate);
     }
     Job jobResult;
     try {
-      Dataflow.Projects.Jobs.Create createRequest =
-          dataflowClient
+      jobResult = dataflowClient
               .projects()
               .jobs()
-              .create(options.getProject(), newJob);
-      if (jobIdToUpdate != null) {
-        createRequest.setReplaceJobId(jobIdToUpdate);
-      }
-      jobResult = createRequest.execute();
+              .create(options.getProject(), newJob)
+              .execute();
     } catch (GoogleJsonResponseException e) {
         throw new RuntimeException("Failed to create a workflow job: "
             + (e.getDetails() != null ? e.getDetails().getMessage() : e), e);
