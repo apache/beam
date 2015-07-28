@@ -93,7 +93,10 @@ class MergedCombiningValue<InputT, AccumT, OutputT>
         AccumT combined = combineFn.mergeAccumulators(accumulators);
         clear();
         addAccum(combined);
-        return combined;
+
+        // This should be in memory. Since we may have mutated combined by
+        // incorporating it into the result, we re-read it from memory.
+        return result.getAccum().read();
       }
     };
   }
