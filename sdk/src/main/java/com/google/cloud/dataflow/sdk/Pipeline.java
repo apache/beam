@@ -324,12 +324,12 @@ public class Pipeline {
           break;
         case WARNING:
           LOG.warn("Transform {} does not have a stable unique name. "
-              + "This will prevent reloading of pipelines.", fullName);
+              + "This will prevent updating of pipelines.", fullName);
           break;
         case ERROR:
           throw new IllegalStateException(
               "Transform " + fullName + " does not have a stable unique name. "
-              + "This will prevent reloading of pipelines.");
+              + "This will prevent updating of pipelines.");
         default:
           throw new IllegalArgumentException(
               "Unrecognized value for stable unique names: " + getOptions().getStableUniqueNames());
