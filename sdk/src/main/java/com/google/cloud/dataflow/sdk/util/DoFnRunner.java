@@ -39,46 +39,44 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Runs a DoFn by constructing the appropriate contexts and passing them in.
  *
  * @param <InputT> the type of the DoFn's (main) input elements
  * @param <OutputT> the type of the DoFn's (main) output elements
- * @param <ReceiverT> the type of object that receives outputs
  */
-public class DoFnRunner<InputT, OutputT, ReceiverT> {
+public class DoFnRunner<InputT, OutputT> {
 
   /** Information about how to create output receivers and output to them. */
-  public interface OutputManager<ReceiverT> {
+  public interface OutputManager {
 
-    /** Returns the receiver to use for a given tag. */
-    public ReceiverT initialize(TupleTag<?> tag);
-
-    /** Outputs a single element to the provided receiver. */
-    public void output(ReceiverT receiver, WindowedValue<?> output);
+    /** Outputs a single element to the receiver indicated by the given {@link TupleTag}. */
+    public <T> void output(TupleTag<T> tag, WindowedValue<T> output);
   }
 
   /** The DoFn being run. */
   public final DoFn<InputT, OutputT> fn;
 
   /** The context used for running the DoFn. */
-  public final DoFnContext<InputT, OutputT, ReceiverT> context;
+  public final DoFnContext<InputT, OutputT> context;
 
   DoFnRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
-      OutputManager<ReceiverT> outputManager,
+      OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
@@ -86,15 +84,22 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
     this.context = new DoFnContext<>(
-        options, fn, sideInputReader, outputManager, mainOutputTag, sideOutputTags, stepContext,
-        addCounterMutator, windowingStrategy == null ? null : windowingStrategy.getWindowFn());
+        options,
+        fn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        sideOutputTags,
+        stepContext,
+        addCounterMutator,
+        windowingStrategy == null ? null : windowingStrategy.getWindowFn());
   }
 
-  public static <InputT, OutputT, ReceiverT> DoFnRunner<InputT, OutputT, ReceiverT> create(
+  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> create(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
-      OutputManager<ReceiverT> outputManager,
+      OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
@@ -109,26 +114,30 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
    * An implementation of {@link OutputManager} using simple lists, for testing and in-memory
    * contexts such as the {@link com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner}.
    */
-  public static class ListOutputManager implements OutputManager<List<WindowedValue<?>>> {
+  public static class ListOutputManager implements OutputManager {
 
     private Map<TupleTag<?>, List<WindowedValue<?>>> outputLists = Maps.newHashMap();
 
     @Override
-    public List<WindowedValue<?>> initialize(TupleTag<?> tag) {
-      List<WindowedValue<?>> list = Lists.newArrayList();
-      outputLists.put(tag, list);
-      return list;
-    }
-    @Override
-    public void output(List<WindowedValue<?>> list, WindowedValue<?> output) {
-      list.add(output);
+    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+      @SuppressWarnings({"rawtypes", "unchecked"})
+      List<WindowedValue<T>> outputList = (List) outputLists.get(tag);
+
+      if (outputList == null) {
+        outputList = Lists.newArrayList();
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        List<WindowedValue<?>> untypedList = (List) outputList;
+        outputLists.put(tag, untypedList);
+      }
+
+      outputList.add(output);
     }
 
     public <T> List<WindowedValue<T>> getOutput(TupleTag<T> tag) {
       // Safe cast by design, inexpressible in Java without rawtypes
       @SuppressWarnings({"rawtypes", "unchecked"})
       List<WindowedValue<T>> outputList = (List) outputLists.get(tag);
-      return outputList;
+      return (outputList != null) ? outputList : Collections.<WindowedValue<T>>emptyList();
     }
   }
 
@@ -202,26 +211,30 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
    *
    * @param <InputT> the type of the DoFn's (main) input elements
    * @param <OutputT> the type of the DoFn's (main) output elements
-   * @param <R> the type of object that receives outputs
    */
-  private static class DoFnContext<InputT, OutputT, ReceiverT>
+  private static class DoFnContext<InputT, OutputT>
       extends DoFn<InputT, OutputT>.Context {
     private static final int MAX_SIDE_OUTPUTS = 1000;
 
     final PipelineOptions options;
     final DoFn<InputT, OutputT> fn;
     final SideInputReader sideInputReader;
-    final OutputManager<ReceiverT> outputManager;
-    final Map<TupleTag<?>, ReceiverT> outputMap;
+    final OutputManager outputManager;
     final TupleTag<OutputT> mainOutputTag;
     final StepContext stepContext;
     final CounterSet.AddCounterMutator addCounterMutator;
     final WindowFn windowFn;
 
+    /**
+     * The set of known output tags, some of which may be undeclared, so we can throw an
+     * exception when it exceeds {@link #MAX_SIDE_OUTPUTS}.
+     */
+    private Set<TupleTag<?>> outputTags;
+
     public DoFnContext(PipelineOptions options,
                        DoFn<InputT, OutputT> fn,
                        SideInputReader sideInputReader,
-                       OutputManager<ReceiverT> outputManager,
+                       OutputManager outputManager,
                        TupleTag<OutputT> mainOutputTag,
                        List<TupleTag<?>> sideOutputTags,
                        StepContext stepContext,
@@ -233,24 +246,17 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
       this.sideInputReader = sideInputReader;
       this.outputManager = outputManager;
       this.mainOutputTag = mainOutputTag;
-      this.outputMap = new HashMap<>();
-      outputMap.put(mainOutputTag, outputManager.initialize(mainOutputTag));
+      this.outputTags = Sets.newHashSet();
+
+      outputTags.add(mainOutputTag);
       for (TupleTag<?> sideOutputTag : sideOutputTags) {
-        outputMap.put(sideOutputTag, outputManager.initialize(sideOutputTag));
+        outputTags.add(sideOutputTag);
       }
+
       this.stepContext = stepContext;
       this.addCounterMutator = addCounterMutator;
       this.windowFn = windowFn;
       super.setupDelegateAggregators();
-    }
-
-    public ReceiverT getReceiver(TupleTag<?> tag) {
-      ReceiverT receiver = outputMap.get(tag);
-      if (receiver == null) {
-        throw new IllegalArgumentException(
-            "calling getReceiver() with unknown tag " + tag);
-      }
-      return receiver;
     }
 
     //////////////////////////////////////////////////////////////////////////////
@@ -318,7 +324,7 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
     }
 
     void outputWindowedValue(WindowedValue<OutputT> windowedElem) {
-      outputManager.output(outputMap.get(mainOutputTag), windowedElem);
+      outputManager.output(mainOutputTag, windowedElem);
       if (stepContext != null) {
         stepContext.noteOutput(windowedElem);
       }
@@ -333,26 +339,19 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
     }
 
     protected <T> void sideOutputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedElem) {
-      ReceiverT receiver = outputMap.get(tag);
-      if (receiver == null) {
+      if (!outputTags.contains(tag)) {
         // This tag wasn't declared nor was it seen before during this execution.
         // Thus, this must be a new, undeclared and unconsumed output.
-
         // To prevent likely user errors, enforce the limit on the number of side
         // outputs.
-        if (outputMap.size() >= MAX_SIDE_OUTPUTS) {
+        if (outputTags.size() >= MAX_SIDE_OUTPUTS) {
           throw new IllegalArgumentException(
-              "the number of side outputs has exceeded a limit of "
-              + MAX_SIDE_OUTPUTS);
+              "the number of side outputs has exceeded a limit of " + MAX_SIDE_OUTPUTS);
         }
-
-        // Register the new TupleTag with outputManager and add an entry for it in
-        // the outputMap.
-        receiver = outputManager.initialize(tag);
-        outputMap.put(tag, receiver);
+        outputTags.add(tag);
       }
 
-      outputManager.output(receiver, windowedElem);
+      outputManager.output(tag, windowedElem);
       if (stepContext != null) {
         stepContext.noteSideOutput(tag, windowedElem);
       }
@@ -417,11 +416,11 @@ public class DoFnRunner<InputT, OutputT, ReceiverT> {
 
 
     final DoFn<InputT, OutputT> fn;
-    final DoFnContext<InputT, OutputT, ?> context;
+    final DoFnContext<InputT, OutputT> context;
     final WindowedValue<InputT> windowedValue;
 
     public DoFnProcessContext(DoFn<InputT, OutputT> fn,
-                              DoFnContext<InputT, OutputT, ?> context,
+                              DoFnContext<InputT, OutputT> context,
                               WindowedValue<InputT> windowedValue) {
       fn.super();
       this.fn = fn;

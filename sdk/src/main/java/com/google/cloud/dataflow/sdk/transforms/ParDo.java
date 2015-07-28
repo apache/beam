@@ -1088,7 +1088,7 @@ public class ParDo {
           context.getPCollectionView(view));
     }
 
-    DoFnRunner<InputT, OutputT, List<WindowedValue<?>>> fnRunner =
+    DoFnRunner<InputT, OutputT> fnRunner =
         DoFnRunner.create(
             context.getPipelineOptions(),
             fn,

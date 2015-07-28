@@ -54,11 +54,10 @@ import java.util.concurrent.TimeUnit;
  *
  * @param <InputT> the type of the DoFn's (main) input elements
  * @param <OutputT> the type of the DoFn's (main) output elements
- * @param <ReceiverT> the type of object that receives outputs
  * @param <W> the type of the windows of the main input
  */
-public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends BoundedWindow>
-    extends DoFnRunner<InputT, OutputT, ReceiverT> {
+public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWindow>
+    extends DoFnRunner<InputT, OutputT> {
   private StreamingModeExecutionContext.StepContext stepContext;
   private StreamingModeExecutionContext execContext;
   private Map<String, PCollectionView<?>> sideInputViews;
@@ -75,7 +74,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, ReceiverT, W extends 
       PipelineOptions options,
       DoFnInfo<InputT, OutputT> doFnInfo,
       SideInputReader sideInputReader,
-      OutputManager<ReceiverT> outputManager,
+      OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,

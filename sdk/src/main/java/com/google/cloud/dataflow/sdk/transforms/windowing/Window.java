@@ -29,7 +29,6 @@ import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -38,7 +37,6 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import org.joda.time.Duration;
 
 import java.util.ArrayList;
-import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -587,7 +585,7 @@ public class Window {
     String name = context.getStepName(transform);
     @SuppressWarnings("unchecked")
     DoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<T, W>(windowFn);
-    DoFnRunner<T, T, List<WindowedValue<?>>> addWindowsRunner =
+    DoFnRunner<T, T> addWindowsRunner =
         DoFnRunner.create(
             context.getPipelineOptions(),
             addWindowsDoFn,

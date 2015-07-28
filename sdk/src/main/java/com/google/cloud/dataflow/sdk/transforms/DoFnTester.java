@@ -329,7 +329,7 @@ public class DoFnTester<InputT, OutputT> {
   DoFnRunner.ListOutputManager outputManager;
 
   /** The DoFnRunner if processing is in progress. */
-  DoFnRunner<InputT, OutputT, List<WindowedValue<?>>> fnRunner;
+  DoFnRunner<InputT, OutputT> fnRunner;
 
   /** Counters for user-defined Aggregators if processing is in progress. */
   CounterSet counterSet;

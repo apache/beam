@@ -83,8 +83,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testEmpty() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>,
-        List<WindowedValue<?>>> runner =
+    DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
@@ -106,8 +105,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testFixedWindows() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<TimerOrElement<KV<String, String>>,
-        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
+    DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
@@ -168,8 +166,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testSlidingWindows() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<TimerOrElement<KV<String, String>>,
-        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
+    DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag,
             outputManager,
@@ -238,8 +235,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testSessions() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<TimerOrElement<KV<String, String>>,
-        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
+    DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag,
             outputManager,
@@ -336,8 +332,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     TupleTag<KV<String, Long>> outputTag = new TupleTag<>();
     CombineFn<Long, ?, Long> combineFn = new SumLongs();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<TimerOrElement<KV<String, Long>>,
-        KV<String, Long>, List<WindowedValue<?>>> runner =
+    DoFnRunner<TimerOrElement<KV<String, Long>>, KV<String, Long>> runner =
         makeRunner(
             outputTag,
             outputManager,
@@ -400,10 +395,9 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(15, 25)));
   }
 
-  private DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>,
-      List<WindowedValue<?>>> makeRunner(
+  private DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>> makeRunner(
           TupleTag<KV<String, Iterable<String>>> outputTag,
-          DoFnRunner.OutputManager<List<WindowedValue<?>>> outputManager,
+          DoFnRunner.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy) {
 
     StreamingGroupAlsoByWindowsDoFn<String, String, Iterable<String>, IntervalWindow> fn =
@@ -412,10 +406,9 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     return makeRunner(outputTag, outputManager, windowingStrategy, fn);
   }
 
-  private DoFnRunner<TimerOrElement<KV<String, Long>>, KV<String, Long>, List<WindowedValue<?>>>
-      makeRunner(
+  private DoFnRunner<TimerOrElement<KV<String, Long>>, KV<String, Long>> makeRunner(
           TupleTag<KV<String, Long>> outputTag,
-          DoFnRunner.OutputManager<List<WindowedValue<?>>> outputManager,
+          DoFnRunner.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
           KeyedCombineFn<String, Long, ?, Long> combineFn) {
 
@@ -427,10 +420,9 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   }
 
   private <InputT, OutputT>
-      DoFnRunner<TimerOrElement<KV<String, InputT>>, KV<String, OutputT>, List<WindowedValue<?>>>
-      makeRunner(
+      DoFnRunner<TimerOrElement<KV<String, InputT>>, KV<String, OutputT>> makeRunner(
           TupleTag<KV<String, OutputT>> outputTag,
-          DoFnRunner.OutputManager<List<WindowedValue<?>>> outputManager,
+          DoFnRunner.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
           StreamingGroupAlsoByWindowsDoFn<String, InputT, OutputT, IntervalWindow> fn) {
     return

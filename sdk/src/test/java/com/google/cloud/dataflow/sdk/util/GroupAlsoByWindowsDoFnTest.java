@@ -63,8 +63,7 @@ public class GroupAlsoByWindowsDoFnTest {
   @Test public void testEmpty() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
+    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
@@ -80,8 +79,7 @@ public class GroupAlsoByWindowsDoFnTest {
   @Test public void testFixedWindows() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
+    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
@@ -129,8 +127,7 @@ public class GroupAlsoByWindowsDoFnTest {
   @Test public void testSlidingWindows() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
+    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag,
             outputManager,
@@ -184,8 +181,7 @@ public class GroupAlsoByWindowsDoFnTest {
     TupleTag<KV<String, Long>> outputTag = new TupleTag<>();
     CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>,
-        List<WindowedValue<?>>> runner =
+    DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>> runner =
         makeRunner(
             outputTag,
             outputManager,
@@ -233,8 +229,7 @@ public class GroupAlsoByWindowsDoFnTest {
   @Test public void testDiscontiguousWindows() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
+    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
@@ -282,9 +277,10 @@ public class GroupAlsoByWindowsDoFnTest {
   @Test public void testSessions() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-        KV<String, Iterable<String>>, List<WindowedValue<?>>> runner =
-        makeRunner(outputTag, outputManager,
+    DoFnRunner<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>> runner =
+        makeRunner(
+            outputTag,
+            outputManager,
             WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))));
 
     runner.startBundle();
@@ -332,8 +328,7 @@ public class GroupAlsoByWindowsDoFnTest {
     TupleTag<KV<String, Long>> outputTag = new TupleTag<>();
     CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>,
-        KV<String, Long>, List<WindowedValue<?>>> runner =
+    DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>> runner =
         makeRunner(
             outputTag,
             outputManager,
@@ -373,11 +368,10 @@ public class GroupAlsoByWindowsDoFnTest {
   }
 
   private <ReceiverT>
-      DoFnRunner<KV<String, Iterable<WindowedValue<String>>>,
-          KV<String, Iterable<String>>, ReceiverT>
+      DoFnRunner<KV<String, Iterable<WindowedValue<String>>>, KV<String, Iterable<String>>>
       makeRunner(
           TupleTag<KV<String, Iterable<String>>> outputTag,
-          DoFnRunner.OutputManager<ReceiverT> outputManager,
+          DoFnRunner.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy) {
 
     GroupAlsoByWindowsDoFn<String, String, Iterable<String>, IntervalWindow> fn =
@@ -387,10 +381,10 @@ public class GroupAlsoByWindowsDoFnTest {
   }
 
   private <ReceiverT>
-      DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>, ReceiverT>
+      DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>>
       makeRunner(
           TupleTag<KV<String, Long>> outputTag,
-          DoFnRunner.OutputManager<ReceiverT> outputManager,
+          DoFnRunner.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
           KeyedCombineFn<String, Long, ?, Long> combineFn) {
 
@@ -402,10 +396,10 @@ public class GroupAlsoByWindowsDoFnTest {
   }
 
   private <InputT, OutputT, ReceiverT>
-      DoFnRunner<KV<String, Iterable<WindowedValue<InputT>>>, KV<String, OutputT>, ReceiverT>
+      DoFnRunner<KV<String, Iterable<WindowedValue<InputT>>>, KV<String, OutputT>>
       makeRunner(
         TupleTag<KV<String, OutputT>> outputTag,
-        DoFnRunner.OutputManager<ReceiverT> outputManager,
+        DoFnRunner.OutputManager outputManager,
         WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
         GroupAlsoByWindowsDoFn<String, InputT, OutputT, IntervalWindow> fn) {
 

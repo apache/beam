@@ -99,7 +99,7 @@ public class StreamingSideInputDoFnRunnerTest {
     when(mockSideInputReader.get(eq(view), any(BoundedWindow.class))).thenReturn("data");
 
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
+    StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
         createRunner(outputManager, Arrays.asList(view));
 
     runner.startBundle();
@@ -120,7 +120,7 @@ public class StreamingSideInputDoFnRunnerTest {
         .thenReturn(false);
 
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
+    StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
         createRunner(outputManager, Arrays.asList(view));
 
     runner.startBundle();
@@ -174,7 +174,7 @@ public class StreamingSideInputDoFnRunnerTest {
     blockedMapState.set(blockedMap);
 
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
+    StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
         createRunner(outputManager, Arrays.asList(view));
     runner.watermarkHold(createWindow(0)).add(new Instant(0));
     runner.elementBag(createWindow(0)).add(createDatum("e", 0));
@@ -235,7 +235,7 @@ public class StreamingSideInputDoFnRunnerTest {
     when(mockSideInputReader.get(eq(view2), any(BoundedWindow.class))).thenReturn("data2");
 
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    StreamingSideInputDoFnRunner<String, String, List<WindowedValue<?>>, IntervalWindow> runner =
+    StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
         createRunner(outputManager, Arrays.asList(view1, view2));
     runner.watermarkHold(createWindow(0)).add(new Instant(0));
     runner.elementBag(createWindow(0)).add(createDatum("e1", 0));
@@ -252,9 +252,8 @@ public class StreamingSideInputDoFnRunnerTest {
     assertThat(runner.elementBag(createWindow(0)).get().read(), Matchers.emptyIterable());
   }
 
-  private <ReceiverT> StreamingSideInputDoFnRunner<String, String, ReceiverT, IntervalWindow>
-      createRunner(
-          DoFnRunner.OutputManager<ReceiverT> outputManager, List<PCollectionView<String>> views)
+  private <ReceiverT> StreamingSideInputDoFnRunner<String, String, IntervalWindow>
+      createRunner(DoFnRunner.OutputManager outputManager, List<PCollectionView<String>> views)
           throws Exception {
     @SuppressWarnings({"unchecked", "rawtypes"})
     Iterable<PCollectionView<?>> typedViews = (Iterable) views;
@@ -263,7 +262,7 @@ public class StreamingSideInputDoFnRunnerTest {
         new SideInputFn(views), WindowingStrategy.of(WINDOW_FN),
         typedViews, StringUtf8Coder.of());
 
-    return new StreamingSideInputDoFnRunner<String, String, ReceiverT, IntervalWindow>(
+    return new StreamingSideInputDoFnRunner<String, String, IntervalWindow>(
         PipelineOptionsFactory.create(),
         doFnInfo,
         mockSideInputReader,

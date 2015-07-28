@@ -42,6 +42,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 /**
  * A base class providing simple set up, processing, and tear down for a wrapped
  * {@link DoFn}.
@@ -61,7 +63,7 @@ public abstract class ParDoFnBase implements ParDoFn {
   private final CounterSet.AddCounterMutator addCounterMutator;
 
   /** The DoFnRunner executing a batch. Null between batches. */
-  private DoFnRunner<Object, Object, Receiver> fnRunner;
+  private DoFnRunner<Object, Object> fnRunner;
 
   public ExecutionContext getExecutionContext() {
     return executionContext;
@@ -118,21 +120,23 @@ public abstract class ParDoFnBase implements ParDoFn {
     @SuppressWarnings("unchecked")
     DoFnInfo<Object, Object> doFnInfo = (DoFnInfo<Object, Object>) getDoFnInfo();
 
-    OutputManager<Receiver> outputManager = new OutputManager<Receiver>() {
-      final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs =
-      new HashMap<>();
+    OutputManager outputManager = new OutputManager() {
+      final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs = new HashMap<>();
 
-      @Override
-      public Receiver initialize(TupleTag<?> tag) {
-        // Declared outputs.
+      @Nullable
+      private Receiver getReceiverOrNull(TupleTag<?> tag) {
         if (tag.equals(mainOutputTag)) {
           return receivers[0];
         } else if (sideOutputTags.contains(tag)) {
           return receivers[sideOutputTags.indexOf(tag) + 1];
+        } else {
+          return undeclaredOutputs.get(tag);
         }
+      }
 
-        // Undeclared outputs.
-        OutputReceiver receiver = undeclaredOutputs.get(tag);
+      @Override
+      public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+        Receiver receiver = getReceiverOrNull(tag);
         if (receiver == null) {
           // A new undeclared output.
           // TODO: plumb through the operationName, so that we can
@@ -142,16 +146,13 @@ public abstract class ParDoFnBase implements ParDoFn {
           // make it available to the OutputReceiver class in case
           // it wants to use it in naming output counters.  (It
           // doesn't today.)
-          receiver = new OutputReceiver();
+          OutputReceiver undeclaredReceiver = new OutputReceiver();
           ElementCounter outputCounter = new DataflowOutputCounter(outputName, addCounterMutator);
-          receiver.addOutputCounter(outputCounter);
-          undeclaredOutputs.put(tag, receiver);
+          undeclaredReceiver.addOutputCounter(outputCounter);
+          undeclaredOutputs.put(tag, undeclaredReceiver);
+          receiver = undeclaredReceiver;
         }
-        return receiver;
-      }
 
-      @Override
-      public void output(Receiver receiver, WindowedValue<?> output) {
         try {
           receiver.process(output);
         } catch (Throwable t) {
@@ -161,7 +162,7 @@ public abstract class ParDoFnBase implements ParDoFn {
     };
 
     if (options.as(StreamingOptions.class).isStreaming() && !sideInputReader.isEmpty()) {
-      fnRunner = new StreamingSideInputDoFnRunner<Object, Object, Receiver, BoundedWindow>(
+      fnRunner = new StreamingSideInputDoFnRunner<Object, Object, BoundedWindow>(
           options,
           doFnInfo,
           sideInputReader,
