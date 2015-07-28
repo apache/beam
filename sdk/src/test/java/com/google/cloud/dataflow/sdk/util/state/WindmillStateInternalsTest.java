@@ -482,14 +482,11 @@ public class WindmillStateInternalsTest {
         Windmill.WorkItemCommitRequest.newBuilder();
     underTest.persist(commitBuilder);
 
-    assertEquals(1, commitBuilder.getListUpdatesCount());
+    assertEquals(1, commitBuilder.getWatermarkHoldsCount());
 
-    TagList listUpdates = commitBuilder.getListUpdates(0);
-    assertEquals(key(NAMESPACE, "watermark"), listUpdates.getTag());
-    assertEquals(1, listUpdates.getValuesCount());
-    // Just the zero-byte.
-    assertEquals(1, listUpdates.getValues(0).getData().size());
-    assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), listUpdates.getValues(0).getTimestamp());
+    Windmill.WatermarkHold watermarkHold = commitBuilder.getWatermarkHolds(0);
+    assertEquals(key(NAMESPACE, "watermark"), watermarkHold.getTag());
+    assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), watermarkHold.getTimestamps(0));
 
     // Blind adds should not need to read the future.
     Mockito.verify(mockReader).startBatchAndBlock();
@@ -510,19 +507,16 @@ public class WindmillStateInternalsTest {
         Windmill.WorkItemCommitRequest.newBuilder();
     underTest.persist(commitBuilder);
 
-    assertEquals(2, commitBuilder.getListUpdatesCount());
+    assertEquals(2, commitBuilder.getWatermarkHoldsCount());
 
-    TagList listClear = commitBuilder.getListUpdates(0);
-    assertEquals(key(NAMESPACE, "watermark"), listClear.getTag());
-    assertEquals(Long.MAX_VALUE, listClear.getEndTimestamp());
-    assertEquals(0, listClear.getValuesCount());
+    Windmill.WatermarkHold clear = commitBuilder.getWatermarkHolds(0);
+    assertEquals(key(NAMESPACE, "watermark"), clear.getTag());
+    assertEquals(0, clear.getTimestampsCount());
 
-    TagList listUpdates = commitBuilder.getListUpdates(1);
-    assertEquals(key(NAMESPACE, "watermark"), listUpdates.getTag());
-    assertEquals(1, listUpdates.getValuesCount());
-    // Just the zero-byte.
-    assertEquals(1, listUpdates.getValues(0).getData().size());
-    assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), listUpdates.getValues(0).getTimestamp());
+    Windmill.WatermarkHold update = commitBuilder.getWatermarkHolds(1);
+    assertEquals(key(NAMESPACE, "watermark"), update.getTag());
+    assertEquals(1, update.getTimestampsCount());
+    assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), update.getTimestamps(0));
 
     // Clearing requires reading the future.
     Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
@@ -543,7 +537,7 @@ public class WindmillStateInternalsTest {
     underTest.persist(commitBuilder);
 
     // 1 list update corresponds to deletion. There shouldn't be a list update adding items.
-    assertEquals(1, commitBuilder.getListUpdatesCount());
+    assertEquals(1, commitBuilder.getWatermarkHoldsCount());
   }
 
   @Test

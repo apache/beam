@@ -226,15 +226,23 @@ public class WindmillStateReader {
     for (StateTag tag : toFetch) {
       switch (tag.kind) {
         case LIST:
-        case WATERMARK:
-          keyedDataBuilder.addListsToFetchBuilder()
+          keyedDataBuilder
+              .addListsToFetchBuilder()
               .setTag(tag.tag)
               .setStateFamily(tag.stateFamily)
               .setEndTimestamp(Long.MAX_VALUE);
           break;
 
+        case WATERMARK:
+          keyedDataBuilder
+              .addWatermarkHoldsToFetchBuilder()
+              .setTag(tag.tag)
+              .setStateFamily(tag.stateFamily);
+          break;
+
         case VALUE:
-          keyedDataBuilder.addValuesToFetchBuilder()
+          keyedDataBuilder
+              .addValuesToFetchBuilder()
               .setTag(tag.tag)
               .setStateFamily(tag.stateFamily);
           break;
@@ -248,30 +256,34 @@ public class WindmillStateReader {
   }
 
   private void consumeResponse(Windmill.GetDataRequest request,
-      Windmill.GetDataResponse response, Set<StateTag> toFetch) {
+      Windmill.GetDataResponse getDataResponse, Set<StateTag> toFetch) {
     // Validate the response is for our computation/key.
-    if (response.getDataCount() == 0) {
+    if (getDataResponse.getDataCount() == 0) {
       throw new RuntimeException(
           "No computation in response to request: " + request);
-    } else if (response.getDataCount() > 1) {
-      throw new RuntimeException(
-          "Expected exactly one computation in response, but got: " + response.getDataList());
+    } else if (getDataResponse.getDataCount() > 1) {
+      throw new RuntimeException("Expected exactly one computation in response, but got: "
+          + getDataResponse.getDataList());
     }
 
-    if (!computation.equals(response.getData(0).getComputationId())) {
+    Windmill.ComputationGetDataResponse computationResponse = getDataResponse.getData(0);
+
+    if (!computation.equals(computationResponse.getComputationId())) {
       throw new RuntimeException("Expected data for computation " + computation
-          + " but was " + response.getData(0).getComputationId());
+          + " but was " + computationResponse.getComputationId());
     }
 
-    if (response.getData(0).getDataCount() == 0) {
+    if (computationResponse.getDataCount() == 0) {
       throw new RuntimeException(
           "No key in response to request: " + request);
-    } else if (response.getData(0).getDataCount() > 1) {
+    } else if (computationResponse.getDataCount() > 1) {
       throw new RuntimeException(
-          "Expected exactly one key in response, but was: " + response.getData(0).getDataList());
+          "Expected exactly one key in response, but was: " + computationResponse.getDataList());
     }
 
-    if (response.getData(0).getData(0).getFailed()) {
+    Windmill.KeyedGetDataResponse response = computationResponse.getData(0);
+
+    if (response.getFailed()) {
       // Set up all the futures for this key to throw an exception:
       StreamingDataflowWorker.KeyTokenInvalidException keyTokenInvalidException =
           new StreamingDataflowWorker.KeyTokenInvalidException(key.toStringUtf8());
@@ -281,41 +293,40 @@ public class WindmillStateReader {
       return;
     }
 
-    if (!key.equals(response.getData(0).getData(0).getKey())) {
+    if (!key.equals(response.getKey())) {
       throw new RuntimeException("Expected data for key " + key
-          + " but was " + response.getData(0).getData(0).getKey());
+          + " but was " + response.getKey());
     }
 
-    for (Windmill.TagList list : response.getData(0).getData(0).getListsList()) {
-      String stateFamily = list.getStateFamily();
-      StateTag stateTagList = new StateTag(
-          StateTag.Kind.LIST, list.getTag(), stateFamily);
-      if (toFetch.remove(stateTagList)) {
-        consumeTagList(list, stateTagList);
-        continue;
-      }
 
-      StateTag stateTagWatermark = new StateTag(
-          StateTag.Kind.WATERMARK, list.getTag(), stateFamily);
-      if (toFetch.remove(stateTagWatermark)) {
-        consumeWatermark(list, stateTagWatermark);
-        continue;
-      }
-
-      throw new IllegalStateException(
-          "Received response for unrequested tag " + list.getTag().toStringUtf8());
-    }
-
-    for (Windmill.TagValue value : response.getData(0).getData(0).getValuesList()) {
-      String stateFamily = value.getStateFamily();
+    for (Windmill.TagList list : response.getListsList()) {
       StateTag stateTag = new StateTag(
-          StateTag.Kind.VALUE, value.getTag(), stateFamily);
-      if (toFetch.remove(stateTag)) {
-        consumeTagValue(value, stateTag);
-        continue;
+          StateTag.Kind.LIST, list.getTag(), list.getStateFamily());
+      if (!toFetch.remove(stateTag)) {
+        throw new IllegalStateException(
+            "Received response for unrequested tag " + stateTag + ". Pending tags: " + toFetch);
       }
-      throw new IllegalStateException(
-          "Received response for unrequested tag " + value.getTag().toStringUtf8());
+      consumeTagList(list, stateTag);
+    }
+
+    for (Windmill.WatermarkHold hold : response.getWatermarkHoldsList()) {
+      StateTag stateTag = new StateTag(
+          StateTag.Kind.WATERMARK, hold.getTag(), hold.getStateFamily());
+      if (!toFetch.remove(stateTag)) {
+        throw new IllegalStateException(
+            "Received response for unrequested tag " + stateTag + ". Pending tags: " + toFetch);
+      }
+      consumeWatermark(hold, stateTag);
+    }
+
+    for (Windmill.TagValue value : response.getValuesList()) {
+      StateTag stateTag = new StateTag(
+          StateTag.Kind.VALUE, value.getTag(), value.getStateFamily());
+      if (!toFetch.remove(stateTag)) {
+        throw new IllegalStateException(
+            "Received response for unrequested tag " + stateTag + ". Pending tags: " + toFetch);
+      }
+      consumeTagValue(value, stateTag);
     }
 
     if (!toFetch.isEmpty()) {
@@ -362,7 +373,7 @@ public class WindmillStateReader {
     future.set(Collections.unmodifiableList(valueList));
   }
 
-  private void consumeWatermark(TagList list, StateTag stateTag) {
+  private void consumeWatermark(Windmill.WatermarkHold watermarkHold, StateTag stateTag) {
     @SuppressWarnings("unchecked")
     SettableFuture<Instant> future = (SettableFuture<Instant>) futures.get(stateTag);
     if (future == null) {
@@ -372,13 +383,10 @@ public class WindmillStateReader {
     }
 
     Instant hold = null;
-    for (Windmill.Value value : list.getValuesList()) {
-      if (value.hasData() && !value.getData().isEmpty()) {
-        Instant valueTimestamp =
-            new Instant(TimeUnit.MICROSECONDS.toMillis(value.getTimestamp()));
-        if (hold == null || valueTimestamp.isBefore(hold)) {
-          hold = valueTimestamp;
-        }
+    for (long timestamp : watermarkHold.getTimestampsList()) {
+      Instant instant = new Instant(TimeUnit.MICROSECONDS.toMillis(timestamp));
+      if (hold == null || instant.isBefore(hold)) {
+        hold = instant;
       }
     }
 

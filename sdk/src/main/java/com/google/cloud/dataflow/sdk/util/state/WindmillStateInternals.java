@@ -407,21 +407,17 @@ public class WindmillStateInternals extends MergingStateInternals {
       // If we do a delete, we need to have done a read
       if (cleared) {
         reader.watermarkFuture(stateKey, stateFamily);
-        commitBuilder.addListUpdatesBuilder()
+        commitBuilder.addWatermarkHoldsBuilder()
             .setTag(stateKey)
             .setStateFamily(stateFamily)
-            .setEndTimestamp(Long.MAX_VALUE);
+            .setReset(true);
       }
 
       if (localAdditions != null) {
-        ByteString zeroString = ByteString.copyFrom(new byte[] {0x0});
-
-        commitBuilder.addListUpdatesBuilder()
+        commitBuilder.addWatermarkHoldsBuilder()
             .setTag(stateKey)
             .setStateFamily(stateFamily)
-            .addValuesBuilder()
-            .setData(zeroString)
-            .setTimestamp(TimeUnit.MILLISECONDS.toMicros(localAdditions.getMillis()));
+            .addTimestamps(TimeUnit.MILLISECONDS.toMicros(localAdditions.getMillis()));
       }
     }
   }

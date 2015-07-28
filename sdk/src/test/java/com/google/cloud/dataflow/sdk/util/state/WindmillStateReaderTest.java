@@ -42,8 +42,6 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -175,30 +173,23 @@ public class WindmillStateReaderTest {
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     Windmill.GetDataRequest.Builder expectedRequest = Windmill.GetDataRequest.newBuilder();
-    expectedRequest
-        .addRequestsBuilder()
+    expectedRequest.addRequestsBuilder()
         .setComputationId(COMPUTATION)
         .addRequestsBuilder()
         .setKey(DATA_KEY)
         .setWorkToken(WORK_TOKEN)
-        .addListsToFetch(
-            Windmill.TagList.newBuilder()
-                .setTag(STATE_KEY_1)
-                .setStateFamily(STATE_FAMILY)
-                .setEndTimestamp(Long.MAX_VALUE));
+        .addWatermarkHoldsToFetch(
+            Windmill.WatermarkHold.newBuilder().setTag(STATE_KEY_1).setStateFamily(STATE_FAMILY));
 
     Windmill.GetDataResponse.Builder response = Windmill.GetDataResponse.newBuilder();
     response
-        .addDataBuilder()
-        .setComputationId(COMPUTATION)
-        .addDataBuilder()
-        .setKey(DATA_KEY)
-        .addLists(
-            Windmill.TagList.newBuilder()
-                .setTag(STATE_KEY_1)
-                .setStateFamily(STATE_FAMILY)
-                .addValues(watermarkValue(new Instant(5000)))
-                .addValues(watermarkValue(new Instant(6000))));
+        .addDataBuilder().setComputationId(COMPUTATION)
+        .addDataBuilder().setKey(DATA_KEY)
+        .addWatermarkHolds(Windmill.WatermarkHold.newBuilder()
+            .setTag(STATE_KEY_1)
+            .setStateFamily(STATE_FAMILY)
+            .addTimestamps(5000000)
+            .addTimestamps(6000000));
 
     Mockito.when(mockWindmill.getStateData(expectedRequest.build())).thenReturn(response.build());
 
@@ -222,22 +213,18 @@ public class WindmillStateReaderTest {
 
     Windmill.GetDataResponse.Builder response = Windmill.GetDataResponse.newBuilder();
     response
-        .addDataBuilder()
-        .setComputationId(COMPUTATION)
-        .addDataBuilder()
-        .setKey(DATA_KEY)
-        .addLists(
-            Windmill.TagList.newBuilder()
-                .setTag(STATE_KEY_2)
-                .setStateFamily(STATE_FAMILY)
-                .addValues(watermarkValue(new Instant(5000)))
-                .addValues(watermarkValue(new Instant(6000))))
-        .addLists(
-            Windmill.TagList.newBuilder()
-                .setTag(STATE_KEY_1)
-                .setStateFamily(STATE_FAMILY)
-                .addValues(intValue(5, true))
-                .addValues(intValue(100, true)));
+        .addDataBuilder().setComputationId(COMPUTATION)
+        .addDataBuilder().setKey(DATA_KEY)
+        .addWatermarkHolds(Windmill.WatermarkHold.newBuilder()
+            .setTag(STATE_KEY_2)
+            .setStateFamily(STATE_FAMILY)
+            .addTimestamps(5000000)
+            .addTimestamps(6000000))
+        .addLists(Windmill.TagList.newBuilder()
+            .setTag(STATE_KEY_1)
+            .setStateFamily(STATE_FAMILY)
+            .addValues(intValue(5, true))
+            .addValues(intValue(100, true)));
 
     Mockito.when(mockWindmill.getStateData(Mockito.isA(Windmill.GetDataRequest.class)))
         .thenReturn(response.build());
@@ -251,13 +238,11 @@ public class WindmillStateReaderTest {
     KeyedGetDataRequest keyedRequest = request.getValue().getRequests(0).getRequests(0);
     assertThat(keyedRequest.getKey(), Matchers.equalTo(DATA_KEY));
     assertThat(keyedRequest.getWorkToken(), Matchers.equalTo(WORK_TOKEN));
-    assertThat(keyedRequest.getListsToFetchCount(), Matchers.equalTo(2));
+    assertThat(keyedRequest.getListsToFetchCount(), Matchers.equalTo(1));
     assertThat(keyedRequest.getListsToFetch(0).getEndTimestamp(), Matchers.equalTo(Long.MAX_VALUE));
-    assertThat(keyedRequest.getListsToFetch(1).getEndTimestamp(), Matchers.equalTo(Long.MAX_VALUE));
-
-    Collection<ByteString> requestedTags = Arrays.asList(
-        keyedRequest.getListsToFetch(0).getTag(), keyedRequest.getListsToFetch(1).getTag());
-    assertThat(requestedTags, Matchers.containsInAnyOrder(STATE_KEY_1, STATE_KEY_2));
+    assertThat(keyedRequest.getListsToFetch(0).getTag(), Matchers.equalTo(STATE_KEY_1));
+    assertThat(keyedRequest.getWatermarkHoldsToFetchCount(), Matchers.equalTo(1));
+    assertThat(keyedRequest.getWatermarkHoldsToFetch(0).getTag(), Matchers.equalTo(STATE_KEY_2));
 
     // Verify the values returned to the user.
     assertThat(result, Matchers.equalTo(new Instant(5000)));

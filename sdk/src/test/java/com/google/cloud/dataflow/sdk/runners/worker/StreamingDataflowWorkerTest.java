@@ -711,15 +711,15 @@ public class StreamingDataflowWorkerTest {
                 .setTimestamp(Long.MAX_VALUE)
                 .setData(bufferData)
                 .build())
-            .build()),
-        Matchers.equalTo(Windmill.TagList.newBuilder()
+            .build())));
+
+    assertThat(actualOutput.getWatermarkHoldsList(), Matchers.containsInAnyOrder(
+        Matchers.equalTo(Windmill.WatermarkHold.newBuilder()
             .setTag(watermarkHoldTag)
             .setStateFamily(stateFamily)
-            .addValues(Windmill.Value.newBuilder()
-                .setTimestamp(0)
-                .setData(ByteString.copyFrom(new byte[]{0b0}))
-                .build())
+            .addTimestamps(0)
             .build())));
+
 
     Windmill.GetWorkResponse.Builder getWorkResponse = Windmill.GetWorkResponse.newBuilder();
     getWorkResponse.addWorkBuilder()
@@ -745,12 +745,10 @@ public class StreamingDataflowWorkerTest {
         .addValuesBuilder()
         .setTimestamp(0) // is ignored
         .setData(bufferData);
-    dataBuilder.addListsBuilder()
+    dataBuilder.addWatermarkHoldsBuilder()
         .setTag(watermarkHoldTag)
         .setStateFamily(stateFamily)
-        .addValuesBuilder()
-        .setTimestamp(0)
-        .setData(ByteString.copyFrom(new byte[]{0b0}));
+        .addTimestamps(0);
     dataBuilder.addValuesBuilder()
         .setTag(paneInfoTag)
         .setStateFamily(stateFamily)
@@ -761,6 +759,7 @@ public class StreamingDataflowWorkerTest {
 
     // Read from the finished set to prevent blind write
     dataBuilder.clearLists();
+    dataBuilder.clearWatermarkHolds();
     dataBuilder.clearValues();
     dataBuilder.addValuesBuilder()
         .setTag(finishedTag)
@@ -811,11 +810,13 @@ public class StreamingDataflowWorkerTest {
             .setTag(bufferTag)
             .setStateFamily(stateFamily)
             .setEndTimestamp(Long.MAX_VALUE)
-            .build()),
-        Matchers.equalTo(Windmill.TagList.newBuilder()
+            .build())));
+
+    assertThat(actualOutput.getWatermarkHoldsList(), Matchers.containsInAnyOrder(
+        Matchers.equalTo(Windmill.WatermarkHold.newBuilder()
             .setTag(watermarkHoldTag)
             .setStateFamily(stateFamily)
-            .setEndTimestamp(Long.MAX_VALUE)
+            .setReset(true)
             .build())));
   }
 
