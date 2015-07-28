@@ -50,11 +50,11 @@ import java.util.List;
  * An example that counts words in text, and can run over either unbounded or bounded input
  * collections.
  *
- * <p> This class, {@link WindowedWordCount}, is the third in a series of three successively more
- * detailed 'word count' examples. First take a look at {@link MinimalWordCount} and {@link
- * WordCount}. This class extends the {@link WordCount} class.
+ * <p> This class, {@link WindowedWordCount}, is the last in a series of four successively more
+ * detailed 'word count' examples. First take a look at {@link MinimalWordCount},
+ * {@link WordCount}, and {@link DebuggingWordCount}.
  *
- * <p> Basic concepts, also in the MinimalWordCount and WordCount examples:
+ * <p> Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
  * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally
  * and using the Dataflow service; defining DoFns; creating a custom aggregator;
  * user-defined PTransforms; defining PipelineOptions.

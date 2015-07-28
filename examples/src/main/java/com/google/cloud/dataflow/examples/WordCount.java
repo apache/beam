@@ -38,10 +38,10 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 /**
  * An example that counts words in Shakespeare and includes Dataflow best practices.
  *
- * <p> This class, {@link WordCount}, is the second in a series of three successively more detailed
- * 'word count' examples. You may first want to take a look at {@link MinimalWordCount}. After
- * you've looked at this example, then see the {@link WindowedWordCount} pipeline, for introduction
- * of additional concepts.
+ * <p> This class, {@link WordCount}, is the second in a series of four successively more detailed
+ * 'word count' examples. You may first want to take a look at {@link MinimalWordCount}.
+ * After you've looked at this example, then see the {@link DebuggingWordCount}
+ * pipeline, for introduction of additional concepts.
  *
  * <p> For a detailed walkthrough of this example, see
  *   <a href="https://cloud.google.com/dataflow/java-sdk/wordcount-example">
@@ -55,9 +55,8 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * <pre>
  *   1. Executing a Pipeline both locally and using the Dataflow service
  *   2. Using ParDo with static DoFns defined out-of-line
- *   3. Creating a custom aggregator
- *   4. Building a composite transform
- *   5. Defining your own pipeline options
+ *   3. Building a composite transform
+ *   4. Defining your own pipeline options
  * </pre>
  *
  * <p> Concept #1: you can execute this pipeline either locally or using the Dataflow service.
@@ -98,18 +97,11 @@ public class WordCount {
   static class ExtractWordsFn extends DoFn<String, String> {
     private static final long serialVersionUID = 0;
 
-    /**
-     * Concept #3: A custom aggregator can track values in your pipeline as it runs, and that value
-     * can be displayed in the Dataflow Monitoring UI. This aggregator tracks the number of empty
-     * lines that ExtractWordsFn encounters.
-     */
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
 
     @Override
     public void processElement(ProcessContext c) {
-      // Keep track of the number of empty lines. (When using the [Blocking]DataflowPipelineRunner,
-      // Aggregators are shown in the monitoring UI.)
       if (c.element().trim().isEmpty()) {
         emptyLines.addValue(1L);
       }
@@ -140,7 +132,7 @@ public class WordCount {
    * A PTransform that converts a PCollection containing lines of text into a PCollection of
    * formatted word counts.
    *
-   * <p> Concept #4: This is a custom composite transform that bundles two transforms (ParDo and
+   * <p> Concept #3: This is a custom composite transform that bundles two transforms (ParDo and
    * Count) as a reusable PTransform subclass. Using composite transforms allows for easy reuse,
    * modular testing, and an improved monitoring experience.
    */
@@ -166,7 +158,7 @@ public class WordCount {
   /**
    * Options supported by {@link WordCount}.
    *
-   * <p> Concept #5: Defining your own configuration options. Here, you can add your own arguments
+   * <p> Concept #4: Defining your own configuration options. Here, you can add your own arguments
    * to be processed by the command-line parser, and specify default values for them. You can then
    * access the options values in your pipeline code.
    *
@@ -206,7 +198,7 @@ public class WordCount {
       .as(WordCountOptions.class);
     Pipeline p = Pipeline.create(options);
 
-    // Concepts #2 and #4: Our pipeline applies the composite CountWords transform, and passes the
+    // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
     // static FormatAsTextFn() to the ParDo transform.
     p.apply(TextIO.Read.named("ReadLines").from(options.getInputFile()))
      .apply(new CountWords())

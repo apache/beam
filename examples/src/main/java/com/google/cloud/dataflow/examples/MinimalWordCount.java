@@ -30,13 +30,14 @@ import com.google.cloud.dataflow.sdk.values.KV;
 /**
  * An example that counts words in Shakespeare.
  *
- * <p> This class, {@link MinimalWordCount}, is the first in a series of three successively more
+ * <p> This class, {@link MinimalWordCount}, is the first in a series of four successively more
  * detailed 'word count' examples. Here, for simplicity, we don't show any error-checking or
  * argument processing, and focus on construction of the pipeline, which chains together the
  * application of core transforms.
  *
- * <p> Next, see the {@link WordCount} pipeline, and then the {@link WindowedWordCount} pipeline,
- * for more detailed examples that introduce additional concepts.
+ * <p> Next, see the {@link WordCount} pipeline, then the {@link DebuggingWordCount}, and finally
+ * the {@link WindowedWordCount} pipeline, for more detailed examples that introduce additional
+ * concepts.
  *
  * <p> Concepts:
  * <pre>
