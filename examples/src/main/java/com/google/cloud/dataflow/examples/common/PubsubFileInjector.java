@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.examples;
+package com.google.cloud.dataflow.examples.common;
 
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.model.PublishRequest;
