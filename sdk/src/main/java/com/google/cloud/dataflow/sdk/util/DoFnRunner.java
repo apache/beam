@@ -362,24 +362,24 @@ public class DoFnRunner<InputT, OutputT> {
     // ProcessContext's versions in DoFn.processElement.
     @Override
     public void output(OutputT output) {
-      outputWindowedValue(output, null, null, PaneInfo.DEFAULT);
+      outputWindowedValue(output, null, null, PaneInfo.NO_FIRING);
     }
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      outputWindowedValue(output, timestamp, null, PaneInfo.DEFAULT);
+      outputWindowedValue(output, timestamp, null, PaneInfo.NO_FIRING);
     }
 
     @Override
     public <T> void sideOutput(TupleTag<T> tag, T output) {
       Preconditions.checkNotNull(tag, "TupleTag passed to sideOutput cannot be null");
-      sideOutputWindowedValue(tag, output, null, null, PaneInfo.DEFAULT);
+      sideOutputWindowedValue(tag, output, null, null, PaneInfo.NO_FIRING);
     }
 
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       Preconditions.checkNotNull(tag, "TupleTag passed to sideOutputWithTimestamp cannot be null");
-      sideOutputWindowedValue(tag, output, timestamp, null, PaneInfo.DEFAULT);
+      sideOutputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
     }
 
     private String generateInternalAggregatorName(String userName) {

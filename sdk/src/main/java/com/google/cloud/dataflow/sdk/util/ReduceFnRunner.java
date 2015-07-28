@@ -413,9 +413,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     Instant outputTimestamp = timestampFuture.read();
     List<W> windows = Collections.singletonList(context.window());
 
-    // Make sure we read the paneFuture even if there is no output, since that commits the updated
-    // pane information.
     PaneInfo pane = paneFuture.read();
+
+    // Update (increment) the stored PaneInfo iff this pane is visible to the user.
+    if (outputs.size() > 0) {
+      paneInfo.storeCurrentPaneInfo(context, pane);
+    }
 
     // Produce the output values containing the pane.
     for (OutputT output : outputs) {

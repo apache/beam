@@ -63,6 +63,6 @@ public class AssignWindowsDoFn<T, W extends BoundedWindow> extends DoFn<T, T> {
               });
 
     c.windowingInternals()
-        .outputWindowedValue(c.element(), c.timestamp(), windows, PaneInfo.DEFAULT);
+        .outputWindowedValue(c.element(), c.timestamp(), windows, PaneInfo.NO_FIRING);
   }
 }

@@ -121,7 +121,10 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
       TimerData timerData = TimerData.of(namespace, timestamp, getTimeDomain(timer.getType()));
 
       return WindowedValue.<TimerOrElement<T>>of(
-          TimerOrElement.<T>timer(key, timerData), timestamp, new ArrayList<W>(), PaneInfo.DEFAULT);
+          TimerOrElement.<T>timer(key, timerData),
+          timestamp,
+          new ArrayList<W>(),
+          PaneInfo.NO_FIRING);
     }
 
     @Override

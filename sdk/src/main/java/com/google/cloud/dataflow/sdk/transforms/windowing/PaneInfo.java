@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.CodedOutputStream;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -72,10 +73,11 @@ public final class PaneInfo {
   static {
     ImmutableMap.Builder<Byte, PaneInfo> decodingBuilder = ImmutableMap.builder();
     for (Timing timing : Timing.values()) {
-      register(decodingBuilder, new PaneInfo(true, true, timing));
-      register(decodingBuilder, new PaneInfo(true, false, timing));
-      register(decodingBuilder, new PaneInfo(false, true, timing));
-      register(decodingBuilder, new PaneInfo(false, false, timing));
+      long onTimeIndex = timing == Timing.EARLY ? -1 : 0;
+      register(decodingBuilder, new PaneInfo(true, true, timing, 0, onTimeIndex));
+      register(decodingBuilder, new PaneInfo(true, false, timing, 0, onTimeIndex));
+      register(decodingBuilder, new PaneInfo(false, true, timing, -1, onTimeIndex));
+      register(decodingBuilder, new PaneInfo(false, false, timing, -1, onTimeIndex));
     }
     BYTE_TO_PANE_INFO = decodingBuilder.build();
   }
@@ -89,40 +91,48 @@ public final class PaneInfo {
   private final boolean isFirst;
   private final boolean isLast;
   private final Timing timing;
+  private final long index;
+  private final long nonSpeculativeIndex;
 
   /**
    * Until an element has been assigned to a window and had triggers processed, it doesn't belong
-   * to any pane. This is the default value assigned to elements read from sources, and those that
-   * have been assigned a window but not passed through execution of any trigger.
+   * to any pane. This is the value assigned to elements read from sources, and those that have
+   * been assigned a window but not passed through execution of any trigger.
    */
-  public static final PaneInfo DEFAULT = PaneInfo.createPane(false, false, Timing.UNKNOWN);
+  public static final PaneInfo NO_FIRING =
+      PaneInfo.createPane(false, false, Timing.UNKNOWN, 0, 0);
 
   /**
    * PaneInfo to use when there will be exactly one firing and it is on time.
    */
   public static final PaneInfo ON_TIME_AND_ONLY_FIRING =
-      PaneInfo.createPane(true, true, Timing.ON_TIME);
+      PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0);
 
-  private PaneInfo(boolean isFirst, boolean isLast, Timing timing) {
+  private PaneInfo(boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
     this.encodedByte = encodedByte(isFirst, isLast, timing);
     this.isFirst = isFirst;
     this.isLast = isLast;
     this.timing = timing;
+    this.index = index;
+    this.nonSpeculativeIndex = onTimeIndex;
   }
 
-  /**
-   * Returns true if this pane corresponds to the {@link #DEFAULT} pane.
-   */
-  public boolean isDefault() {
-    return DEFAULT.equals(this);
+  public static PaneInfo createPane(boolean isFirst, boolean isLast, Timing timing) {
+    Preconditions.checkArgument(isFirst, "Indices must be provided for non-first pane info.");
+    return createPane(isFirst, isLast, timing, 0, timing == Timing.EARLY ? -1 : 0);
   }
 
   /**
    * Factory method to create a {@link PaneInfo} with the specified parameters.
    */
   public static PaneInfo createPane(
-      boolean isFirst, boolean isLast, Timing timing) {
-    return Preconditions.checkNotNull(BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
+      boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
+    if (isFirst || timing == Timing.UNKNOWN) {
+      return Preconditions.checkNotNull(
+          BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
+    } else {
+      return new PaneInfo(isFirst, isLast, timing, index, onTimeIndex);
+    }
   }
 
   public static PaneInfo decodePane(byte encodedPane) {
@@ -142,6 +152,9 @@ public final class PaneInfo {
    * Return true if this is the first pane produced for the associated window.
    */
   public boolean isFirst() {
+    if (timing == Timing.UNKNOWN) {
+      throw new UnsupportedOperationException("Undefined for non-trigger-firing pane.");
+    }
     return isFirst;
   }
 
@@ -149,6 +162,9 @@ public final class PaneInfo {
    * Return true if this is the last pane that will be produced in the associated window.
    */
   public boolean isLast() {
+    if (timing == Timing.UNKNOWN) {
+      throw new UnsupportedOperationException("Undefined for non-trigger-firing pane.");
+    }
     return isLast;
   }
 
@@ -159,20 +175,55 @@ public final class PaneInfo {
     return timing;
   }
 
+  /**
+   * The zero-based index of this trigger firing that produced this pane. i.e.
+   * 0 for the first time the timer fires, 1 for the next time, etc.
+   *
+   * <p> A given (key, window, pane-index) is guaranteed to be unique in the
+   * output of a group-by-key operation.
+   */
+  public long getIndex() {
+    if (timing == Timing.UNKNOWN) {
+      throw new UnsupportedOperationException("Undefined for non-trigger-firing pane.");
+    }
+    return index;
+  }
+
+  /**
+   * The zero-based index of this trigger firing among non-speculative panes, i.e.
+   * 0 for the first non-{@link Timing#EARLY} timer firing, 1 for the next one, etc.
+   *
+   * <p> Always -1 for speculative data.
+   */
+  public long getNonSpeculativeIndex() {
+    if (timing == Timing.UNKNOWN) {
+      throw new UnsupportedOperationException("Undefined for non-trigger-firing pane.");
+    }
+    return nonSpeculativeIndex;
+  }
+
   int getEncodedByte() {
     return encodedByte;
   }
 
   @Override
   public int hashCode() {
-    // Just hash the encoded byte, because we know that it uniquely identifies the pane.
-    return Objects.hash(encodedByte);
+    return Objects.hash(encodedByte, index, nonSpeculativeIndex);
   }
 
   @Override
   public boolean equals(Object obj) {
-    // Because we intern the PaneInfo objects, equals is the same as pointer equality.
-    return this == obj;
+    if (this == obj) {
+      // Simple PaneInfos are interned.
+      return true;
+    } else if (obj instanceof PaneInfo) {
+      PaneInfo that = (PaneInfo) obj;
+      return this.encodedByte == that.encodedByte
+          && this.index == that.index
+          && this.nonSpeculativeIndex == that.nonSpeculativeIndex;
+    } else {
+      return false;
+    }
   }
 
   @Override
@@ -182,6 +233,8 @@ public final class PaneInfo {
         .add("isFirst", isFirst ? true : null)
         .add("isLast", isLast ? true : null)
         .add("timing", timing)
+        .add("index", index)
+        .add("onTimeIndex", nonSpeculativeIndex > 0 ? nonSpeculativeIndex : null)
         .toString();
   }
 
@@ -191,19 +244,106 @@ public final class PaneInfo {
   public static class PaneInfoCoder extends AtomicCoder<PaneInfo> {
     private static final long serialVersionUID = 0;
 
+    private static enum Encoding {
+      FIRST,
+      ONE_INDEX,
+      TWO_INDICES;
+
+      // NOTE: Do not reorder fields. The ordinal is used as part of
+      // the encoding.
+
+      public final byte tag;
+
+      private Encoding() {
+        assert ordinal() < 16;
+        tag = (byte) (ordinal() << 4);
+      }
+
+      public static Encoding fromTag(byte b) {
+        return Encoding.values()[b >> 4];
+      }
+    }
+
+    private Encoding chooseEncoding(PaneInfo value) {
+      if (value.index == 0 && value.nonSpeculativeIndex == 0 || value.timing == Timing.UNKNOWN) {
+        return Encoding.FIRST;
+      } else if (value.index == value.nonSpeculativeIndex || value.timing == Timing.EARLY) {
+        return Encoding.ONE_INDEX;
+      } else {
+        return Encoding.TWO_INDICES;
+      }
+    }
+
     public static final PaneInfoCoder INSTANCE = new PaneInfoCoder();
 
     @Override
-    public void encode(PaneInfo value, OutputStream outStream, Coder.Context context)
+    public void encode(PaneInfo value, final OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
-      outStream.write(value.encodedByte);
+      Encoding encoding = chooseEncoding(value);
+      switch (chooseEncoding(value)) {
+        case FIRST:
+          outStream.write(value.encodedByte);
+          break;
+        case ONE_INDEX:
+          outStream.write(value.encodedByte | encoding.tag);
+          writeVarLong(value.index, outStream);
+          break;
+        case TWO_INDICES:
+          outStream.write(value.encodedByte | encoding.tag);
+          writeVarLong(value.index, outStream);
+          writeVarLong(value.nonSpeculativeIndex, outStream);
+          break;
+        default:
+          throw new CoderException("Unknown encoding " + encoding);
+      }
     }
 
     @Override
-    public PaneInfo decode(InputStream inStream, Coder.Context context)
+    public PaneInfo decode(final InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
-      byte key = (byte) inStream.read();
-      return BYTE_TO_PANE_INFO.get(key);
+      byte keyAndTag = (byte) inStream.read();
+      PaneInfo base = BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F));
+      long index, onTimeIndex;
+      switch (Encoding.fromTag(keyAndTag)) {
+        case FIRST:
+          return base;
+        case ONE_INDEX:
+          index = readVarLong(inStream);
+          onTimeIndex = base.timing == Timing.EARLY ? -1 : index;
+          break;
+        case TWO_INDICES:
+          index = readVarLong(inStream);
+          onTimeIndex = readVarLong(inStream);
+          break;
+        default:
+          throw new CoderException("Unknown encoding " + (keyAndTag & 0xF0));
+      }
+      return new PaneInfo(base.isFirst, base.isLast, base.timing, index, onTimeIndex);
+    }
+
+    private void writeVarLong(long value, OutputStream outStream) throws IOException {
+      CodedOutputStream out = CodedOutputStream.newInstance(outStream);
+      out.writeRawVarint64(value);
+      out.flush();
+    }
+
+    private long readVarLong(InputStream inStream) throws CoderException, IOException {
+      // This is CodedInputStream.readRawVarint64(), inlined to avoid readahead
+      // of the underlying input stream.
+      int shift = 0;
+      long result = 0;
+      while (shift < 64) {
+        int b = inStream.read();
+        if (b < 0) {
+          throw new CoderException("end of stream while decoding varint");
+        }
+        result |= (long) (b & 0x7F) << shift;
+        if ((b & 0x80) == 0) {
+          return result;
+        }
+        shift += 7;
+      }
+      throw new CoderException("malformed varint");
     }
   }
 }

@@ -124,7 +124,7 @@ public class GroupingShuffleReaderTest {
           actualSizes.add(shuffleSinkWriter.add(
               WindowedValue.of(
                   KV.of(key, value), timestamp, Lists.newArrayList(window),
-                  PaneInfo.DEFAULT)));
+                  PaneInfo.NO_FIRING)));
         }
       }
     }

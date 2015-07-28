@@ -245,7 +245,7 @@ public class StreamingDataflowWorkerTest {
           builder.getWorkBuilder(0).getWorkBuilder(0).getMessageBundlesBuilder(0);
       for (Windmill.Message.Builder messageBuilder :
           messageBundleBuilder.getMessagesBuilderList()) {
-        messageBuilder.setMetadata(addPaneTag(PaneInfo.DEFAULT, metadata));
+        messageBuilder.setMetadata(addPaneTag(PaneInfo.NO_FIRING, metadata));
       }
     }
     return builder.build();
@@ -309,7 +309,7 @@ public class StreamingDataflowWorkerTest {
 
   private WorkItemCommitRequest.Builder makeExpectedOutput(
       int index, long timestamp, String key, String outKey) throws Exception {
-    return setMessagesMetadata(PaneInfo.DEFAULT, defaultWindowsBytes(),
+    return setMessagesMetadata(PaneInfo.NO_FIRING, defaultWindowsBytes(),
         parseCommitRequest(
             "key: \"" + key + "\" " +
             "work_token: " + index + " " +
@@ -606,12 +606,12 @@ public class StreamingDataflowWorkerTest {
 
     assertThat(
         stripCounters(result.get((long) timestamp1)),
-        equalTo(setMessagesMetadata(PaneInfo.DEFAULT, windowAtZeroBytes(),
+        equalTo(setMessagesMetadata(PaneInfo.NO_FIRING, windowAtZeroBytes(),
                 makeExpectedOutput(timestamp1, timestamp1))
             .build()));
 
     assertThat(stripCounters(result.get((long) timestamp2)),
-        equalTo(setMessagesMetadata(PaneInfo.DEFAULT, windowAtOneSecondBytes(),
+        equalTo(setMessagesMetadata(PaneInfo.NO_FIRING, windowAtOneSecondBytes(),
                 makeExpectedOutput(timestamp2, timestamp2))
             .build()));
   }
@@ -886,7 +886,7 @@ public class StreamingDataflowWorkerTest {
         UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
 
     assertThat(commit,
-        equalTo(setMessagesMetadata(PaneInfo.DEFAULT,
+        equalTo(setMessagesMetadata(PaneInfo.NO_FIRING,
             CoderUtils.encodeToByteArray(
                 CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
                 Arrays.asList(GlobalWindow.INSTANCE)),
@@ -962,7 +962,7 @@ public class StreamingDataflowWorkerTest {
     finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
 
     assertThat(commit,
-        equalTo(setMessagesMetadata(PaneInfo.DEFAULT,
+        equalTo(setMessagesMetadata(PaneInfo.NO_FIRING,
             CoderUtils.encodeToByteArray(
                 CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
                 Arrays.asList(GlobalWindow.INSTANCE)),

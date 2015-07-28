@@ -304,7 +304,7 @@ public class StreamingSideInputDoFnRunnerTest {
         element,
         new Instant(timestamp),
         Arrays.asList(createWindow(timestamp)),
-        PaneInfo.DEFAULT);
+        PaneInfo.NO_FIRING);
   }
 
   private IntervalWindow createWindow(long timestamp) {

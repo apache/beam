@@ -41,7 +41,7 @@ public class WindowedValueTest {
         new Instant(1234),
         Arrays.asList(new IntervalWindow(timestamp, timestamp.plus(1000)),
                       new IntervalWindow(timestamp.plus(1000), timestamp.plus(2000))),
-        PaneInfo.DEFAULT);
+        PaneInfo.NO_FIRING);
 
     Coder<WindowedValue<String>> windowedValueCoder =
         WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());

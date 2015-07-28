@@ -104,7 +104,7 @@ public abstract class WindowedValue<V> {
    * default timestamp and pane.
    */
   public static <V> WindowedValue<V> valueInGlobalWindow(V value) {
-    return new ValueInGlobalWindow<>(value, PaneInfo.DEFAULT);
+    return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING);
   }
 
   /**
@@ -123,7 +123,7 @@ public abstract class WindowedValue<V> {
     if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInGlobalWindow(value);
     } else {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.DEFAULT);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.NO_FIRING);
     }
   }
 
@@ -132,7 +132,7 @@ public abstract class WindowedValue<V> {
    * and pane.
    */
   public static <V> WindowedValue<V> valueInEmptyWindows(V value) {
-    return new ValueInEmptyWindows<V>(value, PaneInfo.DEFAULT);
+    return new ValueInEmptyWindows<V>(value, PaneInfo.NO_FIRING);
   }
 
   /**

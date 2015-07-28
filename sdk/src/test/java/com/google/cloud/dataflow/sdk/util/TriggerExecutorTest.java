@@ -17,6 +17,9 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -242,9 +245,11 @@ public class TriggerExecutorTest {
             1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 8), 8, 0, 10)));
 
     assertThat(
-        output.get(0).getPane(), Matchers.equalTo(PaneInfo.createPane(true, false, Timing.EARLY)));
+               output.get(0).getPane(),
+        Matchers.equalTo(PaneInfo.createPane(true, false, Timing.EARLY)));
     assertThat(
-        output.get(3).getPane(), Matchers.equalTo(PaneInfo.createPane(false, true, Timing.EARLY)));
+        output.get(3).getPane(),
+        Matchers.equalTo(PaneInfo.createPane(false, true, Timing.EARLY, 3, -1)));
 
     // And because we're past the end of window + allowed lateness, everything should be cleaned up.
     assertFalse(tester.isMarkedFinished(firstWindow));
@@ -266,20 +271,20 @@ public class TriggerExecutorTest {
 
     injectElement(tester, 2, TriggerResult.FIRE);
     assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.EARLY))));
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.EARLY, 1, -1))));
 
     tester.advanceWatermark(new Instant(15));
     injectElement(tester, 3, TriggerResult.FIRE);
     assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.ON_TIME))));
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.ON_TIME, 2, 0))));
 
     injectElement(tester, 4, TriggerResult.FIRE);
     assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.LATE))));
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.LATE, 3, 1))));
 
     injectElement(tester, 5, TriggerResult.FIRE_AND_FINISH);
     assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE))));
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 4, 2))));
   }
 
   @Test
@@ -363,5 +368,50 @@ public class TriggerExecutorTest {
 
     assertEquals(3, tester.getElementsDroppedDueToLateness());
     assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
+  }
+
+  @Test
+  public void testIdempotentUninterestingPanes() throws Exception {
+    // Test uninteresting (empty) panes don't increment the index or otherwise
+    // modify PaneInfo.
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        FixedWindows.of(Duration.millis(10)),
+        mockTrigger,
+        AccumulationMode.DISCARDING_FIRED_PANES,
+        Duration.millis(100));
+
+    // Inject a couple of on-time elements and fire at the window end.
+    injectElement(tester, 1, TriggerResult.CONTINUE);
+    injectElement(tester, 2, TriggerResult.CONTINUE);
+    tester.advanceWatermark(new Instant(12));
+    when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
+                    .thenReturn(TriggerResult.FIRE);
+    tester.fireTimer(firstWindow, new Instant(10), TimeDomain.EVENT_TIME);
+
+    // Fire another timer (with no data, so it's an uninteresting pane).
+    when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
+                    .thenReturn(TriggerResult.FIRE);
+    tester.fireTimer(firstWindow, new Instant(10), TimeDomain.EVENT_TIME);
+
+    // Finish it off with another datum.
+    injectElement(tester, 3, TriggerResult.FIRE_AND_FINISH);
+
+    // The intermediate trigger firing shouldn't result in any output.
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertThat(output.size(), equalTo(2));
+
+    // The on-time pane is as expected.
+    assertThat(output.get(0), isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10));
+
+    // The late pane has the correct indices.
+    assertThat(output.get(1).getValue(), contains(3));
+    assertThat(output.get(1).getPane(),
+        equalTo(PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
+
+    assertTrue(tester.isMarkedFinished(firstWindow));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
+
+    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    assertEquals(0, tester.getElementsDroppedDueToLateness());
   }
 }

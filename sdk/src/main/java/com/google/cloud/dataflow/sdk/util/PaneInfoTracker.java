@@ -61,24 +61,34 @@ public class PaneInfoTracker {
         if (result == null) {
           PaneInfo previousPane = previousPaneFuture.read();
           result = describePane(endOfWindow, previousPane, isFinal);
-          state.access(PANE_INFO_TAG).set(result);
         }
         return result;
       }
     };
   }
 
+  public void storeCurrentPaneInfo(ReduceFn<?, ?, ?, ?>.Context context, PaneInfo currentPane) {
+    context.state().access(PANE_INFO_TAG).set(currentPane);
+  }
+
   private <W> PaneInfo describePane(Instant endOfWindow, PaneInfo previousPane, boolean isFinal) {
     boolean isSpeculative = endOfWindow.isAfter(timerInternals.currentWatermarkTime());
     boolean isFirst = (previousPane == null);
 
-    Timing timing = Timing.EARLY;
-    if (!isSpeculative) {
-      boolean firstNonSpeculative =
-          previousPane == null || previousPane.getTiming() == Timing.EARLY;
-      timing = firstNonSpeculative ? Timing.ON_TIME : Timing.LATE;
+    long index = isFirst ? 0 : previousPane.getIndex() + 1;
+    long nonSpeculativeIndex;
+    Timing timing;
+    if (isSpeculative) {
+      timing = Timing.EARLY;
+      nonSpeculativeIndex = -1;
+    } else if (previousPane == null || previousPane.getTiming() == Timing.EARLY) {
+      timing = Timing.ON_TIME;
+      nonSpeculativeIndex = 0;
+    } else {
+      timing = Timing.LATE;
+      nonSpeculativeIndex = previousPane.getNonSpeculativeIndex() + 1;
     }
 
-    return PaneInfo.createPane(isFirst, isFinal, timing);
+    return PaneInfo.createPane(isFirst, isFinal, timing, index, nonSpeculativeIndex);
   }
 }

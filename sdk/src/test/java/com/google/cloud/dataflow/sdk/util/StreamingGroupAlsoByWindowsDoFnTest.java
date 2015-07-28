@@ -118,25 +118,25 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         TimerOrElement.element(KV.of("k", "v1")),
         new Instant(1),
         Arrays.asList(window(0, 10)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v2")),
         new Instant(2),
         Arrays.asList(window(0, 10)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v0")),
         new Instant(0),
         Arrays.asList(window(0, 10)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v3")),
         new Instant(13),
         Arrays.asList(window(10, 20)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
             windowCoder, window(0, 10), new Instant(9), TimeDomain.EVENT_TIME)));
@@ -183,13 +183,13 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         TimerOrElement.element(KV.of("k", "v1")),
         new Instant(5),
         Arrays.asList(window(-10, 10), window(0, 20)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v0")),
         new Instant(2),
         Arrays.asList(window(-10, 10), window(0, 20)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
         windowCoder, window(-10, 10), new Instant(9), TimeDomain.EVENT_TIME)));
@@ -198,7 +198,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         TimerOrElement.element(KV.of("k", "v2")),
         new Instant(5),
         Arrays.asList(window(0, 20), window(10, 30)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
         windowCoder, window(0, 20), new Instant(19), TimeDomain.EVENT_TIME)));
@@ -250,25 +250,25 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         TimerOrElement.element(KV.of("k", "v1")),
         new Instant(0),
         Arrays.asList(window(0, 10)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v2")),
         new Instant(5),
         Arrays.asList(window(5, 15)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v3")),
         new Instant(15),
         Arrays.asList(window(15, 25)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", "v0")),
         new Instant(3),
         Arrays.asList(window(3, 13)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
         windowCoder, window(0, 10), new Instant(9), TimeDomain.EVENT_TIME)));
@@ -349,25 +349,25 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         TimerOrElement.element(KV.of("k", 1L)),
         new Instant(0),
         Arrays.asList(window(0, 10)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", 2L)),
         new Instant(5),
         Arrays.asList(window(5, 15)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", 3L)),
         new Instant(15),
         Arrays.asList(window(15, 25)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.of(
         TimerOrElement.element(KV.of("k", 4L)),
         new Instant(3),
         Arrays.asList(window(3, 13)),
-        PaneInfo.DEFAULT));
+        PaneInfo.NO_FIRING));
 
     runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, Long>timer(
         windowCoder, window(0, 10), new Instant(9), TimeDomain.EVENT_TIME)));

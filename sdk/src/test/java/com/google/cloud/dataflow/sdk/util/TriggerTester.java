@@ -299,7 +299,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
     logInteraction("Element %s at time %d put in windows %s",
         value, timestamp.getMillis(), windows);
-    runner.processElement(WindowedValue.of(value, timestamp, windows, PaneInfo.DEFAULT));
+    runner.processElement(WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING));
   }
 
   public void doMerge() throws Exception {

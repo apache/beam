@@ -144,7 +144,7 @@ public class ShuffleSinkTest {
             WindowedValue.of(KV.of(kv.getKey(), kv.getValue()),
                              timestamp,
                              Lists.newArrayList(window),
-                             PaneInfo.DEFAULT)));
+                             PaneInfo.NO_FIRING)));
       }
     }
 

@@ -91,17 +91,17 @@ public class GroupAlsoByWindowsDoFnTest {
                 "v1",
                 new Instant(1),
                 Arrays.asList(window(0, 10)),
-                PaneInfo.DEFAULT),
+                PaneInfo.NO_FIRING),
             WindowedValue.of(
                 "v2",
                 new Instant(2),
                 Arrays.asList(window(0, 10)),
-                PaneInfo.DEFAULT),
+                PaneInfo.NO_FIRING),
             WindowedValue.of(
                 "v3",
                 new Instant(13),
                 Arrays.asList(window(10, 20)),
-                PaneInfo.DEFAULT)))));
+                PaneInfo.NO_FIRING)))));
 
     runner.finishBundle();
 
@@ -142,12 +142,12 @@ public class GroupAlsoByWindowsDoFnTest {
                 "v1",
                 new Instant(5),
                 Arrays.asList(window(-10, 10), window(0, 20)),
-                PaneInfo.DEFAULT),
+                PaneInfo.NO_FIRING),
             WindowedValue.of(
                 "v2",
                 new Instant(15),
                 Arrays.asList(window(0, 20), window(10, 30)),
-                PaneInfo.DEFAULT)))));
+                PaneInfo.NO_FIRING)))));
 
     runner.finishBundle();
 
@@ -196,17 +196,17 @@ public class GroupAlsoByWindowsDoFnTest {
                 1L,
                 new Instant(5),
                 Arrays.asList(window(-10, 10), window(0, 20)),
-                PaneInfo.DEFAULT),
+                PaneInfo.NO_FIRING),
             WindowedValue.of(
                 2L,
                 new Instant(15),
                 Arrays.asList(window(0, 20), window(10, 30)),
-                PaneInfo.DEFAULT),
+                PaneInfo.NO_FIRING),
             WindowedValue.of(
                 4L,
                 new Instant(18),
                 Arrays.asList(window(0, 20), window(10, 30)),
-                PaneInfo.DEFAULT)))));
+                PaneInfo.NO_FIRING)))));
 
     runner.finishBundle();
 
@@ -241,17 +241,17 @@ public class GroupAlsoByWindowsDoFnTest {
                 "v1",
                 new Instant(1),
                 Arrays.asList(window(0, 5)),
-                PaneInfo.DEFAULT),
+                PaneInfo.NO_FIRING),
             WindowedValue.of(
                 "v2",
                 new Instant(4),
                 Arrays.asList(window(1, 5)),
-                PaneInfo.DEFAULT),
+                PaneInfo.NO_FIRING),
             WindowedValue.of(
                 "v3",
                 new Instant(4),
                 Arrays.asList(window(0, 5)),
-                PaneInfo.DEFAULT)))));
+                PaneInfo.NO_FIRING)))));
 
     runner.finishBundle();
 
@@ -291,17 +291,17 @@ public class GroupAlsoByWindowsDoFnTest {
                 "v1",
                 new Instant(0),
                 Arrays.asList(window(0, 10)),
-                PaneInfo.DEFAULT),
+                PaneInfo.NO_FIRING),
             WindowedValue.of(
                 "v2",
                 new Instant(5),
                 Arrays.asList(window(5, 15)),
-                PaneInfo.DEFAULT),
+                PaneInfo.NO_FIRING),
             WindowedValue.of(
                 "v3",
                 new Instant(15),
                 Arrays.asList(window(15, 25)),
-                PaneInfo.DEFAULT)))));
+                PaneInfo.NO_FIRING)))));
 
     runner.finishBundle();
 
@@ -342,17 +342,17 @@ public class GroupAlsoByWindowsDoFnTest {
                 1L,
                 new Instant(0),
                 Arrays.asList(window(0, 10)),
-                PaneInfo.DEFAULT),
+                PaneInfo.NO_FIRING),
             WindowedValue.of(
                 2L,
                 new Instant(5),
                 Arrays.asList(window(5, 15)),
-                PaneInfo.DEFAULT),
+                PaneInfo.NO_FIRING),
             WindowedValue.of(
                 4L,
                 new Instant(15),
                 Arrays.asList(window(15, 25)),
-                PaneInfo.DEFAULT)))));
+                PaneInfo.NO_FIRING)))));
 
     runner.finishBundle();
 
