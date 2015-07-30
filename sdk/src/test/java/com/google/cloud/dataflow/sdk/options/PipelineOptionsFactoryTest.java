@@ -35,7 +35,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ListMultimap;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,7 +46,6 @@ import org.junit.runners.JUnit4;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.List;
-import java.util.Map;
 
 /** Tests for {@link PipelineOptionsFactory}. */
 @RunWith(JUnit4.class)
@@ -325,11 +323,6 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.fromArgs(args).as(Primitives.class);
   }
 
-  /** Enum used for testing PipelineOptions CLI parsing. */
-  public enum TestEnum {
-    Value, Value2
-  }
-
   /** A test interface containing all supported objects. */
   public static interface Objects extends PipelineOptions {
     Boolean getBoolean();
@@ -354,8 +347,6 @@ public class PipelineOptionsFactoryTest {
     void setEmptyString(String value);
     Class<?> getClassValue();
     void setClassValue(Class<?> value);
-    TestEnum getEnum();
-    void setEnum(TestEnum value);
   }
 
   @Test
@@ -371,8 +362,7 @@ public class PipelineOptionsFactoryTest {
         "--double=12.3",
         "--string=stringValue",
         "--emptyString=",
-        "--classValue=" + PipelineOptionsFactoryTest.class.getName(),
-        "--enum=" + TestEnum.Value};
+        "--classValue=" + PipelineOptionsFactoryTest.class.getName()};
 
     Objects options = PipelineOptionsFactory.fromArgs(args).as(Objects.class);
     assertTrue(options.getBoolean());
@@ -386,37 +376,6 @@ public class PipelineOptionsFactoryTest {
     assertEquals("stringValue", options.getString());
     assertTrue(options.getEmptyString().isEmpty());
     assertEquals(PipelineOptionsFactoryTest.class, options.getClassValue());
-    assertEquals(TestEnum.Value, options.getEnum());
-  }
-
-  /** A test class for verifying JSON -> Object conversion. */
-  public static class ComplexType {
-    String value;
-    String value2;
-    public ComplexType(@JsonProperty("key") String value, @JsonProperty("key2") String value2) {
-      this.value = value;
-      this.value2 = value2;
-    }
-  }
-
-  /** A test interface for verifying JSON -> complex type conversion. */
-  interface ComplexTypes extends PipelineOptions {
-    Map<String, String> getMap();
-    void setMap(Map<String, String> value);
-
-    ComplexType getObject();
-    void setObject(ComplexType value);
-  }
-
-  @Test
-  public void testComplexTypes() {
-    String[] args = new String[] {
-        "--map={\"key\":\"value\",\"key2\":\"value2\"}",
-        "--object={\"key\":\"value\",\"key2\":\"value2\"}"};
-    ComplexTypes options = PipelineOptionsFactory.fromArgs(args).as(ComplexTypes.class);
-    assertEquals(ImmutableMap.of("key", "value", "key2", "value2"), options.getMap());
-    assertEquals("value", options.getObject().value);
-    assertEquals("value2", options.getObject().value2);
   }
 
   @Test
@@ -447,8 +406,6 @@ public class PipelineOptionsFactoryTest {
     void setString(String[] value);
     Class<?>[] getClassValue();
     void setClassValue(Class<?>[] value);
-    TestEnum[] getEnum();
-    void setEnum(TestEnum[] value);
   }
 
   @Test
@@ -480,9 +437,7 @@ public class PipelineOptionsFactoryTest {
         "--string=stringValue2",
         "--string=stringValue3",
         "--classValue=" + PipelineOptionsFactory.class.getName(),
-        "--classValue=" + PipelineOptionsFactoryTest.class.getName(),
-        "--enum=" + TestEnum.Value,
-        "--enum=" + TestEnum.Value2};
+        "--classValue=" + PipelineOptionsFactoryTest.class.getName()};
 
     Arrays options = PipelineOptionsFactory.fromArgs(args).as(Arrays.class);
     boolean[] bools = options.getBoolean();
@@ -498,7 +453,6 @@ public class PipelineOptionsFactoryTest {
     assertArrayEquals(new Class[] {PipelineOptionsFactory.class,
                                    PipelineOptionsFactoryTest.class},
         options.getClassValue());
-    assertArrayEquals(new TestEnum[] {TestEnum.Value, TestEnum.Value2}, options.getEnum());
   }
 
   @Test

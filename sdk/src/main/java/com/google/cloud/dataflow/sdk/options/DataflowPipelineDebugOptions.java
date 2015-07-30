@@ -24,11 +24,13 @@ import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.Stager;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.common.base.Preconditions;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Internal. Options used to control execution of the Dataflow SDK for
@@ -184,12 +186,11 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
    */
   @JsonIgnore
   @Description(
-      "Mapping of old PTranform names to new ones, specified as JSON "
-      + "{\"oldName\":\"newName\",...}. To mark a transform as deleted, make newName the empty "
-      + "string.")
+      "Mapping of old PTranform names to new ones, specified as a semicolon-separated "
+      + "list of oldName=newName pairs. To mark a transform as deleted, omit newName.")
   @Experimental
-  Map<String, String> getTransformNameMapping();
-  void setTransformNameMapping(Map<String, String> value);
+  NameMap getTransformNameMapping();
+  void setTransformNameMapping(NameMap value);
 
   /**
    * Custom windmill_main binary to use with the streaming runner.
@@ -227,6 +228,30 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
           .fromFactoryMethod("fromOptions")
           .withArg(PipelineOptions.class, options)
           .build();
+    }
+  }
+
+  /**
+   * Map of old names to new names.
+   */
+  public static class NameMap extends HashMap<String, String> {
+    private static final long serialVersionUID = 0L;
+    private static final String ENTRY_SEPARATOR = ";";
+    private static final String VALUE_SEPARATOR = "=";
+
+    /**
+     * Parses a NameMap from a String.
+     */
+    @JsonCreator
+    public static NameMap create(String value) {
+      NameMap result = new NameMap();
+      for (String entry : value.split(ENTRY_SEPARATOR)) {
+        String[] splitEntry = entry.split(VALUE_SEPARATOR, -1);
+        Preconditions.checkArgument(splitEntry.length == 2,
+            "Invalid value for --nameMapping.  Should be in old1=new1;old2=new2 format");
+        result.put(splitEntry[0], splitEntry[1]);
+      }
+      return result;
     }
   }
 }

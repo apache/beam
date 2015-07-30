@@ -72,18 +72,13 @@ import java.util.regex.Pattern;
  *
  * <p> Concept #2: Dataflow workers which execute user code are configured to log to Cloud
  * Logging by default at "INFO" log level and higher. One may override log levels for specific
- * logging namespaces by specifying:
- * <pre><code>
- *   --workerLogLevelOverrides={"Name1":"Level1","Name2":"Level2",...}
- * </code></pre>
- * For example, by specifying:
- * <pre><code>
- *   --workerLogLevelOverrides={"com.google.cloud.dataflow.examples":"DEBUG"}
- * </code></pre>
+ * logging namespaces by specifying
+ * {@code --workerLogLevelOverrides=Name1#Level1,Name2#Level2,...}. For example, by specifying
+ * {@code --workerLogLevelOverrides=com.google.cloud.dataflow.examples.DebuggingWordCount#DEBUG}
  * when executing this pipeline using the Dataflow service, Cloud Logging would contain only
- * "DEBUG" or higher level logs for the {@code com.google.cloud.dataflow.examples} package in
- * addition to the default "INFO" or higher level logs. In addition, the default Dataflow worker
- * logging configuration can be overridden by specifying
+ * "DEBUG" or higher level logs for the DebuggingWordCount class in addition to the default
+ * "INFO" or higher level logs. In addition, the default Dataflow worker logging
+ * configuration can be overridden by specifying
  * {@code --defaultWorkerLogLevel=<one of TRACE, DEBUG, INFO, WARN, ERROR>}. For example,
  * by specifying {@code --defaultWorkerLogLevel=DEBUG} when executing this pipeline with
  * the Dataflow service, Cloud Logging would contain all "DEBUG" or higher level logs. Note

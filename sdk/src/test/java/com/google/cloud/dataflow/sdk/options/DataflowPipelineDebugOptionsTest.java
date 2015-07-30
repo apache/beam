@@ -16,9 +16,12 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import static com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions.NameMap;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -27,14 +30,14 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link DataflowPipelineDebugOptions}. */
 @RunWith(JUnit4.class)
 public class DataflowPipelineDebugOptionsTest {
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+
   @Test
   public void testTransformNameMapping() throws Exception {
-    DataflowPipelineDebugOptions options = PipelineOptionsFactory
-        .fromArgs(new String[]{"--transformNameMapping={\"a\":\"b\",\"foo\":\"\",\"bar\":\"baz\"}"})
-        .as(DataflowPipelineDebugOptions.class);
-    assertEquals(3, options.getTransformNameMapping().size());
-    assertThat(options.getTransformNameMapping(), hasEntry("a", "b"));
-    assertThat(options.getTransformNameMapping(), hasEntry("foo", ""));
-    assertThat(options.getTransformNameMapping(), hasEntry("bar", "baz"));
+    NameMap map = MAPPER.convertValue("a=b;foo=;bar=baz", NameMap.class);
+    assertEquals(3, map.size());
+    assertThat(map, hasEntry("a", "b"));
+    assertThat(map, hasEntry("foo", ""));
+    assertThat(map, hasEntry("bar", "baz"));
   }
 }

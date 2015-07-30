@@ -20,7 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions;
-import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
+import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverride;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 
 import org.junit.After;
@@ -75,9 +75,11 @@ public class DataflowWorkerLoggingInitializerTest {
   public void testWithCustomLogLevels() {
     DataflowWorkerLoggingOptions options =
         PipelineOptionsFactory.as(DataflowWorkerLoggingOptions.class);
-    options.setWorkerLogLevelOverrides(new WorkerLogLevelOverrides()
-        .addOverrideForName("A", DataflowWorkerLoggingOptions.Level.DEBUG)
-        .addOverrideForName("B", DataflowWorkerLoggingOptions.Level.ERROR));
+    options.setWorkerLogLevelOverrides(
+        new WorkerLogLevelOverride[] {
+            WorkerLogLevelOverride.forName("A", DataflowWorkerLoggingOptions.Level.DEBUG),
+            WorkerLogLevelOverride.forName("B", DataflowWorkerLoggingOptions.Level.ERROR),
+        });
 
     DataflowWorkerLoggingInitializer.initialize();
     DataflowWorkerLoggingInitializer.configure(options);
