@@ -58,8 +58,8 @@ public class MinimalWordCount {
 
   public static void main(String[] args) {
     // Create a DataflowPipelineOptions object. This object lets us set various execution
-    // options for our pipeline, such as the associated Cloud Platform project and a location in
-    // Google Cloud Storage to stage files.
+    // options for our pipeline, such as the associated Cloud Platform project and the location
+    // in Google Cloud Storage to stage files.
     DataflowPipelineOptions options = PipelineOptionsFactory.create()
       .as(DataflowPipelineOptions.class);
     options.setRunner(BlockingDataflowPipelineRunner.class);
@@ -77,7 +77,7 @@ public class MinimalWordCount {
     // of input text files. TextIO.Read returns a PCollection where each element is one line from
     // the input text (a set of Shakespeare's texts).
     p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/*"))
-     // Concept #2:  Apply a ParDo transform to our PCollection of text lines. This ParDo invokes a
+     // Concept #2: Apply a ParDo transform to our PCollection of text lines. This ParDo invokes a
      // DoFn (defined in-line) on each element that tokenizes the text line into individual words.
      // The ParDo returns a PCollection<String>, where each element is an individual word in
      // Shakespeare's collected texts.
