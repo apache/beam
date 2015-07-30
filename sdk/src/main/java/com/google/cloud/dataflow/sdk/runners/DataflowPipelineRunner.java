@@ -340,37 +340,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
               .create(options.getProject(), newJob)
               .execute();
     } catch (GoogleJsonResponseException e) {
-        throw new RuntimeException("Failed to create a workflow job: "
+      throw new RuntimeException("Failed to create a workflow job: "
             + (e.getDetails() != null ? e.getDetails().getMessage() : e), e);
     } catch (IOException e) {
       throw new RuntimeException("Failed to create a workflow job", e);
     }
-    // If the service returned client request id, the SDK needs to compare it
-    // with the original id generated in the request, if they are not the same
-    // (i.e., the returned job is not created by this request), throw
-    // Error::Already_Exists.
-    if (jobResult.getClientRequestId() != null && !jobResult.getClientRequestId().isEmpty()
-        && !jobResult.getClientRequestId().equals(requestId)) {
-      // If updating a job.
-      if (options.getUpdate()) {
-        throw new RuntimeException(
-            "The job named " + newJob.getName() + " with id: " + jobIdToUpdate
-                + " has already been updated into job id: " + jobResult.getId()
-                + " and cannot be updated again. ");
-      } else {
-        throw new RuntimeException("There is already an active job named " + newJob.getName()
-            + " with id: " + jobResult.getId()
-            + ". If you want to submit a second job, try again by setting a "
-            + "different name using --jobName.");
-      }
-    }
-
-    LOG.info("To access the Dataflow monitoring console, please navigate to {}",
-        MonitoringUtil.getJobMonitoringPageURL(options.getProject(), jobResult.getId()));
-    System.out.println("Submitted job: " + jobResult.getId());
-
-    LOG.info("To cancel the job using the 'gcloud' tool, run:\n> {}",
-        MonitoringUtil.getGcloudCancelCommand(options, jobResult.getId()));
 
     // Obtain all of the extractors from the PTransforms used in the pipeline so the
     // DataflowPipelineJob has access to them.
@@ -386,6 +360,34 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     DataflowPipelineJob dataflowPipelineJob =
         new DataflowPipelineJob(options.getProject(), jobResult.getId(),
             Transport.newRawDataflowClient(options).build(), aggregatorTransforms);
+
+    // If the service returned client request id, the SDK needs to compare it
+    // with the original id generated in the request, if they are not the same
+    // (i.e., the returned job is not created by this request), throw
+    // DataflowJobAlreadyExistsException or DataflowJobAlreadyUpdatedExcetpion
+    // depending on whether this is a reload or not.
+    if (jobResult.getClientRequestId() != null && !jobResult.getClientRequestId().isEmpty()
+        && !jobResult.getClientRequestId().equals(requestId)) {
+      // If updating a job.
+      if (options.getUpdate()) {
+        throw new DataflowJobAlreadyUpdatedException(dataflowPipelineJob,
+            String.format("The job named %s with id: %s has already been updated into job id: %s "
+                + "and cannot be updated again.",
+                newJob.getName(), jobIdToUpdate, jobResult.getId()));
+      } else {
+        throw new DataflowJobAlreadyExistsException(dataflowPipelineJob,
+            String.format("There is already an active job named %s with id: %s. If you want "
+                + "to submit a second job, try again by setting a different name using --jobName.",
+                newJob.getName(), jobResult.getId()));
+      }
+    }
+
+    LOG.info("To access the Dataflow monitoring console, please navigate to {}",
+        MonitoringUtil.getJobMonitoringPageURL(options.getProject(), jobResult.getId()));
+    System.out.println("Submitted job: " + jobResult.getId());
+
+    LOG.info("To cancel the job using the 'gcloud' tool, run:\n> {}",
+        MonitoringUtil.getGcloudCancelCommand(options, jobResult.getId()));
 
     return dataflowPipelineJob;
   }

@@ -146,6 +146,11 @@ public class DataflowPipelineRunnerTest {
     return mockGcsUtil;
   }
 
+  private DataflowPipelineOptions buildPipelineOptions() throws IOException {
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    return buildPipelineOptions(jobCaptor);
+  }
+
   private DataflowPipelineOptions buildPipelineOptions(
       ArgumentCaptor<Job> jobCaptor) throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
@@ -172,16 +177,10 @@ public class DataflowPipelineRunnerTest {
 
   @Test
   public void testRunReturnDifferentRequestId() throws IOException {
-    thrown.expect(RuntimeException.class);
-    thrown.expectMessage(
-        Matchers.containsString("If you want to submit a second job, try again by setting a "
-            + "different name using --jobName."));
-
-    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    DataflowPipelineOptions options = buildPipelineOptions();
     Dataflow mockDataflowClient = options.getDataflowClient();
     Dataflow.Projects.Jobs.Create mockRequest = mock(Dataflow.Projects.Jobs.Create.class);
-    when(mockDataflowClient.projects().jobs().create(eq("someProject"), jobCaptor.capture()))
+    when(mockDataflowClient.projects().jobs().create(eq("someProject"), any(Job.class)))
         .thenReturn(mockRequest);
     Job resultJob = new Job();
     resultJob.setId("newid");
@@ -190,7 +189,15 @@ public class DataflowPipelineRunnerTest {
     when(mockRequest.execute()).thenReturn(resultJob);
 
     DataflowPipeline p = buildDataflowPipeline(options);
-    p.run();
+    try {
+      p.run();
+      fail("Expected DataflowJobAlreadyExistsException");
+    } catch (DataflowJobAlreadyExistsException expected) {
+      assertThat(expected.getMessage(),
+          containsString("If you want to submit a second job, try again by setting a "
+            + "different name using --jobName."));
+      assertEquals(expected.getJob().getJobId(), resultJob.getId());
+    }
   }
 
   @Test
@@ -211,12 +218,38 @@ public class DataflowPipelineRunnerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Could not find running job named badJobName");
 
-    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setUpdate(true);
     options.setJobName("badJobName");
     DataflowPipeline p = buildDataflowPipeline(options);
     p.run();
+  }
+
+  @Test
+  public void testUpdateAlreadyUpdatedPipeline() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setUpdate(true);
+    options.setJobName("oldJobName");
+    Dataflow mockDataflowClient = options.getDataflowClient();
+    Dataflow.Projects.Jobs.Create mockRequest = mock(Dataflow.Projects.Jobs.Create.class);
+    when(mockDataflowClient.projects().jobs().create(eq("someProject"), any(Job.class)))
+        .thenReturn(mockRequest);
+    Job resultJob = new Job();
+    resultJob.setId("newid");
+    // Return a different request id.
+    resultJob.setClientRequestId("different_request_id");
+    when(mockRequest.execute()).thenReturn(resultJob);
+
+    DataflowPipeline p = buildDataflowPipeline(options);
+    try {
+      p.run();
+      fail("Expected DataflowJobAlreadyUpdatedException");
+    } catch (DataflowJobAlreadyUpdatedException expected) {
+      assertThat(expected.getMessage(),
+          containsString("The job named oldjobname with id: oldJobId has already been updated "
+              + "into job id: newid and cannot be updated again."));
+      assertEquals(expected.getJob().getJobId(), resultJob.getId());
+    }
   }
 
   @Test
@@ -291,9 +324,7 @@ public class DataflowPipelineRunnerTest {
 
   @Test
   public void runWithDefaultFilesToStage() throws Exception {
-    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-
-    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setFilesToStage(null);
     DataflowPipelineRunner.fromOptions(options);
     assertTrue(!options.getFilesToStage().isEmpty());
@@ -421,9 +452,7 @@ public class DataflowPipelineRunnerTest {
 
   @Test
   public void testInvalidStagingLocation() throws IOException {
-    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-
-    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setStagingLocation("file://my/staging/location");
     try {
       DataflowPipelineRunner.fromOptions(options);
@@ -536,9 +565,7 @@ public class DataflowPipelineRunnerTest {
         "JobName invalid");
 
     for (int i = 0; i < invalidNames.size(); ++i) {
-      ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-
-      DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+      DataflowPipelineOptions options = buildPipelineOptions();
       options.setJobName(invalidNames.get(i));
 
       try {
@@ -558,9 +585,7 @@ public class DataflowPipelineRunnerTest {
         "this-one-is-fairly-long-01234567890123456789");
 
     for (String name : names) {
-      ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-
-      DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+      DataflowPipelineOptions options = buildPipelineOptions();
       options.setJobName(name);
 
       DataflowPipelineRunner runner = DataflowPipelineRunner
@@ -611,9 +636,7 @@ public class DataflowPipelineRunnerTest {
   @Test
   public void testTransformTranslator() throws IOException {
     // Test that we can provide a custom translation
-    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-
-    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    DataflowPipelineOptions options = buildPipelineOptions();
     DataflowPipeline p = DataflowPipeline.create(options);
     TestTransform transform = new TestTransform();
 
@@ -674,8 +697,7 @@ public class DataflowPipelineRunnerTest {
 
   @Test
   public void testApplyIsScopedToExactClass() throws IOException {
-    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    DataflowPipelineOptions options = buildPipelineOptions();
     DataflowPipeline p = DataflowPipeline.create(options);
 
     Create.TimestampedValues<String> transform =
