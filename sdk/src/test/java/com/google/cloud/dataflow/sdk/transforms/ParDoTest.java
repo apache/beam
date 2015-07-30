@@ -1063,17 +1063,38 @@ public class ParDoTest implements Serializable {
 
     p.apply(Create.of(Arrays.asList(3, 42, 6)))
         .apply(ParDo.of(new TestOutputTimestampDoFn()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.millis(1000),
+        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.millis(1000), // allowed skew = 1 second
                                                    Duration.millis(-1001))))
         .apply(ParDo.of(new TestFormatTimestampDoFn()));
 
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("allowed maximum skew");
+    thrown.expectMessage("Cannot output with timestamp");
+    thrown.expectMessage(
+        "Output timestamps must be no earlier than the timestamp of the current input");
+    thrown.expectMessage("minus the allowed skew (1 second).");
+    p.run();
+  }
+
+  @Test
+  public void testParDoShiftTimestampInvalidZeroAllowed() {
+    Pipeline p = TestPipeline.create();
+
+    p.apply(Create.of(Arrays.asList(3, 42, 6)))
+        .apply(ParDo.of(new TestOutputTimestampDoFn()))
+        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.ZERO,
+                                                   Duration.millis(-1001))))
+        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Cannot output with timestamp");
+    thrown.expectMessage(
+        "Output timestamps must be no earlier than the timestamp of the current input");
+    thrown.expectMessage("minus the allowed skew (0 milliseconds).");
     p.run();
   }
 
   private static class Checker implements SerializableFunction<Iterable<String>, Void> {
-    private static long serialVersionUID = 0L;
+    private static final long serialVersionUID = 0L;
     @Override
     public Void apply(Iterable<String> input) {
       boolean foundStart = false;

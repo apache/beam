@@ -42,6 +42,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import org.joda.time.Instant;
+import org.joda.time.format.PeriodFormat;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -520,9 +521,14 @@ public class DoFnRunner<InputT, OutputT> {
     }
 
     private void checkTimestamp(Instant timestamp) {
-      Preconditions.checkArgument(
-          !timestamp.isBefore(windowedValue.getTimestamp().minus(fn.getAllowedTimestampSkew())),
-          "Timestamp %s exceeds allowed maximum skew.", timestamp);
+      if (timestamp.isBefore(windowedValue.getTimestamp().minus(fn.getAllowedTimestampSkew()))) {
+        throw new IllegalArgumentException(String.format(
+            "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+            + "timestamp of the current input (%s) minus the allowed skew (%s). See the "
+            + "DoFn#getAllowedTimestmapSkew() Javadoc for details on changing the allowed skew.",
+            timestamp, windowedValue.getTimestamp(),
+            PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod())));
+      }
     }
 
     @Override
