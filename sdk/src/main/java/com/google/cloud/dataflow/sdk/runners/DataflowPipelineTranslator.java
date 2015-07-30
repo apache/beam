@@ -405,7 +405,6 @@ public class DataflowPipelineTranslator {
 
       WorkerPool workerPool = new WorkerPool();
 
-      workerPool.setKind(options.getWorkerPoolType());
       if (options.getTeardownPolicy() != null) {
         workerPool.setTeardownPolicy(options.getTeardownPolicy().getTeardownPolicyName());
       }

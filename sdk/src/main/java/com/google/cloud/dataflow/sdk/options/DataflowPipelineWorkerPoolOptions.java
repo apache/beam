@@ -172,16 +172,6 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setFilesToStage(List<String> value);
 
   /**
-   * Specifies what type of worker pool should be used.
-   * <p> This is an internal option, and should not be set when using the Dataflow service.
-   */
-  @Description("Specifies what type of worker pool should be used. Should never be modified when "
-      + "using the Dataflow service")
-  @Default.String("harness")
-  String getWorkerPoolType();
-  void setWorkerPoolType(String value);
-
-  /**
    * Specifies what type of persistent disk should be used.
    */
   @Description("Specifies what type of persistent disk should be used.")
