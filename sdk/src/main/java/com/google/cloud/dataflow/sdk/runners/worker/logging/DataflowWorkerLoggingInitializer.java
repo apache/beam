@@ -24,12 +24,12 @@ import static com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions
 
 import com.google.api.client.util.Lists;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions;
-import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverride;
 import com.google.common.collect.ImmutableBiMap;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -117,9 +117,10 @@ public class DataflowWorkerLoggingInitializer {
     }
 
     if (options.getWorkerLogLevelOverrides() != null) {
-      for (WorkerLogLevelOverride loggerOverride : options.getWorkerLogLevelOverrides()) {
-        Logger logger = Logger.getLogger(loggerOverride.getName());
-        logger.setLevel(LEVELS.inverse().get(loggerOverride.getLevel()));
+      for (Map.Entry<String, DataflowWorkerLoggingOptions.Level> loggerOverride :
+          options.getWorkerLogLevelOverrides().entrySet()) {
+        Logger logger = Logger.getLogger(loggerOverride.getKey());
+        logger.setLevel(LEVELS.inverse().get(loggerOverride.getValue()));
         configuredLoggers.add(logger);
       }
     }

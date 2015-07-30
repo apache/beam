@@ -132,14 +132,18 @@ public class PipelineOptionsFactory {
    *   --readOnly (shorthand for boolean properties, will set the "readOnly" property to "true")
    *   --x=1 --x=2 --x=3 (list style property, will set the "x" property to [1, 2, 3])
    *   --x=1,2,3 (shorthand list style property, will set the "x" property to [1, 2, 3])
+   *   --complexObject='{"key1":"value1",...} (JSON format for all other complex types)
    * </pre>
-   * Properties are able to bound to {@link String} and Java primitives {@code boolean},
-   * {@code byte}, {@code short}, {@code int}, {@code long}, {@code float}, {@code double} and
-   * their primitive wrapper classes.
    * <p>
-   * List style properties are able to be bound to {@code boolean[]}, {@code char[]},
+   * Simple properties are able to bound to {@link String}, {@link Class}, enums and Java
+   * primitives {@code boolean}, {@code byte}, {@code short}, {@code int}, {@code long},
+   * {@code float}, {@code double} and their primitive wrapper classes.
+   * <p>
+   * Simple list style properties are able to be bound to {@code boolean[]}, {@code char[]},
    * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
-   * {@code String[]} and {@code List<String>}.
+   * {@code Class[]}, enum arrays, {@code String[]}, and {@code List<String>}.
+   * <p>
+   * JSON format is required for all other types.
    * <p>
    * By default, strict parsing is enabled and arguments must conform to be either
    * {@code --booleanArgName} or {@code --argName=argValue}. Strict parsing can be disabled with
@@ -199,14 +203,18 @@ public class PipelineOptionsFactory {
      *   --readOnly (shorthand for boolean properties, will set the "readOnly" property to "true")
      *   --x=1 --x=2 --x=3 (list style property, will set the "x" property to [1, 2, 3])
      *   --x=1,2,3 (shorthand list style property, will set the "x" property to [1, 2, 3])
+     *   --complexObject='{"key1":"value1",...} (JSON format for all other complex types)
      * </pre>
-     * Properties are able to bound to {@link String} and Java primitives {@code boolean},
-     * {@code byte}, {@code short}, {@code int}, {@code long}, {@code float}, {@code double} and
-     * their primitive wrapper classes.
      * <p>
-     * List style properties are able to be bound to {@code boolean[]}, {@code char[]},
+     * Simple properties are able to bound to {@link String}, {@link Class}, enums and Java
+     * primitives {@code boolean}, {@code byte}, {@code short}, {@code int}, {@code long},
+     * {@code float}, {@code double} and their primitive wrapper classes.
+     * <p>
+     * Simple list style properties are able to be bound to {@code boolean[]}, {@code char[]},
      * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
-     * {@code String[]} and {@code List<String>}.
+     * {@code Class[]}, enum arrays, {@code String[]}, and {@code List<String>}.
+     * <p>
+     * JSON format is required for all other types.
      * <p>
      * By default, strict parsing is enabled and arguments must conform to be either
      * {@code --booleanArgName} or {@code --argName=argValue}. Strict parsing can be disabled with
@@ -410,7 +418,23 @@ public class PipelineOptionsFactory {
     }
   }
 
-
+  private static final Set<Class<?>> SIMPLE_TYPES = ImmutableSet.<Class<?>>builder()
+      .add(boolean.class)
+      .add(Boolean.class)
+      .add(char.class)
+      .add(Character.class)
+      .add(short.class)
+      .add(Short.class)
+      .add(int.class)
+      .add(Integer.class)
+      .add(long.class)
+      .add(Long.class)
+      .add(float.class)
+      .add(Float.class)
+      .add(double.class)
+      .add(Double.class)
+      .add(String.class)
+      .add(Class.class).build();
   private static final Logger LOG = LoggerFactory.getLogger(PipelineOptionsFactory.class);
   @SuppressWarnings("rawtypes")
   private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class[0];
@@ -1147,17 +1171,20 @@ public class PipelineOptionsFactory {
    *   --project=MyProject (simple property, will set the "project" property to "MyProject")
    *   --readOnly=true (for boolean properties, will set the "readOnly" property to "true")
    *   --readOnly (shorthand for boolean properties, will set the "readOnly" property to "true")
-   *   --x=1 --x=2 --x=3 (list style property, will set the "x" property to [1, 2, 3])
-   *   --x=1,2,3 (shorthand list style property, will set the "x" property to [1, 2, 3])
+   *   --x=1 --x=2 --x=3 (list style simple property, will set the "x" property to [1, 2, 3])
+   *   --x=1,2,3 (shorthand list style simple property, will set the "x" property to [1, 2, 3])
+   *   --complexObject='{"key1":"value1",...} (JSON format for all other complex types)
    * </pre>
    *
-   * <p> Properties are able to bound to {@link String} and Java primitives {@code boolean},
-   * {@code byte}, {@code short}, {@code int}, {@code long}, {@code float}, {@code double}
-   * and their primitive wrapper classes.
+   * <p> Simple properties are able to bound to {@link String}, {@link Class}, enums and Java
+   * primitives {@code boolean}, {@code byte}, {@code short}, {@code int}, {@code long},
+   * {@code float}, {@code double} and their primitive wrapper classes.
    *
-   * <p> List style properties are able to be bound to {@code boolean[]}, {@code char[]},
+   * <p> Simple list style properties are able to be bound to {@code boolean[]}, {@code char[]},
    * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
-   * {@code String[]}, and {@code List<String>}.
+   * {@code Class[]}, enum arrays, {@code String[]}, and {@code List<String>}.
+   *
+   * <p> JSON format is required for all other types.
    *
    * <p> If strict parsing is enabled, options must start with '--', and not have an empty argument
    * name or value based upon the positioning of the '='. Empty or null arguments will be ignored
@@ -1257,7 +1284,9 @@ public class PipelineOptionsFactory {
               "Unknown 'runner' specified '%s', supported pipeline runners %s",
               runner, Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
           convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
-        } else if (returnType.isArray() || Collection.class.isAssignableFrom(returnType)) {
+        } else if ((returnType.isArray() && (SIMPLE_TYPES.contains(returnType.getComponentType())
+                || returnType.getComponentType().isEnum()))
+            || Collection.class.isAssignableFrom(returnType)) {
           // Split any strings with ","
           List<String> values = FluentIterable.from(entry.getValue())
               .transformAndConcat(new Function<String, Iterable<String>>() {
@@ -1275,12 +1304,22 @@ public class PipelineOptionsFactory {
             }
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
-        } else {
+        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
           String value = Iterables.getOnlyElement(entry.getValue());
           Preconditions.checkArgument(returnType.equals(String.class) || !value.isEmpty(),
               "Empty argument value is only allowed for String, String Array, and Collection,"
                + " but received: " + returnType);
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(value, type));
+        } else {
+          String value = Iterables.getOnlyElement(entry.getValue());
+          Preconditions.checkArgument(returnType.equals(String.class) || !value.isEmpty(),
+              "Empty argument value is only allowed for String, String Array, and Collection,"
+               + " but received: " + returnType);
+          try {
+            convertedOptions.put(entry.getKey(), MAPPER.readValue(value, type));
+          } catch (IOException e) {
+            throw new IllegalArgumentException("Unable to parse JSON value " + value, e);
+          }
         }
       } catch (IllegalArgumentException e) {
         if (strictParsing) {

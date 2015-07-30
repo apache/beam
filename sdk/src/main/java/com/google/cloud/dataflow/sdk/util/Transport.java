@@ -17,9 +17,6 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.googleapis.services.AbstractGoogleClient.Builder;
-import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
-import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -31,7 +28,6 @@ import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
-import com.google.common.base.MoreObjects;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -101,8 +97,7 @@ public class Transport {
     return new Bigquery.Builder(getTransport(), getJsonFactory(),
         new RetryHttpRequestInitializer(options.getGcpCredential()))
         .setApplicationName(options.getAppName())
-        .setGoogleClientRequestInitializer(
-            new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
+        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 
   /**
@@ -117,8 +112,7 @@ public class Transport {
         new RetryHttpRequestInitializer(options.getGcpCredential()))
         .setRootUrl(options.getPubsubRootUrl())
         .setApplicationName(options.getAppName())
-        .setGoogleClientRequestInitializer(
-            new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
+        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 
   /**
@@ -139,8 +133,7 @@ public class Transport {
         .setApplicationName(options.getAppName())
         .setRootUrl(components.rootUrl)
         .setServicePath(components.servicePath)
-        .setGoogleClientRequestInitializer(
-            new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
+        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 
   /**
@@ -151,8 +144,7 @@ public class Transport {
       newRawDataflowClient(DataflowPipelineOptions options) {
     return newDataflowClient(options)
         .setHttpRequestInitializer(options.getGcpCredential())
-        .setGoogleClientRequestInitializer(
-            new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
+        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 
   /**
@@ -170,35 +162,12 @@ public class Transport {
             // logging it by default clutters the output during file staging.
             options.getGcpCredential(), Arrays.asList(404)))
         .setApplicationName(options.getAppName())
-        .setGoogleClientRequestInitializer(
-            new ChainedGoogleClientRequestInitializer(options.getGoogleApiTrace()));
+        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     if (servicePath != null) {
       ApiComponents components = apiComponentsFromUrl(servicePath);
       storageBuilder.setRootUrl(components.rootUrl);
       storageBuilder.setServicePath(components.servicePath);
     }
     return storageBuilder;
-  }
-
-  /**
-   * Allows multiple {@link GoogleClientRequestInitializer}s to be chained together for use with
-   * {@link Builder}.
-   */
-  private static final class ChainedGoogleClientRequestInitializer
-      implements GoogleClientRequestInitializer {
-    private static final GoogleClientRequestInitializer[] EMPTY_ARRAY =
-        new GoogleClientRequestInitializer[]{};
-    private final GoogleClientRequestInitializer[] chain;
-
-    private ChainedGoogleClientRequestInitializer(GoogleClientRequestInitializer... initializer) {
-      this.chain = MoreObjects.firstNonNull(initializer, EMPTY_ARRAY);
-    }
-
-    @Override
-    public void initialize(AbstractGoogleClientRequest<?> request) throws IOException {
-      for (GoogleClientRequestInitializer initializer : chain) {
-        initializer.initialize(request);
-      }
-    }
   }
 }

@@ -18,7 +18,8 @@ package com.google.cloud.dataflow.sdk.options;
 import static com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.Level.WARN;
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverride;
+import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
+import com.google.common.collect.ImmutableMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -38,33 +39,35 @@ public class DataflowWorkerLoggingOptionsTest {
   public void testWorkerLogLevelOverrideWithInvalidLogLevel() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Unsupported log level");
-    WorkerLogLevelOverride.create("Name#FakeLevel");
+    WorkerLogLevelOverrides.from(ImmutableMap.of("Name", "FakeLevel"));
   }
 
   @Test
-  public void testWorkerLogLevelOverrideForClass() {
-    assertEquals("org.junit.Test#WARN",
-        MAPPER.convertValue(WorkerLogLevelOverride.forClass(Test.class, WARN), String.class));
+  public void testWorkerLogLevelOverrideForClass() throws Exception {
+    assertEquals("{\"org.junit.Test\":\"WARN\"}",
+        MAPPER.writeValueAsString(
+            new WorkerLogLevelOverrides().addOverrideForClass(Test.class, WARN)));
   }
 
   @Test
-  public void testWorkerLogLevelOverrideForPackage() {
-    assertEquals("org.junit#WARN",
-        MAPPER.convertValue(
-            WorkerLogLevelOverride.forPackage(Test.class.getPackage(), WARN), String.class));
+  public void testWorkerLogLevelOverrideForPackage() throws Exception {
+    assertEquals("{\"org.junit\":\"WARN\"}",
+        MAPPER.writeValueAsString(
+            new WorkerLogLevelOverrides().addOverrideForPackage(Test.class.getPackage(), WARN)));
   }
 
   @Test
-  public void testWorkerLogLevelOverrideForName() {
-    assertEquals("A#WARN",
-        MAPPER.convertValue(WorkerLogLevelOverride.forName("A", WARN), String.class));
+  public void testWorkerLogLevelOverrideForName() throws Exception {
+    assertEquals("{\"A\":\"WARN\"}",
+        MAPPER.writeValueAsString(
+            new WorkerLogLevelOverrides().addOverrideForName("A", WARN)));
   }
 
   @Test
-  public void testSerializationAndDeserializationOf() {
-    String testValue = "A#WARN";
+  public void testSerializationAndDeserializationOf() throws Exception {
+    String testValue = "{\"A\":\"WARN\"}";
     assertEquals(testValue,
-        MAPPER.convertValue(
-            MAPPER.convertValue(testValue, WorkerLogLevelOverride.class), String.class));
+        MAPPER.writeValueAsString(
+            MAPPER.readValue(testValue, WorkerLogLevelOverrides.class)));
   }
 }
