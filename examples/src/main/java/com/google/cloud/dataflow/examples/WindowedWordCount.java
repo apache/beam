@@ -111,8 +111,8 @@ public class WindowedWordCount {
     static final int WINDOW_SIZE = 1;  // Default window duration in minutes
 
   /**
-   * A DoFn that sets the data element timestamp. This is a silly method, just for this example,
-   * for the bounded data case.
+   * Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
+   * this example, for the bounded data case.
    *
    * <p> Imagine that many ghosts of Shakespeare are all typing madly at the same time to recreate
    * his masterworks. Each line of the corpus will get a random associated timestamp somewhere in a
@@ -162,10 +162,9 @@ public class WindowedWordCount {
   }
 
   /**
-   * Concept #5: We'll stream the results to a BigQuery table. The BigQuery output source is one
+   * Concept #6: We'll stream the results to a BigQuery table. The BigQuery output source is one
    * that supports both bounded and unbounded data. This is a helper method that creates a
    * TableReference from input options, to tell the pipeline where to write its BigQuery results.
-   *
    */
   private static TableReference getTableReference(Options options) {
     TableReference tableRef = new TableReference();
@@ -222,7 +221,7 @@ public class WindowedWordCount {
       /** Else, this is a bounded pipeline. Read from the GCS file. */
       input = pipeline
           .apply(TextIO.Read.from(options.getInputFile()))
-          // Then-- to show windowing-- add an element timestamp, using an artificial time.
+          // Concept #2: Add an element timestamp, using an artificial time just to show windowing.
           // See AddTimestampFn for more detail on this.
           .apply(ParDo.of(new AddTimestampFn()));
     }
