@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -95,15 +96,15 @@ public final class PaneInfo {
   private final long nonSpeculativeIndex;
 
   /**
-   * Until an element has been assigned to a window and had triggers processed, it doesn't belong
-   * to any pane. This is the value assigned to elements read from sources, and those that have
-   * been assigned a window but not passed through execution of any trigger.
+   * {@code PaneInfo} to use for elements on (and before) initial window assignemnt (including
+   * elements read from sources) before they have passed through a {@link GroupByKey} and are
+   * associated with a particular trigger firing.
    */
   public static final PaneInfo NO_FIRING =
-      PaneInfo.createPane(false, false, Timing.UNKNOWN, 0, 0);
+      PaneInfo.createPane(true, true, Timing.UNKNOWN, 0, 0);
 
   /**
-   * PaneInfo to use when there will be exactly one firing and it is on time.
+   * {@code PaneInfo} to use when there will be exactly one firing and it is on time.
    */
   public static final PaneInfo ON_TIME_AND_ONLY_FIRING =
       PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0);
@@ -152,9 +153,6 @@ public final class PaneInfo {
    * Return true if this is the first pane produced for the associated window.
    */
   public boolean isFirst() {
-    if (timing == Timing.UNKNOWN) {
-      throw new UnsupportedOperationException("Undefined for non-trigger-firing pane.");
-    }
     return isFirst;
   }
 
@@ -162,9 +160,6 @@ public final class PaneInfo {
    * Return true if this is the last pane that will be produced in the associated window.
    */
   public boolean isLast() {
-    if (timing == Timing.UNKNOWN) {
-      throw new UnsupportedOperationException("Undefined for non-trigger-firing pane.");
-    }
     return isLast;
   }
 
@@ -183,9 +178,6 @@ public final class PaneInfo {
    * output of a group-by-key operation.
    */
   public long getIndex() {
-    if (timing == Timing.UNKNOWN) {
-      throw new UnsupportedOperationException("Undefined for non-trigger-firing pane.");
-    }
     return index;
   }
 
@@ -196,9 +188,6 @@ public final class PaneInfo {
    * <p> Always -1 for speculative data.
    */
   public long getNonSpeculativeIndex() {
-    if (timing == Timing.UNKNOWN) {
-      throw new UnsupportedOperationException("Undefined for non-trigger-firing pane.");
-    }
     return nonSpeculativeIndex;
   }
 
