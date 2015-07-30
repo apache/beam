@@ -232,7 +232,7 @@ public interface PipelineOptions {
 
   @Validation.Required
   @Description("Whether to check for stable unique names on each stage. This is necessary to "
-      + "support updating streaming pipelines.")
+      + "support updating of pipelines.")
   @Default.Enum("WARNING")
   CheckEnabled getStableUniqueNames();
   void setStableUniqueNames(CheckEnabled enabled);
