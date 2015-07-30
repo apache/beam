@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
+import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -38,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -111,14 +113,32 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
             }
           }
         });
-        job.waitToFinish(-1L, TimeUnit.SECONDS, messageHandler);
+        State finalState = job.waitToFinish(10L, TimeUnit.MINUTES, new JobMessagesHandler() {
+            @Override
+            public void process(List<JobMessage> messages) {
+              messageHandler.process(messages);
+              for (JobMessage message : messages) {
+                if (message.getMessageImportance() != null
+                    && message.getMessageImportance().equals("JOB_MESSAGE_ERROR")) {
+                  LOG.info("Dataflow job {} threw exception, cancelling. Exception was: {}",
+                      job.getJobId(), message.getMessageText());
+                  try {
+                    job.cancel();
+                  } catch (Exception e) {
+                    throw Throwables.propagate(e);
+                  }
+                }
+              }
+            }
+          });
+        if (finalState == null || finalState == State.RUNNING) {
+          LOG.info("Dataflow job {} took longer than 10 minutes to complete, cancelling.",
+              job.getJobId());
+          job.cancel();
+        }
         result = resultFuture.get();
       } else {
         job.waitToFinish(-1, TimeUnit.SECONDS, messageHandler);
-        if (job.getState() != State.DONE) {
-          // TODO: Get an exception from the remote service.
-          throw new IllegalStateException("The dataflow failed.");
-        }
         result = checkForSuccess(job);
       }
       if (!result.isPresent()) {
@@ -147,42 +167,49 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
 
   Optional<Boolean> checkForSuccess(DataflowPipelineJob job)
       throws IOException {
+    State state = job.getState();
+    if (state == State.FAILED || state == State.CANCELLED) {
+      LOG.info("The pipeline failed");
+      return Optional.of(false);
+    }
+
     JobMetrics metrics = job.getDataflowClient().projects().jobs()
         .getMetrics(job.getProjectId(), job.getJobId()).execute();
 
     if (metrics == null || metrics.getMetrics() == null) {
       LOG.warn("Metrics not present for Dataflow job {}.", job.getJobId());
-      return Optional.absent();
+    } else {
+      int successes = 0;
+      int failures = 0;
+      for (MetricUpdate metric : metrics.getMetrics()) {
+        if (metric.getName() == null || metric.getName().getContext() == null
+            || !metric.getName().getContext().containsKey(TENTATIVE_COUNTER)) {
+          // Don't double count using the non-tentative version of the metric.
+          continue;
+        }
+        if (DataflowAssert.SUCCESS_COUNTER.equals(metric.getName().getName())) {
+          successes += ((BigDecimal) metric.getScalar()).intValue();
+        } else if (DataflowAssert.FAILURE_COUNTER.equals(metric.getName().getName())) {
+          failures += ((BigDecimal) metric.getScalar()).intValue();
+        }
+      }
+
+      if (failures > 0) {
+        LOG.info("Found result while running Dataflow job {}. Found {} success, {} failures out of "
+            + "{} expected assertions.", job.getJobId(), successes, failures,
+            expectedNumberOfAssertions);
+        return Optional.of(false);
+      } else if (successes >= expectedNumberOfAssertions) {
+        LOG.info("Found result while running Dataflow job {}. Found {} success, {} failures out of "
+            + "{} expected assertions.", job.getJobId(), successes, failures,
+            expectedNumberOfAssertions);
+        return Optional.of(true);
+      }
+
+      LOG.info("Running Dataflow job {}. Found {} success, {} failures out of {} expected "
+          + "assertions.", job.getJobId(), successes, failures, expectedNumberOfAssertions);
     }
 
-    int successes = 0;
-    int failures = 0;
-    for (MetricUpdate metric : metrics.getMetrics()) {
-      if (metric.getName() == null || metric.getName().getContext() == null
-          || !metric.getName().getContext().containsKey(TENTATIVE_COUNTER)) {
-        // Don't double count using the non-tentative version of the metric.
-        continue;
-      }
-      if (DataflowAssert.SUCCESS_COUNTER.equals(metric.getName().getName())) {
-        successes += ((BigDecimal) metric.getScalar()).intValue();
-      } else if (DataflowAssert.FAILURE_COUNTER.equals(metric.getName().getName())) {
-        failures += ((BigDecimal) metric.getScalar()).intValue();
-      }
-    }
-
-    if (failures > 0) {
-      LOG.info("Found result while running Dataflow job {}. Found {} success, {} failures out of "
-          + "{} expected assertions.", job.getJobId(), successes, failures,
-          expectedNumberOfAssertions);
-      return Optional.of(false);
-    } else if (successes >= expectedNumberOfAssertions) {
-      LOG.info("Found result while running Dataflow job {}. Found {} success, {} failures out of "
-          + "{} expected assertions.", job.getJobId(), successes, failures,
-          expectedNumberOfAssertions);
-      return Optional.of(true);
-    }
-    LOG.info("Running Dataflow job {}. Found {} success, {} failures out of {} expected "
-        + "assertions.", job.getJobId(), successes, failures, expectedNumberOfAssertions);
     return Optional.<Boolean>absent();
   }
 
