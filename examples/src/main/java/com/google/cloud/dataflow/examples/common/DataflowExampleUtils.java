@@ -274,6 +274,7 @@ public class DataflowExampleUtils {
     copiedOptions.setStreaming(false);
     copiedOptions.setNumWorkers(
         options.as(ExamplePubsubTopicOptions.class).getInjectorNumWorkers());
+    copiedOptions.setJobName(options.getJobName() + "-injector");
     Pipeline injectorPipeline = Pipeline.create(copiedOptions);
     injectorPipeline.apply(TextIO.Read.from(inputFile))
                     .apply(IntraBundleParallelization
