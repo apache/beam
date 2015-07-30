@@ -38,7 +38,8 @@ import org.junit.runners.JUnit4;
 public class GoogleApiDebugOptionsTest {
   @Test
   public void testWhenTracingMatches() throws Exception {
-    String[] args = new String[] {"--googleApiTrace=Projects.Jobs.Get#GetTraceDestination"};
+    String[] args =
+        new String[] {"--googleApiTrace={\"Projects.Jobs.Get\":\"GetTraceDestination\"}"};
     DataflowPipelineOptions options =
         PipelineOptionsFactory.fromArgs(args).as(DataflowPipelineOptions.class);
     options.setGcpCredential(new TestCredential());
@@ -52,7 +53,7 @@ public class GoogleApiDebugOptionsTest {
 
   @Test
   public void testWhenTracingDoesNotMatch() throws Exception {
-    String[] args = new String[] {"--googleApiTrace=Projects.Jobs.Create#testToken"};
+    String[] args = new String[] {"--googleApiTrace={\"Projects.Jobs.Create\":\"testToken\"}"};
     DataflowPipelineOptions options =
         PipelineOptionsFactory.fromArgs(args).as(DataflowPipelineOptions.class);
     options.setGcpCredential(new TestCredential());
@@ -67,8 +68,8 @@ public class GoogleApiDebugOptionsTest {
   @Test
   public void testWithMultipleTraces() throws Exception {
     String[] args = new String[] {
-        "--googleApiTrace=Projects.Jobs.Create#CreateTraceDestination,"
-        + "Projects.Jobs.Get#GetTraceDestination"};
+        "--googleApiTrace={\"Projects.Jobs.Create\":\"CreateTraceDestination\","
+        + "\"Projects.Jobs.Get\":\"GetTraceDestination\"}"};
     DataflowPipelineOptions options =
         PipelineOptionsFactory.fromArgs(args).as(DataflowPipelineOptions.class);
     options.setGcpCredential(new TestCredential());
@@ -86,7 +87,7 @@ public class GoogleApiDebugOptionsTest {
 
   @Test
   public void testMatchingAllDataflowCalls() throws Exception {
-    String[] args = new String[] {"--googleApiTrace=Dataflow#TraceDestination"};
+    String[] args = new String[] {"--googleApiTrace={\"Dataflow\":\"TraceDestination\"}"};
     DataflowPipelineOptions options =
         PipelineOptionsFactory.fromArgs(args).as(DataflowPipelineOptions.class);
     options.setGcpCredential(new TestCredential());
@@ -106,8 +107,8 @@ public class GoogleApiDebugOptionsTest {
   public void testMatchingAgainstClient() throws Exception {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setGcpCredential(new TestCredential());
-    options.setGoogleApiTrace(new GoogleApiTracer[] {
-        GoogleApiTracer.create(Transport.newDataflowClient(options).build(), "TraceDestination")});
+    options.setGoogleApiTrace(new GoogleApiTracer().addTraceFor(
+        Transport.newDataflowClient(options).build(), "TraceDestination"));
 
     Get getRequest =
         options.getDataflowClient().projects().jobs().get("testProjectId", "testJobId");
@@ -122,9 +123,9 @@ public class GoogleApiDebugOptionsTest {
   public void testMatchingAgainstRequestType() throws Exception {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setGcpCredential(new TestCredential());
-    options.setGoogleApiTrace(new GoogleApiTracer[] {GoogleApiTracer.create(
+    options.setGoogleApiTrace(new GoogleApiTracer().addTraceFor(
         Transport.newDataflowClient(options).build().projects().jobs()
-            .get("aProjectId", "aJobId"), "TraceDestination")});
+            .get("aProjectId", "aJobId"), "TraceDestination"));
 
     Get getRequest =
         options.getDataflowClient().projects().jobs().get("testProjectId", "testJobId");
@@ -136,11 +137,11 @@ public class GoogleApiDebugOptionsTest {
   }
 
   @Test
-  public void testDeserializationAndSerializationOfGoogleApiTracer() {
-    String serializedValue = "Api#Token";
+  public void testDeserializationAndSerializationOfGoogleApiTracer() throws Exception {
+    String serializedValue = "{\"Api\":\"Token\"}";
     ObjectMapper objectMapper = new ObjectMapper();
     assertEquals(serializedValue,
-        objectMapper.convertValue(
-            objectMapper.convertValue(serializedValue, GoogleApiTracer.class), String.class));
+        objectMapper.writeValueAsString(
+            objectMapper.readValue(serializedValue, GoogleApiTracer.class)));
   }
 }

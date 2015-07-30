@@ -309,11 +309,6 @@ public class Pipeline {
 
     TransformTreeNode parent = transforms.getCurrent();
     String namePrefix = parent.getFullName();
-
-    if (name.contains(";") || name.contains("=")) {
-      throw new IllegalArgumentException(
-          "PTransform names may not contain ';' or '='. Saw " + name);
-    }
     String fullName = uniquifyInternal(namePrefix, name);
 
     boolean nameIsUnique = fullName.equals(buildName(namePrefix, name));
