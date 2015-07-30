@@ -31,6 +31,11 @@ import java.util.Objects;
 @Experimental(Kind.STATE)
 public class StateTags {
 
+  private static final CoderRegistry STANDARD_REGISTRY = new CoderRegistry();
+  static {
+    STANDARD_REGISTRY.registerStandardCoders();
+  }
+
   private enum StateKind {
     SYSTEM('s'),
     USER('u');
@@ -55,29 +60,35 @@ public class StateTags {
    * Create a state tag for values that use a {@link CombineFn} to automatically merge
    * multiple {@code InputT}s into a single {@code OutputT}.
    */
-  public static <InputT, OutputT> StateTag<CombiningValueState<InputT, OutputT>>
-  combiningValue(String id, Coder<InputT> inputCoder, CombineFn<InputT, ?, OutputT> combineFn) {
-    return combiningValueInternal(id, inputCoder, combineFn);
+  public static <InputT, AccumT, OutputT> StateTag<CombiningValueState<InputT, OutputT>>
+  combiningValue(
+      String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+    return combiningValueInternal(id, accumCoder, combineFn);
   }
 
-  // TODO: This should use the CoderRegistry from the running pipelie to ensure that it picks up
-  // any custom Coders, but that CoderRegistry isn't currently available on the worker.
-  private static final CoderRegistry REGISTRY = new CoderRegistry();
-  static {
-    REGISTRY.registerStandardCoders();
+  /**
+   * Create a state tag for values that use a {@link CombineFn} to automatically merge
+   * multiple {@code InputT}s into a single {@code OutputT}.
+   *
+   * <p> This determines the {@code Coder<AccumT>} from the given {@code Coder<InputT>}, and
+   * should only be used to initialize static values.
+   */
+  public static <InputT, AccumT, OutputT> StateTag<CombiningValueState<InputT, OutputT>>
+  combiningValueFromInputInternal(
+      String id, Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+    try {
+      Coder<AccumT> accumCoder = combineFn.getAccumulatorCoder(STANDARD_REGISTRY, inputCoder);
+      return combiningValueInternal(id, accumCoder, combineFn);
+    } catch (CannotProvideCoderException e) {
+      throw new IllegalArgumentException(
+          "Unable to determine accumulator coder for " + combineFn.getClass().getSimpleName()
+          + " from " + inputCoder, e);
+    }
   }
 
   private static <InputT, AccumT, OutputT> StateTag<CombiningValueState<InputT, OutputT>>
   combiningValueInternal(
-      String id, Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-    Coder<AccumT> accumCoder;
-    try {
-      accumCoder = combineFn.getAccumulatorCoder(REGISTRY, inputCoder);
-    } catch (CannotProvideCoderException e) {
-      throw new RuntimeException(
-          "Unable to determine accumulator coder for combineFn: " + combineFn.getClass(), e);
-    }
-
+      String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> internal =
         new CombiningValueStateTag<InputT, AccumT, OutputT>(
             StateKind.USER, id, accumCoder, combineFn);

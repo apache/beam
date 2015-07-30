@@ -32,6 +32,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -237,6 +238,7 @@ public class MapTaskExecutorFactory {
     return operation;
   }
 
+  @SuppressWarnings({"rawtypes", "unchecked"})
   static ValueCombiner createValueCombiner(PartialGroupByKeyInstruction pgbk) throws Exception {
     if (pgbk.getValueCombiningFn() == null) {
       return null;
@@ -245,7 +247,7 @@ public class MapTaskExecutorFactory {
     Object deserializedFn = SerializableUtils.deserializeFromByteArray(
         getBytes(CloudObject.fromSpec(pgbk.getValueCombiningFn()), PropertyNames.SERIALIZED_FN),
         "serialized combine fn");
-    return new ValueCombiner((Combine.KeyedCombineFn) deserializedFn);
+    return new ValueCombiner(((AppliedCombineFn) deserializedFn).getFn());
   }
 
   /**

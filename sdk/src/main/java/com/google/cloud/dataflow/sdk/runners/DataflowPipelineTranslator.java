@@ -39,7 +39,6 @@ import com.google.api.services.dataflow.model.Step;
 import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
-import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
@@ -67,6 +66,7 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
+import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.OutputReference;
@@ -810,17 +810,16 @@ public class DataflowPipelineTranslator {
               DataflowPipelineTranslator.TranslationContext context) {
             context.addStep(transform, "CombineValues");
             context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+
+            AppliedCombineFn<? super K, ? super InputT, ?, OutputT> fn =
+                transform.getAppliedFn(
+                    context.getInput(transform).getPipeline().getCoderRegistry(),
+                    context.getInput(transform).getCoder());
+
+            context.addEncodingInput(fn.getAccumulatorCoder());
             context.addInput(
                 PropertyNames.SERIALIZED_FN,
-                byteArrayToJsonString(serializeToByteArray(transform.getFn())));
-            try {
-              context.addEncodingInput(transform.getAccumulatorCoder(
-                  context.getInput(transform).getPipeline().getCoderRegistry(),
-                  context.getInput(transform)));
-            } catch (CannotProvideCoderException exc) {
-              throw new IllegalStateException(
-                "Could not determine coder for input to Combine.GroupedValues", exc);
-            }
+                byteArrayToJsonString(serializeToByteArray(fn)));
             context.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
           }
         });

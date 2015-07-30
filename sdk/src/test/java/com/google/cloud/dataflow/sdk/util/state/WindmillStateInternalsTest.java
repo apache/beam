@@ -55,7 +55,8 @@ public class WindmillStateInternalsTest {
   private static final String STATE_FAMILY = "family";
 
   private static final StateTag<CombiningValueState<Integer, Integer>> COMBINING_ADDR =
-      StateTags.combiningValue("combining", VarIntCoder.of(), new Sum.SumIntegerFn());
+      StateTags.combiningValueFromInputInternal(
+          "combining", VarIntCoder.of(), new Sum.SumIntegerFn());
   private final Coder<int[]> accumCoder =
       new Sum.SumIntegerFn().getAccumulatorCoder(null, VarIntCoder.of());
 

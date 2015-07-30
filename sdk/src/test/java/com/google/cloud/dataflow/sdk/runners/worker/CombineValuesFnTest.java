@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.DeterministicStandardCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -184,14 +185,17 @@ public class CombineValuesFnTest {
 
   @SuppressWarnings("rawtypes")
   private static ParDoFn createCombineValuesFn(
-      String phase, Combine.KeyedCombineFn combineFn) throws Exception {
+      String phase, Combine.KeyedCombineFn combineFn, Coder<?> accumCoder) throws Exception {
     // This partially mirrors the work that
     // com.google.cloud.dataflow.sdk.transforms.Combine.translateHelper
     // does, at least for the KeyedCombineFn. The phase is generated
     // by the back-end.
     CloudObject spec = CloudObject.forClassName("CombineValuesFn");
+    @SuppressWarnings("unchecked")
+    AppliedCombineFn appliedCombineFn =
+        AppliedCombineFn.withAccumulatorCoder(combineFn, accumCoder);
     addString(spec, PropertyNames.SERIALIZED_FN,
-        byteArrayToJsonString(serializeToByteArray(combineFn)));
+        byteArrayToJsonString(serializeToByteArray(appliedCombineFn)));
     addString(spec, PropertyNames.PHASE, phase);
 
     return parDoFnFactory.create(
@@ -215,7 +219,7 @@ public class CombineValuesFnTest {
         (new MeanInts()).asKeyedFn();
 
     ParDoFn combineParDoFn = createCombineValuesFn(
-        CombineValuesFn.CombinePhase.ALL, combiner);
+        CombineValuesFn.CombinePhase.ALL, combiner, new CountSumCoder());
 
     combineParDoFn.startBundle(receiver);
     combineParDoFn.processElement(WindowedValue.valueInGlobalWindow(
@@ -243,7 +247,7 @@ public class CombineValuesFnTest {
         MeanInts.CountSum, String> combiner = mean.asKeyedFn();
 
     ParDoFn combineParDoFn = createCombineValuesFn(
-        CombineValuesFn.CombinePhase.ADD, combiner);
+        CombineValuesFn.CombinePhase.ADD, combiner, new CountSumCoder());
 
     combineParDoFn.startBundle(receiver);
     combineParDoFn.processElement(WindowedValue.valueInGlobalWindow(
@@ -271,7 +275,7 @@ public class CombineValuesFnTest {
         MeanInts.CountSum, String> combiner = mean.asKeyedFn();
 
     ParDoFn combineParDoFn = createCombineValuesFn(
-        CombineValuesFn.CombinePhase.MERGE, combiner);
+        CombineValuesFn.CombinePhase.MERGE, combiner, new CountSumCoder());
 
     combineParDoFn.startBundle(receiver);
     combineParDoFn.processElement(WindowedValue.valueInGlobalWindow(
@@ -303,7 +307,7 @@ public class CombineValuesFnTest {
         MeanInts.CountSum, String> combiner = mean.asKeyedFn();
 
     ParDoFn combineParDoFn = createCombineValuesFn(
-        CombineValuesFn.CombinePhase.EXTRACT, combiner);
+        CombineValuesFn.CombinePhase.EXTRACT, combiner, new CountSumCoder());
 
     combineParDoFn.startBundle(receiver);
     combineParDoFn.processElement(WindowedValue.valueInGlobalWindow(

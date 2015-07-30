@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
-import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -65,17 +64,16 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
   GroupAlsoByWindowsDoFn<K, InputT, OutputT, W>
   create(
       final WindowingStrategy<?, W> windowingStrategy,
-      final KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn,
-      final Coder<K> keyCoder,
-      final Coder<InputT> inputCoder) {
+      final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn,
+      final Coder<K> keyCoder) {
     Preconditions.checkNotNull(combineFn);
 
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
     return GroupAlsoByWindowsAndCombineDoFn.isSupported(windowingStrategy)
-        ? new GroupAlsoByWindowsAndCombineDoFn<>(noWildcard.getWindowFn(), combineFn)
+        ? new GroupAlsoByWindowsAndCombineDoFn<>(noWildcard.getWindowFn(), combineFn.getFn())
         : new GABWViaOutputBufferDoFn<>(noWildcard,
-            SystemReduceFn.<K, InputT, OutputT, W>combining(keyCoder, inputCoder, combineFn));
+            SystemReduceFn.<K, InputT, AccumT, OutputT, W>combining(keyCoder, combineFn));
   }
 
   @SystemDoFnInternal

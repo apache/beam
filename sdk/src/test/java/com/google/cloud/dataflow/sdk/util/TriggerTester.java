@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -136,10 +137,16 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         .withMode(mode)
         .withAllowedLateness(allowedDataLateness);
 
+    CoderRegistry registry = new CoderRegistry();
+    registry.registerStandardCoders();
+    AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
+        AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
+            combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+
     return new TriggerTester<Integer, OutputT, W>(
         strategy,
-        SystemReduceFn.<String, Integer, OutputT, W>combining(
-            StringUtf8Coder.of(), VarIntCoder.of(), combineFn).create(KEY),
+        SystemReduceFn.<String, Integer, AccumT, OutputT, W>combining(
+            StringUtf8Coder.of(), fn).create(KEY),
         outputCoder);
   }
 

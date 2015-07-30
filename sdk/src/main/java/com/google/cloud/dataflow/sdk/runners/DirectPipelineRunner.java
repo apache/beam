@@ -38,6 +38,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
@@ -272,18 +273,12 @@ public class DirectPipelineRunner
         boolean testSerializability,
         Random rand) {
 
-      Coder<AccumT> accumCoder;
-      try {
-        accumCoder = (Coder<AccumT>) transform.getAccumulatorCoder(
-            input.getPipeline().getCoderRegistry(), input);
-      } catch (CannotProvideCoderException exc) {
-        throw new IllegalArgumentException(
-          "Transform " + transform + " failed to provide a coder for its accumulator type");
-      }
+      AppliedCombineFn<? super K, ? super InputT, ?, OutputT> fn = transform.getAppliedFn(
+            input.getPipeline().getCoderRegistry(), input.getCoder());
 
       return new TestCombineDoFn(
-          transform.getFn(),
-          accumCoder,
+          fn.getFn(),
+          fn.getAccumulatorCoder(),
           testSerializability,
           rand);
     }

@@ -23,7 +23,9 @@ import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
@@ -102,10 +104,8 @@ class CombineValuesFn extends ParDoFnBase {
           SerializableUtils.deserializeFromByteArray(
               getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN),
               "serialized user fn");
-      Preconditions.checkArgument(
-          deserializedFn instanceof Combine.KeyedCombineFn);
-      Combine.KeyedCombineFn<?, ?, ?, ?> combineFn =
-          (Combine.KeyedCombineFn<?, ?, ?, ?>) deserializedFn;
+      Preconditions.checkArgument(deserializedFn instanceof AppliedCombineFn);
+      AppliedCombineFn<?, ?, ?, ?> combineFn = (AppliedCombineFn<?, ?, ?, ?>) deserializedFn;
 
       // Get the combine phase, default to ALL. (The implementation
       // doesn't have to split the combiner).
@@ -113,7 +113,7 @@ class CombineValuesFn extends ParDoFnBase {
 
       return CombineValuesFn.of(
           options,
-          combineFn,
+          combineFn.getFn(),
           phase,
           stepName,
           transformName,

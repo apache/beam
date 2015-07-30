@@ -22,7 +22,9 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Max;
+import com.google.cloud.dataflow.sdk.transforms.Max.MaxIntegerFn;
 import com.google.cloud.dataflow.sdk.transforms.Min;
+import com.google.cloud.dataflow.sdk.transforms.Min.MinIntegerFn;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -70,15 +72,17 @@ public class StateTagTest {
 
   @Test
   public void testCombiningValueEquality() {
-    Coder<Integer> coder1 = VarIntCoder.of();
-    Coder<Integer> coder2 = BigEndianIntegerCoder.of();
+    MaxIntegerFn maxFn = new Max.MaxIntegerFn();
+    Coder<Integer> input1 = VarIntCoder.of();
+    Coder<Integer> input2 = BigEndianIntegerCoder.of();
+    MinIntegerFn minFn = new Min.MinIntegerFn();
 
-    StateTag<?> fooCoder1Max1 = StateTags.combiningValue("foo", coder1, new Max.MaxIntegerFn());
-    StateTag<?> fooCoder1Max2 = StateTags.combiningValue("foo", coder1, new Max.MaxIntegerFn());
-    StateTag<?> fooCoder1Min = StateTags.combiningValue("foo", coder1, new Min.MinIntegerFn());
+    StateTag<?> fooCoder1Max1 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
+    StateTag<?> fooCoder1Max2 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
+    StateTag<?> fooCoder1Min = StateTags.combiningValueFromInputInternal("foo", input1, minFn);
 
-    StateTag<?> fooCoder2Max = StateTags.combiningValue("foo", coder2, new Max.MaxIntegerFn());
-    StateTag<?> barCoder1Max = StateTags.combiningValue("bar", coder1, new Max.MaxIntegerFn());
+    StateTag<?> fooCoder2Max = StateTags.combiningValueFromInputInternal("foo", input2, maxFn);
+    StateTag<?> barCoder1Max = StateTags.combiningValueFromInputInternal("bar", input1, maxFn);
 
     // Same name, coder and combineFn
     assertEquals(fooCoder1Max1, fooCoder1Max2);

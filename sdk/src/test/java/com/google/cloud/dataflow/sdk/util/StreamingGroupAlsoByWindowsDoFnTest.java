@@ -22,10 +22,11 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
-import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
@@ -331,13 +332,19 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testSessionsCombine() throws Exception {
     TupleTag<KV<String, Long>> outputTag = new TupleTag<>();
     CombineFn<Long, ?, Long> combineFn = new SumLongs();
+    CoderRegistry registry = new CoderRegistry();
+    registry.registerStandardCoders();
+
+    AppliedCombineFn<String, Long, ?, Long> appliedCombineFn = AppliedCombineFn.withInputCoder(
+        combineFn.asKeyedFn(), registry, KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()));
+
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
     DoFnRunner<TimerOrElement<KV<String, Long>>, KV<String, Long>> runner =
         makeRunner(
             outputTag,
             outputManager,
             WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))),
-            combineFn.<String>asKeyedFn());
+            appliedCombineFn);
 
     Coder<IntervalWindow> windowCoder =
         Sessions.withGapDuration(Duration.millis(10)).windowCoder();
@@ -410,11 +417,10 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
           TupleTag<KV<String, Long>> outputTag,
           DoFnRunner.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
-          KeyedCombineFn<String, Long, ?, Long> combineFn) {
+          AppliedCombineFn<String, Long, ?, Long> combineFn) {
 
     StreamingGroupAlsoByWindowsDoFn<String, Long, Long, IntervalWindow> fn =
-        StreamingGroupAlsoByWindowsDoFn.create(
-            windowingStrategy, combineFn, StringUtf8Coder.of(), BigEndianLongCoder.of());
+        StreamingGroupAlsoByWindowsDoFn.create(windowingStrategy, combineFn, StringUtf8Coder.of());
 
     return makeRunner(outputTag, outputManager, windowingStrategy, fn);
   }

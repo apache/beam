@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
-import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -41,12 +40,11 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
   public static <K, InputT, AccumT, OutputT, W extends BoundedWindow>
       StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W> create(
           final WindowingStrategy<?, W> windowingStrategy,
-          final KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn,
-          final Coder<K> keyCoder,
-          final Coder<InputT> inputCoder) {
+          final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn,
+          final Coder<K> keyCoder) {
     Preconditions.checkNotNull(combineFn);
     return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
-        SystemReduceFn.<K, InputT, OutputT, W>combining(keyCoder, inputCoder, combineFn));
+        SystemReduceFn.<K, InputT, AccumT, OutputT, W>combining(keyCoder, combineFn));
   }
 
   public static <K, V, W extends BoundedWindow>

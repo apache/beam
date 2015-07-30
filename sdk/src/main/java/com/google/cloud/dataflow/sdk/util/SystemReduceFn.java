@@ -17,7 +17,6 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
-import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
@@ -80,9 +79,8 @@ class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
    * values using a {@link CombineFn}.
    */
   public static
-  <K, InputT, OutputT, W extends BoundedWindow> Factory<K, InputT, OutputT, W> combining(
-      final Coder<K> keyCoder, final Coder<InputT> inputCoder,
-      final KeyedCombineFn<K, InputT, ?, OutputT> combineFn) {
+  <K, InputT, AccumT, OutputT, W extends BoundedWindow> Factory<K, InputT, OutputT, W> combining(
+      final Coder<K> keyCoder, final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     return new Factory<K, InputT, OutputT, W>() {
 
       private static final long serialVersionUID = 0L;
@@ -90,8 +88,9 @@ class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
       @Override
       public ReduceFn<K, InputT, OutputT, W> create(K key) {
         StateTag<CombiningValueState<InputT, OutputT>> bufferTag =
-            StateTags.makeSystemTagInternal(StateTags.<InputT, OutputT>combiningValue(
-                BUFFER_NAME, inputCoder, combineFn.forKey(key, keyCoder)));
+            StateTags.makeSystemTagInternal(StateTags.<InputT, AccumT, OutputT>combiningValue(
+                BUFFER_NAME, combineFn.getAccumulatorCoder(),
+                combineFn.getFn().forKey(key, keyCoder)));
         return new SystemReduceFn<K, InputT, OutputT, W>(bufferTag);
       }
     };

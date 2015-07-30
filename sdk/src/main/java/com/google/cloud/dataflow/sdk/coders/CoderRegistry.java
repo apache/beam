@@ -62,6 +62,7 @@ import java.util.Map;
  * </ul>
  */
 public class CoderRegistry implements CoderProvider {
+
   private static final Logger LOG = LoggerFactory.getLogger(CoderRegistry.class);
 
   public CoderRegistry() {

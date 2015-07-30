@@ -43,7 +43,7 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
     extends OnceTrigger<W> {
 
   protected static final StateTag<CombiningValueState<Instant, Instant>> DELAYED_UNTIL_TAG =
-      StateTags.makeSystemTagInternal(StateTags.combiningValue(
+      StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder()));
 
   private static final long serialVersionUID = 0L;

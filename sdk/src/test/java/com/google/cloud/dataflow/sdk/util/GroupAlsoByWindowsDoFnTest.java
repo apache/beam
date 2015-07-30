@@ -21,11 +21,12 @@ import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.TestUtils.KvMatcher;
 import com.google.cloud.dataflow.sdk.WindowMatchers;
-import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
+import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
-import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
@@ -181,12 +182,16 @@ public class GroupAlsoByWindowsDoFnTest {
     TupleTag<KV<String, Long>> outputTag = new TupleTag<>();
     CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
+
+    AppliedCombineFn<String, Long, ?, Long> appliedFn = AppliedCombineFn.withInputCoder(
+        combineFn.<String>asKeyedFn(), new CoderRegistry(),
+        KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
     DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>> runner =
         makeRunner(
             outputTag,
             outputManager,
             WindowingStrategy.of(SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10))),
-            combineFn.<String>asKeyedFn());
+            appliedFn);
 
     runner.startBundle();
 
@@ -328,12 +333,15 @@ public class GroupAlsoByWindowsDoFnTest {
     TupleTag<KV<String, Long>> outputTag = new TupleTag<>();
     CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
+    AppliedCombineFn<String, Long, ?, Long> appliedFn = AppliedCombineFn.withInputCoder(
+        combineFn.<String>asKeyedFn(), new CoderRegistry(),
+        KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
     DoFnRunner<KV<String, Iterable<WindowedValue<Long>>>, KV<String, Long>> runner =
         makeRunner(
             outputTag,
             outputManager,
             WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))),
-            combineFn.<String>asKeyedFn());
+            appliedFn);
     runner.startBundle();
 
     runner.processElement(WindowedValue.valueInEmptyWindows(
@@ -386,11 +394,10 @@ public class GroupAlsoByWindowsDoFnTest {
           TupleTag<KV<String, Long>> outputTag,
           DoFnRunner.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
-          KeyedCombineFn<String, Long, ?, Long> combineFn) {
+          AppliedCombineFn<String, Long, ?, Long> combineFn) {
 
     GroupAlsoByWindowsDoFn<String, Long, Long, IntervalWindow> fn =
-        GroupAlsoByWindowsDoFn.create(
-            windowingStrategy, combineFn, StringUtf8Coder.of(), BigEndianLongCoder.of());
+        GroupAlsoByWindowsDoFn.create(windowingStrategy, combineFn, StringUtf8Coder.of());
 
     return makeRunner(outputTag, outputManager, windowingStrategy, fn);
   }

@@ -44,7 +44,8 @@ public class InMemoryStateInternalsTest {
   private static final StateTag<ValueState<String>> STRING_VALUE_ADDR =
       StateTags.value("stringValue", StringUtf8Coder.of());
   private static final StateTag<CombiningValueState<Integer, Integer>> SUM_INTEGER_ADDR =
-      StateTags.combiningValue("sumInteger", VarIntCoder.of(), new Sum.SumIntegerFn());
+      StateTags.combiningValueFromInputInternal(
+          "sumInteger", VarIntCoder.of(), new Sum.SumIntegerFn());
   private static final StateTag<BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
   private static final StateTag<WatermarkStateInternal> WATERMARK_BAG_ADDR =

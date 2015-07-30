@@ -29,6 +29,8 @@ import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
+import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
+import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.common.CounterProvider;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -338,6 +340,7 @@ public class Combine {
    * @param <OutputT> type of output values
    */
   public abstract static class CombineFn<InputT, AccumT, OutputT> implements Serializable {
+
     /**
      * Returns a new, mutable accumulator value, representing the
      * accumulation of zero input values.
@@ -611,14 +614,18 @@ public class Combine {
       return inputCoder;
     }
 
+    /**
+     * Holds a single value value of type {@code V} which may or may not be present.
+     */
     private static class Holder<V> {
-      public V value;
-      public boolean present;
-      public Holder() { }
-      public Holder(V value) {
+      private V value;
+      private boolean present;
+      private Holder() { }
+      private Holder(V value) {
         set(value);
       }
-      public void set(V value) {
+
+      private void set(V value) {
         this.present = true;
         this.value = value;
       }
@@ -1042,6 +1049,7 @@ public class Combine {
    */
   public abstract static class KeyedCombineFn<K, InputT, AccumT, OutputT>
       implements Serializable {
+
     /**
      * Returns a new, mutable accumulator value representing the
      * accumulation of zero input values.
@@ -1665,10 +1673,28 @@ public class Combine {
     }
 
     private <AccumT> PCollection<KV<K, OutputT>> applyHelper(PCollection<KV<K, InputT>> input) {
+
       // Name the accumulator type.
       @SuppressWarnings("unchecked")
       final KeyedCombineFn<K, InputT, AccumT, OutputT> fn =
           (KeyedCombineFn<K, InputT, AccumT, OutputT>) this.fn;
+
+      if (!(input.getCoder() instanceof KvCoder)) {
+        throw new IllegalStateException(
+            "Expected input coder to be KvCoder, but was " + input.getCoder());
+      }
+
+      @SuppressWarnings("unchecked")
+      final KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
+      final Coder<AccumT> accumCoder;
+
+      try {
+        accumCoder = fn.getAccumulatorCoder(
+            input.getPipeline().getCoderRegistry(),
+            inputCoder.getKeyCoder(), inputCoder.getValueCoder());
+      } catch (CannotProvideCoderException e) {
+        throw new IllegalStateException("Unable to determine accumulator coder.", e);
+      }
 
       // A CombineFn's mergeAccumulator can be applied in a tree-like fashon.
       // Here we shard the key using an integer nonce, combine on that partial
@@ -1699,13 +1725,10 @@ public class Combine {
             public Coder<AccumT> getAccumulatorCoder(
                 CoderRegistry registry, Coder<KV<K, Integer>> keyCoder, Coder<InputT> inputCoder)
                 throws CannotProvideCoderException {
-              return fn.getAccumulatorCoder(
-                  registry, ((KvCoder<K, Integer>) keyCoder).getKeyCoder(), inputCoder);
+              return accumCoder;
             }
       };
 
-      @SuppressWarnings("unchecked")
-      final KvCoder<K, InputT> inputCoder = ((KvCoder<K, InputT>) input.getCoder());
       KeyedCombineFn<K, AccumT, AccumT, OutputT> hotPostCombine =
           new KeyedCombineFn<K, AccumT, AccumT, OutputT>() {
             @Override
@@ -1730,6 +1753,12 @@ public class Combine {
                 CoderRegistry registry, Coder<K> keyCoder, Coder<AccumT> accumulatorCoder)
                 throws CannotProvideCoderException {
               return fn.getDefaultOutputCoder(registry, keyCoder, inputCoder.getValueCoder());
+            }
+
+            @Override
+            public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<K> keyCoder,
+                Coder<AccumT> inputCoder) throws CannotProvideCoderException {
+              return accumCoder;
             }
       };
 
@@ -1853,7 +1882,7 @@ public class Combine {
     private final KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn;
 
     private GroupedValues(KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn) {
-      this.fn = fn;
+      this.fn = SerializableUtils.clone(fn);
     }
 
     /**
@@ -1886,12 +1915,14 @@ public class Combine {
       return output;
     }
 
+    public AppliedCombineFn<? super K, ? super InputT, ?, OutputT> getAppliedFn(
+        CoderRegistry registry, Coder<? extends KV<K, ? extends Iterable<InputT>>> inputCoder) {
+      KvCoder<K, InputT> kvCoder = getKvCoder(inputCoder);
+      return AppliedCombineFn.withInputCoder(fn, registry, kvCoder);
+    }
+
     private KvCoder<K, InputT> getKvCoder(
         Coder<? extends KV<K, ? extends Iterable<InputT>>> inputCoder) {
-      /*
-      Coder<? extends KV<K, ? extends Iterable<InputT>>> inputCoder =
-          getInput().getCoder();
-          */
       if (!(inputCoder instanceof KvCoder)) {
         throw new IllegalStateException(
             "Combine.GroupedValues requires its input to use KvCoder");
@@ -1909,16 +1940,6 @@ public class Combine {
       IterableCoder<InputT> inputValuesCoder = (IterableCoder<InputT>) kvValueCoder;
       Coder<InputT> inputValueCoder = inputValuesCoder.getElemCoder();
       return KvCoder.of(keyCoder, inputValueCoder);
-    }
-
-    @SuppressWarnings("unchecked")
-    public Coder<?> getAccumulatorCoder(
-        CoderRegistry coderRegistry,
-        PCollection<? extends KV<K, ? extends Iterable<InputT>>> input)
-        throws CannotProvideCoderException {
-      KvCoder<K, InputT> kvCoder = getKvCoder(input.getCoder());
-      return ((KeyedCombineFn<K, InputT, ?, OutputT>) fn).getAccumulatorCoder(
-          coderRegistry, kvCoder.getKeyCoder(), kvCoder.getValueCoder());
     }
 
     @Override
