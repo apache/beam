@@ -107,13 +107,11 @@ public class DataflowExampleUtils {
   }
 
   /**
-   * Sets up the BigQuery table with the given schema.
+   * Sets up the Google Cloud Pub/Sub topic.
    *
-   * <p> If the table already exists, the schema has to match the given one. Otherwise, the example
-   * will throw a RuntimeException. If the table doesn't exist, a new table with the given schema
-   * will be created.
+   * <p> If the topic doesn't exist, a new topic with the given name will be created.
    *
-   * @throws IOException if there is a problem setting up the BigQuery table
+   * @throws IOException if there is a problem setting up the Pub/Sub topic
    */
   public void setupPubsubTopic() throws IOException {
     ExamplePubsubTopicOptions pubsubTopicOptions = options.as(ExamplePubsubTopicOptions.class);
@@ -126,11 +124,13 @@ public class DataflowExampleUtils {
   }
 
   /**
-   * Sets up the Google Cloud Pub/Sub topic.
+   * Sets up the BigQuery table with the given schema.
    *
-   * <p> If the topic doesn't exist, a new topic with the given name will be created.
+   * <p> If the table already exists, the schema has to match the given one. Otherwise, the example
+   * will throw a RuntimeException. If the table doesn't exist, a new table with the given schema
+   * will be created.
    *
-   * @throws IOException if there is a problem setting up the Pub/Sub topic
+   * @throws IOException if there is a problem setting up the BigQuery table
    */
   public void setupBigQueryTable() throws IOException {
     ExampleBigQueryTableOptions bigQueryTableOptions =
