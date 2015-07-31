@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.runners;
 
+import static com.google.cloud.dataflow.sdk.util.StringUtils.approximatePTransformName;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.approximateSimpleName;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -30,8 +31,11 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.io.AvroIO;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.io.Read;
+import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -212,6 +216,12 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         .put(Write.Bound.class, StreamingWrite.class)
         .put(PubsubIO.Write.Bound.class, StreamingPubsubIOWrite.class)
         .put(Read.Unbounded.class, StreamingUnboundedRead.class)
+        .put(Read.Bounded.class, StreamingUnsupportedIO.class)
+        .put(AvroIO.Read.Bound.class, StreamingUnsupportedIO.class)
+        .put(AvroIO.Write.Bound.class, StreamingUnsupportedIO.class)
+        .put(BigQueryIO.Read.Bound.class, StreamingUnsupportedIO.class)
+        .put(TextIO.Read.Bound.class, StreamingUnsupportedIO.class)
+        .put(TextIO.Write.Bound.class, StreamingUnsupportedIO.class)
         .build();
   }
 
@@ -484,7 +494,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in apply()
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
     public StreamingUnboundedRead(Read.Unbounded<T> transform) {
       this.source = transform.getSource();;
     }
@@ -604,7 +614,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in apply()
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
     public StreamingCreate(Create.Values<T> transform) {
       this.transform = transform;
     }
@@ -691,7 +701,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
     private static final long serialVersionUID = 0L;
 
-    @SuppressWarnings("unused") // used via reflection in apply()
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
     public StreamingViewAsMap(View.AsMap<K, V> transform) { }
 
     @Override
@@ -724,7 +734,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in apply()
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
     public StreamingViewAsMultimap(View.AsMultimap<K, V> transform) { }
 
     @Override
@@ -758,7 +768,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in apply()
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
     public StreamingViewAsIterable(View.AsIterable<T> transform) { }
 
     @Override
@@ -802,7 +812,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     /**
      * Builds an instance of this class from the overridden transform.
      */
-    @SuppressWarnings("unused") // used via reflection in apply()
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
     public StreamingViewAsSingleton(View.AsSingleton<T> transform) {
       this.transform = transform;
     }
@@ -825,6 +835,72 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     protected String getKindString() {
       return "StreamingViewAsSingleton";
     }
+  }
+
+  /**
+   * Specialized expansion for unsupported IO transforms that throws an error.
+   */
+  private static class StreamingUnsupportedIO<InputT extends PInput, OutputT extends POutput>
+      extends PTransform<InputT, OutputT> {
+    private static final long serialVersionUID = 0L;
+
+    private PTransform<?, ?> transform;
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    public StreamingUnsupportedIO(AvroIO.Read.Bound<?> transform) {
+      this.transform = transform;
+    }
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    public StreamingUnsupportedIO(BigQueryIO.Read.Bound transform) {
+      this.transform = transform;
+    }
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    public StreamingUnsupportedIO(TextIO.Read.Bound<?> transform) {
+      this.transform = transform;
+    }
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    public StreamingUnsupportedIO(Read.Bounded<?> transform) {
+      this.transform = transform;
+    }
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    public StreamingUnsupportedIO(AvroIO.Write.Bound<?> transform) {
+      this.transform = transform;
+    }
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    public StreamingUnsupportedIO(TextIO.Write.Bound<?> transform) {
+      this.transform = transform;
+    }
+
+    @Override
+    public OutputT apply(InputT input) {
+      throw new UnsupportedOperationException(
+          "The DataflowPipelineRunner in streaming mode does not support " +
+          approximatePTransformName(transform.getClass()));
+    }
+
   }
 
   @Override

@@ -37,8 +37,12 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.io.AvroIO;
+import com.google.cloud.dataflow.sdk.io.AvroSource;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -51,6 +55,8 @@ import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PDone;
+import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.collect.ImmutableList;
@@ -722,5 +728,69 @@ public class DataflowPipelineRunnerTest {
     options.setPathValidatorClass(NoopPathValidator.class);
     assertEquals("DataflowPipelineRunner#TestJobName",
         DataflowPipelineRunner.fromOptions(options).toString());
+  }
+
+  private static PipelineOptions makeStreamingOptions() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setRunner(DataflowPipelineRunner.class);
+    options.setStreaming(true);
+    options.setJobName("TestJobName");
+    options.setProject("TestProject");
+    options.setTempLocation("gs://test/temp/location");
+    options.setGcpCredential(new TestCredential());
+    options.setPathValidatorClass(NoopPathValidator.class);
+    return options;
+  }
+
+  private void testUnsupportedSource(PTransform<PInput, ?> source, String name) throws Exception {
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(
+        "The DataflowPipelineRunner in streaming mode does not support " + name);
+
+    Pipeline p = Pipeline.create(makeStreamingOptions());
+    p.apply(source);
+    p.run();
+  }
+
+  @Test
+  public void testBoundedSourceUnsupportedInStreaming() throws Exception {
+    testUnsupportedSource(AvroSource.readFromFileWithClass("foo", String.class), "Read.Bounded");
+  }
+
+  @Test
+  public void testBigQueryIOSourceUnsupportedInStreaming() throws Exception {
+    testUnsupportedSource(
+        BigQueryIO.Read.from("project:bar.baz").withoutValidation(), "BigQueryIO.Read");
+  }
+
+  @Test
+  public void testAvroIOSourceUnsupportedInStreaming() throws Exception {
+    testUnsupportedSource(AvroIO.Read.from("foo"), "AvroIO.Read");
+  }
+
+  @Test
+  public void testTextIOSourceUnsupportedInStreaming() throws Exception {
+    testUnsupportedSource(TextIO.Read.from("foo"), "TextIO.Read");
+  }
+
+  private void testUnsupportedSink(PTransform<PCollection<String>, PDone> sink, String name)
+      throws Exception {
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(
+        "The DataflowPipelineRunner in streaming mode does not support " + name);
+
+    Pipeline p = Pipeline.create(makeStreamingOptions());
+    p.apply(Create.of("foo")).apply(sink);
+    p.run();
+  }
+
+  @Test
+  public void testAvroIOSinkUnsupportedInStreaming() throws Exception {
+    testUnsupportedSink(AvroIO.Write.to("foo").withSchema(String.class), "AvroIO.Write");
+  }
+
+  @Test
+  public void testTextIOSinkUnsupportedInStreaming() throws Exception {
+    testUnsupportedSink(TextIO.Write.to("foo"), "TextIO.Write");
   }
 }
