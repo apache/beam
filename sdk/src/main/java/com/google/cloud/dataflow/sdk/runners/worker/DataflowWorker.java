@@ -16,11 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceOperationExecutor.SPLIT_RESPONSE_TOO_LARGE_ERROR;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceOperationExecutor.isSplitResponseTooLarge;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceOperationResponseToSourceOperationResponse;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceOperationResponseToCloudSourceOperationResponse;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.api.services.dataflow.model.Status;
@@ -143,6 +146,7 @@ public class DataflowWorker {
     LOG.debug("Executing: {}", workItem);
 
     WorkExecutor worker = null;
+    SourceFormat.OperationResponse operationResponse = null;
     long nextReportIndex = workItem.getInitialReportIndex();
     try {
       // Populate PipelineOptions with data from work unit.
@@ -185,14 +189,24 @@ public class DataflowWorker {
       // Report job success.
       // TODO: Find out a generic way for the WorkExecutor to report work-specific results
       // into the work update.
-      SourceFormat.OperationResponse operationResponse =
+      operationResponse =
           (worker instanceof SourceOperationExecutor)
               ? cloudSourceOperationResponseToSourceOperationResponse(
                   ((SourceOperationExecutor) worker).getResponse())
               : null;
-      reportStatus(
+
+      try {
+        reportStatus(
           options, "Success", workItem, counters, metrics, operationResponse, null/*errors*/,
           nextReportIndex);
+      } catch (GoogleJsonResponseException e) {
+        if ((operationResponse != null) && (worker instanceof SourceOperationExecutor)) {
+          if (isSplitResponseTooLarge(operationResponse)) {
+            throw new RuntimeException(SPLIT_RESPONSE_TOO_LARGE_ERROR, e);
+          }
+        }
+        throw e;
+      }
 
       return true;
 
