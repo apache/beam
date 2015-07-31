@@ -766,6 +766,53 @@ public class FileBasedSourceTest {
   }
 
   @Test
+  public void testEstimatedSizeOfFilePatternThroughSamplingEqualSize() throws Exception {
+    // When all files are of equal size, we should get the exact size.
+    int numFilesToTest = FileBasedSource.MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT * 2;
+    File file0 = null;
+    for (int i = 0; i < numFilesToTest; i++) {
+      List<String> data = createStringDataset(3, 20);
+      File file = createFileWithData("file" + i, data);
+      if (i == 0) {
+        file0 = file;
+      }
+    }
+
+    long actualTotalSize = file0.length() * numFilesToTest;
+    TestFileBasedSource source =
+        new TestFileBasedSource(new File(file0.getParent(), "file*").getPath(), 64, null);
+    assertEquals(actualTotalSize, source.getEstimatedSizeBytes(null));
+  }
+
+  @Test
+  public void testEstimatedSizeOfFilePatternThroughSamplingDifferentSizes() throws Exception {
+    float tolerableError = 0.2f;
+    int numFilesToTest = FileBasedSource.MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT * 2;
+    File file0 = null;
+
+    // Keeping sizes of files close to each other to make sure that the test passes reliably.
+    Random rand = new Random(System.currentTimeMillis());
+    int dataSizeBase = 100;
+    int dataSizeDelta = 10;
+
+    long actualTotalSize = 0;
+    for (int i = 0; i < numFilesToTest; i++) {
+      List<String> data = createStringDataset(
+          3, (int) (dataSizeBase + rand.nextFloat() * dataSizeDelta * 2 - dataSizeDelta));
+      File file = createFileWithData("file" + i, data);
+      if (i == 0) {
+        file0 = file;
+      }
+      actualTotalSize += file.length();
+    }
+
+    TestFileBasedSource source =
+        new TestFileBasedSource(new File(file0.getParent(), "file*").getPath(), 64, null);
+    assertEquals((double) actualTotalSize, (double) source.getEstimatedSizeBytes(null),
+        actualTotalSize * tolerableError);
+  }
+
+  @Test
   public void testReadAllSplitsOfFilePattern() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     List<String> data1 = createStringDataset(3, 50);

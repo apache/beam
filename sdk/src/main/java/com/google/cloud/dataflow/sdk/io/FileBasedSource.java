@@ -29,6 +29,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
@@ -56,6 +57,10 @@ import java.util.NoSuchElementException;
 public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   private static final long serialVersionUID = 0;
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSource.class);
+  private static final float FRACTION_OF_FILES_TO_STAT = 0.01f;
+
+  // Package-private for testing
+  static final int MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT = 100;
 
   private final String fileOrPatternSpec;
   private final Mode mode;
@@ -168,17 +173,48 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
       long startTime = System.currentTimeMillis();
       long totalSize = 0;
       Collection<String> inputs = factory.match(fileOrPatternSpec);
-      for (String input : inputs) {
-        totalSize += factory.getSizeBytes(input);
+      if (inputs.size() <= MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT) {
+        totalSize = getExactTotalSizeOfFiles(inputs, factory);
+        LOG.debug("Size estimation of all files of pattern " + fileOrPatternSpec + " took "
+           + (System.currentTimeMillis() - startTime) + " ms");
+      } else {
+        totalSize = getEstimatedSizeOfFilesBySampling(inputs, factory);
+        LOG.debug("Size estimation of pattern " + fileOrPatternSpec + " by sampling took "
+           + (System.currentTimeMillis() - startTime) + " ms");
       }
-      LOG.debug("Size estimation of file pattern " + fileOrPatternSpec + " took "
-          + (System.currentTimeMillis() - startTime) + " ms");
       return totalSize;
     } else {
       long start = getStartOffset();
       long end = Math.min(getEndOffset(), getMaxEndOffset(options));
       return end - start;
     }
+  }
+
+  // Get the exact total size of the given set of files.
+  private static long getExactTotalSizeOfFiles(
+      Collection<String> files, IOChannelFactory ioChannelFactory) throws IOException {
+    long totalSize = 0;
+    for (String file : files) {
+      totalSize += ioChannelFactory.getSizeBytes(file);
+    }
+    return totalSize;
+  }
+
+  // Estimate the total size of the given set of files through sampling and extrapolation.
+  // Currently we use uniform sampling which requires a linear sampling size for a reasonable
+  // estimate.
+  // TODO: Implement a more efficient sampling mechanism.
+  private static long getEstimatedSizeOfFilesBySampling(
+      Collection<String> files, IOChannelFactory ioChannelFactory) throws IOException {
+    int sampleSize = (int) (FRACTION_OF_FILES_TO_STAT * files.size());
+    sampleSize = Math.max(MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT, sampleSize);
+
+    List<String> selectedFiles = new ArrayList<String>(files);
+    Collections.shuffle(selectedFiles);
+    selectedFiles = selectedFiles.subList(0, sampleSize);
+
+    return files.size() * getExactTotalSizeOfFiles(selectedFiles, ioChannelFactory)
+        / selectedFiles.size();
   }
 
   @Override
