@@ -326,6 +326,16 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     return source;
   }
 
+  private static int getDesiredNumUnboundedSourceSplits(DataflowPipelineOptions options) {
+    if (options.getMaxNumWorkers() > 0) {
+      return options.getMaxNumWorkers();
+    } else if (options.getNumWorkers() > 0) {
+      return options.getNumWorkers() * 3;
+    } else {
+      return 20;
+    }
+  }
+
   public static com.google.api.services.dataflow.model.Source serializeToCloudSource(
       Source<?> source, PipelineOptions options) throws Exception {
     com.google.api.services.dataflow.model.Source cloudSource =
@@ -354,9 +364,10 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       UnboundedSource<?, ?> unboundedSource = (UnboundedSource<?, ?>) source;
       metadata.setInfinite(true);
       List<String> encodedSplits = new ArrayList<>();
+      int desiredNumSplits =
+          getDesiredNumUnboundedSourceSplits(options.as(DataflowPipelineOptions.class));
       for (UnboundedSource<?, ?> split :
-          unboundedSource.generateInitialSplits(
-              options.as(DataflowPipelineOptions.class).getNumWorkers() * 2, options)) {
+          unboundedSource.generateInitialSplits(desiredNumSplits, options)) {
         encodedSplits.add(encodeBase64String(serializeToByteArray(split)));
       }
       Preconditions.checkArgument(

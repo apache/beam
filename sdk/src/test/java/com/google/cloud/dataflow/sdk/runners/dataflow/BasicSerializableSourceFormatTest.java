@@ -608,13 +608,12 @@ public class BasicSerializableSourceFormatTest {
   public void testUnboundedSplits() throws Exception {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    options.setNumWorkers(5);
     com.google.api.services.dataflow.model.Source source =
         BasicSerializableSourceFormat.serializeToCloudSource(
             new CountingSource(Integer.MAX_VALUE), options);
     List<String> serializedSplits =
         getStrings(source.getSpec(), BasicSerializableSourceFormat.SERIALIZED_SOURCE_SPLITS, null);
-    assertEquals(10, serializedSplits.size());
+    assertEquals(20, serializedSplits.size());
     for (String serializedSplit : serializedSplits) {
       assertTrue(
           deserializeFromByteArray(decodeBase64(serializedSplit), "source")
