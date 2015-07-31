@@ -53,6 +53,10 @@ import java.util.zip.ZipOutputStream;
 public class PackageUtil {
   private static final Logger LOG = LoggerFactory.getLogger(PackageUtil.class);
   /**
+   * A reasonable upper bound on the number of jars required to launch a Dataflow job.
+   */
+  public static final int SANE_CLASSPATH_SIZE = 1000;
+  /**
    * The initial interval to use between package staging attempts.
    */
   private static final long INITIAL_BACKOFF_INTERVAL_MS = 5000L;
@@ -113,6 +117,16 @@ public class PackageUtil {
       Sleeper retrySleeper) {
     LOG.info("Uploading {} files from PipelineOptions.filesToStage to staging location to "
         + "prepare for execution.", classpathElements.size());
+
+    if (classpathElements.size() > SANE_CLASSPATH_SIZE) {
+      LOG.warn("Your classpath contains {} elements, which Google Cloud Dataflow automatically "
+          + "copies to all workers. Having this many entries on your classpath may be indicative "
+          + "of an issue in your pipeline. You may want to consider trimming the classpath to "
+          + "necessary dependencies only, using --filesToStage pipeline option to override "
+          + "what files are being staged, or bundling several dependencies into one.",
+          classpathElements.size());
+    }
+
     ArrayList<DataflowPackage> packages = new ArrayList<>();
 
     if (stagingPath == null) {

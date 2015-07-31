@@ -48,10 +48,12 @@ import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.common.io.LineReader;
 
@@ -81,6 +83,7 @@ import java.util.zip.ZipInputStream;
 /** Tests for PackageUtil. */
 @RunWith(JUnit4.class)
 public class PackageUtilTest {
+  @Rule public ExpectedLogs logged = ExpectedLogs.none(PackageUtil.class);
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -186,6 +189,25 @@ public class PackageUtilTest {
 
     assertFalse(target1.getName().equals(target2.getName()));
     assertFalse(target1.getLocation().equals(target2.getLocation()));
+  }
+
+  @Test
+  public void testPackageUploadWithLargeClasspathLogsWarning() throws IOException {
+    File tmpFile = tmpFolder.newFile("file.txt");
+    Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
+    GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
+    // all files will be present and cached so no upload needed.
+    when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(tmpFile.length());
+
+    List<String> classpathElements = Lists.newLinkedList();
+    for (int i = 0; i < 1005; ++i) {
+      String eltName = "element" + i;
+      classpathElements.add(eltName + '=' + tmpFile.getAbsolutePath());
+    }
+
+    PackageUtil.stageClasspathElements(classpathElements, gcsStaging.toString());
+
+    logged.verifyWarn("Your classpath contains 1005 elements, which Google Cloud Dataflow");
   }
 
   @Test
