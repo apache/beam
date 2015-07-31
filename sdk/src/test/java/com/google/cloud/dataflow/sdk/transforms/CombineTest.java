@@ -40,7 +40,10 @@ import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -347,6 +350,35 @@ public class CombineTest implements Serializable {
     DataflowAssert.that(coldMean).containsInAnyOrder(expected);
     DataflowAssert.that(warmMean).containsInAnyOrder(expected);
     DataflowAssert.that(hotMean).containsInAnyOrder(expected);
+
+    p.run();
+  }
+
+  private static class GetLast extends DoFn<Integer, Integer> {
+    private static final long serialVersionUID = 0L;
+    @Override
+    public void processElement(ProcessContext c) {
+      if (c.pane().isLast()) {
+        c.output(c.element());
+      }
+    }
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testHotKeyCombiningWithAccumulationMode() {
+    Pipeline p = TestPipeline.create();
+    PCollection<Integer> input = p.apply(Create.of(1, 2, 3, 4, 5));
+
+    PCollection<Integer> output = input
+        .apply(Window.<Integer>into(new GlobalWindows())
+            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+            .accumulatingFiredPanes()
+            .withAllowedLateness(new Duration(0)))
+        .apply(Sum.integersGlobally().withoutDefaults().withFanout(2))
+        .apply(ParDo.of(new GetLast()));
+
+    DataflowAssert.that(output).containsInAnyOrder(15);
 
     p.run();
   }

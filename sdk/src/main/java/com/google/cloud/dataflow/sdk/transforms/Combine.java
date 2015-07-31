@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterProvider;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -1618,7 +1619,7 @@ public class Combine {
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(
         SerializableFunction<? super K, Integer> hotKeyFanout) {
-      return new PerKeyWithHotKeyFanout<K, InputT, OutputT>(name, fn, hotKeyFanout);
+      return new PerKeyWithHotKeyFanout<K, InputT, OutputT>(name, fn, true, hotKeyFanout);
     }
 
     /**
@@ -1626,7 +1627,7 @@ public class Combine {
      * constant value for every key.
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(final int hotKeyFanout) {
-      return withHotKeyFanout(
+      return new PerKeyWithHotKeyFanout<K, InputT, OutputT>(name, fn, false,
           new SerializableFunction<K, Integer>(){
             @Override
             public Integer apply(K unused) {
@@ -1657,13 +1658,16 @@ public class Combine {
       extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
     private final transient KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn;
+    private final boolean hasColdKeys;
     private final SerializableFunction<? super K, Integer> hotKeyFanout;
 
     private PerKeyWithHotKeyFanout(String name,
         KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn,
+        boolean hasColdKeys,
         SerializableFunction<? super K, Integer> hotKeyFanout) {
       super(name);
       this.fn = fn;
+      this.hasColdKeys = hasColdKeys;
       this.hotKeyFanout = hotKeyFanout;
     }
 
@@ -1768,7 +1772,7 @@ public class Combine {
       final TupleTag<KV<K, InputT>> cold = new TupleTag<>();
       PCollectionTuple split = input.apply(
           ParDo.named("AddNonce").of(
-              new DoFn<KV<K, InputT>, KV<K, InputT>>() {
+              new DoFn<KV<K, InputT>, KV<KV<K, Integer>, InputT>>() {
                 transient int counter;
                 @Override
                 public void startBundle(Context c) {
@@ -1779,22 +1783,31 @@ public class Combine {
                 @Override
                 public void processElement(ProcessContext c) {
                   KV<K, InputT> kv = c.element();
-                  int spread = hotKeyFanout.apply(kv.getKey());
-                  if (spread <= 1) {
-                    c.output(kv);
+                  int spread = Math.max(1, hotKeyFanout.apply(kv.getKey()));
+                  if (hasColdKeys && spread <= 1) {
+                    c.sideOutput(cold, kv);
                   } else {
                     int nonce = counter++ % spread;
-                    c.sideOutput(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
+                    c.output(KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
                   }
                 }
               })
-          .withOutputTags(cold, TupleTagList.of(hot)));
+          .withOutputTags(hot, hasColdKeys ? TupleTagList.of(cold) : TupleTagList.empty()));
+
+      // The first level of combine should never use accumulating mode.
+      WindowingStrategy<?, ?> preCombineStrategy = input.getWindowingStrategy();
+      if (preCombineStrategy.getMode()
+          == WindowingStrategy.AccumulationMode.ACCUMULATING_FIRED_PANES) {
+        preCombineStrategy = preCombineStrategy.withMode(
+            WindowingStrategy.AccumulationMode.DISCARDING_FIRED_PANES);
+      }
 
       // Combine the hot and cold keys separately.
-      PCollection<KV<K, OutputT>> combinedHot = split
+      PCollection<KV<K, AccumT>> intermediateHot = split
           .get(hot)
           .setCoder(KvCoder.of(KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
                                inputCoder.getValueCoder()))
+          .setWindowingStrategyInternal(preCombineStrategy)
           .apply("PreCombineHot", Combine.perKey(hotPreCombine))
           .apply(ParDo.named("StripNonce").of(
               new DoFn<KV<KV<K, Integer>, AccumT>, KV<K, AccumT>>() {
@@ -1803,16 +1816,27 @@ public class Combine {
                   c.output(KV.of(c.element().getKey().getKey(), c.element().getValue()));
                 }
               }))
-          .apply(Window.<KV<K, AccumT>>remerge())
-          .apply("PostCombineHot", Combine.perKey(hotPostCombine));
-      PCollection<KV<K, OutputT>> combinedCold = split
-          .get(cold)
-          .setCoder(inputCoder)
-          .apply("CombineCold", Combine.perKey(fn));
+          .apply(Window.<KV<K, AccumT>>remerge());
 
-      // Return the union of the hot and cold key results.
-      return PCollectionList.of(combinedHot).and(combinedCold)
-          .apply(Flatten.<KV<K, OutputT>>pCollections());
+      // The final combine should use the originally-requested accumulation mode.
+      WindowingStrategy<?, ?> postCombineStrategy =
+          intermediateHot.getWindowingStrategy().withMode(input.getWindowingStrategy().getMode());
+
+      PCollection<KV<K, OutputT>> combinedHot = intermediateHot
+          .setWindowingStrategyInternal(postCombineStrategy)
+          .apply("PostCombineHot", Combine.perKey(hotPostCombine));
+      if (hasColdKeys) {
+        PCollection<KV<K, OutputT>> combinedCold = split
+            .get(cold)
+            .setCoder(inputCoder)
+            .apply("CombineCold", Combine.perKey(fn));
+
+        // Return the union of the hot and cold key results.
+        return PCollectionList.of(combinedHot).and(combinedCold)
+            .apply(Flatten.<KV<K, OutputT>>pCollections());
+      } else {
+        return combinedHot;
+      }
     }
   }
 
