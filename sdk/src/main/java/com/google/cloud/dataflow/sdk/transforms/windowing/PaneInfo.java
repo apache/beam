@@ -20,10 +20,10 @@ import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.util.VarInt;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.CodedOutputStream;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -275,12 +275,12 @@ public final class PaneInfo {
           break;
         case ONE_INDEX:
           outStream.write(value.encodedByte | encoding.tag);
-          writeVarLong(value.index, outStream);
+          VarInt.encode(value.index, outStream);
           break;
         case TWO_INDICES:
           outStream.write(value.encodedByte | encoding.tag);
-          writeVarLong(value.index, outStream);
-          writeVarLong(value.nonSpeculativeIndex, outStream);
+          VarInt.encode(value.index, outStream);
+          VarInt.encode(value.nonSpeculativeIndex, outStream);
           break;
         default:
           throw new CoderException("Unknown encoding " + encoding);
@@ -297,42 +297,17 @@ public final class PaneInfo {
         case FIRST:
           return base;
         case ONE_INDEX:
-          index = readVarLong(inStream);
+          index = VarInt.decodeLong(inStream);
           onTimeIndex = base.timing == Timing.EARLY ? -1 : index;
           break;
         case TWO_INDICES:
-          index = readVarLong(inStream);
-          onTimeIndex = readVarLong(inStream);
+          index = VarInt.decodeLong(inStream);
+          onTimeIndex = VarInt.decodeLong(inStream);
           break;
         default:
           throw new CoderException("Unknown encoding " + (keyAndTag & 0xF0));
       }
       return new PaneInfo(base.isFirst, base.isLast, base.timing, index, onTimeIndex);
-    }
-
-    private void writeVarLong(long value, OutputStream outStream) throws IOException {
-      CodedOutputStream out = CodedOutputStream.newInstance(outStream);
-      out.writeRawVarint64(value);
-      out.flush();
-    }
-
-    private long readVarLong(InputStream inStream) throws CoderException, IOException {
-      // This is CodedInputStream.readRawVarint64(), inlined to avoid readahead
-      // of the underlying input stream.
-      int shift = 0;
-      long result = 0;
-      while (shift < 64) {
-        int b = inStream.read();
-        if (b < 0) {
-          throw new CoderException("end of stream while decoding varint");
-        }
-        result |= (long) (b & 0x7F) << shift;
-        if ((b & 0x80) == 0) {
-          return result;
-        }
-        shift += 7;
-      }
-      throw new CoderException("malformed varint");
     }
   }
 }

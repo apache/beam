@@ -333,6 +333,14 @@ public class CombineTest implements Serializable {
         }
       };
 
+  private static final SerializableFunction<String, Integer> splitHotKeyFanout =
+      new SerializableFunction<String, Integer>() {
+        @Override
+        public Integer apply(String input) {
+          return Math.random() < 0.5 ? 3 : 0;
+        }
+      };
+
   @Test
   @Category(RunnableOnService.class)
   public void testHotKeyCombining() {
@@ -347,11 +355,14 @@ public class CombineTest implements Serializable {
         Combine.perKey(mean).withHotKeyFanout(hotKeyFanout));
     PCollection<KV<String, Double>> hotMean = input.apply("HotMean",
         Combine.perKey(mean).withHotKeyFanout(5));
+    PCollection<KV<String, Double>> splitMean = input.apply("SplitMean",
+        Combine.perKey(mean).withHotKeyFanout(splitHotKeyFanout));
 
     List<KV<String, Double>> expected = Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0));
     DataflowAssert.that(coldMean).containsInAnyOrder(expected);
     DataflowAssert.that(warmMean).containsInAnyOrder(expected);
     DataflowAssert.that(hotMean).containsInAnyOrder(expected);
+    DataflowAssert.that(splitMean).containsInAnyOrder(expected);
 
     p.run();
   }

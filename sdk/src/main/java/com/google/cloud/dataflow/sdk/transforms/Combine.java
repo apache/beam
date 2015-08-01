@@ -24,12 +24,14 @@ import com.google.cloud.dataflow.sdk.coders.CustomCoder;
 import com.google.cloud.dataflow.sdk.coders.DelegateCoder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
+import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
+import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterProvider;
@@ -44,6 +46,9 @@ import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -1619,7 +1624,7 @@ public class Combine {
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(
         SerializableFunction<? super K, Integer> hotKeyFanout) {
-      return new PerKeyWithHotKeyFanout<K, InputT, OutputT>(name, fn, true, hotKeyFanout);
+      return new PerKeyWithHotKeyFanout<K, InputT, OutputT>(name, fn, hotKeyFanout);
     }
 
     /**
@@ -1627,7 +1632,7 @@ public class Combine {
      * constant value for every key.
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(final int hotKeyFanout) {
-      return new PerKeyWithHotKeyFanout<K, InputT, OutputT>(name, fn, false,
+      return new PerKeyWithHotKeyFanout<K, InputT, OutputT>(name, fn,
           new SerializableFunction<K, Integer>(){
             @Override
             public Integer apply(K unused) {
@@ -1658,16 +1663,13 @@ public class Combine {
       extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
     private final transient KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn;
-    private final boolean hasColdKeys;
     private final SerializableFunction<? super K, Integer> hotKeyFanout;
 
     private PerKeyWithHotKeyFanout(String name,
         KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        boolean hasColdKeys,
         SerializableFunction<? super K, Integer> hotKeyFanout) {
       super(name);
       this.fn = fn;
-      this.hasColdKeys = hasColdKeys;
       this.hotKeyFanout = hotKeyFanout;
     }
 
@@ -1699,6 +1701,9 @@ public class Combine {
       } catch (CannotProvideCoderException e) {
         throw new IllegalStateException("Unable to determine accumulator coder.", e);
       }
+      Coder<InputOrAccum<InputT, AccumT>> inputOrAccumCoder =
+          new InputOrAccum.InputOrAccumCoder<InputT, AccumT>(
+              inputCoder.getValueCoder(), accumCoder);
 
       // A CombineFn's mergeAccumulator can be applied in a tree-like fashon.
       // Here we shard the key using an integer nonce, combine on that partial
@@ -1733,16 +1738,19 @@ public class Combine {
             }
       };
 
-      KeyedCombineFn<K, AccumT, AccumT, OutputT> hotPostCombine =
-          new KeyedCombineFn<K, AccumT, AccumT, OutputT>() {
+      KeyedCombineFn<K, InputOrAccum<InputT, AccumT>, AccumT, OutputT> postCombine =
+          new KeyedCombineFn<K, InputOrAccum<InputT, AccumT>, AccumT, OutputT>() {
             @Override
             public AccumT createAccumulator(K key) {
               return fn.createAccumulator(key);
             }
             @Override
-            public AccumT addInput(K key, AccumT accumulator, AccumT value) {
-              return fn.mergeAccumulators(
-                  key, ImmutableList.of(accumulator, value));
+            public AccumT addInput(K key, AccumT accumulator, InputOrAccum<InputT, AccumT> value) {
+              if (value.accum == null) {
+                return fn.addInput(key, accumulator, value.input);
+              } else {
+                return fn.mergeAccumulators(key, ImmutableList.of(accumulator, value.accum));
+              }
             }
             @Override
             public AccumT mergeAccumulators(K key, Iterable<AccumT> accumulators) {
@@ -1754,14 +1762,16 @@ public class Combine {
             }
             @Override
             public Coder<OutputT> getDefaultOutputCoder(
-                CoderRegistry registry, Coder<K> keyCoder, Coder<AccumT> accumulatorCoder)
+                CoderRegistry registry,
+                Coder<K> keyCoder,
+                Coder<InputOrAccum<InputT, AccumT>> accumulatorCoder)
                 throws CannotProvideCoderException {
               return fn.getDefaultOutputCoder(registry, keyCoder, inputCoder.getValueCoder());
             }
 
             @Override
             public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<K> keyCoder,
-                Coder<AccumT> inputCoder) throws CannotProvideCoderException {
+                Coder<InputOrAccum<InputT, AccumT>> inputCoder) throws CannotProvideCoderException {
               return accumCoder;
             }
       };
@@ -1772,7 +1782,7 @@ public class Combine {
       final TupleTag<KV<K, InputT>> cold = new TupleTag<>();
       PCollectionTuple split = input.apply(
           ParDo.named("AddNonce").of(
-              new DoFn<KV<K, InputT>, KV<KV<K, Integer>, InputT>>() {
+              new DoFn<KV<K, InputT>, KV<K, InputT>>() {
                 transient int counter;
                 @Override
                 public void startBundle(Context c) {
@@ -1784,15 +1794,15 @@ public class Combine {
                 public void processElement(ProcessContext c) {
                   KV<K, InputT> kv = c.element();
                   int spread = Math.max(1, hotKeyFanout.apply(kv.getKey()));
-                  if (hasColdKeys && spread <= 1) {
-                    c.sideOutput(cold, kv);
+                  if (spread <= 1) {
+                    c.output(kv);
                   } else {
                     int nonce = counter++ % spread;
-                    c.output(KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
+                    c.sideOutput(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
                   }
                 }
               })
-          .withOutputTags(hot, hasColdKeys ? TupleTagList.of(cold) : TupleTagList.empty()));
+          .withOutputTags(cold, TupleTagList.of(hot)));
 
       // The first level of combine should never use accumulating mode.
       WindowingStrategy<?, ?> preCombineStrategy = input.getWindowingStrategy();
@@ -1803,39 +1813,119 @@ public class Combine {
       }
 
       // Combine the hot and cold keys separately.
-      PCollection<KV<K, AccumT>> intermediateHot = split
+      PCollection<KV<K, InputOrAccum<InputT, AccumT>>> precombinedHot = split
           .get(hot)
           .setCoder(KvCoder.of(KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
                                inputCoder.getValueCoder()))
           .setWindowingStrategyInternal(preCombineStrategy)
           .apply("PreCombineHot", Combine.perKey(hotPreCombine))
           .apply(ParDo.named("StripNonce").of(
-              new DoFn<KV<KV<K, Integer>, AccumT>, KV<K, AccumT>>() {
+              new DoFn<KV<KV<K, Integer>, AccumT>,
+                       KV<K, InputOrAccum<InputT, AccumT>>>() {
                 @Override
                 public void processElement(ProcessContext c) {
-                  c.output(KV.of(c.element().getKey().getKey(), c.element().getValue()));
+                  c.output(KV.of(
+                      c.element().getKey().getKey(),
+                      InputOrAccum.<InputT, AccumT>accum(c.element().getValue())));
                 }
               }))
-          .apply(Window.<KV<K, AccumT>>remerge());
+          .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder))
+          .apply(Window.<KV<K, InputOrAccum<InputT, AccumT>>>remerge())
+          .setWindowingStrategyInternal(input.getWindowingStrategy());
+      PCollection<KV<K, InputOrAccum<InputT, AccumT>>> preprocessedCold = split
+          .get(cold)
+          .setCoder(inputCoder)
+          .apply(ParDo.named("PrepareCold").of(
+              new DoFn<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
+                @Override
+                public void processElement(ProcessContext c) {
+                  c.output(KV.of(c.element().getKey(),
+                                 InputOrAccum.<InputT, AccumT>input(c.element().getValue())));
+                }
+              }))
+          .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder));
 
-      // The final combine should use the originally-requested accumulation mode.
-      WindowingStrategy<?, ?> postCombineStrategy =
-          intermediateHot.getWindowingStrategy().withMode(input.getWindowingStrategy().getMode());
+      // Combine the union of the pre-processed hot and cold key results.
+      return PCollectionList.of(precombinedHot).and(preprocessedCold)
+          .apply(Flatten.<KV<K, InputOrAccum<InputT, AccumT>>>pCollections())
+          .apply("PostCombine", Combine.perKey(postCombine));
+    }
 
-      PCollection<KV<K, OutputT>> combinedHot = intermediateHot
-          .setWindowingStrategyInternal(postCombineStrategy)
-          .apply("PostCombineHot", Combine.perKey(hotPostCombine));
-      if (hasColdKeys) {
-        PCollection<KV<K, OutputT>> combinedCold = split
-            .get(cold)
-            .setCoder(inputCoder)
-            .apply("CombineCold", Combine.perKey(fn));
+    /**
+     * Used to store either an input or accumulator value, for flattening
+     * the hot and cold key paths.
+     */
+    private static class InputOrAccum<InputT, AccumT> {
+      public final InputT input;
+      public final AccumT accum;
 
-        // Return the union of the hot and cold key results.
-        return PCollectionList.of(combinedHot).and(combinedCold)
-            .apply(Flatten.<KV<K, OutputT>>pCollections());
-      } else {
-        return combinedHot;
+      private InputOrAccum(InputT input, AccumT aggr) {
+        this.input = input;
+        this.accum = aggr;
+      }
+
+      public static <InputT, AccumT> InputOrAccum<InputT, AccumT> input(InputT input) {
+        return new InputOrAccum<InputT, AccumT>(input, null);
+      }
+
+      public static <InputT, AccumT> InputOrAccum<InputT, AccumT> accum(AccumT aggr) {
+        return new InputOrAccum<InputT, AccumT>(null, aggr);
+      }
+
+      private static class InputOrAccumCoder<InputT, AccumT>
+          extends StandardCoder<InputOrAccum<InputT, AccumT>> {
+
+        private static final long serialVersionUID = 0L;
+
+        private final Coder<InputT> inputCoder;
+        private final Coder<AccumT> accumCoder;
+
+        public InputOrAccumCoder(Coder<InputT> inputCoder, Coder<AccumT> accumCoder) {
+          this.inputCoder = inputCoder;
+          this.accumCoder = accumCoder;
+        }
+
+        @JsonCreator
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        public static <InputT, AccumT> InputOrAccumCoder<InputT, AccumT> of(
+            @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
+            List<Coder<?>> elementCoders) {
+          return new InputOrAccumCoder(elementCoders.get(0), elementCoders.get(1));
+        }
+
+        @Override
+        public void encode(
+            InputOrAccum<InputT, AccumT> value, OutputStream outStream, Coder.Context context)
+            throws CoderException, IOException {
+          if (value.input != null) {
+            outStream.write(0);
+            inputCoder.encode(value.input, outStream, context);
+          } else {
+            outStream.write(1);
+            accumCoder.encode(value.accum, outStream, context);
+          }
+        }
+
+        @Override
+        public InputOrAccum<InputT, AccumT> decode(InputStream inStream, Coder.Context context)
+            throws CoderException, IOException {
+          if (inStream.read() == 0) {
+            return InputOrAccum.<InputT, AccumT>input(inputCoder.decode(inStream, context));
+          } else {
+            return InputOrAccum.<InputT, AccumT>accum(accumCoder.decode(inStream, context));
+          }
+        }
+
+        @Override
+        public List<? extends Coder<?>> getCoderArguments() {
+          return ImmutableList.of(inputCoder, accumCoder);
+        }
+
+        @Override
+        public void verifyDeterministic() throws Coder.NonDeterministicException {
+          inputCoder.verifyDeterministic();
+          accumCoder.verifyDeterministic();
+        }
       }
     }
   }
