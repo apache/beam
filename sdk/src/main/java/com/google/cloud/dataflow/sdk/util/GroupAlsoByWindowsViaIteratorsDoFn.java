@@ -24,7 +24,9 @@ import com.google.cloud.dataflow.sdk.util.common.PeekingReiterator;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.Reiterator;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
 
 import org.joda.time.Instant;
@@ -101,12 +103,15 @@ class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
         // If this window is not already in the active set, emit a new WindowReiterable
         // corresponding to this window, starting at this element in the input Reiterable.
         if (!windows.containsEntry(window.maxTimestamp(), window)) {
+          // This window was produced by strategy.getWindowFn()
+          @SuppressWarnings("unchecked")
+          W typedWindow = (W) window;
           // Iterating through the WindowReiterable may advance iterator as an optimization
           // for as long as it detects that there are no new windows.
           windows.put(window.maxTimestamp(), window);
           c.windowingInternals().outputWindowedValue(
               KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
-              strategy.getWindowFn().getOutputTime(e.getTimestamp(), (W) window),
+              strategy.getWindowFn().getOutputTime(e.getTimestamp(), typedWindow),
               Arrays.asList(window),
               PaneInfo.ON_TIME_AND_ONLY_FIRING);
         }
@@ -155,13 +160,9 @@ class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
 
     @Override
     public String toString() {
-      StringBuilder result = new StringBuilder();
-      result.append("WR{");
-      for (V v : this) {
-        result.append(v.toString()).append(',');
-      }
-      result.append("}");
-      return result.toString();
+      return MoreObjects.toStringHelper(this)
+          .addValue(Iterables.toString(this))
+          .toString();
     }
   }
 
