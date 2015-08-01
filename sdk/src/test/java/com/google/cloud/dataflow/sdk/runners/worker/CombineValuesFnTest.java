@@ -40,6 +40,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.Receiver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import com.google.common.base.MoreObjects;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -53,6 +54,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Tests for CombineValuesFn.
@@ -94,21 +96,28 @@ public class CombineValuesFnTest {
 
       @Override
       public int hashCode() {
-        return KV.of(count, sum).hashCode();
+        return Objects.hash(count, sum);
       }
 
       @Override
       public boolean equals(Object obj) {
-        if (obj == null || !(obj instanceof CountSum)) {
-          return false;
-        }
         if (obj == this) {
           return true;
         }
-
+        if (!(obj instanceof CountSum)) {
+          return false;
+        }
         CountSum other = (CountSum) obj;
         return (this.count == other.count)
             && (Math.abs(this.sum - other.sum) < 0.1);
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper(this)
+            .add("count", count)
+            .add("sum", sum)
+            .toString();
       }
     }
 
