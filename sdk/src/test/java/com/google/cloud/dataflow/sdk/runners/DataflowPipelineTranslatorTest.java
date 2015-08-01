@@ -40,6 +40,7 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TranslationContext;
 import com.google.cloud.dataflow.sdk.transforms.Count;
@@ -211,6 +212,52 @@ public class DataflowPipelineTranslatorTest {
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
     assertNull(job.getEnvironment().getWorkerPools().get(0).getNetwork());
+  }
+
+  @Test
+  public void testScalingAlgorithmMissing() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(p, Collections.<DataflowPackage>emptyList())
+            .getJob();
+
+    assertEquals(1, job.getEnvironment().getWorkerPools().size());
+    assertNull(
+        job
+            .getEnvironment()
+            .getWorkerPools()
+            .get(0)
+            .getAutoscalingSettings());
+  }
+
+  @Test
+  public void testScalingAlgorithmNone() throws IOException {
+    final DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType noScaling =
+        DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType.NONE;
+
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setAutoscalingAlgorithm(noScaling);
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(p, Collections.<DataflowPackage>emptyList())
+            .getJob();
+
+    assertEquals(1, job.getEnvironment().getWorkerPools().size());
+    assertEquals(
+        "AUTOSCALING_ALGORITHM_NONE",
+        job
+            .getEnvironment()
+            .getWorkerPools()
+            .get(0)
+            .getAutoscalingSettings()
+            .getAlgorithm());
   }
 
   @Test

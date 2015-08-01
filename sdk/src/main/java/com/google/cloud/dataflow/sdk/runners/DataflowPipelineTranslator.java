@@ -48,7 +48,6 @@ import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.runners.dataflow.AvroIOTranslator;
 import com.google.cloud.dataflow.sdk.runners.dataflow.BigQueryIOTranslator;
@@ -441,7 +440,7 @@ public class DataflowPipelineTranslator {
       if (options.getDiskSizeGb() > 0) {
         workerPool.setDiskSizeGb(options.getDiskSizeGb());
       }
-      if (!options.getAutoscalingAlgorithm().equals(AutoscalingAlgorithmType.NONE)) {
+      if (options.getAutoscalingAlgorithm() != null) {
         AutoscalingSettings settings = new AutoscalingSettings();
         settings.setAlgorithm(options.getAutoscalingAlgorithm().getAlgorithm());
         settings.setMaxNumWorkers(options.getMaxNumWorkers());
