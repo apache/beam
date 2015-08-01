@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -33,6 +34,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Immutable struct containing a value as well as a unique id identifying the value.
@@ -54,6 +56,32 @@ public class ValueWithRecordId<ValueT> {
 
   public byte[] getId() {
     return id;
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("id", id)
+        .add("value", value)
+        .toString();
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof ValueWithRecordId)) {
+      return false;
+    }
+    ValueWithRecordId<?> otherRecord = (ValueWithRecordId<?>) other;
+    return Objects.deepEquals(id, otherRecord.id)
+        && Objects.deepEquals(value, otherRecord.value);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(Arrays.hashCode(id), value);
   }
 
   /**
