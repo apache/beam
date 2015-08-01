@@ -33,7 +33,7 @@ public final class ApplianceShuffleReader implements ShuffleReader {
   }
 
   /**
-   * Pointer to the underlying native shuffle reader object.
+   * Pointer to the underlying C++ ShuffleReader object.
    */
   private long nativePointer;
 
@@ -52,10 +52,13 @@ public final class ApplianceShuffleReader implements ShuffleReader {
 
   /**
    * Native methods for interacting with the underlying native shuffle client
-   * code.
+   * code.  {@code createFromConfig()} returns a pointer to a newly created
+   * C++ ShuffleReader object.
    */
   private native long createFromConfig(byte[] shuffleReaderConfig);
   private native void destroy();
+
+  public native String getDatasetId();
 
   @Override
   public native ReadChunkResult readIncludingPosition(
