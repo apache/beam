@@ -32,10 +32,10 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
-import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.base.MoreObjects;
 
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -47,7 +47,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Tests for the Write PTransform.
@@ -95,7 +97,7 @@ public class WriteTest {
     // Flag to validate that the pipeline options are passed to the Sink
     String[] args = {"--testFlag=test_value"};
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(WriteOptions.class);
-    Pipeline p = TestPipeline.create(options);
+    Pipeline p = Pipeline.create(options);
 
     // Clear the sink's contents.
     sinkContents.clear();
@@ -150,6 +152,30 @@ public class WriteTest {
     private boolean hasCorrectState() {
       return validateCalled && createCalled;
     }
+
+    /**
+     * Implementation of equals() that indicates all test sinks are equal.
+     */
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof TestSink)) {
+        return false;
+      }
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass());
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("createCalled", createCalled)
+          .add("validateCalled", validateCalled)
+          .toString();
+    }
   }
 
   private static class TestSinkWriteOperation extends WriteOperation<String, TestWriterResult> {
@@ -165,6 +191,7 @@ public class WriteTest {
     private boolean coderCalled = false;
 
     private final TestSink sink;
+    private final UUID id = UUID.randomUUID();
 
     public TestSinkWriteOperation(TestSink sink) {
       this.sink = sink;
@@ -211,6 +238,38 @@ public class WriteTest {
     public Coder<TestWriterResult> getWriterResultCoder() {
       coderCalled = true;
       return SerializableCoder.of(TestWriterResult.class);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("id", id)
+          .add("sink", sink)
+          .add("state", state)
+          .add("coderCalled", coderCalled)
+          .toString();
+    }
+
+    /**
+     * Implementation of equals() that does not depend on the state of the write operation,
+     * but only its specification. In general, write operations will have interesting
+     * specifications, but for a {@link TestSinkWriteOperation}, it is not the case. Instead,
+     * a unique identifier (that is serialized along with it) is used to simulate such a
+     * specification.
+     */
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof TestSinkWriteOperation)) {
+        return false;
+      }
+      TestSinkWriteOperation otherOperation = (TestSinkWriteOperation) other;
+      return sink.equals(otherOperation.sink)
+          && id.equals(otherOperation.id);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(id, sink);
     }
   }
 
