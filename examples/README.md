@@ -11,17 +11,17 @@ times each word occurs in the input.
 Besides `WordCount`, the following examples are included:
 
  <ul>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/AutoComplete.java">AutoComplete</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/AutoComplete.java">AutoComplete</a>
   &mdash; An example that computes the most popular hash tags for every
   prefix, which can be used for auto-completion. Demonstrates how to use the
   same pipeline in both streaming and batch, combiners, and composite
   transforms.</li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/BigQueryTornadoes.java">BigQueryTornadoes</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/BigQueryTornadoes.java">BigQueryTornadoes</a>
   &mdash; An example that reads the public samples of weather data from Google
   BigQuery, counts the number of tornadoes that occur in each month, and
   writes the results to BigQuery. Demonstrates reading/writing BigQuery,
   counting a <code>PCollection</code>, and user-defined <code>PTransforms</code>.</li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/CombinePerKeyExamples.java">CombinePerKeyExamples</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/CombinePerKeyExamples.java">CombinePerKeyExamples</a>
   &mdash; An example that reads the public &quot;Shakespeare&quot; data, and for
   each word in the dataset that exceeds a given length, generates a string
   containing the list of play names in which that word appears. Output is saved
@@ -30,15 +30,15 @@ Besides `WordCount`, the following examples are included:
   <code>PCollection</code>; also how to use an <code>Aggregator</code> to track
   information in the Google Developers Console.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/DatastoreWordCount.java">DatastoreWordCount</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/DatastoreWordCount.java">DatastoreWordCount</a>
   &mdash; An example that shows you how to read from Google Cloud Datastore.</li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/DeDupExample.java">DeDupExample</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/DeDupExample.java">DeDupExample</a>
   &mdash; An example that uses Shakespeare's plays as plain text files, and
   removes duplicate lines across all the files. Demonstrates the
   <code>RemoveDuplicates</code>, <code>TextIO.Read</code>,
   and <code>TextIO.Write</code> transforms, and how to wire transforms together.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/FilterExamples.java">FilterExamples</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/FilterExamples.java">FilterExamples</a>
   &mdash; An example that shows different approaches to filtering, including
   selection and projection. It also shows how to dynamically set parameters
   by defining and using new pipeline options, and use how to use a value derived
@@ -46,14 +46,14 @@ Besides `WordCount`, the following examples are included:
   <code>Options</code> configuration, and using pipeline-derived data as a side
   input.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/JoinExamples.java">JoinExamples</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/JoinExamples.java">JoinExamples</a>
   &mdash; An example that shows how to join two collections. It uses a
   sample of the <a href="http://goo.gl/OB6oin">GDELT &quot;world event&quot;
   data</a>, joining the event <code>action</code> country code against a table
   that maps country codes to country names. Demonstrates the <code>Join</code>
   operation, and using multiple input sources.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/MaxPerKeyExamples.java">MaxPerKeyExamples</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/MaxPerKeyExamples.java">MaxPerKeyExamples</a>
   &mdash; An example that reads the public samples of weather data from BigQuery,
   and finds the maximum temperature (<code>mean_temp</code>) for each month.
   Demonstrates the <code>Max</code> statistical combination transform, and how to
@@ -64,35 +64,35 @@ Besides `WordCount`, the following examples are included:
   files into a Google Cloud Pub/Sub topic, line by line. This example can be
   useful for testing streaming pipelines.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/StreamingWordExtract.java">StreamingWordExtract</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/StreamingWordExtract.java">StreamingWordExtract</a>
   &mdash; A streaming pipeline example that inputs lines of text from a Cloud
   Pub/Sub topic, splits each line into individual words, capitalizes those
   words, and writes the output to a BigQuery table.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TfIdf.java">TfIdf</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/TfIdf.java">TfIdf</a>
   &mdash; An example that computes a basic TF-IDF search table for a directory or
   Cloud Storage prefix. Demonstrates joining data, side inputs, and logging.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TopWikipediaSessions.java">TopWikipediaSessions</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/TopWikipediaSessions.java">TopWikipediaSessions</a>
   &mdash; An example that reads Wikipedia edit data from Cloud Storage and
   computes the user with the longest string of edits separated by no more than
   an hour within each month. Demonstrates using Cloud Dataflow
   <code>Windowing</code> to perform time-based aggregations of data.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficMaxLaneFlow.java">TrafficMaxLaneFlow</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/TrafficMaxLaneFlow.java">TrafficMaxLaneFlow</a>
   &mdash; A streaming Cloud Dataflow example using BigQuery output in the
   <code>traffic sensor</code> domain. Demonstrates the Cloud Dataflow streaming
   runner, sliding windows, Cloud Pub/Sub topic ingestion, the use of the
   <code>AvroCoder</code> to encode a custom class, and custom
   <code>Combine</code> transforms.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficRoutes.java">TrafficRoutes</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/TrafficRoutes.java">TrafficRoutes</a>
   &mdash; A streaming Cloud Dataflow example using BigQuery output in the
   <code>traffic sensor</code> domain. Demonstrates the Cloud Dataflow streaming
   runner, <code>GroupByKey</code>, keyed state, sliding windows, and Cloud
   Pub/Sub topic ingestion.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/WindowingWordCount.java">WindowingWordCount</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/WindowedWordCount.java">WindowedWordCount</a>
   &mdash; An example that applies windowing to &quot;Shakespeare&quot; data in a
   `WordCount` pipeline.
   </li>
@@ -195,5 +195,5 @@ to a Pub/Sub topic, is provided in [`traffic_pubsub_generator.py`](https://githu
 **Note:** If you set `--streaming=false`, these traffic pipelines will run in batch mode,
 using the timestamps applied to the original dataset to process the data in
 a batch. For further information on how these pipelines operate, see
-<a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficMaxLaneFlow.java">TrafficMaxLaneFlow</a>
-and <a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/TrafficRoutes.java">TrafficRoutes</a>.
+<a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/TrafficMaxLaneFlow.java">TrafficMaxLaneFlow</a>
+and <a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/TrafficRoutes.java">TrafficRoutes</a>.
