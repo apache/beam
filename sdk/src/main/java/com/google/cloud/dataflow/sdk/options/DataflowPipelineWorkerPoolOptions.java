@@ -54,8 +54,11 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
 
-    /** Autoscale the workerpool size up to maxNumWorkers until the job completes. */
-    BASIC("AUTOSCALING_ALGORITHM_BASIC");
+    @Deprecated
+    BASIC("AUTOSCALING_ALGORITHM_BASIC"),
+
+    /** Autoscale the workerpool based on throughput (up to maxNumWorkers). */
+    THROUGHPUT_BASED("AUTOSCALING_ALGORITHM_BASIC");
 
     private final String algorithm;
 
