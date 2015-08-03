@@ -284,7 +284,8 @@ public class DataflowAssert {
      *
      * <p> Returns this {@code IterableAssert}.
      */
-    public IterableAssert<T> containsInAnyOrder(T... expectedElements) {
+    @SafeVarargs
+    public final IterableAssert<T> containsInAnyOrder(T... expectedElements) {
       return satisfies(
         new AssertContainsInAnyOrderRelation<T>(),
         Arrays.asList(expectedElements));
@@ -634,6 +635,7 @@ public class DataflowAssert {
 
     private T[] expected;
 
+    @SafeVarargs
     public AssertContainsInAnyOrder(T... expected) {
       this.expected = expected;
     }
@@ -663,6 +665,7 @@ public class DataflowAssert {
   private static class AssertContainsInOrder<T> implements SerializableFunction<Iterable<T>, Void> {
     private T[] expected;
 
+    @SafeVarargs
     public AssertContainsInOrder(T... expected) {
       this.expected = expected;
     }
