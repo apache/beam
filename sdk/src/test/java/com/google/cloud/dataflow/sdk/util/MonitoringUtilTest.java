@@ -130,21 +130,6 @@ public class MonitoringUtilTest {
   }
 
   @Test
-  public void testOverridesEndpointWithStagedApi() {
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    options.setProject(PROJECT_ID);
-    options.setGcpCredential(new TestCredential());
-    String stagingApiRoot = "https://staging.com/";
-    options.setApiRootUrl(stagingApiRoot);
-    String cancelCommand = MonitoringUtil.getGcloudCancelCommand(options, JOB_ID);
-    assertEquals(
-        "CLOUDSDK_API_ENDPOINT_OVERRIDES_DATAFLOW=https://staging.com/v1b3/projects/ "
-        + "gcloud alpha dataflow jobs --project=someProject cancel 1234",
-        cancelCommand);
-  }
-
-  @Test
   public void testOverridesEndpointWithStagedDataflowEndpoint() {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
