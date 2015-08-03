@@ -65,6 +65,9 @@ public @interface Experimental {
     /** Aggregator-related experimental APIs. */
     AGGREGATOR,
 
+    /** Experimental APIs for Coder binary format identifiers. */
+    CODER_ENCODING_ID,
+
     /** State-related experimental APIs. */
     STATE
   }

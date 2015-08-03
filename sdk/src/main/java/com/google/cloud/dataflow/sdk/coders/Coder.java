@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.base.Joiner;
@@ -34,18 +36,20 @@ import javax.annotation.Nullable;
 /**
  * A {@code Coder<T>} defines how to encode and decode values of type {@code T} into byte streams.
  *
- * <p> All methods of a {@code Coder<T>} are required to be thread safe.
+ * <p>All methods of a {@link Coder} are required to be thread safe.
  *
- * <p> {@code Coder}s are serialized during job creation and deserialized
+ * <p>{@link Coder} instances are serialized during job creation and deserialized
  * before use, via JSON serialization.
  *
- * <p> See {@link SerializableCoder} for an example of a {@code Coder} that adds
- * a custom field to the {@code Coder} serialization. It provides a
- * constructor annotated with {@link
- * com.fasterxml.jackson.annotation.JsonCreator}, which is a factory method
- * used when deserializing a {@code Coder} instance.
+ * <p>See {@link SerializableCoder} for an example of a {@code Coder} that adds a custom field to
+ * the {@link Coder} serialization. It provides a constructor annotated with
+ * {@link com.fasterxml.jackson.annotation.JsonCreator}, which is a factory method used when
+ * deserializing a {@link Coder} instance.
  *
- * <p> See {@link KvCoder} for an example of a nested {@code Coder} type.
+ * <p>See {@link KvCoder} for an example of a nested {@code Coder} type.
+ *
+ * <p>The binary format of a {@link Coder} is identified by {@link #getEncodingId()}; be sure to
+ * understand the requirements for evolving coder formats.
  *
  * @param <T> the type of the values being transcoded
  */
@@ -193,20 +197,30 @@ public interface Coder<T> extends Serializable {
    * An identifier for the binary format written by {@link #encode}.
    *
    * <p>This value, along with the fully qualified class name, forms an identifier for the
-   * binary format of this coder. If a {@code Coder} implementation is modified to write a new
-   * backwards-incompatible format, it is imperative that this method be correspondingly modified to
-   * return a distinct value.
+   * binary format of this coder. Whenever this value changes, the new encoding is considered
+   * incompatible with the prior format: It is presumed that the prior version of the coder will
+   * be unable to correctly read the new format and the new version of the coder will be unable to
+   * correctly read the old format.
    *
-   * @see #getAllowedEncodings()
+   * <p>If the format is changed in a backwards-compatible way (the Coder can still accept data from
+   * the prior format), such as by adding optional fields to a Protocol Buffer or Avro definition,
+   * and you want Dataflow to understand that the new coder is compatible with the prior coder,
+   * this value must remain unchanged. It is then the responsibility of {@link #decode} to correctly
+   * read data from the prior format.
    */
+  @Experimental(Kind.CODER_ENCODING_ID)
   public String getEncodingId();
 
   /**
    * A collection of encodings supported by {@link #decode} in addition to the encoding
    * from {@link #getEncodingId()} (which is assumed supported).
    *
+   * <p><i>This information is not currently used for any purpose</i>. It is descriptive only,
+   * and this method is subject to change.
+   *
    * @see #getEncodingId()
    */
+  @Experimental(Kind.CODER_ENCODING_ID)
   public Collection<String> getAllowedEncodings();
 
   /**
