@@ -17,13 +17,13 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.coders.CoderRegistry.IncompatibleCoderException;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,7 +49,7 @@ import java.util.List;
 public class CoderRegistryTest {
 
   @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  public ExpectedException thrown = ExpectedException.none();
 
   public static CoderRegistry getStandardRegistry() {
     CoderRegistry registry = new CoderRegistry();
@@ -108,7 +108,7 @@ public class CoderRegistryTest {
 
   @Test
   public void testRegisterInstantiatedCoderInvalidRawtype() throws Exception {
-    expectedException.expect(IllegalArgumentException.class);
+    thrown.expect(IllegalArgumentException.class);
     CoderRegistry registry = new CoderRegistry();
     registry.registerCoder(List.class, new MyListCoder());
   }
@@ -122,7 +122,7 @@ public class CoderRegistryTest {
   @Test
   public void testSimpleUnknownDefaultCoder() throws Exception {
     CoderRegistry registry = getStandardRegistry();
-    expectedException.expect(CannotProvideCoderException.class);
+    thrown.expect(CannotProvideCoderException.class);
     registry.getDefaultCoder(UnknownType.class);
   }
 
@@ -148,15 +148,15 @@ public class CoderRegistryTest {
     TypeDescriptor<List<UnknownType>> listUnknownToken =
         new TypeDescriptor<List<UnknownType>>() {};
 
-    expectedException.expect(CannotProvideCoderException.class);
+    thrown.expect(CannotProvideCoderException.class);
     registry.getDefaultCoder(listUnknownToken);
   }
 
   @Test
   public void testParameterizedDefaultCoderWrongMethod() throws Exception {
     CoderRegistry registry = getStandardRegistry();
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("new TypeDescriptor<List<...>>(){}");
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("new TypeDescriptor<List<...>>(){}");
     registry.getDefaultCoder(List.class);
   }
 
@@ -238,19 +238,49 @@ public class CoderRegistryTest {
 
   @Test
   public void testTypeCompatibility() throws Exception {
-    assertTrue(CoderRegistry.isCompatible(
-        BigEndianIntegerCoder.of(), Integer.class));
-    assertFalse(CoderRegistry.isCompatible(
-        BigEndianIntegerCoder.of(), String.class));
+    CoderRegistry.verifyCompatible(BigEndianIntegerCoder.of(), Integer.class);
+    CoderRegistry.verifyCompatible(
+        ListCoder.of(BigEndianIntegerCoder.of()),
+        new TypeDescriptor<List<Integer>>() {}.getType());
+  }
 
-    assertFalse(CoderRegistry.isCompatible(
-        ListCoder.of(BigEndianIntegerCoder.of()), Integer.class));
-    assertTrue(CoderRegistry.isCompatible(
+  @Test
+  public void testIntVersusStringIncompatibility() throws Exception {
+    thrown.expect(IncompatibleCoderException.class);
+    thrown.expectMessage("not assignable");
+    CoderRegistry.verifyCompatible(BigEndianIntegerCoder.of(), String.class);
+  }
+
+  private static class TooManyComponentCoders<T> extends ListCoder<T> {
+    public TooManyComponentCoders(Coder<T> actualComponentCoder) {
+      super(actualComponentCoder);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return ImmutableList.<Coder<?>>builder()
+          .addAll(super.getCoderArguments())
+          .add(BigEndianLongCoder.of())
+          .build();
+    }
+  }
+
+  @Test
+  public void testTooManyCoderArguments() throws Exception {
+    thrown.expect(IncompatibleCoderException.class);
+    thrown.expectMessage("type parameters");
+    thrown.expectMessage("less than the number of coder arguments");
+    CoderRegistry.verifyCompatible(
+        new TooManyComponentCoders<>(BigEndianIntegerCoder.of()), List.class);
+  }
+
+  @Test
+  public void testComponentIncompatibility() throws Exception {
+    thrown.expect(IncompatibleCoderException.class);
+    thrown.expectMessage("component coder is incompatible");
+    CoderRegistry.verifyCompatible(
         ListCoder.of(BigEndianIntegerCoder.of()),
-        new TypeDescriptor<List<Integer>>() {}.getType()));
-    assertFalse(CoderRegistry.isCompatible(
-        ListCoder.of(BigEndianIntegerCoder.of()),
-        new TypeDescriptor<List<String>>() {}.getType()));
+        new TypeDescriptor<List<String>>() {}.getType());
   }
 
   static class MyGenericClass<FooT, BazT> { }

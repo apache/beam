@@ -380,10 +380,15 @@ public class CoderRegistry implements CoderProvider {
     Map<Type, Coder<?>> context = new HashMap<>();
     for (int i = 0; i < knownCoders.length; i++) {
       if (knownCoders[i] != null) {
-        if (!isCompatible(knownCoders[i], typeArgs[i])) {
+        try {
+          verifyCompatible(knownCoders[i], typeArgs[i]);
+        } catch (IncompatibleCoderException exn) {
           throw new IllegalArgumentException(
-              "Cannot encode elements of type " + typeArgs[i]
-                  + " with " + knownCoders[i]);
+              String.format("Provided coders for type arguments of %s contain incompatibilities:"
+                  + " Cannot encode elements of type %s with coder %s",
+                  baseClass,
+                  typeArgs[i], knownCoders[i]),
+              exn);
         }
         context.putAll(getTypeToCoderBindings(typeArgs[i], knownCoders[i]));
       }
@@ -408,11 +413,41 @@ public class CoderRegistry implements CoderProvider {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
+   * Thrown when a coder cannot possibly encode a type, yet has been proposed as a coder
+   * for that type.
+   */
+  static class IncompatibleCoderException extends RuntimeException {
+    private static final long serialVersionUID = 0L;
+    private Coder<?> coder;
+    private Type type;
+
+    public IncompatibleCoderException(String message, Coder<?> coder, Type type) {
+      super(message);
+      this.coder = coder;
+      this.type = type;
+    }
+
+    public IncompatibleCoderException(String message, Coder<?> coder, Type type, Throwable cause) {
+      super(message, cause);
+      this.coder = coder;
+      this.type = type;
+    }
+
+    public Coder<?> getCoder() {
+      return coder;
+    }
+
+    public Type getType() {
+      return type;
+    }
+  }
+
+  /**
    * Returns {@code true} if the given coder can possibly encode elements
    * of the given type.
    */
-  static <T, CoderT extends Coder<T>, CandidateT> boolean
-      isCompatible(CoderT coder, Type candidateType) {
+  static <T, CoderT extends Coder<T>, CandidateT>
+      void verifyCompatible(CoderT coder, Type candidateType) throws IncompatibleCoderException {
 
     // Various representations of the coder's class
     @SuppressWarnings("unchecked")
@@ -436,13 +471,17 @@ public class CoderRegistry implements CoderProvider {
     // If coder has type Coder<T> where the actual value of T is lost
     // to erasure, then we cannot rule it out.
     if (candidateType instanceof TypeVariable) {
-      return true;
+      return;
     }
 
     // If the raw types are not compatible, we can certainly rule out
     // coder compatibility
     if (!codedClass.isAssignableFrom(candidateClass)) {
-      return false;
+      throw new IncompatibleCoderException(
+          String.format("Cannot encode elements of type %s with coder %s because the"
+              + " coded type %s is not assignable from %s",
+              candidateType, coder, codedClass, candidateType),
+          coder, candidateType);
     }
     // we have established that this is a covariant upcast... though
     // coders are invariant, we are just checking one direction
@@ -453,22 +492,34 @@ public class CoderRegistry implements CoderProvider {
     // type parameters are not compatible, then the whole thing is certainly not
     // compatible.
     if ((codedType instanceof ParameterizedType) && !isNullOrEmpty(coder.getCoderArguments())) {
-      Type[] typeArguments =
-          ((ParameterizedType)
-           candidateOkDescriptor.getSupertype(codedClass).getType())
-          .getActualTypeArguments();
+      ParameterizedType parameterizedSupertype = ((ParameterizedType)
+           candidateOkDescriptor.getSupertype(codedClass).getType());
+      Type[] typeArguments = parameterizedSupertype.getActualTypeArguments();
       List<? extends Coder<?>> typeArgumentCoders = coder.getCoderArguments();
-      assert typeArguments.length == typeArgumentCoders.size();
-      for (int i = 0; i < typeArguments.length; i++) {
-        if (!isCompatible(
-                typeArgumentCoders.get(i),
-                candidateDescriptor.resolveType(typeArguments[i]).getType())) {
-          return false;
+      if (typeArguments.length < typeArgumentCoders.size()) {
+        throw new IncompatibleCoderException(
+            String.format("Cannot encode elements of type %s with coder %s:"
+                + " the generic supertype %s has %s type parameters, which is less than the"
+                + " number of coder arguments %s has (%s).",
+                candidateOkDescriptor, coder,
+                parameterizedSupertype, typeArguments.length,
+                coder, typeArgumentCoders.size()),
+            coder, candidateOkDescriptor.getType());
+      }
+      for (int i = 0; i < typeArgumentCoders.size(); i++) {
+        try {
+          verifyCompatible(
+              typeArgumentCoders.get(i),
+              candidateDescriptor.resolveType(typeArguments[i]).getType());
+        } catch (IncompatibleCoderException exn) {
+          throw new IncompatibleCoderException(
+              String.format("Cannot encode elements of type %s with coder %s"
+                  + " because some component coder is incompatible",
+                  candidateType, coder),
+              coder, candidateType, exn);
         }
       }
     }
-
-    return true; // For all we can tell.
   }
 
   private static boolean isNullOrEmpty(Collection<?> c) {
