@@ -62,12 +62,12 @@ public class NormalParDoFnTest {
     enum State { UNSTARTED, STARTED, PROCESSING, FINISHED }
     State state = State.UNSTARTED;
 
-    List<TupleTag> sideOutputTupleTags;
+    List<TupleTag<String>> sideOutputTupleTags;
 
     public TestDoFn(List<String> sideOutputTags) {
       sideOutputTupleTags = new ArrayList<>();
       for (String sideOutputTag : sideOutputTags) {
-        sideOutputTupleTags.add(new TupleTag(sideOutputTag));
+        sideOutputTupleTags.add(new TupleTag<String>(sideOutputTag));
       }
     }
 
@@ -96,7 +96,7 @@ public class NormalParDoFnTest {
 
     private void outputToAll(Context c, String value) {
       c.output(value);
-      for (TupleTag sideOutputTupleTag : sideOutputTupleTags) {
+      for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
         c.sideOutput(sideOutputTupleTag,
                      sideOutputTupleTag.getId() + ": " + value);
       }
@@ -144,7 +144,7 @@ public class NormalParDoFnTest {
     List<String> sideOutputTags = Arrays.asList("tag1", "tag2", "tag3");
 
     TestDoFn fn = new TestDoFn(sideOutputTags);
-    DoFnInfo fnInfo = new DoFnInfo(fn, WindowingStrategy.globalDefault());
+    DoFnInfo<?, ?> fnInfo = new DoFnInfo<>(fn, WindowingStrategy.globalDefault());
     TestReceiver receiver = new TestReceiver();
     TestReceiver receiver1 = new TestReceiver();
     TestReceiver receiver2 = new TestReceiver();
@@ -213,7 +213,7 @@ public class NormalParDoFnTest {
   @Test
   public void testUnexpectedNumberOfReceivers() throws Exception {
     TestDoFn fn = new TestDoFn(Collections.<String>emptyList());
-    DoFnInfo fnInfo = new DoFnInfo(fn, WindowingStrategy.globalDefault());
+    DoFnInfo<?, ?> fnInfo = new DoFnInfo<>(fn, WindowingStrategy.globalDefault());
     TestReceiver receiver = new TestReceiver();
 
     PTuple sideInputValues = PTuple.empty();
@@ -256,7 +256,7 @@ public class NormalParDoFnTest {
   @Test
   public void testErrorPropagation() throws Exception {
     TestErrorDoFn fn = new TestErrorDoFn();
-    DoFnInfo fnInfo = new DoFnInfo(fn, WindowingStrategy.globalDefault());
+    DoFnInfo<?, ?> fnInfo = new DoFnInfo<>(fn, WindowingStrategy.globalDefault());
     TestReceiver receiver = new TestReceiver();
 
     PTuple sideInputValues = PTuple.empty();
@@ -328,7 +328,7 @@ public class NormalParDoFnTest {
   @Test
   public void testUndeclaredSideOutputs() throws Exception {
     TestDoFn fn = new TestDoFn(Arrays.asList("declared", "undecl1", "undecl2", "undecl3"));
-    DoFnInfo fnInfo = new DoFnInfo(fn, WindowingStrategy.globalDefault());
+    DoFnInfo<?, ?> fnInfo = new DoFnInfo<>(fn, WindowingStrategy.globalDefault());
     CounterSet counters = new CounterSet();
     NormalParDoFn normalParDoFn = NormalParDoFn.of(
         PipelineOptionsFactory.create(),

@@ -70,7 +70,7 @@ public class ApiSurfaceTest {
     }
   }
 
-  private boolean classIsAllowed(Class clazz) {
+  private boolean classIsAllowed(Class<?> clazz) {
     return  clazz.getName().startsWith("com.google.cloud.dataflow");
   }
 
@@ -98,15 +98,6 @@ public class ApiSurfaceTest {
   @Test
   public void testExposedReturnType() throws Exception {
     assertExposed(ExposedReturnType.class, Exposed.class);
-  }
-
-  private static interface ExposedReturnTypeVarBound {
-    <T extends Exposed> T getList();
-  }
-
-  @Test
-  public void testExposedReturnTypeVarBound() throws Exception {
-    assertExposed(ExposedReturnTypeVarBound.class, Exposed.class);
   }
 
   private static interface ExposedParameterTypeVarBound {

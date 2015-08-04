@@ -205,8 +205,7 @@ public class VarIntTest {
         (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, 0x02 };
 
     thrown.expect(IOException.class);
-
-    long parsed = decodeLong(tooLargeNumber);
+    decodeLong(tooLargeNumber);
   }
 
   @Test
@@ -214,8 +213,7 @@ public class VarIntTest {
     byte[] encoded = encodeLong(1L << 32);
 
     thrown.expect(IOException.class);
-
-    int parsed = decodeInt(encoded);
+    decodeInt(encoded);
   }
 
   @Test
@@ -223,8 +221,7 @@ public class VarIntTest {
     byte[] encoded = encodeLong(-1);
 
     thrown.expect(IOException.class);
-
-    int parsed = decodeInt(encoded);
+    decodeInt(encoded);
   }
 
   @Test
@@ -233,8 +230,7 @@ public class VarIntTest {
       { (byte) 0xff, (byte) 0xff };
 
     thrown.expect(IOException.class);
-
-    long parsed = decodeLong(nonTerminatedNumber);
+    decodeLong(nonTerminatedNumber);
   }
 
   @Test

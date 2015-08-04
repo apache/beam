@@ -189,24 +189,25 @@ public class BigQueryUtilTest {
     TableDataList dataList = rawDataList(rawRow("Arthur", "1.430397296789E9", 42));
     onTableList(dataList);
 
-    BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
+    try (BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
         mockClient,
-        BigQueryIO.parseTableSpec("project:dataset.table"));
+        BigQueryIO.parseTableSpec("project:dataset.table"))) {
 
-    Assert.assertTrue(iterator.hasNext());
-    TableRow row = iterator.next();
+      Assert.assertTrue(iterator.hasNext());
+      TableRow row = iterator.next();
 
-    Assert.assertTrue(row.containsKey("name"));
-    Assert.assertTrue(row.containsKey("time"));
-    Assert.assertTrue(row.containsKey("answer"));
-    Assert.assertEquals("Arthur", row.get("name"));
-    Assert.assertEquals("2015-04-30 12:34:56.789 UTC", row.get("time"));
-    Assert.assertEquals(42, row.get("answer"));
+      Assert.assertTrue(row.containsKey("name"));
+      Assert.assertTrue(row.containsKey("time"));
+      Assert.assertTrue(row.containsKey("answer"));
+      Assert.assertEquals("Arthur", row.get("name"));
+      Assert.assertEquals("2015-04-30 12:34:56.789 UTC", row.get("time"));
+      Assert.assertEquals(42, row.get("answer"));
 
-    Assert.assertFalse(iterator.hasNext());
+      Assert.assertFalse(iterator.hasNext());
 
-    verifyTableGet();
-    verifyTabledataList();
+      verifyTableGet();
+      verifyTabledataList();
+    }
   }
 
   private TableRow rawRow(Object...args) {
@@ -229,22 +230,23 @@ public class BigQueryUtilTest {
     TableDataList dataList = rawDataList(rawRow("Arthur", 42));
     onTableList(dataList);
 
-    BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
+    try (BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
         mockClient,
-        BigQueryIO.parseTableSpec("project:dataset.table"));
+        BigQueryIO.parseTableSpec("project:dataset.table"))) {
 
-    Assert.assertTrue(iterator.hasNext());
-    TableRow row = iterator.next();
+      Assert.assertTrue(iterator.hasNext());
+      TableRow row = iterator.next();
 
-    Assert.assertTrue(row.containsKey("name"));
-    Assert.assertTrue(row.containsKey("answer"));
-    Assert.assertEquals("Arthur", row.get("name"));
-    Assert.assertEquals(42, row.get("answer"));
+      Assert.assertTrue(row.containsKey("name"));
+      Assert.assertTrue(row.containsKey("answer"));
+      Assert.assertEquals("Arthur", row.get("name"));
+      Assert.assertEquals(42, row.get("answer"));
 
-    Assert.assertFalse(iterator.hasNext());
+      Assert.assertFalse(iterator.hasNext());
 
-    verifyTableGet();
-    verifyTabledataList();
+      verifyTableGet();
+      verifyTabledataList();
+    }
   }
 
   @Test
@@ -258,14 +260,15 @@ public class BigQueryUtilTest {
         .setTotalRows(0L);
     onTableList(dataList);
 
-    BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
+    try (BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
         mockClient,
-        BigQueryIO.parseTableSpec("project:dataset.table"));
+        BigQueryIO.parseTableSpec("project:dataset.table"))) {
 
-    Assert.assertFalse(iterator.hasNext());
+      Assert.assertFalse(iterator.hasNext());
 
-    verifyTableGet();
-    verifyTabledataList();
+      verifyTableGet();
+      verifyTabledataList();
+    }
   }
 
   @Test
@@ -285,24 +288,26 @@ public class BigQueryUtilTest {
         .thenReturn(page1)
         .thenReturn(page2);
 
-    BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
+    try (BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
         mockClient,
-        BigQueryIO.parseTableSpec("project:dataset.table"));
-    List<String> names = new LinkedList<>();
-    Iterators.addAll(names,
-        Iterators.transform(iterator, new Function<TableRow, String>(){
-          @Override
-          public String apply(TableRow input) {
-            return (String) input.get("name");
-          }
-        }));
+        BigQueryIO.parseTableSpec("project:dataset.table"))) {
 
-    Assert.assertThat(names, Matchers.hasItems("Row1", "Row2"));
+      List<String> names = new LinkedList<>();
+      Iterators.addAll(names,
+          Iterators.transform(iterator, new Function<TableRow, String>(){
+            @Override
+            public String apply(TableRow input) {
+              return (String) input.get("name");
+            }
+          }));
 
-    verifyTableGet();
-    verifyTabledataList();
-    // The second call should have used a page token.
-    verify(mockTabledataList).setPageToken("page2");
+      Assert.assertThat(names, Matchers.hasItems("Row1", "Row2"));
+
+      verifyTableGet();
+      verifyTabledataList();
+      // The second call should have used a page token.
+      verify(mockTabledataList).setPageToken("page2");
+    }
   }
 
   @Test
@@ -316,13 +321,14 @@ public class BigQueryUtilTest {
     when(mockTablesGet.execute())
         .thenThrow(new IOException("No such table"));
 
-    BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
+    try (BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
         mockClient,
-        BigQueryIO.parseTableSpec("project:dataset.table"));
-    try {
-      Assert.assertFalse(iterator.hasNext());  // throws.
-    } finally {
-      verifyTableGet();
+        BigQueryIO.parseTableSpec("project:dataset.table"))) {
+      try {
+        Assert.assertFalse(iterator.hasNext());  // throws.
+      } finally {
+        verifyTableGet();
+      }
     }
   }
 
