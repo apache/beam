@@ -287,16 +287,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   }
 
   /**
-   * Returns the allowed timestamp skew duration, which is the maximum duration that output
-   * timestamps can be shifted backward (relative the input timestamp) in
+   * Returns the allowed timestamp skew duration, which is the maximum
+   * duration that timestamps can be shifted backward in
    * {@link DoFn.Context#outputWithTimestamp}.
    *
-   * <p>Outputting earlier than the current input timestamp can cause the output element to appear
-   * in a different (earlier) window. In addition, if the skew exceeds the allowed lateness it may
-   * result in the output being dropped because it is too late.
-   *
-   * <p> The default value is {@code Duration.ZERO}, in which case timestamps can only be shifted
-   * forward to future. For infinite skew, return {@code Duration.millis(Long.MAX_VALUE)}.
+   * <p> The default value is {@code Duration.ZERO}, in which case
+   * timestamps can only be shifted forward to future.  For infinite
+   * skew, return {@code Duration.millis(Long.MAX_VALUE)}.
    */
   public Duration getAllowedTimestampSkew() {
     return Duration.ZERO;

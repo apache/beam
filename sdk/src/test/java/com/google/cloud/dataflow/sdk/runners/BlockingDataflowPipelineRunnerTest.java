@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineOptions;
@@ -290,7 +291,7 @@ public class BlockingDataflowPipelineRunnerTest {
   public void testToString() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setJobName("TestJobName");
-    options.setProject("TestProject");
+    options.setProject("test-project");
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);

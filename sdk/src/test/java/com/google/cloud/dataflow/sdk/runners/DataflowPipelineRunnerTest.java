@@ -61,7 +61,9 @@ import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.collect.ImmutableList;
 
+import org.hamcrest.Description;
 import org.hamcrest.Matchers;
+import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -91,6 +93,9 @@ import java.util.List;
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class DataflowPipelineRunnerTest {
+
+  private static final String PROJECT_ID = "some-project";
+
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule
@@ -123,9 +128,9 @@ public class DataflowPipelineRunnerTest {
 
     when(mockDataflowClient.projects()).thenReturn(mockProjects);
     when(mockProjects.jobs()).thenReturn(mockJobs);
-    when(mockJobs.create(eq("someProject"), jobCaptor.capture()))
+    when(mockJobs.create(eq(PROJECT_ID), jobCaptor.capture()))
         .thenReturn(mockRequest);
-    when(mockJobs.list(eq("someProject"))).thenReturn(mockList);
+    when(mockJobs.list(eq(PROJECT_ID))).thenReturn(mockList);
     when(mockList.setPageToken(anyString())).thenReturn(mockList);
     when(mockList.execute())
         .thenReturn(new ListJobsResponse().setJobs(
@@ -160,7 +165,7 @@ public class DataflowPipelineRunnerTest {
   private DataflowPipelineOptions buildPipelineOptions(
       ArgumentCaptor<Job> jobCaptor) throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setProject("someProject");
+    options.setProject(PROJECT_ID);
     options.setTempLocation("gs://somebucket/some/path");
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
     options.setFilesToStage(new LinkedList<String>());
@@ -186,7 +191,7 @@ public class DataflowPipelineRunnerTest {
     DataflowPipelineOptions options = buildPipelineOptions();
     Dataflow mockDataflowClient = options.getDataflowClient();
     Dataflow.Projects.Jobs.Create mockRequest = mock(Dataflow.Projects.Jobs.Create.class);
-    when(mockDataflowClient.projects().jobs().create(eq("someProject"), any(Job.class)))
+    when(mockDataflowClient.projects().jobs().create(eq(PROJECT_ID), any(Job.class)))
         .thenReturn(mockRequest);
     Job resultJob = new Job();
     resultJob.setId("newid");
@@ -238,24 +243,31 @@ public class DataflowPipelineRunnerTest {
     options.setJobName("oldJobName");
     Dataflow mockDataflowClient = options.getDataflowClient();
     Dataflow.Projects.Jobs.Create mockRequest = mock(Dataflow.Projects.Jobs.Create.class);
-    when(mockDataflowClient.projects().jobs().create(eq("someProject"), any(Job.class)))
+    when(mockDataflowClient.projects().jobs().create(eq(PROJECT_ID), any(Job.class)))
         .thenReturn(mockRequest);
-    Job resultJob = new Job();
+    final Job resultJob = new Job();
     resultJob.setId("newid");
     // Return a different request id.
     resultJob.setClientRequestId("different_request_id");
     when(mockRequest.execute()).thenReturn(resultJob);
 
     DataflowPipeline p = buildDataflowPipeline(options);
-    try {
-      p.run();
-      fail("Expected DataflowJobAlreadyUpdatedException");
-    } catch (DataflowJobAlreadyUpdatedException expected) {
-      assertThat(expected.getMessage(),
-          containsString("The job named oldjobname with id: oldJobId has already been updated "
-              + "into job id: newid and cannot be updated again."));
-      assertEquals(expected.getJob().getJobId(), resultJob.getId());
-    }
+
+    thrown.expect(DataflowJobAlreadyUpdatedException.class);
+    thrown.expect(new TypeSafeMatcher<DataflowJobAlreadyUpdatedException>() {
+      @Override
+      public void describeTo(Description description) {
+        description.appendText("Expected job ID: " + resultJob.getId());
+      }
+
+      @Override
+      protected boolean matchesSafely(DataflowJobAlreadyUpdatedException item) {
+        return resultJob.getId().equals(item.getJob().getJobId());
+      }
+    });
+    thrown.expectMessage("The job named oldjobname with id: oldJobId has already been updated "
+        + "into job id: newid and cannot be updated again.");
+    p.run();
   }
 
   @Test
@@ -288,7 +300,7 @@ public class DataflowPipelineRunnerTest {
     options.setStagingLocation(gcsStaging);
     options.setTempLocation(gcsTemp);
     options.setTempDatasetId(cloudDataflowDataset);
-    options.setProject("someProject");
+    options.setProject(PROJECT_ID);
     options.setJobName("job");
     options.setDataflowClient(buildMockDataflow(jobCaptor));
     options.setGcsUtil(mockGcsUtil);
@@ -378,7 +390,7 @@ public class DataflowPipelineRunnerTest {
     // Set temp location (required), and check that staging location is set.
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setTempLocation(gcsTemp);
-    options.setProject("testProject");
+    options.setProject(PROJECT_ID);
     options.setGcpCredential(new TestCredential());
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
@@ -521,10 +533,68 @@ public class DataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testNoStagingLocationAndNoTempLocationFails() {
+  public void testProjectId() throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowPipelineRunner.class);
-    options.setProject("foo");
+    options.setProject("foo-12345");
+
+    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
+    options.setGcpCredential(new TestCredential());
+
+    DataflowPipelineRunner.fromOptions(options);
+  }
+
+  @Test
+  public void testProjectPrefix() throws IOException {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setRunner(DataflowPipelineRunner.class);
+    options.setProject("google.com:some-project-12345");
+
+    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
+    options.setGcpCredential(new TestCredential());
+
+    DataflowPipelineRunner.fromOptions(options);
+  }
+
+  @Test
+  public void testProjectNumber() throws IOException {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setRunner(DataflowPipelineRunner.class);
+    options.setProject("12345");
+
+    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Project ID");
+    thrown.expectMessage("project number");
+
+    DataflowPipelineRunner.fromOptions(options);
+  }
+
+  @Test
+  public void testProjectDescription() throws IOException {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setRunner(DataflowPipelineRunner.class);
+    options.setProject("some project");
+
+    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Project ID");
+    thrown.expectMessage("project description");
+
+    DataflowPipelineRunner.fromOptions(options);
+  }
+
+  @Test
+  public void testNoStagingLocationAndNoTempLocationFails() throws IOException {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setRunner(DataflowPipelineRunner.class);
+    options.setProject("foo-project");
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Missing required value for group");
@@ -540,7 +610,7 @@ public class DataflowPipelineRunnerTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowPipelineRunner.class);
     options.setGcpCredential(new TestCredential());
-    options.setProject("foo");
+    options.setProject("foo-project");
     options.setStagingLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
@@ -552,7 +622,7 @@ public class DataflowPipelineRunnerTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowPipelineRunner.class);
     options.setGcpCredential(new TestCredential());
-    options.setProject("foo");
+    options.setProject("foo-project");
     options.setTempLocation("gs://spam/ham/eggs");
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
 
@@ -722,7 +792,7 @@ public class DataflowPipelineRunnerTest {
   public void testToString() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setJobName("TestJobName");
-    options.setProject("TestProject");
+    options.setProject("test-project");
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
@@ -735,7 +805,7 @@ public class DataflowPipelineRunnerTest {
     options.setRunner(DataflowPipelineRunner.class);
     options.setStreaming(true);
     options.setJobName("TestJobName");
-    options.setProject("TestProject");
+    options.setProject("test-project");
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);

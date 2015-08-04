@@ -80,7 +80,6 @@ public class DataflowPipelineOptionsTest {
     assertEquals("a234567890-abcdeabcdeabcdeabcdeabcdeabcde-1208190706", options.getJobName());
   }
 
-
   @Test
   public void testUtf8UserNameAndApplicationNameIsNormalized() {
     resetDateTimeProviderRule.setDateTimeFixed("2014-12-08T19:07:06.698Z");

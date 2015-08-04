@@ -141,12 +141,21 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   private static final String ENVIRONMENT_MAJOR_VERSION = "3";
 
   /**
+   * Project IDs must contain lowercase letters, digits, or dashes.
+   * IDs must start with a letter and may not end with a dash.
+   * This regex isn't exact - this allows for patterns that would be rejected by
+   * the service, but this is sufficient for basic validation of project IDs.
+   */
+  public static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]+[a-z0-9]";
+
+  /**
    * Construct a runner from the provided options.
    *
    * @param options Properties that configure the runner.
    * @return The newly created runner.
    */
   public static DataflowPipelineRunner fromOptions(PipelineOptions options) {
+
     // (Re-)register standard IO factories. Clobbers any prior credentials.
     IOChannelUtils.registerStandardIOFactories(options);
 
@@ -198,6 +207,16 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         "JobName invalid; the name must consist of only the characters "
             + "[-a-z0-9], starting with a letter and ending with a letter "
             + "or number");
+
+    // Verify project
+    String project = dataflowOptions.getProject();
+    if (project.matches("[0-9]*")) {
+      throw new IllegalArgumentException("Project ID '" + project
+          + "' invalid. Please make sure you specified the Project ID, not project number.");
+    } else if (!project.matches(PROJECT_ID_REGEXP)) {
+      throw new IllegalArgumentException("Project ID '" + project
+          + "' invalid. Please make sure you specified the Project ID, not project description.");
+    }
 
     return new DataflowPipelineRunner(dataflowOptions);
   }

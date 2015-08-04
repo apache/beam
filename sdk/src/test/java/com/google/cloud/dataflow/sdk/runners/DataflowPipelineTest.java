@@ -34,7 +34,7 @@ public class DataflowPipelineTest {
   public void testToString() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setJobName("TestJobName");
-    options.setProject("TestProject");
+    options.setProject("project-id");
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
