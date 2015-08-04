@@ -47,7 +47,7 @@ import com.google.cloud.dataflow.sdk.values.KV;
  *   4. Writing data to Cloud Storage as text files
  * </pre>
  *
- * <p> To execute this pipeline, first edit the code to set your project name, the staging
+ * <p> To execute this pipeline, first edit the code to set your project ID, the staging
  * location, and the output location. The specified GCS bucket(s) must already exist.
  *
  * <p> Then, run the pipeline as described in the README. It will be deployed and run using the
@@ -63,8 +63,8 @@ public class MinimalWordCount {
     DataflowPipelineOptions options = PipelineOptionsFactory.create()
       .as(DataflowPipelineOptions.class);
     options.setRunner(BlockingDataflowPipelineRunner.class);
-    // CHANGE 1/3: Your project name is required in order to run your pipeline on the Google Cloud.
-    options.setProject("SET_YOUR_PROJECT_NAME_HERE");
+    // CHANGE 1/3: Your project ID is required in order to run your pipeline on the Google Cloud.
+    options.setProject("SET_YOUR_PROJECT_ID_HERE");
     // CHANGE 2/3: Your Google Cloud Storage path is required for staging local files.
     options.setStagingLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_STAGING_DIRECTORY");
 
