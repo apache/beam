@@ -28,7 +28,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -75,7 +74,7 @@ public class GcsPathTest {
   );
 
   @Test
-  public void testGcsPathParsing() throws IOException {
+  public void testGcsPathParsing() throws Exception {
     for (TestCase testCase : PATH_TEST_CASES) {
       String uriString = testCase.uri;
 
@@ -96,7 +95,7 @@ public class GcsPathTest {
   }
 
   @Test
-  public void testParentRelationship() throws IOException {
+  public void testParentRelationship() throws Exception {
     GcsPath path = GcsPath.fromComponents("bucket", "then/object");
     assertEquals("bucket", path.getBucket());
     assertEquals("then/object", path.getObject());
@@ -135,7 +134,7 @@ public class GcsPathTest {
   }
 
   @Test
-  public void testRelativeParent() throws IOException {
+  public void testRelativeParent() throws Exception {
     GcsPath path = GcsPath.fromComponents(null, "a/b");
     GcsPath parent = path.getParent();
     assertEquals("a/", parent.toString());
@@ -145,7 +144,7 @@ public class GcsPathTest {
   }
 
   @Test
-  public void testUriSupport() throws IOException {
+  public void testUriSupport() throws Exception {
     URI uri = URI.create("gs://bucket/some/path");
 
     GcsPath path = GcsPath.fromUri(uri);
@@ -160,7 +159,7 @@ public class GcsPathTest {
   }
 
   @Test
-  public void testBucketParsing() throws IOException {
+  public void testBucketParsing() throws Exception {
     GcsPath path = GcsPath.fromUri("gs://bucket");
     GcsPath path2 = GcsPath.fromUri("gs://bucket/");
 

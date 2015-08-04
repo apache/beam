@@ -81,11 +81,11 @@ public class TypeDescriptorTest {
   }
 
   private static class Id<T> {
+    @SuppressWarnings("unused") // used via reflection
     public T identity(T thingie) {
       return thingie;
     }
   }
-
 
   @Test
   public void testGetArgumentTypes() throws Exception {
