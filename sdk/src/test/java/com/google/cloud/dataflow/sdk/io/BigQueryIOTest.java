@@ -158,7 +158,7 @@ public class BigQueryIOTest {
   }
 
   @Test
-  public void testValidateSetsDefaultProject() {
+  public void testValidateReadSetsDefaultProject() {
     BigQueryOptions options = PipelineOptionsFactory.as(BigQueryOptions.class);
     options.setProject("someproject");
 
@@ -316,6 +316,44 @@ public class BigQueryIOTest {
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
+  }
+
+
+  private void testWriteValidatesDataset(boolean streaming) {
+    BigQueryOptions options = PipelineOptionsFactory.as(BigQueryOptions.class);
+    options.setProject("someproject");
+    options.setStreaming(streaming);
+
+    Pipeline p = Pipeline.create(options);
+
+    TableReference tableRef = new TableReference();
+    tableRef.setDatasetId("somedataset");
+    tableRef.setTableId("sometable");
+
+    thrown.expect(RuntimeException.class);
+    // Message will be one of following depending on the execution environment.
+    thrown.expectMessage(
+        Matchers.either(Matchers.containsString("Unable to confirm BigQuery dataset presence"))
+            .or(Matchers.containsString("BigQuery dataset not found for table")));
+    try {
+      p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
+       .apply(BigQueryIO.Write.named("WriteMyTable")
+           .to(tableRef)
+           .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+           .withSchema(new TableSchema()));
+    } finally {
+      Assert.assertEquals("someproject", tableRef.getProjectId());
+    }
+  }
+
+  @Test
+  public void testWriteValidatesDatasetBatch() {
+    testWriteValidatesDataset(false);
+  }
+
+  @Test
+  public void testWriteValidatesDatasetStreaming() {
+    testWriteValidatesDataset(true);
   }
 
   @Test

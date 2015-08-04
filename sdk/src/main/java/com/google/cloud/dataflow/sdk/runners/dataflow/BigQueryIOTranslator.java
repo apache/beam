@@ -16,21 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 
-import static com.google.cloud.dataflow.sdk.io.BigQueryIO.Read.Bound.verifyDatasetPresence;
-import static com.google.cloud.dataflow.sdk.io.BigQueryIO.Read.Bound.verifyTablePresence;
-
 import com.google.api.client.json.JsonFactory;
-import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.dataflow.sdk.coders.TableRowJsonCoder;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
-import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
-import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.hadoop.util.ApiErrorExtractor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +43,7 @@ public class BigQueryIOTranslator {
   public static class ReadTranslator
       implements DataflowPipelineTranslator.TransformTranslator<BigQueryIO.Read.Bound> {
 
-@Override
+    @Override
     public void translate(
         BigQueryIO.Read.Bound transform, DataflowPipelineTranslator.TranslationContext context) {
       // Actual translation.
@@ -96,28 +89,6 @@ public class BigQueryIOTranslator {
       }
 
       TableReference table = transform.getTable();
-      if (table.getProjectId() == null) {
-        // If user does not specify a project we assume the table to be located in the project
-        // that owns the Dataflow job.
-        String projectIdFromOptions = context.getPipelineOptions().getProject();
-        LOG.warn(String.format(BigQueryIO.SET_PROJECT_FROM_OPTIONS_WARNING, table.getDatasetId(),
-            table.getTableId(), projectIdFromOptions));
-        table.setProjectId(projectIdFromOptions);
-      }
-
-      // Check for destination table presence and emptiness for early failure notification.
-      // Note that a presence check can fail if the table or dataset are created by earlier stages
-      // of the pipeline. For these cases the withoutValidation method can be used to disable
-      // the check.
-      if (transform.getValidate()) {
-        verifyDatasetPresence(context.getPipelineOptions(), table);
-        if (transform.getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
-          verifyTablePresence(context.getPipelineOptions(), table);
-        }
-        if (transform.getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
-          verifyTableEmpty(context.getPipelineOptions(), table);
-        }
-      }
 
       // Actual translation.
       context.addStep(transform, "ParallelWrite");
@@ -147,27 +118,6 @@ public class BigQueryIOTranslator {
       context.addEncodingInput(
           WindowedValue.getValueOnlyCoder(TableRowJsonCoder.of()));
       context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
-    }
-  }
-
-  private static void verifyTableEmpty(
-      BigQueryOptions options,
-      TableReference table) {
-    try {
-      Bigquery client = Transport.newBigQueryClient(options).build();
-      BigQueryTableInserter inserter = new BigQueryTableInserter(client, table);
-      if (!inserter.isEmpty()) {
-        throw new IllegalArgumentException(
-            "BigQuery table is not empty: " + BigQueryIO.toTableSpec(table));
-      }
-    } catch (IOException e) {
-      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-      if (errorExtractor.itemNotFound(e)) {
-        // Nothing to do. If the table does not exist, it is considered empty.
-      } else {
-        throw new RuntimeException(
-            "unable to confirm BigQuery table emptiness", e);
-      }
     }
   }
 }

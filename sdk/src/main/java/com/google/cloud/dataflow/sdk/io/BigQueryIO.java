@@ -58,7 +58,6 @@ import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -223,6 +222,16 @@ public class BigQueryIO {
       + " table is in a different project please specify it as a part of the BigQuery table"
       + " definition.";
 
+  private static final String RESOURCE_NOT_FOUND_ERROR =
+      "BigQuery %1$s not found for table \"%2$s\" . Please create the %1$s before pipeline"
+          + " execution. If the %1$s is created by an earlier stage of the pipeline, this"
+          + " validation can be disabled using #withoutValidation.";
+
+  private static final String UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR =
+      "Unable to confirm BigQuery %1$s presence for table \"%2$s\". If the %1$s is created by"
+          + " an earlier stage of the pipeline, this validation can be disabled using"
+          + " #withoutValidation.";
+
   /**
    * Parse a table specification in the form
    * "[project_id]:[dataset_id].[table_id]" or "[dataset_id].[table_id]".
@@ -324,16 +333,6 @@ public class BigQueryIO {
       TableReference table;
       final String query;
       final boolean validate;
-
-      private static final String RESOURCE_NOT_FOUND_ERROR =
-          "BigQuery %1$s not found for table \"%2$s\" . Please create the %1$s before pipeline"
-          + " execution. If the %1$s is created by an earlier stage of the pipeline, this"
-          + " validation can be disabled using #withoutValidation.";
-
-      private static final String UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR =
-          "Unable to confirm BigQuery %1$s presence for table \"%2$s\". If the %1$s is created by"
-          + " an earlier stage of the pipeline, this validation can be disabled using"
-          + " #withoutValidation.";
 
       private static final String QUERY_VALIDATION_FAILURE_ERROR =
           "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
@@ -439,47 +438,6 @@ public class BigQueryIO {
         } catch (Exception e) {
           throw new IllegalArgumentException(
               String.format(QUERY_VALIDATION_FAILURE_ERROR, query), e);
-        }
-      }
-
-      public static void verifyDatasetPresence(BigQueryOptions options, TableReference table) {
-        try {
-          Bigquery client = Transport.newBigQueryClient(options).build();
-          BigQueryTableRowIterator.executeWithBackOff(
-              client.datasets().get(table.getProjectId(), table.getDatasetId()),
-              RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table));
-        } catch (Exception e) {
-          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-          if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
-            throw new IllegalArgumentException(
-                String.format(RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table)),
-                e);
-          } else {
-            throw new RuntimeException(
-                String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset",
-                    BigQueryIO.toTableSpec(table)),
-                e);
-          }
-        }
-      }
-
-      public static void verifyTablePresence(BigQueryOptions options, TableReference table) {
-        try {
-          Bigquery client = Transport.newBigQueryClient(options).build();
-          BigQueryTableRowIterator.executeWithBackOff(
-              client.tables().get(table.getProjectId(), table.getDatasetId(), table.getTableId()),
-              RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table));
-        } catch (Exception e) {
-          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-          if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
-            throw new IllegalArgumentException(
-                String.format(RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table)), e);
-          } else {
-            throw new RuntimeException(
-                String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "table",
-                    BigQueryIO.toTableSpec(table)),
-                e);
-          }
         }
       }
 
@@ -824,6 +782,28 @@ public class BigQueryIO {
             writeDisposition, false);
       }
 
+      private static void verifyTableEmpty(
+          BigQueryOptions options,
+          TableReference table) {
+        try {
+          Bigquery client = Transport.newBigQueryClient(options).build();
+          BigQueryTableInserter inserter = new BigQueryTableInserter(client, table);
+          if (!inserter.isEmpty()) {
+            throw new IllegalArgumentException(
+                "BigQuery table is not empty: " + BigQueryIO.toTableSpec(table));
+          }
+        } catch (IOException e) {
+          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+          if (errorExtractor.itemNotFound(e)) {
+            // Nothing to do. If the table does not exist, it is considered empty.
+          } else {
+            throw new RuntimeException(
+                "Unable to confirm BigQuery table emptiness for table "
+                    + BigQueryIO.toTableSpec(table), e);
+          }
+        }
+      }
+
       @Override
       public PDone apply(PCollection<TableRow> input) {
         BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
@@ -841,6 +821,30 @@ public class BigQueryIO {
         if (createDisposition == CreateDisposition.CREATE_IF_NEEDED && schema == null) {
           throw new IllegalArgumentException("CreateDisposition is CREATE_IF_NEEDED, "
               + "however no schema was provided.");
+        }
+
+        if (table != null && table.getProjectId() == null) {
+          // If user does not specify a project we assume the table to be located in the project
+          // that owns the Dataflow job.
+          String projectIdFromOptions = options.getProject();
+          LOG.warn(String.format(BigQueryIO.SET_PROJECT_FROM_OPTIONS_WARNING, table.getDatasetId(),
+              table.getTableId(), projectIdFromOptions));
+          table.setProjectId(projectIdFromOptions);
+        }
+
+        // Check for destination table presence and emptiness for early failure notification.
+        // Note that a presence check can fail if the table or dataset are created by earlier stages
+        // of the pipeline. For these cases the withoutValidation method can be used to disable
+        // the check.
+        // Unfortunately we can't validate anything early in case tableRefFunction is specified.
+        if (table != null && validate) {
+          verifyDatasetPresence(options, table);
+          if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
+            verifyTablePresence(options, table);
+          }
+          if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
+            verifyTableEmpty(options, table);
+          }
         }
 
         // In streaming, BigQuery write is taken care of by StreamWithDeDup transform.
@@ -901,6 +905,47 @@ public class BigQueryIO {
       /** Returns true if table validation is enabled. */
       public boolean getValidate() {
         return validate;
+      }
+    }
+  }
+
+  public static void verifyDatasetPresence(BigQueryOptions options, TableReference table) {
+    try {
+      Bigquery client = Transport.newBigQueryClient(options).build();
+      BigQueryTableRowIterator.executeWithBackOff(
+          client.datasets().get(table.getProjectId(), table.getDatasetId()),
+          RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table));
+    } catch (Exception e) {
+      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+      if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
+        throw new IllegalArgumentException(
+            String.format(RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table)),
+            e);
+      } else {
+        throw new RuntimeException(
+            String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset",
+                BigQueryIO.toTableSpec(table)),
+            e);
+      }
+    }
+  }
+
+  public static void verifyTablePresence(BigQueryOptions options, TableReference table) {
+    try {
+      Bigquery client = Transport.newBigQueryClient(options).build();
+      BigQueryTableRowIterator.executeWithBackOff(
+          client.tables().get(table.getProjectId(), table.getDatasetId(), table.getTableId()),
+          RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table));
+    } catch (Exception e) {
+      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+      if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
+        throw new IllegalArgumentException(
+            String.format(RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table)), e);
+      } else {
+        throw new RuntimeException(
+            String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "table",
+                BigQueryIO.toTableSpec(table)),
+            e);
       }
     }
   }
