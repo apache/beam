@@ -329,7 +329,7 @@ public class DataflowWorker {
     } else if (dynamicSplitResult instanceof BasicSerializableSourceFormat.BoundedSourceSplit) {
       status.setDynamicSourceSplit(
           BasicSerializableSourceFormat.toSourceSplit(
-              (BasicSerializableSourceFormat.BoundedSourceSplit) dynamicSplitResult, options));
+              (BasicSerializableSourceFormat.BoundedSourceSplit<?>) dynamicSplitResult, options));
     } else if (dynamicSplitResult != null) {
       throw new IllegalArgumentException(
           "Unexpected type of dynamic split result: " + dynamicSplitResult);

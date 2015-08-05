@@ -322,14 +322,18 @@ public class AvroIO {
       }
 
       static {
+        @SuppressWarnings("rawtypes")
+        DirectPipelineRunner.TransformEvaluator<Bound> transformEvaluator =
+            new DirectPipelineRunner.TransformEvaluator<Bound>() {
+          @Override
+          @SuppressWarnings("unchecked")
+          public void evaluate(
+              Bound transform, DirectPipelineRunner.EvaluationContext context) {
+            evaluateReadHelper(transform, context);
+          }
+        };
         DirectPipelineRunner.registerDefaultTransformEvaluator(
-            Bound.class, new DirectPipelineRunner.TransformEvaluator<Bound>() {
-              @Override
-              public void evaluate(
-                  Bound transform, DirectPipelineRunner.EvaluationContext context) {
-                evaluateReadHelper(transform, context);
-              }
-            });
+            Bound.class, transformEvaluator);
       }
     }
   }
@@ -670,14 +674,18 @@ public class AvroIO {
       }
 
       static {
+        @SuppressWarnings("rawtypes")
+        DirectPipelineRunner.TransformEvaluator<Bound> transformEvaluator =
+            new DirectPipelineRunner.TransformEvaluator<Bound>() {
+          @Override
+          @SuppressWarnings("unchecked")
+          public void evaluate(
+              Bound transform, DirectPipelineRunner.EvaluationContext context) {
+            evaluateWriteHelper(transform, context);
+          }
+        };
         DirectPipelineRunner.registerDefaultTransformEvaluator(
-            Bound.class, new DirectPipelineRunner.TransformEvaluator<Bound>() {
-              @Override
-              public void evaluate(
-                  Bound transform, DirectPipelineRunner.EvaluationContext context) {
-                evaluateWriteHelper(transform, context);
-              }
-            });
+            Bound.class, transformEvaluator);
       }
     }
   }

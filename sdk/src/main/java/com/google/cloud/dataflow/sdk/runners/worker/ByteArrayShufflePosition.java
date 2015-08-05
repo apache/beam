@@ -32,7 +32,8 @@ import javax.annotation.Nullable;
  * encoded in a way such that lexicographic ordering of the bytes is consistent with the inherent
  * ordering of {@link GroupingShuffleReader} positions.
  */
-public class ByteArrayShufflePosition implements Comparable, ShufflePosition {
+public class ByteArrayShufflePosition
+    implements Comparable<ByteArrayShufflePosition>, ShufflePosition {
   private final byte[] position;
 
   public ByteArrayShufflePosition(byte[] position) {
@@ -91,11 +92,10 @@ public class ByteArrayShufflePosition implements Comparable, ShufflePosition {
   }
 
   @Override
-  public int compareTo(Object o) {
+  public int compareTo(ByteArrayShufflePosition o) {
     if (this == o) {
       return 0;
     }
-    return UnsignedBytes.lexicographicalComparator().compare(
-        position, ((ByteArrayShufflePosition) o).position);
+    return UnsignedBytes.lexicographicalComparator().compare(position, o.position);
   }
 }

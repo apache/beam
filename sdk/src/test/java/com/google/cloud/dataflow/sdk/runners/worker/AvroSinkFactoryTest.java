@@ -65,7 +65,7 @@ public class AvroSinkFactoryTest {
         pathToAvroFile, coder.asCloudObject());
 
     Assert.assertThat(sink, new IsInstanceOf(AvroByteSink.class));
-    AvroByteSink avroSink = (AvroByteSink) sink;
+    AvroByteSink<?> avroSink = (AvroByteSink<?>) sink;
     Assert.assertEquals(pathToAvroFile, avroSink.avroSink.filenamePrefix);
     Assert.assertEquals(coder, avroSink.coder);
   }

@@ -121,7 +121,7 @@ public class DirectPipelineRunner
   public static <TransformT extends PTransform<?, ?>>
   void registerDefaultTransformEvaluator(
       Class<TransformT> transformClass,
-      TransformEvaluator<TransformT> transformEvaluator) {
+      TransformEvaluator<? super TransformT> transformEvaluator) {
     if (defaultTransformEvaluators.put(transformClass, transformEvaluator)
         != null) {
       throw new IllegalArgumentException(
