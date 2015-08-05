@@ -94,7 +94,7 @@ public class ShuffleSinkFactoryTest {
                                             Coder<?> keyCoder,
                                             Coder<?> valueCoder)
       throws Exception {
-    FullWindowedValueCoder<?> coder = (FullWindowedValueCoder<?>) WindowedValue.getFullCoder(
+    FullWindowedValueCoder<?> coder = WindowedValue.getFullCoder(
         KvCoder.of(keyCoder, valueCoder), IntervalWindow.getCoder());
     ShuffleSink shuffleSink = runTestCreateShuffleSinkHelper(
         shuffleWriterConfig, "partition_keys", coder.asCloudObject(), coder);
@@ -116,7 +116,7 @@ public class ShuffleSinkFactoryTest {
                                         Coder<?> keyCoder,
                                         Coder<?> valueCoder)
       throws Exception {
-    FullWindowedValueCoder<?> coder = (FullWindowedValueCoder<?>) WindowedValue.getFullCoder(
+    FullWindowedValueCoder<?> coder = WindowedValue.getFullCoder(
         KvCoder.of(keyCoder, valueCoder), IntervalWindow.getCoder());
     ShuffleSink shuffleSink = runTestCreateShuffleSinkHelper(
         shuffleWriterConfig, "group_keys", coder.asCloudObject(), coder);
@@ -137,7 +137,7 @@ public class ShuffleSinkFactoryTest {
                                                Coder<?> sortKeyCoder,
                                                Coder<?> sortValueCoder)
       throws Exception {
-    FullWindowedValueCoder<?> coder = (FullWindowedValueCoder<?>) WindowedValue.getFullCoder(
+    FullWindowedValueCoder<?> coder = WindowedValue.getFullCoder(
         KvCoder.of(keyCoder, KvCoder.of(sortKeyCoder, sortValueCoder)),
         IntervalWindow.getCoder());
     ShuffleSink shuffleSink = runTestCreateShuffleSinkHelper(
@@ -157,7 +157,7 @@ public class ShuffleSinkFactoryTest {
 
   @Test
   public void testCreateUngroupingShuffleSink() throws Exception {
-    FullWindowedValueCoder<?> coder = (FullWindowedValueCoder<?>) WindowedValue.getFullCoder(
+    FullWindowedValueCoder<?> coder = WindowedValue.getFullCoder(
         StringUtf8Coder.of(), IntervalWindow.getCoder());
     runTestCreateUngroupingShuffleSink(
         new byte[]{(byte) 0xE1},
