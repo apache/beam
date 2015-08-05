@@ -72,7 +72,6 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -81,7 +80,6 @@ import javax.annotation.Nullable;
 
 /** Unit tests for {@link DataflowWorkProgressUpdater}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("resource")
 public class DataflowWorkProgressUpdaterTest {
   static class TestMapTaskExecutor extends MapTaskExecutor {
     ApproximateProgress progress = null;
@@ -136,7 +134,7 @@ public class DataflowWorkProgressUpdaterTest {
   private long nowMillis;
 
   @Before
-  public void initMocksAndWorkflowServiceAndWorkerAndWork() throws IOException {
+  public void initMocksAndWorkflowServiceAndWorkerAndWork() throws Exception {
     MockitoAnnotations.initMocks(this);
 
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
@@ -320,7 +318,7 @@ public class DataflowWorkProgressUpdaterTest {
   }
 
   private static Metric<?> makeMetric(int i) {
-    return new DoubleMetric(String.valueOf(i), (double) i);
+    return new DoubleMetric(String.valueOf(i), i);
   }
 
   private void setUpMetrics(int n) {
@@ -336,7 +334,7 @@ public class DataflowWorkProgressUpdaterTest {
 
   private WorkItemServiceState generateServiceState(long leaseExpirationTimestamp,
       int progressReportIntervalMs, Position suggestedStopPosition,
-      long nextReportIndex) throws IOException {
+      long nextReportIndex) throws Exception {
     WorkItemServiceState responseState = new WorkItemServiceState();
     responseState.setFactory(Transport.getJsonFactory());
     responseState.setLeaseExpireTime(toCloudTime(new Instant(leaseExpirationTimestamp)));
