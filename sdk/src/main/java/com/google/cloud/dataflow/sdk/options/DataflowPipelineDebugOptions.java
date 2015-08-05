@@ -50,6 +50,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   @Description("[Experimental] Dataflow provides a number of experimental features that can "
       + "be enabled with this flag. Please sync with the Dataflow team before enabling any "
       + "experiments.")
+  @Experimental
   List<String> getExperiments();
   void setExperiments(List<String> value);
 
@@ -174,7 +175,6 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   @JsonIgnore
   @Description("If set, replace the existing pipeline with the name specified by --jobName with "
       + "this pipeline, preserving state.")
-  @Experimental
   boolean getUpdate();
   void setUpdate(boolean value);
 
@@ -187,7 +187,6 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
       "Mapping of old PTranform names to new ones, specified as JSON "
       + "{\"oldName\":\"newName\",...}. To mark a transform as deleted, make newName the empty "
       + "string.")
-  @Experimental
   Map<String, String> getTransformNameMapping();
   void setTransformNameMapping(Map<String, String> value);
 
