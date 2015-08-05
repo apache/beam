@@ -39,7 +39,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.EnumSet;
 
@@ -169,7 +168,7 @@ public class TransformTreeTest {
   }
 
   @Test
-  public void testMultiGraphSetup() throws IOException {
+  public void testMultiGraphSetup() throws Exception {
     Pipeline p = DirectPipeline.createForTest();
 
     PCollection<Integer> input = p.begin()
