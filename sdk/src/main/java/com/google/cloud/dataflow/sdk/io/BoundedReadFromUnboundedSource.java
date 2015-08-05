@@ -186,7 +186,7 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
       return new Reader(source.createReader(options, null));
     }
 
-    private class Reader extends AbstractBoundedReader<ValueWithRecordId<T>> {
+    private class Reader extends BoundedReader<ValueWithRecordId<T>> {
       private long recordsRead = 0L;
       private Instant endTime = Instant.now().plus(maxReadTime);
       private UnboundedSource.UnboundedReader<T> reader;

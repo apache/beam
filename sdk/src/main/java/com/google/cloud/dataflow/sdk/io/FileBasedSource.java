@@ -511,7 +511,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
   }
 
   // An internal Reader implementation that concatenates a sequence of FileBasedReaders.
-  private class FilePatternReader extends AbstractBoundedReader<T> {
+  private class FilePatternReader extends BoundedReader<T> {
     private final FileBasedSource<T> source;
     private final List<FileBasedReader<T>> fileReaders;
     final ListIterator<FileBasedReader<T>> fileReadersIterator;

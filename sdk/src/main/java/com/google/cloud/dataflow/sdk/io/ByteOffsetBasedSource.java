@@ -157,7 +157,7 @@ public abstract class ByteOffsetBasedSource<T> extends BoundedSource<T> {
    * A {@link Source.Reader} that implements code common
    * to readers of all {@link ByteOffsetBasedSource}s.
    */
-  public abstract static class ByteOffsetBasedReader<T> extends AbstractBoundedReader<T> {
+  public abstract static class ByteOffsetBasedReader<T> extends BoundedReader<T> {
     private static final Logger LOG = LoggerFactory.getLogger(ByteOffsetBasedReader.class);
 
     private ByteOffsetBasedSource<T> source;

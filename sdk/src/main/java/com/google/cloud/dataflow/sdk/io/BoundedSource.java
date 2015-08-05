@@ -18,9 +18,13 @@ package com.google.cloud.dataflow.sdk.io;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+
+import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * A {@link Source} that reads a finite amount of input and, because of that, supports
@@ -97,7 +101,7 @@ public abstract class BoundedSource<T> extends Source<T> {
    * at <i>dataflow-feedback@google.com</i>.
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
-  public interface BoundedReader<T> extends Source.Reader<T> {
+  public abstract static class BoundedReader<T> extends Source.Reader<T> {
     /**
      * Returns a value in [0, 1] representing approximately what fraction of the source
      * ({@link #getCurrentSource}) this reader has read so far.
@@ -108,13 +112,18 @@ public abstract class BoundedSource<T> extends Source<T> {
      *   <li>Should return 1 after a {@link #start} or {@link #advance} call that returns false.
      *   <li>The returned values should be non-decreasing (though they don't have to be unique).
      * </ul>
+     *
+     * <p> By default, returns null to indicate that this cannot be estimated.
+     *
      * @return A value in [0, 1] representing the fraction of this reader's current input
      *   read so far, or {@code null} if such an estimate is not available.
      */
-    Double getFractionConsumed();
+    public Double getFractionConsumed() {
+      return null;
+    }
 
     @Override
-    BoundedSource<T> getCurrentSource();
+    public abstract BoundedSource<T> getCurrentSource();
 
     /**
      * Tells the reader to narrow the range of the input it's going to read and give up
@@ -167,28 +176,19 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <p>{@link com.google.cloud.dataflow.sdk.io.range.RangeTracker} makes it easy to implement
      * this method safely and correctly.
+     *
+     * <p> By default, returns null to indicate that splitting is not possible.
      */
-    BoundedSource<T> splitAtFraction(double fraction);
-  }
-
-  /**
-   * A base class implementing some optional methods of {@link BoundedReader} in a default way:
-   * <ul>
-   *   <li>Progress estimation ({@link #getFractionConsumed}) is not supported.
-   *   <li>Dynamic splitting ({@link #splitAtFraction}) is not supported.
-   * </ul>
-   * @param <T>
-   */
-  public abstract static class AbstractBoundedReader<T>
-      extends AbstractReader<T> implements BoundedReader<T> {
-    @Override
-    public Double getFractionConsumed() {
+    public BoundedSource<T> splitAtFraction(double fraction) {
       return null;
     }
 
+    /**
+     * By default, returns the minimum possible timestamp.
+     */
     @Override
-    public BoundedSource<T> splitAtFraction(double fraction) {
-      return null;
+    public Instant getCurrentTimestamp() throws NoSuchElementException {
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
   }
 }

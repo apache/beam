@@ -174,7 +174,7 @@ public class BasicSerializableSourceFormatTest {
         return BigEndianIntegerCoder.of();
       }
 
-      private static class RangeReader extends AbstractBoundedReader<Integer> {
+      private static class RangeReader extends BoundedReader<Integer> {
         // To verify that BasicSerializableSourceFormat calls our methods according to protocol.
         enum State {
           UNSTARTED,
@@ -481,7 +481,7 @@ public class BasicSerializableSourceFormatTest {
     performSplit(cloudSource, options);
   }
 
-  private static class FailingReader implements BoundedSource.BoundedReader<Integer> {
+  private static class FailingReader extends BoundedSource.BoundedReader<Integer> {
     private BoundedSource<Integer> source;
 
     private FailingReader(BoundedSource<Integer> source) {

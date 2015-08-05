@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.io;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 
 import org.joda.time.Instant;
 
@@ -119,7 +118,7 @@ public abstract class Source<T> implements Serializable {
    * <p>
    * Note: this interface is a work-in-progress and may change.
    */
-  public interface Reader<T> extends AutoCloseable {
+  public abstract static class Reader<T> implements AutoCloseable {
     /**
      * Initializes the reader and advances the reader to the first record.
      *
@@ -129,14 +128,14 @@ public abstract class Source<T> implements Serializable {
      *
      * @return {@code true} if a record was read, {@code false} if there is no more input available.
      */
-    public boolean start() throws IOException;
+    public abstract boolean start() throws IOException;
 
     /**
      * Advances the reader to the next valid record.
      *
      * @return {@code true} if a record was read, {@code false} if there is no more input available.
      */
-    public boolean advance() throws IOException;
+    public abstract boolean advance() throws IOException;
 
     /**
      * Returns the value of the data item that was read by the last {@link #start} or
@@ -150,7 +149,7 @@ public abstract class Source<T> implements Serializable {
      *         {@link #start} or {@link #advance} wasn't called, or if the last {@link #start} or
      *         {@link #advance} returned {@code false}.
      */
-    public T getCurrent() throws NoSuchElementException;
+    public abstract T getCurrent() throws NoSuchElementException;
 
     /**
      * Returns the timestamp associated with the current data item.
@@ -165,13 +164,13 @@ public abstract class Source<T> implements Serializable {
      *         {@link #start} or {@link #advance} wasn't called, or if the last {@link #start} or
      *         {@link #advance} returned {@code false}.
      */
-    public Instant getCurrentTimestamp() throws NoSuchElementException;
+    public abstract Instant getCurrentTimestamp() throws NoSuchElementException;
 
     /**
      * Closes the reader. The reader cannot be used after this method is called.
      */
     @Override
-    public void close() throws IOException;
+    public abstract void close() throws IOException;
 
     /**
      * Returns a {@code Source} describing the same input that this {@code Reader} reads
@@ -180,20 +179,6 @@ public abstract class Source<T> implements Serializable {
      * A reader created from the result of {@code getCurrentSource}, if consumed, MUST
      * return the same data items as the current reader.
      */
-    public Source<T> getCurrentSource();
-  }
-
-  /**
-   * A base class implementing optional methods of {@link Reader} in a default way:
-   * <ul>
-   *   <li>All values have the timestamp of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
-   * </ul>
-   * @param <T>
-   */
-  public abstract static class AbstractReader<T> implements Reader<T> {
-    @Override
-    public Instant getCurrentTimestamp() throws NoSuchElementException {
-      return BoundedWindow.TIMESTAMP_MIN_VALUE;
-    }
+    public abstract Source<T> getCurrentSource();
   }
 }

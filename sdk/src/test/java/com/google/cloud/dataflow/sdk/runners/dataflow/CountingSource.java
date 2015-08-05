@@ -126,7 +126,7 @@ public class CountingSource
     return dedup;
   }
 
-  private class CountingSourceReader implements UnboundedReader<KV<Integer, Integer>> {
+  private class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>> {
     private int current;
     private boolean done = false;
 

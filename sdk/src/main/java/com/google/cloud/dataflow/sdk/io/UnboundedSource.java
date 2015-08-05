@@ -122,7 +122,7 @@ public abstract class UnboundedSource<
    * <p> A given {@code UnboundedReader} object will only be accessed by a single thread at once.
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
-  public interface UnboundedReader<OutputT> extends Source.Reader<OutputT> {
+  public abstract static class UnboundedReader<OutputT> extends Source.Reader<OutputT> {
     /**
      * Initializes the reader and advances the reader to the first record.
      *
@@ -136,7 +136,7 @@ public abstract class UnboundedSource<
      * called again on the same {@code UnboundedReader} object; it will only be called again when a
      * new reader object is constructed for the same source, e.g. on recovery.
      */
-    boolean start() throws IOException;
+    public abstract boolean start() throws IOException;
 
     /**
      * Advances the reader to the next valid record.
@@ -145,7 +145,7 @@ public abstract class UnboundedSource<
      * available. Future calls to {@link #advance} may return {@code true} once more data is
      * available.
      */
-    boolean advance() throws IOException;
+    public abstract boolean advance() throws IOException;
 
     /**
      * Returns a unique identifier for the current record.  This should be the same for each
@@ -162,7 +162,7 @@ public abstract class UnboundedSource<
      *         {@link #start} or {@link #advance} wasn't called, or if the last {@link #start} or
      *         {@link #advance} returned {@code false}.
      */
-    byte[] getCurrentRecordId() throws NoSuchElementException;
+    public abstract byte[] getCurrentRecordId() throws NoSuchElementException;
 
     /**
      * Returns a lower bound on timestamps of future elements read by this reader.
@@ -186,7 +186,7 @@ public abstract class UnboundedSource<
      * <p> May be called after {@link #advance} or {@link #start} has returned false, but not before
      * {@link #start} has been called.
      */
-    Instant getWatermark();
+    public abstract Instant getWatermark();
 
     /**
      * Returns a {@link CheckpointMark} representing the progress of this {@code UnboundedReader}.
@@ -201,13 +201,13 @@ public abstract class UnboundedSource<
      * <p> May be called after {@link #advance} or {@link #start} has returned false, but not before
      * {@link #start} has been called.
      */
-    CheckpointMark getCheckpointMark();
+    public abstract CheckpointMark getCheckpointMark();
 
     /**
      * Returns the {@link UnboundedSource} that created this reader.  This will not change over the
      * life of the reader.
      */
     @Override
-    UnboundedSource<OutputT, ?> getCurrentSource();
+    public abstract UnboundedSource<OutputT, ?> getCurrentSource();
   }
 }
