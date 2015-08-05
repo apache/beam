@@ -579,6 +579,7 @@ public class PubsubIO {
 
       private class PubsubReader extends DoFn<Void, T> {
         private static final long serialVersionUID = 0L;
+        private static final int DEFAULT_PULL_SIZE = 100;
 
         @Override
         public void processElement(ProcessContext c) throws IOException {
@@ -586,8 +587,8 @@ public class PubsubIO {
               Transport.newPubsubClient(c.getPipelineOptions().as(DataflowPipelineOptions.class))
                   .build();
 
-          String subscription = getSubscription().asV1Beta2Path();
-          if (subscription == null) {
+          String subscription;
+          if (getSubscription() == null) {
             String topic = getTopic().asV1Beta2Path();
             String[] split = topic.split("/");
             subscription = "projects/" + split[1] + "/subscriptions/" + split[3]
@@ -600,6 +601,8 @@ public class PubsubIO {
             } catch (Exception e) {
               throw new RuntimeException("Failed to create subscription: ", e);
             }
+          } else {
+             subscription = getSubscription().asV1Beta2Path();
           }
 
           Instant endTime = getMaxReadTime() == null
@@ -613,14 +616,18 @@ public class PubsubIO {
               PullRequest pullRequest = new PullRequest().setReturnImmediately(false);
               if (getMaxNumRecords() > 0) {
                 pullRequest.setMaxMessages(getMaxNumRecords() - messages.size());
+              } else {
+                pullRequest.setMaxMessages(DEFAULT_PULL_SIZE);
               }
 
               PullResponse pullResponse =
                   pubsubClient.projects().subscriptions().pull(subscription, pullRequest).execute();
               List<String> ackIds = new ArrayList<>();
-              for (ReceivedMessage received : pullResponse.getReceivedMessages()) {
-                messages.add(received.getMessage());
-                ackIds.add(received.getAckId());
+              if (pullResponse.getReceivedMessages() != null) {
+                for (ReceivedMessage received : pullResponse.getReceivedMessages()) {
+                  messages.add(received.getMessage());
+                  ackIds.add(received.getAckId());
+                }
               }
 
               if (ackIds.size() != 0) {
