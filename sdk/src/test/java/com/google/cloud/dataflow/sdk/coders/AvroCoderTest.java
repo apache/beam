@@ -41,6 +41,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
+import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.Stringable;
 import org.apache.avro.reflect.Union;
@@ -669,5 +670,43 @@ public class AvroCoderTest {
         .name("cycle").type("cyclicRecord").noDefault()
         .endRecord()),
         reason("cyclicRecord.cycle", "cyclicRecord appears recursively"));
+  }
+
+  private static class NullableField {
+    @SuppressWarnings("unused")
+    @Nullable private String nullable;
+  }
+
+  @Test
+  public void testNullableField() {
+    assertDeterministic(AvroCoder.of(NullableField.class));
+  }
+
+  private static class NullableNonDeterministicField {
+    @SuppressWarnings("unused")
+    @Nullable private NonDeterministicArray nullableNonDetArray;
+  }
+
+  private static class NullableCyclic {
+    @SuppressWarnings("unused")
+    @Nullable private NullableCyclic nullableNullableCyclicField;
+  }
+
+  private static class NullableCyclicField {
+    @SuppressWarnings("unused")
+    @Nullable private Cyclic nullableCyclicField;
+  }
+
+  @Test
+  public void testNullableNonDeterministicField() {
+    assertNonDeterministic(AvroCoder.of(NullableCyclic.class),
+        reasonField(NullableCyclic.class, "nullableNullableCyclicField",
+            NullableCyclic.class.getName() + " appears recursively"));
+    assertNonDeterministic(AvroCoder.of(NullableCyclicField.class),
+        reasonField(Cyclic.class, "cyclicField",
+            Cyclic.class.getName() + " appears recursively"));
+    assertNonDeterministic(AvroCoder.of(NullableNonDeterministicField.class),
+        reasonField(UnorderedMapClass.class, "mapField",
+            " may not be deterministically ordered"));
   }
 }

@@ -464,8 +464,22 @@ public class AvroCoder<T> extends StandardCoder<T> {
       }
     }
 
-    private void checkUnion(String context, TypeDescriptor<?> type, Schema schema) {
+   private static final Schema AVRO_NULL_SCHEMA = Schema.create(Schema.Type.NULL);
+
+   private void checkUnion(String context, TypeDescriptor<?> type, Schema schema) {
+      final List<Schema> unionTypes = schema.getTypes();
+
       if (!type.getRawType().isAnnotationPresent(Union.class)) {
+        // First check for @Nullable field, which shows up as a union of field type and null.
+        if (unionTypes.size() == 2 && unionTypes.contains(AVRO_NULL_SCHEMA)) {
+          // Find the Schema that is not NULL and recursively check that it is deterministic.
+          Schema nullableFieldSchema = unionTypes.get(0).equals(AVRO_NULL_SCHEMA)
+              ? unionTypes.get(1) : unionTypes.get(0);
+          doCheck(context, type, nullableFieldSchema);
+          return;
+        }
+
+        // Otherwise report a schema error.
         reportError(context, "Expected type %s to have @Union annotation", type);
         return;
       }
@@ -474,7 +488,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
       String baseClassContext = type.getRawType().getName();
 
       // For a union, we need to make sure that each possible instantiation is deterministic.
-      for (Schema concrete : schema.getTypes()) {
+      for (Schema concrete : unionTypes) {
         @SuppressWarnings("unchecked")
         TypeDescriptor<?> unionType = TypeDescriptor.of(ReflectData.get().getClass(concrete));
 
