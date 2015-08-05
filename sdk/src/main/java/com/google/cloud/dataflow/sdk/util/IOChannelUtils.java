@@ -88,6 +88,8 @@ public class IOChannelUtils {
                     mimeType);
     }
 
+    // It is the callers responsibility to close this channel.
+    @SuppressWarnings("resource")
     ShardingWritableByteChannel shardingChannel =
         new ShardingWritableByteChannel();
 

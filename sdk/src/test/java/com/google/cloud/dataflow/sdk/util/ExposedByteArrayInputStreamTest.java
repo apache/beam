@@ -39,10 +39,11 @@ public class ExposedByteArrayInputStreamTest {
 
   @Test
   public void testConstructWithEmptyArray() throws IOException {
-    ExposedByteArrayInputStream s = new ExposedByteArrayInputStream(new byte[0]);
-    assertEquals(0, s.available());
-    byte[] data = s.readAll();
-    assertEquals(0, data.length);
+    try (ExposedByteArrayInputStream s = new ExposedByteArrayInputStream(new byte[0])) {
+      assertEquals(0, s.available());
+      byte[] data = s.readAll();
+      assertEquals(0, data.length);
+    }
   }
 
   @Test

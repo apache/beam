@@ -40,37 +40,38 @@ public final class CopyableSeekableByteChannelTest {
         new FakeSeekableByteChannel("Hello, world! :-)".getBytes());
     base.position(1);
 
-    CopyableSeekableByteChannel chan = new CopyableSeekableByteChannel(base);
-    assertThat(chan.position(), equalTo((long) 1));
+    try (CopyableSeekableByteChannel chan = new CopyableSeekableByteChannel(base)) {
+      assertThat(chan.position(), equalTo((long) 1));
 
-    CopyableSeekableByteChannel copy = chan.copy();
-    assertThat(copy.position(), equalTo((long) 1));
+      CopyableSeekableByteChannel copy = chan.copy();
+      assertThat(copy.position(), equalTo((long) 1));
 
-    assertThat(chan.read(dst), equalTo(6));
-    assertThat(chan.position(), equalTo((long) 7));
-    assertThat(new String(dst.array()), equalTo("ello, "));
-    dst.rewind();
+      assertThat(chan.read(dst), equalTo(6));
+      assertThat(chan.position(), equalTo((long) 7));
+      assertThat(new String(dst.array()), equalTo("ello, "));
+      dst.rewind();
 
-    assertThat(copy.position(), equalTo((long) 1));
-    copy.position(3);
-    assertThat(copy.read(dst), equalTo(6));
-    assertThat(copy.position(), equalTo((long) 9));
-    assertThat(new String(dst.array()), equalTo("lo, wo"));
-    dst.rewind();
+      assertThat(copy.position(), equalTo((long) 1));
+      copy.position(3);
+      assertThat(copy.read(dst), equalTo(6));
+      assertThat(copy.position(), equalTo((long) 9));
+      assertThat(new String(dst.array()), equalTo("lo, wo"));
+      dst.rewind();
 
-    assertThat(chan.read(dst), equalTo(6));
-    assertThat(chan.position(), equalTo((long) 13));
-    assertThat(new String(dst.array()), equalTo("world!"));
-    dst.rewind();
+      assertThat(chan.read(dst), equalTo(6));
+      assertThat(chan.position(), equalTo((long) 13));
+      assertThat(new String(dst.array()), equalTo("world!"));
+      dst.rewind();
 
-    assertThat(chan.read(dst), equalTo(4));
-    assertThat(chan.position(), equalTo((long) 17));
-    assertThat(new String(dst.array()), equalTo(" :-)d!"));
-    dst.rewind();
+      assertThat(chan.read(dst), equalTo(4));
+      assertThat(chan.position(), equalTo((long) 17));
+      assertThat(new String(dst.array()), equalTo(" :-)d!"));
+      dst.rewind();
 
-    assertThat(copy.position(), equalTo((long) 9));
-    assertThat(copy.read(dst), equalTo(6));
-    assertThat(new String(dst.array()), equalTo("rld! :"));
+      assertThat(copy.position(), equalTo((long) 9));
+      assertThat(copy.read(dst), equalTo(6));
+      assertThat(new String(dst.array()), equalTo("rld! :"));
+    }
   }
 
   private static final class FakeSeekableByteChannel

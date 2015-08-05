@@ -34,7 +34,9 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestRe
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -47,18 +49,22 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 public class MapTaskExecutorTest {
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
   static class TestOperation extends Operation {
     String label;
     List<String> log;
 
     private static CounterSet counterSet = new CounterSet();
     private static String counterPrefix = "test-";
-    private static StateSampler stateSampler =
+    private static StateSampler testStateSampler =
         new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
 
     TestOperation(String label, List<String> log) {
       super(label, new OutputReceiver[] {}, counterPrefix, counterSet.getAddCounterMutator(),
-          stateSampler);
+          testStateSampler);
       this.label = label;
       this.log = log;
     }
@@ -188,43 +194,49 @@ public class MapTaskExecutorTest {
   }
 
   @Test
-  public void testGetReadOperation() throws Exception {
+  public void testNoOperation() throws Exception {
+    // Test MapTaskExecutor without a single operation.
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    // Test MapTaskExecutor without a single operation.
-    MapTaskExecutor executor =
-        new MapTaskExecutor(new ArrayList<Operation>(), counterSet, stateSampler);
-
-    try {
+    try (MapTaskExecutor executor =
+        new MapTaskExecutor(new ArrayList<Operation>(), counterSet, stateSampler)) {
+      thrown.expect(IllegalStateException.class);
+      thrown.expectMessage("has no operation");
       executor.getReadOperation();
-      Assert.fail("Expected IllegalStateException.");
-    } catch (IllegalStateException e) {
-      // Exception expected
     }
+  }
 
-    List<Operation> operations = Arrays.asList(new Operation[] {
+  @Test
+  public void testNoReadOperation() throws Exception {
+    // Test MapTaskExecutor without ReadOperation.
+    CounterSet counterSet = new CounterSet();
+    String counterPrefix = "test-";
+    StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
+    List<Operation> operations = Arrays.<Operation>asList(
         new TestOperation("o1", counterPrefix, counterSet.getAddCounterMutator(), stateSampler, 1),
         new TestOperation(
-            "o2", counterPrefix, counterSet.getAddCounterMutator(), stateSampler, 2)});
-    // Test MapTaskExecutor without ReadOperation.
-    executor = new MapTaskExecutor(operations, counterSet, stateSampler);
+            "o2", counterPrefix, counterSet.getAddCounterMutator(), stateSampler, 2));
 
-    try {
+    try (MapTaskExecutor executor = new MapTaskExecutor(operations, counterSet, stateSampler)) {
+      thrown.expect(IllegalStateException.class);
+      thrown.expectMessage("is not a ReadOperation");
       executor.getReadOperation();
-      Assert.fail("Expected IllegalStateException.");
-    } catch (IllegalStateException e) {
-      // Exception expected
     }
+  }
 
-    executor.close();
-
+  @Test
+  public void testValidOperations() throws Exception {
+    CounterSet counterSet = new CounterSet();
+    String counterPrefix = "test-";
+    StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     TestOutputReceiver receiver = new TestOutputReceiver(counterSet);
-    operations = Arrays.asList(new Operation[] {new TestReadOperation(
-        receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler)});
-    executor = new MapTaskExecutor(operations, counterSet, stateSampler);
-    Assert.assertEquals(operations.get(0), executor.getReadOperation());
-    executor.close();
+    List<Operation> operations = Arrays.<Operation>asList(
+        new TestReadOperation(receiver, counterPrefix,
+            counterSet.getAddCounterMutator(), stateSampler));
+    try (MapTaskExecutor executor = new MapTaskExecutor(operations, counterSet, stateSampler)) {
+      Assert.assertEquals(operations.get(0), executor.getReadOperation());
+    }
   }
 
   @Test

@@ -86,7 +86,10 @@ public class FileIOChannelFactory implements IOChannelFactory {
   @Override
   public ReadableByteChannel open(String spec) throws IOException {
     LOG.debug("opening file {}", spec);
+    @SuppressWarnings("resource") // The caller is responsible for closing the channel.
     FileInputStream inputStream = new FileInputStream(spec);
+    // Use this method for creating the channel (rather than new FileChannel) so that we get
+    // regular FileNotFoundException. Closing the underyling channel will close the inputStream.
     return inputStream.getChannel();
   }
 
