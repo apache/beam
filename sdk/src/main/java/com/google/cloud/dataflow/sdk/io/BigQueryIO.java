@@ -798,7 +798,7 @@ public class BigQueryIO {
             // Nothing to do. If the table does not exist, it is considered empty.
           } else {
             throw new RuntimeException(
-                "Unable to confirm BigQuery table emptiness for table "
+                "unable to confirm BigQuery table emptiness for table "
                     + BigQueryIO.toTableSpec(table), e);
           }
         }
