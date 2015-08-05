@@ -178,8 +178,8 @@ public class InMemoryReaderTest {
     }
 
     // Proposed split position is after the current stop (end) position, no update.
-    try (InMemoryReader.InMemoryReaderIterator iterator =
-        (InMemoryReader.InMemoryReaderIterator) inMemoryReader.iterator()) {
+    try (InMemoryReader<Integer>.InMemoryReaderIterator iterator =
+        (InMemoryReader<Integer>.InMemoryReaderIterator) inMemoryReader.iterator()) {
       // Poke the iterator so that we can test dynamic splitting.
       assertTrue(iterator.hasNext());
       assertNull(iterator.requestDynamicSplit(splitRequestAtIndex(5L)));

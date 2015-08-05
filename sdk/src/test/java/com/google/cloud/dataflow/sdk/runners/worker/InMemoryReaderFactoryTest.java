@@ -72,7 +72,7 @@ public class InMemoryReaderFactoryTest {
     Reader<?> reader = ReaderFactory.create(
         PipelineOptionsFactory.create(), cloudSource, new BatchModeExecutionContext());
     Assert.assertThat(reader, new IsInstanceOf(InMemoryReader.class));
-    InMemoryReader inMemoryReader = (InMemoryReader<?>) reader;
+    InMemoryReader<?> inMemoryReader = (InMemoryReader<?>) reader;
     Assert.assertEquals(encodedElements(elements, coder), inMemoryReader.encodedElements);
     Assert.assertEquals(expectedStart, inMemoryReader.startIndex);
     Assert.assertEquals(expectedEnd, inMemoryReader.endIndex);

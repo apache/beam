@@ -61,8 +61,8 @@ public class CoderProperties {
 
   /**
    * Verifies that for the given {@code Coder<T>}, and values of
-   * type {@code T}, if the values are equal then the encoded bytes are equal,
-   * in any {@link Coder.Context}.
+   * type {@code T}, if the values are equal then the encoded bytes are equal, in any
+   * {@code Coder.Context}.
    */
   public static <T> void coderDeterministic(
       Coder<T> coder, T value1, T value2)
@@ -73,7 +73,7 @@ public class CoderProperties {
   }
 
   /**
-   * Verifies that for the given {@code Coder<T>}, {@link Coder.Context}, and values of
+   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context}, and values of
    * type {@code T}, if the values are equal then the encoded bytes are equal.
    */
   public static <T> void coderDeterministicInContext(
@@ -94,7 +94,7 @@ public class CoderProperties {
   /**
    * Verifies that for the given {@code Coder<T>},
    * and value of type {@code T}, encoding followed by decoding yields an
-   * equal value of type {@code T}, in any {@link Coder.Context}.
+   * equal value of type {@code T}, in any {@code Coder.Context}.
    */
   public static <T> void coderDecodeEncodeEqual(
       Coder<T> coder, T value)
@@ -105,7 +105,7 @@ public class CoderProperties {
   }
 
   /**
-   * Verifies that for the given {@code Coder<T>}, {@link Coder.Context},
+   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context},
    * and value of type {@code T}, encoding followed by decoding yields an
    * equal value of type {@code T}.
    */
@@ -118,7 +118,7 @@ public class CoderProperties {
   /**
    * Verifies that for the given {@code Coder<Collection<T>>},
    * and value of type {@code Collection<T>}, encoding followed by decoding yields an
-   * equal value of type {@code Collection<T>}, in any {@link Coder.Context}.
+   * equal value of type {@code Collection<T>}, in any {@code Coder.Context}.
    */
   public static <T, CollectionT extends Collection<T>> void coderDecodeEncodeContentsEqual(
       Coder<CollectionT> coder, CollectionT value)
@@ -131,7 +131,7 @@ public class CoderProperties {
   /**
    * Verifies that for the given {@code Coder<Collection<T>>},
    * and value of type {@code Collection<T>}, encoding followed by decoding yields an
-   * equal value of type {@code Collection<T>}, in the given {@link Coder.Context}.
+   * equal value of type {@code Collection<T>}, in the given {@code Coder.Context}.
    */
   @SuppressWarnings("unchecked")
   public static <T, CollectionT extends Collection<T>> void coderDecodeEncodeContentsEqualInContext(
@@ -150,7 +150,7 @@ public class CoderProperties {
   /**
    * Verifies that for the given {@code Coder<Collection<T>>},
    * and value of type {@code Collection<T>}, encoding followed by decoding yields an
-   * equal value of type {@code Collection<T>}, in any {@link Coder.Context}.
+   * equal value of type {@code Collection<T>}, in any {@code Coder.Context}.
    */
   public static <T, IterableT extends Iterable<T>> void coderDecodeEncodeContentsInSameOrder(
       Coder<IterableT> coder, IterableT value)
@@ -164,7 +164,7 @@ public class CoderProperties {
   /**
    * Verifies that for the given {@code Coder<Iterable<T>>},
    * and value of type {@code Iterable<T>}, encoding followed by decoding yields an
-   * equal value of type {@code Collection<T>}, in the given {@link Coder.Context}.
+   * equal value of type {@code Collection<T>}, in the given {@code Coder.Context}.
    */
   @SuppressWarnings("unchecked")
   public static <T, IterableT extends Iterable<T>> void

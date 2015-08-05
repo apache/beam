@@ -34,6 +34,7 @@ import com.google.common.collect.PeekingIterator;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A row result of a {@link CoGroupByKey}.  This is a tuple of {@link Iterable}s produced for
@@ -123,20 +125,26 @@ public class CoGbkResult {
       final Boolean[] containsTag = new Boolean[schema.size()];
       for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
         final int unionTag0 = unionTag;
-        final Iterable<?> head = valueMap.get(unionTag);
-        valueMap.set(
-            unionTag,
-            new Iterable() {
-              Reiterator<RawUnionValue> start = tail.copy();
-              @Override
-              public Iterator iterator() {
-                return Iterators.concat(
-                    head.iterator(),
-                    new UnionValueIterator<>(unionTag0, tail.copy(), containsTag));
-              }
-            });
+        updateUnionTag(tail, containsTag, unionTag, unionTag0);
       }
     }
+  }
+
+  private <T> void updateUnionTag(
+      final Reiterator<RawUnionValue> tail, final Boolean[] containsTag,
+      int unionTag, final int unionTag0) {
+    @SuppressWarnings("unchecked")
+    final Iterable<T> head = (Iterable<T>) valueMap.get(unionTag);
+    valueMap.set(
+        unionTag,
+        new Iterable<T>() {
+          @Override
+          public Iterator<T> iterator() {
+            return Iterators.concat(
+                head.iterator(),
+                new UnionValueIterator<T>(unionTag0, tail.copy(), containsTag));
+          }
+        });
   }
 
   public boolean isEmpty() {
@@ -293,6 +301,11 @@ public class CoGbkResult {
         return false;
       }
       return schema.equals(((CoGbkResultCoder) other).schema);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(schema);
     }
 
     @Override
