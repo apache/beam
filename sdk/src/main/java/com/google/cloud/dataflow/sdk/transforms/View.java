@@ -30,7 +30,6 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 
 /**
  * Transforms for creating {@link PCollectionView}s from {@link PCollection}s,
@@ -146,7 +145,7 @@ public class View {
    * }</pre>
    *
    * <p> If the input {@link PCollection} is empty,
-   * throws {@link NoSuchElementException} in the consuming
+   * throws {@link java.util.NoSuchElementException} in the consuming
    * {@link DoFn}.
    *
    * <p> If the input {@link PCollection} contains more than one
@@ -165,7 +164,7 @@ public class View {
    * <p> The resulting list is required to fit in memory.
    */
   public static <T> PTransform<PCollection<T>, PCollectionView<List<T>>> asList() {
-    return Combine.globally(new Concatenate<T>()).asSingletonView();
+    return new AsList<>();
   }
 
   /**
@@ -226,11 +225,46 @@ public class View {
    *
    * <p> Instantiate via {@link View#asIterable}.
    */
-  public static class AsIterable<T> extends PTransform<
-      PCollection<T>, PCollectionView<Iterable<T>>> {
+  public static class AsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
+    private static final long serialVersionUID = 0;
+
+    private AsList() { }
+
+    @Override
+    public void validate(PCollection<T> input) {
+      try {
+        GroupByKey.applicableTo(input);
+      } catch (IllegalStateException e) {
+        throw new IllegalStateException("Unable to create a side-input view from input", e);
+      }
+    }
+
+    @Override
+    public PCollectionView<List<T>> apply(PCollection<T> input) {
+      return input.apply(Combine.globally(new Concatenate<T>()).asSingletonView());
+    }
+  }
+
+  /**
+   * A {@link PTransform} that produces a {@link PCollectionView} of a singleton
+   * {@link PCollection} yielding the single element it contains.
+   *
+   * <p> Instantiate via {@link View#asIterable}.
+   */
+  public static class AsIterable<T>
+      extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
     private static final long serialVersionUID = 0;
 
     private AsIterable() { }
+
+    @Override
+    public void validate(PCollection<T> input) {
+      try {
+        GroupByKey.applicableTo(input);
+      } catch (IllegalStateException e) {
+        throw new IllegalStateException("Unable to create a side-input view from input", e);
+      }
+    }
 
     @Override
     public PCollectionView<Iterable<T>> apply(PCollection<T> input) {
@@ -282,6 +316,15 @@ public class View {
     }
 
     @Override
+    public void validate(PCollection<T> input) {
+      try {
+        GroupByKey.applicableTo(input);
+      } catch (IllegalStateException e) {
+        throw new IllegalStateException("Unable to create a side-input view from input", e);
+      }
+    }
+
+    @Override
     public PCollectionView<T> apply(PCollection<T> input) {
       return input.apply(CreatePCollectionView.<T, T>of(PCollectionViews.singletonView(
           input.getPipeline(),
@@ -303,6 +346,15 @@ public class View {
     private static final long serialVersionUID = 0;
 
     private AsMultimap() { }
+
+    @Override
+    public void validate(PCollection<KV<K, V>> input) {
+      try {
+        GroupByKey.applicableTo(input);
+      } catch (IllegalStateException e) {
+        throw new IllegalStateException("Unable to create a side-input view from input", e);
+      }
+    }
 
     @Override
     public PCollectionView<Map<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
@@ -341,6 +393,15 @@ public class View {
     @Deprecated()
     public AsMap<K, V> withSingletonValues() {
       return this;
+    }
+
+    @Override
+    public void validate(PCollection<KV<K, V>> input) {
+      try {
+        GroupByKey.applicableTo(input);
+      } catch (IllegalStateException e) {
+        throw new IllegalStateException("Unable to create a side-input view from input", e);
+      }
     }
 
     @Override

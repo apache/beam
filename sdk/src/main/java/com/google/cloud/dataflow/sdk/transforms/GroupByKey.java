@@ -175,8 +175,7 @@ public class GroupByKey<K, V>
 
   /////////////////////////////////////////////////////////////////////////////
 
-  @Override
-  public void validate(PCollection<KV<K, V>> input) {
+  public static void applicableTo(PCollection<?> input) {
     WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
     // Verify that the input PCollection is bounded, or that there is windowing/triggering being
     // used. Without this, the watermark (at end of global window) will never be reached.
@@ -188,6 +187,19 @@ public class GroupByKey<K, V>
           + "prior to GroupByKey.");
     }
 
+    // Validate the window merge function.
+    if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
+      String cause = ((InvalidWindows<?>) windowingStrategy.getWindowFn()).getCause();
+      throw new IllegalStateException(
+          "GroupByKey must have a valid Window merge function.  "
+              + "Invalid because: " + cause);
+    }
+  }
+
+  @Override
+  public void validate(PCollection<KV<K, V>> input) {
+    applicableTo(input);
+
     // Verify that the input Coder<KV<K, V>> is a KvCoder<K, V>, and that
     // the key coder is deterministic.
     Coder<K> keyCoder = getKeyCoder(input.getCoder());
@@ -196,14 +208,6 @@ public class GroupByKey<K, V>
     } catch (NonDeterministicException e) {
       throw new IllegalStateException(
           "the keyCoder of a GroupByKey must be deterministic", e);
-    }
-
-    // Validate the window merge function.
-    if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
-      String cause = ((InvalidWindows<?>) windowingStrategy.getWindowFn()).getCause();
-      throw new IllegalStateException(
-          "GroupByKey must have a valid Window merge function.  "
-          + "Invalid because: " + cause);
     }
   }
 
