@@ -62,9 +62,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nullable;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -401,15 +401,20 @@ public class DataflowWorker {
   }
 
   /**
-   * Runs the status server to report worker health.
+   * Runs the status server to report worker health on the specified port.
    */
   public void runStatusServer(int statusPort) {
-    statusServer = new Server(statusPort);
+    LOG.info("Status server started on port {}", statusPort);
+    runStatusServer(new Server(statusPort));
+  }
+
+  // @VisibleForTesting
+  void runStatusServer(Server server) {
+    statusServer = server;
     statusServer.setHandler(new StatusHandler());
     try {
       // Run status server in separate thread.
       statusServer.start();
-      LOG.info("Status server started on port {}", statusPort);
     } catch (Exception e) {
       LOG.warn("Status server failed to start: ", e);
     }
@@ -428,9 +433,24 @@ public class DataflowWorker {
         response.setStatus(HttpServletResponse.SC_OK);
         // Right now, we always return "ok".
         responseWriter.println("ok");
+      } else if (target.equals("/threadz")) {
+        response.setStatus(HttpServletResponse.SC_OK);
+        printThreads(responseWriter);
       } else {
         response.setStatus(HttpServletResponse.SC_NOT_FOUND);
         responseWriter.println("not found");
+      }
+    }
+
+    private void printThreads(PrintWriter response) {
+      Map<Thread, StackTraceElement[]> stacks = Thread.getAllStackTraces();
+      for (Map.Entry<Thread,  StackTraceElement[]> entry : stacks.entrySet()) {
+        Thread thread = entry.getKey();
+        response.println("--- Thread: " + thread + " State: "
+            + thread.getState() + " stack: ---");
+        for (StackTraceElement element : entry.getValue()) {
+          response.println("  " + element);
+        }
       }
     }
   }
