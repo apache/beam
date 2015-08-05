@@ -161,7 +161,9 @@ import java.util.regex.Pattern;
  *         .withSchema(schema)
  *         .to(new SerializableFunction<BoundedWindow, String>() {
  *               public String apply(BoundedWindow window) {
- *                 return "my-project:output.output_table-" + window.toString();
+ *                 String dayString = DateTimeFormat.forPattern("yyyy_MM_dd").parseDateTime(
+ *                   ((DaysWindow) window).getStartDate());
+ *                 return "my-project:output.output_table_" + dayString;
  *               }
  *             }));
  *
