@@ -316,7 +316,7 @@ public class MapTaskExecutorFactoryTest {
     String serializedFn =
         StringUtils.byteArrayToJsonString(
             SerializableUtils.serializeToByteArray(
-                new DoFnInfo(fn, WindowingStrategy.globalDefault())));
+                new DoFnInfo<>(fn, WindowingStrategy.globalDefault())));
 
     CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
     addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);
