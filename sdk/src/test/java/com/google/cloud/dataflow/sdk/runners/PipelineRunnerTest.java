@@ -33,8 +33,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.io.IOException;
-
 /**
  * Tests for DataflowPipelineRunner.
  */
@@ -50,7 +48,7 @@ public class PipelineRunnerTest {
   }
 
   @Test
-  public void testLongName() throws IOException {
+  public void testLongName() throws Exception {
     // Check we can create a pipeline runner using the full class name.
     DirectPipelineOptions options = PipelineOptionsFactory.as(DirectPipelineOptions.class);
     options.setAppName("test");
@@ -63,7 +61,7 @@ public class PipelineRunnerTest {
   }
 
   @Test
-  public void testShortName() throws IOException {
+  public void testShortName() throws Exception {
     // Check we can create a pipeline runner using the short class name.
     DirectPipelineOptions options = PipelineOptionsFactory.as(DirectPipelineOptions.class);
     options.setAppName("test");
@@ -76,7 +74,7 @@ public class PipelineRunnerTest {
   }
 
   @Test
-  public void testAppNameDefault() throws IOException {
+  public void testAppNameDefault() throws Exception {
     ApplicationNameOptions options = PipelineOptionsFactory.as(ApplicationNameOptions.class);
     Assert.assertEquals(PipelineRunnerTest.class.getSimpleName(),
         options.getAppName());
