@@ -105,6 +105,22 @@ import java.util.Set;
 public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
 
+  /**
+   * Thrown during pipeline execution, whenever user code within a pipeline throws an exception.
+   *
+   * <p>The exception thrown during pipeline execution may be retrieved via {@link #getCause}.
+   */
+  public static class PipelineExecutionException extends RuntimeException {
+    private static final long serialVersionUID = 0L;
+
+    /**
+     * Wraps {@code cause} into a {@code PipelineExecutionException}.
+     */
+    public PipelineExecutionException(Throwable cause) {
+      super(cause);
+    }
+  }
+
   /////////////////////////////////////////////////////////////////////////////
   // Public operations.
 
@@ -163,7 +179,7 @@ public class Pipeline {
       // is caused by the caught UserCodeException, thereby splicing
       // out all the stack frames in between the PipelineRunner itself
       // and where the worker calls into the user's code.
-      throw new RuntimeException(e.getCause());
+      throw new PipelineExecutionException(e.getCause());
     }
   }
 

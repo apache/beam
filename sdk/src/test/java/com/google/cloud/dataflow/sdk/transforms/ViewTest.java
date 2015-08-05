@@ -16,10 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import static org.hamcrest.CoreMatchers.isA;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -105,7 +106,7 @@ public class ViewTest implements Serializable {
               }
             }));
 
-    thrown.expect(RuntimeException.class);
+    thrown.expect(PipelineExecutionException.class);
     thrown.expectCause(isA(NoSuchElementException.class));
     thrown.expectMessage("Empty");
     thrown.expectMessage("PCollection");
@@ -131,7 +132,7 @@ public class ViewTest implements Serializable {
               }
             }));
 
-    thrown.expect(RuntimeException.class);
+    thrown.expect(PipelineExecutionException.class);
     thrown.expectCause(isA(IllegalArgumentException.class));
     thrown.expectMessage("PCollection");
     thrown.expectMessage("more than one");

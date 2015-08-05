@@ -300,7 +300,8 @@ public class DoFnRunner<InputT, OutputT> {
             }
           });
         } catch (Exception e) {
-          throw new RuntimeException(e);
+          Throwables.propagateIfInstanceOf(e, UserCodeException.class);
+          throw new UserCodeException(e);
         }
       }
 

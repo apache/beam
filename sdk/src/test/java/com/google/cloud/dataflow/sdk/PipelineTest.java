@@ -16,12 +16,14 @@
 
 package com.google.cloud.dataflow.sdk;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
-import static org.hamcrest.core.IsNot.not;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.isA;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -95,20 +97,10 @@ public class PipelineTest {
         new TestPipelineRunnerThrowingUserException());
 
     // Check pipeline runner correctly catches user errors.
-    try {
-      p.run();
-      fail("Should have thrown an exception.");
-    } catch (RuntimeException exn) {
-      // Make sure users don't have to worry about the
-      // UserCodeException wrapper.
-      Assert.assertThat(exn, not(instanceOf(UserCodeException.class)));
-      // Assert that the message is correct.
-      Assert.assertThat(
-          exn.getMessage(), containsString("user code exception"));
-      // Cause should be IllegalStateException.
-      Assert.assertThat(
-          exn.getCause(), instanceOf(IllegalStateException.class));
-    }
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(isA(IllegalStateException.class));
+    thrown.expectMessage("user code exception");
+    p.run();
   }
 
   @Test

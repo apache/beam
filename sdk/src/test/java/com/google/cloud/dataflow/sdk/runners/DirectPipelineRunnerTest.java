@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.runners;
 
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
@@ -28,7 +29,6 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
-import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -74,9 +74,6 @@ public class DirectPipelineRunnerTest implements Serializable {
 
   @Test
   public void testCoderException() {
-    expectedException.expect(RuntimeException.class);
-    expectedException.expectMessage("CrashDuringCoding");
-    expectedException.expectCause(Matchers.<CoderException>instanceOf(CoderException.class));
     DirectPipeline pipeline = DirectPipeline.createForTest();
 
     pipeline
@@ -91,7 +88,9 @@ public class DirectPipelineRunnerTest implements Serializable {
         }))
         .setCoder(new CrashingCoder<String>());
 
-    pipeline.run();
+      expectedException.expect(RuntimeException.class);
+      expectedException.expectCause(isA(CoderException.class));
+      pipeline.run();
   }
 
   @Test

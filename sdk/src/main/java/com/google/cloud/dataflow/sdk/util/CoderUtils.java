@@ -68,7 +68,9 @@ public final class CoderUtils {
   /**
    * Encodes the given value using the specified Coder, and returns
    * the encoded bytes.
-   * This function is non-reentrant due to the use of ThreadLocal.
+   *
+   * <p>This function is not reentrant; it should not be called from methods of the provided
+   * {@link Coder}.
    */
   public static <T> byte[] encodeToByteArray(Coder<T> coder, T value) throws CoderException {
     return encodeToByteArray(coder, value, Coder.Context.OUTER);
@@ -138,6 +140,16 @@ public final class CoderUtils {
       throw new IllegalArgumentException(
           "Forbidden IOException when reading from InputStream", exn);
     }
+  }
+
+  /**
+   * Clones the given value by encoding and then decoding it with the specified Coder.
+   *
+   * <p>This function is not reentrant; it should not be called from methods of the provided
+   * {@link Coder}.
+   */
+  public static <T> T clone(Coder<T> coder, T value) throws CoderException {
+    return decodeFromByteArray(coder, encodeToByteArray(coder, value, Coder.Context.OUTER));
   }
 
   /**
