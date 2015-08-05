@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -80,7 +81,29 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
   extends AbstractReaderIterator<WindowedValue<TimerOrElement<T>>> {
     private int bundleIndex = 0;
     private int messageIndex = 0;
-    private int timerIndex = 0;
+    private int processingTimeTimerIndex = 0;
+    private int eventTimeTimerIndex = 0;
+    Object key = null;
+    private List<WindowedValue<TimerOrElement<T>>> eventTimeTimers;
+    private List<WindowedValue<TimerOrElement<T>>> processingTimeTimers;
+
+    private WindowingWindmillReaderIterator() throws IOException {
+      if (valueCoder instanceof KvCoder) {
+        key = ((KvCoder) valueCoder).getKeyCoder().decode(
+            context.getSerializedKey().newInput(), Coder.Context.OUTER);
+      }
+
+      eventTimeTimers = new ArrayList<>();
+      processingTimeTimers = new ArrayList<>();
+      for (Windmill.Timer rawTimer : context.getWork().getTimers().getTimersList()) {
+        WindowedValue<TimerOrElement<T>> timer = createTimer(rawTimer);
+        if (timer.getValue().getTimer().getDomain() == TimeDomain.EVENT_TIME) {
+          eventTimeTimers.add(timer);
+        } else {
+          processingTimeTimers.add(timer);
+        }
+      }
+    }
 
     private boolean hasMoreMessages() {
       Windmill.WorkItem work = context.getWork();
@@ -88,14 +111,17 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
           messageIndex < work.getMessageBundles(bundleIndex).getMessagesCount();
     }
 
-    private boolean hasMoreTimers() {
-      Windmill.WorkItem work = context.getWork();
-      return work.hasTimers() && timerIndex < work.getTimers().getTimersCount();
+    private boolean hasMoreProcessingTimeTimers() {
+      return processingTimeTimerIndex < processingTimeTimers.size();
+    }
+
+    private boolean hasMoreEventTimeTimers() {
+      return eventTimeTimerIndex < eventTimeTimers.size();
     }
 
     @Override
     public boolean hasNext() throws IOException {
-      return hasMoreMessages() || hasMoreTimers();
+      return hasMoreMessages() || hasMoreProcessingTimeTimers() || hasMoreEventTimeTimers();
     }
 
     private TimeDomain getTimeDomain(Windmill.Timer.Type type) {
@@ -112,7 +138,7 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
     }
 
     private <W extends BoundedWindow> WindowedValue<TimerOrElement<T>> createTimer(
-        Object key, Windmill.Timer timer) {
+        Windmill.Timer timer) {
       String tag = timer.getTag().toStringUtf8();
       String namespaceString = tag.substring(0, tag.indexOf('+'));
       StateNamespace namespace = StateNamespaces.fromString(namespaceString, windowCoder);
@@ -129,15 +155,15 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
 
     @Override
     public WindowedValue<TimerOrElement<T>> next() throws IOException {
-      if (hasMoreTimers()) {
+      if (hasMoreEventTimeTimers()) {
         if (valueCoder instanceof KvCoder) {
-          Windmill.Timer timer = context.getWork().getTimers().getTimers(timerIndex++);
-
-          KvCoder kvCoder = (KvCoder) valueCoder;
-          Object key = kvCoder.getKeyCoder().decode(
-              context.getSerializedKey().newInput(), Coder.Context.OUTER);
-
-          return createTimer(key, timer);
+          return eventTimeTimers.get(eventTimeTimerIndex++);
+        } else {
+          throw new RuntimeException("Timer set on non-keyed DoFn");
+        }
+      } else if (hasMoreProcessingTimeTimers()) {
+        if (valueCoder instanceof KvCoder) {
+          return processingTimeTimers.get(processingTimeTimerIndex++);
         } else {
           throw new RuntimeException("Timer set on non-keyed DoFn");
         }
@@ -161,14 +187,11 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
         PaneInfo pane = WindmillSink.decodeMetadataPane(message.getMetadata());
         if (valueCoder instanceof KvCoder) {
           KvCoder kvCoder = (KvCoder) valueCoder;
-          InputStream key = context.getSerializedKey().newInput();
-          notifyElementRead(key.available() + data.available() + metadata.available());
+          notifyElementRead(
+              context.getSerializedKey().size() + data.available() + metadata.available());
           return WindowedValue.of(
-              TimerOrElement.element((T) KV.of(decode(kvCoder.getKeyCoder(), key),
-                                               decode(kvCoder.getValueCoder(), data))),
-              timestampMillis,
-              windows,
-              pane);
+              TimerOrElement.element((T) KV.of(key, decode(kvCoder.getValueCoder(), data))),
+              timestampMillis, windows, pane);
         } else {
           notifyElementRead(data.available() + metadata.available());
           return WindowedValue.of(TimerOrElement.element(decode(valueCoder, data)),

@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Class representing either a timer, or arbitrary element.
@@ -90,6 +91,27 @@ public class TimerOrElement<ElemT> {
       throw new IllegalStateException("element() called, but this is a timer");
     }
     return element;
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof TimerOrElement)) {
+      return false;
+    }
+    TimerOrElement that = (TimerOrElement) other;
+    if (this.isTimer() && that.isTimer()) {
+      return Objects.equals(this.getTimer(), that.getTimer())
+          && Objects.equals(this.key(), that.key());
+    } else if (!this.isTimer() && !that.isTimer()) {
+      return Objects.equals(this.element(), that.element());
+    } else {
+      return false;
+    }
+  }
+
+  @Override
+  public int hashCode() {
+    return isTimer() ? Objects.hash(key(), getTimer()) : Objects.hash(element());
   }
 
   /**

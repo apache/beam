@@ -24,16 +24,22 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterFirst;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterProcessingTime;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
@@ -51,6 +57,8 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.List;
 
@@ -413,5 +421,47 @@ public class TriggerExecutorTest {
 
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
     assertEquals(0, tester.getElementsDroppedDueToLateness());
+  }
+
+  private class ResultCaptor<T> implements Answer<T> {
+    private T result = null;
+    public T get() {
+      return result;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public T answer(InvocationOnMock invocationOnMock) throws Throwable {
+      result = (T) invocationOnMock.callRealMethod();
+      return result;
+    }
+  }
+
+  @Test
+  public void testMultipleTimerTypes() throws Exception {
+    Trigger<IntervalWindow> trigger = spy(Repeatedly.forever(
+        AfterFirst.of(AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelayOf(
+                          Duration.millis(10)),
+            AfterWatermark.<IntervalWindow>pastEndOfWindow())));
+
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        TriggerTester.nonCombining(
+            FixedWindows.of(Duration.millis(10)),
+            trigger,
+            AccumulationMode.DISCARDING_FIRED_PANES,
+            Duration.standardDays(1));
+
+    tester.injectElement(1, new Instant(1));
+
+    ResultCaptor<TriggerResult> result = new ResultCaptor<>();
+    doAnswer(result)
+        .when(trigger)
+        .onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any());
+    tester.advanceWatermark(new Instant(1000));
+    assertEquals(TriggerResult.FIRE, result.get());
+
+    tester.advanceProcessingTime(Instant.now().plus(Duration.millis(10)));
+    // Verify that the only onTimer call was the one from advancing the watermark.
+    verify(trigger).onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any());
   }
 }
