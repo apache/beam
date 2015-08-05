@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -29,10 +28,11 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
-import com.google.cloud.dataflow.sdk.util.TimerManager;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.util.TimerInternals;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
-import com.google.cloud.dataflow.sdk.values.CodedTupleTag;
+import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.AbstractIterator;
@@ -126,6 +126,11 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
   }
 
   @Override
+  public PaneInfo pane() {
+    return PaneInfo.DEFAULT;
+  }
+
+  @Override
   public WindowingInternals<I, O> windowingInternals() {
     return new WindowingInternals<I, O>() {
 
@@ -136,53 +141,25 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
 
       @Override
       public void outputWindowedValue(O output, Instant timestamp, Collection<?
-          extends BoundedWindow> windows) {
+          extends BoundedWindow> windows, PaneInfo paneInfo) {
         output(output);
       }
 
       @Override
-      public KeyedState keyedState() {
+      public StateInternals stateInternals() {
         throw new UnsupportedOperationException(
-            "WindowingInternals#keyedState() is not yet supported.");
-
+            "WindowingInternals#stateInternals() is not yet supported.");
       }
 
       @Override
-      public <T> void writeToTagList(CodedTupleTag<T> tag, T value) throws IOException {
+      public TimerInternals timerInternals() {
         throw new UnsupportedOperationException(
-            "WindowingInternals#writeToTagList() is not yet supported.");
+            "WindowingInternals#timerInternals() is not yet supported.");
       }
 
       @Override
-      public <T> void writeToTagList(CodedTupleTag<T> tag, T value, Instant timestamp)
-          throws IOException {
-        throw new UnsupportedOperationException(
-            "WindowingInternals#writeToTagList() is not yet supported.");
-      }
-
-      @Override
-      public <T> void deleteTagList(CodedTupleTag<T> tag) {
-        throw new UnsupportedOperationException(
-            "WindowingInternals#deleteTagList() is not yet supported.");
-      }
-
-      @Override
-      public <T> Iterable<T> readTagList(CodedTupleTag<T> tag) throws IOException {
-        throw new UnsupportedOperationException(
-            "WindowingInternals#readTagList() is not yet supported.");
-      }
-
-      @Override
-      public <T> Map<CodedTupleTag<T>, Iterable<T>> readTagList(List<CodedTupleTag<T>> tags)
-          throws IOException {
-        throw new UnsupportedOperationException(
-            "WindowingInternals#readTagList() is not yet supported.");
-      }
-
-      @Override
-      public TimerManager getTimerManager() {
-        throw new UnsupportedOperationException(
-            "WindowingInternals#getTimerManager() is not yet supported.");
+      public PaneInfo pane() {
+        return PaneInfo.DEFAULT;
       }
 
       @Override

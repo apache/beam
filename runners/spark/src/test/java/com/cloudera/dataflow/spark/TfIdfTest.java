@@ -15,7 +15,7 @@
 
 package com.cloudera.dataflow.spark;
 
-import com.google.cloud.dataflow.examples.TfIdf;
+import com.google.cloud.dataflow.examples.complete.TfIdf;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringDelegateCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;

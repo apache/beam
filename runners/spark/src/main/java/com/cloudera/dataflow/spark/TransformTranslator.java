@@ -35,7 +35,6 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -511,11 +510,8 @@ public final class TransformTranslator {
     return new TransformEvaluator<Window.Bound<T>>() {
       @Override
       public void evaluate(Window.Bound<T> transform, EvaluationContext context) {
-        if (transform.getWindowingStrategy().getWindowFn() instanceof GlobalWindows) {
-          context.setOutputRDD(transform, context.getInputRDD(transform));
-        } else {
-          throw new UnsupportedOperationException("Non-global windowing not supported");
-        }
+        // TODO: detect and support non-global windows
+        context.setOutputRDD(transform, context.getInputRDD(transform));
       }
     };
   }

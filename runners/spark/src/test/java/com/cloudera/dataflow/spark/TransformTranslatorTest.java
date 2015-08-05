@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Charsets;
+import java.util.Collections;
 import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.junit.Before;
@@ -75,6 +76,10 @@ public class TransformTranslatorTest {
 
     List<String> sparkOutput =
         Files.readAllLines(Paths.get(sparkOut + "-00000-of-00001"), Charsets.UTF_8);
+
+    // sort output to get a stable result (PCollections are not ordered)
+    Collections.sort(directOutput);
+    Collections.sort(sparkOutput);
 
     Assert.assertArrayEquals(directOutput.toArray(), sparkOutput.toArray());
   }
