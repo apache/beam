@@ -28,12 +28,12 @@ import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
+import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.GeneralSecurityException;
-import java.util.Arrays;
 
 /**
  * Helpers for cloud communication.
@@ -88,28 +88,30 @@ public class Transport {
 
   /**
    * Returns a BigQuery client builder.
-   * <p>
-   * Note: this client's endpoint is <b>not</b> modified by the
+   *
+   * <p>Note: this client's endpoint is <b>not</b> modified by the
    * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
    */
   public static Bigquery.Builder
       newBigQueryClient(BigQueryOptions options) {
     return new Bigquery.Builder(getTransport(), getJsonFactory(),
-        new RetryHttpRequestInitializer(options.getGcpCredential()))
+        // Do not log 404. It clutters the output and is possibly even required by the caller.
+        new RetryHttpRequestInitializer(options.getGcpCredential(), ImmutableList.of(404)))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 
   /**
    * Returns a Pubsub client builder.
-   * <p>
-   * Note: this client's endpoint is <b>not</b> modified by the
+   *
+   * <p>Note: this client's endpoint is <b>not</b> modified by the
    * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
    */
   public static Pubsub.Builder
       newPubsubClient(DataflowPipelineOptions options) {
     return new Pubsub.Builder(getTransport(), getJsonFactory(),
-        new RetryHttpRequestInitializer(options.getGcpCredential()))
+        // Do not log 404. It clutters the output and is possibly even required by the caller.
+        new RetryHttpRequestInitializer(options.getGcpCredential(), ImmutableList.of(404)))
         .setRootUrl(options.getPubsubRootUrl())
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
@@ -129,7 +131,8 @@ public class Transport {
 
     return new Dataflow.Builder(getTransport(),
         getJsonFactory(),
-        new RetryHttpRequestInitializer(options.getGcpCredential()))
+        // Do not log 404. It clutters the output and is possibly even required by the caller.
+        new RetryHttpRequestInitializer(options.getGcpCredential(), ImmutableList.of(404)))
         .setApplicationName(options.getAppName())
         .setRootUrl(components.rootUrl)
         .setServicePath(components.servicePath)
@@ -149,8 +152,8 @@ public class Transport {
 
   /**
    * Returns a Cloud Storage client builder.
-   * <p>
-   * Note: this client's endpoint is <b>not</b> modified by the
+   *
+   * <p>Note: this client's endpoint is <b>not</b> modified by the
    * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
    */
   public static Storage.Builder
@@ -160,7 +163,7 @@ public class Transport {
         new RetryHttpRequestInitializer(
             // Do not log the code 404. Code up the stack will deal with 404's if needed, and
             // logging it by default clutters the output during file staging.
-            options.getGcpCredential(), Arrays.asList(404)))
+            options.getGcpCredential(), ImmutableList.of(404)))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     if (servicePath != null) {

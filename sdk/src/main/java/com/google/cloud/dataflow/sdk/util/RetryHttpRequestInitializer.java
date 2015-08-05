@@ -42,8 +42,8 @@ import javax.annotation.Nullable;
 /**
  * Implements a request initializer that adds retry handlers to all
  * HttpRequests.
- * <p>
- * This allows chaining through to another HttpRequestInitializer, since
+ *
+ * <p>This allows chaining through to another HttpRequestInitializer, since
  * clients have exactly one HttpRequestInitializer, and Credential is also
  * a required HttpRequestInitializer.
  */
