@@ -292,6 +292,9 @@ public class DirectPipelineRunner
       this.accumCoder = accumCoder;
       this.testSerializability = testSerializability;
       this.rand = rand;
+
+      // Check that this does not crash, specifically to catch anonymous CustomCoder subclasses.
+      this.accumCoder.getEncodingId();
     }
 
     @Override

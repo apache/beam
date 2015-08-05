@@ -34,8 +34,11 @@ import java.util.Collection;
 
 /**
  * An abstract base class for writing {@link Coder}s that encodes itself via java
- * serialization.  Subclasses only need to implement the {@link Coder#encode}
- * and {@link Coder#decode} methods.
+ * serialization.
+ *
+ * <p>To complete an implementation, subclasses must implement {@link Coder#encode}
+ * and {@link Coder#decode} methods. Anonymous subclasses must furthermore override
+ * {@link #getEncodingId}.
  *
  * <p>Not to be confused with {@link SerializableCoder} that encodes objects that implement the
  * {@link Serializable} interface.
@@ -58,6 +61,7 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
       // updating constructed values, so it would throw an exception, causing
       // deserialization to fail.
       @JsonProperty(value = "@type", required = false) String typeId,
+      @JsonProperty(value = "encoding_id", required = false) String encodingId,
       @JsonProperty("type") String type,
       @JsonProperty("serialized_coder") String serializedCoder) {
     return (CustomCoder<?>) SerializableUtils.deserializeFromByteArray(
@@ -95,6 +99,18 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
     throw new NonDeterministicException(this,
         "CustomCoder implementations must override verifyDeterministic,"
         + " or they are presumed nondeterministic.");
+  }
+
+  @Override
+  public String getEncodingId() {
+    if (getClass().isAnonymousClass()) {
+      throw new UnsupportedOperationException(
+          String.format("Anonymous CustomCoder subclass %s must override getEncodingId()."
+              + " Otherwise, convert to a named class and getEncodingId() will be automatically"
+              + " generated from the fully qualified class name.",
+              getClass()));
+    }
+    return getClass().getCanonicalName();
   }
 
   // This coder inherits isRegisterByteSizeObserverCheap,

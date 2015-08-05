@@ -22,7 +22,9 @@ import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -36,6 +38,9 @@ import java.io.OutputStream;
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class CustomCoderTest {
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   private static class MyCustomCoder extends CustomCoder<KV<String, Long>> {
     private final String key;
@@ -81,5 +86,51 @@ public class CustomCoderTest {
   @Test
   public void testEncodable() throws Exception {
     SerializableUtils.ensureSerializable(new MyCustomCoder("key"));
+  }
+
+  @Test
+  public void testEncodingId() throws Exception {
+    CoderProperties.coderHasEncodingId(new MyCustomCoder("foo"),
+        MyCustomCoder.class.getCanonicalName());
+  }
+
+  @Test
+  public void testAnonymousEncodingIdError() throws Exception {
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("Anonymous CustomCoder subclass");
+    thrown.expectMessage("must override getEncodingId()");
+    new CustomCoder<Integer>() {
+
+      @Override
+      public void encode(Integer kv, OutputStream out, Context context) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public Integer decode(InputStream inStream, Context context) {
+        throw new UnsupportedOperationException();
+      }
+    }.getEncodingId();
+  }
+
+  @Test
+  public void testAnonymousEncodingIdOk() throws Exception {
+    new CustomCoder<Integer>() {
+
+      @Override
+      public void encode(Integer kv, OutputStream out, Context context) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public Integer decode(InputStream inStream, Context context) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public String getEncodingId() {
+        return "A user must specify this. It can contain any character, including these: !$#%$@.";
+      }
+    }.getEncodingId();
   }
 }

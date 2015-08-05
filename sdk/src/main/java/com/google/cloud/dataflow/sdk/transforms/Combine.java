@@ -525,7 +525,7 @@ public class Combine {
    * easily expressed as binary operations.
    */
   public abstract static class BinaryCombineFn<V> extends
-      CombineFn<V, BinaryCombineFn.Holder<V>, V> {
+      CombineFn<V, Holder<V>, V> {
 
     /**
      * Applies the binary operation to the two operands, returning the result.
@@ -579,40 +579,8 @@ public class Combine {
     }
 
     @Override
-    public Coder<Holder<V>> getAccumulatorCoder(CoderRegistry registry, final Coder<V> inputCoder) {
-      return new CustomCoder<Holder<V>>() {
-
-        @Override
-        public List<Coder<?>> getCoderArguments() {
-          return Arrays.<Coder<?>>asList(inputCoder);
-        }
-
-        @Override
-        public void encode(Holder<V> accumulator, OutputStream outStream, Context context)
-            throws CoderException, IOException {
-          if (accumulator.present) {
-            outStream.write(1);
-            inputCoder.encode(accumulator.value, outStream, context);
-          } else {
-            outStream.write(0);
-          }
-        }
-
-        @Override
-        public Holder<V> decode(InputStream inStream, Context context)
-            throws CoderException, IOException {
-          if (inStream.read() == 1) {
-            return new Holder<>(inputCoder.decode(inStream, context));
-          } else {
-            return new Holder<>();
-          }
-        }
-
-        @Override
-        public void verifyDeterministic() throws NonDeterministicException {
-          inputCoder.verifyDeterministic();
-        }
-      };
+    public Coder<Holder<V>> getAccumulatorCoder(CoderRegistry registry, Coder<V> inputCoder) {
+      return new HolderCoder<>(inputCoder);
     }
 
     @Override
@@ -620,23 +588,70 @@ public class Combine {
       return inputCoder;
     }
 
-    /**
-     * Holds a single value value of type {@code V} which may or may not be present.
-     */
-    private static class Holder<V> {
-      private V value;
-      private boolean present;
-      private Holder() { }
-      private Holder(V value) {
-        set(value);
-      }
+  }
 
-      private void set(V value) {
-        this.present = true;
-        this.value = value;
-      }
+  /**
+   * Holds a single value value of type {@code V} which may or may not be present.
+   *
+   * <p>Used only as a private accumulator class. The type appears in public interfaces, but from
+   * a public perspective, it has no accessible members.
+   */
+  public static class Holder<V> {
+    private V value;
+    private boolean present;
+    private Holder() { }
+    private Holder(V value) {
+      set(value);
+    }
+
+    private void set(V value) {
+      this.present = true;
+      this.value = value;
     }
   }
+
+  /**
+   * A {@link Coder} for a {@link Holder}.
+   */
+  private static class HolderCoder<V> extends CustomCoder<Holder<V>> {
+
+    private Coder<V> valueCoder;
+
+    public HolderCoder(Coder<V> valueCoder) {
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public List<Coder<?>> getCoderArguments() {
+      return Arrays.<Coder<?>>asList(valueCoder);
+    }
+
+    @Override
+    public void encode(Holder<V> accumulator, OutputStream outStream, Context context)
+        throws CoderException, IOException {
+      if (accumulator.present) {
+        outStream.write(1);
+        valueCoder.encode(accumulator.value, outStream, context);
+      } else {
+        outStream.write(0);
+      }
+    }
+
+    @Override
+    public Holder<V> decode(InputStream inStream, Context context)
+        throws CoderException, IOException {
+      if (inStream.read() == 1) {
+        return new Holder<>(valueCoder.decode(inStream, context));
+      } else {
+        return new Holder<>();
+      }
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      valueCoder.verifyDeterministic();
+    }
+  };
 
   /**
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more

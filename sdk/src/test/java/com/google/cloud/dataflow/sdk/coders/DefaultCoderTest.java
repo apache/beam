@@ -61,23 +61,23 @@ public class DefaultCoderTest {
   private static class SerializableRecord extends SerializableBase {
   }
 
-  @DefaultCoder(CustomCoder.class)
+  @DefaultCoder(CustomSerializableCoder.class)
   private static class CustomRecord extends SerializableBase {
   }
 
   private static class Unknown {
   }
 
-  private static class CustomCoder extends SerializableCoder<CustomRecord> {
+  private static class CustomSerializableCoder extends SerializableCoder<CustomRecord> {
     // Extending SerializableCoder isn't trivial, but it can be done.
     @SuppressWarnings("unchecked")
     public static <T extends Serializable> SerializableCoder<T> of(Class<T> recordType) {
        Preconditions.checkArgument(
            CustomRecord.class.isAssignableFrom(recordType));
-       return (SerializableCoder<T>) new CustomCoder();
+       return (SerializableCoder<T>) new CustomSerializableCoder();
     }
 
-    protected CustomCoder() {
+    protected CustomSerializableCoder() {
       super(CustomRecord.class);
     }
   }
@@ -89,7 +89,8 @@ public class DefaultCoderTest {
         instanceOf(SerializableCoder.class));
     assertThat(registry.getDefaultCoder(SerializableRecord.class),
         instanceOf(SerializableCoder.class));
-    assertThat(registry.getDefaultCoder(CustomRecord.class), instanceOf(CustomCoder.class));
+    assertThat(registry.getDefaultCoder(CustomRecord.class),
+        instanceOf(CustomSerializableCoder.class));
   }
 
   @Test
