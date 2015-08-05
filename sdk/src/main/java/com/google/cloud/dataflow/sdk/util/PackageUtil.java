@@ -37,12 +37,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -168,7 +168,7 @@ public class PackageUtil {
             numCached++;
             continue;
           }
-        } catch (NoSuchFileException expected) {
+        } catch (FileNotFoundException expected) {
           // If the file doesn't exist, it means we need to upload it.
         }
 

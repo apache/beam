@@ -68,11 +68,11 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.Pipe;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -217,7 +217,7 @@ public class PackageUtilTest {
     Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
-        .thenThrow(new NoSuchFileException("some/path"));
+        .thenThrow(new FileNotFoundException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
@@ -248,7 +248,7 @@ public class PackageUtilTest {
 
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
-        .thenThrow(new NoSuchFileException("some/path"));
+        .thenThrow(new FileNotFoundException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     PackageUtil.stageClasspathElements(
@@ -276,7 +276,7 @@ public class PackageUtilTest {
 
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
-        .thenThrow(new NoSuchFileException("some/path"));
+        .thenThrow(new FileNotFoundException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
@@ -299,7 +299,7 @@ public class PackageUtilTest {
     Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
-        .thenThrow(new NoSuchFileException("some/path"));
+        .thenThrow(new FileNotFoundException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .thenThrow(new IOException("Fake Exception: Upload error"));
 
@@ -320,7 +320,7 @@ public class PackageUtilTest {
     Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
-        .thenThrow(new NoSuchFileException("some/path"));
+        .thenThrow(new FileNotFoundException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .thenThrow(new IOException("Failed to write to GCS path " + gcsStaging,
             googleJsonResponseException(
@@ -353,7 +353,7 @@ public class PackageUtilTest {
     Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
-        .thenThrow(new NoSuchFileException("some/path"));
+        .thenThrow(new FileNotFoundException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .thenThrow(new IOException("Fake Exception: 410 Gone")) // First attempt fails
         .thenReturn(pipe.sink());                               // second attempt succeeds
@@ -415,7 +415,7 @@ public class PackageUtilTest {
     final String overriddenName = "alias.txt";
 
     when(mockGcsUtil.fileSize(any(GcsPath.class)))
-        .thenThrow(new NoSuchFileException("some/path"));
+        .thenThrow(new FileNotFoundException("some/path"));
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(

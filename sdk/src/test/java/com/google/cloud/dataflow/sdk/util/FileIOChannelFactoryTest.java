@@ -27,6 +27,7 @@ import com.google.common.io.LineReader;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -37,13 +38,13 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
 
 /** Tests for {@link FileIOChannelFactory}. */
 @RunWith(JUnit4.class)
 public class FileIOChannelFactoryTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
   private FileIOChannelFactory factory = new FileIOChannelFactory();
 
@@ -85,8 +86,9 @@ public class FileIOChannelFactoryTest {
     assertEquals(expected, data);
   }
 
-  @Test(expected = FileNotFoundException.class)
+  @Test
   public void testReadNonExistentFile() throws Exception {
+    thrown.expect(FileNotFoundException.class);
     factory
         .open(
             temporaryFolder
@@ -162,8 +164,9 @@ public class FileIOChannelFactoryTest {
     assertEquals(data.length(), factory.getSizeBytes(file.getPath()));
   }
 
-  @Test(expected = NoSuchFileException.class)
+  @Test
   public void testGetSizeBytesForNonExistentFile() throws Exception {
+    thrown.expect(FileNotFoundException.class);
     factory.getSizeBytes(
         factory.resolve(temporaryFolder.getRoot().getPath(), "non-existent-file"));
   }

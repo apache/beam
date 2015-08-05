@@ -41,10 +41,10 @@ import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.nio.file.NoSuchFileException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -198,7 +198,7 @@ public class GcsUtil {
   }
 
   /**
-   * Returns the file size from GCS or throws {@link NoSuchFileException}
+   * Returns the file size from GCS or throws {@link FileNotFoundException}
    * if the resource does not exist.
    */
   public long fileSize(GcsPath path) throws IOException {
@@ -206,7 +206,7 @@ public class GcsUtil {
   }
 
   /**
-   * Returns the file size from GCS or throws {@link NoSuchFileException}
+   * Returns the file size from GCS or throws {@link FileNotFoundException}
    * if the resource does not exist.
    */
   @VisibleForTesting
@@ -223,7 +223,7 @@ public class GcsUtil {
         return object.getSize().longValue();
       } catch (Exception e) {
         if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
-          throw new NoSuchFileException(path.toString());
+          throw new FileNotFoundException(path.toString());
         }
         throw new IOException("Unable to get file size", e);
      }

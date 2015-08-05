@@ -61,11 +61,11 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
 import java.nio.channels.SeekableByteChannel;
-import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -77,7 +77,7 @@ import java.util.concurrent.TimeUnit;
 /** Test case for {@link GcsUtil}. */
 @RunWith(JUnit4.class)
 public class GcsUtilTest {
-  @Rule public ExpectedException exception = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testGlobTranslation() {
@@ -232,8 +232,8 @@ public class GcsUtilTest {
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GcsPath pattern = GcsPath.fromUri("gs://testbucket/test**");
 
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage("Unsupported wildcard usage");
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Unsupported wildcard usage");
     gcsUtil.expand(pattern);
   }
 
@@ -299,7 +299,7 @@ public class GcsUtilTest {
     assertEquals(1000, gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject")));
   }
 
-  @Test(expected = NoSuchFileException.class)
+  @Test
   public void testGetSizeBytesWhenFileNotFound() throws Exception {
     MockLowLevelHttpResponse notFoundResponse = new MockLowLevelHttpResponse();
     notFoundResponse.setContent("");
@@ -314,6 +314,7 @@ public class GcsUtilTest {
 
     gcsUtil.setStorageClient(new Storage(mockTransport, Transport.getJsonFactory(), null));
 
+    thrown.expect(FileNotFoundException.class);
     gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject"));
   }
 
