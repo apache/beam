@@ -16,7 +16,12 @@
 
 package com.google.cloud.dataflow.sdk.values;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+
+import com.google.common.collect.ImmutableList;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,6 +44,40 @@ public class KVTest {
     } else {
       return b == null ? 1 : a.compareTo(b);
     }
+  }
+
+  @Test
+  public void testEquals() {
+    // Neither position are arrays
+    assertThat(KV.of(1, 2), equalTo(KV.of(1, 2)));
+
+    // Key is array
+    assertThat(KV.of(new int[]{1, 2}, 3), equalTo(KV.of(new int[]{1, 2}, 3)));
+
+    // Value is array
+    assertThat(KV.of(1, new int[]{2, 3}), equalTo(KV.of(1, new int[]{2, 3})));
+
+    // Both are arrays
+    assertThat(KV.of(new int[]{1, 2}, new int[]{3, 4}),
+        equalTo(KV.of(new int[]{1, 2}, new int[]{3, 4})));
+
+    // Unfortunately, deep equals only goes so far
+    assertThat(KV.of(ImmutableList.of(new int[]{1, 2}), 3),
+        not(equalTo(KV.of(ImmutableList.of(new int[]{1, 2}), 3))));
+    assertThat(KV.of(1, ImmutableList.of(new int[]{2, 3})),
+        not(equalTo(KV.of(1, ImmutableList.of(new int[]{2, 3})))));
+
+    // Key is array and differs
+    assertThat(KV.of(new int[]{1, 2}, 3), not(equalTo(KV.of(new int[]{1, 37}, 3))));
+
+    // Key is non-array and differs
+    assertThat(KV.of(1, new int[]{2, 3}), not(equalTo(KV.of(37, new int[]{1, 2}))));
+
+    // Value is array and differs
+    assertThat(KV.of(1, new int[]{2, 3}), not(equalTo(KV.of(1, new int[]{37, 3}))));
+
+    // Value is non-array and differs
+    assertThat(KV.of(new byte[]{1, 2}, 3), not(equalTo(KV.of(new byte[]{1, 2}, 37))));
   }
 
   @Test

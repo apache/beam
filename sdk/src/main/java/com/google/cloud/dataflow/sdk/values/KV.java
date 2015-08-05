@@ -74,7 +74,7 @@ public class KV<K, V> implements Serializable {
     }
     KV<?, ?> otherKv = (KV<?, ?>) other;
     // Arrays are very common as values and keys, so deepEquals is mandatory
-    return Objects.deepEquals(this.key, this.key)
+    return Objects.deepEquals(this.key, otherKv.key)
         && Objects.deepEquals(this.value, otherKv.value);
   }
 
