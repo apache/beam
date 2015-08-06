@@ -187,6 +187,7 @@
             </systemPropertyVariables>
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
+            <redirectTestOutputToFile>true</redirectTestOutputToFile>
           </configuration>
           <dependencies>
             <dependency>

@@ -153,7 +153,9 @@
 
           <subpackages>com.google.cloud.dataflow.sdk</subpackages>
           <additionalparam>-exclude com.google.cloud.dataflow.sdk.runners.worker:com.google.cloud.dataflow.sdk.runners.dataflow:com.google.cloud.dataflow.sdk.util</additionalparam>
+          <additionalparam>-Xdoclint:-missing</additionalparam>
           <use>false</use>
+          <quiet>true</quiet>
           <bottom><![CDATA[<br>]]></bottom>
 
           <offlineLinks>
