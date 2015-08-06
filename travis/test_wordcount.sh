@@ -17,17 +17,8 @@
 set -e
 set -o pipefail
 
-MYDIR=$(dirname $0) || exit 2
-cd $MYDIR
-
-TOPDIR="."
-if [[ $# -gt 0 ]]
-then
-  TOPDIR="$1"
-fi
-
 PASS=1
-JAR_FILE=$TOPDIR/examples/target/google-cloud-dataflow-java-examples-all-bundled-manual_build.jar
+JAR_FILE=examples/target/google-cloud-dataflow-java-examples-all-bundled-manual_build.jar
 
 function check_result_hash {
   local name=$1
@@ -60,7 +51,7 @@ function run_via_mvn {
   local expected_hash=$3
 
   local outfile_prefix="$(get_outfile_prefix "$name")" || exit 2
-  local cmd='mvn exec:java -f '"$TOPDIR"'/pom.xml -pl examples \
+  local cmd='mvn exec:java -f pom.xml -pl examples \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
     -Dexec.args="--runner=DirectPipelineRunner --inputFile='"$input"' --output='"$outfile_prefix"'"'
   echo "$name: Running $cmd" >&2
