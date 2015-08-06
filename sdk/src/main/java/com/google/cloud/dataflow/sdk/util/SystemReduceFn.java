@@ -19,11 +19,9 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
 import com.google.cloud.dataflow.sdk.util.state.BagState;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 import com.google.cloud.dataflow.sdk.util.state.MergeableState;
-import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 
@@ -115,16 +113,13 @@ class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   }
 
   @Override
-  public void onTrigger(OnTriggerContext c) throws Exception {
-    MergeableState<InputT, OutputT> buffer =
-        c.state().accessAcrossMergedWindows(bufferTag);
-    StateContents<OutputT> output = buffer.get();
+  public void prefetchOnTrigger(com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext c) {
+    c.accessAcrossMergedWindows(bufferTag).get();
+  }
 
-    // Skip empty panes unless they have interesting pane info.
-    if (!buffer.isEmpty().read()
-        || c.paneInfo().isLast() || Timing.ON_TIME == c.paneInfo().getTiming()) {
-      c.output(output.read());
-    }
+  @Override
+  public void onTrigger(OnTriggerContext c) throws Exception {
+    c.output(c.state().accessAcrossMergedWindows(bufferTag).get().read());
   }
 
   @Override

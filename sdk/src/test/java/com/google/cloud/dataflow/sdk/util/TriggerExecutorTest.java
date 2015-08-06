@@ -33,6 +33,7 @@ import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterFirst;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterProcessingTime;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
@@ -45,6 +46,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 
 import org.hamcrest.Matchers;
@@ -200,7 +202,9 @@ public class TriggerExecutorTest {
     injectElement(tester, 3, TriggerResult.CONTINUE);
     assertEquals(new Instant(1), tester.getWatermarkHold());
     injectElement(tester, 2, TriggerResult.FIRE);
-    assertEquals(null, tester.getWatermarkHold());
+
+    // Holding for the end-of-window transition.
+    assertEquals(new Instant(9), tester.getWatermarkHold());
 
     assertEquals(0, tester.getElementsDroppedDueToLateness());
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
@@ -209,16 +213,18 @@ public class TriggerExecutorTest {
     tester.advanceWatermark(new Instant(4));
     injectElement(tester, 2, TriggerResult.CONTINUE);
     injectElement(tester, 3, TriggerResult.CONTINUE);
-    assertEquals(new Instant(19), tester.getWatermarkHold());
+    assertEquals(new Instant(9), tester.getWatermarkHold());
     injectElement(tester, 5, TriggerResult.CONTINUE);
     assertEquals(new Instant(5), tester.getWatermarkHold());
     injectElement(tester, 4, TriggerResult.FIRE);
 
     // All late -- output at end of window timestamp.
+    when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
+         .thenReturn(TriggerResult.CONTINUE);
     tester.advanceWatermark(new Instant(8));
     injectElement(tester, 6, TriggerResult.CONTINUE);
     injectElement(tester, 5, TriggerResult.CONTINUE);
-    assertEquals(new Instant(19), tester.getWatermarkHold());
+    assertEquals(new Instant(9), tester.getWatermarkHold());
     injectElement(tester, 4, TriggerResult.FIRE);
 
     // This is "pending" at the time the watermark makes it way-late.
@@ -255,9 +261,11 @@ public class TriggerExecutorTest {
     assertThat(
                output.get(0).getPane(),
         Matchers.equalTo(PaneInfo.createPane(true, false, Timing.EARLY)));
+
+    // By the time this firing is produced, the input WM already passed the end of the window.
     assertThat(
         output.get(3).getPane(),
-        Matchers.equalTo(PaneInfo.createPane(false, true, Timing.EARLY, 3, -1)));
+        Matchers.equalTo(PaneInfo.createPane(false, true, Timing.LATE, 3, 0)));
 
     // And because we're past the end of window + allowed lateness, everything should be cleaned up.
     assertFalse(tester.isMarkedFinished(firstWindow));
@@ -272,6 +280,9 @@ public class TriggerExecutorTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
+    when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
+
     tester.advanceWatermark(new Instant(0));
     injectElement(tester, 1, TriggerResult.FIRE);
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -284,7 +295,8 @@ public class TriggerExecutorTest {
     tester.advanceWatermark(new Instant(15));
     injectElement(tester, 3, TriggerResult.FIRE);
     assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.ON_TIME, 2, 0))));
+        // This is late, because the trigger wasn't waiting for AfterWatermark
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.LATE, 2, 0))));
 
     injectElement(tester, 4, TriggerResult.FIRE);
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -293,6 +305,70 @@ public class TriggerExecutorTest {
     injectElement(tester, 5, TriggerResult.FIRE_AND_FINISH);
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 4, 2))));
+  }
+
+  @Test
+  public void testPaneInfoAllStatesAfterWatermark() throws Exception {
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
+            .withTrigger(Repeatedly.<IntervalWindow>forever(
+                AfterFirst.<IntervalWindow>of(
+                    AfterPane.<IntervalWindow>elementCountAtLeast(2),
+                    AfterWatermark.<IntervalWindow>pastEndOfWindow())))
+            .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .withAllowedLateness(Duration.millis(100))
+            .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
+
+    tester.advanceWatermark(new Instant(0));
+    tester.injectElement(1, new Instant(1));
+    tester.injectElement(2, new Instant(2));
+
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertThat(output, Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
+    assertThat(output, Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
+
+    tester.advanceWatermark(new Instant(50));
+
+    // We should get the ON_TIME pane even though it is empty,
+    // because we have an AfterWatermark.pastEndOfWindow() trigger.
+    output = tester.extractOutput();
+    assertThat(output, Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.ON_TIME, 1, 0))));
+    assertThat(output, Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.emptyIterable(), 9, 0, 10)));
+
+    // We should get the final pane even though it is empty.
+    tester.advanceWatermark(new Instant(150));
+    output = tester.extractOutput();
+    assertThat(output, Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 2, 1))));
+    assertThat(output, Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.emptyIterable(), 9, 0, 10)));
+  }
+
+  @Test
+  public void testPaneInfoFinalAndOnTime() throws Exception {
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
+            .withTrigger(
+                Repeatedly.<IntervalWindow>forever(AfterPane.<IntervalWindow>elementCountAtLeast(2))
+                .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()))
+            .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
+            .withAllowedLateness(Duration.millis(100))
+            .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
+
+    tester.advanceWatermark(new Instant(0));
+    tester.injectElement(1, new Instant(1));
+    tester.injectElement(2, new Instant(2));
+
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
+
+    tester.advanceWatermark(new Instant(150));
+    assertThat(tester.extractOutput(), Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.ON_TIME, 1, 0))));
   }
 
   @Test
@@ -320,7 +396,7 @@ public class TriggerExecutorTest {
     tester.advanceWatermark(new Instant(15));
     injectElement(tester, 1, TriggerResult.FIRE_AND_FINISH);
     assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, true, Timing.ON_TIME))));
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, true, Timing.LATE))));
   }
 
   @Test
@@ -338,16 +414,19 @@ public class TriggerExecutorTest {
     injectElement(tester, 10, TriggerResult.CONTINUE); // [10-20)
 
     // Finalizing forces us to merge to merge, but we aren't ready to fire yet.
-    when(mockTrigger.onMerge(
-        Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
+    when(mockTrigger.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
         .thenReturn(MergeResult.CONTINUE);
+
+    // Wasn't waiting for the ON_TIME firing
+    when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
 
     tester.advanceWatermark(new Instant(100));
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output.size(), Matchers.equalTo(1));
     assertThat(output.get(0), isSingleWindowedValue(Matchers.containsInAnyOrder(1, 10), 1, 1, 20));
     assertThat(output.get(0).getPane(),
-        Matchers.equalTo(PaneInfo.createPane(true, true, Timing.EARLY)));
+        Matchers.equalTo(PaneInfo.createPane(true, true, Timing.LATE, 0, 0)));
   }
 
   @Test
@@ -391,9 +470,12 @@ public class TriggerExecutorTest {
     // Inject a couple of on-time elements and fire at the window end.
     injectElement(tester, 1, TriggerResult.CONTINUE);
     injectElement(tester, 2, TriggerResult.CONTINUE);
-    tester.advanceWatermark(new Instant(12));
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
-                    .thenReturn(TriggerResult.FIRE);
+        .thenReturn(TriggerResult.CONTINUE);
+    tester.advanceWatermark(new Instant(12));
+
+    when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
+        .thenReturn(TriggerResult.FIRE);
     tester.fireTimer(firstWindow, new Instant(10), TimeDomain.EVENT_TIME);
 
     // Fire another timer (with no data, so it's an uninteresting pane).

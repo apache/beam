@@ -223,7 +223,7 @@ public final class PaneInfo {
         .add("isLast", isLast ? true : null)
         .add("timing", timing)
         .add("index", index)
-        .add("onTimeIndex", nonSpeculativeIndex > 0 ? nonSpeculativeIndex : null)
+        .add("onTimeIndex", nonSpeculativeIndex != -1 ? nonSpeculativeIndex : null)
         .toString();
   }
 

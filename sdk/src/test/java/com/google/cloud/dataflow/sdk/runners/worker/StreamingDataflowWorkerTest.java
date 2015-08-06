@@ -685,6 +685,7 @@ public class StreamingDataflowWorkerTest {
     ByteString bufferTag = ByteString.copyFromUtf8(window + "+sbuf");
     ByteString finishedTag = ByteString.copyFromUtf8(window + "+sclosed");
     ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+spane");
+    ByteString paneHoldTag = ByteString.copyFromUtf8(window + "+spane-hold");
     ByteString watermarkHoldTag =
         ByteString.copyFromUtf8(window + "+shold");
     String stateFamily = "MergeWindows";
@@ -703,7 +704,7 @@ public class StreamingDataflowWorkerTest {
             .setTimestamp(timerTimestamp)
             .setType(Windmill.Timer.Type.WATERMARK).build())));
 
-    assertThat(actualOutput.getListUpdatesList(), Matchers.containsInAnyOrder(
+    assertThat(actualOutput.getListUpdatesList(), Matchers.contains(
         Matchers.equalTo(Windmill.TagList.newBuilder()
             .setTag(bufferTag)
             .setStateFamily(stateFamily)
@@ -718,8 +719,12 @@ public class StreamingDataflowWorkerTest {
             .setTag(watermarkHoldTag)
             .setStateFamily(stateFamily)
             .addTimestamps(0)
+            .build()),
+        Matchers.equalTo(Windmill.WatermarkHold.newBuilder()
+            .setTag(paneHoldTag)
+            .setStateFamily(stateFamily)
+            .addTimestamps(999000 /* end of the window */)
             .build())));
-
 
     Windmill.GetWorkResponse.Builder getWorkResponse = Windmill.GetWorkResponse.newBuilder();
     getWorkResponse.addWorkBuilder()
@@ -767,12 +772,17 @@ public class StreamingDataflowWorkerTest {
         .getValueBuilder()
         .setTimestamp(0)
         .setData(ByteString.EMPTY);
+    dataBuilder.addWatermarkHoldsBuilder()
+        .setTag(paneHoldTag)
+        .setStateFamily(stateFamily)
+        .addTimestamps(999000);
     server.addDataToOffer(dataResponse.build());
 
     result = server.waitForAndGetCommits(1);
 
     actualOutput = result.get(1L);
 
+    assertEquals(1, actualOutput.getOutputMessagesCount());
     assertEquals(DEFAULT_DESTINATION_STREAM_ID,
         actualOutput.getOutputMessages(0).getDestinationStreamId());
     assertEquals(DEFAULT_KEY_STRING,
@@ -805,7 +815,7 @@ public class StreamingDataflowWorkerTest {
                 .build())));
 
     assertThat("" + actualOutput.getListUpdatesList(),
-        actualOutput.getListUpdatesList(), Matchers.containsInAnyOrder(
+        actualOutput.getListUpdatesList(), Matchers.contains(
         Matchers.equalTo(Windmill.TagList.newBuilder()
             .setTag(bufferTag)
             .setStateFamily(stateFamily)
@@ -815,6 +825,11 @@ public class StreamingDataflowWorkerTest {
     assertThat(actualOutput.getWatermarkHoldsList(), Matchers.containsInAnyOrder(
         Matchers.equalTo(Windmill.WatermarkHold.newBuilder()
             .setTag(watermarkHoldTag)
+            .setStateFamily(stateFamily)
+            .setReset(true)
+            .build()),
+        Matchers.equalTo(Windmill.WatermarkHold.newBuilder()
+            .setTag(paneHoldTag)
             .setStateFamily(stateFamily)
             .setReset(true)
             .build())));

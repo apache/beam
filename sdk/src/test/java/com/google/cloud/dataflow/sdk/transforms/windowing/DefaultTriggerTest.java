@@ -133,7 +133,6 @@ public class DefaultTriggerTest {
     tester.advanceWatermark(new Instant(120));
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output, Matchers.contains(
-        isSingleWindowedValue(Matchers.<Integer>emptyIterable(), 4, -5, 5),
         isSingleWindowedValue(Matchers.contains(4), 9, 0, 10),
         isSingleWindowedValue(Matchers.contains(4), 14, 5, 15)));
 

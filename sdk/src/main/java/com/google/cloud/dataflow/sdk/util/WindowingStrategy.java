@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 
 import org.joda.time.Duration;
@@ -55,6 +56,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   private final ExecutableTrigger<W> trigger;
   private final AccumulationMode mode;
   private final Duration allowedLateness;
+  private final ClosingBehavior closingBehavior;
   private final boolean triggerSpecified;
   private final boolean modeSpecified;
   private final boolean allowedLatenessSpecified;
@@ -63,7 +65,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
       WindowFn<T, W> windowFn,
       ExecutableTrigger<W> trigger, boolean triggerSpecified,
       AccumulationMode mode, boolean modeSpecified,
-      Duration allowedLateness, boolean allowedLatenessSpecified) {
+      Duration allowedLateness, boolean allowedLatenessSpecified,
+      ClosingBehavior closingBehavior) {
     this.windowFn = windowFn;
     this.trigger = trigger;
     this.triggerSpecified = triggerSpecified;
@@ -71,6 +74,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     this.modeSpecified = modeSpecified;
     this.allowedLateness = allowedLateness;
     this.allowedLatenessSpecified = allowedLatenessSpecified;
+    this.closingBehavior = closingBehavior;
   }
 
   /**
@@ -85,7 +89,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return new WindowingStrategy<>(windowFn,
         ExecutableTrigger.create(DefaultTrigger.<W>of()), false,
         AccumulationMode.DISCARDING_FIRED_PANES, false,
-        DEFAULT_ALLOWED_LATENESS, false);
+        DEFAULT_ALLOWED_LATENESS, false,
+        ClosingBehavior.FIRE_IF_NON_EMPTY);
   }
 
   public WindowFn<T, W> getWindowFn() {
@@ -116,6 +121,10 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return modeSpecified;
   }
 
+  public ClosingBehavior getClosingBehavior() {
+    return closingBehavior;
+  }
+
   /**
    * Returns a {@link WindowingStrategy} identical to {@code this} but with the trigger set to
    * {@code wildcardTrigger}.
@@ -127,7 +136,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         windowFn,
         ExecutableTrigger.create(typedTrigger), true,
         mode, modeSpecified,
-        allowedLateness, allowedLatenessSpecified);
+        allowedLateness, allowedLatenessSpecified,
+        closingBehavior);
   }
 
   /**
@@ -139,7 +149,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         windowFn,
         trigger, triggerSpecified,
         mode, true,
-        allowedLateness, allowedLatenessSpecified);
+        allowedLateness, allowedLatenessSpecified,
+        closingBehavior);
   }
 
   /**
@@ -153,7 +164,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         typedWindowFn,
         trigger, triggerSpecified,
         mode, modeSpecified,
-        allowedLateness, allowedLatenessSpecified);
+        allowedLateness, allowedLatenessSpecified,
+        closingBehavior);
   }
 
   /**
@@ -165,7 +177,17 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         windowFn,
         trigger, triggerSpecified,
         mode, modeSpecified,
-        allowedLateness, true);
+        allowedLateness, true,
+        closingBehavior);
+  }
+
+  public WindowingStrategy<T, W> withClosingBehavior(ClosingBehavior closingBehavior) {
+    return new WindowingStrategy<T, W>(
+        windowFn,
+        trigger, triggerSpecified,
+        mode, modeSpecified,
+        allowedLateness, allowedLatenessSpecified,
+        closingBehavior);
   }
 
   @Override

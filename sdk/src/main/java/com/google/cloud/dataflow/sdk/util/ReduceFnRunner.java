@@ -19,9 +19,13 @@ import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.util.ActiveWindowSet.MergeCallback;
 import com.google.cloud.dataflow.sdk.util.ReduceFnContextFactory.OnTriggerCallbacks;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
+import com.google.cloud.dataflow.sdk.util.TriggerRunner.Result;
+import com.google.cloud.dataflow.sdk.util.WatermarkHold.WatermarkInfo;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces.WindowNamespace;
@@ -34,10 +38,11 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+
+import javax.annotation.Nullable;
 
 /**
  * Manages the execution of a {@link ReduceFn} after a {@link GroupByKeyOnly} has partitioned the
@@ -161,7 +166,16 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
         continue;
       }
 
+      // If this is a new window
       if (activeWindows.add(window)) {
+        // Hold for possibly empty panes
+        if (timerInternals.currentWatermarkTime().isAfter(window.maxTimestamp())) {
+          watermarkHold.holdForFinal(context);
+        } else {
+          watermarkHold.holdForOnTime(context);
+        }
+
+        // And schedule cleanup
         scheduleCleanup(context);
       }
 
@@ -177,7 +191,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
 
       // Run the trigger and handle the result as appropriate
       try {
-        handleTriggerResult(context, triggerRunner.processValue(context));
+        handleTriggerResult(context, false, triggerRunner.processValue(context));
       } catch (Exception e) {
         Throwables.propagateIfPossible(e);
         throw new RuntimeException("Failed to run trigger", e);
@@ -204,27 +218,23 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
    */
   @Override
   public void onMerge(Collection<W> mergedWindows, W resultWindow, boolean isResultWindowNew) {
-    ReduceFn<K, InputT, OutputT, W>.OnMergeContext context =
+    ReduceFn<K, InputT, OutputT, W>.OnMergeContext resultContext =
         contextFactory.forMerge(mergedWindows, resultWindow);
 
     // Schedule state reads for trigger execution.
-    triggerRunner.prefetchForMerge(context.state());
+    triggerRunner.prefetchForMerge(resultContext.state());
 
     // Run the reduceFn to perform any needed merging.
     try {
-      reduceFn.onMerge(context);
+      reduceFn.onMerge(resultContext);
     } catch (Exception e) {
       throw wrapMaybeUserException(e);
     }
 
-    // Schedule cleanup if the window is new.
-    if (isResultWindowNew) {
-      scheduleCleanup(context);
-    }
-
     // Have the trigger merge state as needed, and handle the result.
+    Result triggerResult;
     try {
-      handleTriggerResult(context,  triggerRunner.onMerge(context));
+      triggerResult = triggerRunner.onMerge(resultContext);
     } catch (Exception e) {
       Throwables.propagateIfPossible(e);
       throw new RuntimeException("Failed to merge the triggers", e);
@@ -236,6 +246,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
         try {
           ReduceFn<K, InputT, OutputT, W>.Context mergedContext = contextFactory.base(mergedWindow);
           cancelCleanup(mergedContext);
+          watermarkHold.releaseFinal(mergedContext);
           triggerRunner.clearEverything(mergedContext);
           paneInfo.clear(mergedContext.state());
         } catch (Exception e) {
@@ -244,6 +255,20 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
         }
       }
     }
+
+    // Schedule cleanup if the window is new. Do this after cleaning up the old state in case one
+    // of them had a timer at the same point.
+    if (isResultWindowNew) {
+      if (timerInternals.currentWatermarkTime().isAfter(resultWindow.maxTimestamp())) {
+        watermarkHold.holdForFinal(resultContext);
+      } else {
+        watermarkHold.holdForOnTime(resultContext);
+      }
+      scheduleCleanup(resultContext);
+    }
+
+    // Handle the trigger result as appropriate.
+    handleTriggerResult(resultContext, false, triggerResult);
   }
 
   /**
@@ -258,12 +283,26 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     @SuppressWarnings("unchecked")
     WindowNamespace<W> windowNamespace = (WindowNamespace<W>) timer.getNamespace();
     W window = windowNamespace.getWindow();
+    ReduceFn<K, InputT, OutputT, W>.Context context = contextFactory.base(window);
 
-    if (TimeDomain.EVENT_TIME == timer.getDomain() && isCleanupTime(window, timer.getTimestamp())) {
-      // This may be a redundant cleanup (if we had lingering watermark timers after the cleanup
-      // time but it shouldn't hurt anything for us to process those again).
+    // If this timer firing is at the watermark, then it may cause a trigger firing of an
+    // AfterWatermark trigger.
+    boolean isAtWatermark = TimeDomain.EVENT_TIME == timer.getDomain()
+        && !timer.getTimestamp().isBefore(window.maxTimestamp());
+
+    if (TimeDomain.EVENT_TIME == timer.getDomain()
+        && (isCleanupTime(window, timer.getTimestamp())
+            || isCleanupTime(window, timerInternals.currentWatermarkTime()))) {
+      // If it looks like this was a watermark firing, see if the trigger tree was waiting for it.
+      // If it fires, then we know there was a pending AfterWatermark trigger.
+      if (isAtWatermark) {
+        TriggerRunner.Result timerResult = runTriggersForTimer(context, timer);
+        isAtWatermark = (timerResult != null && timerResult.isFire());
+      }
+
+      // Do the actual cleanup
       try {
-        doCleanup(windowNamespace.getWindow());
+        doCleanup(context, isAtWatermark);
       } catch (Exception e) {
         LOG.error("Exception while garbage collecting window {}", windowNamespace.getWindow(), e);
       }
@@ -273,28 +312,41 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
         return;
       }
 
-      ReduceFn<K, InputT, OutputT, W>.Context context = contextFactory.base(window);
-
-      triggerRunner.prefetchForTimer(context.state());
-
-      // Skip timers for windows that were closed by triggers, but haven't expired yet.
-      if (triggerRunner.isClosed(context.state())) {
-        return;
+      TriggerRunner.Result timerResult = runTriggersForTimer(context, timer);
+      if (timerResult != null) {
+        handleTriggerResult(context, isAtWatermark, timerResult);
       }
 
-      try {
-        handleTriggerResult(context, triggerRunner.onTimer(context, timer));
-      } catch (Exception e) {
-        Throwables.propagateIfPossible(e);
-        throw new RuntimeException("Exception in onTimer for trigger", e);
+      // After this timer has fired, we're no longer on-time.
+      if (isAtWatermark) {
+        watermarkHold.releaseOnTime(context);
+        scheduleCleanup(context);
       }
     }
   }
 
-  /** Called when the cleanup timer has fired for the given window. */
-  private void doCleanup(W window) throws Exception {
-    ReduceFn<K, InputT, OutputT, W>.Context context = contextFactory.base(window);
+  @Nullable
+  private TriggerRunner.Result runTriggersForTimer(
+      ReduceFn<K, InputT, OutputT, W>.Context context, TimerData timer) {
 
+    triggerRunner.prefetchForTimer(context.state());
+
+    // Skip timers for windows that were closed by triggers, but haven't expired yet.
+    if (triggerRunner.isClosed(context.state())) {
+      return null;
+    }
+
+    try {
+      return triggerRunner.onTimer(context, timer);
+    } catch (Exception e) {
+      Throwables.propagateIfPossible(e);
+      throw new RuntimeException("Exception in onTimer for trigger", e);
+    }
+  }
+
+  /** Called when the cleanup timer has fired for the given window. */
+  private void doCleanup(
+      ReduceFn<K, InputT, OutputT, W>.Context context, boolean maybeAtWatermark) throws Exception {
     // If the window is active, fire a pane.
     if (!triggerRunner.isClosed(context.state())) {
       // Before we fire, make sure this window doesn't get merged away. If it does, the merging
@@ -316,17 +368,19 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
       }
 
       // Run onTrigger to produce the actual final pane contents.
-      onTrigger(context, true /* isFinal */);
+      onTrigger(context, maybeAtWatermark, true /* isFinal */);
     }
 
     // Cleanup the associated state.
     reduceFn.clearState(context);
     triggerRunner.clearEverything(context);
     paneInfo.clear(context.state());
+    watermarkHold.releaseOnTime(context);
   }
 
   private void handleTriggerResult(
-      ReduceFn<K, InputT, OutputT, W>.Context context, TriggerRunner.Result result) {
+      ReduceFn<K, InputT, OutputT, W>.Context context,
+      boolean maybeAtWatermark, TriggerRunner.Result result) {
     // Unless the trigger is firing, there is nothing to do besides persisting the results.
     if (!result.isFire()) {
       result.persistFinishedSet(context.state());
@@ -350,7 +404,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     }
 
     // Run onTrigger to produce the actual pane contents.
-    onTrigger(context, result.isFinish());
+    onTrigger(context, maybeAtWatermark, result.isFinish());
 
     // Cleanup buffered data if appropriate
     if (shouldDiscardAfterFiring(result)) {
@@ -370,6 +424,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
       try {
         triggerRunner.clearState(context);
         paneInfo.clear(context.state());
+        watermarkHold.releaseFinal(context);
       } catch (Exception e) {
         Throwables.propagateIfPossible(e);
         throw new RuntimeException("Exception while clearing trigger state", e);
@@ -380,26 +435,58 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     result.persistFinishedSet(context.state());
   }
 
+  public static <T> StateContents<T> stateContentsOf(final T value) {
+    return new StateContents<T>() {
+      @Override
+      public T read() {
+        return value;
+      }
+    };
+  }
+
   /**
    * Run the {@link ReduceFn#onTrigger} method and produce any necessary output.
    *
    * @param context the context for the pane to fire
+   * @param isAtWatermark true if this triggering is for an AfterWatermark trigger
    * @param isFinal true if this will be the last triggering processed
    */
-  private void onTrigger(final ReduceFn<K, InputT, OutputT, W>.Context context, boolean isFinal) {
-    // Make sure that we read the watermark along with any state needed to determine the output.
-    StateContents<Instant> timestampFuture = watermarkHold.extractAndRelease(context);
+  private void onTrigger(final ReduceFn<K, InputT, OutputT, W>.Context context,
+      boolean isAtWatermark, boolean isFinal) {
+    StateContents<WatermarkInfo> outputTimestampFuture = watermarkHold.extractAndRelease(context);
+    StateContents<PaneInfo> paneFuture =
+        paneInfo.getNextPaneInfo(context, isAtWatermark, isFinal);
 
-    // Run the reduceFn, and buffer all the output in outputs.
-    final List<OutputT> outputs = new ArrayList<>();
+    reduceFn.prefetchOnTrigger(context.state());
 
-    StateContents<PaneInfo> paneFuture = paneInfo.getNextPaneInfo(context, isFinal);
+    final PaneInfo pane = paneFuture.read();
+    final WatermarkInfo watermarkInfo = outputTimestampFuture.read();
 
+    boolean shouldOutput =
+        // The pane is non-empty
+        watermarkInfo.isNonEmpty()
+        // This is the final pane, and the user has asked for it even if its empty
+        || (isFinal && windowingStrategy.getClosingBehavior() == ClosingBehavior.FIRE_ALWAYS)
+        // This is the on-time firing, and the user explicitly requested it.
+        || (isAtWatermark && pane.getTiming() == Timing.ON_TIME);
+
+    // If there is nothing to output, we're done.
+    if (!shouldOutput) {
+      return;
+    }
+
+    // Run reduceFn.onTrigger method.
+    final List<W> windows = Collections.singletonList(context.window());
     ReduceFn<K, InputT, OutputT, W>.OnTriggerContext triggerContext = contextFactory.forTrigger(
         context.window(), paneFuture, new OnTriggerCallbacks<OutputT>() {
           @Override
           public void output(OutputT toOutput) {
-            outputs.add(toOutput);
+            // We're going to output panes, so commit the (now used) PaneInfo.
+            paneInfo.storeCurrentPaneInfo(context, pane);
+
+            // Output the actual value.
+            windowingInternals.outputWindowedValue(
+                KV.of(key, toOutput), watermarkInfo.getOutputTimestamp(), windows, pane);
           }
     });
 
@@ -407,22 +494,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
       reduceFn.onTrigger(triggerContext);
     } catch (Exception e) {
       throw wrapMaybeUserException(e);
-    }
-
-    // Now actually read the timestamp, and output each of the values.
-    Instant outputTimestamp = timestampFuture.read();
-    List<W> windows = Collections.singletonList(context.window());
-
-    PaneInfo pane = paneFuture.read();
-
-    // Update (increment) the stored PaneInfo iff this pane is visible to the user.
-    if (outputs.size() > 0) {
-      paneInfo.storeCurrentPaneInfo(context, pane);
-    }
-
-    // Produce the output values containing the pane.
-    for (OutputT output : outputs) {
-      windowingInternals.outputWindowedValue(KV.of(key, output), outputTimestamp, windows, pane);
     }
   }
 
@@ -436,7 +507,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
   }
 
   private void scheduleCleanup(ReduceFn<?, ?, ?, W>.Context context) {
-    context.timers().setTimer(cleanupTime(context.window()), TimeDomain.EVENT_TIME);
+    if (timerInternals.currentWatermarkTime().isAfter(context.window().maxTimestamp())) {
+      context.timers().setTimer(cleanupTime(context.window()), TimeDomain.EVENT_TIME);
+    } else {
+      context.timers().setTimer(context.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+    }
   }
 
   private void cancelCleanup(ReduceFn<?, ?, ?, W>.Context context) {

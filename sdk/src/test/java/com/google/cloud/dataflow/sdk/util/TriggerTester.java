@@ -111,6 +111,14 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> nonCombining(
+      WindowingStrategy<?, W> windowingStrategy) throws Exception {
+    return new TriggerTester<Integer, Iterable<Integer>, W>(
+        windowingStrategy,
+        SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()).create(KEY),
+        IterableCoder.of(VarIntCoder.of()));
+  }
+
+  public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> nonCombining(
       WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode,
       Duration allowedDataLateness) throws Exception {
 
@@ -118,11 +126,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         .withTrigger(trigger)
         .withMode(mode)
         .withAllowedLateness(allowedDataLateness);
-
-    return new TriggerTester<Integer, Iterable<Integer>, W>(
-        strategy,
-        SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()).create(KEY),
-        IterableCoder.of(VarIntCoder.of()));
+    return nonCombining(strategy);
   }
 
   public static <W extends BoundedWindow, AccumT, OutputT>
@@ -191,7 +195,9 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
         ImmutableSet.<StateTag<?>>of(
-            TriggerRunner.FINISHED_BITS_TAG, PaneInfoTracker.PANE_INFO_TAG));
+            TriggerRunner.FINISHED_BITS_TAG,
+            PaneInfoTracker.PANE_INFO_TAG,
+            WatermarkHold.PANE_HOLD_TAG));
   }
 
   public final void assertHasOnlyGlobalState() {
@@ -203,7 +209,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndPaneInfoFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<?>>of(PaneInfoTracker.PANE_INFO_TAG));
+        ImmutableSet.<StateTag<?>>of(PaneInfoTracker.PANE_INFO_TAG, WatermarkHold.PANE_HOLD_TAG));
   }
 
   /**

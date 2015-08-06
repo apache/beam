@@ -46,23 +46,18 @@ public class PaneInfoTracker {
     state.access(PANE_INFO_TAG).clear();
   }
 
-  public StateContents<PaneInfo> getNextPaneInfo(
-      ReduceFn<?, ?, ?, ?>.Context context, final boolean isFinal) {
+
+  public StateContents<PaneInfo> getNextPaneInfo(ReduceFn<?, ?, ?, ?>.Context context,
+      final boolean isForWatermarkTrigger, final boolean isFinal) {
     final StateContents<PaneInfo> previousPaneFuture =
         context.state().access(PaneInfoTracker.PANE_INFO_TAG).get();
     final Instant endOfWindow = context.window().maxTimestamp();
-    final StateContext state = context.state();
 
     return new StateContents<PaneInfo>() {
-      private PaneInfo result = null;
-
       @Override
       public PaneInfo read() {
-        if (result == null) {
-          PaneInfo previousPane = previousPaneFuture.read();
-          result = describePane(endOfWindow, previousPane, isFinal);
-        }
-        return result;
+        PaneInfo previousPane = previousPaneFuture.read();
+        return describePane(endOfWindow, previousPane, isForWatermarkTrigger, isFinal);
       }
     };
   }
@@ -71,22 +66,21 @@ public class PaneInfoTracker {
     context.state().access(PANE_INFO_TAG).set(currentPane);
   }
 
-  private <W> PaneInfo describePane(Instant endOfWindow, PaneInfo previousPane, boolean isFinal) {
+  private <W> PaneInfo describePane(Instant endOfWindow, PaneInfo prevPane,
+      boolean isForWatermarkTrigger, boolean isFinal) {
     boolean isSpeculative = endOfWindow.isAfter(timerInternals.currentWatermarkTime());
-    boolean isFirst = (previousPane == null);
+    boolean isFirst = (prevPane == null);
 
-    long index = isFirst ? 0 : previousPane.getIndex() + 1;
+    long index = isFirst ? 0 : prevPane.getIndex() + 1;
     long nonSpeculativeIndex;
     Timing timing;
     if (isSpeculative) {
       timing = Timing.EARLY;
       nonSpeculativeIndex = -1;
-    } else if (previousPane == null || previousPane.getTiming() == Timing.EARLY) {
-      timing = Timing.ON_TIME;
-      nonSpeculativeIndex = 0;
     } else {
-      timing = Timing.LATE;
-      nonSpeculativeIndex = previousPane.getNonSpeculativeIndex() + 1;
+      boolean firstNonSpeculative = prevPane == null || prevPane.getTiming() == Timing.EARLY;
+      timing = (isForWatermarkTrigger && firstNonSpeculative) ? Timing.ON_TIME : Timing.LATE;
+      nonSpeculativeIndex = firstNonSpeculative ? 0 : prevPane.getNonSpeculativeIndex() + 1;
     }
 
     return PaneInfo.createPane(isFirst, isFinal, timing, index, nonSpeculativeIndex);

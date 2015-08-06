@@ -145,6 +145,25 @@ import javax.annotation.Nullable;
  * <p> See {@link Trigger} for details on the available triggers.
  */
 public class Window {
+
+  /**
+   * Specifies the conditions under which a final pane will be created when a window is permanently
+   * closed.
+   */
+  public enum ClosingBehavior {
+    /**
+     * Always fire the last pane. Even if there is no new data since the previous firing, an element
+     * with {@link PaneInfo#isLast()} {@code true} will be produced.
+     */
+    FIRE_ALWAYS,
+    /**
+     * Only fire the last pane if there is new data since the previous firing.
+     *
+     * <p> This is the default behavior.
+     */
+    FIRE_IF_NON_EMPTY;
+  }
+
   /**
    * Creates a {@code Window} {@code PTransform} with the given name.
    *
@@ -314,10 +333,28 @@ public class Window {
      * <p>This value also determines how long state will be kept around for old windows.
      * Once no elements will be added to a window (because this duration has passed) any state
      * associated with the window will be cleaned up.
+     *
+     * <p> Depending on the trigger this may not produce a pane with {@link PaneInfo#isLast}. See
+     * {@link ClosingBehavior#FIRE_IF_NON_EMPTY} for more details.
      */
     @Experimental(Kind.TRIGGER)
     public <T> Bound<T> withAllowedLateness(Duration allowedLateness) {
       return new Bound<T>(name).withAllowedLateness(allowedLateness);
+    }
+
+    /**
+     * Override the amount of lateness allowed for data elements in the pipeline. Like
+     * the other properties on this {@link Window} operation, this will be applied at
+     * the next {@link GroupByKey}. Any elements that are later than this as decided by
+     * the system-maintained watermark will be dropped.
+     *
+     * <p>This value also determines how long state will be kept around for old windows.
+     * Once no elements will be added to a window (because this duration has passed) any state
+     * associated with the window will be cleaned up.
+     */
+    @Experimental(Kind.TRIGGER)
+    public <T> Bound<T> withAllowedLateness(Duration allowedLateness, ClosingBehavior behavior) {
+      return new Bound<T>(name).withAllowedLateness(allowedLateness, behavior);
     }
   }
 
@@ -334,19 +371,22 @@ public class Window {
     @Nullable private final Trigger<?> trigger;
     @Nullable private final AccumulationMode mode;
     @Nullable private final Duration allowedLateness;
+    @Nullable private final ClosingBehavior closingBehavior;
 
     private Bound(String name,
         @Nullable WindowFn<? super T, ?> windowFn, @Nullable Trigger<?> trigger,
-        @Nullable AccumulationMode mode, @Nullable Duration allowedLateness) {
+        @Nullable AccumulationMode mode, @Nullable Duration allowedLateness,
+        ClosingBehavior behavior) {
       super(name);
       this.windowFn = windowFn;
       this.trigger = trigger;
       this.mode = mode;
       this.allowedLateness = allowedLateness;
+      this.closingBehavior = behavior;
     }
 
     private Bound(String name) {
-      this(name, null, null, null, null);
+      this(name, null, null, null, null, null);
     }
 
     /**
@@ -363,7 +403,7 @@ public class Window {
         throw new IllegalArgumentException("Window coders must be deterministic.", e);
       }
 
-      return new Bound<>(name, windowFn, trigger, mode, allowedLateness);
+      return new Bound<>(name, windowFn, trigger, mode, allowedLateness, closingBehavior);
     }
 
     /**
@@ -376,7 +416,7 @@ public class Window {
      * explanation.
      */
     public Bound<T> named(String name) {
-      return new Bound<>(name, windowFn, trigger, mode, allowedLateness);
+      return new Bound<>(name, windowFn, trigger, mode, allowedLateness, closingBehavior);
     }
 
     /**
@@ -392,7 +432,7 @@ public class Window {
      */
     @Experimental(Kind.TRIGGER)
     public Bound<T> triggering(Trigger<?> trigger) {
-      return new Bound<T>(name, windowFn, trigger, mode, allowedLateness);
+      return new Bound<T>(name, windowFn, trigger, mode, allowedLateness, closingBehavior);
     }
 
    /**
@@ -405,7 +445,8 @@ public class Window {
     @Experimental(Kind.TRIGGER)
    public Bound<T> discardingFiredPanes() {
      return new Bound<T>(name,
-         windowFn, trigger, AccumulationMode.DISCARDING_FIRED_PANES, allowedLateness);
+         windowFn, trigger, AccumulationMode.DISCARDING_FIRED_PANES,
+         allowedLateness, closingBehavior);
    }
 
    /**
@@ -418,8 +459,27 @@ public class Window {
    @Experimental(Kind.TRIGGER)
    public Bound<T> accumulatingFiredPanes() {
      return new Bound<T>(name,
-         windowFn, trigger, AccumulationMode.ACCUMULATING_FIRED_PANES, allowedLateness);
+         windowFn, trigger, AccumulationMode.ACCUMULATING_FIRED_PANES,
+         allowedLateness, closingBehavior);
    }
+
+    /**
+     * Override the amount of lateness allowed for data elements in the pipeline. Like
+     * the other properties on this {@link Window} operation, this will be applied at
+     * the next {@link GroupByKey}. Any elements that are later than this as decided by
+     * the system-maintained watermark will be dropped.
+     *
+     * <p>This value also determines how long state will be kept around for old windows.
+     * Once no elements will be added to a window (because this duration has passed) any state
+     * associated with the window will be cleaned up.
+     *
+     * <p> Depending on the trigger this may not produce a pane with {@link PaneInfo#isLast}. See
+     * {@link ClosingBehavior#FIRE_IF_NON_EMPTY} for more details.
+     */
+    @Experimental(Kind.TRIGGER)
+    public Bound<T> withAllowedLateness(Duration allowedLateness) {
+      return new Bound<T>(name, windowFn, trigger, mode, allowedLateness, closingBehavior);
+    }
 
     /**
      * Override the amount of lateness allowed for data elements in the pipeline. Like
@@ -432,8 +492,8 @@ public class Window {
      * associated with the window will be cleaned up.
      */
     @Experimental(Kind.TRIGGER)
-    public Bound<T> withAllowedLateness(Duration allowedLateness) {
-      return new Bound<T>(name, windowFn, trigger, mode, allowedLateness);
+    public Bound<T> withAllowedLateness(Duration allowedLateness, ClosingBehavior behavior) {
+      return new Bound<T>(name, windowFn, trigger, mode, allowedLateness, behavior);
     }
 
     private WindowingStrategy<?, ?> getOutputStrategy(WindowingStrategy<?, ?> inputStrategy) {
@@ -449,6 +509,9 @@ public class Window {
       }
       if (allowedLateness != null) {
         result = result.withAllowedLateness(allowedLateness);
+      }
+      if (closingBehavior != null) {
+        result = result.withClosingBehavior(closingBehavior);
       }
       return result;
     }

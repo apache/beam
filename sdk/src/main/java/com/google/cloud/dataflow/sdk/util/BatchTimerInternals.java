@@ -58,6 +58,7 @@ public class BatchTimerInternals implements TimerInternals {
 
   @Override
   public void deleteTimer(TimerData timer) {
+    existingTimers.remove(timer);
     queue(timer.getDomain()).remove(timer);
   }
 
@@ -80,13 +81,13 @@ public class BatchTimerInternals implements TimerInternals {
   }
 
   public void advanceWatermark(ReduceFnRunner<?, ?, ?, ?> runner, Instant newWatermark) {
-    advance(runner, newWatermark, TimeDomain.EVENT_TIME);
     this.watermarkTime = newWatermark;
+    advance(runner, newWatermark, TimeDomain.EVENT_TIME);
   }
 
   public void advanceProcessingTime(ReduceFnRunner<?, ?, ?, ?> runner, Instant newProcessingTime) {
-    advance(runner, newProcessingTime, TimeDomain.PROCESSING_TIME);
     this.processingTime = newProcessingTime;
+    advance(runner, newProcessingTime, TimeDomain.PROCESSING_TIME);
   }
 
   private void advance(ReduceFnRunner<?, ?, ?, ?> runner, Instant newTime, TimeDomain domain) {

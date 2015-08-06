@@ -156,6 +156,38 @@ class TriggerContextFactory<W extends BoundedWindow> {
     }
   }
 
+  private class TriggerTimers implements Timers {
+
+    private final Timers timers;
+    private final W window;
+
+    public TriggerTimers(W window, Timers timers) {
+      this.timers = timers;
+      this.window = window;
+    }
+
+    @Override
+    public void setTimer(Instant timestamp, TimeDomain timeDomain) {
+      timers.setTimer(timestamp, timeDomain);
+    }
+
+    @Override
+    public void deleteTimer(Instant timestamp, TimeDomain timeDomain) {
+      if (timeDomain == TimeDomain.EVENT_TIME
+          && timestamp.equals(window.maxTimestamp())) {
+        // Don't allow triggers to unset the at-max-timestamp timer. This is necessary for on-time
+        // state transitions.
+        return;
+      }
+      timers.deleteTimer(timestamp, timeDomain);
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      return timers.currentProcessingTime();
+    }
+  }
+
   private class MergingTriggerInfoImpl
       extends TriggerInfoImpl implements Trigger.MergingTriggerInfo<W> {
 
@@ -231,7 +263,7 @@ class TriggerContextFactory<W extends BoundedWindow> {
         BitSet finishedSet) {
       trigger.getSpec().super();
       this.state = triggerState(window, trigger);
-      this.timers = timers;
+      this.timers = new TriggerTimers(window, timers);
       this.triggerInfo = new TriggerInfoImpl(trigger, finishedSet, this);
     }
 
@@ -279,7 +311,7 @@ class TriggerContextFactory<W extends BoundedWindow> {
         Instant eventTimestamp) {
       trigger.getSpec().super();
       this.state = triggerState(window, trigger);
-      this.timers = timers;
+      this.timers = new TriggerTimers(window, timers);
       this.triggerInfo = new TriggerInfoImpl(trigger, finishedSet, this);
       this.element = element;
       this.eventTimestamp = eventTimestamp;
@@ -339,7 +371,7 @@ class TriggerContextFactory<W extends BoundedWindow> {
         TimeDomain domain) {
       trigger.getSpec().super();
       this.state = triggerState(window, trigger);
-      this.timers = timers;
+      this.timers = new TriggerTimers(window, timers);
       this.triggerInfo = new TriggerInfoImpl(trigger, finishedSet, this);
       this.timestamp = timestamp;
       this.domain = domain;
@@ -397,7 +429,7 @@ class TriggerContextFactory<W extends BoundedWindow> {
         Map<W, BitSet> finishedSets) {
       trigger.getSpec().super();
       this.state = new MergingStateContextImpl<>(triggerState(window, trigger), mergingWindows);
-      this.timers = timers;
+      this.timers = new TriggerTimers(window, timers);
       this.triggerInfo = new MergingTriggerInfoImpl(trigger, finishedSet, this, finishedSets);
     }
 

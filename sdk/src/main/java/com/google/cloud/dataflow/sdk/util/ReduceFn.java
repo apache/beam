@@ -181,6 +181,12 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   public abstract void onTrigger(OnTriggerContext c) throws Exception;
 
   /**
+   * Called before {@link onTrigger} is invoked to provide an opportunity to prefetch any needed
+   * state.
+   */
+  public void prefetchOnTrigger(StateContext c) { }
+
+  /**
    * Called to clear any persisted state that the {@link ReduceFn} may be holding. This will be
    * called when the windowing is closing and will receive no future interactions.
    */

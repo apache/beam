@@ -136,7 +136,6 @@ public class AfterEachTest {
 
     when(mockTrigger1.onTimer(Mockito.isA(OnTimerContext.class)))
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
-    tester.fireTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME);
 
     tester.advanceWatermark(new Instant(12));
     assertThat(tester.extractOutput(), Matchers.contains(

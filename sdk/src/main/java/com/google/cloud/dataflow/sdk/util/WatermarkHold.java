@@ -16,6 +16,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
@@ -23,6 +24,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
 import com.google.common.annotations.VisibleForTesting;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.io.Serializable;
@@ -37,8 +39,13 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
 
   private static final long serialVersionUID = 0L;
 
-  @VisibleForTesting static final StateTag<WatermarkStateInternal> HOLD_TAG =
+  /** Watermark hold used for the actual data-based hold. */
+  @VisibleForTesting static final StateTag<WatermarkStateInternal> DATA_HOLD_TAG =
       StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal("hold"));
+
+  /** Watermark hold used for potential empty panes. */
+  @VisibleForTesting static final StateTag<WatermarkStateInternal> PANE_HOLD_TAG =
+      StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal("pane-hold"));
 
   private final WindowingStrategy<?, W> windowingStrategy;
 
@@ -61,26 +68,79 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
     Instant holdTo = isLate
         ? c.window().maxTimestamp().plus(windowingStrategy.getAllowedLateness())
         : windowingStrategy.getWindowFn().getOutputTime(c.timestamp(), c.window());
-    c.state().access(HOLD_TAG).add(holdTo);
+    c.state().access(DATA_HOLD_TAG).add(holdTo);
   }
 
   /**
-   * Get the timestamp to use for output. This is computed as the minimum timestamp
-   * of any non-late elements that arrived in the current pane.
+   * Get information from the watermark hold for outputting.
+   *
+   * <p> The output timestamp is the minimum of getOutputTimestamp applied to the non-late elements
+   * that arrived in the current pane.
    */
-  public StateContents<Instant> extractAndRelease(final ReduceFn<?, ?, ?, W>.Context c) {
-    final WatermarkStateInternal holdingBag = c.state().accessAcrossMergedWindows(HOLD_TAG);
-    final StateContents<Instant> holdFuture = holdingBag.get();
-    return new StateContents<Instant>() {
+  public StateContents<WatermarkInfo> extractAndRelease(final ReduceFn<?, ?, ?, W>.Context c) {
+    final WatermarkStateInternal dataHold = c.state().accessAcrossMergedWindows(DATA_HOLD_TAG);
+    final StateContents<Instant> holdFuture = dataHold.get();
+    return new StateContents<WatermarkInfo>() {
       @Override
-      public Instant read() {
+      public WatermarkInfo read() {
         Instant hold = holdFuture.read();
-        if (hold == null || hold.isAfter(c.window().maxTimestamp())) {
+        boolean nonEmpty = true;
+        if (hold == null) {
+          nonEmpty = false;
+          hold = c.window().maxTimestamp();
+        } else if (hold.isAfter(c.window().maxTimestamp())) {
           hold = c.window().maxTimestamp();
         }
-        holdingBag.clear();
-        return hold;
+
+        // Clear the bag (to release the watermark)
+        dataHold.clear();
+
+        return new WatermarkInfo(hold, nonEmpty);
       }
     };
+  }
+
+  public void holdForOnTime(final ReduceFn<?, ?, ?, W>.Context c) {
+    c.state().access(PANE_HOLD_TAG).add(c.window().maxTimestamp());
+  }
+
+  public void holdForFinal(final ReduceFn<?, ?, ?, W>.Context c) {
+    if (c.windowingStrategy().getClosingBehavior() == ClosingBehavior.FIRE_ALWAYS) {
+      c.state().access(PANE_HOLD_TAG)
+           .add(c.window().maxTimestamp().plus(c.windowingStrategy().getAllowedLateness()));
+    }
+  }
+
+  public void releaseOnTime(final ReduceFn<?, ?, ?, W>.Context c) {
+    c.state().access(PANE_HOLD_TAG).clear();
+    if (c.windowingStrategy().getClosingBehavior() == ClosingBehavior.FIRE_ALWAYS
+        && c.windowingStrategy().getAllowedLateness().isLongerThan(Duration.ZERO)) {
+      holdForFinal(c);
+    }
+  }
+
+  public void releaseFinal(final ReduceFn<?, ?, ?, W>.Context c) {
+    c.state().access(PANE_HOLD_TAG).clear();
+  }
+
+  /**
+   * Information retrieved from the watermark hold.
+   */
+  public static class WatermarkInfo {
+    private final Instant outputTimestamp;
+    private final boolean nonEmpty;
+
+    public WatermarkInfo(Instant outputTimestamp, boolean nonEmpty) {
+      this.outputTimestamp = outputTimestamp;
+      this.nonEmpty = nonEmpty;
+    }
+
+    public Instant getOutputTimestamp() {
+      return outputTimestamp;
+    }
+
+    public boolean isNonEmpty() {
+      return nonEmpty;
+    }
   }
 }
