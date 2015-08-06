@@ -16,12 +16,15 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 
 import java.io.IOException;
@@ -32,6 +35,23 @@ import java.util.List;
  * Utilities for testing {@link Source} classes.
  */
 public class SourceTestUtils {
+  /**
+   * Testing utilities below depend on standard assertions and matchers to compare elements read by
+   * sources. In general the elements may not implement {@link equals}/{@link hashCode} properly,
+   * however every source has a {@link Coder} and every {@code Coder} can
+   * produce a {@link Coder#structuralValue()} whose {@code equals}/{@code hashCode} is
+   * consistent with equality of encoded format.
+   * So we use this {@link Coder#structuralValue()} to compare elements read by sources.
+   */
+  private static <T> List<Object> createStructuralValues(Coder<T> coder, List<T> list)
+      throws Exception {
+    List<Object> result = new ArrayList<>();
+    for (T elem : list) {
+      result.add(coder.structuralValue(elem));
+    }
+    return result;
+  }
+
   /**
    * Reads all elements from the given {@link BoundedSource}.
    */
@@ -78,15 +98,28 @@ public class SourceTestUtils {
    * the records read from the list of sources is equal to the records read from the reference
    * source.
    */
-  public static <T> void assertSourcesEqualReferenceSource(BoundedSource<T> referenceSource,
-      List<? extends BoundedSource<T>> sources, PipelineOptions options) throws IOException {
+  public static <T> void assertSourcesEqualReferenceSource(
+      BoundedSource<T> referenceSource,
+      List<? extends BoundedSource<T>> sources,
+      PipelineOptions options)
+      throws Exception {
+    Coder<T> coder = referenceSource.getDefaultOutputCoder();
     List<T> referenceRecords = readFromSource(referenceSource, options);
     List<T> bundleRecords = new ArrayList<>();
     for (BoundedSource<T> source : sources) {
+      assertThat(
+          "Coder type for source "
+              + source
+              + " is not compatible with Coder type for referenceSource "
+              + referenceSource,
+          source.getDefaultOutputCoder(),
+          equalTo(coder));
       List<T> elems = readFromSource(source, options);
       bundleRecords.addAll(elems);
     }
-    assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
+    List<Object> bundleValues = createStructuralValues(coder, bundleRecords);
+    List<Object> referenceValues = createStructuralValues(coder, referenceRecords);
+    assertThat(bundleValues, containsInAnyOrder(referenceValues.toArray()));
   }
 
   /**
@@ -94,10 +127,13 @@ public class SourceTestUtils {
    * records as the reader.
    */
   public static <T> void assertUnstartedReaderReadsSameAsItsSource(
-      BoundedSource.BoundedReader<T> reader, PipelineOptions options) throws IOException {
+      BoundedSource.BoundedReader<T> reader, PipelineOptions options) throws Exception {
+    Coder<T> coder = reader.getCurrentSource().getDefaultOutputCoder();
     List<T> expected = readFromUnstartedReader(reader);
     List<T> actual = readFromSource(reader.getCurrentSource(), options);
-    assertEquals(expected, actual);
+    List<Object> expectedValues = createStructuralValues(coder, expected);
+    List<Object> actualValues = createStructuralValues(coder, actual);
+    assertThat(actualValues, containsInAnyOrder(expectedValues.toArray()));
   }
 
   /**
@@ -141,8 +177,12 @@ public class SourceTestUtils {
    */
 
   public static <T> SplitAtFractionResult assertSplitAtFractionBehavior(
-      BoundedSource<T> source, int numItemsToReadBeforeSplit, double splitFraction,
-      ExpectedSplitOutcome expectedOutcome, PipelineOptions options) throws IOException {
+      BoundedSource<T> source,
+      int numItemsToReadBeforeSplit,
+      double splitFraction,
+      ExpectedSplitOutcome expectedOutcome,
+      PipelineOptions options)
+      throws Exception {
     List<T> expectedItems = readFromSource(source, options);
     try (BoundedSource.BoundedReader<T> reader = source.createReader(options)) {
       List<T> currentItems = new ArrayList<>();
@@ -179,33 +219,31 @@ public class SourceTestUtils {
             numItemsToReadBeforeSplit > 0
                 ? readFromStartedReader(reader)
                 : readFromUnstartedReader(reader));
-        assertEquals(
-            "Continued reading after split yielded different items than primary source: "
-                + " split at "
-                + splitFraction
-                + " after reading "
-                + numItemsToReadBeforeSplit
-                + " items, original source: "
-                + source
-                + ", primary source: "
-                + primary,
-            primaryItems,
-            currentItems);
-        assertEquals(
-            "Items in primary and residual sources after split do not add up "
-                + "to items in the original source. "
-                + "Split at "
-                + splitFraction
-                + " after reading "
-                + numItemsToReadBeforeSplit
-                + " items; original source: "
-                + source
-                + ", primary: "
-                + primary
-                + ", residual: "
-                + residual,
-            expectedItems,
-            totalItems);
+        String errorMsgForPrimarySourceComp =
+            String.format(
+                "Continued reading after split yielded different items than primary source: "
+                    + "split at %s after reading %s items, original source: %s, primary source: %s",
+                splitFraction,
+                numItemsToReadBeforeSplit,
+                source,
+                primary);
+        String errorMsgForTotalSourceComp =
+            String.format(
+                "Items in primary and residual sources after split do not add up to items "
+                    + "in the original source. Split at %s after reading %s items; "
+                    + "original source: %s, primary: %s, residual: %s",
+                splitFraction,
+                numItemsToReadBeforeSplit,
+                source,
+                primary,
+                residual);
+        Coder<T> coder = reader.getCurrentSource().getDefaultOutputCoder();
+        List<Object> primaryValues = createStructuralValues(coder, primaryItems);
+        List<Object> currentValues = createStructuralValues(coder, currentItems);
+        List<Object> expectedValues = createStructuralValues(coder, expectedItems);
+        List<Object> totalValues = createStructuralValues(coder, totalItems);
+        assertThat(errorMsgForPrimarySourceComp, currentValues, contains(primaryValues.toArray()));
+        assertThat(errorMsgForTotalSourceComp, totalValues, contains(expectedValues.toArray()));
         return new SplitAtFractionResult(primaryItems.size(), residualItems.size());
       }
       return new SplitAtFractionResult(primaryItems.size(), -1);
@@ -226,20 +264,30 @@ public class SourceTestUtils {
    *   assert: items in original source == items in primary + items in residual
    * </pre>
    */
-  public static <T> void assertSplitAtFractionSucceedsAndConsistent(BoundedSource<T> source,
-      int numItemsToReadBeforeSplit, double splitFraction, PipelineOptions options)
-      throws IOException {
-    assertSplitAtFractionBehavior(source, numItemsToReadBeforeSplit, splitFraction,
-        ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT, options);
+  public static <T> void assertSplitAtFractionSucceedsAndConsistent(
+      BoundedSource<T> source,
+      int numItemsToReadBeforeSplit,
+      double splitFraction,
+      PipelineOptions options)
+      throws Exception {
+    assertSplitAtFractionBehavior(
+        source,
+        numItemsToReadBeforeSplit,
+        splitFraction,
+        ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT,
+        options);
   }
 
   /**
    * Asserts that the {@code source}'s reader fails to {@code splitAtFraction(fraction)}
    * after reading {@code numItemsToReadBeforeSplit} items.
    */
-  public static <T> void assertSplitAtFractionFails(BoundedSource<T> source,
-      int numItemsToReadBeforeSplit, double splitFraction, PipelineOptions options)
-      throws IOException {
+  public static <T> void assertSplitAtFractionFails(
+      BoundedSource<T> source,
+      int numItemsToReadBeforeSplit,
+      double splitFraction,
+      PipelineOptions options)
+      throws Exception {
     assertSplitAtFractionBehavior(
         source, numItemsToReadBeforeSplit, splitFraction, ExpectedSplitOutcome.MUST_FAIL, options);
   }
@@ -251,8 +299,12 @@ public class SourceTestUtils {
    * results are consistent if a split succeeds.
    */
   public static <T> void assertSplitAtFractionBinary(
-      BoundedSource<T> source, int numItemsToBeReadBeforeSplit, double firstSplitFraction,
-      double secondSplitFraction, PipelineOptions options) throws IOException {
+      BoundedSource<T> source,
+      int numItemsToBeReadBeforeSplit,
+      double firstSplitFraction,
+      double secondSplitFraction,
+      PipelineOptions options)
+      throws Exception {
     if (secondSplitFraction - firstSplitFraction < 0.0001) {
       return;
     }
@@ -286,7 +338,7 @@ public class SourceTestUtils {
    * results are consistent if a split succeeds.
    */
   public static <T> void assertSplitAtFractionExhaustive(
-      BoundedSource<T> source, PipelineOptions options) throws IOException {
+      BoundedSource<T> source, PipelineOptions options) throws Exception {
     List<T> expectedItems = readFromSource(source, options);
     for (int i = 0; i < expectedItems.size(); i++) {
       assertSplitAtFractionBinary(source, i, 0.0, 1.0, options);

@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -74,7 +75,7 @@ public class ByteOffsetBasedSourceTest {
 
     @Override
     public Coder<Integer> getDefaultOutputCoder() {
-      return null;
+      return BigEndianIntegerCoder.of();
     }
 
     @Override
@@ -251,7 +252,7 @@ public class ByteOffsetBasedSourceTest {
   }
 
   @Test
-  public void testSplitAtFractionExhaustive() throws IOException {
+  public void testSplitAtFractionExhaustive() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     CoarseByteRangeSource original = new CoarseByteRangeSource(13, 35, 1, 10);
     assertSplitAtFractionExhaustive(original, options);

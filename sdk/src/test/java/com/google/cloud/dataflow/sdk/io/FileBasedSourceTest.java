@@ -848,7 +848,7 @@ public class FileBasedSourceTest {
   }
 
   @Test
-  public void testSplitAtFraction() throws IOException {
+  public void testSplitAtFraction() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     File file = createFileWithData("file", createStringDataset(3, 100));
 
@@ -865,7 +865,7 @@ public class FileBasedSourceTest {
   }
 
   @Test
-  public void testSplitAtFractionExhaustive() throws IOException {
+  public void testSplitAtFractionExhaustive() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     // Smaller file for exhaustive testing.
     File file = createFileWithData("file", createStringDataset(3, 20));
