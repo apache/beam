@@ -107,9 +107,7 @@ public final class ReaderFactory {
       coder = Serializer.deserialize(cloudSource.getCodec(), Coder.class);
     }
     try {
-      return InstanceBuilder.ofType(new TypeDescriptor<Reader<T>>() {
-          private static final long serialVersionUID = 0;
-      })
+      return InstanceBuilder.ofType(new TypeDescriptor<Reader<T>>() {})
           .fromClassName(sourceFactoryClassName)
           .fromFactoryMethod("create")
           .withArg(PipelineOptions.class, options)

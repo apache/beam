@@ -35,6 +35,7 @@ public final class AvroSinkFactory {
   // Do not instantiate.
   private AvroSinkFactory() {}
 
+  @SuppressWarnings("unused")
   public static <T> Sink<T> create(PipelineOptions options,
                                    CloudObject spec,
                                    Coder<T> coder,

@@ -127,8 +127,7 @@ public class AvroByteReaderTest {
   private <T> List<T> readElems(String filename, @Nullable Long startOffset,
       @Nullable Long endOffset, Coder<T> coder, List<Integer> actualSizes) throws Exception {
     AvroByteReader<T> avroReader = new AvroByteReader<>(filename, startOffset, endOffset, coder);
-    ExecutorTestUtils.TestReaderObserver observer =
-        new ExecutorTestUtils.TestReaderObserver(avroReader, actualSizes);
+    new ExecutorTestUtils.TestReaderObserver(avroReader, actualSizes);
 
     List<T> actualElems = new ArrayList<>();
     try (Reader.ReaderIterator<T> iterator = avroReader.iterator()) {

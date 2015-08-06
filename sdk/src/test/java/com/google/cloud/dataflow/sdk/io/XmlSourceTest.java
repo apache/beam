@@ -465,6 +465,7 @@ public class XmlSourceTest {
 
   @XmlRootElement
   private static class WrongTrainType {
+    @SuppressWarnings("unused")
     public String something;
   }
 

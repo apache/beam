@@ -101,36 +101,26 @@ public class ReflectHelpersTest {
   public void testTypeFormatterWithGenerics() throws Exception {
     assertEquals("Map<Integer, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeDescriptor<Map<Integer, String>>() {
-              private static final long serialVersionUID = 0;
-            }.getType()));
+            new TypeDescriptor<Map<Integer, String>>() {}.getType()));
     assertEquals("Map<?, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeDescriptor<Map<?, String>>() {
-              private static final long serialVersionUID = 0;
-            }.getType()));
+            new TypeDescriptor<Map<?, String>>() {}.getType()));
     assertEquals("Map<? extends Integer, String>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeDescriptor<Map<? extends Integer, String>>() {
-              private static final long serialVersionUID = 0;
-            }.getType()));
+            new TypeDescriptor<Map<? extends Integer, String>>() {}.getType()));
   }
 
   @Test
   public <T> void testTypeFormatterWithWildcards() throws Exception {
     assertEquals("Map<T, T>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeDescriptor<Map<T, T>>() {
-              private static final long serialVersionUID = 0;
-            }.getType()));
+            new TypeDescriptor<Map<T, T>>() {}.getType()));
   }
 
   @Test
   public <InputT, OutputT> void testTypeFormatterWithMultipleWildcards() throws Exception {
     assertEquals("Map<? super InputT, ? extends OutputT>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
-            new TypeDescriptor<Map<? super InputT, ? extends OutputT>>() {
-              private static final long serialVersionUID = 0;
-            }.getType()));
+            new TypeDescriptor<Map<? super InputT, ? extends OutputT>>() {}.getType()));
   }
 }

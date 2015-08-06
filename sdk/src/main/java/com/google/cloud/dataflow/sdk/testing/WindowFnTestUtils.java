@@ -143,7 +143,6 @@ public class WindowFnTestUtils {
   private static class TestWindowSet<W extends BoundedWindow, V> {
 
     private Map<W, Set<V>> elements = new HashMap<>();
-    private List<Set<V>> emitted = new ArrayList<>();
 
     public void put(W window, V value) {
       Set<V> all = elements.get(window);
@@ -152,10 +151,6 @@ public class WindowFnTestUtils {
         elements.put(window, all);
       }
       all.add(value);
-    }
-
-    public void remove(W window) {
-      elements.remove(window);
     }
 
     public void merge(Collection<W> otherWindows, W window) {
@@ -176,14 +171,8 @@ public class WindowFnTestUtils {
       elements.put(window, merged);
     }
 
-    public void markCompleted(W window) {}
-
     public Collection<W> windows() {
       return elements.keySet();
-    }
-
-    public boolean contains(W window) {
-      return elements.containsKey(window);
     }
 
     // For testing.

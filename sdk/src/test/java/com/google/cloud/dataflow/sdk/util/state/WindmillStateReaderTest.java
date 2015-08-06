@@ -88,16 +88,6 @@ public class WindmillStateReaderTest {
         .build();
   }
 
-  private Windmill.Value watermarkValue(Instant timestamp)  {
-    byte[] zero = {0x0};
-    ByteString zeroByteString = ByteString.copyFrom(zero);
-
-    return Windmill.Value.newBuilder()
-        .setData(zeroByteString)
-        .setTimestamp(TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis()))
-        .build();
-  }
-
   @Test
   public void testReadList() throws Exception {
     Future<Iterable<Integer>> future = underTest.listFuture(STATE_KEY_1, STATE_FAMILY, INT_CODER);

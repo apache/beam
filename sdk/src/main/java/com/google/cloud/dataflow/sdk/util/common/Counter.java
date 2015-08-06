@@ -222,9 +222,7 @@ public abstract class Counter<T> {
    * Returns the counter's type.
    */
   public Class<?> getType() {
-    return new TypeDescriptor<T>(getClass()) {
-      private static final long serialVersionUID = 0;
-    }.getRawType();
+    return new TypeDescriptor<T>(getClass()) {}.getRawType();
   }
 
   /**

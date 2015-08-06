@@ -58,7 +58,8 @@ public class CombinePerKeyExamplesTest {
       "king_lear,macbeth");
   private static final KV<String, String> combinedTuple2 = KV.of("snuffleupaguses", "king_lear");
 
-  static final KV[] COMBINED_TUPLES_ARRAY = new KV[] {
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  static final KV<String, String>[] COMBINED_TUPLES_ARRAY = new KV[] {
     combinedTuple1, combinedTuple2
   };
 
@@ -75,7 +76,7 @@ public class CombinePerKeyExamplesTest {
     List<KV<String, String>> results = extractLargeWordsFn.processBatch(ROWS_ARRAY);
     Assert.assertThat(results, CoreMatchers.hasItem(tuple1));
     Assert.assertThat(results, CoreMatchers.hasItem(tuple2));
-    Assert.assertThat(results, CoreMatchers.hasItem(tuple2));
+    Assert.assertThat(results, CoreMatchers.hasItem(tuple3));
   }
 
   @Test
@@ -86,5 +87,4 @@ public class CombinePerKeyExamplesTest {
     Assert.assertThat(results, CoreMatchers.hasItem(resultRow1));
     Assert.assertThat(results, CoreMatchers.hasItem(resultRow2));
   }
-
 }

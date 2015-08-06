@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -657,36 +656,6 @@ public class DataflowAssert {
     }
   }
 
-  /**
-   * A {@link SerializableFunction} that verifies that an {@code Iterable} contains
-   * the expected items in the provided order.
-   */
-  @SuppressWarnings("serial")
-  private static class AssertContainsInOrder<T> implements SerializableFunction<Iterable<T>, Void> {
-    private T[] expected;
-
-    @SafeVarargs
-    public AssertContainsInOrder(T... expected) {
-      this.expected = expected;
-    }
-
-    @SuppressWarnings("unchecked")
-    public AssertContainsInOrder(Collection<T> expected) {
-      this((T[]) expected.toArray());
-    }
-
-    @SuppressWarnings("unchecked")
-    public AssertContainsInOrder(Iterable<T> expected) {
-      this(Lists.newArrayList(expected));
-    }
-
-    @Override
-    public Void apply(Iterable<T> actual) {
-      assertThat(actual, contains(expected));
-      return null;
-    }
-  }
-
   ////////////////////////////////////////////////////////////
 
   /**
@@ -723,20 +692,6 @@ public class DataflowAssert {
     @Override
     public SerializableFunction<Iterable<T>, Void> assertFor(Iterable<T> expectedElements) {
       return new AssertContainsInAnyOrder<T>(expectedElements);
-    }
-  }
-
-  /**
-   * A {@code AssertRelation} implementating the binary function that two iterables have equal
-   * contents, in the same order.
-   */
-  private static class AssertContainsInOrderRelation<T>
-      implements AssertRelation<Iterable<T>, Iterable<T>> {
-    private static final long serialVersionUID = 0;
-
-    @Override
-    public SerializableFunction<Iterable<T>, Void> assertFor(Iterable<T> expectedElements) {
-      return new AssertContainsInOrder<T>(expectedElements);
     }
   }
 }

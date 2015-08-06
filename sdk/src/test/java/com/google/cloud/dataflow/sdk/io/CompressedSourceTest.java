@@ -208,7 +208,6 @@ public class CompressedSourceTest {
     }
 
     private static class ByteReader extends FileBasedReader<Byte> {
-      private static final long serialVersionUID = 0;
       ByteBuffer buff = ByteBuffer.allocate(1);
       Byte current;
       long offset = 0;

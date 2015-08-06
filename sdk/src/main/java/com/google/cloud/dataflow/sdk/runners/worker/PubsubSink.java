@@ -57,6 +57,7 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
     this.context = context;
   }
 
+  @SuppressWarnings("unused")
   public static <T> PubsubSink<T> create(PipelineOptions options,
                                          CloudObject spec,
                                          Coder<WindowedValue<T>> coder,
