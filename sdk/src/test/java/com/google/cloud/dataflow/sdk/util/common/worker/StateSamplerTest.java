@@ -40,93 +40,90 @@ public class StateSamplerTest {
   public void basicTest() throws InterruptedException {
     CounterSet counters = new CounterSet();
     long periodMs = 50;
-    StateSampler stateSampler = new StateSampler("test-",
-        counters.getAddCounterMutator(), periodMs);
+    try (StateSampler stateSampler =
+        new StateSampler("test-", counters.getAddCounterMutator(), periodMs)) {
 
-    int state1 = stateSampler.stateForName("1");
-    int state2 = stateSampler.stateForName("2");
+      int state1 = stateSampler.stateForName("1");
+      int state2 = stateSampler.stateForName("2");
 
-    try (StateSampler.ScopedState s1 =
-      stateSampler.scopedState(state1)) {
-      assert s1 != null;
-      Thread.sleep(2 * periodMs);
+      try (StateSampler.ScopedState s1 =
+          stateSampler.scopedState(state1)) {
+        assert s1 != null;
+        Thread.sleep(2 * periodMs);
+      }
+
+      try (StateSampler.ScopedState s2 =
+          stateSampler.scopedState(state2)) {
+        assert s2 != null;
+        Thread.sleep(3 * periodMs);
+      }
+
+      long s1 = getCounterLongValue(counters, "test-1-msecs");
+      long s2 = getCounterLongValue(counters, "test-2-msecs");
+
+      long toleranceMs = periodMs;
+      assertTrue(s1 + s2 >= 4 * periodMs - toleranceMs);
+      assertTrue(s1 + s2 <= 10 * periodMs + toleranceMs);
     }
-
-    try (StateSampler.ScopedState s2 =
-      stateSampler.scopedState(state2)) {
-      assert s2 != null;
-      Thread.sleep(3 * periodMs);
-    }
-
-    long s1 = getCounterLongValue(counters, "test-1-msecs");
-    long s2 = getCounterLongValue(counters, "test-2-msecs");
-
-    long toleranceMs = periodMs;
-    assertTrue(s1 + s2 >= 4 * periodMs - toleranceMs);
-    assertTrue(s1 + s2 <= 10 * periodMs + toleranceMs);
-
-    stateSampler.close();
   }
 
   @Test
   public void nestingTest() throws InterruptedException {
     CounterSet counters = new CounterSet();
     long periodMs = 50;
-    StateSampler stateSampler = new StateSampler("test-",
-        counters.getAddCounterMutator(), periodMs);
+    try (StateSampler stateSampler =
+        new StateSampler("test-", counters.getAddCounterMutator(), periodMs)) {
 
-    int state1 = stateSampler.stateForName("1");
-    int state2 = stateSampler.stateForName("2");
-    int state3 = stateSampler.stateForName("3");
+      int state1 = stateSampler.stateForName("1");
+      int state2 = stateSampler.stateForName("2");
+      int state3 = stateSampler.stateForName("3");
 
-    try (StateSampler.ScopedState s1 =
-        stateSampler.scopedState(state1)) {
-      assert s1 != null;
-      Thread.sleep(2 * periodMs);
-
-      try (StateSampler.ScopedState s2 =
-          stateSampler.scopedState(state2)) {
-        assert s2 != null;
+      try (StateSampler.ScopedState s1 =
+          stateSampler.scopedState(state1)) {
+        assert s1 != null;
         Thread.sleep(2 * periodMs);
 
-        try (StateSampler.ScopedState s3 =
-            stateSampler.scopedState(state3)) {
-          assert s3 != null;
+        try (StateSampler.ScopedState s2 =
+            stateSampler.scopedState(state2)) {
+          assert s2 != null;
           Thread.sleep(2 * periodMs);
+
+          try (StateSampler.ScopedState s3 =
+              stateSampler.scopedState(state3)) {
+            assert s3 != null;
+            Thread.sleep(2 * periodMs);
+          }
+          Thread.sleep(periodMs);
         }
         Thread.sleep(periodMs);
       }
-      Thread.sleep(periodMs);
+
+      long s1 = getCounterLongValue(counters, "test-1-msecs");
+      long s2 = getCounterLongValue(counters, "test-2-msecs");
+      long s3 = getCounterLongValue(counters, "test-3-msecs");
+
+      long toleranceMs = periodMs;
+      assertTrue(s1 + s2 + s3 >= 4 * periodMs - toleranceMs);
+      assertTrue(s1 + s2 + s3 <= 16 * periodMs + toleranceMs);
     }
-
-    long s1 = getCounterLongValue(counters, "test-1-msecs");
-    long s2 = getCounterLongValue(counters, "test-2-msecs");
-    long s3 = getCounterLongValue(counters, "test-3-msecs");
-
-    long toleranceMs = periodMs;
-    assertTrue(s1 + s2 + s3 >= 4 * periodMs - toleranceMs);
-    assertTrue(s1 + s2 + s3 <= 16 * periodMs + toleranceMs);
-
-    stateSampler.close();
   }
 
   @Test
   public void nonScopedTest() throws InterruptedException {
     CounterSet counters = new CounterSet();
     long periodMs = 50;
-    StateSampler stateSampler = new StateSampler("test-",
-        counters.getAddCounterMutator(), periodMs);
+    try (StateSampler stateSampler = new StateSampler("test-",
+        counters.getAddCounterMutator(), periodMs)) {
 
-    int state1 = stateSampler.stateForName("1");
-    int previousState = stateSampler.setState(state1);
-    Thread.sleep(2 * periodMs);
-    stateSampler.setState(previousState);
-    long tolerance = periodMs;
-    long s = getCounterLongValue(counters, "test-1-msecs");
+      int state1 = stateSampler.stateForName("1");
+      int previousState = stateSampler.setState(state1);
+      Thread.sleep(2 * periodMs);
+      stateSampler.setState(previousState);
+      long tolerance = periodMs;
+      long s = getCounterLongValue(counters, "test-1-msecs");
 
-    assertTrue(s >= periodMs - tolerance);
-    assertTrue(s <= 4 * periodMs + tolerance);
-
-    stateSampler.close();
+      assertTrue(s >= periodMs - tolerance);
+      assertTrue(s <= 4 * periodMs + tolerance);
+    }
   }
 }
