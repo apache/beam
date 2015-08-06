@@ -28,6 +28,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addStringList;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 import static com.google.cloud.dataflow.sdk.util.Structs.getStrings;
 
+import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Base64;
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.DerivedSource;
@@ -51,6 +52,7 @@ import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -595,7 +597,19 @@ public class BasicSerializableSourceFormat implements SourceFormat {
           || Instant.now().isAfter(endTime)) {
         return false;
       }
-      return iteratorAdapter.hasNext();
+
+      // Backoff starting at 100ms, for approximately 1s total. 100+150+225+337.5~=1000.
+      BackOff backoff = new AttemptBoundedExponentialBackOff(5, 100);
+      while (!iteratorAdapter.hasNext()) {
+        long nextBackoff = backoff.nextBackOffMillis();
+        if (nextBackoff == BackOff.STOP) {
+          return false;
+        }
+        try {
+          Thread.sleep(nextBackoff);
+        } catch (InterruptedException e) {}
+      }
+      return true;
     }
 
     @Override

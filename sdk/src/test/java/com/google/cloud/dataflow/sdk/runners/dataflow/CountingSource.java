@@ -142,11 +142,6 @@ public class CountingSource
     @Override
     public boolean advance() {
       if (current < numMessagesPerShard - 1) {
-        // Occasionally return false to break apart bundles
-        if (ThreadLocalRandom.current().nextInt(10) == 0) {
-          return false;
-        }
-
         // If testing dedup, occasionally insert a duplicate value;
         if (dedup && ThreadLocalRandom.current().nextInt(5) == 0) {
           return true;
