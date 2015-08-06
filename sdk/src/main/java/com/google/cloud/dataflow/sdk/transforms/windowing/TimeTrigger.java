@@ -35,12 +35,9 @@ import java.util.List;
  * Support for manipulating the time at which time-based {@link Trigger}s fire.
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used.
- * @param <T> {@code TimeTrigger} subclass produced by modifying the current {@code TimeTrigger}.
- *     Typically, this is the self type.
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger<W, T>>
-    extends OnceTrigger<W> {
+public abstract class TimeTrigger<W extends BoundedWindow> extends OnceTrigger<W> {
 
   protected static final StateTag<CombiningValueState<Instant, Instant>> DELAYED_UNTIL_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
@@ -80,7 +77,7 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * @param delay the delay to add
    * @return An updated time trigger that will wait the additional time before firing.
    */
-  public T plusDelayOf(final Duration delay) {
+  public TimeTrigger<W> plusDelayOf(final Duration delay) {
     return newWith(delayFn(delay));
   }
 
@@ -102,7 +99,7 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * <p> TODO: Consider sharing this with FixedWindows, and bring over the equivalent of
    * CalendarWindows.
    */
-  public T alignedTo(final Duration size, final Instant offset) {
+  public TimeTrigger<W> alignedTo(final Duration size, final Instant offset) {
     return newWith(alignFn(size, offset));
   }
 
@@ -123,7 +120,7 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * Aligns the time to be the smallest multiple of {@code size} greater than the timestamp
    * since the epoch.
    */
-  public T alignedTo(final Duration size) {
+  public TimeTrigger<W> alignedTo(final Duration size) {
     return alignedTo(size, new Instant(0));
   }
 
@@ -141,7 +138,7 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * @param timestampMapper Function that will be invoked on the proposed trigger time to determine
    *        the time at which the trigger should actually fire.
    */
-  public T mappedTo(SerializableFunction<Instant, Instant> timestampMapper) {
+  public TimeTrigger<W> mappedTo(SerializableFunction<Instant, Instant> timestampMapper) {
     return newWith(timestampMapper);
   }
 
@@ -151,11 +148,11 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
       return false;
     }
 
-    TimeTrigger<?, ?> that = (TimeTrigger<?, ?>) other;
+    TimeTrigger<?> that = (TimeTrigger<?>) other;
     return this.timestampMappers.equals(that.timestampMappers);
   }
 
-  private T newWith(SerializableFunction<Instant, Instant> timestampMapper) {
+  private TimeTrigger<W> newWith(SerializableFunction<Instant, Instant> timestampMapper) {
     return newWith(ImmutableList.<SerializableFunction<Instant, Instant>>builder()
         .addAll(timestampMappers)
         .add(timestampMapper)
@@ -169,5 +166,5 @@ public abstract class TimeTrigger<W extends BoundedWindow, T extends TimeTrigger
    * @param transform The new transform to apply to target times.
    * @return a new {@code TimeTrigger}.
    */
-  protected abstract T newWith(List<SerializableFunction<Instant, Instant>> transform);
+  protected abstract TimeTrigger<W> newWith(List<SerializableFunction<Instant, Instant>> transform);
 }

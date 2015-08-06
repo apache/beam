@@ -201,7 +201,7 @@ public class AfterEachTest {
 
     assertEquals(new Instant(9),
         AfterEach.inOrder(AfterWatermark.pastEndOfWindow(),
-                      AfterWatermark.pastEndOfWindow().plusDelayOf(Duration.millis(10)))
+                          AfterWatermark.pastFirstElementInPane().plusDelayOf(Duration.millis(10)))
             .getWatermarkThatGuaranteesFiring(window));
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterEach.inOrder(AfterPane.elementCountAtLeast(2), AfterWatermark.pastEndOfWindow())

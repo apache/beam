@@ -36,8 +36,8 @@ import java.util.List;
 public class TimeTriggerTest {
   @Test
   public void testAlignTo() {
-    TestTimeTrigger size10 = new TestTimeTrigger().alignedTo(new Duration(10));
-    TestTimeTrigger size10offset5 =
+    TimeTrigger<?> size10 = new TestTimeTrigger().alignedTo(new Duration(10));
+    TimeTrigger<?> size10offset5 =
         new TestTimeTrigger().alignedTo(new Duration(10), new Instant(5));
 
     assertEquals(new Instant(100), size10.computeTargetTimestamp(new Instant(100)));
@@ -46,7 +46,7 @@ public class TimeTriggerTest {
     assertEquals(new Instant(115), size10offset5.computeTargetTimestamp(new Instant(110)));
   }
 
-  private static class TestTimeTrigger extends TimeTrigger<IntervalWindow, TestTimeTrigger> {
+  private static class TestTimeTrigger extends TimeTrigger<IntervalWindow> {
 
     private static final long serialVersionUID = 0L;
 

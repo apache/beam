@@ -134,7 +134,7 @@ public class AfterProcessingTimeTest {
 
   @Test
   public void testContinuation() throws Exception {
-    AfterProcessingTime<?> firstElementPlus1 =
+    TimeTrigger<?> firstElementPlus1 =
         AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardHours(1));
     assertEquals(
         new AfterSynchronizedProcessingTime<>(),

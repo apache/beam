@@ -192,7 +192,7 @@ public class AfterFirstTest {
 
     assertEquals(new Instant(9),
         AfterFirst.of(AfterWatermark.pastEndOfWindow(),
-                       AfterWatermark.pastEndOfWindow().plusDelayOf(Duration.millis(10)))
+                       AfterWatermark.pastFirstElementInPane().plusDelayOf(Duration.millis(10)))
             .getWatermarkThatGuaranteesFiring(window));
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
         AfterFirst.of(AfterPane.elementCountAtLeast(2), AfterPane.elementCountAtLeast(1))

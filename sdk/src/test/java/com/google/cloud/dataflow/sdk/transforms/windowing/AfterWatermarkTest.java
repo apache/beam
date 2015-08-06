@@ -72,7 +72,7 @@ public class AfterWatermarkTest {
   public void testAlignAndDelay() throws Exception {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(Duration.standardMinutes(1)),
-        AfterWatermark.<IntervalWindow>pastEndOfWindow()
+        AfterWatermark.<IntervalWindow>pastFirstElementInPane()
             .alignedTo(Duration.standardMinutes(1))
             .plusDelayOf(Duration.standardMinutes(5)),
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -130,16 +130,17 @@ public class AfterWatermarkTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         FixedWindows.of(windowDuration),
-        AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)),
+        AfterWatermark.<IntervalWindow>pastEndOfWindow(),
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 15
-    tester.advanceWatermark(new Instant(11));
+    tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 9
+    tester.advanceWatermark(new Instant(8));
+    assertThat(tester.extractOutput(), Matchers.emptyIterable());
     tester.injectElement(2, new Instant(9));
     tester.injectElement(3, new Instant(8));
 
-    tester.advanceWatermark(new Instant(15));
+    tester.advanceWatermark(new Instant(9));
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10)));
 
@@ -160,21 +161,21 @@ public class AfterWatermarkTest {
     Duration windowDuration = Duration.millis(10);
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
-        AfterWatermark.<IntervalWindow>pastEndOfWindow().plusDelayOf(Duration.millis(5)),
+        AfterWatermark.<IntervalWindow>pastEndOfWindow(),
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
     tester.advanceWatermark(new Instant(1));
 
-    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
-    tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 16
-    tester.advanceWatermark(new Instant(15));
+    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 10
+    tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 11
+    tester.advanceWatermark(new Instant(10));
 
     // We merged, and updated the watermark timer to the end of the new window.
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    tester.injectElement(3, new Instant(1)); // in [1, 11), timer for 15
-    tester.advanceWatermark(new Instant(16));
+    tester.injectElement(3, new Instant(1)); // in [1, 11), timer for 10
+    tester.advanceWatermark(new Instant(11));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 1, 12)));
@@ -211,20 +212,19 @@ public class AfterWatermarkTest {
         AfterWatermark.pastEndOfWindow().getWatermarkThatGuaranteesFiring(GlobalWindow.INSTANCE));
     assertEquals(new Instant(19),
         AfterWatermark
-            .pastEndOfWindow()
+            .pastFirstElementInPane()
             .plusDelayOf(Duration.millis(10)).getWatermarkThatGuaranteesFiring(window));
   }
 
   @Test
   public void testContinuation() throws Exception {
-    AfterWatermark<?> endOfWindowPlus1 =
-        AfterWatermark.pastEndOfWindow().plusDelayOf(Duration.standardMinutes(1));
-    assertEquals(endOfWindowPlus1, endOfWindowPlus1.getContinuationTrigger());
+    Trigger<?> endOfWindow = AfterWatermark.pastEndOfWindow();
+    assertEquals(endOfWindow, endOfWindow.getContinuationTrigger());
     assertEquals(
-        endOfWindowPlus1,
-        endOfWindowPlus1.getContinuationTrigger().getContinuationTrigger());
+        endOfWindow,
+        endOfWindow.getContinuationTrigger().getContinuationTrigger());
 
-    AfterWatermark<?> firstElementAligned =
+    Trigger<?> firstElementAligned =
         AfterWatermark.pastFirstElementInPane().alignedTo(Duration.standardDays(1));
     assertEquals(
         firstElementAligned,

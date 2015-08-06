@@ -35,8 +35,7 @@ import java.util.Objects;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class AfterProcessingTime<W extends BoundedWindow>
-    extends TimeTrigger<W, AfterProcessingTime<W>> {
+public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W> {
 
   private static final long serialVersionUID = 0L;
 

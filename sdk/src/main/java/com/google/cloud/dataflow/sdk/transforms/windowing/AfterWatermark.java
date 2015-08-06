@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
@@ -56,31 +57,32 @@ import java.util.Objects;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used.
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public abstract class AfterWatermark<W extends BoundedWindow>
-    extends TimeTrigger<W, AfterWatermark<W>> {
+public class AfterWatermark<W extends BoundedWindow> {
 
   private static final long serialVersionUID = 0L;
 
-  protected AfterWatermark(List<SerializableFunction<Instant, Instant>> transforms) {
-    super(transforms);
-  }
+  // Static factory class.
+  private AfterWatermark() {}
 
   /**
    * Creates a trigger that fires when the watermark passes timestamp of the first element added to
    * the pane.
    */
-  static <W extends BoundedWindow> AfterWatermark<W> pastFirstElementInPane() {
-    return new FromFirstElementInPane<W>(IDENTITY);
+  static <W extends BoundedWindow> TimeTrigger<W> pastFirstElementInPane() {
+    return new FromFirstElementInPane<W>(TimeTrigger.IDENTITY);
   }
 
   /**
    * Creates a trigger that fires when the watermark passes the end of the window.
    */
-  public static <W extends BoundedWindow> AfterWatermark<W> pastEndOfWindow() {
-    return new FromEndOfWindow<W>(IDENTITY);
+  public static <W extends BoundedWindow> OnceTrigger<W> pastEndOfWindow() {
+    return new FromEndOfWindow<W>();
   }
 
-  private static class FromFirstElementInPane<W extends BoundedWindow> extends AfterWatermark<W> {
+  /**
+   * A watermark trigger targeted relative to the event time of the first element in the pane.
+   */
+  private static class FromFirstElementInPane<W extends BoundedWindow> extends TimeTrigger<W> {
 
     private static final long serialVersionUID = 0L;
 
@@ -172,7 +174,7 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
 
     @Override
-    protected AfterWatermark<W> newWith(
+    protected FromFirstElementInPane<W> newWith(
         List<SerializableFunction<Instant, Instant>> transforms) {
       return new FromFirstElementInPane<W>(transforms);
     }
@@ -205,18 +207,20 @@ public abstract class AfterWatermark<W extends BoundedWindow>
     }
   }
 
-  private static class FromEndOfWindow<W extends BoundedWindow> extends AfterWatermark<W> {
+  /**
+   * A watermark trigger targeted relative to the end of the window.
+   */
+  private static class FromEndOfWindow<W extends BoundedWindow> extends OnceTrigger<W> {
 
     private static final long serialVersionUID = 0L;
 
-    private FromEndOfWindow(
-        List<SerializableFunction<Instant, Instant>> composed) {
-      super(composed);
+    private FromEndOfWindow() {
+      super(null);
     }
 
     @Override
     public TriggerResult onElement(OnElementContext c) throws Exception {
-      c.timers().setTimer(computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
+      c.timers().setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
       return TriggerResult.CONTINUE;
     }
 
@@ -232,14 +236,14 @@ public abstract class AfterWatermark<W extends BoundedWindow>
       }
 
       // Otherwise, set a timer for this window, and return.
-      c.timers().setTimer(computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
+      c.timers().setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
       return MergeResult.CONTINUE;
     }
 
     @Override
     public TriggerResult onTimer(OnTimerContext c) throws Exception {
       if (c.timeDomain() != TimeDomain.EVENT_TIME
-          || c.timestamp().isBefore(computeTargetTimestamp(c.window().maxTimestamp()))) {
+          || c.timestamp().isBefore(c.window().maxTimestamp())) {
         return TriggerResult.CONTINUE;
       } else {
         return TriggerResult.FIRE_AND_FINISH;
@@ -248,46 +252,32 @@ public abstract class AfterWatermark<W extends BoundedWindow>
 
     @Override
     public void clear(TriggerContext c) throws Exception {
-      c.timers().deleteTimer(
-          computeTargetTimestamp(c.window().maxTimestamp()), TimeDomain.EVENT_TIME);
+      c.timers().deleteTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
     }
 
     @Override
     public Instant getWatermarkThatGuaranteesFiring(W window) {
-      return computeTargetTimestamp(window.maxTimestamp());
+      return window.maxTimestamp();
     }
 
     @Override
-    protected AfterWatermark<W> newWith(
-        List<SerializableFunction<Instant, Instant>> transforms) {
-      return new FromEndOfWindow<>(transforms);
-    }
-
-    @Override
-    public OnceTrigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+    public FromEndOfWindow<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
       return this;
     }
 
     @Override
     public String toString() {
-      return "AfterWatermark.pastEndOfWindow(" + timestampMappers + ")";
+      return "AfterWatermark.pastEndOfWindow()";
     }
 
     @Override
     public boolean equals(Object obj) {
-      if (this == obj) {
-        return true;
-      }
-      if (!(obj instanceof FromEndOfWindow)) {
-        return false;
-      }
-      FromEndOfWindow<?> that = (FromEndOfWindow<?>) obj;
-      return Objects.equals(this.timestampMappers, that.timestampMappers);
+      return obj instanceof FromEndOfWindow;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(getClass(), timestampMappers);
+      return Objects.hash(getClass());
     }
   }
 }
