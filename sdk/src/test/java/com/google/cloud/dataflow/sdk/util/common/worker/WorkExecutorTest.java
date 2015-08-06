@@ -35,7 +35,6 @@ import java.util.Collection;
 @RunWith(JUnit4.class)
 public class WorkExecutorTest {
   private WorkExecutor mapWorker;
-  private WorkExecutor seqMapWorker;
 
   @Before
   public void setUp() {
