@@ -156,7 +156,7 @@ public class TrafficMaxLaneFlow {
   /**
    * Extract flow information for each of the 8 lanes in a reading, and output as separate tuples.
    * This will let us determine which lane has the max flow for that station over the span of the
-   * window, and output not only the max flow from that calculcation, but other associated
+   * window, and output not only the max flow from that calculation, but other associated
    * information. The number of lanes for which data is present depends upon which freeway the data
    * point comes from.
    */
