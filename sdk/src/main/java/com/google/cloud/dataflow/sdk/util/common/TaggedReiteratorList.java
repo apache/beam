@@ -87,15 +87,22 @@ public class TaggedReiteratorList extends AbstractList<Reiterator<Object>> {
   private static final PeekingReiterator<Object> EMPTY_TAIL =
       new PeekingReiterator<Object>(
           new Reiterator<Object>() {
+            @Override
             public boolean hasNext() {
               return false;
             }
+
+            @Override
             public Object next() {
               throw new NoSuchElementException();
             }
+
+            @Override
             public void remove() {
               throw new IllegalArgumentException();
             }
+
+            @Override
             public Reiterator<Object> copy() {
               throw new IllegalArgumentException();
             }

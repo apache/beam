@@ -423,12 +423,16 @@ public class CombineTest implements Serializable {
   }
 
   private static final class TestProdInt extends Combine.BinaryCombineIntegerFn {
+    @Override
     public int apply(int left, int right) {
       return left * right;
     }
+
+    @Override
     public int identity() {
       return 1;
     }
+
     @Override
     public Counter<Integer> getCounter(String name) {
       throw new UnsupportedOperationException();
@@ -436,6 +440,7 @@ public class CombineTest implements Serializable {
   }
 
   private static final class TestProdObj extends Combine.BinaryCombineFn<Integer> {
+    @Override
     public Integer apply(Integer left, Integer right) {
       return left * right;
     }
@@ -445,6 +450,7 @@ public class CombineTest implements Serializable {
    * Computes the product, considering null values to be 2.
    */
   private static final class NullCombiner extends Combine.BinaryCombineFn<Integer> {
+    @Override
     public Integer apply(Integer left, Integer right) {
       return (left == null ? 2 : left) * (right == null ? 2 : right);
     }

@@ -310,11 +310,6 @@ public class TextReader<T> extends FileBasedReader<T> {
       return buf[pos];
     }
 
-    public int bytesBuffered() {
-      assert end >= start : end + " must be >= " + start;
-      return end - start;
-    }
-
     /**
      * Copies data from the input buffer to the output buffer.
      *

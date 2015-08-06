@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+
 import javax.annotation.Nullable;
 
 /**
@@ -78,6 +79,7 @@ public class CountingSource
     return shardNumber;
   }
 
+  @Override
   public List<CountingSource> generateInitialSplits(int desiredNumSplits, PipelineOptions options) {
     List<CountingSource> splits = new ArrayList<>();
     for (int i = 0; i < desiredNumSplits; i++) {
@@ -108,6 +110,7 @@ public class CountingSource
         new DelegateCoder.CodingFunction<CounterMark, Integer>() {
           private static final long serialVersionUID = 0L;
 
+          @Override
           public Integer apply(CounterMark input) {
             return input.current;
           }
@@ -115,6 +118,7 @@ public class CountingSource
         new DelegateCoder.CodingFunction<Integer, CounterMark>() {
           private static final long serialVersionUID = 0L;
 
+          @Override
           public CounterMark apply(Integer input) {
             return new CounterMark(input);
           }

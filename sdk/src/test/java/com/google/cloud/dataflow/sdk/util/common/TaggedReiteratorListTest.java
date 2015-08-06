@@ -174,15 +174,23 @@ public class TaggedReiteratorListTest {
       this.values = values;
       this.pos = pos;
     }
+
+    @Override
     public boolean hasNext() {
       return pos < values.length;
     }
+
+    @Override
     public TaggedValue next() {
       return values[pos++];
     }
+
+    @Override
     public void remove() {
       throw new IllegalArgumentException();
     }
+
+    @Override
     public TestReiterator copy() {
       return new TestReiterator(values, pos);
     }
@@ -190,9 +198,12 @@ public class TaggedReiteratorListTest {
 
   private static class TaggedValueExtractor
       implements TaggedReiteratorList.TagExtractor<TaggedValue> {
+    @Override
     public int getTag(TaggedValue elem) {
       return elem.tag;
     }
+
+    @Override
     public String getValue(TaggedValue elem) {
       return elem.value;
     }

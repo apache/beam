@@ -144,23 +144,31 @@ public class PartialGroupByKeyOperationTest {
 
     Combiner<WindowedValue<String>, Integer, Integer, Integer> combineFn =
         new Combiner<WindowedValue<String>, Integer, Integer, Integer>() {
-          public Integer createAccumulator(WindowedValue<String> key) {
-            return 0;
-          }
-          public Integer add(WindowedValue<String> key, Integer accumulator, Integer value) {
-            return accumulator + value;
-          }
-          public Integer merge(WindowedValue<String> key, Iterable<Integer> accumulators) {
-            Integer sum = 0;
-            for (Integer part : accumulators) {
-              sum += part;
-            }
-            return sum;
-          }
-          public Integer extract(WindowedValue<String> key, Integer accumulator) {
-            return accumulator;
-          }
-        };
+
+      @Override
+      public Integer createAccumulator(WindowedValue<String> key) {
+        return 0;
+      }
+
+      @Override
+      public Integer add(WindowedValue<String> key, Integer accumulator, Integer value) {
+        return accumulator + value;
+      }
+
+      @Override
+      public Integer merge(WindowedValue<String> key, Iterable<Integer> accumulators) {
+        Integer sum = 0;
+        for (Integer part : accumulators) {
+          sum += part;
+        }
+        return sum;
+      }
+
+      @Override
+      public Integer extract(WindowedValue<String> key, Integer accumulator) {
+        return accumulator;
+      }
+    };
 
     PartialGroupByKeyOperation pgbkOperation =
         new PartialGroupByKeyOperation(
@@ -298,23 +306,31 @@ public class PartialGroupByKeyOperationTest {
   public void testCombiningGroupingTable() throws Exception {
     Combiner<Object, Integer, Long, Long> summingCombineFn =
         new Combiner<Object, Integer, Long, Long>() {
-          public Long createAccumulator(Object key) {
-            return 0L;
-          }
-          public Long add(Object key, Long accumulator, Integer value) {
-            return accumulator + value;
-          }
-          public Long merge(Object key, Iterable<Long> accumulators) {
-            long sum = 0;
-            for (Long part : accumulators) {
-              sum += part;
-            }
-            return sum;
-          }
-          public Long extract(Object key, Long accumulator) {
-            return accumulator;
-          }
-        };
+
+      @Override
+      public Long createAccumulator(Object key) {
+        return 0L;
+      }
+
+      @Override
+      public Long add(Object key, Long accumulator, Integer value) {
+        return accumulator + value;
+      }
+
+      @Override
+      public Long merge(Object key, Iterable<Long> accumulators) {
+        long sum = 0;
+        for (Long part : accumulators) {
+          sum += part;
+        }
+        return sum;
+      }
+
+      @Override
+      public Long extract(Object key, Long accumulator) {
+        return accumulator;
+      }
+    };
 
     CombiningGroupingTable<String, Integer, Long> table =
         new CombiningGroupingTable<String, Integer, Long>(

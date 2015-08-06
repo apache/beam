@@ -391,15 +391,23 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
       return new GroupingTableEntry<K, V, List<V>>() {
         long size = keySizer.estimateSize(key);
         final List<V> values = new ArrayList<>();
+
+        @Override
         public K getKey() {
           return key;
         }
+
+        @Override
         public List<V> getValue() {
           return values;
         }
+
+        @Override
         public long getSize() {
           return size;
         }
+
+        @Override
         public void add(V value) throws Exception {
           values.add(value);
           size += BYTES_PER_JVM_WORD + valueSizer.estimateSize(value);
@@ -436,15 +444,23 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
         final long keySize = keySizer.estimateSize(key);
         AccumT accumulator = combiner.createAccumulator(key);
         long accumulatorSize = 0; // never used before a value is added...
+
+        @Override
         public K getKey() {
           return key;
         }
+
+        @Override
         public AccumT getValue() {
           return accumulator;
         }
+
+        @Override
         public long getSize() {
           return keySize + accumulatorSize;
         }
+
+        @Override
         public void add(InputT value) throws Exception {
           accumulator = combiner.add(key, accumulator, value);
           accumulatorSize = accumulatorSizer.estimateSize(accumulator);

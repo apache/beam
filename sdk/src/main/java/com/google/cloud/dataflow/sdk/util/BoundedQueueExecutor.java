@@ -33,6 +33,7 @@ public class BoundedQueueExecutor extends ThreadPoolExecutor {
       super(permits);
     }
 
+    @Override
     public void reducePermits(int permits) {
       super.reducePermits(permits);
     }

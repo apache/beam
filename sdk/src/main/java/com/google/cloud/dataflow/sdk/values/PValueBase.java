@@ -48,6 +48,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    *
    * @throws IllegalStateException if the name hasn't been set yet
    */
+  @Override
   public String getName() {
     if (name == null) {
       throw new IllegalStateException("name not set");

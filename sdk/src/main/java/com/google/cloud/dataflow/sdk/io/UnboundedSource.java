@@ -136,6 +136,7 @@ public abstract class UnboundedSource<
      * called again on the same {@code UnboundedReader} object; it will only be called again when a
      * new reader object is constructed for the same source, e.g. on recovery.
      */
+    @Override
     public abstract boolean start() throws IOException;
 
     /**
@@ -145,6 +146,7 @@ public abstract class UnboundedSource<
      * available. Future calls to {@link #advance} may return {@code true} once more data is
      * available.
      */
+    @Override
     public abstract boolean advance() throws IOException;
 
     /**
