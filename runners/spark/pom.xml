@@ -15,7 +15,7 @@ License.
     <name>Dataflow on Spark</name>
     <groupId>com.cloudera.dataflow.spark</groupId>
     <artifactId>spark-dataflow</artifactId>
-    <version>0.3.1-SNAPSHOT</version>
+    <version>0.4.0</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -385,7 +385,7 @@ License.
         <connection>scm:git:https://github.com/cloudera/spark-dataflow.git</connection>
         <developerConnection>scm:git:https://github.com/cloudera/spark-dataflow.git</developerConnection>
         <url>scm:git:https://github.com/cloudera/spark-dataflow.git</url>
-        <tag>HEAD</tag>
+        <tag>spark-dataflow-0.4.0</tag>
     </scm>
 
     <prerequisites>
