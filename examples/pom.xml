@@ -118,7 +118,7 @@
 
           <subpackages>com.google.cloud.dataflow.examples</subpackages>
           <additionalparam>-exclude com.google.cloud.dataflow.sdk.runners.worker:com.google.cloud.dataflow.sdk.runners.dataflow:com.google.cloud.dataflow.sdk.util</additionalparam>
-          <additionalparam>-Xdoclint:-missing</additionalparam>
+          <additionalparam>${dataflow.javadoc_opts}</additionalparam>
           <use>false</use>
           <quiet>true</quiet>
           <bottom><![CDATA[<br>]]></bottom>
