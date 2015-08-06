@@ -70,6 +70,7 @@ public class PartitioningShuffleReader<K, V> extends Reader<WindowedValue<KV<K, 
       throw new Exception("unexpected kind of coder for elements read from "
           + "a key-partitioning shuffle: " + elemCoder);
     }
+    @SuppressWarnings("unchecked")
     KvCoder<K, V> kvCoder = (KvCoder<K, V>) elemCoder;
     this.keyCoder = kvCoder.getKeyCoder();
     windowedValueCoder = windowedElemCoder.withValueCoder(kvCoder.getValueCoder());
@@ -82,7 +83,7 @@ public class PartitioningShuffleReader<K, V> extends Reader<WindowedValue<KV<K, 
         new ChunkingShuffleBatchReader(new ApplianceShuffleReader(shuffleReaderConfig))));
   }
 
-  ReaderIterator<WindowedValue<KV<K, V>>> iterator(ShuffleEntryReader reader) throws IOException {
+  ReaderIterator<WindowedValue<KV<K, V>>> iterator(ShuffleEntryReader reader) {
     return new PartitioningShuffleReaderIterator(reader);
   }
 

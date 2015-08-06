@@ -591,7 +591,7 @@ public class DataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testNoStagingLocationAndNoTempLocationFails() throws IOException {
+  public void testNoStagingLocationAndNoTempLocationFails() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowPipelineRunner.class);
     options.setProject("foo-project");

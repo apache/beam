@@ -123,7 +123,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
         throw new Exception("unexpected kind of coder for elements written to "
             + "a key-grouping shuffle");
       }
-      KvCoder<?, ?> kvCoder = (KvCoder) elemCoder;
+      KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) elemCoder;
       this.keyCoder = kvCoder.getKeyCoder();
       this.valueCoder = kvCoder.getValueCoder();
       if (sortValues) {
@@ -133,7 +133,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
           throw new Exception("unexpected kind of coder for values written to "
               + "a value-sorting shuffle");
         }
-        KvCoder<?, ?> kvValueCoder = (KvCoder) valueCoder;
+        KvCoder<?, ?> kvValueCoder = (KvCoder<?, ?>) valueCoder;
         this.sortKeyCoder = kvValueCoder.getKeyCoder();
         this.sortValueCoder = kvValueCoder.getValueCoder();
       } else {
@@ -160,8 +160,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
    * construct names of counters that track per-worker per-dataset
    * bytes written to shuffle.
    */
-  public SinkWriter<WindowedValue<T>> writer(ShuffleEntryWriter writer,
-                                             String datasetId) throws IOException {
+  public SinkWriter<WindowedValue<T>> writer(ShuffleEntryWriter writer, String datasetId) {
     return new ShuffleSinkWriter(writer, options, addCounterMutator, datasetId);
   }
 
@@ -179,7 +178,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
         ShuffleEntryWriter writer,
         PipelineOptions options,
         CounterSet.AddCounterMutator addCounterMutator,
-        String datasetId) throws IOException {
+        String datasetId) {
       this.writer = writer;
       DataflowWorkerHarnessOptions dataflowOptions =
           options.as(DataflowWorkerHarnessOptions.class);

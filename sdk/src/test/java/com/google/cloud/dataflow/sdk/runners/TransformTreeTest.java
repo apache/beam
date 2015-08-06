@@ -168,7 +168,7 @@ public class TransformTreeTest {
   }
 
   @Test
-  public void testMultiGraphSetup() throws Exception {
+  public void testMultiGraphSetup() {
     Pipeline p = DirectPipeline.createForTest();
 
     PCollection<Integer> input = p.begin()

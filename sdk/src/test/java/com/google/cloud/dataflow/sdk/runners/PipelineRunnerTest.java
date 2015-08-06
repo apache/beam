@@ -48,7 +48,7 @@ public class PipelineRunnerTest {
   }
 
   @Test
-  public void testLongName() throws Exception {
+  public void testLongName() {
     // Check we can create a pipeline runner using the full class name.
     DirectPipelineOptions options = PipelineOptionsFactory.as(DirectPipelineOptions.class);
     options.setAppName("test");
@@ -61,7 +61,7 @@ public class PipelineRunnerTest {
   }
 
   @Test
-  public void testShortName() throws Exception {
+  public void testShortName() {
     // Check we can create a pipeline runner using the short class name.
     DirectPipelineOptions options = PipelineOptionsFactory.as(DirectPipelineOptions.class);
     options.setAppName("test");
@@ -74,7 +74,7 @@ public class PipelineRunnerTest {
   }
 
   @Test
-  public void testAppNameDefault() throws Exception {
+  public void testAppNameDefault() {
     ApplicationNameOptions options = PipelineOptionsFactory.as(ApplicationNameOptions.class);
     Assert.assertEquals(PipelineRunnerTest.class.getSimpleName(),
         options.getAppName());

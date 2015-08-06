@@ -43,7 +43,8 @@ public class UngroupedShuffleReader<T> extends Reader<T> {
   final String stopShufflePosition;
   final Coder<T> coder;
 
-  public UngroupedShuffleReader(PipelineOptions options, byte[] shuffleReaderConfig,
+  public UngroupedShuffleReader(
+      @SuppressWarnings("unused") PipelineOptions options, byte[] shuffleReaderConfig,
       @Nullable String startShufflePosition, @Nullable String stopShufflePosition, Coder<T> coder) {
     this.shuffleReaderConfig = shuffleReaderConfig;
     this.startShufflePosition = startShufflePosition;
@@ -58,7 +59,7 @@ public class UngroupedShuffleReader<T> extends Reader<T> {
         new ChunkingShuffleBatchReader(new ApplianceShuffleReader(shuffleReaderConfig))));
   }
 
-  ReaderIterator<T> iterator(ShuffleEntryReader reader) throws IOException {
+  ReaderIterator<T> iterator(ShuffleEntryReader reader) {
     return new UngroupedShuffleReaderIterator(reader);
   }
 
@@ -69,7 +70,7 @@ public class UngroupedShuffleReader<T> extends Reader<T> {
   class UngroupedShuffleReaderIterator extends AbstractBoundedReaderIterator<T> {
     Iterator<ShuffleEntry> iterator;
 
-    UngroupedShuffleReaderIterator(ShuffleEntryReader reader) throws IOException {
+    UngroupedShuffleReaderIterator(ShuffleEntryReader reader) {
       this.iterator = reader.read(
           ByteArrayShufflePosition.fromBase64(startShufflePosition),
           ByteArrayShufflePosition.fromBase64(stopShufflePosition));

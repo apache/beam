@@ -38,7 +38,7 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
   /**
    * @param reader used to read from a shuffle dataset
    */
-  public ChunkingShuffleBatchReader(ShuffleReader reader) throws IOException {
+  public ChunkingShuffleBatchReader(ShuffleReader reader) {
     this.reader = reader;
   }
 
@@ -89,7 +89,7 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
     if (length < 0) {
       throw new IOException("invalid length: " + length);
     }
-    byte[] data = new byte[(int) length];
+    byte[] data = new byte[length];
     ByteStreams.readFully(dataInputStream, data);
     return data;
   }

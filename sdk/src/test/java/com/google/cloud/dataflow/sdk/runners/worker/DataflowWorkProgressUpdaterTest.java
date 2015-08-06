@@ -31,8 +31,8 @@ import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.argThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -134,7 +134,7 @@ public class DataflowWorkProgressUpdaterTest {
   private long nowMillis;
 
   @Before
-  public void initMocksAndWorkflowServiceAndWorkerAndWork() throws Exception {
+  public void initMocksAndWorkflowServiceAndWorkerAndWork() {
     MockitoAnnotations.initMocks(this);
 
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
@@ -334,7 +334,7 @@ public class DataflowWorkProgressUpdaterTest {
 
   private WorkItemServiceState generateServiceState(long leaseExpirationTimestamp,
       int progressReportIntervalMs, Position suggestedStopPosition,
-      long nextReportIndex) throws Exception {
+      long nextReportIndex) {
     WorkItemServiceState responseState = new WorkItemServiceState();
     responseState.setFactory(Transport.getJsonFactory());
     responseState.setLeaseExpireTime(toCloudTime(new Instant(leaseExpirationTimestamp)));

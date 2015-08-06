@@ -33,7 +33,6 @@ import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -89,19 +88,12 @@ public class SourceOperationExecutor extends WorkExecutor {
   }
 
   static boolean isSplitResponseTooLarge(SourceFormat.OperationResponse operationResponse) {
-    try {
-      if (isSplitOperationResponse(operationResponse)
-          && isSplitOperationTooLargeForDataflowService(operationResponse)) {
-        return true;
-      }
-    } catch (UnsupportedEncodingException e) {
-      LOG.error("Could not log the source operation warning due to: " + e.getMessage());
-    }
-    return false;
+    return isSplitOperationResponse(operationResponse)
+        && isSplitOperationTooLargeForDataflowService(operationResponse);
   }
 
   private static boolean isSplitOperationTooLargeForDataflowService(
-      SourceFormat.OperationResponse operationResponse) throws UnsupportedEncodingException {
+      SourceFormat.OperationResponse operationResponse) {
     SourceSplitResponse splitResponse =
         ((DataflowSourceOperationResponse) operationResponse).cloudResponse.getSplit();
     int size = splitResponse.toString().getBytes(StandardCharsets.UTF_8).length;

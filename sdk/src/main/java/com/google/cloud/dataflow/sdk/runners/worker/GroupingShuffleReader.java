@@ -101,6 +101,8 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
       throw new Exception("unexpected kind of coder for elements read from "
           + "a key-grouping shuffle: " + elemCoder);
     }
+
+    @SuppressWarnings("unchecked")
     KvCoder<K, Iterable<V>> kvCoder = (KvCoder<K, Iterable<V>>) elemCoder;
     this.keyCoder = kvCoder.getKeyCoder();
     Coder<Iterable<V>> kvValueCoder = kvCoder.getValueCoder();
@@ -112,8 +114,7 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
     this.valueCoder = iterCoder.getElemCoder();
   }
 
-  final ReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> iterator(ShuffleEntryReader reader)
-      throws IOException {
+  final ReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> iterator(ShuffleEntryReader reader) {
     return new GroupingShuffleReaderIterator(reader);
   }
 

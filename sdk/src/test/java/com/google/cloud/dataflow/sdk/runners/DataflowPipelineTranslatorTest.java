@@ -105,8 +105,7 @@ public class DataflowPipelineTranslatorTest {
     }
   }
 
-  private DataflowPipeline buildPipeline(DataflowPipelineOptions options)
-      throws IOException {
+  private DataflowPipeline buildPipeline(DataflowPipelineOptions options) {
     DataflowPipeline p = DataflowPipeline.create(options);
 
     p.apply(TextIO.Read.named("ReadMyFile").from("gs://bucket/object"))
