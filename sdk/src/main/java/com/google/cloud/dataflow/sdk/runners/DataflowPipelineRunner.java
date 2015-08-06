@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.runners;
 
 import static com.google.cloud.dataflow.sdk.util.StringUtils.approximatePTransformName;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.approximateSimpleName;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.Joiner;
@@ -139,6 +140,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   // Environment version information
   private static final String ENVIRONMENT_MAJOR_VERSION = "3";
+
+  // The limit of CreateJob request size.
+  private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
 
   /**
    * Project IDs must contain lowercase letters, digits, or dashes.
@@ -369,8 +373,18 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
               .create(options.getProject(), newJob)
               .execute();
     } catch (GoogleJsonResponseException e) {
-      throw new RuntimeException("Failed to create a workflow job: "
-            + (e.getDetails() != null ? e.getDetails().getMessage() : e), e);
+      String errorMessages = "Unexpected errors";
+      if (e.getDetails() != null) {
+        if (newJob.toString().getBytes(UTF_8).length >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
+          errorMessages = "The size of the serialized JSON representation of the pipeline "
+              + "exceeds the allowable limit. "
+              + "For more information, please check the FAQ link below:\n"
+              + "https://cloud.google.com/dataflow/faq";
+        } else {
+          errorMessages = e.getDetails().getMessage();
+        }
+      }
+      throw new RuntimeException("Failed to create a workflow job: " + errorMessages, e);
     } catch (IOException e) {
       throw new RuntimeException("Failed to create a workflow job", e);
     }
