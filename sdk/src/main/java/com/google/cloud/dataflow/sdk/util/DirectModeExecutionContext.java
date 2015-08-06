@@ -32,8 +32,8 @@ import java.util.Map;
  */
 public class DirectModeExecutionContext extends BatchModeExecutionContext {
 
-  private List<ValueWithMetadata> output = new ArrayList<>();
-  private Map<TupleTag<?>, List<ValueWithMetadata>> sideOutputs = new HashMap<>();
+  private List<ValueWithMetadata<?>> output = new ArrayList<>();
+  private Map<TupleTag<?>, List<ValueWithMetadata<?>>> sideOutputs = new HashMap<>();
 
   protected DirectModeExecutionContext() {}
 
@@ -62,7 +62,7 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
 
   @Override
   public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> outputElem) {
-    List<ValueWithMetadata> output = sideOutputs.get(tag);
+    List<ValueWithMetadata<?>> output = sideOutputs.get(tag);
     if (output == null) {
       output = new ArrayList<>();
       sideOutputs.put(tag, output);
@@ -70,13 +70,17 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
     output.add(ValueWithMetadata.of(outputElem).withKey(getKey()));
   }
 
-  public <T> List<ValueWithMetadata<T>> getOutput(TupleTag<T> tag) {
-    return (List) output;
+  public <T> List<ValueWithMetadata<T>> getOutput(@SuppressWarnings("unused") TupleTag<T> tag) {
+    @SuppressWarnings({"unchecked", "rawtypes"}) // Cast not expressible without rawtypes
+    List<ValueWithMetadata<T>> typedOutput = (List) output;
+    return typedOutput;
   }
 
   public <T> List<ValueWithMetadata<T>> getSideOutput(TupleTag<T> tag) {
     if (sideOutputs.containsKey(tag)) {
-      return (List) sideOutputs.get(tag);
+      @SuppressWarnings({"unchecked", "rawtypes"}) // Cast not expressible without rawtypes
+      List<ValueWithMetadata<T>> typedOutput = (List) sideOutputs.get(tag);
+      return typedOutput;
     } else {
       return new ArrayList<>();
     }
