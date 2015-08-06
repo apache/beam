@@ -40,24 +40,23 @@ import java.util.NoSuchElementException;
  * Tests code common to all offset-based sources.
  */
 @RunWith(JUnit4.class)
-public class ByteOffsetBasedSourceTest {
-
-  // A byte-offset based source that yields its own current offset
+public class OffsetBasedSourceTest {
+  // An offset-based source with 4 bytes per offset that yields its own current offset
   // and rounds the start and end offset to the nearest multiple of a given number,
   // e.g. reading [13, 48) with granularity 10 gives records with values [20, 50).
-  private static class CoarseByteRangeSource extends ByteOffsetBasedSource<Integer> {
+  private static class CoarseRangeSource extends OffsetBasedSource<Integer> {
     private static final long serialVersionUID = 0L;
     private long granularity;
 
-    public CoarseByteRangeSource(
+    public CoarseRangeSource(
         long startOffset, long endOffset, long minBundleSize, long granularity) {
       super(startOffset, endOffset, minBundleSize);
       this.granularity = granularity;
     }
 
     @Override
-    public ByteOffsetBasedSource<Integer> createSourceForSubrange(long start, long end) {
-      return new CoarseByteRangeSource(start, end, getMinBundleSize(), granularity);
+    public OffsetBasedSource<Integer> createSourceForSubrange(long start, long end) {
+      return new CoarseRangeSource(start, end, getMinBundleSize(), granularity);
     }
 
     @Override
@@ -79,22 +78,27 @@ public class ByteOffsetBasedSourceTest {
     }
 
     @Override
+    public long getBytesPerOffset() {
+      return 4;
+    }
+
+    @Override
     public long getMaxEndOffset(PipelineOptions options) {
       return getEndOffset();
     }
 
     @Override
     public BoundedReader<Integer> createReader(PipelineOptions options) throws IOException {
-      return new CoarseByteRangeReader(this);
+      return new CoarseRangeReader(this);
     }
   }
 
-  private static class CoarseByteRangeReader
-      extends ByteOffsetBasedSource.ByteOffsetBasedReader<Integer> {
+  private static class CoarseRangeReader
+      extends OffsetBasedSource.OffsetBasedReader<Integer> {
     private long current = -1;
     private long granularity;
 
-    public CoarseByteRangeReader(CoarseByteRangeSource source) {
+    public CoarseRangeReader(CoarseRangeSource source) {
       super(source);
       this.granularity = source.granularity;
     }
@@ -105,18 +109,18 @@ public class ByteOffsetBasedSourceTest {
     }
 
     @Override
-    public boolean start() throws IOException {
+    public boolean startImpl() throws IOException {
       current = getCurrentSource().getStartOffset();
       while (current % granularity != 0) {
         ++current;
       }
-      return rangeTracker.tryReturnRecordAt(true, current);
+      return true;
     }
 
     @Override
-    public boolean advance() throws IOException {
+    public boolean advanceImpl() throws IOException {
       ++current;
-      return rangeTracker.tryReturnRecordAt(current % granularity == 0, current);
+      return true;
     }
 
     @Override
@@ -125,14 +129,19 @@ public class ByteOffsetBasedSourceTest {
     }
 
     @Override
+    public boolean isAtSplitPoint() {
+      return current % granularity == 0;
+    }
+
+    @Override
     public void close() throws IOException { }
   }
 
-  public static void assertSplitsAre(List<? extends ByteOffsetBasedSource<?>> splits,
+  public static void assertSplitsAre(List<? extends OffsetBasedSource<?>> splits,
       long[] expectedBoundaries) {
     assertEquals(splits.size(), expectedBoundaries.length - 1);
     int i = 0;
-    for (ByteOffsetBasedSource<?> split : splits) {
+    for (OffsetBasedSource<?> split : splits) {
       assertEquals(split.getStartOffset(), expectedBoundaries[i]);
       assertEquals(split.getEndOffset(), expectedBoundaries[i + 1]);
       i++;
@@ -144,10 +153,11 @@ public class ByteOffsetBasedSourceTest {
     long start = 0;
     long end = 1000;
     long minBundleSize = 50;
-    long desiredBundleSize = 150;
-    CoarseByteRangeSource testSource = new CoarseByteRangeSource(start, end, minBundleSize, 1);
+    CoarseRangeSource testSource = new CoarseRangeSource(start, end, minBundleSize, 1);
     long[] boundaries = {0, 150, 300, 450, 600, 750, 900, 1000};
-    assertSplitsAre(testSource.splitIntoBundles(desiredBundleSize, null), boundaries);
+    assertSplitsAre(
+        testSource.splitIntoBundles(150 * testSource.getBytesPerOffset(), null),
+        boundaries);
   }
 
   @Test
@@ -155,10 +165,11 @@ public class ByteOffsetBasedSourceTest {
     long start = 300;
     long end = 1000;
     long minBundleSize = 50;
-    long desiredBundleSize = 150;
-    CoarseByteRangeSource testSource = new CoarseByteRangeSource(start, end, minBundleSize, 1);
+    CoarseRangeSource testSource = new CoarseRangeSource(start, end, minBundleSize, 1);
     long[] boundaries = {300, 450, 600, 750, 900, 1000};
-    assertSplitsAre(testSource.splitIntoBundles(desiredBundleSize, null), boundaries);
+    assertSplitsAre(
+        testSource.splitIntoBundles(150 * testSource.getBytesPerOffset(), null),
+        boundaries);
   }
 
   @Test
@@ -166,10 +177,11 @@ public class ByteOffsetBasedSourceTest {
     long start = 300;
     long end = 1000;
     long minBundleSize = 150;
-    long desiredBundleSize = 100;
-    CoarseByteRangeSource testSource = new CoarseByteRangeSource(start, end, minBundleSize, 1);
+    CoarseRangeSource testSource = new CoarseRangeSource(start, end, minBundleSize, 1);
     long[] boundaries = {300, 450, 600, 750, 1000};
-    assertSplitsAre(testSource.splitIntoBundles(desiredBundleSize, null), boundaries);
+    assertSplitsAre(
+        testSource.splitIntoBundles(100 * testSource.getBytesPerOffset(), null),
+        boundaries);
   }
 
   @Test
@@ -177,11 +189,12 @@ public class ByteOffsetBasedSourceTest {
     long start = 0;
     long end = 1000;
     long minBundleSize = 50;
-    long desiredBundleSize = 110;
-    CoarseByteRangeSource testSource = new CoarseByteRangeSource(start, end, minBundleSize, 1);
+    CoarseRangeSource testSource = new CoarseRangeSource(start, end, minBundleSize, 1);
     // Last 10 bytes should collapse to the previous bundle.
     long[] boundaries = {0, 110, 220, 330, 440, 550, 660, 770, 880, 1000};
-    assertSplitsAre(testSource.splitIntoBundles(desiredBundleSize, null), boundaries);
+    assertSplitsAre(
+        testSource.splitIntoBundles(110 * testSource.getBytesPerOffset(), null),
+        boundaries);
   }
 
   @Test
@@ -190,7 +203,7 @@ public class ByteOffsetBasedSourceTest {
     // (note: this is testing test code), and that getFractionConsumed works sensibly
     // in the face of that.
     PipelineOptions options = PipelineOptionsFactory.create();
-    CoarseByteRangeSource source = new CoarseByteRangeSource(13, 35, 1, 10);
+    CoarseRangeSource source = new CoarseRangeSource(13, 35, 1, 10);
     try (BoundedSource.BoundedReader<Integer> reader = source.createReader(options)) {
       List<Integer> items = new ArrayList<>();
 
@@ -209,7 +222,7 @@ public class ByteOffsetBasedSourceTest {
       assertEquals(20, items.get(0).intValue());
       assertEquals(39, items.get(items.size() - 1).intValue());
 
-      source = new CoarseByteRangeSource(13, 17, 1, 10);
+      source = new CoarseRangeSource(13, 17, 1, 10);
     }
     try (BoundedSource.BoundedReader<Integer> reader = source.createReader(options)) {
       assertFalse(reader.start());
@@ -219,8 +232,8 @@ public class ByteOffsetBasedSourceTest {
   @Test
   public void testSplitAtFraction() throws IOException {
     PipelineOptions options = PipelineOptionsFactory.create();
-    CoarseByteRangeSource source = new CoarseByteRangeSource(13, 35, 1, 10);
-    try (CoarseByteRangeReader reader = (CoarseByteRangeReader) source.createReader(options)) {
+    CoarseRangeSource source = new CoarseRangeSource(13, 35, 1, 10);
+    try (CoarseRangeReader reader = (CoarseRangeReader) source.createReader(options)) {
       List<Integer> originalItems = new ArrayList<>();
       assertTrue(reader.start());
       originalItems.add(reader.getCurrent());
@@ -254,7 +267,7 @@ public class ByteOffsetBasedSourceTest {
   @Test
   public void testSplitAtFractionExhaustive() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    CoarseByteRangeSource original = new CoarseByteRangeSource(13, 35, 1, 10);
+    CoarseRangeSource original = new CoarseRangeSource(13, 35, 1, 10);
     assertSplitAtFractionExhaustive(original, options);
   }
 }

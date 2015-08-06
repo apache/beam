@@ -39,7 +39,7 @@ import java.util.NoSuchElementException;
  * file-based custom source.
  *
  * <p>A file-based {@code Source} is a {@code Source} backed by a file pattern defined as a Java
- * glob, a single file, or a offset range for a single file. See {@link ByteOffsetBasedSource} and
+ * glob, a single file, or a offset range for a single file. See {@link OffsetBasedSource} and
  * {@link com.google.cloud.dataflow.sdk.io.range.RangeTracker} for semantics of offset ranges.
  *
  * <p>This source stores a {@code String} that is an {@link IOChannelFactory} specification for a
@@ -54,7 +54,7 @@ import java.util.NoSuchElementException;
  *
  * @param <T> Type of records represented by the source.
  */
-public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
+public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   private static final long serialVersionUID = 0;
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSource.class);
   private static final float FRACTION_OF_FILES_TO_STAT = 0.01f;
@@ -77,7 +77,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * Create a {@code FileBaseSource} based on a file or a file pattern specification. This
    * constructor must be used when creating a new {@code FileBasedSource} for a file pattern.
    *
-   * <p> See {@link ByteOffsetBasedSource} for a detailed description of {@code minBundleSize}.
+   * <p> See {@link OffsetBasedSource} for a detailed description of {@code minBundleSize}.
    *
    * @param fileOrPatternSpec {@link IOChannelFactory} specification of file or file pattern
    *        represented by the {@link FileBasedSource}.
@@ -95,7 +95,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * Additionally, this constructor must be used to create new {@code FileBasedSource}s when
    * subclasses implement the method {@link #createForSubrangeOfFile}.
    *
-   * <p> See {@link ByteOffsetBasedSource} for detailed descriptions of {@code minBundleSize},
+   * <p> See {@link OffsetBasedSource} for detailed descriptions of {@code minBundleSize},
    * {@code startOffset}, and {@code endOffset}.
    *
    * @param fileName {@link IOChannelFactory} specification of the file represented by the
@@ -238,7 +238,7 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
     } else {
       if (isSplittable()) {
         List<FileBasedSource<T>> splitResults = new ArrayList<>();
-        for (ByteOffsetBasedSource<T> split :
+        for (OffsetBasedSource<T> split :
             super.splitIntoBundles(desiredBundleSizeBytes, options)) {
           splitResults.add((FileBasedSource<T>) split);
         }
@@ -359,11 +359,6 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * {@link SeekableByteChannel}, which may be used by subclass to traverse back in the channel to
    * determine the correct starting position.
    *
-   * <h2>Split Points</h2>
-   * File-based sources support the notion of <i>split points</i>, as defined in
-   * {@link com.google.cloud.dataflow.sdk.io.range.RangeTracker}, using
-   * {@link FileBasedReader#isAtSplitPoint}.
-   *
    * <h2>Reading Records</h2>
    *
    * <p>Sequential reading is implemented using {@link #readNextRecord}.
@@ -387,10 +382,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
    * <p> Since this class implements {@link Source.Reader} it guarantees thread safety. Abstract
    * methods defined here will not be accessed by more than one thread concurrently.
    */
-  public abstract static class FileBasedReader<T> extends ByteOffsetBasedReader<T> {
+  public abstract static class FileBasedReader<T> extends OffsetBasedReader<T> {
     private ReadableByteChannel channel = null;
-    private boolean finished = false; // Reader has finished advancing.
-    private boolean startCalled = false;
 
     /**
      * Subclasses should not perform IO operations at the constructor. All IO operations should be
@@ -408,9 +401,8 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
     }
 
     @Override
-    public final boolean start() throws IOException {
+    protected final boolean startImpl() throws IOException {
       FileBasedSource<T> source = getCurrentSource();
-      Preconditions.checkState(!startCalled, "start() should only be called once");
       IOChannelFactory factory = IOChannelUtils.getFactory(source.getFileOrPatternSpec());
       this.channel = factory.open(source.getFileOrPatternSpec());
 
@@ -428,30 +420,14 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
       }
 
       startReading(channel);
-      startCalled = true;
 
       // Advance once to load the first record.
-      return advance();
+      return advanceImpl();
     }
 
     @Override
-    public final boolean advance() throws IOException {
-      Preconditions.checkState(startCalled, "advance() called before calling start()");
-      if (finished) {
-        return false;
-      }
-
-      if (!readNextRecord()) {
-        // End of the stream reached.
-        finished = true;
-        return false;
-      }
-      if (!rangeTracker.tryReturnRecordAt(isAtSplitPoint(), getCurrentOffset())) {
-        finished = true;
-        return false;
-      }
-
-      return true;
+    protected final boolean advanceImpl() throws IOException {
+      return readNextRecord();
     }
 
     /**
@@ -465,15 +441,6 @@ public abstract class FileBasedSource<T> extends ByteOffsetBasedSource<T> {
         channel.close();
       }
     }
-
-    /**
-     * Specifies if the current record of the reader is at a split point.
-     *
-     * <p>This returns {@code true} if the last record returned by {@link #readNextRecord} is at a
-     * split point, {@code false} otherwise. Please refer to {@link FileBasedSource.FileBasedReader
-     * FileBasedReader} for the definition of split points.
-     */
-    protected abstract boolean isAtSplitPoint();
 
     /**
      * Performs any initialization of the subclass of {@code FileBasedReader} that involves IO

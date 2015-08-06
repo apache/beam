@@ -154,7 +154,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * than {@code GenericRecord}.
    */
   public static AvroSource<GenericRecord> from(String fileNameOrPattern) {
-    return new AvroSource<GenericRecord>(
+    return new AvroSource<>(
         fileNameOrPattern, DEFAULT_MIN_BUNDLE_SIZE, null, GenericRecord.class, null, null);
   }
 
@@ -187,7 +187,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   /**
    * Returns an {@code AvroSource} that's like this one but uses the supplied minimum bundle size.
-   * Refer to {@link ByteOffsetBasedSource} for a description of {@code minBundleSize} and its use.
+   * Refer to {@link OffsetBasedSource} for a description of {@code minBundleSize} and its use.
    */
   public AvroSource<T> withMinBundleSize(long minBundleSize) {
     return new AvroSource<T>(
