@@ -40,4 +40,4 @@ install:
 
 script:
   - travis_retry mvn verify -U
-  - travis_retry ./test_wordcount.sh
+  - travis_retry travis/test_wordcount.sh
