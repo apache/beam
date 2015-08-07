@@ -33,7 +33,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 
 /**
  * An executor for a source operation, defined by a {@code SourceOperationRequest}.
@@ -94,10 +94,18 @@ public class SourceOperationExecutor extends WorkExecutor {
 
   private static boolean isSplitOperationTooLargeForDataflowService(
       SourceFormat.OperationResponse operationResponse) {
-    SourceSplitResponse splitResponse =
-        ((DataflowSourceOperationResponse) operationResponse).cloudResponse.getSplit();
-    int size = splitResponse.toString().getBytes(StandardCharsets.UTF_8).length;
-    return size >= SOURCE_OPERATION_RESPONSE_SIZE_LIMIT_MB * 1024 * 1024;
+    try {
+      SourceSplitResponse splitResponse =
+          ((DataflowSourceOperationResponse) operationResponse).cloudResponse.getSplit();
+      int size = splitResponse.getFactory().toByteArray(operationResponse).length;
+      return size >= SOURCE_OPERATION_RESPONSE_SIZE_LIMIT_MB * 1024 * 1024;
+    } catch (OutOfMemoryError e) {
+      LOG.error("Got exception when trying to serialize split response: " + e.getMessage());
+      // We will go out of memory if split response is extremely large.
+      return true;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static boolean isSplitOperationResponse(

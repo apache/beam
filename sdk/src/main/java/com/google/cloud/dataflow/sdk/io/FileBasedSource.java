@@ -19,6 +19,11 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -33,6 +38,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
 
 /**
  * A common base class for all file-based {@link Source}s. Extend this class to implement your own
@@ -62,8 +69,16 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   // Package-private for testing
   static final int MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT = 100;
 
+  // Size of the thread pool to be used for sending requests to GCS.
+  // Package-private for testing.
+  static final int SPLITTING_THREAD_POOL_SIZE = 128;
+
   private final String fileOrPatternSpec;
   private final Mode mode;
+
+  // Thread pool to be used for parallelizing requests to GCS.
+  private static ListeningExecutorService service =
+      MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(SPLITTING_THREAD_POOL_SIZE));
 
   /**
    * A given {@code FileBasedSource} represents a file resource of one of these types.
@@ -217,9 +232,21 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
         / selectedFiles.size();
   }
 
+  private ListenableFuture<List<? extends FileBasedSource<T>>> createFuture(final String file,
+      final long desiredBundleSizeBytes, final PipelineOptions options,
+      ListeningExecutorService service) {
+    return service.submit(new Callable<List<? extends FileBasedSource<T>>>() {
+      @Override
+      public List<? extends FileBasedSource<T>> call() throws Exception {
+        return createForSubrangeOfFile(file, 0, Long.MAX_VALUE)
+            .splitIntoBundles(desiredBundleSizeBytes, options);
+      }
+    });
+  }
+
   @Override
-  public final List<? extends FileBasedSource<T>> splitIntoBundles(long desiredBundleSizeBytes,
-      PipelineOptions options) throws Exception {
+  public final List<? extends FileBasedSource<T>> splitIntoBundles(
+      long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
     // This implementation of method splitIntoBundles is provided to simplify subclasses. Here we
     // split a FileBasedSource based on a file pattern to FileBasedSources based on full single
     // files. For files that can be efficiently seeked, we further split FileBasedSources based on
@@ -227,11 +254,14 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
-      List<FileBasedSource<T>> splitResults = new ArrayList<>();
-      for (String file : FileBasedSource.expandFilePattern(fileOrPatternSpec)) {
-        splitResults.addAll(createForSubrangeOfFile(file, 0, Long.MAX_VALUE).splitIntoBundles(
-            desiredBundleSizeBytes, options));
+      List<ListenableFuture<List<? extends FileBasedSource<T>>>> futures = new ArrayList<>();
+
+      for (final String file : FileBasedSource.expandFilePattern(fileOrPatternSpec)) {
+        futures.add(createFuture(file, desiredBundleSizeBytes, options, service));
       }
+      List<? extends FileBasedSource<T>> splitResults =
+          ImmutableList.copyOf(Iterables.concat(Futures.allAsList(futures).get()));
+
       LOG.debug("Splitting the source based on file pattern " + fileOrPatternSpec + " took "
           + (System.currentTimeMillis() - startTime) + " ms");
       return splitResults;

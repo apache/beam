@@ -398,6 +398,24 @@ public class FileBasedSourceTest {
   }
 
   @Test
+  public void testSplittingUsingFullThreadPool() throws Exception {
+    int numFiles = FileBasedSource.SPLITTING_THREAD_POOL_SIZE * 5;
+    File file0 = null;
+    for (int i = 0; i < numFiles; i++) {
+      List<String> data = createStringDataset(3, 1000);
+      File file = createFileWithData("file" + i, data);
+      if (i == 0) {
+        file0 = file;
+      }
+    }
+
+    TestFileBasedSource source =
+        new TestFileBasedSource(file0.getParent() + "/" + "file*", Long.MAX_VALUE, null);
+    List<? extends BoundedSource<String>> splits = source.splitIntoBundles(Long.MAX_VALUE, null);
+    assertEquals(numFiles, splits.size());
+  }
+
+  @Test
   public void testFractionConsumedWhenReadingFilepattern() throws IOException {
     List<String> data1 = createStringDataset(3, 1000);
     File file1 = createFileWithData("file1", data1);
