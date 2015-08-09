@@ -349,6 +349,47 @@ public class TriggerExecutorTest {
   }
 
   @Test
+  public void testPaneInfoAllStatesAfterWatermarkAccumulating() throws Exception {
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
+            .withTrigger(Repeatedly.<IntervalWindow>forever(
+                AfterFirst.<IntervalWindow>of(
+                    AfterPane.<IntervalWindow>elementCountAtLeast(2),
+                    AfterWatermark.<IntervalWindow>pastEndOfWindow())))
+            .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
+            .withAllowedLateness(Duration.millis(100))
+            .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
+
+    tester.advanceWatermark(new Instant(0));
+    tester.injectElement(1, new Instant(1));
+    tester.injectElement(2, new Instant(2));
+
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertThat(output, Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
+    assertThat(output, Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
+
+    tester.advanceWatermark(new Instant(50));
+
+    // We should get the ON_TIME pane even though it is empty,
+    // because we have an AfterWatermark.pastEndOfWindow() trigger.
+    output = tester.extractOutput();
+    assertThat(output, Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.ON_TIME, 1, 0))));
+    assertThat(output, Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 9, 0, 10)));
+
+    // We should get the final pane even though it is empty.
+    tester.advanceWatermark(new Instant(150));
+    output = tester.extractOutput();
+    assertThat(output, Matchers.contains(
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 2, 1))));
+    assertThat(output, Matchers.contains(
+        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 9, 0, 10)));
+  }
+
+  @Test
   public void testPaneInfoFinalAndOnTime() throws Exception {
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
@@ -458,7 +499,7 @@ public class TriggerExecutorTest {
   }
 
   @Test
-  public void testIdempotentUninterestingPanes() throws Exception {
+  public void testIdempotentEmptyPanes() throws Exception {
     // Test uninteresting (empty) panes don't increment the index or otherwise
     // modify PaneInfo.
     TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
@@ -495,6 +536,54 @@ public class TriggerExecutorTest {
 
     // The late pane has the correct indices.
     assertThat(output.get(1).getValue(), contains(3));
+    assertThat(output.get(1).getPane(),
+        equalTo(PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
+
+    assertTrue(tester.isMarkedFinished(firstWindow));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
+
+    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    assertEquals(0, tester.getElementsDroppedDueToLateness());
+  }
+
+  @Test
+  public void testIdempotentEmptyPanesAccumulating() throws Exception {
+    // Test uninteresting (empty) panes don't increment the index or otherwise
+    // modify PaneInfo.
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+        FixedWindows.of(Duration.millis(10)),
+        mockTrigger,
+        AccumulationMode.ACCUMULATING_FIRED_PANES,
+        Duration.millis(100));
+
+    // Inject a couple of on-time elements and fire at the window end.
+    injectElement(tester, 1, TriggerResult.CONTINUE);
+    injectElement(tester, 2, TriggerResult.CONTINUE);
+    when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
+    tester.advanceWatermark(new Instant(12));
+
+    when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
+        .thenReturn(TriggerResult.FIRE);
+    tester.fireTimer(firstWindow, new Instant(10), TimeDomain.EVENT_TIME);
+
+    // Fire another timer (with no data, so it's an uninteresting pane).
+    when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
+                    .thenReturn(TriggerResult.FIRE);
+    tester.fireTimer(firstWindow, new Instant(10), TimeDomain.EVENT_TIME);
+
+    // Finish it off with another datum.
+    injectElement(tester, 3, TriggerResult.FIRE_AND_FINISH);
+
+    // The intermediate trigger firing shouldn't result in any output.
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertThat(output.size(), equalTo(2));
+
+    // The on-time pane is as expected.
+    assertThat(output.get(0), isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10));
+
+    // The late pane has the correct indices.
+    assertThat(output.get(1).getValue(), containsInAnyOrder(1, 2, 3));
     assertThat(output.get(1).getPane(),
         equalTo(PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
 

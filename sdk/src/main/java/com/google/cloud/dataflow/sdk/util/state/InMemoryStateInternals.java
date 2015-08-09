@@ -24,6 +24,7 @@ import org.joda.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * In-memory implementation of {@link StateInternals}. Used in {@code BatchModeExecutionContext}
@@ -160,6 +161,11 @@ public class InMemoryStateInternals extends MergingStateInternals {
           return minimumHold == null;
         }
       };
+    }
+
+    @Override
+    public String toString() {
+      return Objects.toString(minimumHold);
     }
   }
 

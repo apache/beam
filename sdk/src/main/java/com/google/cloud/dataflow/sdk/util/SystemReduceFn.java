@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.state.BagState;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 import com.google.cloud.dataflow.sdk.util.state.MergeableState;
+import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 
@@ -125,5 +126,10 @@ class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   @Override
   public void clearState(Context c) throws Exception {
     c.state().accessAcrossMergedWindows(bufferTag).clear();
+  }
+
+  @Override
+  public StateContents<Boolean> isEmpty(StateContext state) {
+    return state.accessAcrossMergedWindows(bufferTag).isEmpty();
   }
 }

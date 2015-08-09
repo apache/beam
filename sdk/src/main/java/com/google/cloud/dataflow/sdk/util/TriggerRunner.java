@@ -189,7 +189,9 @@ public class TriggerRunner<W extends BoundedWindow> {
    */
   public void clearEverything(ReduceFn<?, ?, ?, W>.Context c) throws Exception {
     clearState(c);
-    c.state().access(FINISHED_BITS_TAG).clear();
+    if (isFinishedSetNeeded()) {
+      c.state().access(FINISHED_BITS_TAG).clear();
+    }
   }
 
   public void prefetchForValue(ReduceFn.StateContext state) {

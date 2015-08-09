@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.util.state.MergeableState;
 import com.google.cloud.dataflow.sdk.util.state.State;
+import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 
 import org.joda.time.Instant;
@@ -183,6 +184,8 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   /**
    * Called before {@link onTrigger} is invoked to provide an opportunity to prefetch any needed
    * state.
+   *
+   * @param c Context to use prefetch from.
    */
   public void prefetchOnTrigger(StateContext c) { }
 
@@ -191,4 +194,9 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
    * called when the windowing is closing and will receive no future interactions.
    */
   public abstract void clearState(Context c) throws Exception;
+
+  /**
+   * Returns true if the there is no buffered state.
+   */
+  public abstract StateContents<Boolean> isEmpty(StateContext c);
 }

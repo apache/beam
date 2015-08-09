@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.util.ActiveWindowSet.MergeCallback;
 import com.google.cloud.dataflow.sdk.util.ReduceFnContextFactory.OnTriggerCallbacks;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.TriggerRunner.Result;
-import com.google.cloud.dataflow.sdk.util.WatermarkHold.WatermarkInfo;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces.WindowNamespace;
@@ -90,8 +89,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
   private final WatermarkHold<W> watermarkHold;
   private final ReduceFnContextFactory<K, InputT, OutputT, W> contextFactory;
   private final ReduceFn<K, InputT, OutputT, W> reduceFn;
-
   private final PaneInfoTracker paneInfo;
+  private final NonEmptyPanes<W> nonEmptyPanes;
 
   public ReduceFnRunner(
       K key,
@@ -114,6 +113,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
         (WindowingStrategy<Object, W>) windowingStrategy;
     this.windowingStrategy = objectWindowingStrategy;
 
+    this.nonEmptyPanes = NonEmptyPanes.create(this.windowingStrategy, this.reduceFn);
     this.activeWindows = createActiveWindowSet();
     this.contextFactory = new ReduceFnContextFactory<K, InputT, OutputT, W>(
         key, reduceFn, this.windowingStrategy, this.windowingInternals.stateInternals(),
@@ -168,16 +168,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
 
       // If this is a new window
       if (activeWindows.add(window)) {
-        // Hold for possibly empty panes
-        if (timerInternals.currentWatermarkTime().isAfter(window.maxTimestamp())) {
-          watermarkHold.holdForFinal(context);
-        } else {
-          watermarkHold.holdForOnTime(context);
-        }
-
         // And schedule cleanup
         scheduleCleanup(context);
       }
+      nonEmptyPanes.recordContent(context);
 
       // Update the watermark hold since the value will be part of the next pane.
       watermarkHold.addHold(context, lateness.isLate);
@@ -196,6 +190,14 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
         Throwables.propagateIfPossible(e);
         throw new RuntimeException("Failed to run trigger", e);
       }
+    }
+  }
+
+  private void holdForEmptyPanes(ReduceFn<K, InputT, OutputT, W>.Context context) {
+    if (timerInternals.currentWatermarkTime().isAfter(context.window().maxTimestamp())) {
+      watermarkHold.holdForFinal(context);
+    } else {
+      watermarkHold.holdForOnTime(context);
     }
   }
 
@@ -246,7 +248,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
         try {
           ReduceFn<K, InputT, OutputT, W>.Context mergedContext = contextFactory.base(mergedWindow);
           cancelCleanup(mergedContext);
-          watermarkHold.releaseFinal(mergedContext);
           triggerRunner.clearEverything(mergedContext);
           paneInfo.clear(mergedContext.state());
         } catch (Exception e) {
@@ -259,11 +260,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     // Schedule cleanup if the window is new. Do this after cleaning up the old state in case one
     // of them had a timer at the same point.
     if (isResultWindowNew) {
-      if (timerInternals.currentWatermarkTime().isAfter(resultWindow.maxTimestamp())) {
-        watermarkHold.holdForFinal(resultContext);
-      } else {
-        watermarkHold.holdForOnTime(resultContext);
-      }
       scheduleCleanup(resultContext);
     }
 
@@ -317,9 +313,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
         handleTriggerResult(context, isAtWatermark, timerResult);
       }
 
-      // After this timer has fired, we're no longer on-time.
-      if (isAtWatermark) {
-        watermarkHold.releaseOnTime(context);
+      // Since we processed an on-time firing, we should schedule the GC timer.
+      if (TimeDomain.EVENT_TIME == timer.getDomain()
+          && timer.getTimestamp().isEqual(window.maxTimestamp())) {
         scheduleCleanup(context);
       }
     }
@@ -372,6 +368,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     }
 
     // Cleanup the associated state.
+    nonEmptyPanes.clearPane(context);
     reduceFn.clearState(context);
     triggerRunner.clearEverything(context);
     paneInfo.clear(context.state());
@@ -405,6 +402,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
 
     // Run onTrigger to produce the actual pane contents.
     onTrigger(context, maybeAtWatermark, result.isFinish());
+
+    // Now that we've triggered, the pane is empty.
+    nonEmptyPanes.clearPane(context);
 
     // Cleanup buffered data if appropriate
     if (shouldDiscardAfterFiring(result)) {
@@ -453,22 +453,26 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
    */
   private void onTrigger(final ReduceFn<K, InputT, OutputT, W>.Context context,
       boolean isAtWatermark, boolean isFinal) {
-    StateContents<WatermarkInfo> outputTimestampFuture = watermarkHold.extractAndRelease(context);
+    StateContents<Instant> outputTimestampFuture = watermarkHold.extractAndRelease(context);
     StateContents<PaneInfo> paneFuture =
         paneInfo.getNextPaneInfo(context, isAtWatermark, isFinal);
+    StateContents<Boolean> isEmptyFuture = nonEmptyPanes.isEmpty(context);
 
     reduceFn.prefetchOnTrigger(context.state());
 
     final PaneInfo pane = paneFuture.read();
-    final WatermarkInfo watermarkInfo = outputTimestampFuture.read();
+    final Instant outputTimestamp = outputTimestampFuture.read();
 
     boolean shouldOutput =
-        // The pane is non-empty
-        watermarkInfo.isNonEmpty()
-        // This is the final pane, and the user has asked for it even if its empty
+        // If the pane is not empty
+        !isEmptyFuture.read()
+        // or this is the final pane, and the user has asked for it even if its empty
         || (isFinal && windowingStrategy.getClosingBehavior() == ClosingBehavior.FIRE_ALWAYS)
-        // This is the on-time firing, and the user explicitly requested it.
+        // or this is the on-time firing, and the user explicitly requested it.
         || (isAtWatermark && pane.getTiming() == Timing.ON_TIME);
+
+    // We've consumed the empty pane hold by reading it, so reinstate that, if necessary.
+    holdForEmptyPanes(context);
 
     // If there is nothing to output, we're done.
     if (!shouldOutput) {
@@ -486,7 +490,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
 
             // Output the actual value.
             windowingInternals.outputWindowedValue(
-                KV.of(key, toOutput), watermarkInfo.getOutputTimestamp(), windows, pane);
+                KV.of(key, toOutput), outputTimestamp, windows, pane);
           }
     });
 

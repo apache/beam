@@ -43,10 +43,6 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
   @VisibleForTesting static final StateTag<WatermarkStateInternal> DATA_HOLD_TAG =
       StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal("hold"));
 
-  /** Watermark hold used for potential empty panes. */
-  @VisibleForTesting static final StateTag<WatermarkStateInternal> PANE_HOLD_TAG =
-      StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal("pane-hold"));
-
   private final WindowingStrategy<?, W> windowingStrategy;
 
   public WatermarkHold(WindowingStrategy<?, W> windowingStrategy) {
@@ -77,42 +73,39 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * <p> The output timestamp is the minimum of getOutputTimestamp applied to the non-late elements
    * that arrived in the current pane.
    */
-  public StateContents<WatermarkInfo> extractAndRelease(final ReduceFn<?, ?, ?, W>.Context c) {
+  public StateContents<Instant> extractAndRelease(final ReduceFn<?, ?, ?, W>.Context c) {
     final WatermarkStateInternal dataHold = c.state().accessAcrossMergedWindows(DATA_HOLD_TAG);
     final StateContents<Instant> holdFuture = dataHold.get();
-    return new StateContents<WatermarkInfo>() {
+    return new StateContents<Instant>() {
       @Override
-      public WatermarkInfo read() {
+      public Instant read() {
         Instant hold = holdFuture.read();
-        boolean nonEmpty = true;
-        if (hold == null) {
-          nonEmpty = false;
-          hold = c.window().maxTimestamp();
-        } else if (hold.isAfter(c.window().maxTimestamp())) {
+        if (hold == null || hold.isAfter(c.window().maxTimestamp())) {
           hold = c.window().maxTimestamp();
         }
 
         // Clear the bag (to release the watermark)
         dataHold.clear();
 
-        return new WatermarkInfo(hold, nonEmpty);
+        return hold;
       }
     };
   }
 
   public void holdForOnTime(final ReduceFn<?, ?, ?, W>.Context c) {
-    c.state().access(PANE_HOLD_TAG).add(c.window().maxTimestamp());
+    c.state().accessAcrossMergedWindows(DATA_HOLD_TAG).add(c.window().maxTimestamp());
   }
 
   public void holdForFinal(final ReduceFn<?, ?, ?, W>.Context c) {
     if (c.windowingStrategy().getClosingBehavior() == ClosingBehavior.FIRE_ALWAYS) {
-      c.state().access(PANE_HOLD_TAG)
+      c.state().accessAcrossMergedWindows(DATA_HOLD_TAG)
            .add(c.window().maxTimestamp().plus(c.windowingStrategy().getAllowedLateness()));
     }
   }
 
   public void releaseOnTime(final ReduceFn<?, ?, ?, W>.Context c) {
-    c.state().access(PANE_HOLD_TAG).clear();
+    c.state().accessAcrossMergedWindows(DATA_HOLD_TAG).clear();
+
     if (c.windowingStrategy().getClosingBehavior() == ClosingBehavior.FIRE_ALWAYS
         && c.windowingStrategy().getAllowedLateness().isLongerThan(Duration.ZERO)) {
       holdForFinal(c);
@@ -120,27 +113,6 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
   }
 
   public void releaseFinal(final ReduceFn<?, ?, ?, W>.Context c) {
-    c.state().access(PANE_HOLD_TAG).clear();
-  }
-
-  /**
-   * Information retrieved from the watermark hold.
-   */
-  public static class WatermarkInfo {
-    private final Instant outputTimestamp;
-    private final boolean nonEmpty;
-
-    public WatermarkInfo(Instant outputTimestamp, boolean nonEmpty) {
-      this.outputTimestamp = outputTimestamp;
-      this.nonEmpty = nonEmpty;
-    }
-
-    public Instant getOutputTimestamp() {
-      return outputTimestamp;
-    }
-
-    public boolean isNonEmpty() {
-      return nonEmpty;
-    }
+    c.state().accessAcrossMergedWindows(DATA_HOLD_TAG).clear();
   }
 }

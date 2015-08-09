@@ -683,9 +683,7 @@ public class StreamingDataflowWorkerTest {
     String window = "/gAAAAAAAA-joBw/";
     ByteString timerTag = ByteString.copyFromUtf8(window + "+0:999"); // GC timer just has window
     ByteString bufferTag = ByteString.copyFromUtf8(window + "+sbuf");
-    ByteString finishedTag = ByteString.copyFromUtf8(window + "+sclosed");
     ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+spane");
-    ByteString paneHoldTag = ByteString.copyFromUtf8(window + "+spane-hold");
     ByteString watermarkHoldTag =
         ByteString.copyFromUtf8(window + "+shold");
     String stateFamily = "MergeWindows";
@@ -714,16 +712,11 @@ public class StreamingDataflowWorkerTest {
                 .build())
             .build())));
 
-    assertThat(actualOutput.getWatermarkHoldsList(), Matchers.containsInAnyOrder(
+    assertThat(actualOutput.getWatermarkHoldsList(), Matchers.contains(
         Matchers.equalTo(Windmill.WatermarkHold.newBuilder()
             .setTag(watermarkHoldTag)
             .setStateFamily(stateFamily)
             .addTimestamps(0)
-            .build()),
-        Matchers.equalTo(Windmill.WatermarkHold.newBuilder()
-            .setTag(paneHoldTag)
-            .setStateFamily(stateFamily)
-            .addTimestamps(999000 /* end of the window */)
             .build())));
 
     Windmill.GetWorkResponse.Builder getWorkResponse = Windmill.GetWorkResponse.newBuilder();
@@ -766,16 +759,6 @@ public class StreamingDataflowWorkerTest {
     dataBuilder.clearLists();
     dataBuilder.clearWatermarkHolds();
     dataBuilder.clearValues();
-    dataBuilder.addValuesBuilder()
-        .setTag(finishedTag)
-        .setStateFamily(stateFamily)
-        .getValueBuilder()
-        .setTimestamp(0)
-        .setData(ByteString.EMPTY);
-    dataBuilder.addWatermarkHoldsBuilder()
-        .setTag(paneHoldTag)
-        .setStateFamily(stateFamily)
-        .addTimestamps(999000);
     server.addDataToOffer(dataResponse.build());
 
     result = server.waitForAndGetCommits(1);
@@ -800,18 +783,12 @@ public class StreamingDataflowWorkerTest {
 
     // Data was deleted
     assertThat("" + actualOutput.getValueUpdatesList(),
-        actualOutput.getValueUpdatesList(), Matchers.containsInAnyOrder(
+        actualOutput.getValueUpdatesList(), Matchers.contains(
             Matchers.equalTo(Windmill.TagValue.newBuilder()
                 .setTag(paneInfoTag)
                 .setStateFamily(stateFamily)
                 .setValue(Windmill.Value.newBuilder()
                      .setTimestamp(Long.MAX_VALUE).setData(ByteString.EMPTY))
-                .build()),
-            Matchers.equalTo(Windmill.TagValue.newBuilder()
-                .setTag(finishedTag)
-                .setStateFamily(stateFamily)
-                .setValue(Windmill.Value.newBuilder()
-                    .setTimestamp(Long.MAX_VALUE).setData(ByteString.EMPTY))
                 .build())));
 
     assertThat("" + actualOutput.getListUpdatesList(),
@@ -822,14 +799,9 @@ public class StreamingDataflowWorkerTest {
             .setEndTimestamp(Long.MAX_VALUE)
             .build())));
 
-    assertThat(actualOutput.getWatermarkHoldsList(), Matchers.containsInAnyOrder(
+    assertThat(actualOutput.getWatermarkHoldsList(), Matchers.contains(
         Matchers.equalTo(Windmill.WatermarkHold.newBuilder()
             .setTag(watermarkHoldTag)
-            .setStateFamily(stateFamily)
-            .setReset(true)
-            .build()),
-        Matchers.equalTo(Windmill.WatermarkHold.newBuilder()
-            .setTag(paneHoldTag)
             .setStateFamily(stateFamily)
             .setReset(true)
             .build())));
