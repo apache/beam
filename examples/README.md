@@ -160,7 +160,7 @@ After building and installing the `SDK` and `Examples` modules, as explained in 
 you can execute the `WordCount` and other example pipelines using the
 `DirectPipelineRunner` on your local machine:
 
-    mvn exec:java -pl examples \
+    mvn compile exec:java -pl examples \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
     -Dexec.args="--inputFile=<INPUT FILE PATTERN> --output=<OUTPUT FILE>"
 
@@ -172,15 +172,15 @@ You should have a Google Cloud Platform project that has a Cloud Dataflow API en
 a Google Cloud Storage bucket that will serve as a staging location, and installed and
 authenticated Google Cloud SDK. In this case, invoke the example as follows:
 
-    mvn exec:java -pl examples \
+    mvn compile exec:java -pl examples \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
-    -Dexec.args="--project=<YOUR CLOUD PLATFORM PROJECT NAME> \
+    -Dexec.args="--project=<YOUR CLOUD PLATFORM PROJECT ID> \
     --stagingLocation=<YOUR CLOUD STORAGE LOCATION> \
     --runner=BlockingDataflowPipelineRunner"
 
 Your Cloud Storage location should be entered in the form of
 `gs://bucket/path/to/staging/directory`. The Cloud Platform project refers to
-its name (not number).
+your project id (not the project number or the descriptive name).
 
 Alternatively, you may choose to bundle all dependencies into a single JAR and
 execute it outside of the Maven environment. For example, after building and
@@ -196,7 +196,7 @@ Platform:
 
     java -cp examples/target/google-cloud-dataflow-java-examples-all-bundled-manual_build.jar \
     com.google.cloud.dataflow.examples.WordCount \
-    --project=<YOUR CLOUD PLATFORM PROJECT NAME> \
+    --project=<YOUR CLOUD PLATFORM PROJECT ID> \
     --stagingLocation=<YOUR CLOUD STORAGE LOCATION> \
     --runner=BlockingDataflowPipelineRunner
 
@@ -218,9 +218,9 @@ publication of *traffic sensor* data to a
 [Google Cloud Pub/Sub](https://cloud.google.com/pubsub/docs) topic.
 You can run the example with default settings using the following command:
 
-    mvn exec:java -pl examples \
+    mvn compile exec:java -pl examples \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.complete.TrafficMaxLaneFlow \
-    -Dexec.args="--project=<YOUR CLOUD PLATFORM PROJECT NAME> \
+    -Dexec.args="--project=<YOUR CLOUD PLATFORM PROJECT ID> \
     --stagingLocation=<YOUR CLOUD STORAGE LOCATION> \
     --runner=DataflowPipelineRunner \
     --streaming=true"
