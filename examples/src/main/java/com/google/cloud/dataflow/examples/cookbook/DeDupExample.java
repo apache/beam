@@ -32,7 +32,8 @@ import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
  * duplicate lines across all the files. (The output does not preserve any input order).
  *
  * <p> Concepts: the RemoveDuplicates transform, and how to wire transforms together.
- * Demonstrates {@link TextIO.Read}/{@link RemoveDuplicates}/{@link TextIO.Write}.
+ * Demonstrates {@link com.google.cloud.dataflow.sdk.io.TextIO.Read}/
+ * {@link RemoveDuplicates}/{@link com.google.cloud.dataflow.sdk.io.TextIO.Write}.
  *
  * <p> To execute this pipeline locally, specify general pipeline configuration:
  *   --project=YOUR_PROJECT_ID
