@@ -4,18 +4,67 @@ The examples included in this module serve to demonstrate the basic
 functionality of Google Cloud Dataflow, and act as starting points for
 the development of more complex pipelines.
 
-A good starting point for new users is our [`WordCount`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/WordCount.java)
-example, which runs over the provided input text file(s) and computes how many
-times each word occurs in the input.
+In addition to `WordCount`, further examples are included. They are organized into "Cookbook"
+and "Complete" subpackages. The "cookbook" examples show how to define common data analysis patterns
+when you're building a Dataflow pipeline. The "complete" directory contains some end-to-end examples
+that tell more complete stories than the patterns in the "cookbook" directory.
 
-Besides `WordCount`, the following examples are included:
+
+## WordCount
+
+A good starting point for new users is our set of Word Count examples in the top-level
+[examples directory](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples).
+The canonical 'word count' task runs over input text file(s) and computes how many times
+each word occurs in the input.  These examples, and an accompanying
+[walkthrough](https://cloud.google.com/dataflow/examples/wordcount-example), demonstrate a series of
+four successively more detailed word count example pipelines that perform this task.
+
+The
+[MinimalWordCount](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/MinimalWordCount.java)
+example shows a basic word count [Pipeline](https://cloud.google.com/dataflow/model/pipelines),
+and introduces how to [read](https://cloud.google.com/dataflow/model/reading-and-writing-data)
+from text files; shows how to
+[Count](https://cloud.google.com/dataflow/model/library-transforms) a
+[Pcollection](https://cloud.google.com/dataflow/model/pcollection); basic use of a
+[ParDo](https://cloud.google.com/dataflow/model/par-do); and how to write data to Google Cloud
+Storage as text files.
+
+The
+[WordCount](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/WordCount.java)
+example shows how to execute a Pipeline both locally and using the Dataflow service; how to use
+command-line arguments to set pipeline options; and introduces some pipeline design concepts:
+creating custom [PTransforms](https://cloud.google.com/dataflow/model/composite-transforms)
+(composite transforms); and using [ParDo](https://cloud.google.com/dataflow/model/par-do) with
+static
+[DoFns](https://cloud.google.com/dataflow/java-sdk/JavaDoc/com/google/cloud/dataflow/sdk/transforms/DoFn)
+defined out-of-line.
+
+The
+[DebuggingWordCount](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/DebuggingWordCount.java)
+example shows how to
+[log to Cloud Logging](https://cloud.google.com/dataflow/pipelines/logging), so that your log
+messages can be viewed from the Dataflow Monitoring UI; controlling Dataflow worker log levels;
+creating a
+[custom aggregator](https://cloud.google.com/dataflow/java-sdk/JavaDoc/com/google/cloud/dataflow/sdk/transforms/Aggregator);
+and testing your Pipeline via
+[DataflowAssert](https://cloud.google.com/dataflow/java-sdk/JavaDoc/com/google/cloud/dataflow/sdk/testing/DataflowAssert).
+
+
+Then, the
+[WindowedWordCount](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/WindowedWordCount.java)
+example shows how to run over either unbounded or bounded input collections; how to use a
+[PubSub](https://cloud.google.com/pubsub) topic as an
+[input source](https://cloud.google.com/dataflow/model/reading-and-writing-data#PubsubIO); how
+to do [windowing](https://cloud.google.com/dataflow/model/windowing), and use data element
+timestamps; and how to write to BigQuery.
+
+
+## 'Cookbook' examples
+
+The ['Cookbook'](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook)
+directory, which shows common and useful patterns, includes the following examples:
 
  <ul>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/AutoComplete.java">AutoComplete</a>
-  &mdash; An example that computes the most popular hash tags for every
-  prefix, which can be used for auto-completion. Demonstrates how to use the
-  same pipeline in both streaming and batch, combiners, and composite
-  transforms.</li>
   <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/BigQueryTornadoes.java">BigQueryTornadoes</a>
   &mdash; An example that reads the public samples of weather data from Google
   BigQuery, counts the number of tornadoes that occur in each month, and
@@ -24,11 +73,10 @@ Besides `WordCount`, the following examples are included:
   <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/CombinePerKeyExamples.java">CombinePerKeyExamples</a>
   &mdash; An example that reads the public &quot;Shakespeare&quot; data, and for
   each word in the dataset that exceeds a given length, generates a string
-  containing the list of play names in which that word appears. Output is saved
-  in a Google BigQuery table. Demonstrates the <code>Combine.perKey</code>
+  containing the list of play names in which that word appears.
+  Demonstrates the <code>Combine.perKey</code>
   transform, which lets you combine the values in a key-grouped
-  <code>PCollection</code>; also how to use an <code>Aggregator</code> to track
-  information in the Google Developers Console.
+  <code>PCollection</code>.
   </li>
   <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/DatastoreWordCount.java">DatastoreWordCount</a>
   &mdash; An example that shows you how to read from Google Cloud Datastore.</li>
@@ -59,11 +107,22 @@ Besides `WordCount`, the following examples are included:
   Demonstrates the <code>Max</code> statistical combination transform, and how to
   find the max-per-key group.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/PubsubFileInjector.java">PubsubFileInjector</a>
-  &mdash; A batch Cloud Dataflow pipeline for injecting a set of Cloud Storage
-  files into a Google Cloud Pub/Sub topic, line by line. This example can be
-  useful for testing streaming pipelines.
-  </li>
+  </ul>
+
+## 'Complete' examples
+
+The
+['Complete'](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete)
+directory contains examples that tell more complete end-to-end stories, and are more like the
+actual pipelines that you would build than are the 'cookbook' examples.  It includes the
+following examples:
+
+<ul>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/AutoComplete.java">AutoComplete</a>
+  &mdash; An example that computes the most popular hash tags for every
+  prefix, which can be used for auto-completion. Demonstrates how to use the
+  same pipeline in both streaming and batch, combiners, and composite
+  transforms.</li>
   <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/StreamingWordExtract.java">StreamingWordExtract</a>
   &mdash; A streaming pipeline example that inputs lines of text from a Cloud
   Pub/Sub topic, splits each line into individual words, capitalizes those
@@ -91,10 +150,6 @@ Besides `WordCount`, the following examples are included:
   <code>traffic sensor</code> domain. Demonstrates the Cloud Dataflow streaming
   runner, <code>GroupByKey</code>, keyed state, sliding windows, and Cloud
   Pub/Sub topic ingestion.
-  </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/WindowedWordCount.java">WindowedWordCount</a>
-  &mdash; An example that applies windowing to &quot;Shakespeare&quot; data in a
-  `WordCount` pipeline.
   </li>
   </ul>
 
@@ -145,8 +200,8 @@ Platform:
     --stagingLocation=<YOUR CLOUD STORAGE LOCATION> \
     --runner=BlockingDataflowPipelineRunner
 
-Other examples can be run similarly by replacing the `WordCount` class name with
-`BigQueryTornadoes`, `DatastoreWordCount`, `TfIdf`, `TopWikipediaSessions`, etc.
+Other examples can be run similarly by replacing the `WordCount` class path with the example classpath, e.g.
+`com.google.cloud.dataflow.examples.cookbook.BigQueryTornadoes`,
 and adjusting runtime options under the `Dexec.args` parameter, as specified in
 the example itself. If you are running the streaming pipeline examples, see the
 additional setup instruction, below.
@@ -164,7 +219,7 @@ publication of *traffic sensor* data to a
 You can run the example with default settings using the following command:
 
     mvn exec:java -pl examples \
-    -Dexec.mainClass=com.google.cloud.dataflow.examples.TrafficMaxLaneFlow \
+    -Dexec.mainClass=com.google.cloud.dataflow.examples.complete.TrafficMaxLaneFlow \
     -Dexec.args="--project=<YOUR CLOUD PLATFORM PROJECT NAME> \
     --stagingLocation=<YOUR CLOUD STORAGE LOCATION> \
     --runner=DataflowPipelineRunner \
@@ -183,7 +238,7 @@ This file contains real traffic sensor data from San Diego freeways. See
 <a href="http://storage.googleapis.com/aju-sd-traffic/freeway_detector_config/Freeways-Metadata-2010_01_01/copyright(san%20diego).txt">this file</a>
 for copyright information.
 
-You may override the default `--inputFile` with an alternative complete
+You may override the default `--inputFile` with an alternative larger
 data set (~2GB). It is provided in the Google Cloud Storage bucket
 `gs://dataflow-samples/traffic_sensor/Freeways-5Minaa2010-01-01_to_2010-02-15.csv`.
 
