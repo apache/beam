@@ -6,20 +6,27 @@ processing pipelines. This repository hosts the open-sourced Cloud Dataflow SDK
 for Java, which can be used to run pipelines against the Google Cloud Dataflow
 Service.
 
-The contents of this repository are also available as released artifacts in the
-[Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.google.cloud.dataflow%22).
-You can bypass this GitHub repository and depend directly on the released
-artifacts from Maven Central by adding the following dependency to development
+[General usage](https://cloud.google.com/dataflow/getting-started) of Google
+Cloud Dataflow does **not** require use of this repository. Instead:
+
+1. depend directly on a specific
+[version](https://cloud.google.com/dataflow/release-notes/java) of the SDK in the
+[Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.google.cloud.dataflow%22) 
+by adding the following dependency to development
 environments like Eclipse or Apache Maven:
 
-    <dependency>
-      <groupId>com.google.cloud.dataflow</groupId>
-      <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-      <version>version_number</version>
-    </dependency>
+        <dependency>
+          <groupId>com.google.cloud.dataflow</groupId>
+          <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
+          <version>version_number</version>
+        </dependency>
 
-Please replace `version_number` with one of the supported versions from our
-[Release Notes](https://cloud.google.com/dataflow/release-notes/java).
+1. download the example pipelines from the separate
+[DataflowJavaSDK-examples](https://github.com/GoogleCloudPlatform/DataflowJavaSDK-examples)
+repository.
+
+However, if you'd like to contribute to the SDK, write your own PipelineRunner,
+or just dig in for the fun of it, please stay with us here!
 
 ## Status [![Build Status](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK.svg?branch=master)](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK)
 

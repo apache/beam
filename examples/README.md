@@ -188,7 +188,7 @@ installing as usual, you can execute the following commands to create the
 bundled JAR of the `Examples` module and execute it both locally and in Cloud
 Platform:
 
-    mvn bundle:bundle -pl examples
+    mvn package
 
     java -cp examples/target/google-cloud-dataflow-java-examples-all-bundled-manual_build.jar \
     com.google.cloud.dataflow.examples.WordCount \
@@ -210,45 +210,3 @@ Note that when running Maven on Microsoft Windows platform, backslashes (`\`)
 under the `Dexec.args` parameter should be escaped with another backslash. For
 example, input file pattern of `c:\*.txt` should be entered as `c:\\*.txt`.
 
-### Running the "Traffic" Streaming Examples
-
-The `TrafficMaxLaneFlow` and `TrafficRoutes` pipelines, when run in
-streaming mode (with the `--streaming=true` option), require the
-publication of *traffic sensor* data to a
-[Google Cloud Pub/Sub](https://cloud.google.com/pubsub/docs) topic.
-You can run the example with default settings using the following command:
-
-    mvn compile exec:java -pl examples \
-    -Dexec.mainClass=com.google.cloud.dataflow.examples.complete.TrafficMaxLaneFlow \
-    -Dexec.args="--project=<YOUR CLOUD PLATFORM PROJECT ID> \
-    --stagingLocation=<YOUR CLOUD STORAGE LOCATION> \
-    --runner=DataflowPipelineRunner \
-    --streaming=true"
-
-By default, they use a separate batch pipeline to publish previously gathered
-traffic sensor data to the Cloud Pub/Sub topic, which is used as an input source
-for the streaming pipeline.
-
-The default traffic sensor data `--inputFile` is downloaded from
-
-    curl -O \
-    http://storage.googleapis.com/aju-sd-traffic/unzipped/Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv
-
-This file contains real traffic sensor data from San Diego freeways. See
-<a href="http://storage.googleapis.com/aju-sd-traffic/freeway_detector_config/Freeways-Metadata-2010_01_01/copyright(san%20diego).txt">this file</a>
-for copyright information.
-
-You may override the default `--inputFile` with an alternative larger
-data set (~2GB). It is provided in the Google Cloud Storage bucket
-`gs://dataflow-samples/traffic_sensor/Freeways-5Minaa2010-01-01_to_2010-02-15.csv`.
-
-You may also set `--inputFile` to an empty string, which will disable
-the automatic Pub/Sub injection, and allow you to use separate tool to control
-the input to this example. An example code, which publishes traffic sensor data
-to a Pub/Sub topic, is provided in [`traffic_pubsub_generator.py`](https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher)
-
-**Note:** If you set `--streaming=false`, these traffic pipelines will run in batch mode,
-using the timestamps applied to the original dataset to process the data in
-a batch. For further information on how these pipelines operate, see
-<a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/TrafficMaxLaneFlow.java">TrafficMaxLaneFlow</a>
-and <a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/TrafficRoutes.java">TrafficRoutes</a>.
