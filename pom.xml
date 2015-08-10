@@ -64,6 +64,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <dataflow.javadoc_opts></dataflow.javadoc_opts>
   </properties>
 
   <packaging>pom</packaging>
