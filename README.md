@@ -11,7 +11,7 @@ Cloud Dataflow does **not** require use of this repository. Instead:
 
 1. depend directly on a specific
 [version](https://cloud.google.com/dataflow/release-notes/java) of the SDK in the
-[Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.google.cloud.dataflow%22) 
+[Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.google.cloud.dataflow%22)
 by adding the following dependency to development
 environments like Eclipse or Apache Maven:
 
