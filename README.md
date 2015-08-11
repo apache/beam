@@ -1,4 +1,4 @@
-# Google Cloud Dataflow SDK for Java (Beta)
+# Google Cloud Dataflow SDK for Java
 
 [Google Cloud Dataflow](https://cloud.google.com/dataflow/) provides a simple,
 powerful programming model for building both batch and streaming parallel data
@@ -10,8 +10,8 @@ Service.
 Cloud Dataflow does **not** require use of this repository. Instead:
 
 1. depend directly on a specific
-[version](https://cloud.google.com/dataflow/release-notes/java) of the SDK in the
-[Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.google.cloud.dataflow%22)
+[version](https://cloud.google.com/dataflow/release-notes/java) of the SDK in
+the [Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.google.cloud.dataflow%22)
 by adding the following dependency to development
 environments like Eclipse or Apache Maven:
 
@@ -30,17 +30,8 @@ or just dig in for the fun of it, please stay with us here!
 
 ## Status [![Build Status](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK.svg?branch=master)](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK)
 
-The SDK is publicly available as a Beta release, and might be changed in
-backward-incompatible ways.
-
-The Google Cloud Dataflow Service is also publicly available in Beta under the
-following conditions:
-
-* Your use of Google Cloud Dataflow is governed by the Google Cloud Platform
-  Terms of Service. The foregoing   notwithstanding, Google Cloud Dataflow is
-  currently in Beta release and might be changed in backward-incompatible ways.
-  It is not subject to any SLA or deprecation policy and is not recommended for
-  production use.
+Both the SDK and the Dataflow Service are generally available, open to all
+developers, and considered stable and fully qualified for production use.
 
 ## Overview
 
@@ -79,18 +70,20 @@ Additionally, you can run Dataflow pipelines on an
 
 ## Getting Started
 
-This repository consists of three parts:
+This repository consists of the following parts:
 
-* The [`SDK`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk)
+* The [`sdk`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk)
 module provides a set of basic Java APIs to program against.
-* The [`Examples`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples)
+* The [`examples`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples)
 module provides a few samples to get started. We recommend starting with the
 `WordCount` example.
-* The [`Contrib`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/contrib)
+* The [`eclipse`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/eclipse)
+directory contains the starter project for the Eclipse environment.
+* The [`contrib`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/contrib)
 directory hosts community-contributed Dataflow modules.
 
-The following command will build both modules and install them in your local
-Maven repository:
+The following command will build both the `sdk` and `example` modules and
+install them in your local Maven repository:
 
     mvn clean install
 
@@ -129,4 +122,4 @@ on GitHub to report any bugs, comments or questions regarding SDK development.
 
 * [Google Cloud Dataflow](https://cloud.google.com/dataflow/)
 * [Dataflow Concepts and Programming Model](https://cloud.google.com/dataflow/model/programming-model)
-* [Javadoc](https://cloud.google.com/dataflow/java-sdk/JavaDoc/index)
+* [Java API Reference](https://cloud.google.com/dataflow/java-sdk/JavaDoc/index)
