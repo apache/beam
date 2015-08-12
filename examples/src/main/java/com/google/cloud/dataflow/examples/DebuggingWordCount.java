@@ -62,12 +62,22 @@ import java.util.regex.Pattern;
  * }
  * </pre>
  *
- * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p> To execute this pipeline using the Dataflow service and the additional logging discussed
+ * below, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
+ *   --workerLogLevelOverrides={"com.google.cloud.dataflow.examples":"DEBUG"}
  * }
+ * </pre>
+ *
+ * <p> Note that when you run via <code>mvn exec</code>, you may need to escape
+ * the quotations as appropriate for your shell. For example, in <code>bash</code>:
+ * <pre>
+ * mvn compile exec:java ... \
+     -Dexec.args="... \
+       --workerLogLevelOverrides={\\\"com.google.cloud.dataflow.examples\\\":\\\"DEBUG\\\"}"
  * </pre>
  *
  * <p> Concept #2: Dataflow workers which execute user code are configured to log to Cloud
