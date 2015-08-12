@@ -76,8 +76,8 @@ import java.util.regex.Pattern;
  * the quotations as appropriate for your shell. For example, in <code>bash</code>:
  * <pre>
  * mvn compile exec:java ... \
-     -Dexec.args="... \
-       --workerLogLevelOverrides={\\\"com.google.cloud.dataflow.examples\\\":\\\"DEBUG\\\"}"
+ *   -Dexec.args="... \
+ *     --workerLogLevelOverrides={\\\"com.google.cloud.dataflow.examples\\\":\\\"DEBUG\\\"}"
  * </pre>
  *
  * <p> Concept #2: Dataflow workers which execute user code are configured to log to Cloud
