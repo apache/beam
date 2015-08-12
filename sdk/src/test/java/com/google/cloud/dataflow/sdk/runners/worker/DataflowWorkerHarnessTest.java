@@ -125,6 +125,26 @@ public class DataflowWorkerHarnessTest {
   }
 
   @Test
+  public void testNumberOfWorkerHarnessThreadsIsHonored() throws Exception {
+    final int expectedNumberOfThreads = 5;
+    pipelineOptions.setNumberOfWorkerHarnessThreads(expectedNumberOfThreads);
+
+    when(mockDataflowWorker.getAndPerformWork()).thenReturn(false);
+    DataflowWorkerHarness.processWork(
+        pipelineOptions,
+        mockDataflowWorker,
+        new Sleeper() {
+          @Override
+          public void sleep(long millis) throws InterruptedException {
+            throw new InterruptedException("Stopping the retry loop.");
+          }
+        });
+    // Verify that the number of requested worker harness threads is honored.
+    verify(mockDataflowWorker, times(expectedNumberOfThreads)).getAndPerformWork();
+    verifyNoMoreInteractions(mockDataflowWorker);
+  }
+
+  @Test
   public void testCreationOfWorkerHarness() throws Exception {
     assertNotNull(DataflowWorkerHarness.create(pipelineOptions));
     assertEquals(JOB_ID, DataflowWorkerLoggingMDC.getJobId());

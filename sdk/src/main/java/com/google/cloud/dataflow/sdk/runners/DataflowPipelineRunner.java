@@ -38,6 +38,7 @@ import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
@@ -220,6 +221,15 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     } else if (!project.matches(PROJECT_ID_REGEXP)) {
       throw new IllegalArgumentException("Project ID '" + project
           + "' invalid. Please make sure you specified the Project ID, not project description.");
+    }
+
+    DataflowPipelineDebugOptions debugOptions =
+        dataflowOptions.as(DataflowPipelineDebugOptions.class);
+    // Verify the number of worker threads is a valid value
+    if (debugOptions.getNumberOfWorkerHarnessThreads() < 0) {
+      throw new IllegalArgumentException("Number of worker harness threads '"
+          + debugOptions.getNumberOfWorkerHarnessThreads()
+          + "' invalid. Please make sure the value is non-negative.");
     }
 
     return new DataflowPipelineRunner(dataflowOptions);

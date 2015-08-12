@@ -170,7 +170,7 @@ public class DataflowWorkerHarness {
   // Visible for testing.
   static void processWork(DataflowWorkerHarnessOptions pipelineOptions,
       final DataflowWorker worker, Sleeper sleeper) throws InterruptedException {
-    int numThreads = Math.max(Runtime.getRuntime().availableProcessors(), 1);
+    int numThreads = chooseNumberOfThreads(pipelineOptions);
     ExecutorService executor = pipelineOptions.getExecutorService();
     final List<Callable<Boolean>> tasks = new LinkedList<>();
 
@@ -195,6 +195,13 @@ public class DataflowWorkerHarness {
 
     DataflowWorkUnitClient client = DataflowWorkUnitClient.fromOptions(options);
     return new DataflowWorker(client, options);
+  }
+
+  private static int chooseNumberOfThreads(DataflowWorkerHarnessOptions pipelineOptions) {
+    if (pipelineOptions.getNumberOfWorkerHarnessThreads() != 0) {
+      return pipelineOptions.getNumberOfWorkerHarnessThreads();
+    }
+    return Math.max(Runtime.getRuntime().availableProcessors(), 1);
   }
 
   /**

@@ -41,6 +41,7 @@ import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.AvroSource;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
@@ -586,6 +587,24 @@ public class DataflowPipelineRunnerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Project ID");
     thrown.expectMessage("project description");
+
+    DataflowPipelineRunner.fromOptions(options);
+  }
+
+  @Test
+  public void testInvalidNumberOfWorkerHarnessThreads() throws IOException {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setRunner(DataflowPipelineRunner.class);
+    options.setProject("foo-12345");
+
+    options.setStagingLocation("gs://spam/ham/eggs");
+    options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
+
+    options.as(DataflowPipelineDebugOptions.class).setNumberOfWorkerHarnessThreads(-1);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Number of worker harness threads");
+    thrown.expectMessage("Please make sure the value is non-negative.");
 
     DataflowPipelineRunner.fromOptions(options);
   }

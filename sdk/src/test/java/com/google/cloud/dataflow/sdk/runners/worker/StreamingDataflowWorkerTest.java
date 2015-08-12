@@ -25,6 +25,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.InstructionInput;
 import com.google.api.services.dataflow.model.InstructionOutput;
@@ -81,9 +82,13 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.model.Statement;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -93,7 +98,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(JUnit4.class)
@@ -139,6 +146,8 @@ public class StreamingDataflowWorkerTest {
   private static final String DEFAULT_KEY_STRING = "key";
   private static final String DEFAULT_DATA_STRING = "data";
   private static final String DEFAULT_DESTINATION_STREAM_ID = "out";
+
+  @Rule public BlockingFn blockingFn = new BlockingFn();
 
   private String keyStringForIndex(int index) {
     return DEFAULT_KEY_STRING + index;
@@ -378,24 +387,40 @@ public class StreamingDataflowWorkerTest {
     }
   }
 
-  static class BlockingFn extends DoFn<String, String> {
+  static class BlockingFn extends DoFn<String, String> implements TestRule {
     private static final long serialVersionUID = 0;
     public static CountDownLatch blocker = new CountDownLatch(1);
-    public static CountDownLatch counter = new CountDownLatch(4);
+    public static Semaphore counter = new Semaphore(0);
+    public static AtomicInteger callCounter = new AtomicInteger(0);
 
     @Override
     public void processElement(ProcessContext c) throws InterruptedException {
-      counter.countDown();
+      callCounter.incrementAndGet();
+      counter.release();
       blocker.await();
       c.output(c.element());
+    }
+
+    @Override
+    public Statement apply(final Statement base, final Description description) {
+      return new Statement() {
+        @Override
+        public void evaluate() throws Throwable {
+          blocker = new CountDownLatch(1);
+          counter = new Semaphore(0);
+          callCounter = new AtomicInteger();
+          base.evaluate();
+        }
+      };
     }
   }
 
   @Test
   public void testIgnoreRetriedKeys() throws Exception {
+    final int numIters = 4;
     List<ParallelInstruction> instructions = Arrays.asList(
         makeSourceInstruction(StringUtf8Coder.of()),
-        makeDoFnInstruction(new BlockingFn(), 0, StringUtf8Coder.of()),
+        makeDoFnInstruction(blockingFn, 0, StringUtf8Coder.of()),
         makeSinkInstruction(StringUtf8Coder.of(), 0));
 
     FakeWindmillServer server = new FakeWindmillServer();
@@ -408,13 +433,12 @@ public class StreamingDataflowWorkerTest {
     assertEquals(options.getJobId(), DataflowWorkerLoggingMDC.getJobId());
     assertEquals(options.getWorkerId(), DataflowWorkerLoggingMDC.getWorkerId());
 
-    final int numIters = 4;
     for (int i = 0; i < numIters; ++i) {
       server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
     }
 
     // Wait for keys to schedule.  They will be blocked.
-    BlockingFn.counter.await();
+    BlockingFn.counter.acquire(numIters);
 
     // Re-add the work, it should be ignored due to the keys being active.
     for (int i = 0; i < numIters; ++i) {
@@ -462,6 +486,40 @@ public class StreamingDataflowWorkerTest {
               keyStringForIndex(i), keyStringForIndex(i)).build(),
           stripCounters(result.get((long) i + numIters * 2)));
     }
+  }
+
+  @Test(timeout = 10000)
+  public void testNumberOfWorkerHarnessThreadsIsHonored() throws Exception {
+    int expectedNumberOfThreads = 5;
+    List<ParallelInstruction> instructions = Arrays.asList(
+        makeSourceInstruction(StringUtf8Coder.of()),
+        makeDoFnInstruction(blockingFn, 0, StringUtf8Coder.of()),
+        makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    FakeWindmillServer server = new FakeWindmillServer();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
+    options.setNumberOfWorkerHarnessThreads(expectedNumberOfThreads);
+
+    StreamingDataflowWorker worker =
+        new StreamingDataflowWorker(Arrays.asList(defaultMapTask(instructions)), server, options);
+    worker.start();
+
+    for (int i = 0; i < expectedNumberOfThreads * 2; ++i) {
+      server.addWorkToOffer(makeInput(i, TimeUnit.MILLISECONDS.toMicros(i)));
+    }
+
+    // This will fail to complete if the number of threads is less than the amount of work.
+    // Forcing this test to timeout.
+    BlockingFn.counter.acquire(expectedNumberOfThreads);
+
+    // Attempt to acquire an additional permit, if we were able to then that means
+    // too many items were being processed concurrently.
+    if (BlockingFn.counter.tryAcquire(500, TimeUnit.MILLISECONDS)) {
+      fail("Expected number of threads " + expectedNumberOfThreads + " does not match actual "
+          + "number of work items processed concurrently " + BlockingFn.callCounter.get() + ".");
+    }
+
+    BlockingFn.blocker.countDown();
   }
 
   static class ChangeKeysFn extends DoFn<KV<String, String>, KV<String, String>> {

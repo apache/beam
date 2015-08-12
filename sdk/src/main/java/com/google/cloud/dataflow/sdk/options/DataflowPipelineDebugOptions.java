@@ -198,6 +198,15 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setOverrideWindmillBinary(String value);
 
   /**
+   * Number of threads to use on the Dataflow worker harness. If left unspecified,
+   * the Dataflow service will compute an appropriate number of threads to use.
+   */
+  @Description("Number of threads to use on the Dataflow worker harness. If left unspecified, "
+      + "the Dataflow service will compute an appropriate number of threads to use.")
+  int getNumberOfWorkerHarnessThreads();
+  void setNumberOfWorkerHarnessThreads(int value);
+
+  /**
    * Creates a {@link PathValidator} object using the class specified in
    * {@link #getPathValidatorClass()}.
    */

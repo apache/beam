@@ -217,7 +217,7 @@ public class StreamingDataflowWorker {
         }
       };
     this.workUnitExecutor = new BoundedQueueExecutor(
-        MAX_PROCESSING_THREADS, THREAD_EXPIRATION_TIME_SEC, TimeUnit.SECONDS,
+        chooseMaximumNumberOfThreads(options), THREAD_EXPIRATION_TIME_SEC, TimeUnit.SECONDS,
         MAX_WORK_UNITS_QUEUED, threadFactory);
     this.commitExecutor =
         new ThreadPoolExecutor(
@@ -250,6 +250,13 @@ public class StreamingDataflowWorker {
 
     DataflowWorkerLoggingMDC.setJobId(options.getJobId());
     DataflowWorkerLoggingMDC.setWorkerId(options.getWorkerId());
+  }
+
+  private static int chooseMaximumNumberOfThreads(DataflowWorkerHarnessOptions pipelineOptions) {
+    if (pipelineOptions.getNumberOfWorkerHarnessThreads() != 0) {
+      return pipelineOptions.getNumberOfWorkerHarnessThreads();
+    }
+    return MAX_PROCESSING_THREADS;
   }
 
   void addStateNameMappings(Map<String, String> nameMap) {
@@ -869,7 +876,7 @@ public class StreamingDataflowWorker {
   private void printMetrics(PrintWriter response) {
     response.println("<h2>Metrics</h2>");
     response.println("Worker Threads: " + workUnitExecutor.getPoolSize()
-        + "/" + MAX_PROCESSING_THREADS + "<br>");
+        + "/" + workUnitExecutor.getMaximumPoolSize() + "<br>");
     response.println("Active Threads: " + workUnitExecutor.getActiveCount() + "<br>");
     response.println("Work Queue Size: " + workUnitExecutor.getQueue().size()
         + "/" + MAX_WORK_UNITS_QUEUED + "<br>");

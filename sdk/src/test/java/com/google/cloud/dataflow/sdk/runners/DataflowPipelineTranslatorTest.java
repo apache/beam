@@ -175,6 +175,7 @@ public class DataflowPipelineTranslatorTest {
           .put("stagingLocation", "gs://somebucket/some/path/staging")
           .put("stableUniqueNames", "WARNING")
           .put("streaming", false)
+          .put("numberOfWorkerHarnessThreads", 0)
           .build()),
         job.getEnvironment().getSdkPipelineOptions());
   }
