@@ -212,7 +212,7 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
           try {
             doFn.processElement(SparkProcessContext.this);
           } catch (Exception e) {
-            throw new IllegalStateException(e);
+            throw new SparkProcessException(e);
           }
           outputIterator = getOutputIterator();
         } else {
@@ -223,7 +223,7 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
               calledFinish = true;
               doFn.finishBundle(SparkProcessContext.this);
             } catch (Exception e) {
-              throw new IllegalStateException(e);
+              throw new SparkProcessException(e);
             }
             outputIterator = getOutputIterator();
             continue; // try to consume outputIterator from start of loop
@@ -231,6 +231,12 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
           return endOfData();
         }
       }
+    }
+  }
+
+  static class SparkProcessException extends RuntimeException {
+    public SparkProcessException(Throwable t) {
+      super(t);
     }
   }
 

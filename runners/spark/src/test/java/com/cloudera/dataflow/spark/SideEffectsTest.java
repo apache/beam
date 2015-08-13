@@ -20,14 +20,21 @@ import com.google.cloud.dataflow.sdk.coders.StringDelegateCoder;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.values.PCollection;
 import java.io.Serializable;
 import java.net.URI;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class SideEffectsTest implements Serializable {
+
+  static class UserException extends RuntimeException {
+  }
+
   @Test
   public void test() throws Exception {
     SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
@@ -36,19 +43,35 @@ public class SideEffectsTest implements Serializable {
 
     pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 
-    PCollection<String> strings = pipeline.apply(Create.of("a"));
-    strings.apply(ParDo.of(new DoFn<String, String>() {
+    pipeline.apply(Create.of("a")).apply(ParDo.of(new DoFn<String, String>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
-        throw new IllegalStateException("Side effect");
+        throw new UserException();
       }
     }));
 
     try {
       pipeline.run();
       fail("Run should thrown an exception");
-    } catch (Exception e) {
-      // expected
+    } catch (RuntimeException e) {
+      assertNotNull(e.getCause());
+
+      // TODO: remove the version check (and the setup and teardown methods) when we no
+      // longer support Spark 1.3 or 1.4
+      String version = SparkContextFactory.getSparkContext(options.getSparkMaster()).version();
+      if (!version.startsWith("1.3.") && !version.startsWith("1.4.")) {
+        assertTrue(e.getCause() instanceof UserException);
+      }
     }
+  }
+
+  @Before
+  public void setup() {
+    System.setProperty(SparkContextFactory.TEST_REUSE_SPARK_CONTEXT, "true");
+  }
+
+  @After
+  public void teardown() {
+    System.setProperty(SparkContextFactory.TEST_REUSE_SPARK_CONTEXT, "false");
   }
 }

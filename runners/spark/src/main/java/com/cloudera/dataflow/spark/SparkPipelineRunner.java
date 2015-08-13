@@ -115,10 +115,18 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
 
       return ctxt;
     } catch (Exception e) {
-      // if the SparkException has a cause then wrap it in a RuntimeException
-      // (see https://issues.apache.org/jira/browse/SPARK-8625)
+      // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
+      // won't let you catch something that is not declared, so we can't catch
+      // SparkException here. Instead we do an instanceof check.
+      // Then we find the cause by seeing if it's a user exception (wrapped by our
+      // SparkProcessException), or just use the SparkException cause.
       if (e instanceof SparkException && e.getCause() != null) {
-        throw new RuntimeException(e.getCause());
+        if (e.getCause() instanceof SparkProcessContext.SparkProcessException &&
+            e.getCause().getCause() != null) {
+          throw new RuntimeException(e.getCause().getCause());
+        } else {
+          throw new RuntimeException(e.getCause());
+        }
       }
       // otherwise just wrap in a RuntimeException
       throw new RuntimeException(e);
