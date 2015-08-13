@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -51,7 +52,6 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
 import com.google.cloud.dataflow.sdk.util.GcsUtil;
 import com.google.cloud.dataflow.sdk.util.NoopPathValidator;
-import com.google.cloud.dataflow.sdk.util.PackageUtil;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
@@ -286,12 +286,7 @@ public class DataflowPipelineRunnerTest {
     File temp2 = File.createTempFile("DataflowPipelineRunnerTest2", "txt");
     temp2.deleteOnExit();
 
-    DataflowPackage expectedPackage1 = PackageUtil.createPackage(
-        temp1, gcsStaging, null);
-
     String overridePackageName = "alias.txt";
-    DataflowPackage expectedPackage2 = PackageUtil.createPackage(
-        temp2, gcsStaging, overridePackageName);
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
@@ -320,12 +315,10 @@ public class DataflowPipelineRunnerTest {
         workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().size());
     DataflowPackage workflowPackage1 =
         workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().get(0);
-    assertEquals(expectedPackage1.getName(), workflowPackage1.getName());
-    assertEquals(expectedPackage1.getLocation(), workflowPackage1.getLocation());
+    assertThat(workflowPackage1.getName(), startsWith(temp1.getName()));
     DataflowPackage workflowPackage2 =
         workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().get(1);
-    assertEquals(expectedPackage2.getName(), workflowPackage2.getName());
-    assertEquals(expectedPackage2.getLocation(), workflowPackage2.getLocation());
+    assertEquals(overridePackageName, workflowPackage2.getName());
 
     assertEquals(
         "storage.googleapis.com/somebucket/some/temp/path",

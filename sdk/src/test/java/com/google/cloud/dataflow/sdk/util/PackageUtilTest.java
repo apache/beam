@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -50,6 +50,7 @@ import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
+import com.google.cloud.dataflow.sdk.util.PackageUtil.PackageAttributes;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -106,15 +107,18 @@ public class PackageUtilTest {
   @Test
   public void testPackageNamingWithFileHavingExtension() throws Exception {
     File tmpFile = tmpFolder.newFile("file.txt");
-    Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
+    String contents = "This is a test!";
+    Files.write(contents, tmpFile, StandardCharsets.UTF_8);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
-    DataflowPackage target =
-        PackageUtil.createPackage(tmpFile, gcsStaging.toString(), null);
+    PackageAttributes attr =
+        PackageUtil.createPackageAttributes(tmpFile, gcsStaging.toString(), null);
+    DataflowPackage target = attr.getDataflowPackage();
 
-    assertEquals("file-SAzzqSB2zmoIgNHC9A2G0A.txt", target.getName());
-    assertEquals("gs://somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A.txt",
+    assertEquals("file-cC7coLIYHBXUV-rKw53jmw.txt", target.getName());
+    assertEquals("gs://somebucket/base/path/file-cC7coLIYHBXUV-rKw53jmw.txt",
         target.getLocation());
+    assertEquals(contents.length(), attr.getSize());
   }
 
   @Test
@@ -123,12 +127,12 @@ public class PackageUtilTest {
     Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
-    DataflowPackage target =
-        PackageUtil.createPackage(tmpFile, gcsStaging.toString(), null);
+    PackageAttributes target =
+        PackageUtil.createPackageAttributes(tmpFile, gcsStaging.toString(), null);
 
-    assertEquals("file-SAzzqSB2zmoIgNHC9A2G0A", target.getName());
-    assertEquals("gs://somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A",
-        target.getLocation());
+    assertEquals("file-cC7coLIYHBXUV-rKw53jmw", target.getDataflowPackage().getName());
+    assertEquals("gs://somebucket/base/path/file-cC7coLIYHBXUV-rKw53jmw",
+        target.getDataflowPackage().getLocation());
   }
 
   @Test
@@ -136,14 +140,17 @@ public class PackageUtilTest {
     File tmpDirectory = tmpFolder.newFolder("folder");
     File tmpFile = tmpFolder.newFile("folder/file.txt");
     Files.write("This is a test!", tmpFile, StandardCharsets.UTF_8);
+    tmpFile.setLastModified(0);
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
-    DataflowPackage target =
-        PackageUtil.createPackage(tmpDirectory, gcsStaging.toString(), null);
+    PackageAttributes attr =
+        PackageUtil.createPackageAttributes(tmpDirectory, gcsStaging.toString(), null);
+    DataflowPackage target = attr.getDataflowPackage();
 
-    assertEquals("folder-9MHI5fxducQ06t3IG9MC-g.zip", target.getName());
-    assertEquals("gs://somebucket/base/path/folder-9MHI5fxducQ06t3IG9MC-g.zip",
+    assertEquals("folder-5n8NFLL1nYzz4BJ5C4t3rA.zip", target.getName());
+    assertEquals("gs://somebucket/base/path/folder-5n8NFLL1nYzz4BJ5C4t3rA.zip",
                  target.getLocation());
+    assertEquals(145L, attr.getSize());
   }
 
   @Test
@@ -160,13 +167,15 @@ public class PackageUtilTest {
 
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
-    DataflowPackage target1 =
-        PackageUtil.createPackage(tmpDirectory1, gcsStaging.toString(), null);
-    DataflowPackage target2 =
-        PackageUtil.createPackage(tmpDirectory2, gcsStaging.toString(), null);
+    PackageAttributes target1 =
+        PackageUtil.createPackageAttributes(tmpDirectory1, gcsStaging.toString(), null);
+    PackageAttributes target2 =
+        PackageUtil.createPackageAttributes(tmpDirectory2, gcsStaging.toString(), null);
 
-    assertFalse(target1.getName().equals(target2.getName()));
-    assertFalse(target1.getLocation().equals(target2.getLocation()));
+    assertNotEquals(target1.getDataflowPackage().getName(),
+        target2.getDataflowPackage().getName());
+    assertNotEquals(target1.getDataflowPackage().getLocation(),
+        target2.getDataflowPackage().getLocation());
   }
 
   @Test
@@ -182,13 +191,15 @@ public class PackageUtilTest {
 
     GcsPath gcsStaging = GcsPath.fromComponents("somebucket", "base/path");
 
-    DataflowPackage target1 =
-        PackageUtil.createPackage(tmpDirectory1, gcsStaging.toString(), null);
-    DataflowPackage target2 =
-        PackageUtil.createPackage(tmpDirectory2, gcsStaging.toString(), null);
+    PackageAttributes target1 =
+        PackageUtil.createPackageAttributes(tmpDirectory1, gcsStaging.toString(), null);
+    PackageAttributes target2 =
+        PackageUtil.createPackageAttributes(tmpDirectory2, gcsStaging.toString(), null);
 
-    assertFalse(target1.getName().equals(target2.getName()));
-    assertFalse(target1.getLocation().equals(target2.getLocation()));
+    assertNotEquals(target1.getDataflowPackage().getName(),
+        target2.getDataflowPackage().getName());
+    assertNotEquals(target1.getDataflowPackage().getLocation(),
+        target2.getDataflowPackage().getLocation());
   }
 
   @Test
@@ -228,8 +239,8 @@ public class PackageUtilTest {
     verify(mockGcsUtil).create(any(GcsPath.class), anyString());
     verifyNoMoreInteractions(mockGcsUtil);
 
-    assertEquals("file-SAzzqSB2zmoIgNHC9A2G0A.txt", target.getName());
-    assertEquals("gs://somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A.txt",
+    assertEquals("file-cC7coLIYHBXUV-rKw53jmw.txt", target.getName());
+    assertEquals("gs://somebucket/base/path/file-cC7coLIYHBXUV-rKw53jmw.txt",
         target.getLocation());
     assertEquals("This is a test!",
         new LineReader(Channels.newReader(pipe.source(), "UTF-8")).readLine());
@@ -287,8 +298,8 @@ public class PackageUtilTest {
     verify(mockGcsUtil).create(any(GcsPath.class), anyString());
     verifyNoMoreInteractions(mockGcsUtil);
 
-    assertEquals("folder-wstW9MW_ZW-soJhufroDCA.zip", target.getName());
-    assertEquals("gs://somebucket/base/path/folder-wstW9MW_ZW-soJhufroDCA.zip",
+    assertEquals("folder-ds2yutlYLSPB9vTYaCGNbA.zip", target.getName());
+    assertEquals("gs://somebucket/base/path/folder-ds2yutlYLSPB9vTYaCGNbA.zip",
         target.getLocation());
     assertNull(new ZipInputStream(Channels.newInputStream(pipe.source())).getNextEntry());
   }
@@ -427,7 +438,7 @@ public class PackageUtilTest {
     verifyNoMoreInteractions(mockGcsUtil);
 
     assertEquals(overriddenName, target.getName());
-    assertEquals("gs://somebucket/base/path/file-SAzzqSB2zmoIgNHC9A2G0A.txt",
+    assertEquals("gs://somebucket/base/path/file-cC7coLIYHBXUV-rKw53jmw.txt",
         target.getLocation());
   }
 

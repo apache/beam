@@ -23,11 +23,9 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.common.collect.TreeTraverser;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
-import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
 
@@ -42,10 +40,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -72,28 +71,59 @@ public class PackageUtil {
 
   /**
    * Creates a DataflowPackage containing information about how a classpath element should be
-   * staged.
+   * staged, including the staging destination as well as its size and hash.
    *
    * @param classpathElement The local path for the classpath element.
-   * @param stagingPath The base location in for staged classpath elements.
+   * @param stagingPath The base location for staged classpath elements.
    * @param overridePackageName If non-null, use the given value as the package name
    *                            instead of generating one automatically.
    * @return The package.
    */
+  @Deprecated
   public static DataflowPackage createPackage(File classpathElement,
       String stagingPath, String overridePackageName) {
+    return createPackageAttributes(classpathElement, stagingPath, overridePackageName)
+        .getDataflowPackage();
+  }
+
+  /**
+   * Compute and cache the attributes of a classpath element that we will need to stage it.
+   *
+   * @param classpathElement the file or directory to be staged.
+   * @param stagingPath The base location for staged classpath elements.
+   * @param overridePackageName If non-null, use the given value as the package name
+   *                            instead of generating one automatically.
+   * @return a {@link PackageAttributes} that containing metadata about the object to be staged.
+   */
+  static PackageAttributes createPackageAttributes(File classpathElement,
+      String stagingPath, String overridePackageName) {
     try {
-      String contentHash = computeContentHash(classpathElement);
+      boolean directory = classpathElement.isDirectory();
 
-      // Drop the directory prefixes, and form the filename + hash + extension.
-      String uniqueName = getUniqueContentName(classpathElement, contentHash);
+      // Compute size and hash in one pass over file or directory.
+      Hasher hasher = Hashing.md5().newHasher();
+      OutputStream hashStream = Funnels.asOutputStream(hasher);
+      CountingOutputStream countingOutputStream = new CountingOutputStream(hashStream);
 
+      if (!directory) {
+        // Files are staged as-is.
+        Files.asByteSource(classpathElement).copyTo(countingOutputStream);
+      } else {
+        // Directories are recursively zipped.
+        zipDirectory(classpathElement, countingOutputStream);
+      }
+
+      long size = countingOutputStream.getCount();
+      String hash = Base64Variants.MODIFIED_FOR_URL.encode(hasher.hash().asBytes());
+
+      // Create the DataflowPackage with staging name and location.
+      String uniqueName = getUniqueContentName(classpathElement, hash);
       String resourcePath = IOChannelUtils.resolve(stagingPath, uniqueName);
-
       DataflowPackage target = new DataflowPackage();
       target.setName(overridePackageName != null ? overridePackageName : uniqueName);
       target.setLocation(resourcePath);
-      return target;
+
+      return new PackageAttributes(size, hash, directory, target);
     } catch (IOException e) {
       throw new RuntimeException("Package setup failure for " + classpathElement, e);
     }
@@ -151,9 +181,9 @@ public class PackageUtil {
         continue;
       }
 
-      DataflowPackage workflowPackage = createPackage(
-          file, stagingPath, packageName);
+      PackageAttributes attributes = createPackageAttributes(file, stagingPath, packageName);
 
+      DataflowPackage workflowPackage = attributes.getDataflowPackage();
       packages.add(workflowPackage);
       String target = workflowPackage.getLocation();
 
@@ -162,7 +192,7 @@ public class PackageUtil {
       try {
         try {
           long remoteLength = IOChannelUtils.getSizeBytes(target);
-          if (remoteLength == getClasspathElementLength(classpathElement)) {
+          if (remoteLength == attributes.getSize()) {
             LOG.debug("Skipping classpath element already staged: {} at {}",
                 classpathElement, target);
             numCached++;
@@ -218,27 +248,6 @@ public class PackageUtil {
   }
 
   /**
-   * If classpathElement is a file, then the files length is returned, otherwise the length
-   * of the copied stream is returned.
-   *
-   * @param classpathElement The local path for the classpath element.
-   * @return The length of the classpathElement.
-   */
-  private static long getClasspathElementLength(String classpathElement) throws IOException {
-    File file = new File(classpathElement);
-    if (file.isFile()) {
-      return file.length();
-    }
-
-    CountingOutputStream countingOutputStream =
-        new CountingOutputStream(ByteStreams.nullOutputStream());
-    try (WritableByteChannel channel = Channels.newChannel(countingOutputStream)) {
-      copyContent(classpathElement, channel);
-    }
-    return countingOutputStream.getCount();
-  }
-
-  /**
    * Returns a unique name for a file with a given content hash.
    * <p>
    * Directory paths are removed. Example:
@@ -257,26 +266,6 @@ public class PackageUtil {
       return fileName + "-" + contentHash;
     }
     return fileName + "-" + contentHash + "." + fileExtension;
-  }
-
-  /**
-   * Computes a message digest of the file/directory contents, returning a base64 string that is
-   * suitable for use in URLs.
-   */
-  private static String computeContentHash(File classpathElement) throws IOException {
-    TreeTraverser<File> files = Files.fileTreeTraverser();
-    Hasher hasher = Hashing.md5().newHasher();
-    for (File currentFile : files.preOrderTraversal(classpathElement)) {
-      String relativePath = relativize(currentFile, classpathElement);
-      hasher.putString(relativePath, StandardCharsets.UTF_8);
-      if (currentFile.isDirectory()) {
-        hasher.putLong(-1L);
-        continue;
-      }
-      hasher.putLong(currentFile.length());
-      Files.asByteSource(currentFile).copyTo(Funnels.asOutputStream(hasher));
-    }
-    return Base64Variants.MODIFIED_FOR_URL.encode(hasher.hash().asBytes());
   }
 
   /**
@@ -333,7 +322,8 @@ public class PackageUtil {
    * @param directoryName the string-representation of the parent directory
    *     name. Might be an empty name, or a name containing multiple directory
    *     names separated by "/". The directory name must be a valid name
-   *     according to the file system limitations.
+   *     according to the file system limitations. The directory name should be
+   *     empty or should end in "/".
    * @param zos the zipstream to write to
    * @throws IOException the zipping failed, e.g. because the output was not
    *     writeable.
@@ -342,52 +332,81 @@ public class PackageUtil {
       File inputFile,
       String directoryName,
       ZipOutputStream zos) throws IOException {
-    final String entryName;
-    if ("".equals(directoryName)) {
-      // no parent directories yet.
-      entryName = inputFile.getName();
-    } else {
-      entryName = directoryName + "/" + inputFile.getName();
-    }
+    String entryName = directoryName + inputFile.getName();
     if (inputFile.isDirectory()) {
-      // We are hitting a sub-directory. Start the recursion.
-      // Add the empty entry for a subdirectory if we have no children files.
-      // Don't add it if we have them, as this is incompatible with certain
-      // implementations of unzip.
-      if (inputFile.list().length == 0) {
-        ZipEntry entry = new ZipEntry(entryName + "/");
-        zos.putNextEntry(entry);
-      } else {
+      entryName += "/";
+
+      // We are hitting a sub-directory. Recursively add children to zip in deterministic,
+      // sorted order.
+      File[] childFiles = inputFile.listFiles();
+      if (childFiles.length > 0) {
+        Arrays.sort(childFiles);
         // loop through the directory content, and zip the files
-        for (File file : inputFile.listFiles()) {
+        for (File file : childFiles) {
           zipDirectoryInternal(file, entryName, zos);
         }
+
+        // Since this directory has children, exit now without creating a zipentry specific to
+        // this directory. The entry for a non-entry directory is incompatible with certain
+        // implementations of unzip.
+        return;
       }
-    } else {
-      // Put the next zip-entry into the zipoutputstream.
-      ZipEntry entry = new ZipEntry(entryName);
-      zos.putNextEntry(entry);
+    }
+
+    // Put the zip-entry for this file or empty directory into the zipoutputstream.
+    ZipEntry entry = new ZipEntry(entryName);
+    entry.setTime(inputFile.lastModified());
+    zos.putNextEntry(entry);
+
+    // Copy file contents into zipoutput stream.
+    if (inputFile.isFile()) {
       Files.asByteSource(inputFile).copyTo(zos);
     }
   }
 
   /**
-   * Constructs a relative path between file and root.
-   * <p>
-   * This function will attempt to use {@link java.nio.file.Path#relativize} and
-   * will fallback to using {@link java.net.URI#relativize} in AppEngine.
-   *
-   * @param file The file for which the relative path is being constructed for.
-   * @param root The root from which the relative path should be constructed.
-   * @return The relative path between the file and root.
+   * Holds the metadata necessary to stage a file or confirm that a staged file has not changed.
    */
-  private static String relativize(File file, File root) {
-    if (AppEngineEnvironment.IS_APP_ENGINE) {
-      // AppEngine doesn't allow for java.nio.file.Path to be used so we rely on
-      // using URIs, but URIs are broken for UNC paths, which AppEngine doesn't
-      // use. See for more details: http://wiki.eclipse.org/Eclipse/UNC_Paths
-      return root.toURI().relativize(file.toURI()).getPath();
+  static class PackageAttributes {
+    private final boolean directory;
+    private final long size;
+    private final String hash;
+    private DataflowPackage dataflowPackage;
+
+    public PackageAttributes(long size, String hash, boolean directory,
+        DataflowPackage dataflowPackage) {
+      this.size = size;
+      this.hash = Objects.requireNonNull(hash, "hash");
+      this.directory = directory;
+      this.dataflowPackage = Objects.requireNonNull(dataflowPackage, "dataflowPackage");
     }
-    return root.toPath().relativize(file.toPath()).toString();
+
+    /**
+     * @return the dataflowPackage
+     */
+    public DataflowPackage getDataflowPackage() {
+      return dataflowPackage;
+    }
+
+    /**
+     * @return the directory
+     */
+    public boolean isDirectory() {
+      return directory;
+    }
+
+    /**
+     * @return the size
+     */
+    public long getSize() {
+      return size;
+    }
+
+    /**
+     * @return the hash
+     */
+    public String getHash() {
+      return hash;
+    }
   }
 }
