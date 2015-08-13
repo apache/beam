@@ -289,6 +289,7 @@ public class BasicSerializableSourceFormatTest {
         .apply(Sample.<Integer>any(1));
 
     DataflowAssert.thatSingleton(sum).isEqualTo(145);
+    p.run();
   }
 
   @Test
@@ -300,6 +301,7 @@ public class BasicSerializableSourceFormatTest {
          .apply(Sum.integersGlobally().withoutDefaults());
     // Should group into [10 11] [12 13 14] [15 16 17] [18 19].
     DataflowAssert.that(sums).containsInAnyOrder(21, 37, 39, 48);
+    p.run();
   }
 
   @Test
