@@ -127,7 +127,7 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
 
   @Override
   public PaneInfo pane() {
-    return PaneInfo.DEFAULT;
+    return PaneInfo.NO_FIRING;
   }
 
   @Override
@@ -159,7 +159,7 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
 
       @Override
       public PaneInfo pane() {
-        return PaneInfo.DEFAULT;
+        return PaneInfo.NO_FIRING;
       }
 
       @Override
