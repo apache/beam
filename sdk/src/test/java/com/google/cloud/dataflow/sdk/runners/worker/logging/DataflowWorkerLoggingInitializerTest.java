@@ -22,11 +22,14 @@ import static org.junit.Assert.assertTrue;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 
 import org.junit.After;
 import org.junit.Test;
+import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.model.Statement;
 
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -96,4 +99,41 @@ public class DataflowWorkerLoggingInitializerTest {
   private boolean isDataflowWorkerLoggingHandler(Handler handler, Level level) {
     return handler instanceof DataflowWorkerLoggingHandler && level.equals(handler.getLevel());
   }
+
+  @Test
+  public void testSystemOutToLogger() throws Throwable {
+    DataflowWorkerLoggingInitializer.initialize();
+    Description description = Description.createTestDescription(
+        DataflowWorkerLoggingInitializerTest.class, "testSystemOutToLogger");
+    ExpectedLogs systemOut = ExpectedLogs.none("System.out");
+    // We evaluate the test rule with the logging inside of it explicitly since
+    // DataflowWorkerLoggingInitializer.initialize() resets all log handlers
+    // not allowing us to use ExpectedLogs as a test rule.
+    systemOut.apply(new Statement() {
+      @Override
+      public void evaluate() {
+        System.out.println("afterInitialization");
+      }
+    }, description).evaluate();
+    systemOut.verifyInfo("afterInitialization");
+  }
+
+  @Test
+  public void testSystemErrToLogger() throws Throwable {
+    DataflowWorkerLoggingInitializer.initialize();
+    Description description = Description.createTestDescription(
+        DataflowWorkerLoggingInitializerTest.class, "testSystemErrToLogger");
+    ExpectedLogs systemErr = ExpectedLogs.none("System.err");
+    // We evaluate the test rule with the logging inside of it explicitly since
+    // DataflowWorkerLoggingInitializer.initialize() resets all log handlers
+    // not allowing us to use ExpectedLogs as a test rule.
+    systemErr.apply(new Statement() {
+      @Override
+      public void evaluate() {
+        System.err.println("afterInitialization");
+      }
+    }, description).evaluate();
+    systemErr.verifyError("afterInitialization");
+  }
 }
+

@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableBiMap;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.FileHandler;
@@ -73,6 +74,8 @@ public class DataflowWorkerLoggingInitializer {
    * so if they are garbage collection, our hierarchical configuration will be lost. */
   private static List<Logger> configuredLoggers = Lists.newArrayList();
   private static FileHandler fileHandler;
+  private static PrintStream originalStdOut;
+  private static PrintStream originalStdErr;
 
   /**
    * Sets up the initial logging configuration.
@@ -100,6 +103,11 @@ public class DataflowWorkerLoggingInitializer {
       Level logLevel = LEVELS.inverse().get(DEFAULT_LOG_LEVEL);
       rootLogger.setLevel(logLevel);
       rootLogger.addHandler(loggingHandler);
+
+      originalStdOut = System.out;
+      originalStdErr = System.err;
+      System.setOut(JulLoggerPrintStreamAdapterFactory.create("System.out", Level.INFO));
+      System.setErr(JulLoggerPrintStreamAdapterFactory.create("System.err", Level.SEVERE));
     } catch (SecurityException | IOException e) {
       throw new ExceptionInInitializerError(e);
     }
@@ -130,5 +138,7 @@ public class DataflowWorkerLoggingInitializer {
   static void reset() {
     configuredLoggers = Lists.newArrayList();
     fileHandler = null;
+    System.setOut(originalStdOut);
+    System.setErr(originalStdErr);
   }
 }

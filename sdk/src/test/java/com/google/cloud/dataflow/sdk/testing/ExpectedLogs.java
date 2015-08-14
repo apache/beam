@@ -43,13 +43,23 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 public class ExpectedLogs extends ExternalResource {
   /**
+   * Returns a {@link TestRule} that captures logs for the given logger name.
+   *
+   * @param name The logger name to capture logs for.
+   * @return A {@link ExpectedLogs} test rule.
+   */
+  public static ExpectedLogs none(String name) {
+    return new ExpectedLogs(name);
+  }
+
+  /**
    * Returns a {@link TestRule} that captures logs for the given class.
    *
    * @param klass The class to capture logs for.
    * @return A {@link ExpectedLogs} test rule.
    */
   public static ExpectedLogs none(Class<?> klass) {
-    return new ExpectedLogs(klass);
+    return ExpectedLogs.none(klass.getName());
   }
 
   /**
@@ -266,8 +276,8 @@ public class ExpectedLogs extends ExternalResource {
   private final Formatter logFormatter = new SimpleFormatter();
   private Level previousLevel;
 
-  private ExpectedLogs(Class<?> klass) {
-    log = Logger.getLogger(klass.getName());
+  private ExpectedLogs(String name) {
+    log = Logger.getLogger(name);
     logSaver = new LogSaver();
   }
 
