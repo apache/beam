@@ -523,6 +523,7 @@ public class StreamingDataflowWorker {
         LOG.debug("Execution of work for {} for key {} failed due to token expiration, "
             + "will not retry locally.",
             computation, work.getKey().toStringUtf8());
+        activeWorkMap.get(computation).completeWork(work.getKey());
       } else {
         LOG.error(
             "Execution of work for {} for key {} failed, retrying.",
@@ -545,6 +546,7 @@ public class StreamingDataflowWorker {
           // If we failed to report the error, the item is invalid and should
           // not be retried internally.  It will be retried at the higher level.
           LOG.debug("Aborting processing due to exception reporting failure");
+          activeWorkMap.get(computation).completeWork(work.getKey());
         }
       }
     } finally {

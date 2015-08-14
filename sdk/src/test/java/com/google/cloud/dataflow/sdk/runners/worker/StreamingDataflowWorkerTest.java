@@ -522,6 +522,47 @@ public class StreamingDataflowWorkerTest {
     BlockingFn.blocker.countDown();
   }
 
+  static class KeyTokenInvalidFn extends DoFn<KV<String, String>, KV<String, String>> {
+    private static final long serialVersionUID = 0;
+    static boolean thrown = false;
+
+    @Override
+    public void processElement(ProcessContext c) {
+      if (!thrown) {
+        thrown = true;
+        throw new StreamingDataflowWorker.KeyTokenInvalidException("key");
+      } else {
+        c.output(c.element());
+      }
+    }
+  }
+
+  @Test
+  public void testKeyTokenInvalidException() throws Exception {
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    List<ParallelInstruction> instructions = Arrays.asList(
+        makeSourceInstruction(kvCoder),
+        makeDoFnInstruction(new KeyTokenInvalidFn(), 0, kvCoder),
+        makeSinkInstruction(kvCoder, 1));
+
+    FakeWindmillServer server = new FakeWindmillServer();
+    server.addWorkToOffer(makeInput(0, 0, "key"));
+
+    StreamingDataflowWorker worker = new StreamingDataflowWorker(
+        Arrays.asList(defaultMapTask(instructions)), server, createTestingPipelineOptions());
+    worker.start();
+
+    server.waitForEmptyWorkQueue();
+
+    server.addWorkToOffer(makeInput(1, 0, "key"));
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+
+    assertEquals(makeExpectedOutput(1, 0, "key", "key").build(), stripCounters(result.get(1L)));
+    assertEquals(1, result.size());
+  }
+
   static class ChangeKeysFn extends DoFn<KV<String, String>, KV<String, String>> {
     private static final long serialVersionUID = 0;
 
