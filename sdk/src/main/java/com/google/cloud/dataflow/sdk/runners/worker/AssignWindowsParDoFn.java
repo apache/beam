@@ -103,7 +103,7 @@ class AssignWindowsParDoFn extends ParDoFnBase {
           executionContext,
           addCounterMutator);
     }
-  };
+  }
 
   @Override
   protected DoFnInfo<?, ?> getDoFnInfo() {

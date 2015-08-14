@@ -82,7 +82,7 @@ class ReifyTimestampAndWindowsParDoFn extends ParDoFnBase {
           executionContext,
           addCounterMutator);
     }
-  };
+  }
 
   @Override
   protected DoFnInfo<?, ?> getDoFnInfo() {

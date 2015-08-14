@@ -651,7 +651,7 @@ public class Combine {
     public void verifyDeterministic() throws NonDeterministicException {
       valueCoder.verifyDeterministic();
     }
-  };
+  }
 
   /**
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
