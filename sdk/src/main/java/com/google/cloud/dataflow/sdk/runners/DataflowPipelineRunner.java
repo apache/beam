@@ -539,7 +539,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
      */
     @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
     public StreamingUnboundedRead(Read.Unbounded<T> transform) {
-      this.source = transform.getSource();;
+      this.source = transform.getSource();
     }
 
     @Override
