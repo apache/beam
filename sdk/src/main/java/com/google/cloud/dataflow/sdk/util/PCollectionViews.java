@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValueBase;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -58,7 +59,7 @@ public class PCollectionViews {
       boolean hasDefault,
       T defaultValue,
       Coder<T> valueCoder) {
-    return new SingletonPCollectionView(
+    return new SingletonPCollectionView<>(
         pipeline, windowingStrategy, hasDefault, defaultValue, valueCoder);
   }
 
@@ -70,7 +71,7 @@ public class PCollectionViews {
       Pipeline pipeline,
       WindowingStrategy<?, W> windowingStrategy,
       Coder<T> valueCoder) {
-    return new IterablePCollectionView(pipeline, windowingStrategy, valueCoder);
+    return new IterablePCollectionView<>(pipeline, windowingStrategy, valueCoder);
   }
 
   /**
@@ -135,14 +136,15 @@ public class PCollectionViews {
         }
       }
 
-      if (encodedDefaultValue != null && !contents.iterator().hasNext()) {
-        return defaultValue;
-      }
       try {
         return Iterables.getOnlyElement(contents).getValue();
       } catch (NoSuchElementException exc) {
-        throw new NoSuchElementException(
-            "Empty PCollection accessed as a singleton view.");
+        if (encodedDefaultValue != null) {
+          return defaultValue;
+        } else {
+          throw new NoSuchElementException(
+              "Empty PCollection accessed as a singleton view.");
+        }
       } catch (IllegalArgumentException exc) {
         throw new IllegalArgumentException(
             "PCollection with more than one element "
