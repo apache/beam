@@ -195,7 +195,7 @@ License.
                             <argument>-classpath</argument>
                             <classpath />
                             <argument>${mainClass}</argument>
-                            <argument>--input=${input}</argument>
+                            <argument>--inputFile=${input}</argument>
                             <argument>--output=${output}</argument>
                             <argument>--runner=${runner}</argument>
                             <argument>--sparkMaster=${sparkMaster}</argument>
