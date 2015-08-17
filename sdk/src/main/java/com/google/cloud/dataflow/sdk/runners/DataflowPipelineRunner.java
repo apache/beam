@@ -101,6 +101,7 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -241,6 +242,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     this.translator = DataflowPipelineTranslator.fromOptions(options);
 
     this.streamingOverrides = ImmutableMap.<Class<?>, Class<?>>builder()
+        .put(Combine.GloballyAsSingletonView.class, StreamingCombineGloballyAsSingletonView.class)
         .put(Create.Values.class, StreamingCreate.class)
         .put(View.AsMap.class, StreamingViewAsMap.class)
         .put(View.AsMultimap.class, StreamingViewAsMultimap.class)
@@ -862,21 +864,88 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
     @Override
     public PCollectionView<T> apply(PCollection<T> input) {
-      PCollectionView<T> view = PCollectionViews.singletonView(
-          input.getPipeline(),
-          input.getWindowingStrategy(),
-          transform.hasDefaultValue(),
-          transform.defaultValue(),
-          input.getCoder());
-      return input
-          .apply(ParDo.of(new WrapAsList<T>()))
-          .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
-          .apply(View.CreatePCollectionView.<T, T>of(view));
+      Combine.Globally<T, T> combine = Combine.globally(
+          new SingletonCombine<>(transform.hasDefaultValue(), transform.defaultValue()));
+      if (!transform.hasDefaultValue()) {
+        combine = combine.withoutDefaults();
+      }
+      return input.apply(combine.asSingletonView());
     }
 
     @Override
     protected String getKindString() {
       return "StreamingViewAsSingleton";
+    }
+
+    private static class SingletonCombine<T> extends Combine.BinaryCombineFn<T> {
+      private static final long serialVersionUID = 0L;
+
+      private boolean hasDefaultValue;
+      private T defaultValue;
+
+      SingletonCombine(boolean hasDefaultValue, T defaultValue) {
+        this.hasDefaultValue = hasDefaultValue;
+        this.defaultValue = defaultValue;
+      }
+
+      @Override
+      public T apply(T left, T right) {
+        throw new IllegalArgumentException("PCollection with more than one element "
+            + "accessed as a singleton view. Consider using Combine.globally().asSingleton() to "
+            + "combine the PCollection into a single value");
+      }
+
+      @Override
+      public T identity() {
+        if (hasDefaultValue) {
+          return defaultValue;
+        } else {
+          throw new IllegalArgumentException(
+              "Empty PCollection accessed as a singleton view. "
+              + "Consider setting withDefault to provide a default value");
+        }
+      }
+    }
+  }
+
+  private static class StreamingCombineGloballyAsSingletonView<InputT, OutputT>
+      extends PTransform<PCollection<InputT>, PCollectionView<OutputT>> {
+    private static final long serialVersionUID = 0L;
+
+    Combine.GloballyAsSingletonView<InputT, OutputT> transform;
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    public StreamingCombineGloballyAsSingletonView(
+        Combine.GloballyAsSingletonView<InputT, OutputT> transform) {
+      this.transform = transform;
+    }
+
+    @Override
+    public PCollectionView<OutputT> apply(PCollection<InputT> input) {
+      PCollection<OutputT> combined =
+          input.apply(Combine.<InputT, OutputT>globally(transform.getCombineFn())
+              .withoutDefaults()
+              .withFanout(transform.getFanout()));
+
+      PCollectionView<OutputT> view = PCollectionViews.singletonView(
+          combined.getPipeline(),
+          combined.getWindowingStrategy(),
+          transform.getInsertDefault(),
+          transform.getInsertDefault()
+            ? transform.getCombineFn().apply(Collections.<InputT>emptyList()) : null,
+          combined.getCoder());
+      return combined
+          .apply(ParDo.of(new WrapAsList<OutputT>()))
+          .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, combined.getCoder())))
+          .apply(View.CreatePCollectionView.<OutputT, OutputT>of(view));
+    }
+
+    @Override
+    protected String getKindString() {
+      return "StreamingCombineGloballyAsSingletonView";
     }
   }
 

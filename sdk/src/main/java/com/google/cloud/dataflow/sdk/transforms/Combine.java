@@ -1373,21 +1373,24 @@ public class Combine {
     private PCollection<OutputT> insertDefaultValueIfEmpty(PCollection<OutputT> maybeEmpty) {
       final PCollectionView<Iterable<OutputT>> maybeEmptyView = maybeEmpty.apply(
           View.<OutputT>asIterable());
-      return maybeEmpty.getPipeline()
-        .apply("CreateVoid", Create.of((Void) null).withCoder(VoidCoder.of()))
-          .apply(ParDo.named("ProduceDefault").of(
+
+      PCollection<OutputT> defaultIfEmpty = maybeEmpty.getPipeline()
+          .apply("CreateVoid", Create.of((Void) null).withCoder(VoidCoder.of()))
+          .apply(ParDo.named("ProduceDefault").withSideInputs(maybeEmptyView).of(
               new DoFn<Void, OutputT>() {
                 @Override
                 public void processElement(DoFn<Void, OutputT>.ProcessContext c) {
                   Iterator<OutputT> combined = c.sideInput(maybeEmptyView).iterator();
-                  if (combined.hasNext()) {
-                    c.output(combined.next());
-                  } else {
+                  if (!combined.hasNext()) {
                     c.output(fn.apply(Collections.<InputT>emptyList()));
                   }
                 }
-              }).withSideInputs(maybeEmptyView))
-          .setCoder(maybeEmpty.getCoder());
+              }))
+          .setCoder(maybeEmpty.getCoder())
+          .setWindowingStrategyInternal(maybeEmpty.getWindowingStrategy());
+
+      return PCollectionList.of(maybeEmpty).and(defaultIfEmpty)
+          .apply(Flatten.<OutputT>pCollections());
     }
   }
 
@@ -1455,6 +1458,18 @@ public class Combine {
       } else {
         return combined.apply(View.<OutputT>asSingleton());
       }
+    }
+
+    public int getFanout() {
+      return fanout;
+    }
+
+    public boolean getInsertDefault() {
+      return insertDefault;
+    }
+
+    public CombineFn<? super InputT, ?, OutputT> getCombineFn() {
+      return fn;
     }
   }
 

@@ -230,6 +230,31 @@ public class CombineTest implements Serializable {
     p.run();
   }
 
+  private static class FormatPaneInfo extends DoFn<Integer, String> {
+    private static final long serialVersionUID = 0L;
+    @Override
+    public void processElement(ProcessContext c) {
+      c.output(c.element() + ": " + c.pane().isLast());
+    }
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testGlobalCombineWithDefaultsAndTriggers() {
+    Pipeline p = TestPipeline.create();
+    PCollection<Integer> input = p.apply(Create.of(1, 1));
+
+    PCollection<String> output = input
+        .apply(Window.<Integer>into(new GlobalWindows())
+            .triggering(AfterPane.elementCountAtLeast(1))
+            .accumulatingFiredPanes()
+            .withAllowedLateness(new Duration(0)))
+        .apply(Sum.integersGlobally())
+        .apply(ParDo.of(new FormatPaneInfo()));
+
+    DataflowAssert.that(output).containsInAnyOrder("1: false", "2: true");
+  }
+
   @Test
   @Category(RunnableOnService.class)
   public void testSessionsCombine() {
