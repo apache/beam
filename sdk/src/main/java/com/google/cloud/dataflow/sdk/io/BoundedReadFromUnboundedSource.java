@@ -43,7 +43,7 @@ import java.util.NoSuchElementException;
  * {@link PTransform} that reads a bounded amount of data from an {@link UnboundedSource},
  * specified as one or both of a maximum number of elements or a maximum period of time to read.
  *
- * <p> Created by {@link Read}.
+ * <p>Created by {@link Read}.
  */
 class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T>> {
   private static final long serialVersionUID = 0L;
@@ -56,7 +56,7 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
    * of data from the given {@link UnboundedSource}.  The bound is specified as a number
    * of records to read.
    *
-   * <p> This may take a long time to execute if the splits of this source are slow to read
+   * <p>This may take a long time to execute if the splits of this source are slow to read
    * records.
    */
   public BoundedReadFromUnboundedSource<T> withMaxNumRecords(long maxNumRecords) {

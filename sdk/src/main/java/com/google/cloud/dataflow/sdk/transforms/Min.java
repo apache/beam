@@ -28,13 +28,13 @@ import java.util.Comparator;
  * {@code PTransform}s for computing the minimum of the elements in a {@code PCollection}, or the
  * minimum of the values associated with each key in a {@code PCollection} of {@code KV}s.
  *
- * <p> Example 1: get the minimum of a {@code PCollection} of {@code Double}s.
+ * <p>Example 1: get the minimum of a {@code PCollection} of {@code Double}s.
  * <pre> {@code
  * PCollection<Double> input = ...;
  * PCollection<Double> min = input.apply(Min.doublesGlobally());
  * } </pre>
  *
- * <p> Example 2: calculate the minimum of the {@code Integer}s
+ * <p>Example 2: calculate the minimum of the {@code Integer}s
  * associated with each unique key (which is of type {@code String}).
  * <pre> {@code
  * PCollection<KV<String, Integer>> input = ...;
@@ -59,7 +59,7 @@ public class Min {
    * distinct key in the input {@code PCollection} to the minimum of the values associated with that
    * key in the input {@code PCollection}.
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
     return Combine.<K, Integer, Integer>perKey(new MinIntegerFn()).named("Min.PerKey");
@@ -80,7 +80,7 @@ public class Min {
    * the input {@code PCollection} to the minimum of the values associated with that key in the
    * input {@code PCollection}.
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
    return Combine.<K, Long, Long>perKey(new MinLongFn()).named("Min.PerKey");
@@ -101,7 +101,7 @@ public class Min {
    * in the input {@code PCollection} to the minimum of the values associated with that key in the
    * input {@code PCollection}.
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
     return Combine.<K, Double, Double>perKey(new MinDoubleFn()).named("Min.PerKey");
@@ -123,7 +123,7 @@ public class Min {
    * input {@code PCollection} to the minimum according to the natural ordering of {@code T} of the
    * values associated with that key in the input {@code PCollection}.
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K, T extends Comparable<? super T>>
   Combine.PerKey<K, T, T> perKey() {
@@ -145,7 +145,7 @@ public class Min {
    * {@code PCollection<KV<K, T>>} that contains one output element per key mapping each
    * to the minimum of the values associated with that key in the input {@code PCollection}.
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K, T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {

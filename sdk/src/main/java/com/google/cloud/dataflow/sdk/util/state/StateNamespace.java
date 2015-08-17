@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.util.state;
 /**
  * A namespace used for scoping state stored with {@link StateInternals}.
  *
- * <p> Instances of {@code StateNamespace} are guaranteed to have a {@link #hashCode} and
+ * <p>Instances of {@code StateNamespace} are guaranteed to have a {@link #hashCode} and
  * {@link #equals} that uniquely identify the namespace.
  */
 public interface StateNamespace {
@@ -27,10 +27,10 @@ public interface StateNamespace {
    * Return a {@link String} representation of the key. It is guaranteed that this
    * {@code String} will uniquely identify the key.
    *
-   * <p> This will encode the actual namespace as a {@code String}. It is
+   * <p>This will encode the actual namespace as a {@code String}. It is
    * preferable to use the {@code StateNamespace} object when possible.
    *
-   * <p> The string produced by the standard implementations will not contain a '+' character. This
+   * <p>The string produced by the standard implementations will not contain a '+' character. This
    * enables adding a '+' between the actual namespace and other information, if needed, to separate
    * the two.
    */

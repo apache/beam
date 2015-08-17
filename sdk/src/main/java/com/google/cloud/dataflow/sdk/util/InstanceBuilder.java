@@ -37,8 +37,8 @@ public class InstanceBuilder<T> {
 
   /**
    * Create an InstanceBuilder for the given type.
-   * <p>
-   * The specified type is the type returned by {@link #build}, which is
+   *
+   * <p>The specified type is the type returned by {@link #build}, which is
    * typically the common base type or interface of the instance being
    * constructed.
    */
@@ -48,12 +48,12 @@ public class InstanceBuilder<T> {
 
   /**
    * Create an InstanceBuilder for the given type.
-   * <p>
-   * The specified type is the type returned by {@link #build}, which is
+   *
+   * <p>The specified type is the type returned by {@link #build}, which is
    * typically the common base type or interface for the instance to be
    * constructed.
-   * <p>
-   * The TypeDescriptor argument allows specification of generic types.  For example,
+   *
+   * <p>The TypeDescriptor argument allows specification of generic types.  For example,
    * a {@code List<String>} return type can be specified as
    * {@code ofType(new TypeDescriptor<List<String>>(){})}.
    */
@@ -65,13 +65,13 @@ public class InstanceBuilder<T> {
 
   /**
    * Sets the class name to be constructed.
-   * <p>
-   * If the name is a simple name (ie {@link Class#getSimpleName()}), then
+   *
+   * <p>If the name is a simple name (ie {@link Class#getSimpleName()}), then
    * the package of the return type is added as a prefix.
-   * <p>
-   * The default class is the return type, specified in {@link #ofType}.
-   * <p>
-   * Modifies and returns the {@code InstanceBuilder} for chaining.
+   *
+   * <p>The default class is the return type, specified in {@link #ofType}.
+   *
+   * <p>Modifies and returns the {@code InstanceBuilder} for chaining.
    *
    * @throws ClassNotFoundException if no class can be found by the given name
    */
@@ -94,8 +94,8 @@ public class InstanceBuilder<T> {
 
   /**
    * Sets the factory class to use for instance construction.
-   * <p>
-   * Modifies and returns the {@code InstanceBuilder} for chaining.
+   *
+   * <p>Modifies and returns the {@code InstanceBuilder} for chaining.
    */
   public InstanceBuilder<T> fromClass(Class<?> factoryClass) {
     this.factoryClass = factoryClass;
@@ -104,11 +104,11 @@ public class InstanceBuilder<T> {
 
   /**
    * Sets the name of the factory method used to construct the instance.
-   * <p>
-   * The default, if no factory method was specified, is to look for a class
+   *
+   * <p>The default, if no factory method was specified, is to look for a class
    * constructor.
-   * <p>
-   * Modifies and returns the {@code InstanceBuilder} for chaining.
+   *
+   * <p>Modifies and returns the {@code InstanceBuilder} for chaining.
    */
   public InstanceBuilder<T> fromFactoryMethod(String methodName) {
     Preconditions.checkArgument(this.methodName == null,
@@ -119,11 +119,11 @@ public class InstanceBuilder<T> {
 
   /**
    * Adds an argument to be passed to the factory method.
-   * <p>
-   * The argument type is used to lookup the factory method. This type may be
+   *
+   * <p>The argument type is used to lookup the factory method. This type may be
    * a supertype of the argument value's class.
-   * <p>
-   * Modifies and returns the {@code InstanceBuilder} for chaining.
+   *
+   * <p>Modifies and returns the {@code InstanceBuilder} for chaining.
    *
    * @param <ArgT> the argument type
    */
@@ -136,7 +136,7 @@ public class InstanceBuilder<T> {
   /**
    * Creates the instance by calling the factory method with the given
    * arguments.
-   * <p>
+   *
    * <h3>Defaults</h3>
    * <ul>
    *   <li>factory class: defaults to the output type class, overridden

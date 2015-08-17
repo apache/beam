@@ -47,7 +47,7 @@ import javax.annotation.Nullable;
  * Manages the execution of a {@link ReduceFn} after a {@link GroupByKeyOnly} has partitioned the
  * {@link PCollection} by key.
  *
- * <p> The {@link #onTrigger} relies on a {@link TriggerRunner} to manage the execution of
+ * <p>The {@link #onTrigger} relies on a {@link TriggerRunner} to manage the execution of
  * the triggering logic. The {@code ReduceFnRunner}s responsibilities are:
  *
  * <ul>

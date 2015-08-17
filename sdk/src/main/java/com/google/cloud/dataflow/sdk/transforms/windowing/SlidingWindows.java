@@ -29,7 +29,7 @@ import java.util.List;
  * A {@link WindowFn} that windows values into possibly overlapping fixed-size
  * timestamp-based windows.
  *
- * <p> For example, in order to window data into 10 minute windows that
+ * <p>For example, in order to window data into 10 minute windows that
  * update every minute:
  * <pre> {@code
  * PCollection<Integer> items = ...;
@@ -60,7 +60,7 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
    * Assigns timestamps into half-open intervals of the form
    * [N * period, N * period + size), where 0 is the epoch.
    *
-   * <p> If {@link SlidingWindows#every} is not called, the period defaults
+   * <p>If {@link SlidingWindows#every} is not called, the period defaults
    * to the largest time unit smaller than the given duration.  For example,
    * specifying a size of 5 seconds will result in a default period of 1 second.
    */
@@ -179,7 +179,7 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
   /**
    * Ensure that later sliding windows have an output time that is past the end of earlier windows.
    *
-   * <p> If this is the earliest sliding window containing {@code inputTimestamp}, that's fine.
+   * <p>If this is the earliest sliding window containing {@code inputTimestamp}, that's fine.
    * Otherwise, we pick the earliest time that doesn't overlap with earlier windows.
    */
   @Override

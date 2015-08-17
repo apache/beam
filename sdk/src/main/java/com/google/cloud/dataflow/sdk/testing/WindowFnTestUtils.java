@@ -206,7 +206,7 @@ public class WindowFnTestUtils {
    * verifies that result of {@code windowFn.getOutputTimestamp} for later windows (as defined by
    * {@code maxTimestamp} won't prevent the watermark from passing the end of earlier windows.
    *
-   * <p> This verifies that overlapping windows don't interfere at all. Depending on the
+   * <p>This verifies that overlapping windows don't interfere at all. Depending on the
    * {@code windowFn} this may be stricter than desired.
    */
   public static <T, W extends BoundedWindow> void validateGetOutputTimestamp(

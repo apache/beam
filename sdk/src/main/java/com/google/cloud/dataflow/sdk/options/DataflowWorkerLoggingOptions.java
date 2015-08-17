@@ -45,10 +45,10 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
 
   /**
    * This option controls the log levels for specifically named loggers.
-   * <p>
-   * Later options with equivalent names override earlier options.
-   * <p>
-   * See {@link WorkerLogLevelOverrides} for more information on how to configure logging
+   *
+   * <p>Later options with equivalent names override earlier options.
+   *
+   * <p>See {@link WorkerLogLevelOverrides} for more information on how to configure logging
    * on a per {@link Class}, {@link Package}, or name basis. If used from the command line,
    * the expected format is {"Name":"Level",...}, further details on
    * {@link WorkerLogLevelOverrides#from}.
@@ -68,7 +68,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   /**
    * Defines a log level override for a specific class, package, or name.
    *
-   * <p> {@code java.util.logging} is used on the Dataflow worker harness and supports
+   * <p>{@code java.util.logging} is used on the Dataflow worker harness and supports
    * a logging hierarchy based off of names that are "." separated. It is a common
    * pattern to have the logger for a given class share the same name as the class itself.
    * Given the classes {@code a.b.c.Foo}, {@code a.b.c.Xyz}, and {@code a.b.Bar}, with
@@ -89,8 +89,8 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
 
     /**
      * Overrides the default log level for the passed in class.
-     * <p>
-     * This is equivalent to calling
+     *
+     * <p>This is equivalent to calling
      * {@link #addOverrideForName(String, DataflowWorkerLoggingOptions.Level)}
      * and passing in the {@link Class#getName() class name}.
      */
@@ -102,8 +102,8 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
 
     /**
      * Overrides the default log level for the passed in package.
-     * <p>
-     * This is equivalent to calling
+     *
+     * <p>This is equivalent to calling
      * {@link #addOverrideForName(String, DataflowWorkerLoggingOptions.Level)}
      * and passing in the {@link Package#getName() package name}.
      */
@@ -115,8 +115,8 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
 
     /**
      * Overrides the default log level for the passed in name.
-     * <p>
-     * Note that because of the hierarchical nature of logger names, this will
+     *
+     * <p>Note that because of the hierarchical nature of logger names, this will
      * override the log level of all loggers that have the passed in name or
      * a parent logger that has the passed in name.
      */

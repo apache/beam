@@ -75,7 +75,7 @@ public class StateFetcher {
   /**
    * Fetch the given side input, storing it in a process-level cache.
    *
-   * <p> If state is KNOWN_READY, attempt to fetch the data regardless of whether a
+   * <p>If state is KNOWN_READY, attempt to fetch the data regardless of whether a
    * not-ready entry was cached.
    */
   public <T, SideWindowT extends BoundedWindow> T fetchSideInput(final PCollectionView<T> view,

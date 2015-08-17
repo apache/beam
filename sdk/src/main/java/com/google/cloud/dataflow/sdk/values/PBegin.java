@@ -17,19 +17,18 @@
 package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.io.TextIO.Read;
+import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 
 import java.util.Collection;
 import java.util.Collections;
 
 /**
- * {@code PBegin} is used as the "input" to a root
- * {@link com.google.cloud.dataflow.sdk.transforms.PTransform} that
- * is the first operation in a {@link Pipeline}, such as
- * {@link com.google.cloud.dataflow.sdk.io.TextIO.Read} or
- * {@link com.google.cloud.dataflow.sdk.transforms.Create}.
+ * {@code PBegin} is used as the "input" to a root {@link PTransform} that is the first
+ * operation in a {@link Pipeline}, such as {@link Read TextIO.Read} or {@link Create}.
  *
- * <p> Typically created by calling {@link Pipeline#begin} on a Pipeline.
+ * <p>Typically created by calling {@link Pipeline#begin} on a Pipeline.
  */
 public class PBegin implements PInput {
   /**

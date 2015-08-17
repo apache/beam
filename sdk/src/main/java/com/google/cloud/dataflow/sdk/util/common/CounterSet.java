@@ -23,7 +23,7 @@ import java.util.Iterator;
 /**
  * A CounterSet maintains a set of {@link Counter}s.
  *
- * <p> Thread-safe.
+ * <p>Thread-safe.
  */
 public class CounterSet extends AbstractSet<Counter<?>> {
 
@@ -63,7 +63,7 @@ public class CounterSet extends AbstractSet<Counter<?>> {
   /**
    * Adds the given Counter to this CounterSet.
    *
-   * <p> If a counter with the same name already exists, it will be
+   * <p>If a counter with the same name already exists, it will be
    * reused, as long as it is compatible.
    *
    * @return the Counter that was reused, or added
@@ -138,7 +138,7 @@ public class CounterSet extends AbstractSet<Counter<?>> {
     /**
      * Adds the given Counter into the enclosing CounterSet.
      *
-     * <p> If a counter with the same name already exists, it will be
+     * <p>If a counter with the same name already exists, it will be
      * reused, as long as it has the same type.
      *
      * @return the Counter that was reused, or added

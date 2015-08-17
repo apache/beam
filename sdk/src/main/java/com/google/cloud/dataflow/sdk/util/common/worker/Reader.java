@@ -64,8 +64,8 @@ public abstract class Reader<T> extends Observable {
 
   /**
    * A stateful iterator over the data in a Reader.
-   * <p>
-   * Partially thread-safe: methods {@link #hasNext}, {@link #next}, {@link #close},
+   *
+   * <p>Partially thread-safe: methods {@link #hasNext}, {@link #next}, {@link #close},
    * {@link #getProgress} are called serially, but {@link #requestDynamicSplit}
    * can be called asynchronously to those. There will not be multiple concurrent calls to
    * {@link #requestDynamicSplit}).
@@ -110,25 +110,25 @@ public abstract class Reader<T> extends Observable {
      * Attempts to split the input in two parts: the "primary" part and the "residual" part.
      * The current {@link ReaderIterator} keeps processing the primary part, while the residual part
      * will be processed elsewhere (e.g. perhaps on a different worker).
-     * <p>
-     * The primary and residual parts, if concatenated, must represent the same input as the
+     *
+     * <p>The primary and residual parts, if concatenated, must represent the same input as the
      * current input of this {@link ReaderIterator} before this call.
-     * <p>
-     * The boundary between the primary part and the residual part is specified in
+     *
+     * <p>The boundary between the primary part and the residual part is specified in
      * a framework-specific way using {@link Reader.DynamicSplitRequest}: e.g., if the framework
      * supports the notion of positions, it might be a position at which the input is asked to split
      * itself (which is not necessarily the same position at which it <i>will</i> split itself);
      * it might be an approximate fraction of input, or something else.
-     * <p>
-     * {@link Reader.DynamicSplitResult} encodes, in a framework-specific way, the information
+     *
+     * <p>{@link Reader.DynamicSplitResult} encodes, in a framework-specific way, the information
      * sufficient to construct a description of the resulting primary and residual inputs.
      * For example, it might, again, be a position demarcating these parts, or it might be a pair of
      * fully-specified input descriptions, or something else.
-     * <p>
-     * After a successful call to {@link #requestDynamicSplit}, subsequent calls should be
+     *
+     * <p>After a successful call to {@link #requestDynamicSplit}, subsequent calls should be
      * interpreted relative to the new primary.
-     * <p>
-     * This call should not affect the range of input represented by the {@link Reader} that
+     *
+     * <p>This call should not affect the range of input represented by the {@link Reader} that
      * produced this {@link ReaderIterator}.
      *
      * @return {@code null} if the {@link Reader.DynamicSplitRequest} cannot be honored
@@ -166,7 +166,7 @@ public abstract class Reader<T> extends Observable {
    * A representation of how far a {@code ReaderIterator} is through a
    * {@code Reader}.
    *
-   * <p> The common worker framework does not interpret instances of
+   * <p>The common worker framework does not interpret instances of
    * this interface.  But a tool-specific framework can make assumptions
    * about the implementation, and so the concrete Reader subclasses used
    * by a tool-specific framework should match.
@@ -177,7 +177,7 @@ public abstract class Reader<T> extends Observable {
    * A representation of a position in an iteration through a
    * {@code Reader}.
    *
-   * <p> See the comment on {@link Progress} for how instances of this
+   * <p>See the comment on {@link Progress} for how instances of this
    * interface are used by the rest of the framework.
    */
   public interface Position {}

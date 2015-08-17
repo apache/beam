@@ -48,19 +48,19 @@ import java.util.Set;
  * {@link com.google.cloud.dataflow.sdk.values.PCollection}s
  * that the {@link PTransform}s consume and produce.
  *
- * <p> After a {@code Pipeline} has been constructed, it can be executed,
+ * <p>After a {@code Pipeline} has been constructed, it can be executed,
  * using a default or an explicit {@link PipelineRunner}.
  *
- * <p> Multiple {@code Pipeline}s can be constructed and executed independently
+ * <p>Multiple {@code Pipeline}s can be constructed and executed independently
  * and concurrently.
  *
- * <p> Each {@code Pipeline} is self-contained and isolated from any other
+ * <p>Each {@code Pipeline} is self-contained and isolated from any other
  * {@code Pipeline}.  The {@link PValue PValues} that are inputs and outputs of each of a
  * {@code Pipeline}'s {@link PTransform PTransforms} are also owned by that {@code Pipeline}.
  * A {@code PValue} owned by one {@code Pipeline} can be read only by {@code PTransform}s
  * also owned by that {@code Pipeline}.
  *
- * <p> Here's a typical example of use:
+ * <p>Here's a typical example of use:
  * <pre> {@code
  * // Start by defining the options for the pipeline.
  * PipelineOptions options = PipelineOptionsFactory.create();
@@ -160,7 +160,7 @@ public class Pipeline {
    * This name is used in various places, including the monitoring UI, logging,
    * and to stably identify this application node in the job graph.
    *
-   * <p> Alias for {@code begin().apply(name, root)}.
+   * <p>Alias for {@code begin().apply(name, root)}.
    */
   public <OutputT extends POutput> OutputT apply(
       String name, PTransform<? super PBegin, OutputT> root) {
@@ -243,10 +243,10 @@ public class Pipeline {
    * Pipeline's PTransforms and PValues, in forward
    * topological order.
    *
-   * <p> Traversal of the pipeline causes PTransform and PValue instances to
+   * <p>Traversal of the pipeline causes PTransform and PValue instances to
    * be marked as finished, at which point they may no longer be modified.
    *
-   * <p> Typically invoked by {@link PipelineRunner} subclasses.
+   * <p>Typically invoked by {@link PipelineRunner} subclasses.
    */
   public void traverseTopologically(PipelineVisitor visitor) {
     Set<PValue> visitedValues = new HashSet<>();
@@ -275,7 +275,7 @@ public class Pipeline {
    * of the transform. This name is used in various places, including the monitoring UI,
    * logging, and to stably identify this application node in the job graph.
    *
-   * <p> Called by {@link PInput} subclasses in their {@code apply} methods.
+   * <p>Called by {@link PInput} subclasses in their {@code apply} methods.
    */
   public static <InputT extends PInput, OutputT extends POutput>
   OutputT applyTransform(String name, InputT input,
@@ -390,10 +390,10 @@ public class Pipeline {
   /**
    * Verifies that the output of a PTransform is correctly defined.
    *
-   * <p> A non-composite transform must have all
+   * <p>A non-composite transform must have all
    * of its outputs registered as produced by the transform.
    *
-   * <p> A composite transform must have all of its outputs
+   * <p>A composite transform must have all of its outputs
    * registered as produced by the contained primitive transforms.
    * They have each had the above check performed already, when
    * they were applied, so the only possible failure state is
@@ -461,7 +461,7 @@ public class Pipeline {
    * Returns a unique name for a transform with the given prefix (from
    * enclosing transforms) and initial name.
    *
-   * <p> For internal use only.
+   * <p>For internal use only.
    */
   private String uniquifyInternal(String namePrefix, String origName) {
     String name = origName;
@@ -486,7 +486,7 @@ public class Pipeline {
   /**
    * Adds the given PValue to this Pipeline.
    *
-   * <p> For internal use only.
+   * <p>For internal use only.
    */
   public void addValueInternal(PValue value) {
     this.values.add(value);

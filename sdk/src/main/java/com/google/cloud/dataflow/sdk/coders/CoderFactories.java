@@ -36,7 +36,7 @@ public final class CoderFactories {
    * Creates a {@link CoderFactory} built from particular static methods of a class that
    * implements {@link Coder}.
    *
-   * <p> The class must have the following static methods:
+   * <p>The class must have the following static methods:
    *
    * <ul>
    * <li> {@code
@@ -47,24 +47,24 @@ public final class CoderFactories {
    * }
    * </ul>
    *
-   * <p> The {@code of(...)} method will be used to construct a
+   * <p>The {@code of(...)} method will be used to construct a
    * {@code Coder<T>} from component {@link Coder}s.
    * It must accept one {@link Coder} argument for each
    * generic type parameter of {@code T}. If {@code T} takes no generic
    * type parameters, then the {@code of()} factory method should take
    * no arguments.
    *
-   * <p> The {@code getInstanceComponents} method will be used to
+   * <p>The {@code getInstanceComponents} method will be used to
    * decompose a value during the {@link Coder} inference process,
    * to automatically choose coders for the components.
    *
-   * <p> Note that the class {@code T} to be coded may be a
+   * <p>Note that the class {@code T} to be coded may be a
    * not-yet-specialized generic class.
    * For a generic class {@code MyClass<X>} and an actual type parameter
    * {@code Foo}, the {@link CoderFactoryFromStaticMethods} will
    * accept any {@code Coder<Foo>} and produce a {@code Coder<MyClass<Foo>>}.
    *
-   * <p> For example, the {@link CoderFactory} returned by
+   * <p>For example, the {@link CoderFactory} returned by
    * {@code fromStaticMethods(ListCoder.class)}
    * will produce a {@code Coder<List<X>>} for any {@code Coder Coder<X>}.
    */
@@ -76,7 +76,7 @@ public final class CoderFactories {
    * Creates a {@link CoderFactory} that always returns the
    * given coder.
    *
-   * <p> The {@code getInstanceComponents} method of this
+   * <p>The {@code getInstanceComponents} method of this
    * {@link CoderFactory} always returns an empty list.
    */
   public static <T> CoderFactory forCoder(Coder<T> coder) {

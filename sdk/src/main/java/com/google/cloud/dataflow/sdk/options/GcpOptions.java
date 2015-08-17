@@ -39,9 +39,9 @@ import java.util.regex.Pattern;
 
 /**
  * Options used to configure Google Cloud Platform project and credentials.
- * <p>
- * These options configure which of the following 4 different mechanisms for obtaining a credential
- * are used:
+ *
+ * <p>These options configure which of the following 4 different mechanisms for obtaining a
+ * credential are used:
  * <ol>
  *   <li>
  *     It can fetch the
@@ -82,8 +82,8 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /**
    * This option controls which file to use when attempting to create the credentials using the
    * service account method.
-   * <p>
-   * This option if specified, needs be combined with the
+   *
+   * <p>This option if specified, needs be combined with the
    * {@link GcpOptions#getServiceAccountName() serviceAccountName}.
    */
   @JsonIgnore
@@ -96,8 +96,8 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /**
    * This option controls which service account to use when attempting to create the credentials
    * using the service account method.
-   * <p>
-   * This option if specified, needs be combined with the
+   *
+   * <p>This option if specified, needs be combined with the
    * {@link GcpOptions#getServiceAccountKeyfile() serviceAccountKeyfile}.
    */
   @JsonIgnore

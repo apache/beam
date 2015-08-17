@@ -172,7 +172,7 @@ public class BlockingDataflowPipelineRunnerTest {
    * Creates a mocked {@link DataflowPipelineJob} with the given {@code projectId} and {@code jobId}
    * that will immediately terminate in the provided {@code terminalState}.
    *
-   * <p> The return value may be further mocked.
+   * <p>The return value may be further mocked.
    */
   private DataflowPipelineJob createMockJob(
       String projectId, String jobId, State terminalState) throws Exception {

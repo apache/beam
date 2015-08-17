@@ -39,7 +39,7 @@ import javax.annotation.Nullable;
 /**
  * An unbounded source for testing the unbounded sources framework code.
  *
- * <p> Each split of this sources produces records of the form KV(split_id, i),
+ * <p>Each split of this sources produces records of the form KV(split_id, i),
  * where i counts up from 0.  Each record has a timestamp of i, and the watermark
  * accurately tracks these timestamps.  The reader will occasionally return false
  * from {@code advance}, in order to simulate a source where not all the data is

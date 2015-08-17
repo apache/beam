@@ -32,7 +32,7 @@ import java.io.Serializable;
  * returns a {@code PCollectionList<T>} that bundles {@code N}
  * {@code PCollection<T>}s containing the split elements.
  *
- * <p> Example of use:
+ * <p>Example of use:
  * <pre> {@code
  * PCollection<Student> students = ...;
  * // Split students up into 10 partitions, by percentile:
@@ -48,11 +48,11 @@ import java.io.Serializable;
  * }
  * } </pre>
  *
- * <p> By default, the {@code Coder} of each of the
+ * <p>By default, the {@code Coder} of each of the
  * {@code PCollection}s in the output {@code PCollectionList} is the
  * same as the {@code Coder} of the input {@code PCollection}.
  *
- * <p> Each output element has the same timestamp and is in the same windows
+ * <p>Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and each output {@code PCollection}
  * has the same
  * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}

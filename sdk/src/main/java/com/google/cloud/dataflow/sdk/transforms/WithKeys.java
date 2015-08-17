@@ -31,7 +31,7 @@ import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
  * of the values in the input {@code PCollection} has been paired with
  * either the constant key or a key computed from the value.
  *
- * <p> Example of use:
+ * <p>Example of use:
  * <pre> {@code
  * PCollection<String> words = ...;
  * PCollection<KV<Integer, String>> lengthsToWords =
@@ -39,7 +39,7 @@ import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
  *         public Integer apply(String s) { return s.length(); } }));
  * } </pre>
  *
- * <p> Each output element has the same timestamp and is in the same windows
+ * <p>Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and the output {@code PCollection}
  * has the same
  * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}

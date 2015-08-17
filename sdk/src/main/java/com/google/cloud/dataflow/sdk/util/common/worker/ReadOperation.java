@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A read operation.
- * <p>
- * Its start() method iterates through all elements of the source
+ *
+ * <p>Its start() method iterates through all elements of the source
  * and emits them on its output.
  */
 public class ReadOperation extends Operation {
@@ -55,10 +55,10 @@ public class ReadOperation extends Operation {
 
   /**
    * A cache of sourceIterator.getProgress() updated inside the read loop at a bounded rate.
-   * <p>
-   * Necessary so that ReadOperation.getProgress() can return immediately, rather than potentially
-   * wait for a read to complete (which can take an unbounded time, delay a worker progress update,
-   * and cause lease expiration and all sorts of trouble).
+   *
+   * <p>Necessary so that ReadOperation.getProgress() can return immediately, rather than
+   * potentially wait for a read to complete (which can take an unbounded time, delay a worker
+   * progress update, and cause lease expiration and all sorts of trouble).
    */
   private AtomicReference<Reader.Progress> progress = new AtomicReference<>();
 

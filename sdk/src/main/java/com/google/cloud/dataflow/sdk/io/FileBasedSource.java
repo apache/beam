@@ -92,7 +92,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    * Create a {@code FileBaseSource} based on a file or a file pattern specification. This
    * constructor must be used when creating a new {@code FileBasedSource} for a file pattern.
    *
-   * <p> See {@link OffsetBasedSource} for a detailed description of {@code minBundleSize}.
+   * <p>See {@link OffsetBasedSource} for a detailed description of {@code minBundleSize}.
    *
    * @param fileOrPatternSpec {@link IOChannelFactory} specification of file or file pattern
    *        represented by the {@link FileBasedSource}.
@@ -110,7 +110,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    * Additionally, this constructor must be used to create new {@code FileBasedSource}s when
    * subclasses implement the method {@link #createForSubrangeOfFile}.
    *
-   * <p> See {@link OffsetBasedSource} for detailed descriptions of {@code minBundleSize},
+   * <p>See {@link OffsetBasedSource} for detailed descriptions of {@code minBundleSize},
    * {@code startOffset}, and {@code endOffset}.
    *
    * @param fileName {@link IOChannelFactory} specification of the file represented by the
@@ -409,7 +409,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    *
    * <h2>Thread Safety</h2>
    *
-   * <p> Since this class implements {@link Source.Reader} it guarantees thread safety. Abstract
+   * <p>Since this class implements {@link Source.Reader} it guarantees thread safety. Abstract
    * methods defined here will not be accessed by more than one thread concurrently.
    */
   public abstract static class FileBasedReader<T> extends OffsetBasedReader<T> {

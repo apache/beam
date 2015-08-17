@@ -32,7 +32,7 @@ public interface SourceFormat {
    * e.g. splitting a source into shards, getting the metadata of a source,
    * etc.
    *
-   * <p> The common worker framework does not interpret instances of
+   * <p>The common worker framework does not interpret instances of
    * this interface.  But a tool-specific framework can make assumptions
    * about the implementation, and so the concrete Source subclasses used
    * by a tool-specific framework should match.
@@ -42,7 +42,7 @@ public interface SourceFormat {
   /**
    * A representation of the result of a SourceOperationRequest.
    *
-   * <p> See the comment on {@link OperationRequest} for how instances of this
+   * <p>See the comment on {@link OperationRequest} for how instances of this
    * interface are used by the rest of the framework.
    */
   public interface OperationResponse {}
@@ -50,7 +50,7 @@ public interface SourceFormat {
   /**
    * A representation of a specification of a source.
    *
-   * <p> See the comment on {@link OperationRequest} for how instances of this
+   * <p>See the comment on {@link OperationRequest} for how instances of this
    * interface are used by the rest of the framework.
    */
   public interface SourceSpec {}

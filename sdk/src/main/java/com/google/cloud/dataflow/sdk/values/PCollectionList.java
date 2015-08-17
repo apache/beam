@@ -35,7 +35,7 @@ import java.util.List;
  * output of
  * {@link com.google.cloud.dataflow.sdk.transforms.Partition}.
  *
- * <p> PCollectionLists can be created and accessed like follows:
+ * <p>PCollectionLists can be created and accessed like follows:
  * <pre> {@code
  * PCollection<String> pc1 = ...;
  * PCollection<String> pc2 = ...;
@@ -63,7 +63,7 @@ public class PCollectionList<T> implements PInput, POutput {
   /**
    * Returns an empty PCollectionList that is part of the given Pipeline.
    *
-   * <p> Longer PCollectionLists can be created by calling
+   * <p>Longer PCollectionLists can be created by calling
    * {@link #and} on the result.
    */
   public static <T> PCollectionList<T> empty(Pipeline pipeline) {
@@ -73,7 +73,7 @@ public class PCollectionList<T> implements PInput, POutput {
   /**
    * Returns a singleton PCollectionList containing the given PCollection.
    *
-   * <p> Longer PCollectionLists can be created by calling
+   * <p>Longer PCollectionLists can be created by calling
    * {@link #and} on the result.
    */
   public static <T> PCollectionList<T> of(PCollection<T> pc) {
@@ -83,12 +83,12 @@ public class PCollectionList<T> implements PInput, POutput {
   /**
    * Returns a PCollectionList containing the given PCollections, in order.
    *
-   * <p> The argument list cannot be empty.
+   * <p>The argument list cannot be empty.
    *
-   * <p> All the PCollections in the resulting PCollectionList must be
+   * <p>All the PCollections in the resulting PCollectionList must be
    * part of the same Pipeline.
    *
-   * <p> Longer PCollectionLists can be created by calling
+   * <p>Longer PCollectionLists can be created by calling
    * {@link #and} on the result.
    */
   public static <T> PCollectionList<T> of(Iterable<PCollection<T>> pcs) {
@@ -105,7 +105,7 @@ public class PCollectionList<T> implements PInput, POutput {
    * Returns a new PCollectionList that has all the PCollections of
    * this PCollectionList plus the given PCollection appended to the end.
    *
-   * <p> All the PCollections in the resulting PCollectionList must be
+   * <p>All the PCollections in the resulting PCollectionList must be
    * part of the same Pipeline.
    */
   public PCollectionList<T> and(PCollection<T> pc) {
@@ -125,7 +125,7 @@ public class PCollectionList<T> implements PInput, POutput {
    * this PCollectionList plus the given PCollections appended to the end,
    * in order.
    *
-   * <p> All the PCollections in the resulting PCollectionList must be
+   * <p>All the PCollections in the resulting PCollectionList must be
    * part of the same Pipeline.
    */
   public PCollectionList<T> and(Iterable<PCollection<T>> pcs) {

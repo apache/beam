@@ -63,13 +63,13 @@ import javax.annotation.concurrent.ThreadSafe;
 /**
  * Represents and {@link InvocationHandler} for a {@link Proxy}. The invocation handler uses bean
  * introspection of the proxy class to store and retrieve values based off of the property name.
- * <p>
- * Unset properties use the {@code @Default} metadata on the getter to return values. If there
+ *
+ * <p>Unset properties use the {@code @Default} metadata on the getter to return values. If there
  * is no {@code @Default} annotation on the getter, then a <a
  * href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">default</a> as
  * per the Java Language Specification for the expected return type is returned.
- * <p>
- * In addition to the getter/setter pairs, this proxy invocation handler supports
+ *
+ * <p>In addition to the getter/setter pairs, this proxy invocation handler supports
  * {@link Object#equals(Object)}, {@link Object#hashCode()}, {@link Object#toString()} and
  * {@link PipelineOptions#as(Class)}.
  */

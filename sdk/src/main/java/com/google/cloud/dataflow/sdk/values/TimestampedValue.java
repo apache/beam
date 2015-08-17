@@ -39,7 +39,7 @@ import java.util.Objects;
 /**
  * An immutable (value, timestamp) pair.
  *
- * <p> Used for assigning initial timestamps to values inserted into a pipeline
+ * <p>Used for assigning initial timestamps to values inserted into a pipeline
  * with {@link com.google.cloud.dataflow.sdk.transforms.Create#timestamped}.
  *
  * @param <V> the type of the value

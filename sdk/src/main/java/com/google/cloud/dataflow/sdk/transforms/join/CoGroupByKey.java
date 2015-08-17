@@ -40,7 +40,7 @@ import java.util.List;
  * {@link com.google.cloud.dataflow.sdk.values.TupleTag}
  * supplied with the initial table.
  *
- * <p> Example of performing a {@link CoGroupByKey} followed by a
+ * <p>Example of performing a {@link CoGroupByKey} followed by a
  * {@link ParDo} that consumes
  * the results:
  * <pre> <code>

@@ -50,16 +50,16 @@ import java.util.List;
  * An example that counts words in text, and can run over either unbounded or bounded input
  * collections.
  *
- * <p> This class, {@link WindowedWordCount}, is the last in a series of four successively more
+ * <p>This class, {@link WindowedWordCount}, is the last in a series of four successively more
  * detailed 'word count' examples. First take a look at {@link MinimalWordCount},
  * {@link WordCount}, and {@link DebuggingWordCount}.
  *
- * <p> Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
+ * <p>Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
  * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally
  * and using the Dataflow service; defining DoFns; creating a custom aggregator;
  * user-defined PTransforms; defining PipelineOptions.
  *
- * <p> New Concepts:
+ * <p>New Concepts:
  * <pre>
  *   1. Unbounded and bounded pipeline input modes
  *   2. Adding timestamps to data
@@ -69,13 +69,13 @@ import java.util.List;
  *   6. Writing to BigQuery
  * </pre>
  *
- * <p> To execute this pipeline locally, specify general pipeline configuration:
+ * <p>To execute this pipeline locally, specify general pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  * }
  * </pre>
  *
- * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
@@ -83,16 +83,16 @@ import java.util.List;
  * }
  * </pre>
  *
- * <p> Optionally specify the input file path via:
+ * <p>Optionally specify the input file path via:
  * {@code --inputFile=gs://INPUT_PATH},
  * which defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt}.
  *
- * <p> Specify an output BigQuery dataset and optionally, a table for the output. If you don't
+ * <p>Specify an output BigQuery dataset and optionally, a table for the output. If you don't
  * specify the table, one will be created for you using the job name. If you don't specify the
  * dataset, a dataset called {@code dataflow-examples} must already exist in your project.
  * {@code --bigQueryDataset=YOUR-DATASET --bigQueryTable=YOUR-NEW-TABLE-NAME}.
  *
- * <p> Decide whether you want your pipeline to run with 'bounded' (such as files in GCS) or
+ * <p>Decide whether you want your pipeline to run with 'bounded' (such as files in GCS) or
  * 'unbounded' input (such as a PubSub topic). To run with unbounded input, set
  * {@code --unbounded=true}. Then, optionally specify the Google Cloud PubSub topic to read from
  * via {@code --pubsubTopic=projects/PROJECT_ID/topics/YOUR_TOPIC_NAME}. If the topic does not
@@ -102,7 +102,7 @@ import java.util.List;
  * If you want to use an independently-populated PubSub topic, indicate this by setting
  * {@code --inputFile=""}. In that case, the auxiliary pipeline will not be started.
  *
- * <p> By default, the pipeline will do fixed windowing, on 1-minute windows.  You can
+ * <p>By default, the pipeline will do fixed windowing, on 1-minute windows.  You can
  * change this interval by setting the {@code --windowSize} parameter, e.g. {@code --windowSize=10}
  * for 10-minute windows.
  */
@@ -114,7 +114,7 @@ public class WindowedWordCount {
    * Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
    * this example, for the bounded data case.
    *
-   * <p> Imagine that many ghosts of Shakespeare are all typing madly at the same time to recreate
+   * <p>Imagine that many ghosts of Shakespeare are all typing madly at the same time to recreate
    * his masterworks. Each line of the corpus will get a random associated timestamp somewhere in a
    * 2-hour period.
    */
@@ -177,7 +177,7 @@ public class WindowedWordCount {
   /**
    * Options supported by {@link WindowedWordCount}.
    *
-   * <p> Inherits standard example configuration options, which allow specification of the BigQuery
+   * <p>Inherits standard example configuration options, which allow specification of the BigQuery
    * table and the PubSub topic, as well as the {@link WordCount.WordCountOptions} support for
    * specification of the input file.
    */

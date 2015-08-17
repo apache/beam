@@ -92,8 +92,6 @@ import javax.xml.bind.Marshaller;
  *
  * <p>The following will produce XML output with a root element named "words" from a PCollection of
  * WordFrequency objects:
- *
- * <p>
  * <pre>
  * p.apply(Write.to(
  *  XmlSink.ofRecordClass(WordFrequency.class)
@@ -102,7 +100,6 @@ import javax.xml.bind.Marshaller;
  * </pre>
  *
  * <p>The output of which will look like:
- *
  * <pre>
  * {@code
  * <words>
@@ -129,8 +126,7 @@ import javax.xml.bind.Marshaller;
  *
  *  ...
  * </words>
- * }
- * </pre>
+ * }</pre>
  */
 // JAVADOCSTYLE ON
 @SuppressWarnings("checkstyle:javadocstyle")

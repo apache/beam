@@ -29,7 +29,7 @@ import org.joda.time.Years;
  * A collection of {@link WindowFn}s that windows values into calendar-based
  * windows such as spans of days, months, or years.
  *
- * <p> For example, to group data into quarters that change on the 15th, use
+ * <p>For example, to group data into quarters that change on the 15th, use
  * {@code CalendarWindows.months(3).withStartingMonth(2014, 1).beginningOnDay(15)}.
  */
 public class CalendarWindows {
@@ -37,7 +37,7 @@ public class CalendarWindows {
   /**
    * Returns a {@link WindowFn} that windows elements into periods measured by days.
    *
-   * <p> For example, {@code CalendarWindows.days(1)} will window elements into
+   * <p>For example, {@code CalendarWindows.days(1)} will window elements into
    * separate windows for each day.
    */
   public static DaysWindows days(int number) {
@@ -47,7 +47,7 @@ public class CalendarWindows {
   /**
    * Returns a {@link WindowFn} that windows elements into periods measured by weeks.
    *
-   * <p> For example, {@code CalendarWindows.weeks(1, DateTimeConstants.TUESDAY)} will
+   * <p>For example, {@code CalendarWindows.weeks(1, DateTimeConstants.TUESDAY)} will
    * window elements into week-long windows starting on Tuesdays.
    */
   public static DaysWindows weeks(int number, int startDayOfWeek) {
@@ -60,7 +60,7 @@ public class CalendarWindows {
   /**
    * Returns a {@link WindowFn} that windows elements into periods measured by months.
    *
-   * <p> For example,
+   * <p>For example,
    * {@code CalendarWindows.months(8).withStartingMonth(2014, 1).beginningOnDay(10)}
    * will window elements into 8 month windows where that start on the 10th day of month,
    * and the first window begins in January 2014.
@@ -72,7 +72,7 @@ public class CalendarWindows {
   /**
    * Returns a {@link WindowFn} that windows elements into periods measured by years.
    *
-   * <p> For example,
+   * <p>For example,
    * {@code CalendarWindows.years(1).withTimeZone(DateTimeZone.forId("America/Los_Angeles"))}
    * will window elements into year-long windows that start at midnight on Jan 1, in the
    * America/Los_Angeles time zone.
@@ -84,10 +84,10 @@ public class CalendarWindows {
   /**
    * A {@link WindowFn} that windows elements into periods measured by days.
    *
-   * <p> By default, periods of multiple days are measured starting at the
+   * <p>By default, periods of multiple days are measured starting at the
    * epoch.  This can be overridden with {@link #withStartingDay}.
    *
-   * <p> The time zone used to determine calendar boundaries is UTC, unless this
+   * <p>The time zone used to determine calendar boundaries is UTC, unless this
    * is overridden with the {@link #withTimeZone} method.
    */
   public static class DaysWindows extends PartitioningWindowFn<Object, IntervalWindow> {
@@ -160,13 +160,13 @@ public class CalendarWindows {
   /**
    * A {@link WindowFn} that windows elements into periods measured by months.
    *
-   * <p> By default, periods of multiple months are measured starting at the
+   * <p>By default, periods of multiple months are measured starting at the
    * epoch.  This can be overridden with {@link #withStartingMonth}.
    *
-   * <p> Months start on the first day of each calendar month, unless overridden by
+   * <p>Months start on the first day of each calendar month, unless overridden by
    * {@link #beginningOnDay}.
    *
-   * <p> The time zone used to determine calendar boundaries is UTC, unless this
+   * <p>The time zone used to determine calendar boundaries is UTC, unless this
    * is overridden with the {@link #withTimeZone} method.
    */
   public static class MonthsWindows extends PartitioningWindowFn<Object, IntervalWindow> {
@@ -253,13 +253,13 @@ public class CalendarWindows {
   /**
    * A {@link WindowFn} that windows elements into periods measured by years.
    *
-   * <p> By default, periods of multiple years are measured starting at the
+   * <p>By default, periods of multiple years are measured starting at the
    * epoch.  This can be overridden with {@link #withStartingYear}.
    *
-   * <p> Years start on the first day of each calendar year, unless overridden by
+   * <p>Years start on the first day of each calendar year, unless overridden by
    * {@link #beginningOnDay}.
    *
-   * <p> The time zone used to determine calendar boundaries is UTC, unless this
+   * <p>The time zone used to determine calendar boundaries is UTC, unless this
    * is overridden with the {@link #withTimeZone} method.
    */
   public static class YearsWindows extends PartitioningWindowFn<Object, IntervalWindow> {

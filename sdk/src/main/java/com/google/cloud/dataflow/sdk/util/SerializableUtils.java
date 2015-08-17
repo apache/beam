@@ -92,10 +92,10 @@ public class SerializableUtils {
 
   /**
    * Serializes a Coder and verifies that it can be correctly deserialized.
-   * <p>
-   * Throws a RuntimeException if serialized Coder cannot be deserialized, or
+   *
+   * <p>Throws a RuntimeException if serialized Coder cannot be deserialized, or
    * if the deserialized instance is not equal to the original.
-   * <p>
+   *
    * @return the serialized Coder, as a {@link CloudObject}
    */
   public static CloudObject ensureSerializable(Coder<?> coder) {

@@ -82,10 +82,10 @@ public class DatastoreIOTest {
    * Shakespeare collections (e.g. there are 172948 lines in
    * all Shakespeare files).
    *
-   * <p> The function also sets up the datastore agent by creating
+   * <p>The function also sets up the datastore agent by creating
    * a Datastore object to access the dataset shakespeareddataset.
    *
-   * <p> Note that the local server must be started to let the agent
+   * <p>Note that the local server must be started to let the agent
    * be created normally.
    */
   @Before

@@ -262,7 +262,7 @@ public class PubsubIO {
    * returns a {@code PCollection<String>} containing the items from
    * the stream.
    *
-   * <p> When running with a runner that only supports bounded {@code PCollection}s
+   * <p>When running with a runner that only supports bounded {@code PCollection}s
    * (such as DirectPipelineRunner or DataflowPipelineRunner without --streaming), only a
    * bounded portion of the input Pubsub stream can be processed.  As such, either
    * {@link Bound#maxNumRecords} or {@link Bound#maxReadTime} must be set.
@@ -289,7 +289,7 @@ public class PubsubIO {
      * <li>Cannot begin with 'goog' prefix.</li>
      * </ul>
      *
-     * <p> Dataflow will start reading data published on this topic from the time the pipeline is
+     * <p>Dataflow will start reading data published on this topic from the time the pipeline is
      * started. Any data published on the topic before the pipeline is started will not be read by
      * Dataflow.
      */
@@ -326,16 +326,16 @@ public class PubsubIO {
      * the number of milliseconds since the Unix epoch. For example, if using the joda time classes,
      * org.joda.time.Instant.getMillis() returns the correct value for this label.
      *
-     * <p> If {@code <timestampLabel>} is not provided, the system will generate record timestamps
+     * <p>If {@code <timestampLabel>} is not provided, the system will generate record timestamps
      * the first time it sees each record. All windowing will be done relative to these timestamps.
      *
-     * <p> By default windows are emitted based on an estimate of when this source is likely
+     * <p>By default windows are emitted based on an estimate of when this source is likely
      * done producing data for a given timestamp (referred to as the Watermark; see
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark} for more details).
      * Any late data will be handled by the trigger specified with the windowing strategy -- by
      * default it will be output immediately.
      *
-     * <p> Note that the system can guarantee that no late data will ever be seen when it assigns
+     * <p>Note that the system can guarantee that no late data will ever be seen when it assigns
      * timestamps by arrival time (i.e. {@code timestampLabel} is not provided).
      */
     public static Bound<String> timestampLabel(String timestampLabel) {
@@ -348,7 +348,7 @@ public class PubsubIO {
      * specifies the label name. The label value sent to PubSub can be any string value that
      * uniquely identifies this record.
      *
-     * <p> If idLabel is not provided, Dataflow cannot guarantee that no duplicate data will be
+     * <p>If idLabel is not provided, Dataflow cannot guarantee that no duplicate data will be
      * delivered on the PubSub stream. In this case,  deduplication of the stream will be
      * stricly best effort.
      */
@@ -360,7 +360,7 @@ public class PubsubIO {
      * Creates and returns a PubsubIO.Read PTransform that uses the given
      * {@code Coder<T>} to decode PubSub record into a value of type {@code T}.
      *
-     * <p> By default, uses {@link StringUtf8Coder}, which just
+     * <p>By default, uses {@link StringUtf8Coder}, which just
      * returns the text lines as Java strings.
      *
      * @param <T> the type of the decoded elements, and the elements
@@ -373,7 +373,7 @@ public class PubsubIO {
     /**
      * Sets the maximum number of records that will be read from Pubsub.
      *
-     * <p> Either this or {@link #maxReadTime} must be set for use as a bounded
+     * <p>Either this or {@link #maxReadTime} must be set for use as a bounded
      * {@code PCollection}.
      */
     public static Bound<String> maxNumRecords(int maxNumRecords) {
@@ -383,7 +383,7 @@ public class PubsubIO {
     /**
      * Sets the maximum duration during which records will be read from Pubsub.
      *
-     * <p> Either this or {@link #maxNumRecords} must be set for use as a bounded
+     * <p>Either this or {@link #maxNumRecords} must be set for use as a bounded
      * {@code PCollection}.
      */
     public static Bound<String> maxReadTime(Duration maxReadTime) {
@@ -446,7 +446,7 @@ public class PubsubIO {
        * Returns a new PubsubIO.Read PTransform that's like this one but reading from the
        * given subscription. Does not modify the object.
        *
-       * <p> Multiple readers reading from the same subscription will each receive
+       * <p>Multiple readers reading from the same subscription will each receive
        * some arbirary portion of the data.  Most likely, separate readers should
        * use their own subscriptions.
        */
@@ -498,7 +498,7 @@ public class PubsubIO {
       /**
        * Sets the maximum number of records that will be read from Pubsub.
        *
-       * <p> Setting either this or {@link #maxNumRecords} will cause the output {@code PCollection}
+       * <p>Setting either this or {@link #maxNumRecords} will cause the output {@code PCollection}
        * to be bounded.
        */
       public Bound<T> maxNumRecords(int maxNumRecords) {
@@ -509,7 +509,7 @@ public class PubsubIO {
       /**
        * Sets the maximum duration during which records will be read from Pubsub.
        *
-       * <p> Setting either this or {@link #maxNumRecords} will cause the output {@code PCollection}
+       * <p>Setting either this or {@link #maxNumRecords} will cause the output {@code PCollection}
        * to be bounded.
        */
       public Bound<T> maxReadTime(Duration maxReadTime) {
@@ -722,7 +722,7 @@ public class PubsubIO {
      * {@code Coder<T>} to encode each of the elements of the input
      * {@code PCollection<T>} into an output PubSub record.
      *
-     * <p> By default, uses {@link StringUtf8Coder}, which writes input
+     * <p>By default, uses {@link StringUtf8Coder}, which writes input
      * Java strings directly as records.
      *
      * @param <T> the type of the elements of the input PCollection

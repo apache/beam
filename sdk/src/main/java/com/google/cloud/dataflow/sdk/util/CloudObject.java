@@ -28,8 +28,8 @@ import javax.annotation.Nullable;
 /**
  * A representation of an arbitrary Java object to be instantiated by Dataflow
  * workers.
- * <p>
- * Typically, an object to be written by the SDK to the Dataflow service will
+ *
+ * <p>Typically, an object to be written by the SDK to the Dataflow service will
  * implement a method (typically called {@code asCloudObject()}) that returns a
  * {@code CloudObject} to represent the object in the protocol.  Once the
  * {@code CloudObject} is constructed, the method should explicitly add
@@ -41,8 +41,8 @@ public final class CloudObject extends GenericJson {
    * Constructs a {@code CloudObject} by copying the supplied serialized object
    * spec, which must represent an SDK object serialized for transport via the
    * Dataflow API.
-   * <p>
-   * The most common use of this method is during deserialization on the worker,
+   *
+   * <p>The most common use of this method is during deserialization on the worker,
    * where it's used as a binding type during instance construction.
    *
    * @param spec supplies the serialized form of the object as a nested map

@@ -51,7 +51,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
      * Access the storage for the given {@code address} in all of the windows that were
      * merged into the current window including the current window.
      *
-     * <p> If no windows were merged, this reads from just the current window.
+     * <p>If no windows were merged, this reads from just the current window.
      */
     <StateT extends MergeableState<?, ?>> StateT accessAcrossMergedWindows(
         StateTag<StateT> address);
@@ -132,7 +132,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     /**
      * Return the collection of windows that were merged.
      *
-     * <p> Note that this may include the result window.
+     * <p>Note that this may include the result window.
      */
     public abstract Collection<W> mergingWindows();
 
@@ -161,7 +161,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   /**
    * Called when windows are merged.
    *
-   * <p> There are generally two strategies for implementing this and handling merging of state:
+   * <p>There are generally two strategies for implementing this and handling merging of state:
    * <ul>
    * <li> Lazily merge the state when outputting. This is especially easy if all the state is stored
    * in {@link MergeableState}, since an automatically merged view can be retrieved.

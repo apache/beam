@@ -33,8 +33,8 @@ import javax.annotation.Nullable;
 
 /**
  * A {@link PTransform} for reading from a {@link Source}.
- * <p>
- * Usage example:
+ *
+ * <p>Usage example:
  * <pre>
  * Pipeline p = Pipeline.create();
  * p.apply(Read.from(new MySource().withFoo("foo").withBar("bar"))
@@ -109,7 +109,7 @@ public class Read {
      * Returns a new {@code Bounded} {@code PTransform} that's like this one but
      * has the given name.
      *
-     * <p> Does not modify this object.
+     * <p>Does not modify this object.
      */
     public Bounded<T> named(String name) {
       return new Bounded<T>(name, source);
@@ -176,7 +176,7 @@ public class Read {
      * Returns a new {@code Unbounded} {@code PTransform} that's like this one but
      * has the given name.
      *
-     * <p> Does not modify this object.
+     * <p>Does not modify this object.
      */
     public Unbounded<T> named(String name) {
       return new Unbounded<T>(name, source);
@@ -187,7 +187,7 @@ public class Read {
      * of data from the given {@link UnboundedSource}.  The bound is specified as a number
      * of records to read.
      *
-     * <p> This may take a long time to execute if the splits of this source are slow to read
+     * <p>This may take a long time to execute if the splits of this source are slow to read
      * records.
      */
     public BoundedReadFromUnboundedSource<T> withMaxNumRecords(long maxNumRecords) {

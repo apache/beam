@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
  * every window, at some point in time, all data for that window will have
  * arrived and can be processed together.
  *
- * <p> Windows must also implement {@link Object#equals} and
+ * <p>Windows must also implement {@link Object#equals} and
  * {@link Object#hashCode} such that windows that are logically equal will
  * be treated as equal by {@code equals()} and {@code hashCode()}.
  */

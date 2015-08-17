@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
 /**
  * Constructs a Reader from a Dataflow API Source definition.
  *
- * <p> A ReaderFactory concrete "subclass" should define a method with the
+ * <p>A ReaderFactory concrete "subclass" should define a method with the
  * following signature:
  * <pre> {@code
  * static SomeReaderSubclass<T> create(PipelineOptions, CloudObject,

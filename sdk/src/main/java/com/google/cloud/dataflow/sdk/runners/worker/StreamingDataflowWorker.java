@@ -759,7 +759,7 @@ public class StreamingDataflowWorker {
   /**
    * Class representing the state of active work for a computation.
    *
-   * <p> This class is synchronized, but only used from the dispatch and commit threads, so should
+   * <p>This class is synchronized, but only used from the dispatch and commit threads, so should
    * not be heavily contended.  Still, blocking work should not be done by it.
    */
   static class ActiveWorkForComputation {

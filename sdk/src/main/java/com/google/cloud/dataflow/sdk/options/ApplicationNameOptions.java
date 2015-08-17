@@ -22,8 +22,8 @@ package com.google.cloud.dataflow.sdk.options;
 public interface ApplicationNameOptions extends PipelineOptions {
   /**
    * Name of application, for display purposes.
-   * <p>
-   * Defaults to the name of the class that constructs the {@link PipelineOptions}
+   *
+   * <p>Defaults to the name of the class that constructs the {@link PipelineOptions}
    * via the {@link PipelineOptionsFactory}.
    */
   @Description("Name of application for display purposes. Defaults to the name of the class that "

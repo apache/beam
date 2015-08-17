@@ -480,7 +480,7 @@ public class DataflowPipelineTranslatorTest {
   /**
    * A composite transform that returns a partially bound output.
    *
-   * <p> This is not allowed and will result in a failure.
+   * <p>This is not allowed and will result in a failure.
    */
   private static class PartiallyBoundOutputCreator
       extends PTransform<PCollection<Integer>, PCollectionTuple> {

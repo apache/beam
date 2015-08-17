@@ -64,7 +64,7 @@ public class TextSink<T> extends Sink<T> {
   /**
    * For testing only.
    *
-   * <p> Used by simple tests that write to a single unsharded file.
+   * <p>Used by simple tests that write to a single unsharded file.
    */
   public static <V> TextSink<WindowedValue<V>> createForTest(
       String filename,

@@ -37,8 +37,8 @@ public abstract class WorkExecutor implements AutoCloseable {
 
   /**
    * OperatingSystemMXBean for reporting CPU usage.
-   * <p>
-   * Uses com.sun.management.OperatingSystemMXBean instead of
+   *
+   * <p>Uses com.sun.management.OperatingSystemMXBean instead of
    * java.lang.management.OperatingSystemMXBean because the former supports
    * getProcessCpuLoad().
    */

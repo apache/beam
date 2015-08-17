@@ -73,7 +73,7 @@ import java.util.Random;
  * Executes the operations in the pipeline directly, in this process, without
  * any optimization.  Useful for small local execution and tests.
  *
- * <p> Throws an exception from {@link #run} if execution fails.
+ * <p>Throws an exception from {@link #run} if execution fails.
  *
  * <p><h3>Permissions</h3>
  * When reading from a Dataflow source or writing to a Dataflow sink using
@@ -81,7 +81,7 @@ import java.util.Random;
  * <a href="https://cloud.google.com/sdk/gcloud">gcloud</a> executable will need access to the
  * corresponding source/sink.
  *
- * <p> Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
+ * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
@@ -98,7 +98,7 @@ public class DirectPipelineRunner
    * A map from PTransform class to the corresponding
    * TransformEvaluator to use to evaluate that transform.
    *
-   * <p> A static map that contains system-wide defaults.
+   * <p>A static map that contains system-wide defaults.
    */
   private static Map<Class, TransformEvaluator> defaultTransformEvaluators =
       new HashMap<>();
@@ -107,7 +107,7 @@ public class DirectPipelineRunner
    * A map from PTransform class to the corresponding
    * TransformEvaluator to use to evaluate that transform.
    *
-   * <p> An instance map that contains bindings for this DirectPipelineRunner.
+   * <p>An instance map that contains bindings for this DirectPipelineRunner.
    * Bindings in this map override those in the default map.
    */
   private Map<Class, TransformEvaluator> localTransformEvaluators =
@@ -186,9 +186,9 @@ public class DirectPipelineRunner
    * Enable runtime testing to verify that all functions and {@link Coder}
    * instances can be serialized.
    *
-   * <p> Enabled by default.
+   * <p>Enabled by default.
    *
-   * <p> This method modifies the {@code DirectPipelineRunner} instance and
+   * <p>This method modifies the {@code DirectPipelineRunner} instance and
    * returns itself.
    */
   public DirectPipelineRunner withSerializabilityTesting(boolean enable) {
@@ -199,9 +199,9 @@ public class DirectPipelineRunner
   /**
    * Enable runtime testing to verify that all values can be encoded.
    *
-   * <p> Enabled by default.
+   * <p>Enabled by default.
    *
-   * <p> This method modifies the {@code DirectPipelineRunner} instance and
+   * <p>This method modifies the {@code DirectPipelineRunner} instance and
    * returns itself.
    */
   public DirectPipelineRunner withEncodabilityTesting(boolean enable) {
@@ -213,11 +213,11 @@ public class DirectPipelineRunner
    * Enable runtime testing to verify that functions do not depend on order
    * of the elements.
    *
-   * <p> This is accomplished by randomizing the order of elements.
+   * <p>This is accomplished by randomizing the order of elements.
    *
-   * <p> Enabled by default.
+   * <p>Enabled by default.
    *
-   * <p> This method modifies the {@code DirectPipelineRunner} instance and
+   * <p>This method modifies the {@code DirectPipelineRunner} instance and
    * returns itself.
    */
   public DirectPipelineRunner withUnorderednessTesting(boolean enable) {
@@ -607,7 +607,7 @@ public class DirectPipelineRunner
      * given Coder by encoding it and then decoding it, and returning
      * the result. Otherwise returns the argument unchanged.
      *
-     * <p> Error context is prefixed to any thrown exceptions.
+     * <p>Error context is prefixed to any thrown exceptions.
      */
     <T> T ensureSerializableByCoder(Coder<T> coder,
                                     T data, String errorContext);

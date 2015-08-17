@@ -23,10 +23,10 @@ import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
  * A {@code POutputValueBase} is the abstract base class of
  * {@code PTransform} outputs.
  *
- * <p> A {@code PValueBase} that adds tracking of its producing
+ * <p>A {@code PValueBase} that adds tracking of its producing
  * {@code AppliedPTransform}.
  *
- * <p> For internal use.
+ * <p>For internal use.
  */
 public abstract class POutputValueBase implements POutput {
 
@@ -54,7 +54,7 @@ public abstract class POutputValueBase implements POutput {
    * Returns the {@code AppliedPTransform} that this {@code POutputValueBase}
    * is an output of.
    *
-   * <p> For internal use only.
+   * <p>For internal use only.
    */
   public AppliedPTransform<?, ?, ?> getProducingTransformInternal() {
     return producingTransform;
@@ -64,7 +64,7 @@ public abstract class POutputValueBase implements POutput {
    * Records that this {@code POutputValueBase} is an output with the
    * given name of the given {@code AppliedPTransform}.
    *
-   * <p> To be invoked only by {@link POutput#recordAsOutput}
+   * <p>To be invoked only by {@link POutput#recordAsOutput}
    * implementations.  Not to be invoked directly by user code.
    */
   @Override

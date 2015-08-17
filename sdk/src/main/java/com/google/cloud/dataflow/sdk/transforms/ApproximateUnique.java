@@ -48,7 +48,7 @@ public class ApproximateUnique {
    * that is an estimate of the number of distinct elements in the
    * input {@code PCollection}.
    *
-   * <p> The {@code sampleSize} parameter controls the estimation
+   * <p>The {@code sampleSize} parameter controls the estimation
    * error.  The error is about {@code 2 / sqrt(sampleSize)}, so for
    * {@code ApproximateUnique.globally(10000)} the estimation error is
    * about 2%.  Similarly, for {@code ApproximateUnique.of(16)} the
@@ -57,15 +57,15 @@ public class ApproximateUnique {
    * will be exact with extremely high probability (the chance of a
    * hash collision is about {@code sampleSize^2 / 2^65}).
    *
-   * <p> This transform approximates the number of elements in a set
+   * <p>This transform approximates the number of elements in a set
    * by computing the top {@code sampleSize} hash values, and using
    * that to extrapolate the size of the entire set of hash values by
    * assuming the rest of the hash values are as densely distributed
    * as the top {@code sampleSize}.
    *
-   * <p> See also {@link #globally(double)}.
+   * <p>See also {@link #globally(double)}.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<String> pc = ...;
    * PCollection<Long> approxNumDistinct =
@@ -105,13 +105,13 @@ public class ApproximateUnique {
    * estimate of the number of distinct values associated with that
    * key in the input {@code PCollection}.
    *
-   * <p> See {@link #globally(int)} for an explanation of the
+   * <p>See {@link #globally(int)} for an explanation of the
    * {@code sampleSize} parameter.  A separate sampling is computed
    * for each distinct key of the input.
    *
-   * <p> See also {@link #perKey(double)}.
+   * <p>See also {@link #perKey(double)}.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<KV<Integer, String>> pc = ...;
    * PCollection<KV<Integer, Long>> approxNumDistinctPerKey =
@@ -262,12 +262,12 @@ public class ApproximateUnique {
    * {@code CombineFn} that computes an estimate of the number of
    * distinct values that were combined.
    *
-   * <p> Hashes input elements, computes the top {@code sampleSize}
+   * <p>Hashes input elements, computes the top {@code sampleSize}
    * hash values, and uses those to extrapolate the size of the entire
    * set of hash values by assuming the rest of the hash values are as
    * densely distributed as the top {@code sampleSize}.
    *
-   * <p> Used to implement
+   * <p>Used to implement
    * {@link #globally(int) ApproximatUnique.globally(...)} and
    * {@link #perKey(int) ApproximatUnique.perKey(...)}.
    *

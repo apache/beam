@@ -47,18 +47,18 @@ import java.util.UUID;
  * elements of the input
  * {@link com.google.cloud.dataflow.sdk.values.PCollection}.
  *
- * <p> See {@link ParDo} for more explanation, examples of use, and
+ * <p>See {@link ParDo} for more explanation, examples of use, and
  * discussion of constraints on {@code DoFn}s, including their
  * serializability, lack of access to global shared mutable state,
  * requirements for failure tolerance, and benefits of optimization.
  *
- * <p> {@code DoFn}s can be tested in the context of a particular
+ * <p>{@code DoFn}s can be tested in the context of a particular
  * {@code Pipeline} by running that {@code Pipeline} on sample input
  * and then checking its output.  Unit testing of a {@code DoFn},
  * separately from any {@code ParDo} transform or {@code Pipeline},
  * can be done via the {@link DoFnTester} harness.
  *
- * <p> {@link DoFnWithContext} (currently experimental) offers an alternative
+ * <p>{@link DoFnWithContext} (currently experimental) offers an alternative
  * mechanism for accessing {@link ProcessContext#window()} without the need
  * to implement {@link RequiresWindowAccess}.
  *
@@ -85,16 +85,16 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
     /**
      * Adds the given element to the main output {@code PCollection}.
      *
-     * <p> Once passed to {@code output} the element should be considered
+     * <p>Once passed to {@code output} the element should be considered
      * immutable and not be modified in any way. It may be cached or retained
      * by the Dataflow runtime or later steps in the pipeline, or used in
      * other unspecified ways.
      *
-     * <p> If invoked from {@link DoFn#processElement}, the output
+     * <p>If invoked from {@link DoFn#processElement}, the output
      * element will have the same timestamp and be in the same windows
      * as the input element passed to {@link DoFn#processElement}).
      *
-     * <p> If invoked from {@link #startBundle} or {@link #finishBundle},
+     * <p>If invoked from {@link #startBundle} or {@link #finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -108,15 +108,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * Adds the given element to the main output {@code PCollection},
      * with the given timestamp.
      *
-     * <p> Once passed to {@code outputWithTimestamp} the element should not be
+     * <p>Once passed to {@code outputWithTimestamp} the element should not be
      * modified in any way.
      *
-     * <p> If invoked from {@link DoFn#processElement}), the timestamp
+     * <p>If invoked from {@link DoFn#processElement}), the timestamp
      * must not be older than the input element's timestamp minus
      * {@link DoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
-     * <p> If invoked from {@link #startBundle} or {@link #finishBundle},
+     * <p>If invoked from {@link #startBundle} or {@link #finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -130,18 +130,18 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * Adds the given element to the side output {@code PCollection} with the
      * given tag.
      *
-     * <p> Once passed to {@code sideOutput} the element should not be modified
+     * <p>Once passed to {@code sideOutput} the element should not be modified
      * in any way.
      *
-     * <p> The caller of {@code ParDo} uses {@link ParDo#withOutputTags} to
+     * <p>The caller of {@code ParDo} uses {@link ParDo#withOutputTags} to
      * specify the tags of side outputs that it consumes. Non-consumed side
      * outputs, e.g., outputs for monitoring purposes only, don't necessarily
      * need to be specified.
      *
-     * <p> The output element will have the same timestamp and be in the same
+     * <p>The output element will have the same timestamp and be in the same
      * windows as the input element passed to {@link DoFn#processElement}).
      *
-     * <p> If invoked from {@link #startBundle} or {@link #finishBundle},
+     * <p>If invoked from {@link #startBundle} or {@link #finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -159,15 +159,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * Adds the given element to the specified side output {@code PCollection},
      * with the given timestamp.
      *
-     * <p> Once passed to {@code sideOutputWithTimestamp} the element should not be
+     * <p>Once passed to {@code sideOutputWithTimestamp} the element should not be
      * modified in any way.
      *
-     * <p> If invoked from {@link DoFn#processElement}), the timestamp
+     * <p>If invoked from {@link DoFn#processElement}), the timestamp
      * must not be older than the input element's timestamp minus
      * {@link DoFn#getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
-     * <p> If invoked from {@link #startBundle} or {@link #finishBundle},
+     * <p>If invoked from {@link #startBundle} or {@link #finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -229,7 +229,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
     /**
      * Returns the input element to be processed.
      *
-     * <p> The element should be considered immutable. The Dataflow runtime will not mutate the
+     * <p>The element should be considered immutable. The Dataflow runtime will not mutate the
      * element, so it is safe to cache, etc. The element should not be mutated by any of the
      * {@link DoFn} methods, because it may be cached elsewhere, retained by the Dataflow runtime,
      * or used in other unspecified ways.
@@ -240,7 +240,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * Returns the value of the side input for the window corresponding to the
      * window of the main input element.
      *
-     * <p> See
+     * <p>See
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn#getSideInputWindow}
      * for how this corresponding window is determined.
      *
@@ -252,7 +252,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
     /**
      * Returns the timestamp of the input element.
      *
-     * <p> See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window}
+     * <p>See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window}
      * for more information.
      */
     public abstract Instant timestamp();
@@ -260,7 +260,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
     /**
      * Returns the window into which the input element has been assigned.
      *
-     * <p> See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window}
+     * <p>See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window}
      * for more information.
      *
      * @throws UnsupportedOperationException if this {@link DoFn} does
@@ -272,7 +272,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * Returns information about the pane within this window into which the
      * input element has been assigned.
      *
-     * <p> Generally all data is in a single, uninteresting pane unless custom
+     * <p>Generally all data is in a single, uninteresting pane unless custom
      * triggering and/or late data has been explicitly requested.
      * See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window}
      * for more information.
@@ -291,7 +291,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
    * duration that timestamps can be shifted backward in
    * {@link DoFn.Context#outputWithTimestamp}.
    *
-   * <p> The default value is {@code Duration.ZERO}, in which case
+   * <p>The default value is {@code Duration.ZERO}, in which case
    * timestamps can only be shifted forward to future.  For infinite
    * skew, return {@code Duration.millis(Long.MAX_VALUE)}.
    */
@@ -321,7 +321,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   /**
    * Prepares this {@code DoFn} instance for processing a batch of elements.
    *
-   * <p> By default, does nothing.
+   * <p>By default, does nothing.
    */
   public void startBundle(Context c) throws Exception {
   }
@@ -329,13 +329,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   /**
    * Processes one input element.
    *
-   * <p> The current element of the input {@code PCollection} is returned by
+   * <p>The current element of the input {@code PCollection} is returned by
    * {@link ProcessContext#element() c.element()}. It should be considered immutable. The Dataflow
    * runtime will not mutate the element, so it is safe to cache, etc. The element should not be
    * mutated by any of the {@link DoFn} methods, because it may be cached elsewhere, retained by the
    * Dataflow runtime, or used in other unspecified ways.
    *
-   * <p> A value is added to the main output {@code PCollection} by {@link ProcessContext#output}.
+   * <p>A value is added to the main output {@code PCollection} by {@link ProcessContext#output}.
    * Once passed to {@code output} the element should be considered immutable and not be modified in
    * any way. It may be cached elsewhere, retained by the Dataflow runtime, or used in other
    * unspecified ways.
@@ -348,7 +348,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
    * Finishes processing this batch of elements.  This {@code DoFn}
    * instance will be thrown away after this operation returns.
    *
-   * <p> By default, does nothing.
+   * <p>By default, does nothing.
    */
   public void finishBundle(Context c) throws Exception {
   }
@@ -361,7 +361,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
    * about the input type of this {@code DoFn} instance's most-derived
    * class.
    *
-   * <p> See {@link #getOutputTypeDescriptor} for more discussion.
+   * <p>See {@link #getOutputTypeDescriptor} for more discussion.
    */
   protected TypeDescriptor<InputT> getInputTypeDescriptor() {
     return new TypeDescriptor<InputT>(getClass()) {};
@@ -372,7 +372,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
    * about the output type of this {@code DoFn} instance's
    * most-derived class.
    *
-   * <p> In the normal case of a concrete {@code DoFn} subclass with
+   * <p>In the normal case of a concrete {@code DoFn} subclass with
    * no generic type parameters of its own (including anonymous inner
    * classes), this will be a complete non-generic type, which is good
    * for choosing a default output {@code Coder<OutputT>} for the output

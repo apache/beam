@@ -71,10 +71,10 @@ import java.util.regex.Pattern;
  * An example that computes the most popular hash tags
  * for every prefix, which can be used for auto-completion.
  *
- * <p> Concepts: Using the same pipeline in both streaming and batch, combiners,
- *               composite transforms.
+ * <p>Concepts: Using the same pipeline in both streaming and batch, combiners,
+ *              composite transforms.
  *
- * <p> To execute this pipeline using the Dataflow service in batch mode,
+ * <p>To execute this pipeline using the Dataflow service in batch mode,
  * specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
@@ -83,7 +83,7 @@ import java.util.regex.Pattern;
  *   --inputFile=gs://path/to/input*.txt
  * }</pre>
  *
- * <p> To execute this pipeline using the Dataflow service in streaming mode,
+ * <p>To execute this pipeline using the Dataflow service in streaming mode,
  * specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
@@ -93,7 +93,7 @@ import java.util.regex.Pattern;
  *   --streaming
  * }</pre>
  *
- * <p> This will update the datastore every 10 seconds based on the last
+ * <p>This will update the datastore every 10 seconds based on the last
  * 30 minutes of data received.
  */
 public class AutoComplete {
@@ -188,7 +188,7 @@ public class AutoComplete {
   /**
    * Cheaper but higher latency.
    *
-   * <p> Returns two PCollections, the first is top prefixes of size greater
+   * <p>Returns two PCollections, the first is top prefixes of size greater
    * than minPrefix, and the second is top prefixes of size exactly
    * minPrefix.
    */
@@ -434,7 +434,7 @@ public class AutoComplete {
   /**
    * Options supported by this class.
    *
-   * <p> Inherits standard Dataflow configuration options.
+   * <p>Inherits standard Dataflow configuration options.
    */
   private static interface Options extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
     @Description("Input text file")

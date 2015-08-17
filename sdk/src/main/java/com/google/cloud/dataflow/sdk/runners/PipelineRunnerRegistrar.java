@@ -22,13 +22,13 @@ import java.util.ServiceLoader;
  * {@link PipelineRunner} creators have the ability to automatically have their
  * {@link PipelineRunner} registered with this SDK by creating a {@link ServiceLoader} entry
  * and a concrete implementation of this interface.
- * <p>
- * Note that automatic registration of any
+ *
+ * <p>Note that automatic registration of any
  * {@link com.google.cloud.dataflow.sdk.options.PipelineOptions} requires users
  * conform to the limit that each {@link PipelineRunner}'s
  * {@link Class#getSimpleName() simple name} must be unique.
- * <p>
- * It is optional but recommended to use one of the many build time tools such as
+ *
+ * <p>It is optional but recommended to use one of the many build time tools such as
  * {@link com.google.auto.service.AutoService} to generate the necessary
  * META-INF files automatically.
  */

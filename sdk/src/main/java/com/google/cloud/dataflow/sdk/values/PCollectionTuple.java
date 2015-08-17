@@ -39,7 +39,7 @@ import java.util.Map;
  * {@link com.google.cloud.dataflow.sdk.transforms.ParDo} with side
  * outputs.
  *
- * <p> A {@code PCollectionTuple} can be created and accessed like follows:
+ * <p>A {@code PCollectionTuple} can be created and accessed like follows:
  * <pre> {@code
  * PCollection<String> pc1 = ...;
  * PCollection<Integer> pc2 = ...;
@@ -76,7 +76,7 @@ public class PCollectionTuple implements PInput, POutput {
   /**
    * Returns an empty {@code PCollectionTuple} that is part of the given {@link Pipeline}.
    *
-   * <p> A {@link PCollectionTuple} containing additional elements can be created by calling
+   * <p>A {@link PCollectionTuple} containing additional elements can be created by calling
    * {@link #and} on the result.
    */
   public static PCollectionTuple empty(Pipeline pipeline) {
@@ -87,7 +87,7 @@ public class PCollectionTuple implements PInput, POutput {
    * Returns a singleton {@link PCollectionTuple} containing the given
    * {@link PCollection} keyed by the given {@link TupleTag}.
    *
-   * <p> A {@code PCollectionTuple} containing additional elements can be created by calling
+   * <p>A {@code PCollectionTuple} containing additional elements can be created by calling
    * {@link #and} on the result.
    */
   public static <T> PCollectionTuple of(TupleTag<T> tag, PCollection<T> pc) {
@@ -99,10 +99,10 @@ public class PCollectionTuple implements PInput, POutput {
    * {@link TupleTag} of this {@link PCollectionTuple} plus the given {@link PCollection}
    * associated with the given {@link TupleTag}.
    *
-   * <p> The given {@link TupleTag} should not already be mapped to a
+   * <p>The given {@link TupleTag} should not already be mapped to a
    * {@link PCollection} in this {@link PCollectionTuple}.
    *
-   * <p> Each {@link PCollection} in the resulting {@link PCollectionTuple} must be
+   * <p>Each {@link PCollection} in the resulting {@link PCollectionTuple} must be
    * part of the same {@link Pipeline}.
    */
   public <T> PCollectionTuple and(TupleTag<T> tag, PCollection<T> pc) {
@@ -193,7 +193,7 @@ public class PCollectionTuple implements PInput, POutput {
    * Returns a {@link PCollectionTuple} with each of the given tags mapping to a new
    * output {@link PCollection}.
    *
-   * <p> For use by primitive transformations only.
+   * <p>For use by primitive transformations only.
    */
   public static PCollectionTuple ofPrimitiveOutputsInternal(
       Pipeline pipeline,

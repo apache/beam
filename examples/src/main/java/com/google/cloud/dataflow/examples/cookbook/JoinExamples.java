@@ -38,9 +38,9 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
  * It uses a sample of the GDELT 'world event' data (http://goo.gl/OB6oin), joining the event
  * 'action' country code against a table that maps country codes to country names.
  *
- * <p> Concepts: Join operation; multiple input sources.
+ * <p>Concepts: Join operation; multiple input sources.
  *
- * <p> To execute this pipeline locally, specify general pipeline configuration:
+ * <p>To execute this pipeline locally, specify general pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  * }
@@ -50,7 +50,7 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  * }</pre>
  *
- * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
@@ -168,8 +168,8 @@ public class JoinExamples {
 
   /**
    * Options supported by {@link JoinExamples}.
-   * <p>
-   * Inherits standard configuration options.
+   *
+   * <p>Inherits standard configuration options.
    */
   private static interface Options extends PipelineOptions {
     @Description("Path of the file to write to")

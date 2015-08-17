@@ -27,10 +27,10 @@ import java.io.Serializable;
  * An address for persistent state. This includes a unique identifier for the location, the
  * information necessary to encode the value, and details about the intended access pattern.
  *
- * <p> State can be thought of as a sparse table, with each {@code StateTag} defining a column
+ * <p>State can be thought of as a sparse table, with each {@code StateTag} defining a column
  * that has cells of type {@code StateT}.
  *
- * <p> Currently, this can only be used in a step immediately following a {@link GroupByKey}.
+ * <p>Currently, this can only be used in a step immediately following a {@link GroupByKey}.
  *
  * @param <StateT> The type of state being tagged.
  */

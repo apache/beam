@@ -63,20 +63,20 @@ public class ApproximateQuantiles {
    * of the input {@code PCollection}.  This gives an idea of the
    * distribution of the input elements.
    *
-   * <p> The computed {@code List} is of size {@code numQuantiles},
+   * <p>The computed {@code List} is of size {@code numQuantiles},
    * and contains the input elements' minimum value,
    * {@code numQuantiles-2} intermediate values, and maximum value, in
    * sorted order, using the given {@code Comparator} to order values.
    * To compute traditional {@code N}-tiles, one should use
    * {@code ApproximateQuantiles.globally(compareFn, N+1)}.
    *
-   * <p> If there are fewer input elements than {@code numQuantiles},
+   * <p>If there are fewer input elements than {@code numQuantiles},
    * then the result {@code List} will contain all the input elements,
    * in sorted order.
    *
-   * <p> The argument {@code Comparator} must be {@code Serializable}.
+   * <p>The argument {@code Comparator} must be {@code Serializable}.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<String> pc = ...;
    * PCollection<List<String>> quantiles =
@@ -119,27 +119,27 @@ public class ApproximateQuantiles {
    * input {@code PCollection}.  This gives an idea of the
    * distribution of the input values for each key.
    *
-   * <p> Each of the computed {@code List}s is of size {@code numQuantiles},
+   * <p>Each of the computed {@code List}s is of size {@code numQuantiles},
    * and contains the input values' minimum value,
    * {@code numQuantiles-2} intermediate values, and maximum value, in
    * sorted order, using the given {@code Comparator} to order values.
    * To compute traditional {@code N}-tiles, one should use
    * {@code ApproximateQuantiles.perKey(compareFn, N+1)}.
    *
-   * <p> If a key has fewer than {@code numQuantiles} values
+   * <p>If a key has fewer than {@code numQuantiles} values
    * associated with it, then that key's output {@code List} will
    * contain all the key's input values, in sorted order.
    *
-   * <p> The argument {@code Comparator} must be {@code Serializable}.
+   * <p>The argument {@code Comparator} must be {@code Serializable}.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<KV<Integer, String>> pc = ...;
    * PCollection<KV<Integer, List<String>>> quantilesPerKey =
    *     pc.apply(ApproximateQuantiles.<Integer, String>perKey(stringCompareFn, 11));
    * } </pre>
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    *
    * @param <K> the type of the keys in the input and output
    *        {@code PCollection}s
@@ -187,14 +187,14 @@ public class ApproximateQuantiles {
    * {@code N}-tiles, one should use
    * {@code ApproximateQuantilesCombineFn#create(N+1)}.
    *
-   * <p> If there are fewer values to combine than
+   * <p>If there are fewer values to combine than
    * {@code numQuantiles}, then the result {@code List} will contain all the
    * values being combined, in sorted order.
    *
-   * <p> Values are ordered using either a specified
+   * <p>Values are ordered using either a specified
    * {@code Comparator} or the values' natural ordering.
    *
-   * <p> To evaluate the quantiles we use the "New Algorithm" described here:
+   * <p>To evaluate the quantiles we use the "New Algorithm" described here:
    * <pre>
    *   [MRL98] Manku, Rajagopalan &amp; Lindsay, "Approximate Medians and other
    *   Quantiles in One Pass and with Limited Memory", Proc. 1998 ACM
@@ -202,8 +202,8 @@ public class ApproximateQuantiles {
    *   http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.6.6513&amp;rep=rep1&amp;type=pdf
    * </pre>
    *
-   * <p> The default error bound is {@code 1 / N}, though in practice
-   * the accuracy tends to be much better.  <p> See
+   * <p>The default error bound is {@code 1 / N}, though in practice
+   * the accuracy tends to be much better.  <p>See
    * {@link #create(int, Comparator, long, double)} for
    * more information about the meaning of {@code epsilon}, and
    * {@link #withEpsilon} for a convenient way to adjust it.
@@ -266,9 +266,9 @@ public class ApproximateQuantiles {
      * {@code numQuantiles} elements will appear in the output list,
      * including the minimum and maximum.
      *
-     * <p> The {@code Comparator} must be {@code Serializable}.
+     * <p>The {@code Comparator} must be {@code Serializable}.
      *
-     * <p> The default error bound is {@code 1 / numQuantiles}, which
+     * <p>The default error bound is {@code 1 / numQuantiles}, which
      * holds as long as the number of elements is less than
      * {@link #DEFAULT_MAX_NUM_ELEMENTS}.
      */
@@ -292,7 +292,7 @@ public class ApproximateQuantiles {
      * this one except that it uses the specified {@code epsilon}
      * value.  Does not modify this combiner.
      *
-     * <p> See {@link #create(int, Comparator, long,
+     * <p>See {@link #create(int, Comparator, long,
      * double)} for more information about the meaning of
      * {@code epsilon}.
      */
@@ -305,7 +305,7 @@ public class ApproximateQuantiles {
      * this one except that it uses the specified {@code maxNumElements}
      * value.  Does not modify this combiner.
      *
-     * <p> See {@link #create(int, Comparator, long, double)} for more
+     * <p>See {@link #create(int, Comparator, long, double)} for more
      * information about the meaning of {@code maxNumElements}.
      */
     public ApproximateQuantilesCombineFn<T, ComparatorT> withMaxInputSize(
@@ -319,9 +319,9 @@ public class ApproximateQuantiles {
      * {@code numQuantiles} elements will appear in the output list,
      * including the minimum and maximum.
      *
-     * <p> The {@code Comparator} must be {@code Serializable}.
+     * <p>The {@code Comparator} must be {@code Serializable}.
      *
-     * <p> The default error bound is {@code epsilon}, which holds as long
+     * <p>The default error bound is {@code epsilon}, which holds as long
      * as the number of elements is less than {@code maxNumElements}.
      * Specifically, if one considers the input as a sorted list x_1, ..., x_N,
      * then the distance between the each exact quantile x_c and its
@@ -580,8 +580,8 @@ public class ApproximateQuantiles {
     /**
      * Outputs numQuantiles elements consisting of the minimum, maximum, and
      * numQuantiles - 2 evenly spaced intermediate elements.
-     * <p>
-     * Returns the empty list if no elements have been added.
+     *
+     * <p>Returns the empty list if no elements have been added.
      */
     @Override
     public List<T> extractOutput() {

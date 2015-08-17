@@ -28,7 +28,7 @@ import javax.annotation.Nullable;
  * A {@link RangeTracker} for positions used by {@code GroupingShuffleReader}
  * ({@code ByteArrayShufflePosition}).
  *
- * <p> These positions roughly correspond to hashes of keys. In case of hash collisions,
+ * <p>These positions roughly correspond to hashes of keys. In case of hash collisions,
  * multiple groups can have the same position. In that case, the first group at a particular
  * position is considered a split point (because it is the first to be returned when reading
  * a position range starting at this position), others are not.

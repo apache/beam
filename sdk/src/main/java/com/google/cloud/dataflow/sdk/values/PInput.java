@@ -33,20 +33,20 @@ public interface PInput {
   /**
    * Expands this {@code PInput} into a list of its component input {@link PValue}s.
    *
-   * <p> A {@link PValue} expands to itself.
+   * <p>A {@link PValue} expands to itself.
    *
-   * <p> A tuple or list of {@link PValue}s (e.g., {@link PCollectionTuple},
+   * <p>A tuple or list of {@link PValue}s (e.g., {@link PCollectionTuple},
    * and {@link PCollectionList}) expands to its component {@link PValue}s.
    *
-   * <p> Not intended to be invoked directly by user code.
+   * <p>Not intended to be invoked directly by user code.
    */
   public Collection<? extends PValue> expand();
 
   /**
-   * <p> After building, finalizes this {@code PInput} to make it ready for
+   * <p>After building, finalizes this {@code PInput} to make it ready for
    * being used as an input to a {@link com.google.cloud.dataflow.sdk.transforms.PTransform}.
    *
-   * <p> Automatically invoked whenever {@code apply()} is invoked on
+   * <p>Automatically invoked whenever {@code apply()} is invoked on
    * this {@code PInput}, so users do not normally call this explicitly.
    */
   public void finishSpecifying();

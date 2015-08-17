@@ -53,7 +53,7 @@ import javax.xml.stream.XMLStreamReader;
  * created by passing an {@code XmlSource} object to {@code Read.from()}. Please note the
  * example given below.
  *
- * <p> The XML file must be of the following form where root and record are XML element names that
+ * <p>The XML file must be of the following form where root and record are XML element names that
  * are defined by the user. Root is the name of the root element of the XML document.
  *
  * <pre>
@@ -68,7 +68,7 @@ import javax.xml.stream.XMLStreamReader;
  * }
  * </pre>
  *
- * <p> Basically the XML document should contain a set of record elements where a record may contain
+ * <p>Basically the XML document should contain a set of record elements where a record may contain
  * arbitrary XML content. Root and/or record elements may additionally contain an arbitrary number
  * of XML attributes. Users must provide the name of the root element and record
  * element when creating the source. Additionally users must provide a class of a JAXB annotated
@@ -87,10 +87,10 @@ import javax.xml.stream.XMLStreamReader;
  * }
  * </pre>
  *
- * <p> Currently only XML files that use character encoding UTF-8 are supported. Using a file that
+ * <p>Currently only XML files that use character encoding UTF-8 are supported. Using a file that
  * has a different character encoding may result in loss of data.
  *
- * <p> To use {@code XmlSource}, explicitly declare dependencies on following two jars from Woodstox
+ * <p>To use {@code XmlSource}, explicitly declare dependencies on following two jars from Woodstox
  * StAX XML parser.
  * (1) stax2-api-3.1.1.jar
  * (2) woodstox-core-asl-4.1.2.jar
@@ -227,8 +227,8 @@ public class XmlSource<T> extends FileBasedSource<T> {
   /**
    * A {@link Source.Reader} for reading JAXB annotated Java objects from an XML file. The XML
    * file should be of the form defined at {@link XmlSource}.
-   * <p>
-   * Timestamped values are currently unsupported - all values implicitly have the timestamp
+   *
+   * <p>Timestamped values are currently unsupported - all values implicitly have the timestamp
    * of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
    *
    * @param <T> Type of objects that will be read by the reader.

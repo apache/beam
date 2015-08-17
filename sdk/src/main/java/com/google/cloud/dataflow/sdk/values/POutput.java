@@ -36,13 +36,13 @@ public interface POutput {
    * Expands this {@code POutput} into a list of its component output
    * {@code PValue}s.
    *
-   * <p> A {@link PValue} expands to itself.
+   * <p>A {@link PValue} expands to itself.
    *
-   * <p> A tuple or list of {@code PValue}s (e.g.,
+   * <p>A tuple or list of {@code PValue}s (e.g.,
    * {@link PCollectionTuple}, and
    * {@link PCollectionList}) expands to its component {@code PValue}s.
    *
-   * <p> Not intended to be invoked directly by user code.
+   * <p>Not intended to be invoked directly by user code.
    */
   public Collection<? extends PValue> expand();
 
@@ -50,10 +50,10 @@ public interface POutput {
    * Records that this {@code POutput} is an output of the given
    * {@code PTransform}.
    *
-   * <p> For a compound {@code POutput}, it is advised to call
+   * <p>For a compound {@code POutput}, it is advised to call
    * this method on each component {@code POutput}.
    *
-   * <p> This is not intended to be invoked by user code, but
+   * <p>This is not intended to be invoked by user code, but
    * is automatically invoked as part of applying the
    * producing {@code PTransform}.
    */
@@ -63,10 +63,10 @@ public interface POutput {
    * As part of applying the producing {@code PTransform}, finalizes this
    * output to make it ready for being used as an input and for running.
    *
-   * <p> This includes ensuring that all {@code PCollection}s
+   * <p>This includes ensuring that all {@code PCollection}s
    * have {@code Coder}s specified or defaulted.
    *
-   * <p> Automatically invoked whenever this {@code POutput} is used
+   * <p>Automatically invoked whenever this {@code POutput} is used
    * as a {@code PInput} to another {@code PTransform}, or if never
    * used as a {@code PInput}, when {@link Pipeline#run}
    * is called, so users do not normally call this explicitly.

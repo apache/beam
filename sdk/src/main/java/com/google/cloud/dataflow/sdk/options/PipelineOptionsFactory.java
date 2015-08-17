@@ -91,8 +91,8 @@ import javax.annotation.Nullable;
  *   <li>The derived interface of {@link PipelineOptions} must be composable with every interface
  *       registered with this factory.
  * </ul>
- * <p>
- * See the <a
+ *
+ * <p>See the <a
  * href="http://www.oracle.com/technetwork/java/javase/documentation/spec-136004.html">JavaBeans
  * specification</a> for more details as to what constitutes a property.
  */
@@ -113,7 +113,7 @@ public class PipelineOptionsFactory {
    * This sets the {@link ApplicationNameOptions#getAppName() "appName"} to the calling
    * {@link Class#getSimpleName() classes simple name}.
    *
-   * <p> Note that {@code <T>} must be composable with every registered interface with this factory.
+   * <p>Note that {@code <T>} must be composable with every registered interface with this factory.
    * See {@link PipelineOptionsFactory#validateWellFormed(Class, Set)} for more details.
    *
    * @return An object that implements {@code <T>}.
@@ -124,8 +124,8 @@ public class PipelineOptionsFactory {
 
   /**
    * Sets the command line arguments to parse when constructing the {@link PipelineOptions}.
-   * <p>
-   * Example GNU style command line arguments:
+   *
+   * <p>Example GNU style command line arguments:
    * <pre>
    *   --project=MyProject (simple property, will set the "project" property to "MyProject")
    *   --readOnly=true (for boolean properties, will set the "readOnly" property to "true")
@@ -134,23 +134,23 @@ public class PipelineOptionsFactory {
    *   --x=1,2,3 (shorthand list style property, will set the "x" property to [1, 2, 3])
    *   --complexObject='{"key1":"value1",...} (JSON format for all other complex types)
    * </pre>
-   * <p>
-   * Simple properties are able to bound to {@link String}, {@link Class}, enums and Java
+   *
+   * <p>Simple properties are able to bound to {@link String}, {@link Class}, enums and Java
    * primitives {@code boolean}, {@code byte}, {@code short}, {@code int}, {@code long},
    * {@code float}, {@code double} and their primitive wrapper classes.
-   * <p>
-   * Simple list style properties are able to be bound to {@code boolean[]}, {@code char[]},
+   *
+   * <p>Simple list style properties are able to be bound to {@code boolean[]}, {@code char[]},
    * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
    * {@code Class[]}, enum arrays, {@code String[]}, and {@code List<String>}.
-   * <p>
-   * JSON format is required for all other types.
-   * <p>
-   * By default, strict parsing is enabled and arguments must conform to be either
+   *
+   * <p>JSON format is required for all other types.
+   *
+   * <p>By default, strict parsing is enabled and arguments must conform to be either
    * {@code --booleanArgName} or {@code --argName=argValue}. Strict parsing can be disabled with
    * {@link Builder#withoutStrictParsing()}. Empty or null arguments will be ignored whether
    * or not strict parsing is enabled.
-   * <p>
-   * Help information can be output to {@link System#out} by specifying {@code --help} as an
+   *
+   * <p>Help information can be output to {@link System#out} by specifying {@code --help} as an
    * argument. After help is printed, the application will exit. Specifying only {@code --help}
    * will print out the list of
    * {@link PipelineOptionsFactory#getRegisteredOptions() registered options}
@@ -195,8 +195,8 @@ public class PipelineOptionsFactory {
 
     /**
      * Sets the command line arguments to parse when constructing the {@link PipelineOptions}.
-     * <p>
-     * Example GNU style command line arguments:
+     *
+     * <p>Example GNU style command line arguments:
      * <pre>
      *   --project=MyProject (simple property, will set the "project" property to "MyProject")
      *   --readOnly=true (for boolean properties, will set the "readOnly" property to "true")
@@ -205,23 +205,23 @@ public class PipelineOptionsFactory {
      *   --x=1,2,3 (shorthand list style property, will set the "x" property to [1, 2, 3])
      *   --complexObject='{"key1":"value1",...} (JSON format for all other complex types)
      * </pre>
-     * <p>
-     * Simple properties are able to bound to {@link String}, {@link Class}, enums and Java
+     *
+     * <p>Simple properties are able to bound to {@link String}, {@link Class}, enums and Java
      * primitives {@code boolean}, {@code byte}, {@code short}, {@code int}, {@code long},
      * {@code float}, {@code double} and their primitive wrapper classes.
-     * <p>
-     * Simple list style properties are able to be bound to {@code boolean[]}, {@code char[]},
+     *
+     * <p>Simple list style properties are able to be bound to {@code boolean[]}, {@code char[]},
      * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
      * {@code Class[]}, enum arrays, {@code String[]}, and {@code List<String>}.
-     * <p>
-     * JSON format is required for all other types.
-     * <p>
-     * By default, strict parsing is enabled and arguments must conform to be either
+     *
+     * <p>JSON format is required for all other types.
+     *
+     * <p>By default, strict parsing is enabled and arguments must conform to be either
      * {@code --booleanArgName} or {@code --argName=argValue}. Strict parsing can be disabled with
      * {@link Builder#withoutStrictParsing()}. Empty or null arguments will be ignored whether
      * or not strict parsing is enabled.
-     * <p>
-     * Help information can be output to {@link System#out} by specifying {@code --help} as an
+     *
+     * <p>Help information can be output to {@link System#out} by specifying {@code --help} as an
      * argument. After help is printed, the application will exit. Specifying only {@code --help}
      * will print out the list of
      * {@link PipelineOptionsFactory#getRegisteredOptions() registered options}
@@ -266,9 +266,10 @@ public class PipelineOptionsFactory {
     /**
      * Creates and returns an object that implements {@code <T>} using the values configured on
      * this builder during construction.
-     * <p>
-     * Note that {@code <T>} must be composable with every registered interface with this factory.
-     * See {@link PipelineOptionsFactory#validateWellFormed(Class, Set)} for more details.
+     *
+     * <p>Note that {@code <T>} must be composable with every registered interface with this
+     * factory. See {@link PipelineOptionsFactory#validateWellFormed(Class, Set)} for more
+     * details.
      *
      * @return An object that implements {@code <T>}.
      */
@@ -306,8 +307,8 @@ public class PipelineOptionsFactory {
    * {@link PipelineOptionsFactory#printHelp(PrintStream)} and
    * {@link PipelineOptionsFactory#printHelp(PrintStream, Class)} variant.
    * Prints to the specified {@link PrintStream}, and exits if requested.
-   * <p>
-   * Visible for testing.
+   *
+   * <p>Visible for testing.
    * {@code printStream} and {@code exit} used for testing.
    */
   @SuppressWarnings("unchecked")
@@ -865,8 +866,9 @@ public class PipelineOptionsFactory {
   /**
    * This method is meant to emulate the behavior of {@link Introspector#getBeanInfo(Class, int)}
    * to construct the list of {@link PropertyDescriptor}.
-   * <p>
-   * TODO: Swap back to using Introspector once the proxy class issue with AppEngine is resolved.
+   *
+   * <p>TODO: Swap back to using Introspector once the proxy class issue with AppEngine is
+   * resolved.
    */
   private static List<PropertyDescriptor> getPropertyDescriptors(Class<?> beanClass)
       throws IntrospectionException {
@@ -1165,7 +1167,7 @@ public class PipelineOptionsFactory {
   /**
    * Splits string arguments based upon expected pattern of --argName=value.
    *
-   * <p> Example GNU style command line arguments:
+   * <p>Example GNU style command line arguments:
    *
    * <pre>
    *   --project=MyProject (simple property, will set the "project" property to "MyProject")
@@ -1176,17 +1178,17 @@ public class PipelineOptionsFactory {
    *   --complexObject='{"key1":"value1",...} (JSON format for all other complex types)
    * </pre>
    *
-   * <p> Simple properties are able to bound to {@link String}, {@link Class}, enums and Java
+   * <p>Simple properties are able to bound to {@link String}, {@link Class}, enums and Java
    * primitives {@code boolean}, {@code byte}, {@code short}, {@code int}, {@code long},
    * {@code float}, {@code double} and their primitive wrapper classes.
    *
-   * <p> Simple list style properties are able to be bound to {@code boolean[]}, {@code char[]},
+   * <p>Simple list style properties are able to be bound to {@code boolean[]}, {@code char[]},
    * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
    * {@code Class[]}, enum arrays, {@code String[]}, and {@code List<String>}.
    *
-   * <p> JSON format is required for all other types.
+   * <p>JSON format is required for all other types.
    *
-   * <p> If strict parsing is enabled, options must start with '--', and not have an empty argument
+   * <p>If strict parsing is enabled, options must start with '--', and not have an empty argument
    * name or value based upon the positioning of the '='. Empty or null arguments will be ignored
    * whether or not strict parsing is enabled.
    */
@@ -1224,14 +1226,14 @@ public class PipelineOptionsFactory {
   /**
    * Using the parsed string arguments, we convert the strings to the expected
    * return type of the methods that are found on the passed-in class.
-   * <p>
-   * For any return type that is expected to be an array or a collection, we further
+   *
+   * <p>For any return type that is expected to be an array or a collection, we further
    * split up each string on ','.
-   * <p>
-   * We special case the "runner" option. It is mapped to the class of the {@link PipelineRunner}
+   *
+   * <p>We special case the "runner" option. It is mapped to the class of the {@link PipelineRunner}
    * based off of the {@link PipelineRunner}s simple class name.
-   * <p>
-   * If strict parsing is enabled, unknown options or options that cannot be converted to
+   *
+   * <p>If strict parsing is enabled, unknown options or options that cannot be converted to
    * the expected java type using an {@link ObjectMapper} will be ignored.
    */
   private static <T extends PipelineOptions> Map<String, Object> parseObjects(

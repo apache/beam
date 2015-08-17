@@ -120,11 +120,10 @@ public class DataflowWorkerLoggingHandler extends Handler {
 
   /**
    * Check if a LogRecord will be logged.
-   * <p>
-   * This method checks if the <tt>LogRecord</tt> has an appropriate level and
+   *
+   * <p>This method checks if the <tt>LogRecord</tt> has an appropriate level and
    * whether it satisfies any <tt>Filter</tt>.  It will also return false if
    * the handler has been closed, or the LogRecord is null.
-   * <p>
    */
   @Override
   public boolean isLoggable(LogRecord record) {

@@ -41,7 +41,7 @@ import java.util.NoSuchElementException;
  * ({@link BoundedReader#splitAtFraction}).
  * </ul>
  *
- * <p> To use this class for supporting your custom input type, derive your class
+ * <p>To use this class for supporting your custom input type, derive your class
  * class from it, and override the abstract methods. For an example, see {@link DatastoreIO}.
  *
  * @param <T> Type of records read by the source.
@@ -113,7 +113,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      *   <li>The returned values should be non-decreasing (though they don't have to be unique).
      * </ul>
      *
-     * <p> By default, returns null to indicate that this cannot be estimated.
+     * <p>By default, returns null to indicate that this cannot be estimated.
      *
      * @return A value in [0, 1] representing the fraction of this reader's current input
      *   read so far, or {@code null} if such an estimate is not available.
@@ -150,8 +150,8 @@ public abstract class BoundedSource<T> extends Source<T> {
      * For example, a reader that reads a range of offsets <i>[A, B)</i> in a file might implement
      * this method by truncating the current range to <i>[A, A + fraction*(B-A))</i> and returning
      * a Source representing the range <i>[A + fraction*(B-A), B)</i>.
-     * <p>
-     * This method should return {@code null} if the split cannot be performed for this fraction
+     *
+     * <p>This method should return {@code null} if the split cannot be performed for this fraction
      * while satisfying the semantics above. E.g., a reader that reads a range of offsets
      * in a file should return {@code null} if it is already past the position in its range
      * corresponding to the given fraction. In this case, the method MUST have no effect
@@ -177,7 +177,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      * <p>{@link com.google.cloud.dataflow.sdk.io.range.RangeTracker} makes it easy to implement
      * this method safely and correctly.
      *
-     * <p> By default, returns null to indicate that splitting is not possible.
+     * <p>By default, returns null to indicate that splitting is not possible.
      */
     public BoundedSource<T> splitAtFraction(double fraction) {
       return null;

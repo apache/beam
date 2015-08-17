@@ -23,7 +23,7 @@ import java.util.List;
  * An {@code AtomicCoder} is a {@link Coder} that has no component {@link Coder Coders} or other
  * state.
  *
- * <p> Note that, unless the behavior is overridden, atomic coders are presumed to be deterministic
+ * <p>Note that, unless the behavior is overridden, atomic coders are presumed to be deterministic
  * and all instances are considered equal.
  *
  * @param <T> the type of the values being transcoded

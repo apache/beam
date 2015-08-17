@@ -29,7 +29,7 @@ import java.util.Collection;
  * information on how {@code WindowFn}s are used and for a library of
  * predefined {@code WindowFn}s.
  *
- * <p> Users will generally want to use the predefined
+ * <p>Users will generally want to use the predefined
  * {@code WindowFn}s, but it is  also possible to create new
  * subclasses.
  * TODO: Describe how to properly create {@code WindowFn}s.
@@ -82,11 +82,11 @@ public abstract class WindowFn<T, W extends BoundedWindow>
      * Signals to the framework that the windows in {@code toBeMerged} should
      * be merged together to form {@code mergeResult}.
      *
-     * <p> {@code toBeMerged} should be a subset of {@link #windows}
+     * <p>{@code toBeMerged} should be a subset of {@link #windows}
      * and disjoint from the {@code toBeMerged} set of previous calls
      * to {@code merge}.
      *
-     * <p> {@code mergeResult} must either not be in {@link #windows} or be in
+     * <p>{@code mergeResult} must either not be in {@link #windows} or be in
      * {@code toBeMerged}.
      *
      * @throws IllegalArgumentException if any elements of toBeMerged are not
@@ -99,7 +99,7 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   /**
    * Does whatever merging of windows is necessary.
    *
-   * <p> See {@link MergeOverlappingIntervalWindows#mergeWindows} for an
+   * <p>See {@link MergeOverlappingIntervalWindows#mergeWindows} for an
    * example of how to override this method.
    */
   public abstract void mergeWindows(MergeContext c) throws Exception;
@@ -120,7 +120,7 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    * Returns the window of the side input corresponding to the given window of
    * the main input.
    *
-   * <p> Authors of custom {@code WindowFn}s should override this.
+   * <p>Authors of custom {@code WindowFn}s should override this.
    */
   public abstract W getSideInputWindow(final BoundedWindow window);
 
@@ -128,20 +128,20 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    * Returns the output timestamp to use for data depending on the given {@code inputTimestamp}
    * in the specified {@code window}.
    *
-    * <p> The result must be between {@code inputTimestamp} and {@code window.maxTimestamp()}
+    * <p>The result must be between {@code inputTimestamp} and {@code window.maxTimestamp()}
    * (inclusive on both sides). If this {@link WindowFn} doesn't produce overlapping windows,
    * this can (and typically should) just return {@code inputTimestamp}. If this does produce
    * overlapping windows, it is suggested that the that the result in later overlapping windows is
    * past the end of earlier windows so that the later windows don't prevent the watermark from
    * progressing past the end of the earlier window.
    *
-   * <p> Each {@code KV<K, Iterable<V>>} produced from a {@code GroupByKey} will be output at a
+   * <p>Each {@code KV<K, Iterable<V>>} produced from a {@code GroupByKey} will be output at a
    * timestamp that is the minimum of {@code getOutputTime} applied to the timestamp of all of
    * the non-late {@code KV<K, V>} that were used as input to the {@code GroupByKey}. The watermark
    * is also prevented from advancing past this minimum timestamp until after the
    * {@code KV<K, Iterable<V>>} has been output.
    *
-   * <p> This function should be monotonic across input timestamps. Specifically, if {@code A < B},
+   * <p>This function should be monotonic across input timestamps. Specifically, if {@code A < B},
    * then {@code getOutputTime(A, window) <= getOutputTime(B, window)}.
    */
   public abstract Instant getOutputTime(Instant inputTimestamp, W window);

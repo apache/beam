@@ -192,7 +192,7 @@ public class StateSampler extends TimerTask implements AutoCloseable {
    * A nested class that is used to account for states and state
    * transitions based on lexical scopes.
    *
-   * <p> Thread-safe.
+   * <p>Thread-safe.
    */
   public class ScopedState implements AutoCloseable {
     private StateSampler sampler;

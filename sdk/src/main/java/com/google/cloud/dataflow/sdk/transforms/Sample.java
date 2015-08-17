@@ -44,14 +44,14 @@ public class Sample {
    * produces a new {@code PCollection<T>} containing up to limit
    * elements of the input {@code PCollection}.
    *
-   * <p> If limit is less than or equal to the size of the input
+   * <p>If limit is less than or equal to the size of the input
    * {@code PCollection}, then all the input's elements will be selected.
    *
-   * <p> All of the elements of the output {@code PCollection} should fit into
+   * <p>All of the elements of the output {@code PCollection} should fit into
    * main memory of a single worker machine.  This operation does not
    * run in parallel.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<String> input = ...;
    * PCollection<String> output = input.apply(Sample.<String>any(100));
@@ -73,7 +73,7 @@ public class Sample {
    * {@code sampleSize} elements, then the output {@code Iterable<T>}
    * will be all the input's elements.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<String> pc = ...;
    * PCollection<Iterable<String>> sampleOfSize10 =
@@ -101,7 +101,7 @@ public class Sample {
    * all the values associated with that key in the input
    * {@code PCollection}.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<KV<String, Integer>> pc = ...;
    * PCollection<KV<String, Iterable<Integer>>> sampleOfSize10PerKey =

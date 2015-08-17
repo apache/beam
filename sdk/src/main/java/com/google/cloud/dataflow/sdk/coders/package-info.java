@@ -18,14 +18,14 @@
  * Defines {@link com.google.cloud.dataflow.sdk.coders.Coder}s
  * to specify how data is encoded to and decoded from byte strings.
  *
- * <p> During execution of a Pipeline, elements in a
+ * <p>During execution of a Pipeline, elements in a
  * {@link com.google.cloud.dataflow.sdk.values.PCollection}
  * may need to be encoded into byte strings.
  * This happens both at the beginning and end of a pipeline when data is read from and written to
  * persistent storage and also during execution of a pipeline when elements are communicated between
  * machines.
  *
- * <p> Exactly when PCollection elements are encoded during execution depends on which
+ * <p>Exactly when PCollection elements are encoded during execution depends on which
  * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner} is being used and how that runner
  * chooses to execute the pipeline. As such, Dataflow requires that all PCollections have an
  * appropriate Coder in case it becomes necessary. In many cases, the Coder can be inferred from
@@ -35,7 +35,7 @@
  * {@link com.google.cloud.dataflow.sdk.values.PCollection#setCoder(Coder)} or per type using the
  * {@link com.google.cloud.dataflow.sdk.coders.DefaultCoder} annotation.
  *
- * <p> This package provides a number of coders for common types like {@code Integer},
+ * <p>This package provides a number of coders for common types like {@code Integer},
  * {@code String}, and {@code List}, as well as coders like
  * {@link com.google.cloud.dataflow.sdk.coders.AvroCoder} that can be used to encode many custom
  * types.

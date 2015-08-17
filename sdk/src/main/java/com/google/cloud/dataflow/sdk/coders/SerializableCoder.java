@@ -34,7 +34,7 @@ import java.io.Serializable;
  * A {@code SerializableCoder} is a {@link Coder} for a
  * Java class that implements {@link java.io.Serializable}.
  *
- * <p> To use, specify the coder type on a PCollection:
+ * <p>To use, specify the coder type on a PCollection:
  * <pre>
  * {@code
  *   PCollection<MyRecord> records =
@@ -42,7 +42,7 @@ import java.io.Serializable;
  * }
  * </pre>
  *
- * <p> SerializableCoder does not guarantee a deterministic encoding, as Java
+ * <p>SerializableCoder does not guarantee a deterministic encoding, as Java
  * Serialization may produce different binary encodings for two equivalent
  * objects.
  *

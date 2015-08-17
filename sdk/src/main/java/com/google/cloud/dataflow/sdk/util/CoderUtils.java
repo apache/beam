@@ -33,6 +33,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -202,8 +203,8 @@ public final class CoderUtils {
   static final class Jackson2Module extends SimpleModule {
     /**
      * The Coder custom type resolver.
-     * <p>
-     * This resolver resolves coders.  If the Coder ID is a particular
+     *
+     * <p>This resolver resolves coders.  If the Coder ID is a particular
      * well-known identifier supplied by the Dataflow service, it's replaced
      * with the corresponding class.  All other Coder instances are resolved
      * by class name, using the package com.google.cloud.dataflow.sdk.coders
@@ -275,8 +276,8 @@ public final class CoderUtils {
     /**
      * The mixin class defining how Coders are handled by the deserialization
      * {@link ObjectMapper}.
-     * <p>
-     * This is done via a mixin so that this resolver is <i>only</i> used
+     *
+     * <p>This is done via a mixin so that this resolver is <i>only</i> used
      * during deserialization requested by the Dataflow SDK.
      */
     @JsonTypeIdResolver(Resolver.class)

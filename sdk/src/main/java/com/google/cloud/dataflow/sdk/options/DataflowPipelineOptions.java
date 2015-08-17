@@ -45,10 +45,10 @@ public interface DataflowPipelineOptions extends
 
   /**
    * GCS path for temporary files, e.g. gs://bucket/object
-   * <p>
-   * Must be a valid Cloud Storage url, beginning with the prefix "gs://"
-   * <p>
-   * At least one of {@link #getTempLocation()} or {@link #getStagingLocation()} must be set. If
+   *
+   * <p>Must be a valid Cloud Storage url, beginning with the prefix "gs://"
+   *
+   * <p>At least one of {@link #getTempLocation()} or {@link #getStagingLocation()} must be set. If
    * {@link #getTempLocation()} is not set, then the Dataflow pipeline defaults to using
    * {@link #getStagingLocation()}.
    */
@@ -62,10 +62,10 @@ public interface DataflowPipelineOptions extends
 
   /**
    * GCS path for staging local files, e.g. gs://bucket/object
-   * <p>
-   * Must be a valid Cloud Storage url, beginning with the prefix "gs://"
-   * <p>
-   * At least one of {@link #getTempLocation()} or {@link #getStagingLocation()} must be set. If
+   *
+   * <p>Must be a valid Cloud Storage url, beginning with the prefix "gs://"
+   *
+   * <p>At least one of {@link #getTempLocation()} or {@link #getStagingLocation()} must be set. If
    * {@link #getTempLocation()} is not set, then the Dataflow pipeline defaults to using
    * {@link #getStagingLocation()}.
    */
@@ -94,9 +94,9 @@ public interface DataflowPipelineOptions extends
    * local system user name (if available), and the current time. The normalization makes sure that
    * the job name matches the required pattern of [a-z]([-a-z0-9]*[a-z0-9])? and length limit of 40
    * characters.
-   * <p>
-   * This job name factory is only able to generate one unique name per second per application and
-   * user combination.
+   *
+   * <p>This job name factory is only able to generate one unique name per second per application
+   * and user combination.
    */
   public static class JobNameFactory implements DefaultValueFactory<String> {
     private static final DateTimeFormatter FORMATTER =

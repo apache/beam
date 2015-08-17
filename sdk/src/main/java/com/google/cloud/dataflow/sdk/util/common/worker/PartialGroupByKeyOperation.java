@@ -484,7 +484,7 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
      * The degree of confidence required in our expected value predictions
      * before we allow under-sampling.
      *
-     * <p> The value of 3.0 is a confidence interval of about 99.7% for a
+     * <p>The value of 3.0 is a confidence interval of about 99.7% for a
      * a high-degree-of-freedom t-distribution.
      */
     public static final double CONFIDENCE_INTERVAL_SIGMA = 3;
@@ -493,7 +493,7 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
      * The desired size of our confidence interval (relative to the measured
      * expected value).
      *
-     * <p> The value of 0.25 is plus or minus 25%.
+     * <p>The value of 0.25 is plus or minus 25%.
      */
     public static final double CONFIDENCE_INTERVAL_SIZE = 0.25;
 

@@ -54,8 +54,8 @@ public class Credentials {
    * The scope cloud-platform provides access to all Cloud Platform resources.
    * cloud-platform isn't sufficient yet for talking to datastore so we request
    * those resources separately.
-   * <p>
-   * Note that trusted scope relationships don't apply to OAuth tokens, so for
+   *
+   * <p>Note that trusted scope relationships don't apply to OAuth tokens, so for
    * services we access directly (GCS) as opposed to through the backend
    * (BigQuery, GCE), we need to explicitly request that scope.
    */
@@ -74,8 +74,8 @@ public class Credentials {
 
   /**
    * Initializes OAuth2 credentials.
-   * <p>
-   * This can use 3 different mechanisms for obtaining a credential:
+   *
+   * <p>This can use 3 different mechanisms for obtaining a credential:
    * <ol>
    *   <li>
    *     It can fetch the

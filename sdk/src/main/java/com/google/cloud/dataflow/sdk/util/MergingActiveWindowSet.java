@@ -45,7 +45,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow>
   /**
    * A map of live windows to windows that were merged into them.
    *
-   * <p> The keys of the map correspond to the set of (merged) windows and the values
+   * <p>The keys of the map correspond to the set of (merged) windows and the values
    * are the no-longer-present windows that were merged into the keys.  A given
    * window can appear in both the key and value of a single entry, but other at
    * most once across all keys and values.

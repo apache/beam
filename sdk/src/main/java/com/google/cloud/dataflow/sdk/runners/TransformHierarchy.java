@@ -66,7 +66,7 @@ public class TransformHierarchy {
   /**
    * Adds an input to the given node.
    *
-   * <p> This forces the producing node to be finished.
+   * <p>This forces the producing node to be finished.
    */
   public void addInput(TransformTreeNode node, PInput input) {
     for (PValue i : input.expand()) {

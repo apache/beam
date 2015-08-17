@@ -30,15 +30,15 @@ import javax.annotation.Nullable;
 /**
  * A helper class for converting between Dataflow API and SDK time
  * representations.
- * <p>
- * Dataflow API times are strings of the form
+ *
+ * <p>Dataflow API times are strings of the form
  * {@code YYYY-MM-dd'T'HH:mm:ss[.nnnn]'Z'}: that is, RFC 3339
  * strings with optional fractional seconds and a 'Z' offset.
- * <p>
- * Dataflow API durations are strings of the form {@code ['-']sssss[.nnnn]'s'}:
+ *
+ * <p>Dataflow API durations are strings of the form {@code ['-']sssss[.nnnn]'s'}:
  * that is, seconds with optional fractional seconds and a literal 's' at the end.
- * <p>
- * In both formats, fractional seconds are either three digits (millisecond
+ *
+ * <p>In both formats, fractional seconds are either three digits (millisecond
  * resolution), six digits (microsecond resolution), or nine digits (nanosecond
  * resolution).
  */

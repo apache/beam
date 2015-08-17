@@ -26,7 +26,7 @@ import java.util.Map;
  * A {@code PTuple} is an immutable tuple of
  * heterogeneously-typed values, "keyed" by {@link TupleTag}s.
  *
- * <p> PTuples can be created and accessed like follows:
+ * <p>PTuples can be created and accessed like follows:
  * <pre> {@code
  * String v1 = ...;
  * Integer v2 = ...;
@@ -63,7 +63,7 @@ public class PTuple {
   /**
    * Returns an empty PTuple.
    *
-   * <p> Longer PTuples can be created by calling
+   * <p>Longer PTuples can be created by calling
    * {@link #and} on the result.
    */
   public static PTuple empty() {
@@ -74,7 +74,7 @@ public class PTuple {
    * Returns a singleton PTuple containing the given
    * value keyed by the given TupleTag.
    *
-   * <p> Longer PTuples can be created by calling
+   * <p>Longer PTuples can be created by calling
    * {@link #and} on the result.
    */
   public static <V> PTuple of(TupleTag<V> tag, V value) {
@@ -85,7 +85,7 @@ public class PTuple {
    * Returns a new PTuple that has all the values and
    * tags of this PTuple plus the given value and tag.
    *
-   * <p> The given TupleTag should not already be mapped to a
+   * <p>The given TupleTag should not already be mapped to a
    * value in this PTuple.
    */
   public <V> PTuple and(TupleTag<V> tag, V value) {
@@ -152,7 +152,7 @@ public class PTuple {
    * Returns a PTuple with each of the given tags mapping
    * to the corresponding value.
    *
-   * <p> For internal use only.
+   * <p>For internal use only.
    */
   public static PTuple ofInternal(Map<TupleTag<?>, ?> valueMap) {
     return new PTuple(valueMap);

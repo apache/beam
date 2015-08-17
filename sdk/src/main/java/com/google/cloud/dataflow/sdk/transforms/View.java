@@ -37,7 +37,7 @@ import java.util.Map;
  * to {@link ParDo} transforms. These transforms support viewing a {@link PCollection}
  * as a single value, an iterable, a map, or a multimap.
  *
- * <p> For a {@link PCollection} that contains a single value of type {@code T}
+ * <p>For a {@link PCollection} that contains a single value of type {@code T}
  * per window, such as the output of {@link Combine#globally},
  * use {@link View#asSingleton()} to prepare it for use as a side input:
  *
@@ -49,7 +49,7 @@ import java.util.Map;
  * }
  * </pre>
  *
- * <p> For a small {@link PCollection} that can fit entirely in memory,
+ * <p>For a small {@link PCollection} that can fit entirely in memory,
  * use {@link View#asList()} to prepare it for use as a {@code List}.
  * When read as a side input, the entire list will be cached in memory.
  *
@@ -60,7 +60,7 @@ import java.util.Map;
  * }
  * </pre>
  *
- * <p> If a {@link PCollection} of {@code KV<K, V>} is known to
+ * <p>If a {@link PCollection} of {@code KV<K, V>} is known to
  * have a single value for each key, then use {@link View#asMap()}
  * to view it as a {@code Map<K, V>}:
  *
@@ -71,7 +71,7 @@ import java.util.Map;
  * }
  * </pre>
  *
- * <p> Otherwise, to access a {@link PCollection} of {@code KV<K, V>} as a
+ * <p>Otherwise, to access a {@link PCollection} of {@code KV<K, V>} as a
  * {@code Map<K, Iterable<V>>} side input, use {@link View#asMultimap()}:
  *
  * <pre>
@@ -81,7 +81,7 @@ import java.util.Map;
  * }
  * </pre>
  *
- * <p> To iterate over an entire window of a {@link PCollection} via
+ * <p>To iterate over an entire window of a {@link PCollection} via
  * side input, use {@link View#asIterable()}:
  *
  * <pre>
@@ -92,11 +92,11 @@ import java.util.Map;
  * </pre>
  *
  *
- * <p> Both {@link View#asMultimap()} and {@link View#asMap()} are useful
+ * <p>Both {@link View#asMultimap()} and {@link View#asMap()} are useful
  * for implementing lookup based "joins" with the main input, when the
  * side input is small enough to fit into memory.
  *
- * <p> For example, if you represent a page on a website via some {@code Page} object and
+ * <p>For example, if you represent a page on a website via some {@code Page} object and
  * have some type {@code UrlVisits} logging that a URL was visited, you could convert these
  * to more fully structured {@code PageVisit} objects using a side input, something like the
  * following:
@@ -122,7 +122,7 @@ import java.util.Map;
  * }
  * </pre>
  *
- * <p> See {@link ParDo#withSideInputs} for details on how to access
+ * <p>See {@link ParDo#withSideInputs} for details on how to access
  * this variable inside a {@link ParDo} over another {@link PCollection}.
  */
 public class View {
@@ -144,11 +144,11 @@ public class View {
    *     .apply(View.asSingleton());
    * }</pre>
    *
-   * <p> If the input {@link PCollection} is empty,
+   * <p>If the input {@link PCollection} is empty,
    * throws {@link java.util.NoSuchElementException} in the consuming
    * {@link DoFn}.
    *
-   * <p> If the input {@link PCollection} contains more than one
+   * <p>If the input {@link PCollection} contains more than one
    * element, throws {@link IllegalArgumentException} in the
    * consuming {@link DoFn}.
    */
@@ -161,7 +161,7 @@ public class View {
    * {@code List} containing all of its elements, to be consumed as
    * a side input.
    *
-   * <p> The resulting list is required to fit in memory.
+   * <p>The resulting list is required to fit in memory.
    */
   public static <T> PTransform<PCollection<T>, PCollectionView<List<T>>> asList() {
     return new AsList<>();
@@ -194,7 +194,7 @@ public class View {
    *     .apply(View.asMap());
    * }</pre>
    *
-   * <p> Currently, the resulting map is required to fit into memory.
+   * <p>Currently, the resulting map is required to fit into memory.
    */
   public static <K, V> AsMap<K, V> asMap() {
     return new AsMap<K, V>();
@@ -213,7 +213,7 @@ public class View {
    * PCollectionView<Map<K, V>> output = input.apply(View.asMultimap());
    * }</pre>
    *
-   * <p> Currently, the resulting map is required to fit into memory.
+   * <p>Currently, the resulting map is required to fit into memory.
    */
   public static <K, V> AsMultimap<K, V> asMultimap() {
     return new AsMultimap<K, V>();
@@ -223,7 +223,7 @@ public class View {
    * A {@link PTransform} that produces a {@link PCollectionView} of a singleton
    * {@link PCollection} yielding the single element it contains.
    *
-   * <p> Instantiate via {@link View#asIterable}.
+   * <p>Instantiate via {@link View#asIterable}.
    */
   public static class AsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
     private static final long serialVersionUID = 0;
@@ -249,7 +249,7 @@ public class View {
    * A {@link PTransform} that produces a {@link PCollectionView} of a singleton
    * {@link PCollection} yielding the single element it contains.
    *
-   * <p> Instantiate via {@link View#asIterable}.
+   * <p>Instantiate via {@link View#asIterable}.
    */
   public static class AsIterable<T>
       extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
@@ -277,7 +277,7 @@ public class View {
    * A {@link PTransform} that produces a {@link PCollectionView} of a singleton
    * {@link PCollection} yielding the single element it contains.
    *
-   * <p> Instantiate via {@link View#asIterable}.
+   * <p>Instantiate via {@link View#asIterable}.
    */
   public static class AsSingleton<T> extends PTransform<PCollection<T>, PCollectionView<T>> {
     private static final long serialVersionUID = 0;
@@ -339,7 +339,7 @@ public class View {
    * A {@link PTransform} that produces a {@link PCollectionView} of a keyed {@link PCollection}
    * yielding a map of keys to all associated values.
    *
-   * <p> Instantiate via {@link View#asMap}.
+   * <p>Instantiate via {@link View#asMap}.
    */
   public static class AsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
@@ -379,7 +379,7 @@ public class View {
    *     .apply(View.asMap());
    * }</pre>
    *
-   * <p> Instantiate via {@link View#asMap}.
+   * <p>Instantiate via {@link View#asMap}.
    */
   public static class AsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
@@ -420,7 +420,7 @@ public class View {
   /**
    * Creates a primitive {@link PCollectionView}.
    *
-   * <p> For internal use only by runner implementors.
+   * <p>For internal use only by runner implementors.
    *
    * @param <ElemT> The type of the elements of the input PCollection
    * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input

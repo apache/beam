@@ -60,7 +60,7 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
   /**
    * Not all sets have a deterministic encoding.
    *
-   * <p> For example, {@code HashSet} comparison does not depend on element order, so
+   * <p>For example, {@code HashSet} comparison does not depend on element order, so
    * two {@code HashSet} instances may be equal but produce different encodings.
    */
   @Override

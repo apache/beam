@@ -49,7 +49,7 @@ import javax.annotation.Nullable;
 /**
  * {@link PTransform}s for reading and writing text files.
  *
- * <p> To read a {@link PCollection} from one or more text files, use
+ * <p>To read a {@link PCollection} from one or more text files, use
  * {@link TextIO.Read}, specifying {@link TextIO.Read#from} to specify
  * the path of the file(s) to read from (e.g., a local filename or
  * filename pattern if running locally, or a Google Cloud Storage
@@ -74,7 +74,7 @@ import javax.annotation.Nullable;
  *                        .withCoder(TextualIntegerCoder.of()));
  * } </pre>
  *
- * <p> To write a {@link PCollection} to one or more text files, use
+ * <p>To write a {@link PCollection} to one or more text files, use
  * {@link TextIO.Write}, specifying {@link TextIO.Write#to} to specify
  * the path of the file to write to (e.g., a local filename or sharded
  * filename pattern if running locally, or a Google Cloud Storage
@@ -84,10 +84,10 @@ import javax.annotation.Nullable;
  * and/or {@link TextIO.Write#withCoder} to specify the Coder to use
  * to encode the Java values into text lines.
  *
- * <p> Any existing files with the same names as generated output files
+ * <p>Any existing files with the same names as generated output files
  * will be overwritten.
  *
- * <p> For example:
+ * <p>For example:
  * <pre> {@code
  * // A simple Write to a local file (only runs locally):
  * PCollection<String> lines = ...;
@@ -144,7 +144,7 @@ public class TextIO {
      * {@code Coder<T>} to decode each of the lines of the file into a
      * value of type {@code T}.
      *
-     * <p> By default, uses {@link StringUtf8Coder}, which just
+     * <p>By default, uses {@link StringUtf8Coder}, which just
      * returns the text lines as Java strings.
      *
      * @param <T> the type of the decoded elements, and the elements
@@ -158,7 +158,7 @@ public class TextIO {
      * Returns a TextIO.Read PTransform that has GCS path validation on
      * pipeline creation disabled.
      *
-     * <p> This can be useful in the case where the GCS input does not
+     * <p>This can be useful in the case where the GCS input does not
      * exist at the pipeline creation time, but is expected to be
      * available at execution time.
      */
@@ -170,7 +170,7 @@ public class TextIO {
      * Returns a TextIO.Read PTransform that reads from a file with the
      * specified compression type.
      *
-     * <p> If no compression type is specified, the default is AUTO. In this
+     * <p>If no compression type is specified, the default is AUTO. In this
      * mode, the compression type of the file is determined by its extension
      * (e.g., *.gz is gzipped, *.bz2 is bzipped, all other extensions are
      * uncompressed).
@@ -256,7 +256,7 @@ public class TextIO {
        * that has GCS path validation on pipeline creation disabled.
        * Does not modify this object.
        *
-       * <p> This can be useful in the case where the GCS input does not
+       * <p>This can be useful in the case where the GCS input does not
        * exist at the pipeline creation time, but is expected to be
        * available at execution time.
        */
@@ -269,13 +269,13 @@ public class TextIO {
        * reads from input sources using the specified compression type.
        * Does not modify this object.
        *
-       * <p> If AUTO compression type is specified, a compression type is
+       * <p>If AUTO compression type is specified, a compression type is
        * selected on a per-file basis, based on the file's extension (e.g.,
        * .gz will be processed as a gzipped file, .bz will be processed
        * as a bzipped file, other extensions with be treated as uncompressed
        * input).
        *
-       * <p> If no compression type is specified, the default is AUTO.
+       * <p>If no compression type is specified, the default is AUTO.
        */
       public Bound<T> withCompressionType(TextIO.CompressionType compressionType) {
         return new Bound<>(name, filepattern, coder, validate, compressionType);
@@ -349,7 +349,7 @@ public class TextIO {
      * the form {@code "gs://<bucket>/<filepath>"})
      * (if running locally or via the Google Cloud Dataflow service).
      *
-     * <p> The files written will begin with this prefix, followed by
+     * <p>The files written will begin with this prefix, followed by
      * a shard identifier (see {@link Bound#withNumShards}, and end
      * in a common extension, if given by {@link Bound#withSuffix}.
      */
@@ -368,7 +368,7 @@ public class TextIO {
     /**
      * Returns a TextIO.Write PTransform that uses the provided shard count.
      *
-     * <p> Constraining the number of shards is likely to reduce
+     * <p>Constraining the number of shards is likely to reduce
      * the performance of a pipeline.  Setting this value is not recommended
      * unless you require a specific number of output files.
      *
@@ -383,7 +383,7 @@ public class TextIO {
      * Returns a TextIO.Write PTransform that uses the given shard name
      * template.
      *
-     * <p> See {@link ShardNameTemplate} for a description of shard templates.
+     * <p>See {@link ShardNameTemplate} for a description of shard templates.
      */
     public static Bound<String> withShardNameTemplate(String shardTemplate) {
       return new Bound<>(DEFAULT_TEXT_CODER).withShardNameTemplate(shardTemplate);
@@ -402,7 +402,7 @@ public class TextIO {
      * {@code Coder<T>} to encode each of the elements of the input
      * {@code PCollection<T>} into an output text line.
      *
-     * <p> By default, uses {@link StringUtf8Coder}, which writes input
+     * <p>By default, uses {@link StringUtf8Coder}, which writes input
      * Java strings directly as output lines.
      *
      * @param <T> the type of the elements of the input PCollection
@@ -415,7 +415,7 @@ public class TextIO {
      * Returns a TextIO.Write PTransform that has GCS path validation on
      * pipeline creation disabled.
      *
-     * <p> This can be useful in the case where the GCS output location does
+     * <p>This can be useful in the case where the GCS output location does
      * not exist at the pipeline creation time, but is expected to be available
      * at execution time.
      */
@@ -481,9 +481,9 @@ public class TextIO {
        * Returns a new TextIO.Write PTransform that's like this one but
        * that writes to the file(s) with the given filename prefix.
        *
-       * <p> See {@link Write#to(String) Write.to(String)} for more information.
+       * <p>See {@link Write#to(String) Write.to(String)} for more information.
        *
-       * <p> Does not modify this object.
+       * <p>Does not modify this object.
        */
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
@@ -495,7 +495,7 @@ public class TextIO {
        * Returns a new TextIO.Write PTransform that's like this one but
        * that writes to the file(s) with the given filename suffix.
        *
-       * <p> Does not modify this object.
+       * <p>Does not modify this object.
        *
        * @see ShardNameTemplate
        */
@@ -509,11 +509,11 @@ public class TextIO {
        * Returns a new TextIO.Write PTransform that's like this one but
        * that uses the provided shard count.
        *
-       * <p> Constraining the number of shards is likely to reduce
+       * <p>Constraining the number of shards is likely to reduce
        * the performance of a pipeline.  Setting this value is not recommended
        * unless you require a specific number of output files.
        *
-       * <p> Does not modify this object.
+       * <p>Does not modify this object.
        *
        * @param numShards the number of shards to use, or 0 to let the system
        *                  decide.
@@ -529,7 +529,7 @@ public class TextIO {
        * Returns a new TextIO.Write PTransform that's like this one but
        * that uses the given shard name template.
        *
-       * <p> Does not modify this object.
+       * <p>Does not modify this object.
        *
        * @see ShardNameTemplate
        */
@@ -542,10 +542,10 @@ public class TextIO {
        * Returns a new TextIO.Write PTransform that's like this one but
        * that forces a single file as output.
        *
-       * <p> This is a shortcut for
+       * <p>This is a shortcut for
        * {@code .withNumShards(1).withShardNameTemplate("")}
        *
-       * <p> Does not modify this object.
+       * <p>Does not modify this object.
        */
       public Bound<T> withoutSharding() {
         return new Bound<>(name, filenamePrefix, filenameSuffix, coder, 1, "", validate);
@@ -569,7 +569,7 @@ public class TextIO {
        * that has GCS output path validation on pipeline creation disabled.
        * Does not modify this object.
        *
-       * <p> This can be useful in the case where the GCS output location does
+       * <p>This can be useful in the case where the GCS output location does
        * not exist at the pipeline creation time, but is expected to be
        * available at execution time.
        */

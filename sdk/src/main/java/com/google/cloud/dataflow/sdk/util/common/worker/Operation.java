@@ -21,15 +21,15 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 /**
  * The abstract base class for Operations, which correspond to
  * Instructions in the original MapTask InstructionGraph.
- * <p>
- * Call start() to start the operation.
- * <p>
- * A read operation's start() method actually reads the data, and in
+ *
+ * <p>Call start() to start the operation.
+ *
+ * <p>A read operation's start() method actually reads the data, and in
  * effect runs the pipeline.
- * <p>
- * Call finish() to finish the operation.
- * <p>
- * Since both start() and finish() may call process() on
+ *
+ * <p>Call finish() to finish the operation.
+ *
+ * <p>Since both start() and finish() may call process() on
  * this operation's consumers, start an operation after
  * starting its consumers, and finish an operation before
  * finishing its consumers.

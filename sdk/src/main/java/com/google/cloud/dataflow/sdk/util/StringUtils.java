@@ -32,7 +32,7 @@ public class StringUtils {
   /**
    * Converts the given array of bytes into a legal JSON string.
    *
-   * <p> Uses a simple strategy of converting each byte to a single char,
+   * <p>Uses a simple strategy of converting each byte to a single char,
    * except for non-printable chars, non-ASCII chars, and '%', '\',
    * and '"', which are encoded as three chars in '%xx' format, where
    * 'xx' is the hexadecimal encoding of the byte.
@@ -108,14 +108,14 @@ public class StringUtils {
   /**
    * Returns a simple name for a class.
    *
-   * <p> Note: this is non-invertible - the name may be simplified to an
+   * <p>Note: this is non-invertible - the name may be simplified to an
    * extent that it cannot be mapped back to the original class.
    *
-   * <p> This can be used to generate human-readable names. It
+   * <p>This can be used to generate human-readable names. It
    * removes the package and outer classes from the name,
    * and removes common suffixes.
    *
-   * <p> Examples:
+   * <p>Examples:
    * <ul>
    *   <li>{@code some.package.Word.SummaryDoFn} -> "Summary"
    *   <li>{@code another.package.PairingFn} -> "Pairing"
@@ -130,16 +130,16 @@ public class StringUtils {
   /**
    * Returns a name for a PTransform class.
    *
-   * <p> This can be used to generate human-readable transform names. It
+   * <p>This can be used to generate human-readable transform names. It
    * removes the package from the name, and removes common suffixes.
    *
-   * <p> It is different than approximateSimpleName:
+   * <p>It is different than approximateSimpleName:
    * <ul>
    *   <li>1. It keeps the outer classes names.
    *   <li>2. It removes the common transform inner class: "Bound".
    * </ul>
    *
-   * <p> Examples:
+   * <p>Examples:
    * <ul>
    *   <li>{@code some.package.Word.Summary} -> "Word.Summary"
    *   <li>{@code another.package.Pairing.Bound} -> "Pairing"
@@ -154,7 +154,7 @@ public class StringUtils {
   /**
    * Calculate the Levenshtein distance between two strings.
    *
-   * <p> The Levenshtein distance between two words is the minimum number of single-character edits
+   * <p>The Levenshtein distance between two words is the minimum number of single-character edits
    * (i.e. insertions, deletions or substitutions) required to change one string into the other.
    */
   public static int getLevenshteinDistance(final String s, final String t) {

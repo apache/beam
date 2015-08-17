@@ -25,28 +25,28 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * input but with duplicate elements removed such that each element is
  * unique within each window.
  *
- * <p> Two values of type {@code T} are compared for equality <b>not</b> by
+ * <p>Two values of type {@code T} are compared for equality <b>not</b> by
  * regular Java {@link Object#equals}, but instead by first encoding
  * each of the elements using the {@code PCollection}'s {@code Coder}, and then
  * comparing the encoded bytes.  This admits efficient parallel
  * evaluation.
  *
- * <p> Optionally, a function may be provided that maps each element to a representative
+ * <p>Optionally, a function may be provided that maps each element to a representative
  * value.  In this case, two elements will be considered duplicates if they have equal
  * representative values, with equality being determined as above.
  *
- * <p> By default, the {@code Coder} of the output {@code PCollection}
+ * <p>By default, the {@code Coder} of the output {@code PCollection}
  * is the same as the {@code Coder} of the input {@code PCollection}.
  *
- * <p> Each output element is in the same window as its corresponding input
+ * <p>Each output element is in the same window as its corresponding input
  * element, and has the timestamp of the end of that window.  The output
  * {@code PCollection} has the same
  * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
  * as the input.
  *
- * <p> Does not preserve any order the input PCollection might have had.
+ * <p>Does not preserve any order the input PCollection might have had.
  *
- * <p> Example of use:
+ * <p>Example of use:
  * <pre> {@code
  * PCollection<String> words = ...;
  * PCollection<String> uniqueWords =

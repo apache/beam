@@ -74,18 +74,18 @@ public final class Serializer {
   /**
    * Deserializes an object from a Dataflow structured encoding (represented in
    * Java as a map).
-   * <p>
-   * The standard Dataflow SDK object serialization protocol is based on JSON.
+   *
+   * <p>The standard Dataflow SDK object serialization protocol is based on JSON.
    * Data is typically encoded as a JSON object whose fields represent the
    * object's data.
-   * <p>
-   * The actual deserialization is performed by Jackson, which can deserialize
+   *
+   * <p>The actual deserialization is performed by Jackson, which can deserialize
    * public fields, use JavaBean setters, or use injection annotations to
    * indicate how to construct the object.  The {@link ObjectMapper} used is
    * configured to use the "@type" field as the name of the class to instantiate
    * (supporting polymorphic types), and may be further configured by
-   * annotations or via {@link #registerModule}.
-   * <p>
+   * annotations or via {@link ObjectMapper#registerModule}.
+   *
    * @see <a href="http://wiki.fasterxml.com/JacksonFAQ#Data_Binding.2C_general">
    * Jackson Data-Binding</a>
    * @see <a href="https://github.com/FasterXML/jackson-annotations/wiki/Jackson-Annotations">

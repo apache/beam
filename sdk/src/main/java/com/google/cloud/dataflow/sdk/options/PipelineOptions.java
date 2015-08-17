@@ -40,19 +40,19 @@ import javax.annotation.concurrent.ThreadSafe;
  * to create custom configuration options specific to your {@link Pipeline},
  * for both local execution and execution via {@link PipelineRunner}.
  *
- * <p> {@link PipelineOptions} and their subinterfaces represent a collection of properties
+ * <p>{@link PipelineOptions} and their subinterfaces represent a collection of properties
  * which can be manipulated in a type safe manner. {@link PipelineOptions} is backed by a
  * dynamic {@link Proxy} which allows for type safe manipulation of properties in an extensible
  * fashion through plain old Java interfaces.
  *
- * <p> {@link PipelineOptions} can be created with {@link PipelineOptionsFactory#create()}
+ * <p>{@link PipelineOptions} can be created with {@link PipelineOptionsFactory#create()}
  * and {@link PipelineOptionsFactory#as(Class)}. They can be created
  * from command-line arguments with {@link PipelineOptionsFactory#fromArgs(String[])}.
  * They can be converted to another type by invoking {@link PipelineOptions#as(Class)} and
  * can be accessed from within a {@link DoFn} by invoking
  * {@link Context#getPipelineOptions()}.
  *
- * <p> For example:
+ * <p>For example:
  * <pre> {@code
  * // The most common way to construct PipelineOptions is via command-line argument parsing:
  * public static void main(String[] args) {
@@ -94,13 +94,13 @@ import javax.annotation.concurrent.ThreadSafe;
  * By having PipelineOptionsFactory as your command-line interpreter, you will provide
  * a standardized way for users to interact with your application via the command-line.
  *
- * <p> To define your own {@link PipelineOptions}, you create an interface which
+ * <p>To define your own {@link PipelineOptions}, you create an interface which
  * extends {@link PipelineOptions} and define getter/setter pairs. These
  * getter/setter pairs define a collection of
  * <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">
  * JavaBean properties</a>.
  *
- * <p> For example:
+ * <p>For example:
  * <pre> {@code
  *  // Creates a user defined property called "myProperty"
  *  public interface MyOptions extends PipelineOptions {
@@ -109,7 +109,7 @@ import javax.annotation.concurrent.ThreadSafe;
  *  }
  * } </pre>
  *
- * <p> Note: Please see the section on Registration below when using custom property types.
+ * <p>Note: Please see the section on Registration below when using custom property types.
  *
  * <h3>Restrictions</h3>
  *
@@ -134,20 +134,20 @@ import javax.annotation.concurrent.ThreadSafe;
  * with useful information which is output when {@code --help}
  * is invoked via {@link PipelineOptionsFactory#fromArgs(String[])}.
  *
- * <p> {@link Default @Default} represents a set of annotations that can be used to annotate getter
+ * <p>{@link Default @Default} represents a set of annotations that can be used to annotate getter
  * properties on {@link PipelineOptions} with information representing the default value to be
  * returned if no value is specified.
  *
- * <p> {@link Hidden @Hidden} hides an option from being listed when {@code --help}
+ * <p>{@link Hidden @Hidden} hides an option from being listed when {@code --help}
  * is invoked via {@link PipelineOptionsFactory#fromArgs(String[])}.
  *
- * <p> {@link Validation @Validation} represents a set of annotations that can be used to annotate
+ * <p>{@link Validation @Validation} represents a set of annotations that can be used to annotate
  * getter properties on {@link PipelineOptions} with information representing the validation
  * criteria to be used when validating with the {@link PipelineOptionsValidator}. Validation
  * will be performed if during construction of the {@link PipelineOptions},
  * {@link PipelineOptionsFactory#withValidation()} is invoked.
  *
- * <p> {@link JsonIgnore @JsonIgnore} is used to prevent a property from being serialized and
+ * <p>{@link JsonIgnore @JsonIgnore} is used to prevent a property from being serialized and
  * available during execution of {@link DoFn}. See the Serialization section below for more
  * details.
  *
@@ -159,15 +159,15 @@ import javax.annotation.concurrent.ThreadSafe;
  * also lists the registered {@link PipelineOptions} when {@code --help}
  * is invoked via {@link PipelineOptionsFactory#fromArgs(String[])}.
  *
- * <p> Registration can be performed by invoking {@link PipelineOptionsFactory#register} within
+ * <p>Registration can be performed by invoking {@link PipelineOptionsFactory#register} within
  * a users application or via automatic registration by creating a {@link ServiceLoader} entry
  * and a concrete implementation of the {@link PipelineOptionsRegistrar} interface.
  *
- * <p> It is optional but recommended to use one of the many build time tools such as
+ * <p>It is optional but recommended to use one of the many build time tools such as
  * {@link com.google.auto.service.AutoService} to generate the necessary META-INF
  * files automatically.
  *
- * <p> A list of registered options can be fetched from
+ * <p>A list of registered options can be fetched from
  * {@link PipelineOptionsFactory#getRegisteredOptions()}.
  *
  * <h2>Serialization Of PipelineOptions</h2>
@@ -177,14 +177,14 @@ import javax.annotation.concurrent.ThreadSafe;
  * {@link ObjectMapper} or the getter method for the property annotated with
  * {@link JsonIgnore @JsonIgnore}.
  *
- * <p> Jackson supports serialization of many types and supports a useful set of
+ * <p>Jackson supports serialization of many types and supports a useful set of
  * <a href="https://github.com/FasterXML/jackson-annotations">annotations</a> to aid in
  * serialization of custom types. We point you to the public
  * <a href="https://github.com/FasterXML/jackson">Jackson documentation</a> when attempting
  * to add serialization support for your custom types. See {@link GoogleApiTracer} for an
  * example using the Jackson annotations to serialize and deserialize a custom type.
  *
- * <p> Note: It is an error to have the same property available in multiple interfaces with only
+ * <p>Note: It is an error to have the same property available in multiple interfaces with only
  * some of them being annotated with {@link JsonIgnore @JsonIgnore}. It is also an error to mark a
  * setter for a property with {@link JsonIgnore @JsonIgnore}.
  */
@@ -195,8 +195,8 @@ public interface PipelineOptions {
   /**
    * Transforms this object into an object of type {@code <T>} saving each property
    * that has been manipulated. {@code <T>} must extend {@link PipelineOptions}.
-   * <p>
-   * If {@code <T>} is not registered with the {@link PipelineOptionsFactory}, then we
+   *
+   * <p>If {@code <T>} is not registered with the {@link PipelineOptionsFactory}, then we
    * attempt to verify that {@code <T>} is composable with every interface that this
    * instance of the {@code PipelineOptions} has seen.
    *
@@ -208,8 +208,8 @@ public interface PipelineOptions {
   /**
    * Makes a deep clone of this object, and transforms the cloned object into the specified
    * type {@code kls}. See {@link #as} for more information about the conversion.
-   * <p>
-   * Properties that are marked with {@code @JsonIgnore} will not be cloned.
+   *
+   * <p>Properties that are marked with {@code @JsonIgnore} will not be cloned.
    */
   <T extends PipelineOptions> T cloneAs(Class<T> kls);
 

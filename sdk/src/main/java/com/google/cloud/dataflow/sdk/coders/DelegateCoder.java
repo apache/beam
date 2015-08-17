@@ -31,7 +31,7 @@ import java.util.List;
  * to/from {@code IntermediateT} and then encoding/decoding using the underlying
  * {@code Coder<IntermediateT>}.
  *
- * <p> The conversions from {@code T} to {@code IntermediateT} and vice versa
+ * <p>The conversions from {@code T} to {@code IntermediateT} and vice versa
  * must be supplied as {@link CodingFunction}, a serializable
  * function that may throw any {@code Exception}. If a thrown
  * exception is an instance of {@link CoderException} or

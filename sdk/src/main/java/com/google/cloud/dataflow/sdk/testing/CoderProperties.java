@@ -46,9 +46,9 @@ import java.util.List;
 /**
  * Properties for use in {@link Coder} tests. These are implemented with junit assertions
  * rather than as predicates for the sake of error messages.
- * <p>
- * We serialize and deserialize the coder to make sure that any state information required by the
- * coder is preserved. This causes tests written such that coders that lose information during
+ *
+ * <p>We serialize and deserialize the coder to make sure that any state information required by
+ * the coder is preserved. This causes tests written such that coders that lose information during
  * serialization or change state during encoding/decoding will fail.
  */
 public class CoderProperties {

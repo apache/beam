@@ -25,7 +25,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
  * {@link DataflowPipelineJob} when it is
  * {@link com.google.cloud.dataflow.sdk.Pipeline#run()}.
  *
- * <p> This is not intended for use by users of Cloud Dataflow.
+ * <p>This is not intended for use by users of Cloud Dataflow.
  * Instead, use {@link Pipeline#create(PipelineOptions)} to initialize a
  * {@link Pipeline}.
  */

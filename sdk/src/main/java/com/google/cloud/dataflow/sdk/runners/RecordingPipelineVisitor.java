@@ -27,7 +27,7 @@ import java.util.List;
  * Provides a simple {@link com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor}
  * that records the transformation tree.
  *
- * <p> Provided for internal unit tests.
+ * <p>Provided for internal unit tests.
  */
 public class RecordingPipelineVisitor implements Pipeline.PipelineVisitor {
 

@@ -22,17 +22,17 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
  * An {@code Aggregator<InputT>} enables monitoring of values of type {@code InputT},
  * to be combined across all bundles.
  *
- * <p> Aggregators are created by calling {@link DoFn#createAggregator},
+ * <p>Aggregators are created by calling {@link DoFn#createAggregator},
  * typically from the {@link DoFn} constructor. Elements can be added to the
  * {@code Aggregator} by calling {@link Aggregator#addValue}.
  *
- * <p> Aggregators are visible in the monitoring UI, when the pipeline is run
+ * <p>Aggregators are visible in the monitoring UI, when the pipeline is run
  * using DataflowPipelineRunner or BlockingDataflowPipelineRunner, along with
  * their current value. Aggregators may not become visible until the system
  * begins executing the ParDo transform that created them and/or their initial
  * value is changed.
  *
- * <p> Example:
+ * <p>Example:
  * <pre> {@code
  * class MyDoFn extends DoFn<String, String> {
  *   private Aggregator<Integer, Integer> myAggregator;

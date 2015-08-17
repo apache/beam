@@ -49,19 +49,19 @@ import javax.annotation.Nullable;
  * including one within composite transforms, will group by the combination of
  * keys and windows.
 
- * <p> See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
+ * <p>See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
  * for more information about how grouping with windows works.
  *
  * <h2> Windowing </h2>
  *
- * <p> Windowing a {@code PCollection} divides the elements into windows based
+ * <p>Windowing a {@code PCollection} divides the elements into windows based
  * on the associated event time for each element. This is especially useful
  * for {@code PCollection}s with unbounded size, since it allows operating on
  * a sub-group of the elements placed into a related window. For {@code PCollection}s
  * with a bounded size (aka. conventional batch mode), by default, all data is
  * implicitly in a single window, unless {@code Window} is applied.
  *
- * <p> For example, a simple form of windowing divides up the data into
+ * <p>For example, a simple form of windowing divides up the data into
  * fixed-width time intervals, using {@link FixedWindows}.
  * The following example demonstrates how to use {@code Window} in a pipeline
  * that counts the number of occurrences of strings each minute:
@@ -74,13 +74,13 @@ import javax.annotation.Nullable;
  *   Count.<String>perElement());
  * } </pre>
  *
- * <p> Let (data, timestamp) denote a data element along with its timestamp.
+ * <p>Let (data, timestamp) denote a data element along with its timestamp.
  * Then, if the input to this pipeline consists of
  * {("foo", 15s), ("bar", 30s), ("foo", 45s), ("foo", 1m30s)},
  * the output will be
  * {(KV("foo", 2), 1m), (KV("bar", 1), 1m), (KV("foo", 1), 2m)}
  *
- * <p> Several predefined {@link WindowFn}s are provided:
+ * <p>Several predefined {@link WindowFn}s are provided:
  * <ul>
  *  <li> {@link FixedWindows} partitions the timestamps into fixed-width intervals.
  *  <li> {@link SlidingWindows} places data into overlapping fixed-width intervals.
@@ -93,19 +93,19 @@ import javax.annotation.Nullable;
  *
  * <h2> Triggers </h2>
  *
- * <p> {@link Window.Bound#triggering(Trigger)} allows specifying a trigger to control when
+ * <p>{@link Window.Bound#triggering(Trigger)} allows specifying a trigger to control when
  * (in processing time) results for the given window can be produced. If unspecified, the default
  * behavior is to trigger first when the watermark passes the end of the window, and then trigger
  * again every time there is late arriving data.
  *
- * <p> Elements are added to the current window pane as they arrive. When the root trigger fires,
+ * <p>Elements are added to the current window pane as they arrive. When the root trigger fires,
  * output is produced based on the elements in the current pane.
  *
  * <p>Depending on the trigger, this can be used both to output partial results
  * early during the processing of the whole window, and to deal with late
  * arriving in batches.
  *
- * <p> Continuing the earlier example, if we wanted to emit the values that were available
+ * <p>Continuing the earlier example, if we wanted to emit the values that were available
  * when the watermark passed the end of the window, and then output any late arriving
  * elements once-per (actual hour) hour until we have finished processing the next 24-hours of data.
  * (The use of watermark time to stop processing tends to be more robust if the data source is slow
@@ -126,7 +126,7 @@ import javax.annotation.Nullable;
  *   Count.<String>perElement());
  * } </pre>
  *
- * <p> On the other hand, if we wanted to get early results every minute of processing
+ * <p>On the other hand, if we wanted to get early results every minute of processing
  * time (for which there were new elements in the given window) we could do the following:
  *
  * <pre> {@code
@@ -138,11 +138,11 @@ import javax.annotation.Nullable;
  *              .orFinally(AfterWatermark.pastEndOfWindow())));
  * } </pre>
  *
- * <p> After a {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} the trigger is reset to
+ * <p>After a {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} the trigger is reset to
  * the default trigger. If you want to produce early results from a pipeline consisting of multiple
  * {@code GroupByKey}s, you must set a trigger before <i>each</i> {@code GroupByKey}.
  *
- * <p> See {@link Trigger} for details on the available triggers.
+ * <p>See {@link Trigger} for details on the available triggers.
  */
 public class Window {
 
@@ -159,7 +159,7 @@ public class Window {
     /**
      * Only fire the last pane if there is new data since the previous firing.
      *
-     * <p> This is the default behavior.
+     * <p>This is the default behavior.
      */
     FIRE_IF_NON_EMPTY;
   }
@@ -167,10 +167,10 @@ public class Window {
   /**
    * Creates a {@code Window} {@code PTransform} with the given name.
    *
-   * <p> See the discussion of Naming in
+   * <p>See the discussion of Naming in
    * {@link com.google.cloud.dataflow.sdk.transforms.ParDo} for more explanation.
    *
-   * <p> The resulting {@code PTransform} is incomplete, and its input/output
+   * <p>The resulting {@code PTransform} is incomplete, and its input/output
    * type is not yet bound.  Use {@link Window.Unbound#into} to specify the
    * {@link WindowFn} to use, which will also bind the input/output type of this
    * {@code PTransform}.
@@ -183,7 +183,7 @@ public class Window {
    * Creates a {@code Window} {@code PTransform} that uses the given
    * {@link WindowFn} to window the data.
    *
-   * <p> The resulting {@code PTransform}'s types have been bound, with both the
+   * <p>The resulting {@code PTransform}'s types have been bound, with both the
    * input and output being a {@code PCollection<T>}, inferred from the types of
    * the argument {@code WindowFn<T, B>}.  It is ready to be applied, or further
    * properties can be set on it first.
@@ -197,7 +197,7 @@ public class Window {
    * Elements that are assigned to a specific window will be output when
    * the trigger fires.
    *
-   * <p> Must also specify allowed lateness using {@link #withAllowedLateness} and accumulation
+   * <p>Must also specify allowed lateness using {@link #withAllowedLateness} and accumulation
    * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
    */
   @Experimental(Kind.TRIGGER)
@@ -209,7 +209,7 @@ public class Window {
    * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
    * Triggering behavior, and that discards elements in a pane after they are triggered.
    *
-   * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
+   * <p>Does not modify this transform.  The resulting {@code PTransform} is sufficiently
    * specified to be applied, but more properties can still be specified.
    */
   @Experimental(Kind.TRIGGER)
@@ -221,7 +221,7 @@ public class Window {
    * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
    * Triggering behavior, and that accumulates elements in a pane after they are triggered.
    *
-   * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
+   * <p>Does not modify this transform.  The resulting {@code PTransform} is sufficiently
    * specified to be applied, but more properties can still be specified.
    */
   @Experimental(Kind.TRIGGER)
@@ -247,7 +247,7 @@ public class Window {
   /**
    * An incomplete {@code Window} transform, with unbound input/output type.
    *
-   * <p> Before being applied, {@link Window.Unbound#into} must be
+   * <p>Before being applied, {@link Window.Unbound#into} must be
    * invoked to specify the {@link WindowFn} to invoke, which will also
    * bind the input/output type of this {@code PTransform}.
    */
@@ -265,7 +265,7 @@ public class Window {
      * transform but with the specified name.  Does not modify this
      * transform.  The resulting transform is still incomplete.
      *
-     * <p> See the discussion of Naming in
+     * <p>See the discussion of Naming in
      * {@link com.google.cloud.dataflow.sdk.transforms.ParDo} for more
      * explanation.
      */
@@ -289,10 +289,10 @@ public class Window {
      * Elements that are assigned to a specific window will be output when
      * the trigger fires.
      *
-     * <p> {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger}
+     * <p>{@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger}
      * has more details on the available triggers.
      *
-     * <p> Must also specify allowed lateness using {@link #withAllowedLateness} and accumulation
+     * <p>Must also specify allowed lateness using {@link #withAllowedLateness} and accumulation
      * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
      */
     @Experimental(Kind.TRIGGER)
@@ -304,7 +304,7 @@ public class Window {
      * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
      * Triggering behavior, and that discards elements in a pane after they are triggered.
      *
-     * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
+     * <p>Does not modify this transform.  The resulting {@code PTransform} is sufficiently
      * specified to be applied, but more properties can still be specified.
      */
     @Experimental(Kind.TRIGGER)
@@ -316,7 +316,7 @@ public class Window {
      * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
      * Triggering behavior, and that accumulates elements in a pane after they are triggered.
      *
-     * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
+     * <p>Does not modify this transform.  The resulting {@code PTransform} is sufficiently
      * specified to be applied, but more properties can still be specified.
      */
     @Experimental(Kind.TRIGGER)
@@ -334,7 +334,7 @@ public class Window {
      * Once no elements will be added to a window (because this duration has passed) any state
      * associated with the window will be cleaned up.
      *
-     * <p> Depending on the trigger this may not produce a pane with {@link PaneInfo#isLast}. See
+     * <p>Depending on the trigger this may not produce a pane with {@link PaneInfo#isLast}. See
      * {@link ClosingBehavior#FIRE_IF_NON_EMPTY} for more details.
      */
     @Experimental(Kind.TRIGGER)
@@ -411,7 +411,7 @@ public class Window {
      * {@code PTransform} but with the specified name.  Does not
      * modify this {@code PTransform}.
      *
-     * <p> See the discussion of Naming in
+     * <p>See the discussion of Naming in
      * {@link com.google.cloud.dataflow.sdk.transforms.ParDo} for more
      * explanation.
      */
@@ -424,10 +424,10 @@ public class Window {
      * Elements that are assigned to a specific window will be output when
      * the trigger fires.
      *
-     * <p> {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger}
+     * <p>{@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger}
      * has more details on the available triggers.
      *
-     * <p> Must also specify allowed lateness using {@link #withAllowedLateness} and accumulation
+     * <p>Must also specify allowed lateness using {@link #withAllowedLateness} and accumulation
      * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
      */
     @Experimental(Kind.TRIGGER)
@@ -439,7 +439,7 @@ public class Window {
     * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
     * Triggering behavior, and that discards elements in a pane after they are triggered.
     *
-    * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
+    * <p>Does not modify this transform.  The resulting {@code PTransform} is sufficiently
     * specified to be applied, but more properties can still be specified.
     */
     @Experimental(Kind.TRIGGER)
@@ -453,7 +453,7 @@ public class Window {
     * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
     * Triggering behavior, and that accumulates elements in a pane after they are triggered.
     *
-    * <p> Does not modify this transform.  The resulting {@code PTransform} is sufficiently
+    * <p>Does not modify this transform.  The resulting {@code PTransform} is sufficiently
     * specified to be applied, but more properties can still be specified.
     */
    @Experimental(Kind.TRIGGER)
@@ -473,7 +473,7 @@ public class Window {
      * Once no elements will be added to a window (because this duration has passed) any state
      * associated with the window will be cleaned up.
      *
-     * <p> Depending on the trigger this may not produce a pane with {@link PaneInfo#isLast}. See
+     * <p>Depending on the trigger this may not produce a pane with {@link PaneInfo#isLast}. See
      * {@link ClosingBehavior#FIRE_IF_NON_EMPTY} for more details.
      */
     @Experimental(Kind.TRIGGER)

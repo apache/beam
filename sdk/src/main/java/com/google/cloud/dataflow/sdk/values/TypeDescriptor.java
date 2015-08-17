@@ -29,7 +29,7 @@ import java.util.List;
 /**
  * A description of a Java type, including actual generic parameters where possible.
  *
- * <p> To prevent losing actual type arguments due to erasure, create an anonymous subclass
+ * <p>To prevent losing actual type arguments due to erasure, create an anonymous subclass
  * with concrete types:
  * <pre>
  * {@code

@@ -28,7 +28,7 @@ import java.util.Collection;
  * A {@link WindowFn} windowing values into sessions separated by {@link #gapDuration}-long
  * periods with no elements.
  *
- * <p> For example, in order to window data into session with at least 10 minute
+ * <p>For example, in order to window data into session with at least 10 minute
  * gaps in between them:
  * <pre> {@code
  * PCollection<Integer> pc = ...;

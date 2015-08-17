@@ -22,26 +22,25 @@ import com.google.common.base.Preconditions;
 /**
  * Implementation of {@link BackOff} that increases the back off period for each retry attempt
  * using a randomization function that grows exponentially.
- * <p>
- * Example: The initial interval is .5 seconds and the maximum number of retries is 10.
+ *
+ * <p>Example: The initial interval is .5 seconds and the maximum number of retries is 10.
  * For 10 tries the sequence will be (values in seconds):
  *
  * <pre>
-   retry#      retry_interval     randomized_interval
-   1             0.5                [0.25,   0.75]
-   2             0.75               [0.375,  1.125]
-   3             1.125              [0.562,  1.687]
-   4             1.687              [0.8435, 2.53]
-   5             2.53               [1.265,  3.795]
-   6             3.795              [1.897,  5.692]
-   7             5.692              [2.846,  8.538]
-   8             8.538              [4.269, 12.807]
-   9            12.807              [6.403, 19.210]
-   10           {@link BackOff#STOP}
+ * retry#      retry_interval     randomized_interval
+ * 1             0.5                [0.25,   0.75]
+ * 2             0.75               [0.375,  1.125]
+ * 3             1.125              [0.562,  1.687]
+ * 4             1.687              [0.8435, 2.53]
+ * 5             2.53               [1.265,  3.795]
+ * 6             3.795              [1.897,  5.692]
+ * 7             5.692              [2.846,  8.538]
+ * 8             8.538              [4.269, 12.807]
+ * 9            12.807              [6.403, 19.210]
+ * 10           {@link BackOff#STOP}
  * </pre>
  *
- * <p>
- * Implementation is not thread-safe.
+ * <p>Implementation is not thread-safe.
  */
 public class AttemptBoundedExponentialBackOff implements BackOff {
   public static final double DEFAULT_MULTIPLIER = 1.5;

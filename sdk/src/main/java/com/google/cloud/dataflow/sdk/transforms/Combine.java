@@ -77,13 +77,13 @@ public class Combine {
    * single value in the output {@code PCollection}.  The types of the input
    * elements and the output elements must be the same.
    *
-   * <p> If the input {@code PCollection} is windowed into {@link GlobalWindows},
+   * <p>If the input {@code PCollection} is windowed into {@link GlobalWindows},
    * a default value in the {@link GlobalWindow} will be output if the input
    * {@code PCollection} is empty.  To use this with inputs with other windowing,
    * either {@link Globally#withoutDefaults} or {@link Globally#asSingletonView}
    * must be called.
    *
-   * <p> See {@link Globally Combine.Globally} for more information.
+   * <p>See {@link Globally Combine.Globally} for more information.
    */
   public static <V> Globally<V, V> globally(
       SerializableFunction<Iterable<V>, V> combiner) {
@@ -97,13 +97,13 @@ public class Combine {
    * single value in the output {@code PCollection}.  The types of the input
    * elements and the output elements can differ
    *
-   * <p> If the input {@code PCollection} is windowed into {@link GlobalWindows},
+   * <p>If the input {@code PCollection} is windowed into {@link GlobalWindows},
    * a default value in the {@link GlobalWindow} will be output if the input
    * {@code PCollection} is empty.  To use this with inputs with other windowing,
    * either {@link Globally#withoutDefaults} or {@link Globally#asSingletonView}
    * must be called.
    *
-   * <p> See {@link Globally Combine.Globally} for more information.
+   * <p>See {@link Globally Combine.Globally} for more information.
    */
   public static <InputT, OutputT> Globally<InputT, OutputT> globally(
       CombineFn<? super InputT, ?, OutputT> fn) {
@@ -118,13 +118,13 @@ public class Combine {
    * of {@code KV}s mapping each distinct key to its combined value for each
    * window.
    *
-   * <p> Each output element is in the window by which its corresponding input
+   * <p>Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
    * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * as the input.
    *
-   * <p> See {@link PerKey Combine.PerKey} for more information.
+   * <p>See {@link PerKey Combine.PerKey} for more information.
    */
   public static <K, V> PerKey<K, V, V> perKey(
       SerializableFunction<Iterable<V>, V> fn) {
@@ -139,13 +139,13 @@ public class Combine {
    * of {@code KV}s mapping each distinct key to its combined value for each
    * window.
    *
-   * <p> Each output element is in the window by which its corresponding input
+   * <p>Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
    * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * as the input.
    *
-   * <p> See {@link PerKey Combine.PerKey} for more information.
+   * <p>See {@link PerKey Combine.PerKey} for more information.
    */
   public static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
       CombineFn<? super InputT, ?, OutputT> fn) {
@@ -160,13 +160,13 @@ public class Combine {
    * {@code PCollection} of {@code KV}s mapping each distinct key to
    * its combined value for each window.
    *
-   * <p> Each output element is in the window by which its corresponding input
+   * <p>Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
    * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * as the input.
    *
-   * <p> See {@link PerKey Combine.PerKey} for more information.
+   * <p>See {@link PerKey Combine.PerKey} for more information.
    */
   public static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
       KeyedCombineFn<? super K, ? super InputT, ?, OutputT> fn) {
@@ -191,15 +191,15 @@ public class Combine {
    * with a key, ignoring the key.  The type of the input and
    * output values must be the same.
    *
-   * <p> Each output element has the same timestamp and is in the same window
+   * <p>Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
    * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
-   * <p> See {@link GroupedValues Combine.GroupedValues} for more information.
+   * <p>See {@link GroupedValues Combine.GroupedValues} for more information.
    *
-   * <p> Note that {@link #perKey(SerializableFunction)} is typically
+   * <p>Note that {@link #perKey(SerializableFunction)} is typically
    * more convenient to use than {@link GroupByKey} followed by
    * {@code groupedValues(...)}.
    */
@@ -217,15 +217,15 @@ public class Combine {
    * key, ignoring the key.  The types of the input and output values
    * can differ.
    *
-   * <p> Each output element has the same timestamp and is in the same window
+   * <p>Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
    * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
-   * <p> See {@link GroupedValues Combine.GroupedValues} for more information.
+   * <p>See {@link GroupedValues Combine.GroupedValues} for more information.
    *
-   * <p> Note that {@link #perKey(CombineFn)} is typically
+   * <p>Note that {@link #perKey(CombineFn)} is typically
    * more convenient to use than {@link GroupByKey} followed by
    * {@code groupedValues(...)}.
    */
@@ -243,15 +243,15 @@ public class Combine {
    * each key.  The combining function is provided the key.  The types
    * of the input and output values can differ.
    *
-   * <p> Each output element has the same timestamp and is in the same window
+   * <p>Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
    * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
-   * <p> See {@link GroupedValues Combine.GroupedValues} for more information.
+   * <p>See {@link GroupedValues Combine.GroupedValues} for more information.
    *
-   * <p> Note that {@link #perKey(KeyedCombineFn)} is typically
+   * <p>Note that {@link #perKey(KeyedCombineFn)} is typically
    * more convenient to use than {@link GroupByKey} followed by
    * {@code groupedValues(...)}.
    */
@@ -269,7 +269,7 @@ public class Combine {
    * output value of type {@code OutputT}.  It does this via one or more
    * intermediate mutable accumulator values of type {@code AccumT}.
    *
-   * <p> The overall process to combine a collection of input
+   * <p>The overall process to combine a collection of input
    * {@code InputT} values into a single output {@code OutputT} value is as
    * follows:
    *
@@ -301,7 +301,7 @@ public class Combine {
    *
    * </ol>
    *
-   * <p> For example:
+   * <p>For example:
    * <pre> {@code
    * public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
    *   public static class Accum {
@@ -331,7 +331,7 @@ public class Combine {
    * PCollection<Double> average = pc.apply(Combine.globally(new AverageFn()));
    * } </pre>
    *
-   * <p> Combining functions used by {@link Combine.Globally},
+   * <p>Combining functions used by {@link Combine.Globally},
    * {@link Combine.PerKey}, {@link Combine.GroupedValues}, and
    * {@code PTransforms} derived from them should be
    * <i>associative</i> and <i>commutative</i>.  Associativity is
@@ -357,7 +357,7 @@ public class Combine {
      * Adds the given input value to the given accumulator, returning the
      * new accumulator value.
      *
-     * <P> For efficiency, the input accumulator may be modified and returned.
+     * <p>For efficiency, the input accumulator may be modified and returned.
      */
     public abstract AccumT addInput(AccumT accumulator, InputT input);
 
@@ -365,7 +365,7 @@ public class Combine {
      * Returns an accumulator representing the accumulation of all the
      * input values accumulated in the merging accumulators.
      *
-     * <p> May modify any of the argument accumulators.  May return a
+     * <p>May modify any of the argument accumulators.  May return a
      * fresh accumulator, or may return one of the (modified) argument
      * accumulators.
      */
@@ -381,7 +381,7 @@ public class Combine {
      * Applies this {@code CombineFn} to a collection of input values
      * to produce a combined output value.
      *
-     * <p> Useful when testing the behavior of a {@code CombineFn}
+     * <p>Useful when testing the behavior of a {@code CombineFn}
      * separately from a {@code Combine} transform.
      */
     public OutputT apply(Iterable<? extends InputT> inputs) {
@@ -397,7 +397,7 @@ public class Combine {
      * about the output type of this {@code CombineFn} instance's
      * most-derived class.
      *
-     * <p> In the normal case of a concrete {@code CombineFn} subclass with
+     * <p>In the normal case of a concrete {@code CombineFn} subclass with
      * no generic type parameters of its own, this will be a complete
      * non-generic type.
      */
@@ -430,12 +430,12 @@ public class Combine {
      * Returns the {@code Coder} to use for accumulator {@code AccumT}
      * values, or null if it is not able to be inferred.
      *
-     * <p> By default, uses the knowledge of the {@code Coder} being used
+     * <p>By default, uses the knowledge of the {@code Coder} being used
      * for {@code InputT} values and the enclosing {@code Pipeline}'s
      * {@code CoderRegistry} to try to infer the Coder for {@code AccumT}
      * values.
      *
-     * <p> This is the Coder used to send data through a communication-intensive
+     * <p>This is the Coder used to send data through a communication-intensive
      * shuffle step, so a compact and efficient representation may have
      * significant performance benefits.
      */
@@ -450,7 +450,7 @@ public class Combine {
      * Returns the {@code Coder} to use by default for output
      * {@code OutputT} values, or null if it is not able to be inferred.
      *
-     * <p> By default, uses the knowledge of the {@code Coder} being
+     * <p>By default, uses the knowledge of the {@code Coder} being
      * used for input {@code InputT} values and the enclosing
      * {@code Pipeline}'s {@code CoderRegistry} to try to infer the
      * Coder for {@code OutputT} values.
@@ -892,7 +892,7 @@ public class Combine {
    * are automatically provided.  This can reduce the code required to
    * implement a {@code CombineFn}.
    *
-   * <p> For example, the example from {@link CombineFn} above can be
+   * <p>For example, the example from {@link CombineFn} above can be
    * expressed using {@code AccumulatingCombineFn} more concisely as
    * follows:
    *
@@ -990,7 +990,7 @@ public class Combine {
    * {@code OutputT}.  It does this via one or more intermediate mutable
    * accumulator values of type {@code AccumT}.
    *
-   * <p> The overall process to combine a collection of input
+   * <p>The overall process to combine a collection of input
    * {@code InputT} values associated with an input {@code K} key into a
    * single output {@code OutputT} value is as follows:
    *
@@ -1022,10 +1022,10 @@ public class Combine {
    *
    * </ol>
    *
-   * <p> All of these operations are passed the {@code K} key that the
+   * <p>All of these operations are passed the {@code K} key that the
    * values being combined are associated with.
    *
-   * <p> For example:
+   * <p>For example:
    * <pre> {@code
    * public class ConcatFn
    *     extends KeyedCombineFn<String, Integer, ConcatFn.Accum, String> {
@@ -1054,7 +1054,7 @@ public class Combine {
    *     Combine.perKey(new ConcatFn()));
    * } </pre>
    *
-   * <p> Keyed combining functions used by {@link Combine.PerKey},
+   * <p>Keyed combining functions used by {@link Combine.PerKey},
    * {@link Combine.GroupedValues}, and {@code PTransforms} derived
    * from them should be <i>associative</i> and <i>commutative</i>.
    * Associativity is required because input values are first broken
@@ -1084,7 +1084,7 @@ public class Combine {
      * Adds the given input value to the given accumulator,
      * modifying the accumulator.
      *
-     * <P> For efficiency, the input accumulator may be modified and returned.
+     * <p>For efficiency, the input accumulator may be modified and returned.
      *
      * @param key the key that all the accumulated values using the
      * accumulator are associated with
@@ -1095,7 +1095,7 @@ public class Combine {
      * Returns an accumulator representing the accumulation of all the
      * input values accumulated in the merging accumulators.
      *
-     * <p> May modify any of the argument accumulators.  May return a
+     * <p>May modify any of the argument accumulators.  May return a
      * fresh accumulator, or may return one of the (modified) argument
      * accumulators.
      *
@@ -1157,7 +1157,7 @@ public class Combine {
      * Applies this {@code KeyedCombineFn} to a key and a collection
      * of input values to produce a combined output value.
      *
-     * <p> Useful when testing the behavior of a {@code KeyedCombineFn}
+     * <p>Useful when testing the behavior of a {@code KeyedCombineFn}
      * separately from a {@code Combine} transform.
      */
     public OutputT apply(K key, Iterable<? extends InputT> inputs) {
@@ -1172,12 +1172,12 @@ public class Combine {
      * Returns the {@code Coder} to use for accumulator {@code AccumT}
      * values, or null if it is not able to be inferred.
      *
-     * <p> By default, uses the knowledge of the {@code Coder} being
+     * <p>By default, uses the knowledge of the {@code Coder} being
      * used for {@code K} keys and input {@code InputT} values and the
      * enclosing {@code Pipeline}'s {@code CoderRegistry} to try to
      * infer the Coder for {@code AccumT} values.
      *
-     * <p> This is the Coder used to send data through a communication-intensive
+     * <p>This is the Coder used to send data through a communication-intensive
      * shuffle step, so a compact and efficient representation may have
      * significant performance benefits.
      */
@@ -1195,7 +1195,7 @@ public class Combine {
      * Returns the {@code Coder} to use by default for output
      * {@code OutputT} values, or null if it is not able to be inferred.
      *
-     * <p> By default, uses the knowledge of the {@code Coder} being
+     * <p>By default, uses the knowledge of the {@code Coder} being
      * used for {@code K} keys and input {@code InputT} values and the
      * enclosing {@code Pipeline}'s {@code CoderRegistry} to try to
      * infer the Coder for {@code OutputT} values.
@@ -1253,28 +1253,28 @@ public class Combine {
    * conjunctions and disjunctions of booleans, statistical
    * aggregations, etc.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<Integer> pc = ...;
    * PCollection<Integer> sum = pc.apply(
    *     Combine.globally(new Sum.SumIntegerFn()));
    * } </pre>
    *
-   * <p> Combining can happen in parallel, with different subsets of the
+   * <p>Combining can happen in parallel, with different subsets of the
    * input {@code PCollection} being combined separately, and their
    * intermediate results combined further, in an arbitrary tree
    * reduction pattern, until a single result value is produced.
    *
-   * <p> If the input {@code PCollection} is windowed into {@link GlobalWindows},
+   * <p>If the input {@code PCollection} is windowed into {@link GlobalWindows},
    * a default value in the {@link GlobalWindow} will be output if the input
    * {@code PCollection} is empty.  To use this with inputs with other windowing,
    * either {@link #withoutDefaults} or {@link #asSingletonView} must be called.
    *
-   * <p> By default, the {@code Coder} of the output {@code PValue<OutputT>}
+   * <p>By default, the {@code Coder} of the output {@code PValue<OutputT>}
    * is inferred from the concrete type of the
    * {@code CombineFn<InputT, AccumT, OutputT>}'s output type {@code OutputT}.
    *
-   * <p> See also {@link #perKey}/{@link PerKey Combine.PerKey} and
+   * <p>See also {@link #perKey}/{@link PerKey Combine.PerKey} and
    * {@link #groupedValues}/{@link GroupedValues Combine.GroupedValues}, which
    * are useful for combining values associated with each key in
    * a {@code PCollection} of {@code KV}s.
@@ -1334,7 +1334,7 @@ public class Combine {
      * Returns a {@link PTransform} identical to this, but that uses an intermediate node
      * to combine parts of the data to reduce load on the final global combine step.
      *
-     * <p> The {@code fanout} parameter determines the number of intermediate keys
+     * <p>The {@code fanout} parameter determines the number of intermediate keys
      * that will be used.
      */
     public Globally<InputT, OutputT> withFanout(int fanout) {
@@ -1401,28 +1401,28 @@ public class Combine {
    * conjunctions and disjunctions of booleans, statistical
    * aggregations, etc.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<Integer> pc = ...;
    * PCollection<Integer> sum = pc.apply(
    *     Combine.globally(new Sum.SumIntegerFn()));
    * } </pre>
    *
-   * <p> Combining can happen in parallel, with different subsets of the
+   * <p>Combining can happen in parallel, with different subsets of the
    * input {@code PCollection} being combined separately, and their
    * intermediate results combined further, in an arbitrary tree
    * reduction pattern, until a single result value is produced.
    *
-   * <p> If a value is requested from the view for a window that is not present
+   * <p>If a value is requested from the view for a window that is not present
    * and {@code insertDefault} is true, the result of calling the {@code CombineFn}
    * on empty input will returned. If {@code insertDefault} is false, an
    * exception will be thrown instead.
    *
-   * <p> By default, the {@code Coder} of the output {@code PValue<OutputT>}
+   * <p>By default, the {@code Coder} of the output {@code PValue<OutputT>}
    * is inferred from the concrete type of the
    * {@code CombineFn<InputT, AccumT, OutputT>}'s output type {@code OutputT}.
    *
-   * <p> See also {@link #perKey}/{@link PerKey Combine.PerKey} and
+   * <p>See also {@link #perKey}/{@link PerKey Combine.PerKey} and
    * {@link #groupedValues}/{@link GroupedValues Combine.GroupedValues}, which
    * are useful for combining values associated with each key in
    * a {@code PCollection} of {@code KV}s.
@@ -1462,7 +1462,7 @@ public class Combine {
    * Converts a {@link SerializableFunction} from {@code Iterable<V>}s
    * to {@code V}s into a simple {@link CombineFn} over {@code V}s.
    *
-   * <p> Used in the implementation of convenience methods like
+   * <p>Used in the implementation of convenience methods like
    * {@link #globally(SerializableFunction)},
    * {@link #perKey(SerializableFunction)}, and
    * {@link #groupedValues(SerializableFunction)}.
@@ -1541,7 +1541,7 @@ public class Combine {
    * Converts a {@link SerializableFunction} from {@code Iterable<V>}s
    * to {@code V}s into a simple {@link CombineFn} over {@code V}s.
    *
-   * <p> @deprecated Use {@link IterableCombineFn} or the more space efficient
+   * <p>@deprecated Use {@link IterableCombineFn} or the more space efficient
    * {@link BinaryCombineFn} instead (which avoids buffering values).
    */
   @Deprecated
@@ -1574,13 +1574,13 @@ public class Combine {
    * distinct key of the input {@code PCollection} to the corresponding
    * combined value.  {@code InputT} and {@code OutputT} are often the same.
    *
-   * <p> This is a concise shorthand for an application of
+   * <p>This is a concise shorthand for an application of
    * {@link GroupByKey} followed by an application of
    * {@link GroupedValues Combine.GroupedValues}.  See those
    * operations for more details on how keys are compared for equality
    * and on the default {@code Coder} for the output.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<KV<String, Double>> salesRecords = ...;
    * PCollection<KV<String, Double>> totalSalesPerPerson =
@@ -1588,7 +1588,7 @@ public class Combine {
    *         new Sum.SumDoubleFn()));
    * } </pre>
    *
-   * <p> Each output element is in the window by which its corresponding input
+   * <p>Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
    * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
@@ -1961,7 +1961,7 @@ public class Combine {
    * of numbers, conjunctions and disjunctions of booleans, statistical
    * aggregations, etc.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<KV<String, Integer>> pc = ...;
    * PCollection<KV<String, Iterable<Integer>>> groupedByKey = pc.apply(
@@ -1971,31 +1971,31 @@ public class Combine {
    *         new Sum.SumIntegerFn()));
    * } </pre>
    *
-   * <p> See also {@link #perKey}/{@link PerKey Combine.PerKey}, which
+   * <p>See also {@link #perKey}/{@link PerKey Combine.PerKey}, which
    * captures the common pattern of "combining by key" in a
    * single easy-to-use {@code PTransform}.
    *
-   * <p> Combining for different keys can happen in parallel.  Moreover,
+   * <p>Combining for different keys can happen in parallel.  Moreover,
    * combining of the {@code Iterable<InputT>} values associated a single
    * key can happen in parallel, with different subsets of the values
    * being combined separately, and their intermediate results combined
    * further, in an arbitrary tree reduction pattern, until a single
    * result value is produced for each key.
    *
-   * <p> By default, the {@code Coder} of the keys of the output
+   * <p>By default, the {@code Coder} of the keys of the output
    * {@code PCollection<KV<K, OutputT>>} is that of the keys of the input
    * {@code PCollection<KV<K, InputT>>}, and the {@code Coder} of the values
    * of the output {@code PCollection<KV<K, OutputT>>} is inferred from the
    * concrete type of the {@code KeyedCombineFn<K, InputT, AccumT, OutputT>}'s output
    * type {@code OutputT}.
    *
-   * <p> Each output element has the same timestamp and is in the same window
+   * <p>Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
    * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
-   * <p> See also {@link #globally}/{@link Globally Combine.Globally}, which
+   * <p>See also {@link #globally}/{@link Globally Combine.Globally}, which
    * combines all the values in a {@code PCollection} into a
    * single value in a {@code PCollection}.
    *

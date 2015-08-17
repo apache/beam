@@ -58,7 +58,7 @@ public class TransformTreeTest {
   /**
    * INVALID TRANSFORM, DO NOT COPY.
    *
-   * <p> This is an invalid composite transform that returns unbound outputs.
+   * <p>This is an invalid composite transform that returns unbound outputs.
    * This should never happen, and is here to test that it is properly rejected.
    */
   private static class InvalidCompositeTransform

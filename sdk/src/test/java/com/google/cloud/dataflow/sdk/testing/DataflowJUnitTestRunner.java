@@ -44,16 +44,16 @@ import javax.annotation.Nullable;
  * A test runner which can invoke a series of method or class test targets configuring
  * the {@link TestPipeline} to run against the Dataflow service based upon command-line
  * parameters specified.
- * <p>
- * Supported target definitions as command line parameters are:
+ *
+ * <p>Supported target definitions as command line parameters are:
  * <ul>
  *   <li>Class: "ClassName"
  *   <li>Method: "ClassName#methodName"
  * </ul>
  * Multiple parameters can be specified in sequence, which will cause the test
  * runner to invoke the tests in the specified order.
- * <p>
- * All tests will be executed after which, if any test had failed, the runner
+ *
+ * <p>All tests will be executed after which, if any test had failed, the runner
  * will exit with a non-zero status code.
  */
 public class DataflowJUnitTestRunner {
@@ -121,7 +121,7 @@ public class DataflowJUnitTestRunner {
         Iterables.filter(classes, new Predicate<ClassPath.ClassInfo>() {
       @Override
       public boolean apply(@Nullable ClassInfo input) {
-        return simpleName.equals(input.getSimpleName());
+        return input != null && simpleName.equals(input.getSimpleName());
       }
     });
     return Class.forName(Iterables.getOnlyElement(matches).getName());

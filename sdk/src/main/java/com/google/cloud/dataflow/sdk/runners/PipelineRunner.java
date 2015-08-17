@@ -66,7 +66,7 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
   /**
    * Applies a transform to the given input, returning the output.
    *
-   * <p> The default implementation calls PTransform.apply(input), but can be overridden
+   * <p>The default implementation calls PTransform.apply(input), but can be overridden
    * to customize behavior for a particular runner.
    */
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(

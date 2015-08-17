@@ -58,6 +58,7 @@ import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,8 +89,8 @@ import java.util.regex.Pattern;
  *   <li>{@code datasetId}: the BigQuery dataset id, unique within a project.
  *   <li>{@code tableId}: a table id, unique within a dataset.
  * </ul>
- * <p>
- * BigQuery table references are stored as a {@link TableReference}, which comes
+ *
+ * <p>BigQuery table references are stored as a {@link TableReference}, which comes
  * from the <a href="https://cloud.google.com/bigquery/client-libraries">
  * BigQuery Java Client API</a>.
  * Tables can be referred to as Strings, with or without the {@code projectId}.
@@ -109,7 +110,7 @@ import java.util.regex.Pattern;
  *         .from("clouddataflow-readonly:samples.weather_stations");
  * }</pre>
  *
- * <p> Users may provide a query to read from rather than reading all of a BigQuery table. If
+ * <p>Users may provide a query to read from rather than reading all of a BigQuery table. If
  * specified, the result obtained by executing the specified query will be used as the data of the
  * input transform.
  *
@@ -120,13 +121,12 @@ import java.util.regex.Pattern;
  *         .fromQuery("SELECT year, mean_temp FROM samples.weather_stations");
  * }</pre>
  *
- * <p> When creating a BigQuery input transform, users should provide either a query or a table.
+ * <p>When creating a BigQuery input transform, users should provide either a query or a table.
  * Pipeline construction will fail with a validation error if neither or both are specified.
  *
  * <p><h3>Writing</h3>
  * To write to a BigQuery table, apply a {@link BigQueryIO.Write} transformation.
  * This consumes a {@code PCollection<TableRow>} as input.
- * <p>
  * <pre>{@code
  * PCollection<TableRow> quotes = ...
  *
@@ -141,8 +141,8 @@ import java.util.regex.Pattern;
  *     .withSchema(schema)
  *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
  * }</pre>
- * <p>
- * See {@link BigQueryIO.Write} for details on how to specify if a write should
+ *
+ * <p>See {@link BigQueryIO.Write} for details on how to specify if a write should
  * append to an existing table, replace the table, or verify that the table is
  * empty. Note that the dataset being written to must already exist. Write
  * dispositions are not supported in streaming mode.
@@ -169,7 +169,7 @@ import java.util.regex.Pattern;
  *
  * }</pre>
  *
- * <p> Per-window tables are not yet supported in batch mode.
+ * <p>Per-window tables are not yet supported in batch mode.
  *
  * @see <a href="https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/com/google/api/services/bigquery/model/TableRow.html">TableRow</a>
  *
@@ -237,8 +237,8 @@ public class BigQueryIO {
   /**
    * Parse a table specification in the form
    * "[project_id]:[dataset_id].[table_id]" or "[dataset_id].[table_id]".
-   * <p>
-   * If the project id is omitted, the default project id is used.
+   *
+   * <p>If the project id is omitted, the default project id is used.
    */
   public static TableReference parseTableSpec(String tableSpec) {
     Matcher match = TABLE_SPEC.matcher(tableSpec);
@@ -271,8 +271,8 @@ public class BigQueryIO {
   /**
    * A {@link PTransform} that reads from a BigQuery table and returns a
    * {@link PCollection} of {@link TableRow TableRows} containing each of the rows of the table.
-   * <p>
-   * Each TableRow record contains values indexed by column name.  Here is a
+   *
+   * <p>Each TableRow record contains values indexed by column name.  Here is a
    * sample processing function that processes a "line" column from rows:
    * <pre><code>
    * static class ExtractWordsFn extends DoFn{@literal <TableRow, String>} {
@@ -362,8 +362,8 @@ public class BigQueryIO {
 
       /**
        * Sets the table specification.
-       * <p>
-       * Refer to {@link #parseTableSpec(String)} for the specification format.
+       *
+       * <p>Refer to {@link #parseTableSpec(String)} for the specification format.
        */
       public Bound from(String tableSpec) {
         return from(parseTableSpec(tableSpec));
@@ -496,20 +496,20 @@ public class BigQueryIO {
   /**
    * A {@link PTransform} that writes a {@link PCollection} containing {@link TableRow TableRows}
    * to a BigQuery table.
-   * <p>
-   * By default, tables will be created if they do not exist, which
+   *
+   * <p>By default, tables will be created if they do not exist, which
    * corresponds to a {@code CreateDisposition.CREATE_IF_NEEDED} disposition
    * that matches the default of BigQuery's Jobs API.  A schema must be
    * provided (via {@link Write#withSchema}), or else the transform may fail
    * at runtime with an {@link java.lang.IllegalArgumentException}.
-   * <p>
-   * The dataset being written must already exist.
-   * <p>
-   * By default, writes require an empty table, which corresponds to
+   *
+   * <p>The dataset being written must already exist.
+   *
+   * <p>By default, writes require an empty table, which corresponds to
    * a {@code WriteDisposition.WRITE_EMPTY} disposition that matches the
    * default of BigQuery's Jobs API.
-   * <p>
-   * Here is a sample transform that produces TableRow values containing
+   *
+   * <p>Here is a sample transform that produces TableRow values containing
    * "word" and "count" columns:
    * <pre><code>
    * static class FormatCountsFn extends DoFnP{@literal <KV<String, Long>, TableRow>} {
@@ -531,20 +531,20 @@ public class BigQueryIO {
     public enum CreateDisposition {
       /**
        * Specifics that tables should not be created.
-       * <p>
-       * If the output table does not exist, the write fails.
+       *
+       * <p>If the output table does not exist, the write fails.
        */
       CREATE_NEVER,
 
       /**
        * Specifies that tables should be created if needed. This is the default
        * behavior.
-       * <p>
-       * Requires that a table schema is provided via {@link Write#withSchema}.
+       *
+       * <p>Requires that a table schema is provided via {@link Write#withSchema}.
        * This precondition is checked before starting a job. The schema is
        * not required to match an existing table's schema.
-       * <p>
-       * When this transformation is executed, if the output table does not
+       *
+       * <p>When this transformation is executed, if the output table does not
        * exist, the table is created from the provided schema. Note that even if
        * the table exists, it may be recreated if necessary when paired with a
        * {@link WriteDisposition#WRITE_TRUNCATE}.
@@ -560,8 +560,8 @@ public class BigQueryIO {
     public enum WriteDisposition {
       /**
        * Specifies that write should replace a table.
-       * <p>
-       * The replacement may occur in multiple steps - for instance by first
+       *
+       * <p>The replacement may occur in multiple steps - for instance by first
        * removing the existing table, then creating a replacement, then filling
        * it in.  This is not an atomic operation, and external programs may
        * see the table in any of these intermediate steps.
@@ -576,10 +576,10 @@ public class BigQueryIO {
       /**
        * Specifies that the output table must be empty. This is the default
        * behavior.
-       * <p>
-       * If the output table is not empty, the write fails at runtime.
-       * <p>
-       * This check may occur long before data is written, and does not
+       *
+       * <p>If the output table is not empty, the write fails at runtime.
+       *
+       * <p>This check may occur long before data is written, and does not
        * guarantee exclusive access to the table.  If two programs are run
        * concurrently, each specifying the same output table and
        * a {@link WriteDisposition} of {@code WRITE_EMPTY}, it is possible
@@ -597,8 +597,8 @@ public class BigQueryIO {
 
     /**
      * Creates a write transformation for the given table specification.
-     * <p>
-     * Refer to {@link #parseTableSpec(String)} for the specification format.
+     *
+     * <p>Refer to {@link #parseTableSpec(String)} for the specification format.
      */
     public static Bound to(String tableSpec) {
       return new Bound().to(tableSpec);
@@ -612,11 +612,11 @@ public class BigQueryIO {
     /** Creates a write transformation from a function that maps windows to table specifications.
      * Each time a new window is encountered, this function will be called and the resulting table
      * will be created. Records within that window will be written to the associated table.
-     * <p>
-     * See {@link #parseTableSpec(String)} for the format that tableSpecFunction should return.
-     * <p>
-     * tableSpecFunction should be determinstic. When given the same window, it should always return
-     * the same table specification.
+     *
+     * <p>See {@link #parseTableSpec(String)} for the format that tableSpecFunction should return.
+     *
+     * <p>tableSpecFunction should be determinstic. When given the same window, it should always
+     * return the same table specification.
      */
     public static Bound to(SerializableFunction<BoundedWindow, String> tableSpecFunction) {
       return new Bound().to(tableSpecFunction);
@@ -631,8 +631,8 @@ public class BigQueryIO {
 
     /**
      * Specifies a table schema to use in table creation.
-     * <p>
-     * The schema is required only if writing to a table that does not already
+     *
+     * <p>The schema is required only if writing to a table that does not already
      * exist, and {@link BigQueryIO.Write.CreateDisposition} is set to
      * {@code CREATE_IF_NEEDED}.
      */
@@ -730,8 +730,8 @@ public class BigQueryIO {
 
       /**
        * Specifies the table specification.
-       * <p>
-       * Refer to {@link #parseTableSpec(String)} for the specification format.
+       *
+       * <p>Refer to {@link #parseTableSpec(String)} for the specification format.
        */
       public Bound to(String tableSpec) {
         return to(parseTableSpec(tableSpec));
@@ -1308,8 +1308,8 @@ public class BigQueryIO {
 
   /**
    * Direct mode read evaluator.
-   * <p>
-   * This loads the entire table into an in-memory PCollection.
+   *
+   * <p>This loads the entire table into an in-memory PCollection.
    */
   private static void evaluateReadHelper(
       Read.Bound transform, DirectPipelineRunner.EvaluationContext context) {
@@ -1344,8 +1344,8 @@ public class BigQueryIO {
 
   /**
    * Direct mode write evaluator.
-   * <p>
-   * This writes the entire table in a single BigQuery request.
+   *
+   * <p>This writes the entire table in a single BigQuery request.
    * The table will be created if necessary.
    */
   private static void evaluateWriteHelper(

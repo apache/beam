@@ -31,7 +31,7 @@ import java.io.OutputStream;
 /**
  * A {@code ByteArrayCoder} encodes {@code byte[]} objects.
  *
- * <p> If in a nested context, prefixes the encoded array with its
+ * <p>If in a nested context, prefixes the encoded array with its
  * length, encoded via a {@link VarIntCoder}.
  */
 public class ByteArrayCoder extends AtomicCoder<byte[]> {

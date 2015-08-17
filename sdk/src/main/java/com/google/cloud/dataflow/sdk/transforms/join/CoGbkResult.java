@@ -172,8 +172,8 @@ public class CoGbkResult {
    * Returns the values from the table represented by the given
    * {@code TupleTag<V>} as an {@code Iterable<V>} (which may be empty if there
    * are no results).
-   * <p>
-   * If tag was not part of the original CoGroupByKey,
+   *
+   * <p>If tag was not part of the original CoGroupByKey,
    * throws an IllegalArgumentException.
    */
   public <V> Iterable<V> getAll(TupleTag<V> tag) {
@@ -190,8 +190,8 @@ public class CoGbkResult {
   /**
    * If there is a singleton value for the given tag, returns it.
    * Otherwise, throws an IllegalArgumentException.
-   * <p>
-   * If tag was not part of the original CoGroupByKey,
+   *
+   * <p>If tag was not part of the original CoGroupByKey,
    * throws an IllegalArgumentException.
    */
   public <V> V getOnly(TupleTag<V> tag) {
@@ -201,8 +201,8 @@ public class CoGbkResult {
   /**
    * If there is a singleton value for the given tag, returns it.  If there is
    * no value for the given tag, returns the defaultValue.
-   * <p>
-   * If tag was not part of the original CoGroupByKey,
+   *
+   * <p>If tag was not part of the original CoGroupByKey,
    * throws an IllegalArgumentException.
    */
   public <V> V getOnly(TupleTag<V> tag, V defaultValue) {

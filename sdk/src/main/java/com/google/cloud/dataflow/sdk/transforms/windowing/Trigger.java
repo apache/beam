@@ -39,7 +39,7 @@ import javax.annotation.Nullable;
  * {@link WindowFn}, and then passed to the associated {@code Trigger} to determine if the
  * {@code Window}s contents should be output.
  *
- * <p> See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} and {@link Window}
+ * <p>See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} and {@link Window}
  * for more information about how grouping with windows works.
  *
  * <p>The elements that are assigned to a window since the last time it was fired (or since the
@@ -87,7 +87,7 @@ import javax.annotation.Nullable;
  * <p>Once finished, a trigger cannot return itself back to an earlier state, however a composite
  * trigger could reset its sub-triggers.
  *
- * <p> Triggers should not build up any state internally since they may be recreated
+ * <p>Triggers should not build up any state internally since they may be recreated
  * between invocations of the callbacks. All important values should be persisted using
  * state before the callback returns.
  *
@@ -136,7 +136,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
      * A trigger can only return {@code ALREADY_FINISHED} from {@code onMerge}, and it should only
      * be returned if the trigger was previously finished in at least one window.
      *
-     * <p> Returning this indicates that the sub-trigger should be treated as finished in the output
+     * <p>Returning this indicates that the sub-trigger should be treated as finished in the output
      * window.
      */
     ALREADY_FINISHED(false, true, null);
@@ -321,11 +321,11 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
   /**
    * Called immediately after windows have been merged.
    *
-   * <p> Leaf triggers should determine their result by inspecting their status and any state
+   * <p>Leaf triggers should determine their result by inspecting their status and any state
    * in the merging windows. Composite triggers should determine their result by calling
    * {@link ExecutableTrigger#invokeMerge} on their sub-triggers, and applying appropriate logic.
    *
-   * <p> A trigger can only return {@link MergeResult#ALREADY_FINISHED} if it is marked as finished
+   * <p>A trigger can only return {@link MergeResult#ALREADY_FINISHED} if it is marked as finished
    * in at least one of the windows being merged.
    *
    * <p>The implementation does not need to clear out any state associated with the old windows.
@@ -430,10 +430,10 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    * for a given window had there been input data.  This is a static property of a trigger
    * that does not depend on its state.
    *
-   * <p> For triggers that do not fire based on the watermark advancing, returns
+   * <p>For triggers that do not fire based on the watermark advancing, returns
    * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
    *
-   * <p> This estimate is used to determine that there are no elements in a side-input window, which
+   * <p>This estimate is used to determine that there are no elements in a side-input window, which
    * causes the default value to be used instead.
    */
   public abstract Instant getWatermarkThatGuaranteesFiring(W window);
@@ -499,7 +499,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    * Specify an ending condition for this trigger. If the {@code until} fires then the combination
    * fires.
    *
-   * <p> The expression {@code t1.orFinally(t2)} fires every time {@code t1} fires, and finishes
+   * <p>The expression {@code t1.orFinally(t2)} fires every time {@code t1} fires, and finishes
    * as soon as either {@code t1} finishes or {@code t2} fires, in which case it fires one last time
    * for {@code t2}. Both {@code t1} and {@code t2} are executed in parallel. This means that
    * {@code t1} may have fired since {@code t2} started, so not all of the elements that {@code t2}
@@ -511,7 +511,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    *     .orFinally(AfterPane.elementCountAtLeast(5))
    * } </pre>
    *
-   * <p> Note that if {@code t1} is {@link OnceTrigger}, then {@code t1.orFinally(t2)} is the same
+   * <p>Note that if {@code t1} is {@link OnceTrigger}, then {@code t1.orFinally(t2)} is the same
    * as {@code AfterFirst.of(t1, t2)}.
    */
   public Trigger<W> orFinally(OnceTrigger<W> until) {

@@ -39,24 +39,24 @@ import java.util.ArrayList;
 /**
  * A streaming Dataflow Example using BigQuery output.
  *
- * <p> This pipeline example reads lines of text from a PubSub topic, splits each line
+ * <p>This pipeline example reads lines of text from a PubSub topic, splits each line
  * into individual words, capitalizes those words, and writes the output to
  * a BigQuery table.
  *
- * <p> By default, the example will run a separate pipeline to inject the data from the default
+ * <p>By default, the example will run a separate pipeline to inject the data from the default
  * {@literal --inputFile} to the Pub/Sub {@literal --pubsubTopic}. It will make it available for
  * the streaming pipeline to process. You may override the default {@literal --inputFile} with the
  * file of your choosing. You may also set {@literal --inputFile} to an empty string, which will
  * disable the automatic Pub/Sub injection, and allow you to use separate tool to control the input
  * to this example.
  *
- * <p> The example is configured to use the default Pub/Sub topic and the default BigQuery table
+ * <p>The example is configured to use the default Pub/Sub topic and the default BigQuery table
  * from the example common package (there are no defaults for a general Dataflow pipeline).
  * You can override them by using the {@literal --pubsubTopic}, {@literal --bigQueryDataset}, and
  * {@literal --bigQueryTable} options. If the Pub/Sub topic or the BigQuery table do not exist,
  * the example will try to create them.
  *
- * <p> The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
+ * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
  * and then exits.
  */
 public class StreamingWordExtract {
@@ -115,7 +115,7 @@ public class StreamingWordExtract {
   /**
    * Options supported by {@link StreamingWordExtract}.
    *
-   * <p> Inherits standard configuration options.
+   * <p>Inherits standard configuration options.
    */
   private interface StreamingWordExtractOptions
       extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {

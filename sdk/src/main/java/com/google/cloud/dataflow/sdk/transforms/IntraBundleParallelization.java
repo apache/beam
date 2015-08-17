@@ -39,11 +39,11 @@ import java.util.concurrent.atomic.AtomicReference;
  * Provides multi-threading of {@link DoFn}s, using threaded execution to
  * process multiple elements concurrently within a bundle.
  *
- * <p> Note, that each Dataflow worker will already process multiple bundles
+ * <p>Note, that each Dataflow worker will already process multiple bundles
  * concurrently and usage of this class is meant only for cases where processing
  * elements from within a bundle is limited by blocking calls.
  *
- * <p> CPU intensive or IO intensive tasks are in general a poor fit for parallelization.
+ * <p>CPU intensive or IO intensive tasks are in general a poor fit for parallelization.
  * This is because a limited resource that is already maximally utilized does not
  * benefit from sub-division of work. The parallelization will increase the amount of time
  * to process each element yet the throughput for processing will remain relatively the same.
@@ -53,7 +53,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * share of the maximum write rate) will take at least 6 seconds to complete (there is additional
  * overhead in the extra parallelization).
  *
- * <p> To parallelize a {@link DoFn} to 10 threads:
+ * <p>To parallelize a {@link DoFn} to 10 threads:
  * <pre>{@code
  * PCollection<T> data = ...;
  * data.apply(
@@ -61,7 +61,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *                             .withMaxParallelism(10)));
  * }</pre>
  *
- * <p> An uncaught exception from the wrapped {@link DoFn} will result in the exception
+ * <p>An uncaught exception from the wrapped {@link DoFn} will result in the exception
  * being rethrown in later calls to {@link MultiThreadedIntraBundleProcessingDoFn#processElement}
  * or a call to {@link MultiThreadedIntraBundleProcessingDoFn#finishBundle}.
  */
@@ -70,7 +70,7 @@ public class IntraBundleParallelization {
    * Creates a {@link IntraBundleParallelization} {@link PTransform} for the given
    * {@link DoFn} that processes elements using multiple threads.
    *
-   * <p> Note that the specified {@code doFn} needs to be thread safe.
+   * <p>Note that the specified {@code doFn} needs to be thread safe.
    */
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> doFn) {
     return new Unbound().of(doFn);
@@ -87,7 +87,7 @@ public class IntraBundleParallelization {
   /**
    * An incomplete {@code IntraBundleParallelization} transform, with unbound input/output types.
    *
-   * <p> Before being applied, {@link IntraBundleParallelization.Unbound#of} must be
+   * <p>Before being applied, {@link IntraBundleParallelization.Unbound#of} must be
    * invoked to specify the {@link DoFn} to invoke, which will also
    * bind the input/output types of this {@code PTransform}.
    */
@@ -116,7 +116,7 @@ public class IntraBundleParallelization {
      * Returns a new {@link IntraBundleParallelization} {@link PTransform} like this one
      * with the specified {@link DoFn}.
      *
-     * <p> Note that the specified {@code doFn} needs to be thread safe.
+     * <p>Note that the specified {@code doFn} needs to be thread safe.
      */
     public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> doFn) {
       return new Bound<>(doFn, maxParallelism);
@@ -129,7 +129,7 @@ public class IntraBundleParallelization {
    * with all its outputs collected into an output
    * {@code PCollection<OutputT>}.
    *
-   * <p> Note that the specified {@code doFn} needs to be thread safe.
+   * <p>Note that the specified {@code doFn} needs to be thread safe.
    *
    * @param <InputT> the type of the (main) input {@code PCollection} elements
    * @param <OutputT> the type of the (main) output {@code PCollection} elements
@@ -159,7 +159,7 @@ public class IntraBundleParallelization {
      * Returns a new {@link IntraBundleParallelization} {@link PTransform} like this one
      * with the specified {@link DoFn}.
      *
-     * <p> Note that the specified {@code doFn} needs to be thread safe.
+     * <p>Note that the specified {@code doFn} needs to be thread safe.
      */
     public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> doFn) {
       return new Bound<>(doFn, maxParallelism);

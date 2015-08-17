@@ -24,14 +24,14 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * returns a {@code PCollection<KV<V, K>>}, where all the keys and
  * values have been swapped.
  *
- * <p> Example of use:
+ * <p>Example of use:
  * <pre> {@code
  * PCollection<String, Long> wordsToCounts = ...;
  * PCollection<Long, String> countsToWords =
  *     wordToCounts.apply(KvSwap.<String, Long>create());
  * } </pre>
  *
- * <p> Each output element has the same timestamp and is in the same windows
+ * <p>Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and the output {@code PCollection}
  * has the same
  * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}

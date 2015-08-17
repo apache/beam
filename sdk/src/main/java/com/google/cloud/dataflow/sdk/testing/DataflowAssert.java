@@ -66,7 +66,7 @@ import java.util.NoSuchElementException;
  * <p>Note that the {@code DataflowAssert} call must precede the call
  * to {@link Pipeline#run}.
  *
- * <p> Examples of use:
+ * <p>Examples of use:
  * <pre>{@code
  * Pipeline p = TestPipeline.create();
  * ...
@@ -163,7 +163,7 @@ public class DataflowAssert {
   /**
    * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection}.
    *
-   * <p> Note that the actual value must be coded by a {@link KvCoder},
+   * <p>Note that the actual value must be coded by a {@link KvCoder},
    * not just any {@code Coder<K, V>}.
    */
   public static <K, V> SingletonAssert<Map<K, Iterable<V>>>
@@ -181,7 +181,7 @@ public class DataflowAssert {
    * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection},
    * which must have at most one value per key.
    *
-   * <p> Note that the actual value must be coded by a {@link KvCoder},
+   * <p>Note that the actual value must be coded by a {@link KvCoder},
    * not just any {@code Coder<K, V>}.
    */
   public static <K, V> SingletonAssert<Map<K, V>> thatMap(PCollection<KV<K, V>> actual) {
@@ -217,7 +217,7 @@ public class DataflowAssert {
      * Sets the coder to use for elements of type {@code T}, as needed
      * for internal purposes.
      *
-     * <p> Returns this {@code IterableAssert}.
+     * <p>Returns this {@code IterableAssert}.
      */
     public IterableAssert<T> setCoder(Coder<T> coderOrNull) {
       this.coder = Optional.fromNullable(coderOrNull);
@@ -241,7 +241,7 @@ public class DataflowAssert {
     /**
      * Applies a {@link SerializableFunction} to check the elements of the {@code Iterable}.
      *
-     * <p> Returns this {@code IterableAssert}.
+     * <p>Returns this {@code IterableAssert}.
      */
     public IterableAssert<T> satisfies(SerializableFunction<Iterable<T>, Void> checkerFn) {
       pipeline.apply(
@@ -253,7 +253,7 @@ public class DataflowAssert {
     /**
      * Applies a {@link SerializableFunction} to check the elements of the {@code Iterable}.
      *
-     * <p> Returns this {@code IterableAssert}.
+     * <p>Returns this {@code IterableAssert}.
      */
     public IterableAssert<T> satisfies(
         AssertRelation<Iterable<T>, Iterable<T>> relation,
@@ -271,7 +271,7 @@ public class DataflowAssert {
      * Checks that the {@code Iterable} contains the expected elements, in any
      * order.
      *
-     * <p> Returns this {@code IterableAssert}.
+     * <p>Returns this {@code IterableAssert}.
      */
     public IterableAssert<T> containsInAnyOrder(Iterable<T> expectedElements) {
       return satisfies(new AssertContainsInAnyOrderRelation<T>(), expectedElements);
@@ -281,7 +281,7 @@ public class DataflowAssert {
      * Checks that the {@code Iterable} contains the expected elements, in any
      * order.
      *
-     * <p> Returns this {@code IterableAssert}.
+     * <p>Returns this {@code IterableAssert}.
      */
     @SafeVarargs
     public final IterableAssert<T> containsInAnyOrder(T... expectedElements) {
@@ -313,7 +313,7 @@ public class DataflowAssert {
      * Sets the coder to use for elements of type {@code T}, as needed
      * for internal purposes.
      *
-     * <p> Returns this {@code IterableAssert}.
+     * <p>Returns this {@code IterableAssert}.
      */
     public SingletonAssert<T> setCoder(Coder<T> coderOrNull) {
       this.coder = Optional.fromNullable(coderOrNull);
@@ -337,7 +337,7 @@ public class DataflowAssert {
      * Applies a {@link SerializableFunction} to check the value of this
      * {@code SingletonAssert}'s view.
      *
-     * <p> Returns this {@code SingletonAssert}.
+     * <p>Returns this {@code SingletonAssert}.
      */
     public SingletonAssert<T> satisfies(SerializableFunction<T, Void> checkerFn) {
       pipeline.apply(
@@ -350,7 +350,7 @@ public class DataflowAssert {
      * Applies an {@link AssertRelation} to check the provided relation against the
      * value of this assert and the provided expected value.
      *
-     * <p> Returns this {@code SingletonAssert}.
+     * <p>Returns this {@code SingletonAssert}.
      */
     public SingletonAssert<T> satisfies(
         AssertRelation<T, T> relation,
@@ -369,7 +369,7 @@ public class DataflowAssert {
      * Checks that the value of this {@code SingletonAssert}'s view is equal
      * to the expected value.
      *
-     * <p> Returns this {@code SingletonAssert}.
+     * <p>Returns this {@code SingletonAssert}.
      */
     public SingletonAssert<T> isEqualTo(T expectedValue) {
       return satisfies(new AssertIsEqualToRelation<T>(), expectedValue);
@@ -460,11 +460,11 @@ public class DataflowAssert {
    * and an assertion over {@code ActualT}, and checks it within a dataflow
    * pipeline.
    *
-   * <p> Note that the entire assertion must be serializable. If
+   * <p>Note that the entire assertion must be serializable. If
    * you need to make assertions involving multiple inputs
    * that are each not serializable, use TwoSideInputAssert.
    *
-   * <p> This is generally useful for assertion functions that
+   * <p>This is generally useful for assertion functions that
    * are serializable but whose underlying data may not have a coder.
    */
   static class OneSideInputAssert<ActualT>
@@ -532,7 +532,7 @@ public class DataflowAssert {
    * over {@code A} and {@code B}, and checks that the relation holds
    * within a dataflow pipeline.
    *
-   * <p> This is useful when either/both of {@code A} and {@code B}
+   * <p>This is useful when either/both of {@code A} and {@code B}
    * are not serializable, but have coders (provided
    * by the underlying {@link PCollection}s).
    */

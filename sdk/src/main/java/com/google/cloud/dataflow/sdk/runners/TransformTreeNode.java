@@ -65,7 +65,7 @@ public class TransformTreeNode {
   /**
    * Creates a new TransformTreeNode with the given parent and transform.
    *
-   * <p> EnclosingNode and transform may both be null for
+   * <p>EnclosingNode and transform may both be null for
    * a root-level node, which holds all other nodes.
    *
    * @param enclosingNode the composite node containing this node
@@ -103,7 +103,7 @@ public class TransformTreeNode {
   /**
    * Adds a composite operation to the transform node.
    *
-   * <p> As soon as a node is added, the transform node is considered a
+   * <p>As soon as a node is added, the transform node is considered a
    * composite operation instead of a primitive transform.
    */
   public void addComposite(TransformTreeNode node) {
@@ -192,7 +192,7 @@ public class TransformTreeNode {
   /**
    * Visit the transform node.
    *
-   * <p> Provides an ordered visit of the input values, the primitive
+   * <p>Provides an ordered visit of the input values, the primitive
    * transform (or child nodes for composite transforms), then the
    * output values.
    */
@@ -230,7 +230,7 @@ public class TransformTreeNode {
   /**
    * Finish specifying a transform.
    *
-   * <p> All inputs are finished first, then the transform, then
+   * <p>All inputs are finished first, then the transform, then
    * all outputs.
    */
   public void finishSpecifying() {

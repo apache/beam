@@ -35,8 +35,8 @@ public class PipelineOptionsValidator {
   /**
    * Validates that the passed {@link PipelineOptions} conforms to all the validation criteria from
    * the passed in interface.
-   * <p>
-   * Note that the interface requested must conform to the validation criteria specified on
+   *
+   * <p>Note that the interface requested must conform to the validation criteria specified on
    * {@link PipelineOptions#as(Class)}.
    *
    * @param klass The interface to fetch validation criteria from.

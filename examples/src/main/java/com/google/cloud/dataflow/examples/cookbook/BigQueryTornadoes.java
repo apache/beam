@@ -40,12 +40,12 @@ import java.util.List;
  * An example that reads the public samples of weather data from BigQuery, counts the number of
  * tornadoes that occur in each month, and writes the results to BigQuery.
  *
- * <p> Concepts: Reading/writing BigQuery; counting a PCollection; user-defined PTransforms
+ * <p>Concepts: Reading/writing BigQuery; counting a PCollection; user-defined PTransforms
  *
- * <p> Note: Before running this example, you must create a BigQuery dataset to contain your output
+ * <p>Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
  *
- * <p> To execute this pipeline locally, specify general pipeline configuration:
+ * <p>To execute this pipeline locally, specify general pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  * }
@@ -55,7 +55,7 @@ import java.util.List;
  *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  * }</pre>
  *
- * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
@@ -67,7 +67,7 @@ import java.util.List;
  *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  * }</pre>
  *
- * <p> The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations}
+ * <p>The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations}
  * and can be overridden with {@code --input}.
  */
 public class BigQueryTornadoes {
@@ -109,8 +109,8 @@ public class BigQueryTornadoes {
 
   /**
    * Takes rows from a table and generates a table of counts.
-   * <p>
-   * The input schema is described by
+   *
+   * <p>The input schema is described by
    * https://developers.google.com/bigquery/docs/dataset-gsod .
    * The output contains the total number of tornadoes found in each month in
    * the following schema:
@@ -144,8 +144,8 @@ public class BigQueryTornadoes {
 
   /**
    * Options supported by {@link BigQueryTornadoes}.
-   * <p>
-   * Inherits standard configuration options.
+   *
+   * <p>Inherits standard configuration options.
    */
   private static interface Options extends PipelineOptions {
     @Description("Table to read from, specified as "

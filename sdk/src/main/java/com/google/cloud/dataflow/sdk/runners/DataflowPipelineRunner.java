@@ -118,7 +118,7 @@ import java.util.Random;
  * service account of the GCP project running the Dataflow Job will need access to the corresponding
  * source/sink.
  *
- * <p> Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
+ * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
  */
 public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> {
@@ -526,7 +526,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * Specialized implementation for {@link Read.Unbounded} for the Dataflow runner in streaming
    * mode.
    *
-   * <p> In particular, if an UnboundedSource requires deduplication, then features of WindmillSink
+   * <p>In particular, if an UnboundedSource requires deduplication, then features of WindmillSink
    * are leveraged to do the deduplication.
    */
   private static class StreamingUnboundedRead<T> extends PTransform<PInput, PCollection<T>> {

@@ -24,13 +24,13 @@ import com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind;
  * {@code PCollection}, or the sum of the values associated with
  * each key in a {@code PCollection} of {@code KV}s.
  *
- * <p> Example 1: get the sum of a {@code PCollection} of {@code Double}s.
+ * <p>Example 1: get the sum of a {@code PCollection} of {@code Double}s.
  * <pre> {@code
  * PCollection<Double> input = ...;
  * PCollection<Double> sum = input.apply(Sum.doublesGlobally());
  * } </pre>
  *
- * <p> Example 2: calculate the sum of the {@code Integer}s
+ * <p>Example 2: calculate the sum of the {@code Integer}s
  * associated with each unique key (which is of type {@code String}).
  * <pre> {@code
  * PCollection<KV<String, Integer>> input = ...;

@@ -70,7 +70,7 @@ public class StateTags {
    * Create a state tag for values that use a {@link CombineFn} to automatically merge
    * multiple {@code InputT}s into a single {@code OutputT}.
    *
-   * <p> This determines the {@code Coder<AccumT>} from the given {@code Coder<InputT>}, and
+   * <p>This determines the {@code Coder<AccumT>} from the given {@code Coder<InputT>}, and
    * should only be used to initialize static values.
    */
   public static <InputT, AccumT, OutputT> StateTag<CombiningValueState<InputT, OutputT>>

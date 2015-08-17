@@ -34,7 +34,7 @@ import java.util.Map;
 /**
  * Executes a trigger within the context provided by {@link ReduceFnRunner}.
  *
- * <p> This is responsible for:
+ * <p>This is responsible for:
  *
  * <ul>
  * <li> Tracking the finished bits for the trigger tree, included whether the root trigger
@@ -49,7 +49,7 @@ public class TriggerRunner<W extends BoundedWindow> {
   /**
    * Result of trigger execution.
    *
-   * <p> This includes the actual {@link TriggerResult} as well as an updated set of finished bits.
+   * <p>This includes the actual {@link TriggerResult} as well as an updated set of finished bits.
    * The bits should typically be committed, but if the trigger fired we want to merge and apply
    * the merging logic on the old finished bits, hence the need to delay committing these results.
    */

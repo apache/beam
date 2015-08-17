@@ -22,18 +22,18 @@ import java.lang.reflect.InvocationTargetException;
  * A {@code StringDelegateCoder<T>} wraps a {@code Coder<String>}
  * and encodes/decodes values of type {@code T} via string representations.
  *
- * <p> To decode, the input byte stream is decoded to
+ * <p>To decode, the input byte stream is decoded to
  * a {@code String}, and this is passed to the single-arg
  * constructor for {@code T}.
  *
- * <p> To encode, the input value is converted via {@code toString()},
+ * <p>To encode, the input value is converted via {@code toString()},
  * and this string is encoded.
  *
- * <p> In order for this to operate correctly for a class {@code Clazz},
+ * <p>In order for this to operate correctly for a class {@code Clazz},
  * it must be the case for any instance {@code x} that
  * {@code x.equals(new Clazz(x.toString()))}.
  *
- * <p> This method of encoding is not designed for ease of evolution of {@code Clazz};
+ * <p>This method of encoding is not designed for ease of evolution of {@code Clazz};
  * it should only be used in cases where the class is stable or the encoding is not
  * important. If evolution of the class is important, see {@link Proto2Coder}, {@link AvroCoder},
  * or {@link JAXBCoder}.

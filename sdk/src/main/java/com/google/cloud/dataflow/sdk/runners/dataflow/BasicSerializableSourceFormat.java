@@ -78,8 +78,8 @@ import java.util.NoSuchElementException;
 
 /**
  * A helper class for supporting sources defined as {@code Source}.
- * <p>
- * Provides a bridge between the high-level {@code Source} API and the raw
+ *
+ * <p>Provides a bridge between the high-level {@code Source} API and the raw
  * API-level {@code SourceFormat} API, by encoding the serialized
  * {@code Source} in a parameter of the API {@code Source} message.
  */
@@ -118,6 +118,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       this.residual = residual;
     }
 
+    @Override
     public String toString() {
       return String.format("<primary: %s; residual: %s>", primary, residual);
     }
@@ -437,8 +438,9 @@ public class BasicSerializableSourceFormat implements SourceFormat {
    * Adapter from the {@code Source.Reader} interface to {@code Iterator},
    * wrapping every value into the global window. Proper windowing will be assigned by the
    * subsequent Window transform.
-   * <p>
-   * TODO: Consider changing the API of Reader.ReaderIterator so this adapter wouldn't be needed.
+   *
+   * <p>TODO: Consider changing the API of Reader.ReaderIterator so this adapter wouldn't be
+   * needed.
    */
   private static class ReaderToIteratorAdapter<T> {
     private enum NextState {

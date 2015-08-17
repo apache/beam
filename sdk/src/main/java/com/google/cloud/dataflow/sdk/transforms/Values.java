@@ -23,19 +23,19 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * {@code Values<V>} takes a {@code PCollection} of {@code KV<K, V>}s and
  * returns a {@code PCollection<V>} of the values.
  *
- * <p> Example of use:
+ * <p>Example of use:
  * <pre> {@code
  * PCollection<KV<String, Long>> wordCounts = ...;
  * PCollection<Long> counts = wordCounts.apply(Values.<String>create());
  * } </pre>
  *
- * <p> Each output element has the same timestamp and is in the same windows
+ * <p>Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and the output {@code PCollection}
  * has the same
  * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
  * associated with it as the input.
  *
- * <p> See also {@link Keys}.
+ * <p>See also {@link Keys}.
  *
  * @param <V> the type of the values in the input {@code PCollection},
  * and the type of the elements in the output {@code PCollection}

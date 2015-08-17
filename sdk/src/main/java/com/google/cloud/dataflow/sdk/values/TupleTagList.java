@@ -29,7 +29,7 @@ import java.util.List;
  * specify the tags of the side outputs of a
  * {@link com.google.cloud.dataflow.sdk.transforms.ParDo}.
  *
- * <p> TupleTagLists can be created and accessed like follows:
+ * <p>TupleTagLists can be created and accessed like follows:
  * <pre> {@code
  * TupleTag<String> tag1 = ...;
  * TupleTag<Integer> tag2 = ...;
@@ -57,7 +57,7 @@ public class TupleTagList implements Serializable {
   /**
    * Returns an empty TupleTagList.
    *
-   * <p> Longer TupleTagLists can be created by calling
+   * <p>Longer TupleTagLists can be created by calling
    * {@link #and} on the result.
    */
   public static TupleTagList empty() {
@@ -67,7 +67,7 @@ public class TupleTagList implements Serializable {
   /**
    * Returns a singleton TupleTagList containing the given TupleTag.
    *
-   * <p> Longer TupleTagLists can be created by calling
+   * <p>Longer TupleTagLists can be created by calling
    * {@link #and} on the result.
    */
   public static TupleTagList of(TupleTag<?> tag) {
@@ -77,7 +77,7 @@ public class TupleTagList implements Serializable {
   /**
    * Returns a TupleTagList containing the given TupleTags, in order.
    *
-   * <p> Longer TupleTagLists can be created by calling
+   * <p>Longer TupleTagLists can be created by calling
    * {@link #and} on the result.
    */
   public static TupleTagList of(List<TupleTag<?>> tags) {

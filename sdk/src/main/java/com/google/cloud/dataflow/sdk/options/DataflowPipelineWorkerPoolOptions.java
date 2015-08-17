@@ -99,7 +99,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * GCE <a href="https://cloud.google.com/compute/docs/networking">network</a> for launching
    * workers.
    *
-   * <p> Default is up to the Dataflow service.
+   * <p>Default is up to the Dataflow service.
    */
   @Description("GCE network for launching workers. Default is up to the Dataflow service.")
   String getNetwork();
@@ -109,7 +109,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * GCE <a href="https://developers.google.com/compute/docs/zones"
    * >availability zone</a> for launching workers.
    *
-   * <p> Default is up to the Dataflow service.
+   * <p>Default is up to the Dataflow service.
    */
   @Description("GCE availability zone for launching workers. "
       + "Default is up to the Dataflow service.")
@@ -118,11 +118,11 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
 
   /**
    * Machine type to create Dataflow worker VMs as.
-   * <p>
-   * See <a href="https://cloud.google.com/compute/docs/machine-types">GCE machine types</a>
+   *
+   * <p>See <a href="https://cloud.google.com/compute/docs/machine-types">GCE machine types</a>
    * for a list of valid options.
-   * <p>
-   * If unset, the Dataflow service will choose a reasonable default.
+   *
+   * <p>If unset, the Dataflow service will choose a reasonable default.
    */
   @Description("Machine type to create Dataflow worker VMs as. See "
       + "https://cloud.google.com/compute/docs/machine-types for a list of valid options. "
@@ -151,7 +151,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   /**
    * The teardown policy for the VMs.
    *
-   * <p> By default this is left unset and the service sets the default policy.
+   * <p>By default this is left unset and the service sets the default policy.
    */
   @Description("The teardown policy for the VMs. By default this is left unset "
       + "and the service sets the default policy.")
@@ -160,10 +160,10 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
 
   /**
    * List of local files to make available to workers.
-   * <p>
-   * Files are placed on the worker's classpath.
-   * <p>
-   * The default value is the list of jars from the main program's classpath.
+   *
+   * <p>Files are placed on the worker's classpath.
+   *
+   * <p>The default value is the list of jars from the main program's classpath.
    */
   @Description("Files to stage on GCS and make available to workers. "
       + "Files are placed on the worker's classpath. "

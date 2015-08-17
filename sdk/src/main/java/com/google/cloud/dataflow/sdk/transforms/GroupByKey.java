@@ -56,12 +56,12 @@ import java.util.Map;
  * the input.  Each key in the output {@code PCollection} is unique within
  * each window.
  *
- * <p> {@code GroupByKey} is analogous to converting a multi-map into
+ * <p>{@code GroupByKey} is analogous to converting a multi-map into
  * a uni-map, and related to {@code GROUP BY} in SQL.  It corresponds
  * to the "shuffle" step between the Mapper and the Reducer in the
  * MapReduce framework.
  *
- * <p> Two keys of type {@code K} are compared for equality
+ * <p>Two keys of type {@code K} are compared for equality
  * <b>not</b> by regular Java {@link Object#equals}, but instead by
  * first encoding each of the keys using the {@code Coder} of the
  * keys of the input {@code PCollection}, and then comparing the
@@ -70,13 +70,13 @@ import java.util.Map;
  * {@link Coder#verifyDeterministic()}).  If the key {@code Coder} is not
  * deterministic, an exception is thrown at runtime.
  *
- * <p> By default, the {@code Coder} of the keys of the output
+ * <p>By default, the {@code Coder} of the keys of the output
  * {@code PCollection} is the same as that of the keys of the input,
  * and the {@code Coder} of the elements of the {@code Iterable}
  * values of the output {@code PCollection} is the same as the
  * {@code Coder} of the values of the input.
  *
- * <p> Example of use:
+ * <p>Example of use:
  * <pre> {@code
  * PCollection<KV<String, Doc>> urlDocPairs = ...;
  * PCollection<KV<String, Iterable<Doc>>> urlToDocs =
@@ -90,18 +90,18 @@ import java.util.Map;
  *       }}));
  * } </pre>
  *
- * <p> {@code GroupByKey} is a key primitive in data-parallel
+ * <p>{@code GroupByKey} is a key primitive in data-parallel
  * processing, since it is the main way to efficiently bring
  * associated data together into one location.  It is also a key
  * determiner of the performance of a data-parallel pipeline.
  *
- * <p> See {@link com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey}
+ * <p>See {@link com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey}
  * for a way to group multiple input PCollections by a common key at once.
  *
- * <p> See {@link Combine.PerKey} for a common pattern of
+ * <p>See {@link Combine.PerKey} for a common pattern of
  * {@code GroupByKey} followed by {@link Combine.GroupedValues}.
  *
- * <p> When grouping, windows that can be merged according to the {@link WindowFn}
+ * <p>When grouping, windows that can be merged according to the {@link WindowFn}
  * of the input {@code PCollection} will be merged together, and a window pane
  * corresponding to the new, merged window will be created. The items in this pane
  * will be emitted when a trigger fires. By default this will be when the input
@@ -113,12 +113,12 @@ import java.util.Map;
  * the pane. The output {@code PCollection} will have the same {@link WindowFn}
  * as the input.
  *
- * <p> If the input {@code PCollection} contains late data (see
+ * <p>If the input {@code PCollection} contains late data (see
  * {@link com.google.cloud.dataflow.sdk.io.PubsubIO.Read.Bound#timestampLabel}
  * for an example of how this can occur), then there may be multiple elements
  * output by a {@code GroupByKey} that correspond to the same key and window.
  *
- * <p> If the {@link WindowFn} of the input requires merging, it is not
+ * <p>If the {@link WindowFn} of the input requires merging, it is not
  * valid to apply another {@code GroupByKey} without first applying a new
  * {@link WindowFn}.
  *

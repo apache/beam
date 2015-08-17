@@ -42,10 +42,10 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   /**
    * The list of backend experiments to enable.
    *
-   * <p> Dataflow provides a number of experimental features that can be enabled
+   * <p>Dataflow provides a number of experimental features that can be enabled
    * with this flag.
    *
-   * <p> Please sync with the Dataflow team before enabling any experiments.
+   * <p>Please sync with the Dataflow team before enabling any experiments.
    */
   @Description("[Experimental] Dataflow provides a number of experimental features that can "
       + "be enabled with this flag. Please sync with the Dataflow team before enabling any "
@@ -69,10 +69,10 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   /**
    * Dataflow endpoint to use.
    *
-   * <p> Defaults to the current version of the Google Cloud Dataflow
+   * <p>Defaults to the current version of the Google Cloud Dataflow
    * API, at the time the current SDK version was released.
    *
-   * <p> If the string contains "://", then this is treated as a url,
+   * <p>If the string contains "://", then this is treated as a url,
    * otherwise {@link #getApiRootUrl()} is used as the root
    * url.
    */

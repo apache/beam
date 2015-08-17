@@ -21,7 +21,7 @@ import java.io.IOException;
 /**
  * Abstract base class for Sinks.
  *
- * <p> A Sink is written to by getting a SinkWriter and adding values to
+ * <p>A Sink is written to by getting a SinkWriter and adding values to
  * it.
  *
  * @param <T> the type of the elements written to the sink

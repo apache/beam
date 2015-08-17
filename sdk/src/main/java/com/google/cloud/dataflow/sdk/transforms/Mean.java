@@ -36,13 +36,13 @@ import java.util.Objects;
  * mean of the values associated with each key in a
  * {@code PCollection} of {@code KV}s.
  *
- * <p> Example 1: get the mean of a {@code PCollection} of {@code Long}s.
+ * <p>Example 1: get the mean of a {@code PCollection} of {@code Long}s.
  * <pre> {@code
  * PCollection<Long> input = ...;
  * PCollection<Double> mean = input.apply(Mean.<Long>globally());
  * } </pre>
  *
- * <p> Example 2: calculate the mean of the {@code Integer}s
+ * <p>Example 2: calculate the mean of the {@code Integer}s
  * associated with each unique key (which is of type {@code String}).
  * <pre> {@code
  * PCollection<KV<String, Integer>> input = ...;
@@ -75,7 +75,7 @@ public class Mean {
    * {@code PCollection} to the mean of the values associated with
    * that key in the input {@code PCollection}.
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and bucketing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and bucketing.
    *
    * @param <K> the type of the keys
    * @param <NumT> the type of the {@code Number}s being combined
@@ -93,7 +93,7 @@ public class Mean {
    * {@code N}, useful as an argument to {@link Combine#globally} or
    * {@link Combine#perKey}.
    *
-   * <p> Returns {@code Double.NaN} if combining zero elements.
+   * <p>Returns {@code Double.NaN} if combining zero elements.
    *
    * @param <NumT> the type of the {@code Number}s being combined
    */

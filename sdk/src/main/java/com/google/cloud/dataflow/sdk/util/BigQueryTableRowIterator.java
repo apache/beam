@@ -128,7 +128,7 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
    *   <li> Every other atomic type is a {@link String}.
    * </ul></p>
    *
-   * <p> Note that currently integers are encoded as strings to match
+   * <p>Note that currently integers are encoded as strings to match
    * the behavior of the backend service.
    */
   private Object getTypedCellValue(TableFieldSchema fieldSchema, Object v) {

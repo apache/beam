@@ -41,7 +41,7 @@ import java.util.Map;
 /**
  * A harness for unit-testing a {@link DoFn}.
  *
- * <p> For example:
+ * <p>For example:
  *
  * <pre> {@code
  * DoFn<InputT, OutputT> fn = ...;
@@ -90,10 +90,10 @@ public class DoFnTester<InputT, OutputT> {
    * Registers the tuple of values of the side input {@link PCollectionView}s to
    * pass to the {@link DoFn} under test.
    *
-   * <p> If needed, first creates a fresh instance of the {@link DoFn}
+   * <p>If needed, first creates a fresh instance of the {@link DoFn}
    * under test.
    *
-   * <p> If this isn't called, {@code DoFnTester} assumes the
+   * <p>If this isn't called, {@code DoFnTester} assumes the
    * {@link DoFn} takes no side inputs.
    */
   public void setSideInputs(Map<PCollectionView<?>, Iterable<WindowedValue<?>>> sideInputs) {
@@ -105,10 +105,10 @@ public class DoFnTester<InputT, OutputT> {
    * Registers the values of a side input {@link PCollectionView} to
    * pass to the {@link DoFn} under test.
    *
-   * <p> If needed, first creates a fresh instance of the {@code DoFn}
+   * <p>If needed, first creates a fresh instance of the {@code DoFn}
    * under test.
    *
-   * <p> If this isn't called, {@code DoFnTester} assumes the
+   * <p>If this isn't called, {@code DoFnTester} assumes the
    * {@code DoFn} takes no side inputs.
    */
   public void setSideInput(PCollectionView<?> sideInput, Iterable<WindowedValue<?>> value) {
@@ -139,9 +139,9 @@ public class DoFnTester<InputT, OutputT> {
    * {@code DoFn} under test to output to side output
    * {@code PCollection}s.
    *
-   * <p> If needed, first creates a fresh instance of the DoFn under test.
+   * <p>If needed, first creates a fresh instance of the DoFn under test.
    *
-   * <p> If this isn't called, {@code DoFnTester} assumes the
+   * <p>If this isn't called, {@code DoFnTester} assumes the
    * {@code DoFn} doesn't emit to any side outputs.
    */
   public void setSideOutputTags(TupleTagList sideOutputTags) {
@@ -167,7 +167,7 @@ public class DoFnTester<InputT, OutputT> {
   /**
    * Calls {@link DoFn#startBundle} on the {@code DoFn} under test.
    *
-   * <p> If needed, first creates a fresh instance of the DoFn under test.
+   * <p>If needed, first creates a fresh instance of the DoFn under test.
    */
   public void startBundle() {
     resetState();
@@ -181,7 +181,7 @@ public class DoFnTester<InputT, OutputT> {
    * context where {@link DoFn.ProcessContext#element} returns the
    * given element.
    *
-   * <p> Will call {@link #startBundle} automatically, if it hasn't
+   * <p>Will call {@link #startBundle} automatically, if it hasn't
    * already been called.
    *
    * @throws IllegalStateException if the {@code DoFn} under test has already
@@ -200,7 +200,7 @@ public class DoFnTester<InputT, OutputT> {
   /**
    * Calls {@link DoFn#finishBundle} of the {@code DoFn} under test.
    *
-   * <p> Will call {@link #startBundle} automatically, if it hasn't
+   * <p>Will call {@link #startBundle} automatically, if it hasn't
    * already been called.
    *
    * @throws IllegalStateException if the {@code DoFn} under test has already
@@ -225,7 +225,7 @@ public class DoFnTester<InputT, OutputT> {
    * @see #takeOutputElements
    * @see #clearOutputElements
    *
-   * <p> TODO: provide accessors that take and return {@code WindowedValue}s
+   * <p>TODO: provide accessors that take and return {@code WindowedValue}s
    * in order to test timestamp- and window-sensitive DoFns.
    */
   public List<OutputT> peekOutputElements() {

@@ -39,9 +39,9 @@ import javax.annotation.Nullable;
  * A {@link PipelineRunner} that's like {@link DataflowPipelineRunner}
  * but that waits for the launched job to finish.
  *
- * <p> Prints out job status updates and console messages while it waits.
+ * <p>Prints out job status updates and console messages while it waits.
  *
- * <p> Returns the final job state, or throws an exception if the job
+ * <p>Returns the final job state, or throws an exception if the job
  * fails or cannot be monitored.
  *
  * <p><h3>Permissions</h3>
@@ -50,7 +50,7 @@ import javax.annotation.Nullable;
  * engine service account of the GCP project running the Dataflow Job will need access to the
  * corresponding source/sink.
  *
- * <p> Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
+ * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
  */
 public class BlockingDataflowPipelineRunner extends

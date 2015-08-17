@@ -249,8 +249,8 @@ public class PackageUtil {
 
   /**
    * Returns a unique name for a file with a given content hash.
-   * <p>
-   * Directory paths are removed. Example:
+   *
+   * <p>Directory paths are removed. Example:
    * <pre>
    * dir="a/b/c/d", contentHash="f000" => d-f000.zip
    * file="a/b/c/d.txt", contentHash="f000" => d-f000.txt
@@ -270,11 +270,11 @@ public class PackageUtil {
 
   /**
    * Copies the contents of the classpathElement to the output channel.
-   * <p>
-   * If the classpathElement is a directory, a Zip stream is constructed on the fly,
+   *
+   * <p>If the classpathElement is a directory, a Zip stream is constructed on the fly,
    * otherwise the file contents are copied as-is.
-   * <p>
-   * The output channel is not closed.
+   *
+   * <p>The output channel is not closed.
    */
   private static void copyContent(String classpathElement, WritableByteChannel outputChannel)
       throws IOException {

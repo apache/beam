@@ -33,7 +33,7 @@ import java.io.Serializable;
  * {@code InputT} (some subtype of {@link PInput}) and produces an
  * {@code OutputT} (some subtype of {@link POutput}).
  *
- * <p> Common PTransforms include root PTransforms like
+ * <p>Common PTransforms include root PTransforms like
  * {@link com.google.cloud.dataflow.sdk.io.TextIO.Read},
  * {@link Create}, processing and
  * conversion operations like {@link ParDo},
@@ -44,7 +44,7 @@ import java.io.Serializable;
  * {@link com.google.cloud.dataflow.sdk.io.TextIO.Write}.  Users also
  * define their own application-specific composite PTransforms.
  *
- * <p> Each {@code PTransform<InputT, OutputT>} has a single
+ * <p>Each {@code PTransform<InputT, OutputT>} has a single
  * {@code InputT} type and a single {@code OutputT} type.  Many
  * PTransforms conceptually transform one input value to one output
  * value, and in this case {@code InputT} and {@code Output} are
@@ -65,7 +65,7 @@ import java.io.Serializable;
  * to combine multiple values into a single bundle for passing into or
  * returning from the PTransform.
  *
- * <p> A {@code PTransform<InputT, OutputT>} is invoked by calling
+ * <p>A {@code PTransform<InputT, OutputT>} is invoked by calling
  * {@code apply()} on its {@code InputT}, returning its {@code OutputT}.
  * Calls can be chained to concisely create linear pipeline segments.
  * For example:
@@ -79,7 +79,7 @@ import java.io.Serializable;
  *        .apply(ParDo.of(new MyDoFn2<KV<K,V>,T2>()));
  * } </pre>
  *
- * <p> PTransform operations have unique names, which are used by the
+ * <p>PTransform operations have unique names, which are used by the
  * system when explaining what's going on during optimization and
  * execution.  Each PTransform gets a system-provided default name,
  * but it's a good practice to specify an explicit name, where
@@ -92,11 +92,11 @@ import java.io.Serializable;
  * ...
  * } </pre>
  *
- * <p> Each PCollection output produced by a PTransform,
+ * <p>Each PCollection output produced by a PTransform,
  * either directly or within a "bundling" class, automatically gets
  * its own name derived from the name of its producing PTransform.
  *
- * <p> Each PCollection output produced by a PTransform
+ * <p>Each PCollection output produced by a PTransform
  * also records a {@link com.google.cloud.dataflow.sdk.coders.Coder}
  * that specifies how the elements of that PCollection
  * are to be encoded as a byte string, if necessary.  The
@@ -122,7 +122,7 @@ import java.io.Serializable;
  * before that output is used as an input to another PTransform, or
  * before the enclosing Pipeline is run.
  *
- * <p> A small number of PTransforms are implemented natively by the
+ * <p>A small number of PTransforms are implemented natively by the
  * Google Cloud Dataflow SDK; such PTransforms simply return an
  * output value as their apply implementation.
  * The majority of PTransforms are
@@ -140,22 +140,22 @@ import java.io.Serializable;
  *
  * <h3>Note on Serialization</h3>
  *
- * <p> {@code PTransform} doesn't actually support serialization, despite
+ * <p>{@code PTransform} doesn't actually support serialization, despite
  * implementing {@code Serializable}.
  *
- * <p> {@code PTransform} is marked {@code Serializable} solely
+ * <p>{@code PTransform} is marked {@code Serializable} solely
  * because it is common for an anonymous {@code DoFn},
  * instance to be created within an
  * {@code apply()} method of a composite {@code PTransform}.
  *
- * <p> Each of those {@code *Fn}s is {@code Serializable}, but
+ * <p>Each of those {@code *Fn}s is {@code Serializable}, but
  * unfortunately its instance state will contain a reference to the
  * enclosing {@code PTransform} instance, and so attempt to serialize
  * the {@code PTransform} instance, even though the {@code *Fn}
  * instance never references anything about the enclosing
  * {@code PTransform}.
  *
- * <p> To allow such anonymous {@code *Fn}s to be written
+ * <p>To allow such anonymous {@code *Fn}s to be written
  * conveniently, {@code PTransform} is marked as {@code Serializable},
  * and includes dummy {@code writeObject()} and {@code readObject()}
  * operations that do not save or restore any state.
@@ -175,13 +175,13 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * Applies this {@code PTransform} on the given {@code InputT}, and returns its
    * {@code Output}.
    *
-   * <p> Composite transforms, which are defined in terms of other transforms,
+   * <p>Composite transforms, which are defined in terms of other transforms,
    * should return the output of one of the composed transforms.  Non-composite
    * transforms, which do not apply any transforms internally, should return
    * a new unbound output and register evaluators (via backend-specific
    * registration methods).
    *
-   * <p> The default implementation throws an exception.  A derived class must
+   * <p>The default implementation throws an exception.  A derived class must
    * either implement apply, or else each runner must supply a custom
    * implementation via
    * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner#apply}.
@@ -198,14 +198,14 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * verify this transform is fully specified and applicable to the specified
    * input.
    *
-   * <p> By default, does nothing.
+   * <p>By default, does nothing.
    */
   public void validate(InputT input) { }
 
   /**
    * Returns the transform name.
    *
-   * <p> This name is provided by the transform creator and is not required to be unique.
+   * <p>This name is provided by the transform creator and is not required to be unique.
    */
   public String getName() {
     return name != null ? name : getKindString();
@@ -244,9 +244,9 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * Returns the name to use by default for this {@code PTransform}
    * (not including the names of any enclosing {@code PTransform}s).
    *
-   * <p> By default, returns the base name of this {@code PTransform}'s class.
+   * <p>By default, returns the base name of this {@code PTransform}'s class.
    *
-   * <p> The caller is responsible for ensuring that names of applied
+   * <p>The caller is responsible for ensuring that names of applied
    * {@code PTransform}s are unique, e.g., by adding a uniquifying
    * suffix when needed.
    */
@@ -274,7 +274,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * Returns the default {@code Coder} to use for the output of this
    * single-output {@code PTransform}.
    *
-   * <p> By default, always throws
+   * <p>By default, always throws
    *
    * @throws CannotProvideCoderException if no coder can be inferred
    */
@@ -289,7 +289,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    *
    * @throws CannotProvideCoderException if none can be inferred.
    *
-   * <p> By default, always throws.
+   * <p>By default, always throws.
    */
   protected Coder<?> getDefaultOutputCoder(@SuppressWarnings("unused") InputT input)
       throws CannotProvideCoderException {
@@ -302,7 +302,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    *
    * @throws CannotProvideCoderException if none can be inferred.
    *
-   * <p> By default, always throws.
+   * <p>By default, always throws.
    */
   public <T> Coder<T> getDefaultOutputCoder(
       InputT input, @SuppressWarnings("unused") TypedPValue<T> output)

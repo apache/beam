@@ -24,7 +24,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * ApplianceShuffleReader reads chunks of data from a shuffle dataset
  * for a position range.
  *
- * <p> It is a JNI wrapper of an equivalent C++ class.
+ * <p>It is a JNI wrapper of an equivalent C++ class.
  */
 @ThreadSafe
 public final class ApplianceShuffleReader implements ShuffleReader {

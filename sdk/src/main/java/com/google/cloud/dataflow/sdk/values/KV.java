@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.values;
 
+import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.SerializableComparator;
 import com.google.common.base.MoreObjects;
 
@@ -26,10 +29,7 @@ import java.util.Objects;
 /**
  * An immutable key/value pair.
  *
- * <p> Various
- * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s like
- * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} and
- * {@link com.google.cloud.dataflow.sdk.transforms.Combine#perKey}
+ * <p>Various {@link PTransform}s like {@link GroupByKey} and {@link Combine#perKey}
  * work on {@link PCollection}s of KVs.
  *
  * @param <K> the type of the key

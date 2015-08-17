@@ -60,13 +60,13 @@ import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * This is a harness for executing WorkItem tasks in Java workers.
- * <p>
- * The worker fetches WorkItem units from the Dataflow Service.
+ *
+ * <p>The worker fetches WorkItem units from the Dataflow Service.
  * When the work is complete, the program sends results via the worker service API.
- * <p>
- * Returns status code 0 on successful completion, 1 on any uncaught failures.
- * <p>
- * TODO: add support for VM initialization via config.
+ *
+ * <p>Returns status code 0 on successful completion, 1 on any uncaught failures.
+ *
+ * <p>TODO: add support for VM initialization via config.
  * During initialization, we should take a configuration that specifies
  * an initialization function, allowing user code to run on VM startup.
  */
@@ -245,7 +245,7 @@ public class DataflowWorkerHarness {
     /**
      * Gets a {@link WorkItem} from the Dataflow service, or returns null if no work was found.
      *
-     * <p> If work is returned, the calling thread should call reportWorkItemStatus after completing
+     * <p>If work is returned, the calling thread should call reportWorkItemStatus after completing
      * it and before requesting another work item.
      */
     @Override

@@ -36,7 +36,7 @@ import java.util.Random;
  * Its generic type parameter allows tracking
  * the static type of things stored in tuples.
  *
- * <p> To aid in assigning default {@code Coder}s for results of
+ * <p>To aid in assigning default {@code Coder}s for results of
  * side outputs of {@code ParDo}, an output
  * {@code TupleTag} should be instantiated with an extra {@code {}} so
  * it is an instance of an anonymous subclass without generic type
@@ -57,7 +57,7 @@ public class TupleTag<V> implements Serializable {
   /**
    * Constructs a new {@code TupleTag}, with a fresh unique id.
    *
-   * <p> This is the normal way {@code TupleTag}s are constructed.
+   * <p>This is the normal way {@code TupleTag}s are constructed.
    */
   public TupleTag() {
     this.id = genId();
@@ -67,7 +67,7 @@ public class TupleTag<V> implements Serializable {
   /**
    * Constructs a new {@code TupleTag} with the given id.
    *
-   * <p> It is up to the user to ensure that two {@code TupleTag}s
+   * <p>It is up to the user to ensure that two {@code TupleTag}s
    * with the same id actually mean the same tag and carry the same
    * generic type parameter.  Violating this invariant can lead to
    * hard-to-diagnose runtime type errors.  Consequently, this
@@ -85,9 +85,9 @@ public class TupleTag<V> implements Serializable {
   /**
    * Returns the id of this {@code TupleTag}.
    *
-   * <p> Two {@code TupleTag}s with the same id are considered equal.
+   * <p>Two {@code TupleTag}s with the same id are considered equal.
    *
-   * <p> {@code TupleTag}s are not ordered, i.e., the class does not implement
+   * <p>{@code TupleTag}s are not ordered, i.e., the class does not implement
    * Comparable interface. TupleTags implement equals and hashCode, making them
    * suitable for use as keys in HashMap and HashSet.
    */
@@ -113,7 +113,7 @@ public class TupleTag<V> implements Serializable {
    * about the type of this {@code TupleTag} instance's most-derived
    * class.
    *
-   * <p> This is useful for a {@code TupleTag} constructed as an
+   * <p>This is useful for a {@code TupleTag} constructed as an
    * instance of an anonymous subclass with a trailing {@code {}},
    * e.g., {@code new TupleTag<SomeType>(){}}.
    */

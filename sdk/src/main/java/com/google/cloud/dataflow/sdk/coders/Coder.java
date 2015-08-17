@@ -125,7 +125,7 @@ public interface Coder<T> extends Serializable {
   /**
    * Throw {@link NonDeterministicException} if the coding is not deterministic.
    *
-   * <p> In order for a {@code Coder} to be considered deterministic,
+   * <p>In order for a {@code Coder} to be considered deterministic,
    * the following must be true:
    * <ul>
    *   <li>two values that compare as equal (via {@code Object.equals()}
@@ -145,7 +145,7 @@ public interface Coder<T> extends Serializable {
    * equal only when they are also equal according to {@code Object.equals()}.
    * (and also implements a compatible {@code Object.hasCode()})
    *
-   * <p> This most notably false for arrays. It will generally
+   * <p>This most notably false for arrays. It will generally
    * be false when {@code Object.equals()} compares object identity,
    * rather than performing a semantic/structural comparison.
    */
@@ -156,16 +156,16 @@ public interface Coder<T> extends Serializable {
    * that represents structural equality on the argument.
    * (and also implements a compatible {@code Object.hashCode()}).
    *
-   * <p> For any two objects of type T, if their encoded bytes
+   * <p>For any two objects of type T, if their encoded bytes
    * are the same, then their structural values are equal
    * according to {@code Object.equals()}.
    *
-   * <p> Most notably, the structural value for an array coder
+   * <p>Most notably, the structural value for an array coder
    * should perform a structural comparison of the contents of
    * the arrays, rather than the default behavior of
    * comparing according to object identity.
    *
-   * <p> See also {@link #consistentWithEquals()}.
+   * <p>See also {@link #consistentWithEquals()}.
    */
   public Object structuralValue(T value) throws Exception;
 
@@ -175,7 +175,7 @@ public interface Coder<T> extends Serializable {
    * calculate the byte size of the element to be coded in roughly
    * constant time (or lazily).
    *
-   * <p> Not intended to be called by user code, but instead by
+   * <p>Not intended to be called by user code, but instead by
    * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner}
    * implementations.
    */
@@ -185,7 +185,7 @@ public interface Coder<T> extends Serializable {
    * Notifies the {@code ElementByteSizeObserver} about the byte size
    * of the encoded value using this {@code Coder}.
    *
-   * <p> Not intended to be called by user code, but instead by
+   * <p>Not intended to be called by user code, but instead by
    * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner}
    * implementations.
    */

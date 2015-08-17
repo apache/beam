@@ -32,7 +32,7 @@ import java.util.Map;
 /**
  * Constructs a Sink from a Dataflow service protocol Sink definition.
  *
- * <p> A SinkFactory concrete "subclass" should define a method with the
+ * <p>A SinkFactory concrete "subclass" should define a method with the
  * following signature:
  * <pre> {@code
  * static SomeSinkSubclass<T> create(PipelineOptions, CloudObject,

@@ -715,7 +715,7 @@ public class CombineTest implements Serializable {
   /**
    * A KeyedCombineFn that exercises the full generality of [Keyed]CombineFn.
    *
-   * <p> The net result of applying this CombineFn is a sorted list of all
+   * <p>The net result of applying this CombineFn is a sorted list of all
    * characters occurring in the key and the decimal representations of
    * each value.
    */

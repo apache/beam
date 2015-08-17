@@ -185,7 +185,7 @@ public class PCollectionViews {
    * Implementation of conversion {@code Iterable<WindowedValue<KV<K, V>>>}
    * to {@code Map<K, Iterable<V>>}.
    *
-   * <p> For internal use only.
+   * <p>For internal use only.
    */
   private static class MultimapPCollectionView<K, V, W extends BoundedWindow>
       extends PCollectionViewBase<KV<K, V>, Map<K, Iterable<V>>, W> {
@@ -216,7 +216,7 @@ public class PCollectionViews {
    * Implementation of conversion {@code Iterable<WindowedValue<KV<K, V>>} with
    * one value per key to {@code Map<K, V>}.
    *
-   * <p> For internal use only.
+   * <p>For internal use only.
    */
   private static class MapPCollectionView<K, V, W extends BoundedWindow>
       extends PCollectionViewBase<KV<K, V>, Map<K, V>, W> {
@@ -321,7 +321,7 @@ public class PCollectionViews {
     /**
      * Returns a unique {@link TupleTag} identifying this {@link PCollectionView}.
      *
-     * <p> For internal use only by runner implementors.
+     * <p>For internal use only by runner implementors.
      */
     @Override
     public TupleTag<Iterable<WindowedValue<?>>> getTagInternal() {
@@ -337,7 +337,7 @@ public class PCollectionViews {
      * Returns the {@link WindowingStrategy} of this {@link PCollectionView}, which should
      * be that of the underlying {@link PCollection}.
      *
-     * <p> For internal use only by runner implementors.
+     * <p>For internal use only by runner implementors.
      */
     @Override
     public WindowingStrategy<?, ?> getWindowingStrategyInternal() {

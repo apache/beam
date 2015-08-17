@@ -28,11 +28,11 @@ import java.util.NoSuchElementException;
 /**
  * Base class for defining input formats and creating a {@code Source} for reading the input.
  *
- * <p> This class is not intended to be subclassed directly. Instead, to define
+ * <p>This class is not intended to be subclassed directly. Instead, to define
  * a bounded source (a source which produces a finite amount of input), subclass
  * {@link BoundedSource}; to define an unbounded source, subclass {@link UnboundedSource}.
  *
- * <p> A {@code Source} passed to a {@code Read} transform must be
+ * <p>A {@code Source} passed to a {@code Read} transform must be
  * {@code Serializable}.  This allows the {@code Source} instance
  * created in this "main program" to be sent (in serialized form) to
  * remote worker machines and reconstituted for each batch of elements
@@ -41,11 +41,11 @@ import java.util.NoSuchElementException;
  * non-transient instance variable state will be serialized in the main program
  * and then deserialized on remote worker machines.
  *
- * <p> {@code Source} classes MUST be effectively immutable. The only acceptable use of
+ * <p>{@code Source} classes MUST be effectively immutable. The only acceptable use of
  * mutable fields is to cache the results of expensive operations, and such fields MUST be
  * marked {@code transient}.
  *
- * <p> {@code Source} objects should override {@link Object#toString}, as it will be
+ * <p>{@code Source} objects should override {@link Object#toString}, as it will be
  * used in important error and debugging messages.
  *
  * @param <T> Type of elements read by the source.
@@ -69,16 +69,15 @@ public abstract class Source<T> implements Serializable {
 
   /**
    * The interface that readers of custom input sources must implement.
-   * <p>
-   * This interface is deliberately distinct from {@link java.util.Iterator} because
+   *
+   * <p>This interface is deliberately distinct from {@link java.util.Iterator} because
    * the current model tends to be easier to program and more efficient in practice
    * for iterating over sources such as files, databases etc. (rather than pure collections).
    *
-   * <p>
-   * {@code Reader} implementations do not need to be thread-safe; they may only be accessed
+   * <p>{@code Reader} implementations do not need to be thread-safe; they may only be accessed
    * by a single thread at once.
    *
-   * <p> Callers of {@code Readers} must obey the following access pattern:
+   * <p>Callers of {@code Readers} must obey the following access pattern:
    * <ul>
    * <li> One call to {@link Reader#start}
    * <ul><li>If {@link Reader#start} returned true, any number of calls to {@code getCurrent}*
@@ -89,8 +88,7 @@ public abstract class Source<T> implements Serializable {
    *   methods</ul>
    * </ul>
    *
-   * <p>
-   * For example, if the reader is reading a fixed set of data:
+   * <p>For example, if the reader is reading a fixed set of data:
    * <pre>
    * for (boolean available = reader.start(); available; available = reader.advance()) {
    *   T item = reader.getCurrent();
@@ -99,7 +97,7 @@ public abstract class Source<T> implements Serializable {
    * }
    * </pre>
    *
-   * <p> If the set of data being read is continually growing:
+   * <p>If the set of data being read is continually growing:
    * <pre>
    * boolean available = reader.start();
    * while (true) {
@@ -115,14 +113,13 @@ public abstract class Source<T> implements Serializable {
    * }
    * </pre>
    *
-   * <p>
-   * Note: this interface is a work-in-progress and may change.
+   * <p>Note: this interface is a work-in-progress and may change.
    */
   public abstract static class Reader<T> implements AutoCloseable {
     /**
      * Initializes the reader and advances the reader to the first record.
      *
-     * <p> This method should be called exactly once. The invocation should occur prior to calling
+     * <p>This method should be called exactly once. The invocation should occur prior to calling
      * {@link #advance} or {@link #getCurrent}. This method may perform expensive operations that
      * are needed to initialize the reader.
      *
@@ -142,7 +139,7 @@ public abstract class Source<T> implements Serializable {
      * {@link #advance} call. The returned value must be effectively immutable and remain valid
      * indefinitely.
      *
-     * <p> Multiple calls to this method without an intervening call to {@link #advance} should
+     * <p>Multiple calls to this method without an intervening call to {@link #advance} should
      * return the same result.
      *
      * @throws java.util.NoSuchElementException if the reader is at the beginning of the input and
@@ -153,11 +150,11 @@ public abstract class Source<T> implements Serializable {
 
     /**
      * Returns the timestamp associated with the current data item.
-     * <p>
-     * If the source does not support timestamps, this should return
+     *
+     * <p>If the source does not support timestamps, this should return
      * {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
      *
-     * <p> Multiple calls to this method without an intervening call to {@link #advance} should
+     * <p>Multiple calls to this method without an intervening call to {@link #advance} should
      * return the same result.
      *
      * @throws NoSuchElementException if the reader is at the beginning of the input and
@@ -175,8 +172,8 @@ public abstract class Source<T> implements Serializable {
     /**
      * Returns a {@code Source} describing the same input that this {@code Reader} reads
      * (including items already read).
-     * <p>
-     * A reader created from the result of {@code getCurrentSource}, if consumed, MUST
+     *
+     * <p>A reader created from the result of {@code getCurrentSource}, if consumed, MUST
      * return the same data items as the current reader.
      */
     public abstract Source<T> getCurrentSource();

@@ -28,8 +28,8 @@ public class AppEngineEnvironment {
 
   /**
    * Attempts to detect whether we are inside of AppEngine.
-   * <p>
-   * Purposely copied and left private from private <a href="https://code.google.com/p/
+   *
+   * <p>Purposely copied and left private from private <a href="https://code.google.com/p/
    * guava-libraries/source/browse/guava/src/com/google/common/util/concurrent/
    * MoreExecutors.java#785">code.google.common.util.concurrent.MoreExecutors#isAppEngine</a>.
    *

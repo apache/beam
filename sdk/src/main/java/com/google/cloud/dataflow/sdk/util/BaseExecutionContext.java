@@ -29,7 +29,7 @@ import java.util.Map;
 /**
  * Base class for implementations of {@link ExecutionContext}.
  *
- * <p> A concrete subclass should implement {@link #createStepContext} to create the appropriate
+ * <p>A concrete subclass should implement {@link #createStepContext} to create the appropriate
  * {@link ExecutionContext.StepContext} implementation. Any {@code StepContext} created will
  * be cached for the lifetime of this {@link ExecutionContext}.
  */
@@ -85,7 +85,7 @@ public abstract class BaseExecutionContext implements ExecutionContext {
   /**
    * Base class for implementations of {@link ExecutionContext.StepContext}.
    *
-   * <p> To complete a concrete subclass, implement {@link #timerInternals} and
+   * <p>To complete a concrete subclass, implement {@link #timerInternals} and
    * {@link #stateInternals}.
    */
   public abstract static class StepContext implements ExecutionContext.StepContext {

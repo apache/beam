@@ -36,13 +36,13 @@ import java.util.Collections;
  * no longer be changed.
  * </ul>
  *
- * <p> For internal use.
+ * <p>For internal use.
  */
 public abstract class PValueBase extends POutputValueBase implements PValue {
   /**
    * Returns the name of this {@code PValueBase}.
    *
-   * <p> By default, the name of a {@code PValueBase} is based on the
+   * <p>By default, the name of a {@code PValueBase} is based on the
    * name of the {@code PTransform} that produces it.  It can be
    * specified explicitly by calling {@link #setName}.
    *
@@ -108,7 +108,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    * given name of the given {@code AppliedPTransform} in the given
    * {@code Pipeline}.
    *
-   * <p> To be invoked only by {@link POutput#recordAsOutput}
+   * <p>To be invoked only by {@link POutput#recordAsOutput}
    * implementations.  Not to be invoked directly by user code.
    */
   protected void recordAsOutput(AppliedPTransform<?, ?, ?> transform,
@@ -123,7 +123,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    * Returns whether this {@code PValueBase} has been finalized, and
    * its core properties, e.g., name, can no longer be changed.
    *
-   * <p> For internal use only.
+   * <p>For internal use only.
    */
   public boolean isFinishedSpecifyingInternal() {
     return finishedSpecifying;
@@ -150,7 +150,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    * Returns a {@code String} capturing the kind of this
    * {@code PValueBase}.
    *
-   * <p> By default, uses the base name of this {@code PValueBase}'s
+   * <p>By default, uses the base name of this {@code PValueBase}'s
    * class as its kind string.
    */
   protected String getKindString() {

@@ -44,7 +44,7 @@ public class CounterAggregator<InputT, AccumT, OutputT> implements Aggregator<In
    * specified in the CombineFn argument. The underlying counter is
    * automatically added into the provided CounterSet.
    *
-   *  <p> If a counter with the same name already exists, it will be reused, as
+   *  <p>If a counter with the same name already exists, it will be reused, as
    * long as it has the same type.
    */
   public CounterAggregator(String name, CombineFn<? super InputT, AccumT, OutputT> combiner,

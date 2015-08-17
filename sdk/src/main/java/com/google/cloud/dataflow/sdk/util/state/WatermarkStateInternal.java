@@ -23,7 +23,7 @@ import org.joda.time.Instant;
 /**
  * State for holding up the watermark to the minimum of input {@code Instant}s.
  *
- * <p> This is intended for internal use only. The watermark will be held up based on the
+ * <p>This is intended for internal use only. The watermark will be held up based on the
  * values that are added and only released when items are cleared.
  */
 @Experimental(Kind.STATE)

@@ -64,9 +64,9 @@ import java.util.Set;
 /**
  * An example that computes a basic TF-IDF search table for a directory or GCS prefix.
  *
- * <p> Concepts: joining data; side inputs; logging
+ * <p>Concepts: joining data; side inputs; logging
  *
- * <p> To execute this pipeline locally, specify general pipeline configuration:
+ * <p>To execute this pipeline locally, specify general pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  * }</pre>
@@ -75,7 +75,7 @@ import java.util.Set;
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  * }</pre>
  *
- * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
@@ -84,14 +84,14 @@ import java.util.Set;
  *   --output=gs://YOUR_OUTPUT_PREFIX
  * }</pre>
  *
- * <p> The default input is {@code gs://dataflow-samples/shakespeare/} and can be overridden with
+ * <p>The default input is {@code gs://dataflow-samples/shakespeare/} and can be overridden with
  * {@code --input}.
  */
 public class TfIdf {
   /**
    * Options supported by {@link TfIdf}.
-   * <p>
-   * Inherits standard configuration options.
+   *
+   * <p>Inherits standard configuration options.
    */
   private static interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")

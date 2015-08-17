@@ -43,18 +43,18 @@ import java.util.logging.Logger;
  * transform. It shows how to dynamically set parameters by defining and using new pipeline options,
  * and how to use a value derived by the pipeline.
  *
- * <p> Concepts: The Mean transform; Options configuration; using pipeline-derived data as a side
+ * <p>Concepts: The Mean transform; Options configuration; using pipeline-derived data as a side
  * input; approaches to filtering, selection, and projection.
  *
- * <p> The example reads public samples of weather data from BigQuery. It performs a
+ * <p>The example reads public samples of weather data from BigQuery. It performs a
  * projection on the data, finds the global mean of the temperature readings, filters on readings
  * for a single given month, and then outputs only data (for that month) that has a mean temp
  * smaller than the derived global mean.
 *
- * <p> Note: Before running this example, you must create a BigQuery dataset to contain your output
+ * <p>Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
  *
- * <p> To execute this pipeline locally, specify general pipeline configuration:
+ * <p>To execute this pipeline locally, specify general pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  * }
@@ -67,7 +67,7 @@ import java.util.logging.Logger;
  * </pre>
  * where optional parameter {@code --monthFilter} is set to a number 1-12.
  *
- * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
@@ -82,7 +82,7 @@ import java.util.logging.Logger;
  * </pre>
  * where optional parameter {@code --monthFilter} is set to a number 1-12.
  *
- * <p> The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations}
+ * <p>The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations}
  * and can be overridden with {@code --input}.
  */
 public class FilterExamples {
@@ -118,7 +118,7 @@ public class FilterExamples {
   /**
    * Implements 'filter' functionality.
    *
-   * <p> Examines each row in the input table. Outputs only rows from the month
+   * <p>Examines each row in the input table. Outputs only rows from the month
    * monthFilter, which is passed in as a parameter during construction of this DoFn.
    */
   static class FilterSingleMonthDataFn extends DoFn<TableRow, TableRow> {
@@ -218,8 +218,8 @@ public class FilterExamples {
 
   /**
    * Options supported by {@link FilterExamples}.
-   * <p>
-   * Inherits standard configuration options.
+   *
+   * <p>Inherits standard configuration options.
    */
   private static interface Options extends PipelineOptions {
     @Description("Table to read from, specified as "

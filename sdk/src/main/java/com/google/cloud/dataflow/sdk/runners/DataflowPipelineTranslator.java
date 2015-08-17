@@ -114,7 +114,7 @@ public class DataflowPipelineTranslator {
    * A map from {@link PTransform} subclass to the corresponding
    * {@link TransformTranslator} to use to translate that transform.
    *
-   * <p> A static map that contains system-wide defaults.
+   * <p>A static map that contains system-wide defaults.
    */
   private static Map<Class, TransformTranslator> transformTranslators =
       new HashMap<>();
@@ -257,7 +257,7 @@ public class DataflowPipelineTranslator {
      * Adds a pre-defined step to the Dataflow workflow. The given PTransform should be
      * consistent with the Step, in terms of input, output and coder types.
      *
-     * <p> This is a low-level operation, when using this method it is up to
+     * <p>This is a low-level operation, when using this method it is up to
      * the caller to ensure that names do not collide.
      */
     public void addStep(PTransform<?, ? extends PValue> transform, Step step);

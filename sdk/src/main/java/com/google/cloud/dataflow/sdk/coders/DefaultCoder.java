@@ -27,13 +27,13 @@ import java.lang.annotation.Target;
  * specifies a default {@link Coder} class to handle encoding and decoding
  * instances of the annotated class.
  *
- * <p> The specified {@code Coder} must implement a function with the following
+ * <p>The specified {@code Coder} must implement a function with the following
  * signature:
  * <pre>{@code
  * public static Coder<T> of(Class<T> clazz) {...}
  * }</pre>
  *
- * <p> For example, to configure the use of Java serialization as the default
+ * <p>For example, to configure the use of Java serialization as the default
  * for a class, annotate the class to use
  * {@link com.google.cloud.dataflow.sdk.coders.SerializableCoder} as follows:the
  *
@@ -44,7 +44,7 @@ import java.lang.annotation.Target;
  * }
  * </code></pre>
  *
- * <p> Similarly, to configure the use of
+ * <p>Similarly, to configure the use of
  * {@link com.google.cloud.dataflow.sdk.coders.AvroCoder} as the default:
  * <pre><code>
  * {@literal @}DefaultCoder(AvroCoder.class)
@@ -54,7 +54,7 @@ import java.lang.annotation.Target;
  * }
  * </code></pre>
  *
- * <p> Coders specified explicitly via
+ * <p>Coders specified explicitly via
  * {@link com.google.cloud.dataflow.sdk.values.PCollection#setCoder(Coder)
  *  PCollection.setCoder}
  * take precedence, followed by Coders registered at runtime via

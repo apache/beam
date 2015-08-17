@@ -50,7 +50,7 @@ import java.util.Objects;
  * known when the pipeline is constructed and returns a
  * {@code PCollection<T>} containing the elements.
  *
- * <p> Example of use:
+ * <p>Example of use:
  * <pre> {@code
  * Pipeline p = ...;
  *
@@ -63,19 +63,19 @@ import java.util.Objects;
  *                            BigEndianIntegerCoder.of())));
  * } </pre>
  *
- * <p> {@code Create} can automatically determine the {@code Coder} to use
+ * <p>{@code Create} can automatically determine the {@code Coder} to use
  * if all elements have the same run-time class, and a default coder is registered for that
  * class. See {@link CoderRegistry} for details on how defaults are determined.
  *
- * <p> If a coder can not be inferred, {@link Create.Values#withCoder} must be called
+ * <p>If a coder can not be inferred, {@link Create.Values#withCoder} must be called
  * explicitly to set the encoding of the resulting
  * {@code PCollection}.
  *
- * <p> A good use for {@code Create} is when a {@code PCollection}
+ * <p>A good use for {@code Create} is when a {@code PCollection}
  * needs to be created without dependencies on files or other external
  * entities.  This is especially useful during testing.
  *
- * <p> Caveat: {@code Create} only supports small in-memory datasets,
+ * <p>Caveat: {@code Create} only supports small in-memory datasets,
  * particularly when submitting jobs to the Google Cloud Dataflow
  * service.
  *
@@ -88,13 +88,13 @@ public class Create<T> {
    * {@link PCollection} containing elements of the provided
    * {@code Iterable}.
    *
-   * <p> The argument should not be modified after this is called.
+   * <p>The argument should not be modified after this is called.
    *
-   * <p> The elements of the output {@link PCollection} will have a timestamp of negative infinity,
+   * <p>The elements of the output {@link PCollection} will have a timestamp of negative infinity,
    * see {@link Create#timestamped} for a way of creating a {@code PCollection} with timestamped
    * elements.
    *
-   * <p> By default, {@code Create.Values} can automatically determine the {@code Coder} to use
+   * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
    * if all elements have the same run-time class, and a default coder is registered for that
    * class. See {@link CoderRegistry} for details on how defaults are determined.
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
@@ -107,13 +107,13 @@ public class Create<T> {
    * Returns a new {@code Create.Values} transform that produces a
    * {@link PCollection} containing the specified elements.
    *
-   * <p> The elements will have a timestamp of negative infinity, see
+   * <p>The elements will have a timestamp of negative infinity, see
    * {@link Create#timestamped} for a way of creating a {@code PCollection}
    * with timestamped elements.
    *
-   * <p> The argument should not be modified after this is called.
+   * <p>The argument should not be modified after this is called.
    *
-   * <p> By default, {@code Create.Values} can automatically determine the {@code Coder} to use
+   * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
    * if all elements have the same run-time class, and a default coder is registered for that
    * class. See {@link CoderRegistry} for details on how defaults are determined.
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
@@ -128,11 +128,11 @@ public class Create<T> {
    * {@link PCollection} of {@link KV}s corresponding to the keys and
    * values of the specified {@code Map}.
    *
-   * <p> The elements will have a timestamp of negative infinity, see
+   * <p>The elements will have a timestamp of negative infinity, see
    * {@link Create#timestamped} for a way of creating a {@code PCollection}
    * with timestamped elements.
    *
-   * <p> By default, {@code Create.Values} can automatically determine the {@code Coder} to use
+   * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
    * if all elements have the same run-time class, and a default coder is registered for that
    * class. See {@link CoderRegistry} for details on how defaults are determined.
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
@@ -150,9 +150,9 @@ public class Create<T> {
    * {@link PCollection} containing the elements of the provided {@code Iterable}
    * with the specified timestamps.
    *
-   * <p> The argument should not be modified after this is called.
+   * <p>The argument should not be modified after this is called.
    *
-   * <p> By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
+   * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
    * to use if all elements have the same run-time class, and a default coder is registered for
    * that class. See {@link CoderRegistry} for details on how defaults are determined.
    * Otherwise, use {@link Create.TimestampedValues#withCoder} to set the coder explicitly.
@@ -165,7 +165,7 @@ public class Create<T> {
    * Returns a new {@link Create.TimestampedValues} transform that produces a {@link PCollection}
    * containing the specified elements with the specified timestamps.
    *
-   * <p> The argument should not be modified after this is called.
+   * <p>The argument should not be modified after this is called.
    */
   @SafeVarargs
   public static <T> TimestampedValues<T> timestamped(
@@ -177,9 +177,9 @@ public class Create<T> {
    * Returns a new root transform that produces a {@link PCollection} containing
    * the specified elements with the specified timestamps.
    *
-   * <p> The arguments should not be modified after this is called.
+   * <p>The arguments should not be modified after this is called.
    *
-   * <p> By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
+   * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
    * to use if all elements have the same run-time class, and a default coder is registered for
    * that class. See {@link CoderRegistry} for details on how defaults are determined.
    * Otherwise, use {@link Create.TimestampedValues#withCoder} to set the coder explicitly.
@@ -212,11 +212,11 @@ public class Create<T> {
      * {@code Coder<T>} to decode each of the objects into a
      * value of type {@code T}.
      *
-     * <p> By default, {@code Create.Values} can automatically determine the {@code Coder} to use
+     * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
      * if all elements have the same run-time class, and a default coder is registered for that
      * class. See {@link CoderRegistry} for details on how defaults are determined.
      *
-     * <p> Note that for {@link Create.Values} with no elements, the {@link VoidCoder} is used.
+     * <p>Note that for {@link Create.Values} with no elements, the {@link VoidCoder} is used.
      */
     public Values<T> withCoder(Coder<T> coder) {
       return new Values<>(elems, Optional.of(coder));
@@ -307,7 +307,7 @@ public class Create<T> {
      * Constructs a {@code Create.Values} transform that produces a
      * {@link PCollection} containing the specified elements.
      *
-     * <p> The arguments should not be modified after this is called.
+     * <p>The arguments should not be modified after this is called.
      */
     private Values(Iterable<T> elems, Optional<Coder<T>> coder) {
       this.elems = elems;
@@ -327,12 +327,12 @@ public class Create<T> {
      * {@code Coder<T>} to decode each of the objects into a
      * value of type {@code T}.
      *
-     * <p> By default, {@code Create.TimestampedValues} can automatically determine the
+     * <p>By default, {@code Create.TimestampedValues} can automatically determine the
      * {@code Coder} to use if all elements have the same run-time class, and a default coder is
      * registered for that class. See {@link CoderRegistry} for details on how defaults are
      * determined.
      *
-     * <p> Note that for {@link Create.TimestampedValues with no elements}, the {@link VoidCoder}
+     * <p>Note that for {@link Create.TimestampedValues with no elements}, the {@link VoidCoder}
      * is used.
      */
     @Override

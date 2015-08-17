@@ -33,7 +33,7 @@ import java.util.NoSuchElementException;
  * Reader}s for sources lazily, i.e. only when elements from the particular {@code Reader} are about
  * to be read.
  *
- * <p> This class does does not cache {@code Reader}s and creates a new {@code Reader} every time a
+ * <p>This class does does not cache {@code Reader}s and creates a new {@code Reader} every time a
  * new {@code ReaderIterator} has to be created. Because of this, multiple iterators created using
  * the same {@code ConcatReader} will not be able to share any state between each other. This design
  * was chosen since keeping a large number of {@code Reader} objects alive within a single

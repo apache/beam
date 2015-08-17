@@ -21,8 +21,8 @@ package com.google.cloud.dataflow.sdk.options;
  * be an instance factory to produce default values for a given getter on {@link PipelineOptions}.
  * When a property on a {@link PipelineOptions} is fetched, and is currently unset, the default
  * value factory will be instantiated and invoked.
- * <p>
- * Care must be taken to not produce an infinite loop when accessing other fields on the
+ *
+ * <p>Care must be taken to not produce an infinite loop when accessing other fields on the
  * {@link PipelineOptions} object.
  *
  * @param <T> The type of object this factory produces.

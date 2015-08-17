@@ -36,7 +36,7 @@ import java.util.List;
  * {@code PCollection}s.  The name "Flatten" suggests taking a list of
  * lists and flattening them into a single list.
  *
- * <p> Example of use:
+ * <p>Example of use:
  * <pre> {@code
  * PCollection<String> pc1 = ...;
  * PCollection<String> pc2 = ...;
@@ -45,7 +45,7 @@ import java.util.List;
  * PCollection<String> merged = pcs.apply(Flatten.<String>pCollections());
  * } </pre>
  *
- * <p> By default, the {@code Coder} of the output {@code PCollection}
+ * <p>By default, the {@code Coder} of the output {@code PCollection}
  * is the same as the {@code Coder} of the first {@code PCollection}
  * in the input {@code PCollectionList} (if the
  * {@code PCollectionList} is non-empty).
@@ -58,7 +58,7 @@ public class Flatten {
    * into a {@link PCollection} containing all the elements of all
    * the {@link PCollection}s in its input.
    *
-   * <p> If any of the inputs to {@code Flatten<T>} require window merging,
+   * <p>If any of the inputs to {@code Flatten<T>} require window merging,
    * all inputs must have equal {@link WindowFn}s.
    * The output elements of {@code Flatten<T>} are in the same windows and
    * have the same timestamps as their corresponding input elements.  The output
@@ -77,13 +77,13 @@ public class Flatten {
    * and returns a {@code PCollection<T>} containing all the elements from
    * all the {@code Iterable}s.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<Iterable<Integer>> pcOfIterables = ...;
    * PCollection<Integer> pc = pcOfIterables.apply(Flatten.<Integer>iterables());
    * } </pre>
    *
-   * <p> By default, the output {@code PCollection} encodes its elements
+   * <p>By default, the output {@code PCollection} encodes its elements
    * using the same {@code Coder} that the input uses for
    * the elements in its {@code Iterable}.
    *

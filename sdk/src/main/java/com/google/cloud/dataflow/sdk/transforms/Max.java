@@ -28,13 +28,13 @@ import java.util.Comparator;
  * {@code PTransform}s for computing the maximum of the elements in a {@code PCollection}, or the
  * maximum of the values associated with each key in a {@code PCollection} of {@code KV}s.
  *
- * <p> Example 1: get the maximum of a {@code PCollection} of {@code Double}s.
+ * <p>Example 1: get the maximum of a {@code PCollection} of {@code Double}s.
  * <pre> {@code
  * PCollection<Double> input = ...;
  * PCollection<Double> max = input.apply(Max.doublesGlobally());
  * } </pre>
  *
- * <p> Example 2: calculate the maximum of the {@code Integer}s
+ * <p>Example 2: calculate the maximum of the {@code Integer}s
  * associated with each unique key (which is of type {@code String}).
  * <pre> {@code
  * PCollection<KV<String, Integer>> input = ...;
@@ -59,7 +59,7 @@ public class Max {
    * distinct key in the input {@code PCollection} to the maximum of the values associated with that
    * key in the input {@code PCollection}.
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
     return Combine.<K, Integer, Integer>perKey(new MaxIntegerFn()).named("Max.PerKey");
@@ -80,7 +80,7 @@ public class Max {
    * the input {@code PCollection} to the maximum of the values associated with that key in the
    * input {@code PCollection}.
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
     return Combine.<K, Long, Long>perKey(new MaxLongFn()).named("Max.PerKey");
@@ -101,7 +101,7 @@ public class Max {
    * in the input {@code PCollection} to the maximum of the values associated with that key in the
    * input {@code PCollection}.
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
     return Combine.<K, Double, Double>perKey(new MaxDoubleFn()).named("Max.PerKey");
@@ -123,7 +123,7 @@ public class Max {
    * input {@code PCollection} to the maximum according to the natural ordering of {@code T} of the
    * values associated with that key in the input {@code PCollection}.
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K, T extends Comparable<? super T>>
   Combine.PerKey<K, T, T> perKey() {
@@ -145,7 +145,7 @@ public class Max {
    * {@code PCollection<KV<K, T>>} that contains one output element per key mapping each
    * to the maximum of the values associated with that key in the input {@code PCollection}.
    *
-   * <p> See {@link Combine.PerKey} for how this affects timestamps and windowing.
+   * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K, T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {

@@ -36,7 +36,7 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
    * Offset corresponding to infinity. This can only be used as the upper-bound of a range, and
    * indicates reading all of the records until the end without specifying exactly what the end is.
    *
-   * <p> Infinite ranges cannot be split because it is impossible to estimate progress within them.
+   * <p>Infinite ranges cannot be split because it is impossible to estimate progress within them.
    */
   public static final long OFFSET_INFINITY = Long.MAX_VALUE;
 

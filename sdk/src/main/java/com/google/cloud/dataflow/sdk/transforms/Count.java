@@ -23,7 +23,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 /**
  * {@code PTransorm}s to count the elements in a {@link PCollection}.
  *
- * <p> {@link Count#perElement()} can be used to count the number of occurrences of each
+ * <p>{@link Count#perElement()} can be used to count the number of occurrences of each
  * distinct element in the PCollection. {@link Count#globally()} can
  * be used to count the total number of elements in a PCollection.
  */
@@ -49,7 +49,7 @@ public class Count {
    * Returns a {@link PerElement Count.PerElement} {@link PTransform} that counts the number of
    * occurrences of each element in its input {@link PCollection}.
    *
-   * <p> See {@link PerElement Count.PerElement} for more details.
+   * <p>See {@link PerElement Count.PerElement} for more details.
    */
   public static <T> PerElement<T> perElement() {
     return new PerElement<>();
@@ -61,16 +61,16 @@ public class Count {
    * {@code PCollection} to the number of times that element occurs in the input. Each key in the
    * output {@code PCollection} is unique.
    *
-   * <p> This transform compares two values of type {@code T} by first encoding each element using
+   * <p>This transform compares two values of type {@code T} by first encoding each element using
    * the input {@code PCollection}'s {@code Coder}, then comparing the encoded bytes. Because of
    * this, the input coder must be deterministic.
    * (See {@link com.google.cloud.dataflow.sdk.coders.Coder#verifyDeterministic()} for more detail).
    * Performing the comparison in this manner admits efficient parallel evaluation.
    *
-   * <p> By default, the {@code Coder} of the keys of the output {@code PCollection} is the same as
+   * <p>By default, the {@code Coder} of the keys of the output {@code PCollection} is the same as
    * the {@code Coder} of the elements of the input {@code PCollection}.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<String> words = ...;
    * PCollection<KV<String, Long>> wordCounts =

@@ -55,29 +55,29 @@ public class Top {
    * given {@code Comparator<T>}.  The {@code Comparator<T>} must also
    * be {@code Serializable}.
    *
-   * <p> If {@code count} {@code <} the number of elements in the
+   * <p>If {@code count} {@code <} the number of elements in the
    * input {@code PCollection}, then all the elements of the input
    * {@code PCollection} will be in the resulting
    * {@code List}, albeit in sorted order.
    *
-   * <p> All the elements of the result's {@code List}
+   * <p>All the elements of the result's {@code List}
    * must fit into the memory of a single machine.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<Student> students = ...;
    * PCollection<List<Student>> top10Students =
    *     students.apply(Top.of(10, new CompareStudentsByAvgGrade()));
    * } </pre>
    *
-   * <p> By default, the {@code Coder} of the output {@code PCollection}
+   * <p>By default, the {@code Coder} of the output {@code PCollection}
    * is a {@code ListCoder} of the {@code Coder} of the elements of
    * the input {@code PCollection}.
    *
-   * <p> See also {@link #smallest} and {@link #largest}, which sort
+   * <p>See also {@link #smallest} and {@link #largest}, which sort
    * {@code Comparable} elements using their natural ordering.
    *
-   * <p> See also {@link #perKey}, {@link #smallestPerKey}, and
+   * <p>See also {@link #perKey}, {@link #smallestPerKey}, and
    * {@link #largestPerKey}, which take a {@code PCollection} of
    * {@code KV}s and return the top values associated with each key.
    */
@@ -93,30 +93,30 @@ public class Top {
    * {@code PCollection<T>}, in increasing order, sorted according to
    * their natural order.
    *
-   * <p> If {@code count} {@code <} the number of elements in the
+   * <p>If {@code count} {@code <} the number of elements in the
    * input {@code PCollection}, then all the elements of the input
    * {@code PCollection} will be in the resulting {@code PCollection}'s
    * {@code List}, albeit in sorted order.
    *
-   * <p> All the elements of the result {@code List}
+   * <p>All the elements of the result {@code List}
    * must fit into the memory of a single machine.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<Integer> values = ...;
    * PCollection<List<Integer>> smallest10Values = values.apply(Top.smallest(10));
    * } </pre>
    *
-   * <p> By default, the {@code Coder} of the output {@code PCollection}
+   * <p>By default, the {@code Coder} of the output {@code PCollection}
    * is a {@code ListCoder} of the {@code Coder} of the elements of
    * the input {@code PCollection}.
    *
-   * <p> See also {@link #largest}.
+   * <p>See also {@link #largest}.
    *
-   * <p> See also {@link #of}, which sorts using a user-specified
+   * <p>See also {@link #of}, which sorts using a user-specified
    * {@code Comparator} function.
    *
-   * <p> See also {@link #perKey}, {@link #smallestPerKey}, and
+   * <p>See also {@link #perKey}, {@link #smallestPerKey}, and
    * {@link #largestPerKey}, which take a {@code PCollection} of
    * {@code KV}s and return the top values associated with each key.
    */
@@ -133,30 +133,30 @@ public class Top {
    * {@code PCollection<T>}, in decreasing order, sorted according to
    * their natural order.
    *
-   * <p> If {@code count} {@code <} the number of elements in the
+   * <p>If {@code count} {@code <} the number of elements in the
    * input {@code PCollection}, then all the elements of the input
    * {@code PCollection} will be in the resulting {@code PCollection}'s
    * {@code List}, albeit in sorted order.
    *
-   * <p> All the elements of the result's {@code List}
+   * <p>All the elements of the result's {@code List}
    * must fit into the memory of a single machine.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<Integer> values = ...;
    * PCollection<List<Integer>> largest10Values = values.apply(Top.largest(10));
    * } </pre>
    *
-   * <p> By default, the {@code Coder} of the output {@code PCollection}
+   * <p>By default, the {@code Coder} of the output {@code PCollection}
    * is a {@code ListCoder} of the {@code Coder} of the elements of
    * the input {@code PCollection}.
    *
-   * <p> See also {@link #smallest}.
+   * <p>See also {@link #smallest}.
    *
-   * <p> See also {@link #of}, which sorts using a user-specified
+   * <p>See also {@link #of}, which sorts using a user-specified
    * {@code Comparator} function.
    *
-   * <p> See also {@link #perKey}, {@link #smallestPerKey}, and
+   * <p>See also {@link #perKey}, {@link #smallestPerKey}, and
    * {@link #largestPerKey}, which take a {@code PCollection} of
    * {@code KV}s and return the top values associated with each key.
    */
@@ -177,16 +177,16 @@ public class Top {
    * the given {@code Comparator<V>}.  The
    * {@code Comparator<V>} must also be {@code Serializable}.
    *
-   * <p> If there are fewer than {@code count} values associated with
+   * <p>If there are fewer than {@code count} values associated with
    * a particular key, then all those values will be in the result
    * mapping for that key, albeit in sorted order.
    *
-   * <p> All the values associated with a single key must fit into the
+   * <p>All the values associated with a single key must fit into the
    * memory of a single machine, but there can be many more
    * {@code KV}s in the resulting {@code PCollection} than can fit
    * into the memory of a single machine.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<KV<School, Student>> studentsBySchool = ...;
    * PCollection<KV<School, List<Student>>> top10StudentsBySchool =
@@ -194,17 +194,17 @@ public class Top {
    *         Top.perKey(10, new CompareStudentsByAvgGrade()));
    * } </pre>
    *
-   * <p> By default, the {@code Coder} of the keys of the output
+   * <p>By default, the {@code Coder} of the keys of the output
    * {@code PCollection} is the same as that of the keys of the input
    * {@code PCollection}, and the {@code Coder} of the values of the
    * output {@code PCollection} is a {@code ListCoder} of the
    * {@code Coder} of the values of the input {@code PCollection}.
    *
-   * <p> See also {@link #smallestPerKey} and {@link #largestPerKey}, which
+   * <p>See also {@link #smallestPerKey} and {@link #largestPerKey}, which
    * sort {@code Comparable<V>} values using their natural
    * ordering.
    *
-   * <p> See also {@link #of}, {@link #smallest}, and {@link #largest}, which
+   * <p>See also {@link #of}, {@link #smallest}, and {@link #largest}, which
    * take a {@code PCollection} and return the top elements.
    */
   public static <K, V, ComparatorT extends Comparator<V> & Serializable>
@@ -224,34 +224,34 @@ public class Top {
    * {@code PCollection<KV<K, V>>}, in increasing order, sorted
    * according to their natural order.
    *
-   * <p> If there are fewer than {@code count} values associated with
+   * <p>If there are fewer than {@code count} values associated with
    * a particular key, then all those values will be in the result
    * mapping for that key, albeit in sorted order.
    *
-   * <p> All the values associated with a single key must fit into the
+   * <p>All the values associated with a single key must fit into the
    * memory of a single machine, but there can be many more
    * {@code KV}s in the resulting {@code PCollection} than can fit
    * into the memory of a single machine.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<KV<String, Integer>> keyedValues = ...;
    * PCollection<KV<String, List<Integer>>> smallest10ValuesPerKey =
    *     keyedValues.apply(Top.smallestPerKey(10));
    * } </pre>
    *
-   * <p> By default, the {@code Coder} of the keys of the output
+   * <p>By default, the {@code Coder} of the keys of the output
    * {@code PCollection} is the same as that of the keys of the input
    * {@code PCollection}, and the {@code Coder} of the values of the
    * output {@code PCollection} is a {@code ListCoder} of the
    * {@code Coder} of the values of the input {@code PCollection}.
    *
-   * <p> See also {@link #largestPerKey}.
+   * <p>See also {@link #largestPerKey}.
    *
-   * <p> See also {@link #perKey}, which sorts values using a user-specified
+   * <p>See also {@link #perKey}, which sorts values using a user-specified
    * {@code Comparator} function.
    *
-   * <p> See also {@link #of}, {@link #smallest}, and {@link #largest}, which
+   * <p>See also {@link #of}, {@link #smallest}, and {@link #largest}, which
    * take a {@code PCollection} and return the top elements.
    */
   public static <K, V extends Comparable<V>>
@@ -272,34 +272,34 @@ new TopCombineFn<>(count, new Smallest<V>()).<K>asKeyedFn())
    * {@code PCollection<KV<K, V>>}, in decreasing order, sorted
    * according to their natural order.
    *
-   * <p> If there are fewer than {@code count} values associated with
+   * <p>If there are fewer than {@code count} values associated with
    * a particular key, then all those values will be in the result
    * mapping for that key, albeit in sorted order.
    *
-   * <p> All the values associated with a single key must fit into the
+   * <p>All the values associated with a single key must fit into the
    * memory of a single machine, but there can be many more
    * {@code KV}s in the resulting {@code PCollection} than can fit
    * into the memory of a single machine.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<KV<String, Integer>> keyedValues = ...;
    * PCollection<KV<String, List<Integer>>> largest10ValuesPerKey =
    *     keyedValues.apply(Top.largestPerKey(10));
    * } </pre>
    *
-   * <p> By default, the {@code Coder} of the keys of the output
+   * <p>By default, the {@code Coder} of the keys of the output
    * {@code PCollection} is the same as that of the keys of the input
    * {@code PCollection}, and the {@code Coder} of the values of the
    * output {@code PCollection} is a {@code ListCoder} of the
    * {@code Coder} of the values of the input {@code PCollection}.
    *
-   * <p> See also {@link #smallestPerKey}.
+   * <p>See also {@link #smallestPerKey}.
    *
-   * <p> See also {@link #perKey}, which sorts values using a user-specified
+   * <p>See also {@link #perKey}, which sorts values using a user-specified
    * {@code Comparator} function.
    *
-   * <p> See also {@link #of}, {@link #smallest}, and {@link #largest}, which
+   * <p>See also {@link #of}, {@link #smallest}, and {@link #largest}, which
    * take a {@code PCollection} and return the top elements.
    */
   public static <K, V extends Comparable<V>>

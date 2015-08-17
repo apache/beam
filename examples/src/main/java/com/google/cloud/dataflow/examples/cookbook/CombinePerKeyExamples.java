@@ -49,10 +49,10 @@ import java.util.List;
  * key-grouped Collection, and how to use an Aggregator to track information in the
  * Monitoring UI.
  *
- * <p> Note: Before running this example, you must create a BigQuery dataset to contain your output
+ * <p>Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
  *
- * <p> To execute this pipeline locally, specify general pipeline configuration:
+ * <p>To execute this pipeline locally, specify general pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  * }
@@ -62,7 +62,7 @@ import java.util.List;
  *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  * }</pre>
  *
- * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://<STAGING DIRECTORY>
@@ -74,7 +74,7 @@ import java.util.List;
  *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  * }</pre>
  *
- * <p> The BigQuery input table defaults to {@code publicdata:samples.shakespeare} and can
+ * <p>The BigQuery input table defaults to {@code publicdata:samples.shakespeare} and can
  * be overridden with {@code --input}.
  */
 public class CombinePerKeyExamples {
@@ -132,7 +132,7 @@ public class CombinePerKeyExamples {
    * in which that word appears. It does this via the Combine.perKey
    * transform, with the ConcatWords combine function.
    *
-   * <p> Combine.perKey is similar to a GroupByKey followed by a ParDo, but
+   * <p>Combine.perKey is similar to a GroupByKey followed by a ParDo, but
    * has more restricted semantics that allow it to be executed more
    * efficiently. These records are then formatted as BQ table rows.
    */
@@ -188,8 +188,8 @@ public class CombinePerKeyExamples {
 
   /**
    * Options supported by {@link CombinePerKeyExamples}.
-   * <p>
-   * Inherits standard configuration options.
+   *
+   * <p>Inherits standard configuration options.
    */
   private static interface Options extends PipelineOptions {
     @Description("Table to read from, specified as "

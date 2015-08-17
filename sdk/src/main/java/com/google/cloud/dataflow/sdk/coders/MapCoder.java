@@ -127,7 +127,7 @@ public class MapCoder<K, V> extends MapCoderBase<Map<K, V>> {
   /**
    * Not all maps have a deterministic encoding.
    *
-   * <p> For example, HashMap comparison does not depend on element order, so
+   * <p>For example, HashMap comparison does not depend on element order, so
    * two HashMap instances may be equal but produce different encodings.
    */
   @Override

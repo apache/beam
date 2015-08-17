@@ -27,8 +27,8 @@ import java.util.concurrent.TimeUnit;
  * is happening as well as the amount of retries. Acts exactly as a AttemptBoundedExponentialBackOff
  * unless the time interval has expired since the object was created. At this point, it will always
  * return BackOff.STOP. Note that reset does not reset the timer.
- * <p>
- * Implementation is not thread-safe.
+ *
+ * <p>Implementation is not thread-safe.
  */
 public class AttemptAndTimeBoundedExponentialBackOff extends AttemptBoundedExponentialBackOff {
   private long endTimeMillis;

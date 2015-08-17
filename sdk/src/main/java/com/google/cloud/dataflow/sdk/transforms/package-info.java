@@ -23,7 +23,7 @@
  * and produces an
  * {@code OutputT} (some subtype of {@link com.google.cloud.dataflow.sdk.values.POutput}).
  *
- * <p> Common PTransforms include root PTransforms like
+ * <p>Common PTransforms include root PTransforms like
  * {@link com.google.cloud.dataflow.sdk.io.TextIO.Read} and
  * {@link com.google.cloud.dataflow.sdk.transforms.Create}, processing and
  * conversion operations like {@link com.google.cloud.dataflow.sdk.transforms.ParDo},

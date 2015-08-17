@@ -31,7 +31,7 @@ import org.joda.time.Duration;
 /**
  * A {@link PTransform} to reshuffle the elements based on their key.
  *
- * <p> Performs a {@link GroupByKey} so that the data is key-partitioned. Configures the
+ * <p>Performs a {@link GroupByKey} so that the data is key-partitioned. Configures the
  * {@link WindowingStrategy} so that no data is dropped, but doesn't affect the need for
  * the user to specify allowed lateness and accumulation mode before a user-inserted GroupByKey.
  *

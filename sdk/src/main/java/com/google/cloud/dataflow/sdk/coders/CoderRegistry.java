@@ -49,7 +49,7 @@ import java.util.Map;
  * and looking up and instantiating the default
  * {@link Coder} for a Java type.
  *
- * <p> {@code CoderRegistry} uses the following mechanisms to determine a
+ * <p>{@code CoderRegistry} uses the following mechanisms to determine a
  * default {@link Coder} for a Java class, in order of precedence:
  * <ul>
  *   <li> Registration: coders can be registered explicitly via
@@ -92,26 +92,26 @@ public class CoderRegistry implements CoderProvider {
    * Registers {@code coderClazz} as the default {@link Coder} class to handle encoding and
    * decoding instances of {@code clazz}, overriding prior registrations if any exist.
    *
-   * <p> Supposing {@code T} is the static type corresponding to the {@code clazz}, then
+   * <p>Supposing {@code T} is the static type corresponding to the {@code clazz}, then
    * {@code coderClazz} should have a static factory method with the following signature:
    *
    * <pre> {@code
    * public static Coder<T> of(Coder<X> argCoder1, Coder<Y> argCoder2, ...)
    * } </pre>
    *
-   * <p> This method will be called to create instances of {@code Coder<T>} for values of type
+   * <p>This method will be called to create instances of {@code Coder<T>} for values of type
    * {@code T}, passing Coders for each of the generic type parameters of {@code T}.  If {@code T}
    * takes no generic type parameters, then the {@code of()} factory method should have no
    * arguments.
    *
-   * <p> If {@code T} is a parameterized type, then it should additionally
+   * <p>If {@code T} is a parameterized type, then it should additionally
    * have a method with the following signature:
    *
    * <pre> {@code
    * public static List<Object> getInstanceComponents(T exampleValue);
    * } </pre>
    *
-   * <p> This method will be called to decompose a value during the coder
+   * <p>This method will be called to decompose a value during the coder
    * inference process, to automatically choose coders for the components.
    *
    * @param clazz the class of objects to be encoded
@@ -279,21 +279,21 @@ public class CoderRegistry implements CoderProvider {
    * use by default for it, in the context of subClass's specialization of
    * baseClass.
    *
-   * <p> If no coder can be inferred for a particular type parameter,
+   * <p>If no coder can be inferred for a particular type parameter,
    * then that type variable will be absent from the returned map.
    *
-   * <p> For example, if baseClass is Map.class and subClass extends
+   * <p>For example, if baseClass is Map.class and subClass extends
    * {@code Map<String, Integer>} then this will return the registered Coders
    * to use for String and Integer as a {"K": stringCoder, "V": intCoder} Map.
    * The knownCoders parameter can be used to provide known coders for any of
    * the parameters that will be used to infer the others.
    *
-   * <p> Note that inference is attempted for every type variable.
+   * <p>Note that inference is attempted for every type variable.
    * For a type {@code MyType<One, Two, Three>} inference will will be
    * attempted for all of {@code One}, {@code Two}, {@code Three},
    * even if the requester only wants a coder for {@code Two}.
    *
-   * <p> For this reason, {@code getDefaultCoders} (plural) does not throw
+   * <p>For this reason, {@code getDefaultCoders} (plural) does not throw
    * an exception if a coder for a particular type variable cannot be
    * desired coder or throw a {@link CannotProvideCoderException} when appropriate.
    *
@@ -327,21 +327,21 @@ public class CoderRegistry implements CoderProvider {
    * Coder to use by default for it, in the context of {@code subClass}'s specialization
    * of {@code baseClass}.
    *
-   * <p> If a coder cannot be inferred for a type variable, its slot in the
+   * <p>If a coder cannot be inferred for a type variable, its slot in the
    * resulting array will be {@code null}.
    *
-   * <p> For example, if {@code baseClass} is {@code Map.class} and {@code subClass}
+   * <p>For example, if {@code baseClass} is {@code Map.class} and {@code subClass}
    * extends {@code Map<String, Integer>} then this will return the registered Coders
    * to use for {@code String} and {@code Integer}, in that order.
    * The {@code knownCoders} parameter can be used to provide known coders
    * for any of the parameters that will be used to infer the others.
    *
-   * <p> Note that inference is attempted for every type variable.
+   * <p>Note that inference is attempted for every type variable.
    * For a type {@code MyType<One, Two, Three>} inference will will be
    * attempted for all of {@code One}, {@code Two}, {@code Three},
    * even if the requester only wants a coder for {@code Two}.
    *
-   * <p> For this reason {@code getDefaultCoders} (plural) does not throw
+   * <p>For this reason {@code getDefaultCoders} (plural) does not throw
    * an exception if a coder for a particular type variable cannot be
    * inferred. Instead, it results in a {@code null} in the array.
    * It is the responsibility of the caller (usually {@link #getDefaultCoder}

@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.util.state;
  * {@code StateInternals} describes the functionality a runner needs to provide for the
  * State API to be supported.
  *
- * <p> The SDK will only use this after elements have been partitioned by key. For instance, after a
+ * <p>The SDK will only use this after elements have been partitioned by key. For instance, after a
  * {@code GroupByKey} operation. The runner implementation must ensure that any writes using
  * {@code StaeIntetrnals} are implicitly scoped to the key being processed and the specific step
  * accessing state.
@@ -28,7 +28,7 @@ package com.google.cloud.dataflow.sdk.util.state;
  * are persisted together with the completion status of the processing that produced these
  * writes.
  *
- * <p> This is a low-level API intended for use by the Dataflow SDK. It should not be
+ * <p>This is a low-level API intended for use by the Dataflow SDK. It should not be
  * used directly, and is highly likely to change.
  */
 public interface StateInternals  {
@@ -42,7 +42,7 @@ public interface StateInternals  {
    * Return state that reads from all the source namespaces. Only required to ensure that
    * resultNamespace contains all the data that is added.
    *
-   * <p> Merging state is potentially destructive, in that it may move information from the
+   * <p>Merging state is potentially destructive, in that it may move information from the
    * {@code sourceNamespaces} to {@code resultNamespace}. As a result, after calling this all
    * future calls should include as their namespaces a superset of
    * {@code sourceNamespaces} and {@code resultNamespace}.

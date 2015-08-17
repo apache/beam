@@ -129,8 +129,8 @@ public @interface Default {
   /**
    * Value must be of type {@link DefaultValueFactory} and have a default constructor.
    * Value is instantiated and then used as a type factory to generate the default.
-   * <p>
-   * See {@link DefaultValueFactory} for more details.
+   *
+   * <p>See {@link DefaultValueFactory} for more details.
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)

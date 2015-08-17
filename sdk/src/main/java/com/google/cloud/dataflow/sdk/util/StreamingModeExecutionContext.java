@@ -265,7 +265,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     /**
      * Produce a tag that is guaranteed to be unique for the given namespace, domain and timestamp.
      *
-     * <p> This is necessary because Windmill will deduplicate based only on this tag.
+     * <p>This is necessary because Windmill will deduplicate based only on this tag.
      */
     private ByteString timerTag(TimerData key) {
       String tagString = String.format("%s+%d:%d",

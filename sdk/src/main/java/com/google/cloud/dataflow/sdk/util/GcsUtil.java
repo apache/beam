@@ -64,8 +64,8 @@ public class GcsUtil {
     /**
      * Returns an instance of {@link GcsUtil} based on the
      * {@link PipelineOptions}.
-     * <p>
-     * If no instance has previously been created, one is created and the value
+     *
+     * <p>If no instance has previously been created, one is created and the value
      * stored in {@code options}.
      */
     @Override
@@ -232,7 +232,7 @@ public class GcsUtil {
   /**
    * Opens an object in GCS.
    *
-   * <p> Returns a SeekableByteChannel that provides access to data in the bucket.
+   * <p>Returns a SeekableByteChannel that provides access to data in the bucket.
    *
    * @param path the GCS filename to read from
    * @return a SeekableByteChannel that can read the object data
@@ -248,7 +248,7 @@ public class GcsUtil {
   /**
    * Creates an object in GCS.
    *
-   * <p> Returns a WritableByteChannel that can be used to write data to the
+   * <p>Returns a WritableByteChannel that can be used to write data to the
    * object.
    *
    * @param path the GCS file to write to

@@ -217,17 +217,17 @@ public class BigQueryTableInserter {
 
   /**
    * Retrieves or creates the table.
-   * <p>
-   * The table is checked to conform to insertion requirements as specified
+   *
+   * <p>The table is checked to conform to insertion requirements as specified
    * by WriteDisposition and CreateDisposition.
-   * <p>
-   * If table truncation is requested (WriteDisposition.WRITE_TRUNCATE), then
+   *
+   * <p>If table truncation is requested (WriteDisposition.WRITE_TRUNCATE), then
    * this will re-create the table if necessary to ensure it is empty.
-   * <p>
-   * If an empty table is required (WriteDisposition.WRITE_EMPTY), then this
+   *
+   * <p>If an empty table is required (WriteDisposition.WRITE_EMPTY), then this
    * will fail if the table exists and is not empty.
-   * <p>
-   * When constructing a table, a {@code TableSchema} must be available.  If a
+   *
+   * <p>When constructing a table, a {@code TableSchema} must be available.  If a
    * schema is provided, then it will be used.  If no schema is provided, but
    * an existing table is being cleared (WRITE_TRUNCATE option above), then
    * the existing schema will be re-used.  If no schema is available, then an

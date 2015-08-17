@@ -28,9 +28,9 @@ import java.util.List;
  * A command-line utility for printing the base-64 encodings of test values, for generating exact
  * wire format tests.
  *
- * <p> For internal use only.
+ * <p>For internal use only.
  *
- * <p> Example invocation via maven:
+ * <p>Example invocation via maven:
  * {@code
  *   mvn test-compile exec:java \
  *       -Dexec.classpathScope=test \

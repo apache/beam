@@ -48,7 +48,7 @@ import javax.annotation.Nullable;
 /**
  * {@link PTransform}s for reading and writing Avro files.
  *
- * <p> To read a {@link PCollection} from one or more Avro files, use
+ * <p>To read a {@link PCollection} from one or more Avro files, use
  * {@link AvroIO.Read}, specifying {@link AvroIO.Read#from} to specify
  * the path of the file(s) to read from (e.g., a local filename or
  * filename pattern if running locally, or a Google Cloud Storage
@@ -56,7 +56,7 @@ import javax.annotation.Nullable;
  * {@code "gs://<bucket>/<filepath>"}), and optionally
  * {@link AvroIO.Read#named} to specify the name of the pipeline step.
  *
- * <p> It is required to specify {@link AvroIO.Read#withSchema}. To
+ * <p>It is required to specify {@link AvroIO.Read#withSchema}. To
  * read specific records, such as Avro-generated classes, provide an
  * Avro-generated class type. To read GenericRecords, provide either
  * an org.apache.avro.Schema or a schema in a JSON-encoded string form.
@@ -82,7 +82,7 @@ import javax.annotation.Nullable;
  *                        .withSchema(schema));
  * } </pre>
  *
- * <p> To write a {@link PCollection} to one or more Avro files, use
+ * <p>To write a {@link PCollection} to one or more Avro files, use
  * {@link AvroIO.Write}, specifying {@link AvroIO.Write#to} to specify
  * the path of the file to write to (e.g., a local filename or sharded
  * filename pattern if running locally, or a Google Cloud Storage
@@ -90,7 +90,7 @@ import javax.annotation.Nullable;
  * {@code "gs://<bucket>/<filepath>"}), and optionally
  * {@link AvroIO.Write#named} to specify the name of the pipeline step.
  *
- * <p> It is required to specify {@link AvroIO.Write#withSchema}. To
+ * <p>It is required to specify {@link AvroIO.Write#withSchema}. To
  * write specific records, such as Avro-generated classes, provide an
  * Avro-generated class type. To write GenericRecords, provide either
  * an org.apache.avro.Schema or a schema in a JSON-encoded string form.
@@ -181,7 +181,7 @@ public class AvroIO {
      * Returns a AvroIO.Read PTransform that has GCS path validation on
      * pipeline creation disabled.
      *
-     * <p> This can be useful in the case where the GCS input location does
+     * <p>This can be useful in the case where the GCS input location does
      * not exist at the pipeline creation time, but is expected to be available
      * at execution time.
      */
@@ -276,7 +276,7 @@ public class AvroIO {
        * that has GCS input path validation on pipeline creation disabled.
        * Does not modify this object.
        *
-       * <p> This can be useful in the case where the GCS input location does
+       * <p>This can be useful in the case where the GCS input location does
        * not exist at the pipeline creation time, but is expected to be
        * available at execution time.
        */
@@ -359,7 +359,7 @@ public class AvroIO {
      * the form {@code "gs://<bucket>/<filepath>"})
      * (if running locally or via the Google Cloud Dataflow service).
      *
-     * <p> The files written will begin with this prefix, followed by
+     * <p>The files written will begin with this prefix, followed by
      * a shard identifier (see {@link Bound#withNumShards}, and end
      * in a common extension, if given by {@link Bound#withSuffix}.
      */
@@ -378,7 +378,7 @@ public class AvroIO {
     /**
      * Returns an AvroIO.Write PTransform that uses the provided shard count.
      *
-     * <p> Constraining the number of shards is likely to reduce
+     * <p>Constraining the number of shards is likely to reduce
      * the performance of a pipeline. Setting this value is not recommended
      * unless you require a specific number of output files.
      *
@@ -393,7 +393,7 @@ public class AvroIO {
      * Returns an AvroIO.Write PTransform that uses the given shard name
      * template.
      *
-     * <p> See {@link ShardNameTemplate} for a description of shard templates.
+     * <p>See {@link ShardNameTemplate} for a description of shard templates.
      */
     public static Bound<GenericRecord> withShardNameTemplate(String shardTemplate) {
       return new Bound<>(GenericRecord.class).withShardNameTemplate(shardTemplate);
@@ -403,7 +403,7 @@ public class AvroIO {
      * Returns an AvroIO.Write PTransform that forces a single file as
      * output.
      *
-     * <p> Constraining the number of shards is likely to reduce
+     * <p>Constraining the number of shards is likely to reduce
      * the performance of a pipeline.  Setting this value is not recommended
      * unless you require a specific number of output files.
      */
@@ -442,7 +442,7 @@ public class AvroIO {
      * Returns a AvroIO.Write PTransform that has GCS path validation on
      * pipeline creation disabled.
      *
-     * <p> This can be useful in the case where the GCS output location does
+     * <p>This can be useful in the case where the GCS output location does
      * not exist at the pipeline creation time, but is expected to be available
      * at execution time.
      */
@@ -505,9 +505,9 @@ public class AvroIO {
        * Returns a new AvroIO.Write PTransform that's like this one but
        * that writes to the file(s) with the given filename prefix.
        *
-       * <p> See {@link Write#to(String) Write.to(String)} for more information.
+       * <p>See {@link Write#to(String) Write.to(String)} for more information.
        *
-       * <p> Does not modify this object.
+       * <p>Does not modify this object.
        */
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
@@ -519,7 +519,7 @@ public class AvroIO {
        * Returns a new AvroIO.Write PTransform that's like this one but
        * that writes to the file(s) with the given filename suffix.
        *
-       * <p> Does not modify this object.
+       * <p>Does not modify this object.
        *
        * @see ShardNameTemplate
        */
@@ -533,11 +533,11 @@ public class AvroIO {
        * Returns a new AvroIO.Write PTransform that's like this one but
        * that uses the provided shard count.
        *
-       * <p> Constraining the number of shards is likely to reduce
+       * <p>Constraining the number of shards is likely to reduce
        * the performance of a pipeline.  Setting this value is not recommended
        * unless you require a specific number of output files.
        *
-       * <p> Does not modify this object.
+       * <p>Does not modify this object.
        *
        * @param numShards the number of shards to use, or 0 to let the system
        *                  decide.
@@ -553,7 +553,7 @@ public class AvroIO {
        * Returns a new AvroIO.Write PTransform that's like this one but
        * that uses the given shard name template.
        *
-       * <p> Does not modify this object.
+       * <p>Does not modify this object.
        *
        * @see ShardNameTemplate
        */
@@ -566,10 +566,10 @@ public class AvroIO {
        * Returns a new AvroIO.Write PTransform that's like this one but
        * that forces a single file as output.
        *
-       * <p> This is a shortcut for
+       * <p>This is a shortcut for
        * {@code .withNumShards(1).withShardNameTemplate("")}
        *
-       * <p> Does not modify this object.
+       * <p>Does not modify this object.
        */
       public Bound<T> withoutSharding() {
         return new Bound<>(name, filenamePrefix, filenameSuffix, 1, "", type, schema, validate);
@@ -611,7 +611,7 @@ public class AvroIO {
        * that has GCS output path validation on pipeline creation disabled.
        * Does not modify this object.
        *
-       * <p> This can be useful in the case where the GCS output location does
+       * <p>This can be useful in the case where the GCS output location does
        * not exist at the pipeline creation time, but is expected to be
        * available at execution time.
        */

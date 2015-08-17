@@ -70,7 +70,7 @@ public class BatchModeExecutionContext extends BaseExecutionContext {
   /**
    * Returns the key of the work currently being processed.
    *
-   * <p> If there is not a currently defined key, returns null.
+   * <p>If there is not a currently defined key, returns null.
    */
   public Object getKey() {
     return key;

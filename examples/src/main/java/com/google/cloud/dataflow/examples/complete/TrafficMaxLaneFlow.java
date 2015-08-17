@@ -62,13 +62,13 @@ import java.util.List;
  * <p>Concepts: The batch and streaming runners, sliding windows, Google Cloud Pub/Sub
  * topic injection, use of the AvroCoder to encode a custom class, and custom Combine transforms.
  *
- * <p> This example analyzes traffic sensor data using SlidingWindows. For each window,
+ * <p>This example analyzes traffic sensor data using SlidingWindows. For each window,
  * it finds the lane that had the highest flow recorded, for each sensor station. It writes
  * those max values along with auxiliary info to a BigQuery table.
  *
- * <p> In batch mode, the pipeline reads traffic sensor data from {@literal --inputFile}.
+ * <p>In batch mode, the pipeline reads traffic sensor data from {@literal --inputFile}.
  *
- * <p> In streaming mode, the pipeline reads the data from a Pub/Sub topic.
+ * <p>In streaming mode, the pipeline reads the data from a Pub/Sub topic.
  * By default, the example will run a separate pipeline to inject the data from the default
  * {@literal --inputFile} to the Pub/Sub {@literal --pubsubTopic}. It will make it available for
  * the streaming pipeline to process. You may override the default {@literal --inputFile} with the
@@ -78,13 +78,13 @@ import java.util.List;
  * is provided in
  * <a href="https://github.com/GoogleCloudPlatform/cloud-pubsub-samples-python/tree/master/gce-cmdline-publisher"></a>.
  *
- * <p> The example is configured to use the default Pub/Sub topic and the default BigQuery table
+ * <p>The example is configured to use the default Pub/Sub topic and the default BigQuery table
  * from the example common package (there are no defaults for a general Dataflow pipeline).
  * You can override them by using the {@literal --pubsubTopic}, {@literal --bigQueryDataset}, and
  * {@literal --bigQueryTable} options. If the Pub/Sub topic or the BigQuery table do not exist,
  * the example will try to create them.
  *
- * <p> The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
+ * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
  * and then exits.
  */
 public class TrafficMaxLaneFlow {
@@ -300,8 +300,8 @@ public class TrafficMaxLaneFlow {
 
   /**
     * Options supported by {@link TrafficMaxLaneFlow}.
-    * <p>
-    * Inherits standard configuration options.
+    *
+    * <p>Inherits standard configuration options.
     */
   private interface TrafficMaxLaneFlowOptions
       extends DataflowExampleOptions, ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {

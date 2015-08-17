@@ -30,16 +30,16 @@ import com.google.cloud.dataflow.sdk.values.KV;
 /**
  * An example that counts words in Shakespeare.
  *
- * <p> This class, {@link MinimalWordCount}, is the first in a series of four successively more
+ * <p>This class, {@link MinimalWordCount}, is the first in a series of four successively more
  * detailed 'word count' examples. Here, for simplicity, we don't show any error-checking or
  * argument processing, and focus on construction of the pipeline, which chains together the
  * application of core transforms.
  *
- * <p> Next, see the {@link WordCount} pipeline, then the {@link DebuggingWordCount}, and finally
+ * <p>Next, see the {@link WordCount} pipeline, then the {@link DebuggingWordCount}, and finally
  * the {@link WindowedWordCount} pipeline, for more detailed examples that introduce additional
  * concepts.
  *
- * <p> Concepts:
+ * <p>Concepts:
  * <pre>
  *   1. Reading data from text files
  *   2. Specifying 'inline' transforms
@@ -47,10 +47,10 @@ import com.google.cloud.dataflow.sdk.values.KV;
  *   4. Writing data to Cloud Storage as text files
  * </pre>
  *
- * <p> To execute this pipeline, first edit the code to set your project ID, the staging
+ * <p>To execute this pipeline, first edit the code to set your project ID, the staging
  * location, and the output location. The specified GCS bucket(s) must already exist.
  *
- * <p> Then, run the pipeline as described in the README. It will be deployed and run using the
+ * <p>Then, run the pipeline as described in the README. It will be deployed and run using the
  * Dataflow service. No args are required to run the pipeline. You can see the results in your
  * output bucket in the GCS browser.
  */

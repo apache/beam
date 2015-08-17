@@ -71,25 +71,25 @@ import java.util.NoSuchElementException;
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a>
  * entities.
  *
- * <p> The {@link DatastoreIO} class provides an API to Read and Write a
+ * <p>The {@link DatastoreIO} class provides an API to Read and Write a
  * {@link PCollection} of Datastore Entity.  This API currently requires an
  * authentication workaround described below.
  *
- * <p> Datastore is a fully managed NoSQL data storage service.
+ * <p>Datastore is a fully managed NoSQL data storage service.
  * An Entity is an object in Datastore, analogous to a row in traditional
  * database table.  DatastoreIO supports Read/Write from/to Datastore within
  * Dataflow SDK service.
  *
- * <p> To use {@link DatastoreIO}, users must use gcloud to get credential for Datastore:
+ * <p>To use {@link DatastoreIO}, users must use gcloud to get credential for Datastore:
  * <pre>
   * $ gcloud auth login
  * </pre>
  *
- * <p> Note that the environment variable CLOUDSDK_EXTRA_SCOPES must be set
+ * <p>Note that the environment variable CLOUDSDK_EXTRA_SCOPES must be set
  * to the same value when executing a Datastore pipeline, as the local auth
  * cache is keyed by the requested scopes.
  *
- * <p> To read a {@link PCollection} from a query to Datastore, use
+ * <p>To read a {@link PCollection} from a query to Datastore, use
  * {@link DatastoreIO#read} and its methods {#link DatastoreIO.Read#withDataset}
  * and {#link DatastoreIO.Read#withQuery} to specify dataset to read, the query
  * to read from, and optionally {@link DatastoreIO.Source#withHost} to specify
@@ -109,7 +109,7 @@ import java.util.NoSuchElementException;
  * p.run();
  * } </pre>
  *
- * <p> or:
+ * <p>or:
  *
  * <pre> {@code
  * // Read a query from Datastore
@@ -669,7 +669,7 @@ public class DatastoreIO {
   /**
    * A {@link Source.Reader} over the records from a query of the datastore.
 
-   * <p> Timestamped records are currently not supported.
+   * <p>Timestamped records are currently not supported.
    * All records implicitly have the timestamp of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
    */
   public static class DatastoreReader extends BoundedSource.BoundedReader<Entity> {
@@ -698,7 +698,7 @@ public class DatastoreIO {
     /**
      * Maximum number of results to request per query.
      *
-     * <p> Must be set, or it may result in an I/O error when querying
+     * <p>Must be set, or it may result in an I/O error when querying
      * Cloud Datastore.
      */
     private static final int QUERY_LIMIT = 500;

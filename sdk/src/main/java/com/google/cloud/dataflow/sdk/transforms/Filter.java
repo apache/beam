@@ -35,14 +35,14 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * elements that satisfy the given predicate.  The predicate must be
    * a {@code SerializableFunction<T, Boolean>}.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<String> wordList = ...;
    * PCollection<String> longWords =
    *     wordList.apply(Filter.by(new MatchIfWordLengthGT(6)));
    * } </pre>
    *
-   * <p> See also {@link #lessThan}, {@link #lessThanEq},
+   * <p>See also {@link #lessThan}, {@link #lessThanEq},
    * {@link #greaterThan}, {@link #greaterThanEq}, which return elements
    * satisfying various inequalities with the specified value based on
    * the elements' natural ordering.
@@ -65,19 +65,19 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * elements that are less than a given value, based on the
    * elements' natural ordering. Elements must be {@code Comparable}.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<Integer> listOfNumbers = ...;
    * PCollection<Integer> smallNumbers =
    *     listOfNumbers.apply(Filter.lessThan(10));
    * } </pre>
    *
-   * <p> See also {@link #lessThanEq}, {@link #greaterThanEq},
+   * <p>See also {@link #lessThanEq}, {@link #greaterThanEq},
    * and {@link #greaterThan}, which return elements satisfying various
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *
-   * <p> See also {@link #by}, which returns elements
+   * <p>See also {@link #by}, which returns elements
    * that satisfy the given predicate.
    */
   public static <T extends Comparable<T>>
@@ -98,19 +98,19 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * elements that are greater than a given value, based on the
    * elements' natural ordering. Elements must be {@code Comparable}.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<Integer> listOfNumbers = ...;
    * PCollection<Integer> largeNumbers =
    *     listOfNumbers.apply(Filter.greaterThan(1000));
    * } </pre>
    *
-   * <p> See also {@link #greaterThanEq}, {@link #lessThan},
+   * <p>See also {@link #greaterThanEq}, {@link #lessThan},
    * and {@link #lessThanEq}, which return elements satisfying various
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *
-   * <p> See also {@link #by}, which returns elements
+   * <p>See also {@link #by}, which returns elements
    * that satisfy the given predicate.
    */
   public static <T extends Comparable<T>>
@@ -131,19 +131,19 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * elements that are less than or equal to a given value, based on the
    * elements' natural ordering. Elements must be {@code Comparable}.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<Integer> listOfNumbers = ...;
    * PCollection<Integer> smallOrEqualNumbers =
    *     listOfNumbers.apply(Filter.lessThanEq(10));
    * } </pre>
    *
-   * <p> See also {@link #lessThan}, {@link #greaterThanEq},
+   * <p>See also {@link #lessThan}, {@link #greaterThanEq},
    * and {@link #greaterThan}, which return elements satisfying various
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *
-   * <p> See also {@link #by}, which returns elements
+   * <p>See also {@link #by}, which returns elements
    * that satisfy the given predicate.
    */
   public static <T extends Comparable<T>>
@@ -164,19 +164,19 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * elements that are greater than or equal to a given value, based on
    * the elements' natural ordering. Elements must be {@code Comparable}.
    *
-   * <p> Example of use:
+   * <p>Example of use:
    * <pre> {@code
    * PCollection<Integer> listOfNumbers = ...;
    * PCollection<Integer> largeOrEqualNumbers =
    *     listOfNumbers.apply(Filter.greaterThanEq(1000));
    * } </pre>
    *
-   * <p> See also {@link #greaterThan}, {@link #lessThan},
+   * <p>See also {@link #greaterThan}, {@link #lessThan},
    * and {@link #lessThanEq}, which return elements satisfying various
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *
-   * <p> See also {@link #by}, which returns elements
+   * <p>See also {@link #by}, which returns elements
    * that satisfy the given predicate.
    */
   public static <T extends Comparable<T>>

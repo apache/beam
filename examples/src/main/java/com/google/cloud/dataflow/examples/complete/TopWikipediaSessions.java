@@ -49,12 +49,12 @@ import java.util.List;
  * An example that reads Wikipedia edit data from Cloud Storage and computes the user with
  * the longest string of edits separated by no more than an hour within each month.
  *
- * <p> Concepts: Using Windowing to perform time-based aggregations of data.
+ * <p>Concepts: Using Windowing to perform time-based aggregations of data.
  *
- * <p> It is not recommended to execute this pipeline locally, given the size of the default input
+ * <p>It is not recommended to execute this pipeline locally, given the size of the default input
  * data.
  *
- * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
@@ -66,10 +66,10 @@ import java.util.List;
  *   --output=gs://YOUR_OUTPUT_PREFIX
  * }</pre>
  *
- * <p> The default input is {@code gs://dataflow-samples/wikipedia_edits/*.json} and can be
+ * <p>The default input is {@code gs://dataflow-samples/wikipedia_edits/*.json} and can be
  * overridden with {@code --input}.
  *
- * <p> The input for this example is large enough that it's a good place to enable (experimental)
+ * <p>The input for this example is large enough that it's a good place to enable (experimental)
  * autoscaling:
  * <pre>{@code
  *   --autoscalingAlgorithm=BASIC
@@ -203,7 +203,7 @@ public class TopWikipediaSessions {
   /**
    * Options supported by this class.
    *
-   * <p> Inherits standard Dataflow configuration options.
+   * <p>Inherits standard Dataflow configuration options.
    */
   private static interface Options extends PipelineOptions {
     @Description(

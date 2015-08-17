@@ -40,13 +40,13 @@ import java.util.List;
  * An example that reads the public samples of weather data from BigQuery, and finds
  * the maximum temperature ('mean_temp') for each month.
  *
- * <p> Concepts: The 'Max' statistical combination function, and how to find the max per
+ * <p>Concepts: The 'Max' statistical combination function, and how to find the max per
  * key group.
  *
- * <p> Note: Before running this example, you must create a BigQuery dataset to contain your output
+ * <p>Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
  *
- * <p> To execute this pipeline locally, specify general pipeline configuration:
+ * <p>To execute this pipeline locally, specify general pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  * }
@@ -56,7 +56,7 @@ import java.util.List;
  *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  * }</pre>
  *
- * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
@@ -68,7 +68,7 @@ import java.util.List;
  *   --output=YOUR_PROJECT_ID:DATASET_ID.TABLE_ID
  * }</pre>
  *
- * <p> The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations }
+ * <p>The BigQuery input table defaults to {@code clouddataflow-readonly:samples.weather_stations }
  * and can be overridden with {@code --input}.
  */
 public class MaxPerKeyExamples {
@@ -137,8 +137,8 @@ public class MaxPerKeyExamples {
 
   /**
    * Options supported by {@link MaxPerKeyExamples}.
-   * <p>
-   * Inherits standard configuration options.
+   *
+   * <p>Inherits standard configuration options.
    */
   private static interface Options extends PipelineOptions {
     @Description("Table to read from, specified as "

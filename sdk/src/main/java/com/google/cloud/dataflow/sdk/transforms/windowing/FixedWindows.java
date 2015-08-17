@@ -24,7 +24,7 @@ import org.joda.time.Instant;
 /**
  * A {@link WindowFn} that windows values into fixed-size timestamp-based windows.
  *
- * <p> For example, in order to partition the data into 10 minute windows:
+ * <p>For example, in order to partition the data into 10 minute windows:
  * <pre> {@code
  * PCollection<Integer> items = ...;
  * PCollection<Integer> windowedItems = items.apply(

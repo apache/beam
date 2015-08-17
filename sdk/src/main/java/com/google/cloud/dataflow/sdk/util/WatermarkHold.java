@@ -70,7 +70,7 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
   /**
    * Get information from the watermark hold for outputting.
    *
-   * <p> The output timestamp is the minimum of getOutputTimestamp applied to the non-late elements
+   * <p>The output timestamp is the minimum of getOutputTimestamp applied to the non-late elements
    * that arrived in the current pane.
    */
   public StateContents<Instant> extractAndRelease(final ReduceFn<?, ?, ?, W>.Context c) {

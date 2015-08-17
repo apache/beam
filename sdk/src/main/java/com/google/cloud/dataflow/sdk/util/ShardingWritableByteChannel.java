@@ -24,10 +24,10 @@ import java.util.ArrayList;
 /**
  * Implements a WritableByteChannel that may contain multiple output shards.
  *
- * <p> This provides {@link #writeToShard}, which takes a shard number for
+ * <p>This provides {@link #writeToShard}, which takes a shard number for
  * writing to a particular shard.
  *
- * <p> The channel is considered open if all downstream channels are open, and
+ * <p>The channel is considered open if all downstream channels are open, and
  * closes all downstream channels when closed.
  */
 public class ShardingWritableByteChannel implements WritableByteChannel {
@@ -64,7 +64,7 @@ public class ShardingWritableByteChannel implements WritableByteChannel {
   /**
    * Writes the buffer to the given shard.
    *
-   * <p> This does not change the current output shard.
+   * <p>This does not change the current output shard.
    *
    * @return The total number of bytes written.  If the shard number is
    * {@link #ALL_SHARDS}, then the total is the sum of each individual shard
@@ -91,7 +91,7 @@ public class ShardingWritableByteChannel implements WritableByteChannel {
   /**
    * Writes a buffer to all shards.
    *
-   * <p> Same as calling {@code writeToShard(ALL_SHARDS, buf)}.
+   * <p>Same as calling {@code writeToShard(ALL_SHARDS, buf)}.
    */
   @Override
   public int write(ByteBuffer src) throws IOException {

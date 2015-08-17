@@ -53,7 +53,7 @@ import javax.servlet.http.HttpServletResponse;
  * The utility class that sets up and tears down external resources, starts the Google Cloud Pub/Sub
  * injector, and cancels the streaming and the injector pipelines once the program terminates.
  *
- * <p> It is used to run Dataflow examples, such as TrafficMaxLaneFlow and TrafficRoutes.
+ * <p>It is used to run Dataflow examples, such as TrafficMaxLaneFlow and TrafficRoutes.
  */
 public class DataflowExampleUtils {
 
@@ -109,7 +109,7 @@ public class DataflowExampleUtils {
   /**
    * Sets up the Google Cloud Pub/Sub topic.
    *
-   * <p> If the topic doesn't exist, a new topic with the given name will be created.
+   * <p>If the topic doesn't exist, a new topic with the given name will be created.
    *
    * @throws IOException if there is a problem setting up the Pub/Sub topic
    */
@@ -126,7 +126,7 @@ public class DataflowExampleUtils {
   /**
    * Sets up the BigQuery table with the given schema.
    *
-   * <p> If the table already exists, the schema has to match the given one. Otherwise, the example
+   * <p>If the table already exists, the schema has to match the given one. Otherwise, the example
    * will throw a RuntimeException. If the table doesn't exist, a new table with the given schema
    * will be created.
    *
@@ -266,7 +266,7 @@ public class DataflowExampleUtils {
   /**
    * Runs the batch injector for the streaming pipeline.
    *
-   * <p> The injector pipeline will read from the given text file, and inject data
+   * <p>The injector pipeline will read from the given text file, and inject data
    * into the Google Cloud Pub/Sub topic.
    */
   public void runInjectorPipeline(String inputFile, String topic) {

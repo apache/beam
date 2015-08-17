@@ -33,7 +33,7 @@ public interface PValue extends POutput, PInput {
    * Returns the {@code AppliedPTransform} that this {@code POutputValueBase}
    * is an output of.
    *
-   * <p> For internal use only.
+   * <p>For internal use only.
    */
   public AppliedPTransform<?, ?, ?> getProducingTransformInternal();
 }

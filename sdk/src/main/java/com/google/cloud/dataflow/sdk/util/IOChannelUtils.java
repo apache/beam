@@ -46,10 +46,10 @@ public class IOChannelUtils {
   /**
    * Associates a scheme with an {@link IOChannelFactory}.
    *
-   * <p> The given factory is used to construct read and write channels when
+   * <p>The given factory is used to construct read and write channels when
    * a URI is provided with the given scheme.
    *
-   * <p> For example, when reading from "gs://bucket/path", the scheme "gs" is
+   * <p>For example, when reading from "gs://bucket/path", the scheme "gs" is
    * used to lookup the appropriate factory.
    */
   public static void setIOFactory(String scheme, IOChannelFactory factory) {
@@ -75,10 +75,10 @@ public class IOChannelUtils {
   /**
    * Creates a write channel for the given file components.
    *
-   * <p> If numShards is specified, then a ShardingWritableByteChannel is
+   * <p>If numShards is specified, then a ShardingWritableByteChannel is
    * returned.
    *
-   * <p> Shard numbers are 0 based, meaning they start with 0 and end at the
+   * <p>Shard numbers are 0 based, meaning they start with 0 and end at the
    * number of shards - 1.
    */
   public static WritableByteChannel create(String prefix, String shardTemplate,
@@ -122,16 +122,16 @@ public class IOChannelUtils {
   /**
    * Constructs a fully qualified name from components.
    *
-   * <p> The name is built from a prefix, shard template (with shard numbers
+   * <p>The name is built from a prefix, shard template (with shard numbers
    * applied), and a suffix.  All components are required, but may be empty
    * strings.
    *
-   * <p> Within a shard template, repeating sequences of the letters "S" or "N"
+   * <p>Within a shard template, repeating sequences of the letters "S" or "N"
    * are replaced with the shard number, or number of shards respectively.  The
    * numbers are formatted with leading zeros to match the length of the
    * repeated sequence of letters.
    *
-   * <p> For example, if prefix = "output", shardTemplate = "-SSS-of-NNN", and
+   * <p>For example, if prefix = "output", shardTemplate = "-SSS-of-NNN", and
    * suffix = ".txt", with shardNum = 1 and numShards = 100, the following is
    * produced:  "output-001-of-100.txt".
    */
@@ -188,13 +188,13 @@ public class IOChannelUtils {
 
   /**
    * Resolve the given {@code other} against the {@code path}.
-   * <p>
-   * If the {@code other} parameter is an absolute path then this method trivially returns other.
-   * If {@code other} is an empty path then this method trivially returns the given {@code path}.
-   * Otherwise this method considers the given {@code path} to be a directory and resolves the
-   * {@code other} path against this path. In the simplest case, the {@code other} path does not
-   * have a root component, in which case this method joins the {@code other} path to the given
-   * {@code path} and returns a resulting path that ends with the {@code other} path.
+   *
+   * <p>If the {@code other} parameter is an absolute path then this method trivially returns
+   * other. If {@code other} is an empty path then this method trivially returns the given
+   * {@code path}. Otherwise this method considers the given {@code path} to be a directory and
+   * resolves the {@code other} path against this path. In the simplest case, the {@code other}
+   * path does not have a root component, in which case this method joins the {@code other} path
+   * to the given {@code path} and returns a resulting path that ends with the {@code other} path.
    * Where the {@code other} path has a root component then resolution is highly implementation
    * dependent and therefore unspecified.
    */

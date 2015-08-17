@@ -26,7 +26,7 @@ import java.util.Objects;
 /**
  * Encapsulate interaction with time within the execution environment.
  *
- * <p> This class allows setting and deleting timers, and also retrieving an
+ * <p>This class allows setting and deleting timers, and also retrieving an
  * estimate of the current time.
  */
 public interface TimerInternals {
@@ -35,7 +35,7 @@ public interface TimerInternals {
    * Writes out a timer to be fired when the watermark reaches the given
    * timestamp.
    *
-   * <p> The combination of {@code namespace}, {@code timestamp} and {@code domain} uniquely
+   * <p>The combination of {@code namespace}, {@code timestamp} and {@code domain} uniquely
    * identify a timer. Multiple timers set for the same parameters can be safely deduplicated.
    */
   void setTimer(TimerData timerKey);

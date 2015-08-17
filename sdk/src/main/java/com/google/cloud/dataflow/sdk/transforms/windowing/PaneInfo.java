@@ -34,7 +34,7 @@ import java.util.Objects;
  * Provides information about the pane this value belongs to. Every pane is implicitly associated
  * with a window.
  *
- * <p> Note: This does not uniquely identify a pane, and should not be used for comparisons.
+ * <p>Note: This does not uniquely identify a pane, and should not be used for comparisons.
  */
 public final class PaneInfo {
 
@@ -174,7 +174,7 @@ public final class PaneInfo {
    * The zero-based index of this trigger firing that produced this pane. i.e.
    * 0 for the first time the timer fires, 1 for the next time, etc.
    *
-   * <p> A given (key, window, pane-index) is guaranteed to be unique in the
+   * <p>A given (key, window, pane-index) is guaranteed to be unique in the
    * output of a group-by-key operation.
    */
   public long getIndex() {
@@ -185,7 +185,7 @@ public final class PaneInfo {
    * The zero-based index of this trigger firing among non-speculative panes, i.e.
    * 0 for the first non-{@link Timing#EARLY} timer firing, 1 for the next one, etc.
    *
-   * <p> Always -1 for speculative data.
+   * <p>Always -1 for speculative data.
    */
   public long getNonSpeculativeIndex() {
     return nonSpeculativeIndex;

@@ -39,16 +39,16 @@ import java.util.regex.Pattern;
 /**
  * An example that verifies word counts in Shakespeare and includes Dataflow best practices.
  *
- * <p> This class, {@link DebuggingWordCount}, is the third in a series of four successively more
+ * <p>This class, {@link DebuggingWordCount}, is the third in a series of four successively more
  * detailed 'word count' examples. You may first want to take a look at {@link MinimalWordCount}
  * and {@link WordCount}. After you've looked at this example, then see the
  * {@link WindowedWordCount} pipeline, for introduction of additional concepts.
  *
- * <p> Basic concepts, also in the MinimalWordCount and WordCount examples:
+ * <p>Basic concepts, also in the MinimalWordCount and WordCount examples:
  * Reading text files; counting a PCollection; executing a Pipeline both locally
  * and using the Dataflow service; defining DoFns.
  *
- * <p> New Concepts:
+ * <p>New Concepts:
  * <pre>
  *   1. Logging to Cloud Logging
  *   2. Controlling Dataflow worker log levels
@@ -56,13 +56,13 @@ import java.util.regex.Pattern;
  *   4. Testing your Pipeline via DataflowAssert
  * </pre>
  *
- * <p> To execute this pipeline locally, specify general pipeline configuration:
+ * <p>To execute this pipeline locally, specify general pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  * }
  * </pre>
  *
- * <p> To execute this pipeline using the Dataflow service and the additional logging discussed
+ * <p>To execute this pipeline using the Dataflow service and the additional logging discussed
  * below, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
@@ -72,7 +72,7 @@ import java.util.regex.Pattern;
  * }
  * </pre>
  *
- * <p> Note that when you run via <code>mvn exec</code>, you may need to escape
+ * <p>Note that when you run via <code>mvn exec</code>, you may need to escape
  * the quotations as appropriate for your shell. For example, in <code>bash</code>:
  * <pre>
  * mvn compile exec:java ... \
@@ -80,7 +80,7 @@ import java.util.regex.Pattern;
  *     --workerLogLevelOverrides={\\\"com.google.cloud.dataflow.examples\\\":\\\"DEBUG\\\"}"
  * </pre>
  *
- * <p> Concept #2: Dataflow workers which execute user code are configured to log to Cloud
+ * <p>Concept #2: Dataflow workers which execute user code are configured to log to Cloud
  * Logging by default at "INFO" log level and higher. One may override log levels for specific
  * logging namespaces by specifying:
  * <pre><code>
@@ -100,7 +100,7 @@ import java.util.regex.Pattern;
  * that changing the default worker log level to TRACE or DEBUG will significantly increase
  * the amount of logs output.
  *
- * <p> The input file defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt} and can be
+ * <p>The input file defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt} and can be
  * overridden with {@code --inputFile}.
  */
 public class DebuggingWordCount {
@@ -167,7 +167,7 @@ public class DebuggingWordCount {
      * to validate the contents of PCollections. DataflowAssert is best used in unit tests
      * with small data sets but is demonstrated here as a teaching tool.
      *
-     * <p> Below we verify that the set of filtered words matches our expected counts. Note
+     * <p>Below we verify that the set of filtered words matches our expected counts. Note
      * that DataflowAssert does not provide any output and that successful completion of the
      * Pipeline implies that the expectations were met. Learn more at
      * https://cloud.google.com/dataflow/pipelines/testing-your-pipeline on how to test

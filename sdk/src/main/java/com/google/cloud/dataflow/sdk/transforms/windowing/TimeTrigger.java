@@ -96,7 +96,7 @@ public abstract class TimeTrigger<W extends BoundedWindow> extends OnceTrigger<W
    * Aligns timestamps to the smallest multiple of {@code size} since the {@code offset} greater
    * than the timestamp.
    *
-   * <p> TODO: Consider sharing this with FixedWindows, and bring over the equivalent of
+   * <p>TODO: Consider sharing this with FixedWindows, and bring over the equivalent of
    * CalendarWindows.
    */
   public TimeTrigger<W> alignedTo(final Duration size, final Instant offset) {

@@ -38,7 +38,7 @@ import java.util.Arrays;
  * A batch Dataflow pipeline for injecting a set of GCS files into
  * a PubSub topic line by line. Empty lines are skipped.
  *
- * <p> This is useful for testing streaming
+ * <p>This is useful for testing streaming
  * pipelines. Note that since batch pipelines might retry chunks, this
  * does _not_ guarantee exactly-once injection of file data. Some lines may
  * be published multiple times.

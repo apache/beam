@@ -39,11 +39,11 @@ import java.util.Iterator;
  * A creator of test pipelines that can be used inside of tests that can be
  * configured to run locally or against the live service.
  *
- * <p> It is recommended to tag hand-selected tests for this purpose using the
+ * <p>It is recommended to tag hand-selected tests for this purpose using the
  * RunnableOnService Category annotation, as each test run against the service
  * will spin up and tear down a single VM.
  *
- * <p> In order to run tests on the dataflow pipeline service, the following
+ * <p>In order to run tests on the dataflow pipeline service, the following
  * conditions must be met:
  * <ul>
  * <li> runIntegrationTestOnService System property must be set to true.
@@ -52,7 +52,7 @@ import java.util.Iterator;
  * <li> Jars containing the SDK and test classes must be added to the test classpath.
  * </ul>
  *
- * <p> Use {@link DataflowAssert} for tests, as it integrates with this test
+ * <p>Use {@link DataflowAssert} for tests, as it integrates with this test
  * harness in both direct and remote execution modes.  For example:
  *
  * <pre>{@code
@@ -73,7 +73,7 @@ public class TestPipeline extends Pipeline {
   /**
    * Creates and returns a new test pipeline.
    *
-   * <p> Use {@link DataflowAssert} to add tests, then call
+   * <p>Use {@link DataflowAssert} to add tests, then call
    * {@link Pipeline#run} to execute the pipeline and check the tests.
    */
   public static TestPipeline create() {
