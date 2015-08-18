@@ -90,7 +90,7 @@ public interface ExecutionContext {
     void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output);
 
     /**
-     * Writes the given {@link PCollectionView} data to a globally accessible location.
+     * Writes the given {@code PCollectionView} data to a globally accessible location.
      */
     <T, W extends BoundedWindow> void writePCollectionViewData(
         TupleTag<?> tag,

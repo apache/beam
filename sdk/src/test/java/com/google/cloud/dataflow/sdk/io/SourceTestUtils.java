@@ -37,11 +37,11 @@ import java.util.List;
 public class SourceTestUtils {
   /**
    * Testing utilities below depend on standard assertions and matchers to compare elements read by
-   * sources. In general the elements may not implement {@link equals}/{@link hashCode} properly,
+   * sources. In general the elements may not implement {@link #equals}/{@link #hashCode} properly,
    * however every source has a {@link Coder} and every {@code Coder} can
-   * produce a {@link Coder#structuralValue()} whose {@code equals}/{@code hashCode} is
+   * produce a {@link Coder#structuralValue} whose {@code equals}/{@code hashCode} is
    * consistent with equality of encoded format.
-   * So we use this {@link Coder#structuralValue()} to compare elements read by sources.
+   * So we use this {@link Coder#structuralValue} to compare elements read by sources.
    */
   private static <T> List<Object> createStructuralValues(Coder<T> coder, List<T> list)
       throws Exception {

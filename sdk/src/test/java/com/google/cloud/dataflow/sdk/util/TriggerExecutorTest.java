@@ -65,7 +65,7 @@ import org.mockito.stubbing.Answer;
 import java.util.List;
 
 /**
- * Tests for {@link TriggerExecutor}.
+ * Tests for Trigger execution.
  */
 @RunWith(JUnit4.class)
 public class TriggerExecutorTest {

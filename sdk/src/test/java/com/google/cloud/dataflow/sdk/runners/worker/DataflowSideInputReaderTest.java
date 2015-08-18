@@ -55,7 +55,7 @@ public class DataflowSideInputReaderTest {
   /**
    * The size, in bytes, of a {@code long} placed in
    * {@link PCollectionViewTesting#DEFAULT_NONEMPTY_WINDOW}. This is the size of each of the
-   * elements of each {@link PCollection} created in the following tests.
+   * elements of each {@code PCollection} created in the following tests.
    *
    * <p>This value is arbitrary from the point of view of these tests.
    * The correctness of {@link DataflowSideInputReader} does not depend on this value,
@@ -73,8 +73,8 @@ public class DataflowSideInputReaderTest {
    * Creates a {@link Source} descriptor for reading the provided contents as a side input.
    * The contents will all be placed in the {@link PCollectionViewTesting#DEFAULT_NONEMPTY_WINDOW}.
    *
-   * <p>If the {@link PCollectionView} has an incompatible {@link Coder} or
-   * {@link WindowingStrategy}, then results are unpredictable.
+   * <p>If the {@code PCollectionView} has an incompatible {@code Coder} or
+   * {@code WindowingStrategy}, then results are unpredictable.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
   private <T> Source sourceInDefaultWindow(PCollectionView<T> view, T... values)

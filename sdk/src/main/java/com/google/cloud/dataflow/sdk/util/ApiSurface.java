@@ -160,7 +160,7 @@ public class ApiSurface {
   }
 
   /**
-   * See {@link #pruningPattern(Pattern).
+   * See {@link #pruningPattern(Pattern)}.
    */
   public ApiSurface pruningPattern(String patternString) {
     return pruningPattern(Pattern.compile(patternString));

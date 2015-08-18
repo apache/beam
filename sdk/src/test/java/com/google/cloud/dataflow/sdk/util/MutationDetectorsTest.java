@@ -59,7 +59,7 @@ public class MutationDetectorsTest {
 
   /**
    * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on a
-   * {@link LinkedList} that will clone as an {@link ArrayList}.
+   * {@link LinkedList} that will clone as an {@code ArrayList}.
    */
   @Test
   public void testUnmodifiedLinkedList() throws Exception {

@@ -80,7 +80,7 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
   /**
    * Extracts a length-prefix-encoded byte array from a given InputStream.
    *
-   * @param input stream to read from
+   * @param dataInputStream stream to read from
    * @return parsed byte array
    */
   static byte[] getFixedLengthPrefixedByteArray(DataInputStream dataInputStream)

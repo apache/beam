@@ -43,9 +43,10 @@ public class SideInputUtils {
 
   /**
    * Reads the given side input, producing the contents associated
-   * with a a {@link PCollectionView}.
+   * with a {@code PCollectionView}.
    *
    * @throws Exception anything thrown by the delegate {@link Reader}
+   * @see com.google.cloud.dataflow.sdk.values.PCollectionView
    */
   public static Object readSideInput(
       PipelineOptions options,

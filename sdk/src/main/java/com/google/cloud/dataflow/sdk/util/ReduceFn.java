@@ -182,7 +182,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   public abstract void onTrigger(OnTriggerContext c) throws Exception;
 
   /**
-   * Called before {@link onTrigger} is invoked to provide an opportunity to prefetch any needed
+   * Called before {@link #onTrigger} is invoked to provide an opportunity to prefetch any needed
    * state.
    *
    * @param c Context to use prefetch from.

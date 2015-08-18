@@ -20,7 +20,7 @@ package com.google.cloud.dataflow.sdk.util.common.worker;
  * Interface for functions invocable by {@link ParDoOperation} instances.
  *
  * <p>To easily create a {@link ParDoFn} implementation with default setup, processing,
- * and teardown, extend {@link ParDoFnBase}.
+ * and teardown, extend {@code ParDoFnBase}.
  */
 public interface ParDoFn {
   public void startBundle(Receiver... receivers) throws Exception;
