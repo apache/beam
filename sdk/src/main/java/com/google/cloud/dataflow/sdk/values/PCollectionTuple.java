@@ -221,7 +221,7 @@ public class PCollectionTuple implements PInput, POutput {
 
       pcollectionMap.put(outputTag, outputCollection);
     }
-    return new PCollectionTuple(null, pcollectionMap);
+    return new PCollectionTuple(pipeline, pcollectionMap);
   }
 
   @Override
