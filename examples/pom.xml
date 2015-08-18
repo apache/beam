@@ -50,6 +50,17 @@
   </profiles>
 
   <build>
+    <resources>
+      <resource>
+        <directory>../eclipse</directory>
+        <includes>
+          <!-- source for the starter pipeline -->
+          <include>starter/**/*.java</include>
+          <include>starter/**/pom.xml</include>
+        </includes>
+      </resource>
+    </resources>
+
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -76,6 +87,7 @@
           <consoleOutput>true</consoleOutput>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
+          <includeResources>false</includeResources>
         </configuration>
         <executions>
           <execution>
