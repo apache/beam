@@ -1126,7 +1126,7 @@ public class ParDo {
             outputManager,
             mainOutputTag,
             sideOutputTags,
-            executionContext.getStepContext(stepName, stepName),
+            executionContext.getOrCreateStepContext(stepName, stepName, null),
             context.getAddCounterMutator(),
             input.getWindowingStrategy());
 

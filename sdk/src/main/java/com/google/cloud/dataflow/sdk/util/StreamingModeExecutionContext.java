@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.DataflowExecutionContext;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.StateFetcher.SideInputState;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.util.state.WindmillStateInternals;
 import com.google.cloud.dataflow.sdk.util.state.WindmillStateReader;
@@ -87,8 +88,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   }
 
   @Override
-  public ExecutionContext.StepContext createStepContext(String stepName, String transformName) {
-    StepContext context = new StepContext(stepName, transformName);
+  public ExecutionContext.StepContext createStepContext(
+      String stepName, String transformName, StateSampler stateSampler) {
+    StepContext context = new StepContext(stepName, transformName, stateSampler);
     context.start(stateReader, inputDataWatermark);
     return context;
   }
@@ -304,26 +306,25 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     }
   }
 
-
   class StepContext extends BaseExecutionContext.StepContext {
     private WindmillStateInternals stateInternals;
     private WindmillTimerInternals timerInternals;
-    private String prefix;
-    private String stateFamily;
+    private final String prefix;
+    private final String stateFamily;
+    private final StateSampler stateSampler;
 
-    public StepContext(String stepName, String transformName) {
+    public StepContext(String stepName, String transformName, StateSampler stateSampler) {
       super(StreamingModeExecutionContext.this, stepName, transformName);
 
       if (stateNameMap.isEmpty()) {
         this.prefix = transformName;
         this.stateFamily = "";
       } else {
-        this.prefix = stateNameMap.get(transformName);
-        if (prefix == null) {
-          this.prefix = "";
-        }
+        String mappedName = stateNameMap.get(transformName);
+        this.prefix = mappedName == null ? "" : mappedName;
         this.stateFamily = prefix;
       }
+      this.stateSampler = stateSampler;
     }
 
     /**
@@ -331,7 +332,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
      */
     public void start(WindmillStateReader stateReader, Instant inputDataWatermark) {
       boolean useStateFamilies = !stateNameMap.isEmpty();
-      this.stateInternals = new WindmillStateInternals(prefix, useStateFamilies, stateReader);
+      this.stateInternals =
+          new WindmillStateInternals(
+              prefix, useStateFamilies, stateReader, stateSampler, getStepName());
       this.timerInternals = new WindmillTimerInternals(
           stateFamily, Preconditions.checkNotNull(inputDataWatermark));
     }
@@ -400,7 +403,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
         addBlockingSideInput(sideInput);
       }
     }
-
 
     @Override
     public StateInternals stateInternals() {

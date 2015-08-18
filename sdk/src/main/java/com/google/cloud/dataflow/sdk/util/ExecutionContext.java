@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
@@ -32,7 +33,8 @@ public interface ExecutionContext {
   /**
    * Returns the {@link StepContext} associated with the given step.
    */
-  StepContext getStepContext(String stepName, String transformName);
+  StepContext getOrCreateStepContext(
+      String stepName, String transformName, StateSampler stateSampler);
 
   /**
    * Returns a collection view of all of the {@link StepContext}s.

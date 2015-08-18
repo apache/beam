@@ -68,10 +68,11 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
       String stepName,
       String transformName,
       DataflowExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator)
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler)
       throws Exception {
     return new GroupAlsoByWindowsParDoFn(options, groupAlsoByWindowsDoFn, stepName, transformName,
-        executionContext, addCounterMutator);
+        executionContext, addCounterMutator, stateSampler);
   }
 
   /**
@@ -158,7 +159,8 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
           stepName,
           transformName,
           executionContext,
-          addCounterMutator);
+          addCounterMutator,
+          stateSampler);
     }
   }
 
@@ -173,7 +175,6 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
       WindowingStrategy windowingStrategy,
       KvCoder kvCoder,
       @Nullable AppliedCombineFn maybeMergingCombineFn) {
-
     if (isStreamingPipeline) {
       if (maybeMergingCombineFn == null) {
         return StreamingGroupAlsoByWindowsDoFn.createForIterable(
@@ -257,7 +258,8 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
       String stepName,
       String transformName,
       DataflowExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator) {
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler) {
     super(
         options,
         NullSideInputReader.empty(),
@@ -265,7 +267,8 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
         stepName,
         transformName,
         executionContext,
-        addCounterMutator);
+        addCounterMutator,
+        stateSampler);
     this.groupAlsoByWindowsDoFn = groupAlsoByWindowsDoFn;
   }
 }

@@ -56,7 +56,8 @@ class NormalParDoFn extends ParDoFnBase {
       String stepName,
       String transformName,
       DataflowExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator) {
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler) {
     return new NormalParDoFn(
         options,
         doFnInfo,
@@ -65,7 +66,8 @@ class NormalParDoFn extends ParDoFnBase {
         stepName,
         transformName,
         executionContext,
-        addCounterMutator);
+        addCounterMutator,
+        stateSampler);
   }
 
   /**
@@ -84,7 +86,7 @@ class NormalParDoFn extends ParDoFnBase {
         int numOutputs,
         DataflowExecutionContext executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
-        StateSampler stateSampler /* ignored */)
+        StateSampler stateSampler)
             throws Exception {
       Object deserializedFnInfo =
           SerializableUtils.deserializeFromByteArray(
@@ -141,7 +143,8 @@ class NormalParDoFn extends ParDoFnBase {
           stepName,
           transformName,
           executionContext,
-          addCounterMutator);
+          addCounterMutator,
+          stateSampler);
     }
   }
 
@@ -156,9 +159,10 @@ class NormalParDoFn extends ParDoFnBase {
       String stepName,
       String transformName,
       ExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator) {
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler) {
     super(options, sideInputReader, outputTags, stepName, transformName, executionContext,
-        addCounterMutator);
+        addCounterMutator, stateSampler);
     // The userDoFn is serialized because a fresh copy is provided each time it is accessed.
     this.serializedDoFn = SerializableUtils.serializeToByteArray(doFnInfo.getDoFn());
     this.doFnInfo = doFnInfo;

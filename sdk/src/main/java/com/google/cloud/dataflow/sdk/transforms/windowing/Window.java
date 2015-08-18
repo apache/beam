@@ -656,7 +656,7 @@ public class Window {
             new DoFnRunner.ListOutputManager(),
             outputTag,
             new ArrayList<TupleTag<?>>(),
-            executionContext.getStepContext(name, name),
+            executionContext.getOrCreateStepContext(name, name, null),
             context.getAddCounterMutator(),
             context.getOutput(transform).getWindowingStrategy());
 

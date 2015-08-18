@@ -18,7 +18,9 @@ package com.google.cloud.dataflow.sdk.util.state;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
@@ -39,45 +41,51 @@ import java.util.concurrent.TimeUnit;
  */
 public class WindmillStateInternals extends MergingStateInternals {
 
-  private final StateTable inMemoryState = new StateTable() {
-    @Override
-    protected StateBinder binderForNamespace(final StateNamespace namespace) {
-      return new StateBinder() {
+  private final StateTable inMemoryState =
+      new StateTable() {
         @Override
-        public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
-          return new WindmillBag<>(encodeKey(namespace, address), stateFamily, elemCoder, reader);
-        }
+        protected StateBinder binderForNamespace(final StateNamespace namespace) {
+          return new StateBinder() {
+            @Override
+            public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
+              return new WindmillBag<>(encodeKey(namespace, address), stateFamily, elemCoder,
+                  reader, scopedReadStateSupplier);
+            }
 
-        @Override
-        public <T> WatermarkStateInternal bindWatermark(
-            StateTag<WatermarkStateInternal> address) {
-          return new WindmillWatermarkState(encodeKey(namespace, address), stateFamily, reader);
-        }
+            @Override
+            public <T> WatermarkStateInternal bindWatermark(
+                StateTag<WatermarkStateInternal> address) {
+              return new WindmillWatermarkState(
+                  encodeKey(namespace, address), stateFamily, reader, scopedReadStateSupplier);
+            }
 
-        @Override
-        public <InputT, AccumT, OutputT>
-        CombiningValueStateInternal<InputT, AccumT, OutputT> bindCombiningValue(
-            StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
-            Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-          return new WindmillCombiningValue<>(
-              encodeKey(namespace, address), stateFamily, accumCoder, combineFn, reader);
-        }
+            @Override
+            public <InputT, AccumT, OutputT>
+                CombiningValueStateInternal<InputT, AccumT, OutputT> bindCombiningValue(
+                    StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
+                    Coder<AccumT> accumCoder,
+                    CombineFn<InputT, AccumT, OutputT> combineFn) {
+              return new WindmillCombiningValue<>(encodeKey(namespace, address), stateFamily,
+                  accumCoder, combineFn, reader, scopedReadStateSupplier);
+            }
 
-        @Override
-        public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
-          return new WindmillValue<>(encodeKey(namespace, address), stateFamily, coder, reader);
+            @Override
+            public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
+              return new WindmillValue<>(encodeKey(namespace, address), stateFamily, coder, reader,
+                  scopedReadStateSupplier);
+            }
+          };
         }
       };
-    }
-  };
 
   private final String prefix;
   private final String stateFamily;
   private final WindmillStateReader reader;
   private final boolean useStateFamilies;
+  private final Supplier<StateSampler.ScopedState> scopedReadStateSupplier;
 
   public WindmillStateInternals(String prefix, boolean useStateFamilies,
-      WindmillStateReader reader) {
+      WindmillStateReader reader, final StateSampler stateSampler, final String stepName) {
     this.prefix = prefix;
     if (useStateFamilies) {
       this.stateFamily = prefix;
@@ -86,6 +94,20 @@ public class WindmillStateInternals extends MergingStateInternals {
     }
     this.reader = reader;
     this.useStateFamilies = useStateFamilies;
+    this.scopedReadStateSupplier = new Supplier<StateSampler.ScopedState>() {
+      private int readState = -1;
+
+      @Override
+      public StateSampler.ScopedState get() {
+        if (stateSampler == null) {
+          return null;
+        }
+        if (readState == -1) {
+          readState = stateSampler.stateForName(stepName + "-windmill-read");
+        }
+        return stateSampler.scopedState(readState);
+      }
+    };
   }
 
   public void persist(final Windmill.WorkItemCommitRequest.Builder commitBuilder) {
@@ -143,17 +165,19 @@ public class WindmillStateInternals extends MergingStateInternals {
     private final String stateFamily;
     private final Coder<T> coder;
     private final WindmillStateReader reader;
+    private final Supplier<StateSampler.ScopedState> readStateSupplier;
 
     /** Whether we've modified the value since creation of this state. */
     private boolean modified = false;
     private T modifiedValue;
 
     private WindmillValue(ByteString stateKey, String stateFamily, Coder<T> coder,
-        WindmillStateReader reader) {
+        WindmillStateReader reader, Supplier<StateSampler.ScopedState> readStateSupplier) {
       this.stateKey = stateKey;
       this.stateFamily = stateFamily;
       this.coder = coder;
       this.reader = reader;
+      this.readStateSupplier = readStateSupplier;
     }
 
     @Override
@@ -169,7 +193,7 @@ public class WindmillStateInternals extends MergingStateInternals {
       return new StateContents<T>() {
         @Override
         public T read() {
-          try {
+          try (StateSampler.ScopedState scope = readStateSupplier.get()) {
             return modified ? modifiedValue : future.get();
           } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Unable to read value from state", e);
@@ -218,16 +242,18 @@ public class WindmillStateInternals extends MergingStateInternals {
     private final String stateFamily;
     private final Coder<T> elemCoder;
     private final WindmillStateReader reader;
+    private final Supplier<StateSampler.ScopedState> readStateSupplier;
 
     private boolean cleared = false;
     private final List<T> localAdditions = new ArrayList<>();
 
     private WindmillBag(ByteString stateKey, String stateFamily, Coder<T> elemCoder,
-        WindmillStateReader reader) {
+        WindmillStateReader reader, Supplier<StateSampler.ScopedState> readStateSupplier) {
       this.stateKey = stateKey;
       this.stateFamily = stateFamily;
       this.elemCoder = elemCoder;
       this.reader = reader;
+      this.readStateSupplier = readStateSupplier;
     }
 
     @Override
@@ -248,7 +274,7 @@ public class WindmillStateInternals extends MergingStateInternals {
       return new StateContents<Iterable<T>>() {
         @Override
         public Iterable<T> read() {
-          try {
+          try (StateSampler.ScopedState scope = readStateSupplier.get()) {
             // We need to check cleared again, because it may have become clear in between creating
             // the future and calling read.
             Iterable<T> input = cleared ? Collections.<T>emptyList() : persistedData.get();
@@ -272,7 +298,7 @@ public class WindmillStateInternals extends MergingStateInternals {
       return new StateContents<Boolean>() {
         @Override
         public Boolean read() {
-          try {
+          try (StateSampler.ScopedState scope = readStateSupplier.get()) {
             // We need to check cleared again, because it may have become clear in between creating
             // the future and calling read.
             Iterable<T> input = cleared ? Collections.<T>emptyList() : persistedData.get();
@@ -329,15 +355,17 @@ public class WindmillStateInternals extends MergingStateInternals {
     private final ByteString stateKey;
     private final String stateFamily;
     private final WindmillStateReader reader;
+    private final Supplier<StateSampler.ScopedState> readStateSupplier;
 
     private boolean cleared = false;
     private Instant localAdditions = null;
 
     private WindmillWatermarkState(ByteString stateKey, String stateFamily,
-        WindmillStateReader reader) {
+        WindmillStateReader reader, Supplier<StateSampler.ScopedState> readStateSupplier) {
       this.stateKey = stateKey;
       this.stateFamily = stateFamily;
       this.reader = reader;
+      this.readStateSupplier = readStateSupplier;
     }
 
     @Override
@@ -360,7 +388,7 @@ public class WindmillStateInternals extends MergingStateInternals {
         public Instant read() {
           Instant value = localAdditions;
           if (!cleared) {
-            try {
+          try (StateSampler.ScopedState scope = readStateSupplier.get()) {
               Instant persisted = persistedData.get();
               if (value == null || (persisted != null && persisted.isBefore(value))) {
                 value = persisted;
@@ -386,7 +414,7 @@ public class WindmillStateInternals extends MergingStateInternals {
       return new StateContents<Boolean>() {
         @Override
         public Boolean read() {
-          try {
+          try (StateSampler.ScopedState scope = readStateSupplier.get()) {
             return localAdditions == null && (cleared || persistedData.get() == null);
           } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Unable to read state", e);
@@ -438,8 +466,8 @@ public class WindmillStateInternals extends MergingStateInternals {
     private WindmillCombiningValue(ByteString stateKey, String stateFamily,
         Coder<AccumT> accumCoder,
         CombineFn<InputT, AccumT, OutputT> combineFn,
-        WindmillStateReader reader) {
-      this.bag = new WindmillBag<>(stateKey, stateFamily, accumCoder, reader);
+        WindmillStateReader reader, Supplier<StateSampler.ScopedState> readStateSupplier) {
+      this.bag = new WindmillBag<>(stateKey, stateFamily, accumCoder, reader, readStateSupplier);
       this.combineFn = combineFn;
       this.localAdditionsAccum = combineFn.createAccumulator();
     }

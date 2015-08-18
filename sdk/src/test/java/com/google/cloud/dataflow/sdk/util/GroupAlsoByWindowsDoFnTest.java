@@ -417,7 +417,7 @@ public class GroupAlsoByWindowsDoFnTest {
         outputManager,
         outputTag,
         new ArrayList<TupleTag<?>>(),
-        execContext.getStepContext("merge", "merge"),
+        execContext.getOrCreateStepContext("merge", "merge", null),
         counters.getAddCounterMutator(),
         windowingStrategy);
   }

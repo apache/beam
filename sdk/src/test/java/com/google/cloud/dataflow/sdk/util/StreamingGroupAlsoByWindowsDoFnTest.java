@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -71,9 +72,10 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
       // StreamingGroupAlsoByWindows expects it to. So, hook that up.
 
       @Override
-      public ExecutionContext.StepContext createStepContext(String stepName, String transformName) {
+      public ExecutionContext.StepContext createStepContext(
+          String stepName, String transformName, StateSampler stateSampler) {
         ExecutionContext.StepContext context =
-            Mockito.spy(super.createStepContext(stepName, transformName));
+            Mockito.spy(super.createStepContext(stepName, transformName, stateSampler));
         Mockito.doReturn(mockTimerInternals).when(context).timerInternals();
         return context;
       }
@@ -439,7 +441,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
             outputManager,
             outputTag,
             new ArrayList<TupleTag<?>>(),
-            execContext.getStepContext("merge", "merge"),
+            execContext.getOrCreateStepContext("merge", "merge", null),
             counters.getAddCounterMutator(),
             windowingStrategy);
   }

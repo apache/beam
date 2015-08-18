@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
@@ -42,17 +43,18 @@ public abstract class BaseExecutionContext implements ExecutionContext {
    * of {@link StepContext} they need.
    */
   protected abstract ExecutionContext.StepContext createStepContext(
-      String stepName, String transformName);
+      String stepName, String transformName, StateSampler stateSampler);
 
 
   /**
    * Returns the {@link StepContext} associated with the given step.
    */
   @Override
-  public ExecutionContext.StepContext getStepContext(String stepName, String transformName) {
+  public ExecutionContext.StepContext getOrCreateStepContext(
+      String stepName, String transformName, StateSampler stateSampler) {
     ExecutionContext.StepContext context = cachedStepContexts.get(stepName);
     if (context == null) {
-      context = createStepContext(stepName, transformName);
+      context = createStepContext(stepName, transformName, stateSampler);
       cachedStepContexts.put(stepName, context);
     }
     return context;

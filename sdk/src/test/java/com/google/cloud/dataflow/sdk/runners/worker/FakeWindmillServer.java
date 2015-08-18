@@ -73,6 +73,11 @@ class FakeWindmillServer extends WindmillServerStub {
     Windmill.GetDataResponse response = dataToOffer.poll();
     if (response == null) {
       response = Windmill.GetDataResponse.newBuilder().build();
+    } else {
+      try {
+        // Sleep for a little bit to ensure that *-windmill-read state-sampled counters show up.
+        Thread.sleep(500);
+      } catch (InterruptedException e) {}
     }
     return response;
   }

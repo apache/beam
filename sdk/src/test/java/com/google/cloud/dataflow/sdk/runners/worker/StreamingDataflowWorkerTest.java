@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -898,12 +899,31 @@ public class StreamingDataflowWorkerTest {
             .setEndTimestamp(Long.MAX_VALUE)
             .build())));
 
-    assertThat(actualOutput.getWatermarkHoldsList(), Matchers.contains(
-        Matchers.equalTo(Windmill.WatermarkHold.newBuilder()
-            .setTag(watermarkHoldTag)
-            .setStateFamily(stateFamily)
-            .setReset(true)
-            .build())));
+    assertThat(
+        actualOutput.getWatermarkHoldsList(),
+        Matchers.contains(
+            Matchers.equalTo(
+                Windmill.WatermarkHold.newBuilder()
+                    .setTag(watermarkHoldTag)
+                    .setStateFamily(stateFamily)
+                    .setReset(true)
+                    .build())));
+
+    Windmill.Counter actualReadCounter =
+        getCounter(
+            actualOutput.getCounterUpdatesList(),
+            "computation-MergeWindows-System-windmill-read-msecs");
+    assertNotNull(actualReadCounter);
+    assertThat(actualReadCounter.getIntScalar(), Matchers.greaterThan(0L));
+  }
+
+  private static Windmill.Counter getCounter(List<Windmill.Counter> counters, String name) {
+    for (Windmill.Counter counter : counters) {
+      if (counter.getName().equals(name)) {
+        return counter;
+      }
+    }
+    return null;
   }
 
   static class PrintFn extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {

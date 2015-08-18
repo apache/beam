@@ -33,6 +33,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ElementCounter;
 import com.google.cloud.dataflow.sdk.util.common.worker.OutputReceiver;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.Receiver;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -61,6 +62,7 @@ public abstract class ParDoFnBase implements ParDoFn {
   private final String transformName;
   private final ExecutionContext executionContext;
   private final CounterSet.AddCounterMutator addCounterMutator;
+  private final StateSampler stateSampler;
 
   /** The DoFnRunner executing a batch. Null between batches. */
   private DoFnRunner<Object, Object> fnRunner;
@@ -79,7 +81,8 @@ public abstract class ParDoFnBase implements ParDoFn {
       String stepName,
       String transformName,
       ExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator) {
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler) {
     this.options = options;
 
     // We vend a freshly deserialized version for each run
@@ -98,6 +101,7 @@ public abstract class ParDoFnBase implements ParDoFn {
     this.transformName = transformName;
     this.executionContext = executionContext;
     this.addCounterMutator = addCounterMutator;
+    this.stateSampler = stateSampler;
   }
 
   /**
@@ -114,7 +118,7 @@ public abstract class ParDoFnBase implements ParDoFn {
 
     StepContext stepContext = null;
     if (executionContext != null) {
-      stepContext = executionContext.getStepContext(stepName, transformName);
+      stepContext = executionContext.getOrCreateStepContext(stepName, transformName, stateSampler);
     }
 
     @SuppressWarnings("unchecked")

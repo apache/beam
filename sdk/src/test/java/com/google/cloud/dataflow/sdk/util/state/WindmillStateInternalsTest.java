@@ -76,7 +76,7 @@ public class WindmillStateInternalsTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    underTest = new WindmillStateInternals(STATE_FAMILY, true, mockReader);
+    underTest = new WindmillStateInternals(STATE_FAMILY, true, mockReader, null, "StepName");
   }
 
   private <T> void waitAndSet(
@@ -245,7 +245,7 @@ public class WindmillStateInternalsTest {
 
   @Test
   public void testBagNoStateFamilies() throws Exception {
-    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader);
+    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, null, "StepName");
 
     StateTag<BagState<String>> addr = StateTags.bag("bag", StringUtf8Coder.of());
     BagState<String> bag = underTest.state(NAMESPACE, addr);
@@ -543,7 +543,7 @@ public class WindmillStateInternalsTest {
 
   @Test
   public void testWatermarkNoStateFamilies() throws Exception {
-    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader);
+    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, null, "StepName");
 
     StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal("watermark");
     WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
@@ -653,7 +653,7 @@ public class WindmillStateInternalsTest {
 
   @Test
   public void testValueNoStateFamilies() throws Exception {
-    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader);
+    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, null, "StepName");
 
     StateTag<ValueState<String>> addr = StateTags.value("value", StringUtf8Coder.of());
     ValueState<String> value = underTest.state(NAMESPACE, addr);

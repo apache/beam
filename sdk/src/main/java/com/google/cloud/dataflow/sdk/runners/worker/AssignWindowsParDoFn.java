@@ -51,10 +51,11 @@ class AssignWindowsParDoFn extends ParDoFnBase {
       String stepName,
       String transformName,
       DataflowExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator)
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler)
       throws Exception {
     return new AssignWindowsParDoFn(
-        options, fn, stepName, transformName, executionContext, addCounterMutator);
+        options, fn, stepName, transformName, executionContext, addCounterMutator, stateSampler);
   }
 
   /**
@@ -73,7 +74,7 @@ class AssignWindowsParDoFn extends ParDoFnBase {
         int numOutputs,
         DataflowExecutionContext executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
-        StateSampler stateSampler /* ignored */)
+        StateSampler stateSampler)
             throws Exception {
 
       final Object deserializedWindowingStrategy =
@@ -101,7 +102,8 @@ class AssignWindowsParDoFn extends ParDoFnBase {
           stepName,
           transformName,
           executionContext,
-          addCounterMutator);
+          addCounterMutator,
+          stateSampler);
     }
   }
 
@@ -118,7 +120,8 @@ class AssignWindowsParDoFn extends ParDoFnBase {
       String stepName,
       String transformName,
       DataflowExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator) {
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler) {
     super(
         options,
         NullSideInputReader.empty(),
@@ -126,7 +129,8 @@ class AssignWindowsParDoFn extends ParDoFnBase {
         stepName,
         transformName,
         executionContext,
-        addCounterMutator);
+        addCounterMutator,
+        stateSampler);
     this.fn = fn;
   }
 }

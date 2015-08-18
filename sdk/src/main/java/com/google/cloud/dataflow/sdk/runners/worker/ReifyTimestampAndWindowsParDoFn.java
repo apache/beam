@@ -45,11 +45,12 @@ class ReifyTimestampAndWindowsParDoFn extends ParDoFnBase {
       String stepName,
       String transformName,
       DataflowExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator)
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler)
       throws Exception {
 
     return new ReifyTimestampAndWindowsParDoFn(
-        options, fn, stepName, transformName, executionContext, addCounterMutator);
+        options, fn, stepName, transformName, executionContext, addCounterMutator, stateSampler);
   }
 
   /**
@@ -68,7 +69,7 @@ class ReifyTimestampAndWindowsParDoFn extends ParDoFnBase {
         int numOutputs,
         DataflowExecutionContext executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
-        StateSampler stateSampler /* ignored */)
+        StateSampler stateSampler)
             throws Exception {
 
       final ReifyTimestampAndWindowsDoFn<Object, Object> fn =
@@ -80,7 +81,8 @@ class ReifyTimestampAndWindowsParDoFn extends ParDoFnBase {
           stepName,
           transformName,
           executionContext,
-          addCounterMutator);
+          addCounterMutator,
+          stateSampler);
     }
   }
 
@@ -97,8 +99,8 @@ class ReifyTimestampAndWindowsParDoFn extends ParDoFnBase {
       String stepName,
       String transformName,
       ExecutionContext executionContext,
-      AddCounterMutator addCounterMutator) {
-
+      AddCounterMutator addCounterMutator,
+      StateSampler stateSampler) {
     super(
         options,
         NullSideInputReader.empty(),
@@ -106,7 +108,8 @@ class ReifyTimestampAndWindowsParDoFn extends ParDoFnBase {
         stepName,
         transformName,
         executionContext,
-        addCounterMutator);
+        addCounterMutator,
+        stateSampler);
     this.fn = fn;
   }
 }

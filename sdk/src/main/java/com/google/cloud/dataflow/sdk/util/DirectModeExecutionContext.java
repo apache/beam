@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -42,7 +43,8 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
   }
 
   @Override
-  public ExecutionContext.StepContext createStepContext(String stepName, String transformName) {
+  public ExecutionContext.StepContext createStepContext(
+      String stepName, String transformName, StateSampler stateSampler) {
     return new StepContext(stepName, transformName);
   }
 

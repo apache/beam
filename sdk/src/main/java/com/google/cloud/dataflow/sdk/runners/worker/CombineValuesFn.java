@@ -69,10 +69,11 @@ class CombineValuesFn extends ParDoFnBase {
       String stepName,
       String transformName,
       DataflowExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator)
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler)
       throws Exception {
-    return new CombineValuesFn(
-        options, combineFn, phase, stepName, transformName, executionContext, addCounterMutator);
+    return new CombineValuesFn(options, combineFn, phase, stepName, transformName, executionContext,
+        addCounterMutator, stateSampler);
   }
 
   /**
@@ -118,7 +119,8 @@ class CombineValuesFn extends ParDoFnBase {
           stepName,
           transformName,
           executionContext,
-          addCounterMutator);
+          addCounterMutator,
+          stateSampler);
     }
   }
 
@@ -155,7 +157,8 @@ class CombineValuesFn extends ParDoFnBase {
       String stepName,
       String transformName,
       DataflowExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator) {
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler) {
     super(
         options,
         NullSideInputReader.empty(),
@@ -163,7 +166,8 @@ class CombineValuesFn extends ParDoFnBase {
         stepName,
         transformName,
         executionContext,
-        addCounterMutator);
+        addCounterMutator,
+        stateSampler);
     this.phase = phase;
     this.combineFn = combineFn;
   }

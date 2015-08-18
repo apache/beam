@@ -163,7 +163,8 @@ public class NormalParDoFnTest {
         "doFn",
         "doFn",
         DataflowExecutionContext.withoutSideInputs(),
-        (new CounterSet()).getAddCounterMutator());
+        (new CounterSet()).getAddCounterMutator(),
+        null);
 
     normalParDoFn.startBundle(receiver, receiver1, receiver2, receiver3);
 
@@ -226,7 +227,8 @@ public class NormalParDoFnTest {
         "doFn",
         "doFn",
         DataflowExecutionContext.withoutSideInputs(),
-        (new CounterSet()).getAddCounterMutator());
+        (new CounterSet()).getAddCounterMutator(),
+        null);
 
     try {
       normalParDoFn.startBundle();
@@ -269,7 +271,8 @@ public class NormalParDoFnTest {
         "doFn",
         "doFn",
         DataflowExecutionContext.withoutSideInputs(),
-        (new CounterSet()).getAddCounterMutator());
+        (new CounterSet()).getAddCounterMutator(),
+        null);
 
     try {
       normalParDoFn.startBundle(receiver);
@@ -338,7 +341,8 @@ public class NormalParDoFnTest {
         "doFn",
         "doFn",
         DataflowExecutionContext.withoutSideInputs(),
-        counters.getAddCounterMutator());
+        counters.getAddCounterMutator(),
+        null);
 
     normalParDoFn.startBundle(new TestReceiver(), new TestReceiver());
     normalParDoFn.processElement(WindowedValue.valueInGlobalWindow(5));
