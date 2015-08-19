@@ -546,6 +546,8 @@ public class ApiSurface {
   public static ApiSurface getSdkApiSurface() throws IOException {
     return ApiSurface.ofPackage("com.google.cloud.dataflow")
         .pruningPattern("com[.]google[.]cloud[.]dataflow.*Test")
+        .pruningPattern("com[.]google[.]cloud[.]dataflow.*Benchmark")
+        .pruningPrefix("com.google.cloud.dataflow.integration")
         .pruningPrefix("java")
         .pruningPrefix("com.google.api")
         .pruningPrefix("com.google.protobuf")
