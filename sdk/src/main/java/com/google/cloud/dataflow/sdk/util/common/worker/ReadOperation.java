@@ -194,7 +194,8 @@ public class ReadOperation extends Operation {
 
   /**
    * Returns a (possibly slightly stale) value of the progress of the task.
-   * Guaranteed to not block indefinitely.
+   * Guaranteed to not block indefinitely. Needs to be thread-safe for sources
+   * which support dynamic work rebalancing.
    *
    * @return the task progress, or {@code null} if the source iterator has not
    * been initialized
@@ -217,7 +218,12 @@ public class ReadOperation extends Operation {
             splitRequest);
         return null;
       }
-      return readerIterator.requestDynamicSplit(splitRequest);
+      Reader.DynamicSplitResult result = readerIterator.requestDynamicSplit(splitRequest);
+      if (result != null) {
+        // After a successful split, the stop position changed and progress has to be recomputed.
+        setProgressFromIterator();
+      }
+      return result;
     }
   }
 

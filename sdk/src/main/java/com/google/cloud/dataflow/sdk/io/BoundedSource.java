@@ -82,12 +82,13 @@ public abstract class BoundedSource<T> extends Source<T> {
    * again on this object.
    *
    * <h3>Thread safety</h3>
-   * All methods will be run from the same thread except {@link #splitAtFraction}, which can be
-   * called concurrently from a different thread (but there will not be multiple concurrent calls
-   * to {@link #splitAtFraction} itself).
+   * All methods will be run from the same thread except {@link #splitAtFraction} and
+   * {@link #getFractionConsumed}, which can be called concurrently from a different thread. There
+   * will not be multiple concurrent calls to {@link #splitAtFraction} but there can be for
+   * {@link #getFractionConsumed} if {@link #splitAtFraction} is implemented.
    * <p>If the source does not implement {@link #splitAtFraction}, you do not need to worry about
-   * thread safety. If implemented, it must be safe to call {@link #splitAtFraction} concurrently
-   * with other methods.
+   * thread safety. If implemented, it must be safe to call {@link #splitAtFraction} and
+   * {@link #getFractionConsumed} concurrently with other methods.
    *
    * <h3>Implementing {@link #splitAtFraction}</h3>
    * In the course of dynamic work rebalancing, the method {@link #splitAtFraction}
@@ -114,6 +115,11 @@ public abstract class BoundedSource<T> extends Source<T> {
      * </ul>
      *
      * <p>By default, returns null to indicate that this cannot be estimated.
+     *
+     * <h3>Thread safety</h3>
+     * If {@link #splitAtFraction} is implemented, this method can be called concurrently to other
+     * methods (including itself), and it is therefore critical for it to be implemented
+     * in a thread-safe way.
      *
      * @return A value in [0, 1] representing the fraction of this reader's current input
      *   read so far, or {@code null} if such an estimate is not available.

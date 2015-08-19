@@ -65,10 +65,11 @@ public abstract class Reader<T> extends Observable {
   /**
    * A stateful iterator over the data in a Reader.
    *
-   * <p>Partially thread-safe: methods {@link #hasNext}, {@link #next}, {@link #close},
-   * {@link #getProgress} are called serially, but {@link #requestDynamicSplit}
-   * can be called asynchronously to those. There will not be multiple concurrent calls to
-   * {@link #requestDynamicSplit}).
+   * <p>Partially thread-safe: methods {@link #hasNext}, {@link #next}, {@link #close}
+   * are called serially, but {@link #requestDynamicSplit} can be called asynchronously
+   * to those. There will not be multiple concurrent calls to {@link #requestDynamicSplit}).
+   * {@link #getProgress} can be called concurrently to any other call, including itself, if
+   * {@link #requestDynamicSplit} is implemented.
    */
   public interface ReaderIterator<T> extends AutoCloseable {
     /**

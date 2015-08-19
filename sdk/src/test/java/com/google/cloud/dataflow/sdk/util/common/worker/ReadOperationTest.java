@@ -147,37 +147,45 @@ public class ReadOperationTest {
 
     // An unstarted ReadOperation refuses split requests.
     assertNull(
-        readOperation.requestDynamicSplit(splitRequestAtIndex(7L)));
+        readOperation.requestDynamicSplit(splitRequestAtIndex(8L)));
 
     Thread thread = runReadLoopInThread(readOperation);
     iterator.offerNext(0); // Await first next() and return 0 from it.
+    receiver.unblockProcess();
+    iterator.offerNext(1);
     // Read loop is now blocked in process() (not next()).
     Reader.DynamicSplitResultWithPosition split =
         (Reader.DynamicSplitResultWithPosition) readOperation.requestDynamicSplit(
-          splitRequestAtIndex(7L));
+          splitRequestAtIndex(8L));
     assertNotNull(split);
-    assertEquals(positionAtIndex(7L), toCloudPosition(split.getAcceptedPosition()));
-    receiver.unblockProcess();
-    iterator.offerNext(1);
+    assertEquals(positionAtIndex(8L), toCloudPosition(split.getAcceptedPosition()));
+
+    // Check that the progress has been recomputed.
+    ApproximateProgress progress = readerProgressToCloudProgress(readOperation.getProgress());
+    assertEquals(2, progress.getPosition().getRecordIndex().longValue());
+    assertEquals(2.0f / 8.0f, progress.getPercentComplete(), 0.001f);
+
     receiver.unblockProcess();
     iterator.offerNext(2);
+    receiver.unblockProcess();
+    iterator.offerNext(3);
 
     // Should accept a split at an earlier position than previously requested.
     // Should reject a split at a later position than previously requested.
     // Note that here we're testing our own MockReaderIterator class, so it's kind of pointless,
     // but we're also testing that ReadOperation correctly relays the request to the iterator.
     split = (Reader.DynamicSplitResultWithPosition) readOperation.requestDynamicSplit(
-        splitRequestAtIndex(5L));
+        splitRequestAtIndex(6L));
     assertNotNull(split);
-    assertEquals(positionAtIndex(5L), toCloudPosition(split.getAcceptedPosition()));
+    assertEquals(positionAtIndex(6L), toCloudPosition(split.getAcceptedPosition()));
     split = (Reader.DynamicSplitResultWithPosition) readOperation.requestDynamicSplit(
-        splitRequestAtIndex(5L));
+        splitRequestAtIndex(6L));
     assertNull(split);
     receiver.unblockProcess();
 
-    iterator.offerNext(3);
-    receiver.unblockProcess();
     iterator.offerNext(4);
+    receiver.unblockProcess();
+    iterator.offerNext(5);
     receiver.unblockProcess();
 
     // Should return false from hasNext() and exit read loop now.
@@ -259,7 +267,8 @@ public class ReadOperationTest {
     @Override
     public Reader.Progress getProgress() {
       return cloudProgressToReaderProgress(
-          new ApproximateProgress().setPosition(new Position().setRecordIndex((long) current)));
+          new ApproximateProgress().setPosition(new Position().setRecordIndex((long) current))
+                                   .setPercentComplete((float) tracker.getFractionConsumed()));
     }
 
     @Override
