@@ -60,7 +60,7 @@ public class Write {
   public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
     private static final long serialVersionUID = 0;
 
-    private Sink<T> sink;
+    private final Sink<T> sink;
 
     private Bound(Sink<T> sink) {
       this.sink = sink;
@@ -71,6 +71,13 @@ public class Write {
       PipelineOptions options = input.getPipeline().getOptions();
       sink.validate(options);
       return createWrite(input, sink.createWriteOperation(options));
+    }
+
+    /**
+     * Returns the {@link Sink} associated with this PTransform.
+     */
+    public Sink<T> getSink() {
+      return sink;
     }
 
     /**
