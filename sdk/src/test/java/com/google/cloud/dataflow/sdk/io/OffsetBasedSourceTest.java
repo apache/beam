@@ -60,11 +60,6 @@ public class OffsetBasedSourceTest {
     }
 
     @Override
-    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
     public boolean producesSortedKeys(PipelineOptions options) throws Exception {
       return false;
     }
@@ -170,6 +165,17 @@ public class OffsetBasedSourceTest {
     assertSplitsAre(
         testSource.splitIntoBundles(150 * testSource.getBytesPerOffset(), null),
         boundaries);
+  }
+
+  @Test
+  public void testEstimatedSizeBytes() throws Exception {
+    long start = 300;
+    long end = 1000;
+    long minBundleSize = 150;
+    CoarseRangeSource testSource = new CoarseRangeSource(start, end, minBundleSize, 1);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    assertEquals(
+        (end - start) * testSource.getBytesPerOffset(), testSource.getEstimatedSizeBytes(options));
   }
 
   @Test

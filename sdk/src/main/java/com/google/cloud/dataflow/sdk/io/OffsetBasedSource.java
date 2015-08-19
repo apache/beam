@@ -97,7 +97,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   @Override
   public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     long trueEndOffset = (endOffset == Long.MAX_VALUE) ? getMaxEndOffset(options) : endOffset;
-    return getBytesPerOffset() * (trueEndOffset - getStartOffset() + 1);
+    return getBytesPerOffset() * (trueEndOffset - getStartOffset());
   }
 
   @Override
