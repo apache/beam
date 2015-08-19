@@ -123,6 +123,8 @@ public abstract class UnboundedSource<
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   public abstract static class UnboundedReader<OutputT> extends Source.Reader<OutputT> {
+    private static final byte[] EMPTY = new byte[0];
+
     /**
      * Initializes the reader and advances the reader to the first record.
      *
@@ -153,6 +155,9 @@ public abstract class UnboundedSource<
      * Returns a unique identifier for the current record.  This should be the same for each
      * instance of the same logical record read from the underlying data source.
      *
+     * <p>It is only necessary to override this if {@link #requiresDeduping} has been overridden to
+     * return true.
+     *
      * <p>For example, this could be a hash of the record contents, or a logical ID present in
      * the record.  If this is generated as a hash of the record contents, it should be at least 16
      * bytes (128 bits) to avoid collisions.
@@ -164,7 +169,13 @@ public abstract class UnboundedSource<
      *         {@link #start} or {@link #advance} wasn't called, or if the last {@link #start} or
      *         {@link #advance} returned {@code false}.
      */
-    public abstract byte[] getCurrentRecordId() throws NoSuchElementException;
+    public byte[] getCurrentRecordId() throws NoSuchElementException {
+      if (getCurrentSource().requiresDeduping()) {
+        throw new IllegalStateException(
+            "getCurrentRecordId() must be overridden if requiresDeduping returns true()");
+      }
+      return EMPTY;
+    }
 
     /**
      * Returns a lower bound on timestamps of future elements read by this reader.
