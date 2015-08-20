@@ -34,7 +34,7 @@ The Maven coordinates of the current version of this project are:
 
     <groupId>com.cloudera.dataflow.spark</groupId>
     <artifactId>spark-dataflow</artifactId>
-    <version>0.4.1</version>
+    <version>0.4.2</version>
     
 and are hosted in Cloudera's repository at:
 
