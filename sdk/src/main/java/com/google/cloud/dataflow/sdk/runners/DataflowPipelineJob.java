@@ -197,12 +197,16 @@ public class DataflowPipelineJob implements PipelineResult {
     MonitoringUtil monitor = new MonitoringUtil(projectId, dataflowClient);
 
     long lastTimestamp = 0;
-    BackOff backoff = timeUnit.toMillis(timeToWait) > 0
-        ? new AttemptAndTimeBoundedExponentialBackOff(
-            MESSAGES_POLLING_ATTEMPTS, MESSAGES_POLLING_INTERVAL, timeUnit.toMillis(timeToWait),
-            nanoClock)
-        : new AttemptBoundedExponentialBackOff(
-            MESSAGES_POLLING_ATTEMPTS, MESSAGES_POLLING_INTERVAL);
+    BackOff backoff =
+        timeUnit.toMillis(timeToWait) > 0
+            ? new AttemptAndTimeBoundedExponentialBackOff(
+                MESSAGES_POLLING_ATTEMPTS,
+                MESSAGES_POLLING_INTERVAL,
+                timeUnit.toMillis(timeToWait),
+                AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.ATTEMPTS,
+                nanoClock)
+            : new AttemptBoundedExponentialBackOff(
+                MESSAGES_POLLING_ATTEMPTS, MESSAGES_POLLING_INTERVAL);
     State state;
     do {
       // Get the state of the job before listing messages. This ensures we always fetch job

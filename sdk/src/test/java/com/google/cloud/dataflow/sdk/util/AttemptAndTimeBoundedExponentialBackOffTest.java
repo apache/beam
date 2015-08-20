@@ -62,7 +62,13 @@ public class AttemptAndTimeBoundedExponentialBackOffTest {
 
   @Test
   public void testThatFixedNumberOfAttemptsExits() throws Exception {
-    BackOff backOff = new AttemptAndTimeBoundedExponentialBackOff(3, 500L, 1000L, fastClock);
+    BackOff backOff =
+        new AttemptAndTimeBoundedExponentialBackOff(
+            3,
+            500L,
+            1000L,
+            AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.ALL,
+            fastClock);
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
     assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
@@ -71,7 +77,44 @@ public class AttemptAndTimeBoundedExponentialBackOffTest {
   @Test
   public void testThatResettingAllowsReuse() throws Exception {
     AttemptBoundedExponentialBackOff backOff =
-        new AttemptAndTimeBoundedExponentialBackOff(3, 500, 1000L, fastClock);
+        new AttemptAndTimeBoundedExponentialBackOff(
+            3,
+            500,
+            1000L,
+            AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.ALL,
+            fastClock);
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
+    assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
+    backOff.reset();
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
+    assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
+
+    backOff =
+        new AttemptAndTimeBoundedExponentialBackOff(
+            30,
+            500,
+            1000L,
+            AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.ALL,
+            fastClock);
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
+    fastClock.sleep(2000L);
+    assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
+    backOff.reset();
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
+  }
+
+  @Test
+  public void testThatResettingAttemptsAllowsReuse() throws Exception {
+    AttemptBoundedExponentialBackOff backOff =
+        new AttemptAndTimeBoundedExponentialBackOff(
+            3,
+            500,
+            1000,
+            AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.ATTEMPTS,
+            fastClock);
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
     assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
@@ -82,16 +125,73 @@ public class AttemptAndTimeBoundedExponentialBackOffTest {
   }
 
   @Test
+  public void testThatResettingAttemptsDoesNotAllowsReuse() throws Exception {
+    AttemptBoundedExponentialBackOff backOff =
+        new AttemptAndTimeBoundedExponentialBackOff(
+            30,
+            500,
+            1000L,
+            AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.ATTEMPTS,
+            fastClock);
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
+    fastClock.sleep(2000L);
+    assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
+    backOff.reset();
+    assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
+  }
+
+  @Test
+  public void testThatResettingTimerAllowsReuse() throws Exception {
+    AttemptBoundedExponentialBackOff backOff =
+        new AttemptAndTimeBoundedExponentialBackOff(
+            30,
+            500,
+            1000L,
+            AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.TIMER,
+            fastClock);
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
+    fastClock.sleep(2000L);
+    assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
+    backOff.reset();
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(561L), lessThan(1688L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(843L), lessThan(2531L)));
+  }
+
+  @Test
+  public void testThatResettingTimerDoesNotAllowReuse() throws Exception {
+    AttemptBoundedExponentialBackOff backOff =
+        new AttemptAndTimeBoundedExponentialBackOff(
+            3,
+            500,
+            1000L,
+            AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.TIMER,
+            fastClock);
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(249L), lessThan(751L)));
+    assertThat(backOff.nextBackOffMillis(), allOf(greaterThan(374L), lessThan(1126L)));
+    assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
+    backOff.reset();
+    assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
+  }
+
+  @Test
   public void testTimeBound() throws Exception {
     AttemptBoundedExponentialBackOff backOff =
-        new AttemptAndTimeBoundedExponentialBackOff(3, 500L, 5L, fastClock);
+        new AttemptAndTimeBoundedExponentialBackOff(
+            3, 500L, 5L, AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.ALL, fastClock);
     assertEquals(backOff.nextBackOffMillis(), 5L);
   }
 
   @Test
   public void testAtMaxAttempts() throws Exception {
     AttemptBoundedExponentialBackOff backOff =
-        new AttemptAndTimeBoundedExponentialBackOff(3, 500L, 1000L, fastClock);
+        new AttemptAndTimeBoundedExponentialBackOff(
+            3,
+            500L,
+            1000L,
+            AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.ALL,
+            fastClock);
     assertFalse(backOff.atMaxAttempts());
     backOff.nextBackOffMillis();
     assertFalse(backOff.atMaxAttempts());
@@ -103,7 +203,8 @@ public class AttemptAndTimeBoundedExponentialBackOffTest {
   @Test
   public void testAtMaxTime() throws Exception {
     AttemptBoundedExponentialBackOff backOff =
-        new AttemptAndTimeBoundedExponentialBackOff(3, 500L, 1L, fastClock);
+        new AttemptAndTimeBoundedExponentialBackOff(
+            3, 500L, 1L, AttemptAndTimeBoundedExponentialBackOff.ResetPolicy.ALL, fastClock);
     fastClock.sleep(2);
     assertTrue(backOff.atMaxAttempts());
     assertEquals(BackOff.STOP, backOff.nextBackOffMillis());
