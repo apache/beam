@@ -217,6 +217,33 @@ public abstract class UnboundedSource<
     public abstract CheckpointMark getCheckpointMark();
 
     /**
+     * Constant representing an unknown amount of backlog.
+     */
+    public static final long BACKLOG_UNKNOWN = -1L;
+
+    /**
+     * Returns the size of the backlog of unread data in the underlying data source represented by
+     * this split of this source.
+     *
+     * <p>One of this or {@link #getTotalBacklogBytes} should be overridden in order to allow the
+     * runner to scale the amount of resources allocated to the pipeline.
+     */
+    public long getSplitBacklogBytes() {
+      return BACKLOG_UNKNOWN;
+    }
+
+    /**
+     * Returns the size of the backlog of unread data in the underlying data source represented by
+     * all splits of this source.
+     *
+     * <p>One of this or {@link #getSplitBacklogBytes} should be overridden in order to allow the
+     * runner to scale the amount of resources allocated to the pipeline.
+     */
+    public long getTotalBacklogBytes() {
+      return BACKLOG_UNKNOWN;
+    }
+
+    /**
      * Returns the {@link UnboundedSource} that created this reader.  This will not change over the
      * life of the reader.
      */

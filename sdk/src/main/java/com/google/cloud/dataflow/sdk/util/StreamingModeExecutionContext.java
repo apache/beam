@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
+import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
 import com.google.cloud.dataflow.sdk.runners.worker.DataflowExecutionContext;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -49,22 +50,25 @@ import java.util.concurrent.TimeUnit;
  * {@link ExecutionContext} for use in streaming mode.
  */
 public class StreamingModeExecutionContext extends DataflowExecutionContext {
-  private Windmill.WorkItem work;
-  private StateFetcher stateFetcher;
-  private Windmill.WorkItemCommitRequest.Builder outputBuilder;
-  private Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
-
+  private final String stageName;
+  private final StateFetcher stateFetcher;
+  private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
   // Per-key cache of active Reader objects in use by this process.
-  private ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache;
-  private UnboundedSource.UnboundedReader<?> activeReader;
-  private ConcurrentMap<String, String> stateNameMap;
-  private WindmillStateReader stateReader;
+  private final ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache;
+  private final ConcurrentMap<String, String> stateNameMap;
+
+  private Windmill.WorkItem work;
   private Instant inputDataWatermark;
+  private WindmillStateReader stateReader;
+  private Windmill.WorkItemCommitRequest.Builder outputBuilder;
+  private UnboundedSource.UnboundedReader<?> activeReader;
 
   public StreamingModeExecutionContext(
+      String stageName,
       StateFetcher stateFetcher,
       ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache,
       ConcurrentMap<String, String> stateNameMap) {
+    this.stageName = stageName;
     this.stateFetcher = stateFetcher;
     this.sideInputCache = new HashMap<>();
     this.readerCache = readerCache;
@@ -223,6 +227,22 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
         sourceStateBuilder.setState(stream.toByteString());
       }
       outputBuilder.setSourceWatermark(TimeUnit.MILLISECONDS.toMicros(watermark.getMillis()));
+
+      long backlogBytes = activeReader.getSplitBacklogBytes();
+      if (backlogBytes == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN
+          && BasicSerializableSourceFormat.isFirstUnboundedSourceSplit(getSerializedKey())) {
+        // Only call getTotalBacklogBytes() on the first split.
+        backlogBytes = activeReader.getTotalBacklogBytes();
+      }
+      if (backlogBytes != UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN) {
+        outputBuilder.addCounterUpdates(
+            Windmill.Counter.newBuilder()
+            .setName("dataflow_backlog_size-" + stageName)
+            .setKind(Windmill.Counter.Kind.SUM)
+            .setIntScalar(backlogBytes)
+            .setCumulative(true)
+            .build());
+      }
 
       readerCache.put(getSerializedKey(), activeReader);
     }

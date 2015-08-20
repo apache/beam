@@ -194,6 +194,11 @@ public class CountingSource
     public CheckpointMark getCheckpointMark() {
       return new CounterMark(current);
     }
+
+    @Override
+    public long getSplitBacklogBytes() {
+      return 7L;
+    }
   }
 
   @Override

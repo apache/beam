@@ -182,6 +182,7 @@ public class StreamingDataflowWorker {
   // Map of user state names to system state names.
   private ConcurrentMap<String, String> stateNameMap;
   private ConcurrentMap<String, String> systemNameToComputationIdMap;
+  private ConcurrentMap<String, String> computationIdToSystemNameMap;
 
   private ThreadFactory threadFactory;
   private BoundedQueueExecutor workUnitExecutor;
@@ -208,6 +209,7 @@ public class StreamingDataflowWorker {
     this.commitCallbacks = new ConcurrentHashMap<>();
     this.stateNameMap = new ConcurrentHashMap<>();
     this.systemNameToComputationIdMap = new ConcurrentHashMap<>();
+    this.computationIdToSystemNameMap = new ConcurrentHashMap<>();
     this.threadFactory = new ThreadFactory() {
         @Override
         public Thread newThread(Runnable r) {
@@ -458,7 +460,7 @@ public class StreamingDataflowWorker {
       DataflowWorkerLoggingMDC.setStageName(computation);
       WorkerAndContext workerAndContext = mapTaskExecutors.get(computation).poll();
       if (workerAndContext == null) {
-        context = new StreamingModeExecutionContext(
+        context = new StreamingModeExecutionContext(computationIdToSystemNameMap.get(computation),
             stateFetcher, readerCache.get(computation), stateNameMap);
         worker = MapTaskExecutorFactory.create(options, mapTask, context);
         ReadOperation readOperation = worker.getReadOperation();
@@ -624,6 +626,7 @@ public class StreamingDataflowWorker {
     for (Windmill.GetConfigResponse.SystemNameToComputationIdMapEntry entry :
         response.getSystemNameToComputationIdMapList()) {
       systemNameToComputationIdMap.put(entry.getSystemName(), entry.getComputationId());
+      computationIdToSystemNameMap.put(entry.getComputationId(), entry.getSystemName());
     }
     for (String serializedMapTask : response.getCloudWorksList()) {
       try {

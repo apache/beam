@@ -625,8 +625,8 @@ public class BasicSerializableSourceFormatTest {
 
   @Test
   public void testReadUnboundedReader() throws Exception {
-    StreamingModeExecutionContext context = new StreamingModeExecutionContext(
-        null, new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>(), null);
+    StreamingModeExecutionContext context = new StreamingModeExecutionContext("stageName", null,
+        new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>(), null);
 
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
@@ -685,6 +685,20 @@ public class BasicSerializableSourceFormatTest {
               .getSourceStateUpdates()
               .getFinalizeIdsList()
               .size());
+
+      Windmill.Counter backlog = getCounter(context, "dataflow_backlog_size-stageName");
+      assertEquals(7L, backlog.getIntScalar());
+      assertTrue(backlog.getCumulative());
+      assertEquals(Windmill.Counter.Kind.SUM, backlog.getKind());
     }
+  }
+
+  private Windmill.Counter getCounter(StreamingModeExecutionContext context, String name) {
+    for (Windmill.Counter counter : context.getOutputBuilder().getCounterUpdatesList()) {
+      if (counter.getName().equals(name)) {
+        return counter;
+      }
+    }
+    return null;
   }
 }

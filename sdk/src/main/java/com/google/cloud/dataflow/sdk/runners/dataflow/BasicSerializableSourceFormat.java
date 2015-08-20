@@ -64,6 +64,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.protobuf.ByteString;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -193,6 +194,12 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     } else {
       throw new IllegalArgumentException("Unexpected source kind: " + source.getClass());
     }
+  }
+
+  private static final ByteString firstSplitKey = ByteString.copyFromUtf8("0000000000000001");
+
+  public static boolean isFirstUnboundedSourceSplit(ByteString splitKey) {
+    return splitKey.equals(firstSplitKey);
   }
 
   /**
