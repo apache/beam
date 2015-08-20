@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 
 /**
@@ -54,6 +55,9 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
    * @return a {@code WritableCoder} instance for the provided element class
    */
   public static <T extends Writable> WritableCoder<T> of(Class<T> clazz) {
+    if (clazz.equals(NullWritable.class)) {
+      return (WritableCoder<T>) NullWritableCoder.of();
+    }
     return new WritableCoder<>(clazz);
   }
 
