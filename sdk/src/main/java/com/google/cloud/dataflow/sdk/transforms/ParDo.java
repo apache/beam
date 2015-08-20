@@ -1221,9 +1221,7 @@ public class ParDo {
               MutationDetectors.forValueWithCoder(
                   output.getValue(), outputs.get(tag).getCoder());
           MutationDetector priorDetector = mutationDetectorForTag.put(tag, newDetector);
-          if (priorDetector != null) {
-            verifyOutputUnmodified(priorDetector);
-          }
+          verifyOutputUnmodified(priorDetector);
         } catch (CoderException e) {
           throw new UserCodeException(e);
         }
@@ -1250,6 +1248,10 @@ public class ParDo {
      * to consolidate null checking to this method.
      */
     private <T> void verifyOutputUnmodified(@Nullable MutationDetector detector) {
+      if (detector == null) {
+        return;
+      }
+
       try {
         detector.verifyUnmodified();
       } catch (IllegalMutationException exn) {
