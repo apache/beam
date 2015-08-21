@@ -43,7 +43,7 @@ public class SourceTestUtils {
    * consistent with equality of encoded format.
    * So we use this {@link Coder#structuralValue} to compare elements read by sources.
    */
-  private static <T> List<Object> createStructuralValues(Coder<T> coder, List<T> list)
+  public static <T> List<Object> createStructuralValues(Coder<T> coder, List<T> list)
       throws Exception {
     List<Object> result = new ArrayList<>();
     for (T elem : list) {
@@ -63,7 +63,7 @@ public class SourceTestUtils {
   }
 
   /**
-   * Reads all elements from the given unstarted {@link Source.Reader}.
+   * Reads all elements from the given unstarted {@link BoundedSource.BoundedReader}.
    */
   public static <T> List<T> readFromUnstartedReader(BoundedSource.BoundedReader<T> reader)
       throws IOException {
