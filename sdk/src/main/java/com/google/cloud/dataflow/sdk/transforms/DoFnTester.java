@@ -372,7 +372,7 @@ public class DoFnTester<InputT, OutputT> {
         outputManager,
         mainOutputTag,
         sideOutputTags,
-        DirectModeExecutionContext.create().createStepContext("stepName", "stepName", null),
+        DirectModeExecutionContext.create().getOrCreateStepContext("stepName", "stepName", null),
         counterSet.getAddCounterMutator(),
         WindowingStrategy.globalDefault());
   }

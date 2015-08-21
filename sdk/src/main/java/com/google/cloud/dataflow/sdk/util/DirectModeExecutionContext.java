@@ -22,19 +22,20 @@ import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * {@link ExecutionContext} for use in direct mode.
  */
-public class DirectModeExecutionContext extends BatchModeExecutionContext {
+public class DirectModeExecutionContext extends BaseExecutionContext {
 
-  private List<ValueWithMetadata<?>> output = new ArrayList<>();
-  private Map<TupleTag<?>, List<ValueWithMetadata<?>>> sideOutputs = new HashMap<>();
+  private Object key;
+  private List<ValueWithMetadata<?>> output = Lists.newArrayList();
+  private Map<TupleTag<?>, List<ValueWithMetadata<?>>> sideOutputs = Maps.newHashMap();
 
   protected DirectModeExecutionContext() {}
 
@@ -43,18 +44,22 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
   }
 
   @Override
-  public ExecutionContext.StepContext createStepContext(
+  protected ExecutionContext.StepContext createStepContext(
       String stepName, String transformName, StateSampler stateSampler) {
-    return new StepContext(stepName, transformName);
+    return new StepContext(this, stepName, transformName);
   }
 
-  @Override
-  protected void switchStateKey(Object newKey) {
+  public Object getKey() {
+    return key;
+  }
+
+  public void setKey(Object newKey) {
     // The direct mode runner may reorder elements, so we need to keep
     // around the state used for each key.
     for (ExecutionContext.StepContext stepContext : getAllStepContexts()) {
       ((StepContext) stepContext).switchKey(newKey);
     }
+    key = newKey;
   }
 
   @Override
@@ -66,7 +71,7 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
   public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> outputElem) {
     List<ValueWithMetadata<?>> output = sideOutputs.get(tag);
     if (output == null) {
-      output = new ArrayList<>();
+      output = Lists.newArrayList();
       sideOutputs.put(tag, output);
     }
     output.add(ValueWithMetadata.of(outputElem).withKey(getKey()));
@@ -84,20 +89,20 @@ public class DirectModeExecutionContext extends BatchModeExecutionContext {
       List<ValueWithMetadata<T>> typedOutput = (List) sideOutputs.get(tag);
       return typedOutput;
     } else {
-      return new ArrayList<>();
+      return Lists.newArrayList();
     }
   }
 
   /**
    * {@link ExecutionContext.StepContext} used in direct mode.
    */
-  class StepContext extends BaseExecutionContext.StepContext {
+  static class StepContext extends BaseExecutionContext.StepContext {
 
-    private final Map<Object, InMemoryStateInternals> stateInternals = new HashMap<>();
+    private final Map<Object, InMemoryStateInternals> stateInternals = Maps.newHashMap();
     private InMemoryStateInternals currentStateInternals = null;
 
-    private StepContext(String stepName, String transformName) {
-      super(DirectModeExecutionContext.this, stepName, transformName);
+    private StepContext(ExecutionContext executionContext, String stepName, String transformName) {
+      super(executionContext, stepName, transformName);
       switchKey(null);
     }
 
