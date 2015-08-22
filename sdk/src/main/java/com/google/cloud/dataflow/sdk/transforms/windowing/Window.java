@@ -140,7 +140,7 @@ import javax.annotation.Nullable;
  *
  * <p>After a {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} the trigger is set to
  * a trigger that will preserve the intent of the upstream trigger.  See
- * {@link Trigger@getContinuationTrigger} for more information.
+ * {@link Trigger#getContinuationTrigger} for more information.
  *
  * <p>See {@link Trigger} for details on the available triggers.
  */
