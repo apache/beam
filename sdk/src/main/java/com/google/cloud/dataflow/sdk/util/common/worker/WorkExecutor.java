@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 /**
  * Abstract executor for WorkItem tasks.
  */
@@ -89,6 +91,14 @@ public abstract class WorkExecutor implements AutoCloseable {
   public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest)
       throws Exception {
     // By default, dynamic splitting is unsupported.
+    return null;
+  }
+
+  /**
+   * Returns the worker's current state sampler info, or null if the
+   * state sampling is not enabled.
+   */
+  @Nullable public StateSampler.StateSamplerInfo getWorkerStateSamplerInfo() throws Exception {
     return null;
   }
 

@@ -55,6 +55,13 @@ public class StateSampler extends TimerTask implements AutoCloseable {
   private static final int DO_NOT_SAMPLE = -1;
 
   /**
+   * A counter that increments with each state transition. May be used
+   * to detect a context being stuck in a state for some amount of
+   * time.
+   */
+  private volatile long stateTransitionCount;
+
+  /**
    * The timestamp (in nanoseconds) corresponding to the last time the
    * state was sampled (and recorded).
    */
@@ -154,12 +161,48 @@ public class StateSampler extends TimerTask implements AutoCloseable {
   }
 
   /**
+   * An internal class for representing StateSampler information
+   * typically used for debugging.
+   */
+  public static class StateSamplerInfo {
+    public final String state;
+    public final Long transitionCount;
+    public final Long stateDurationMillis;
+
+    public StateSamplerInfo(String state, Long transitionCount,
+                            Long stateDurationMillis) {
+      this.state = state;
+      this.transitionCount = transitionCount;
+      this.stateDurationMillis = stateDurationMillis;
+    }
+  }
+
+  /**
+   * Returns information about the current state of this state sampler
+   * into a {@link StateSamplerInfo} object, or null if sampling is
+   * not turned on.
+   *
+   * @return information about this state sampler or null if sampling is off
+   */
+  public synchronized StateSamplerInfo getInfo() {
+    return currentState == DO_NOT_SAMPLE ? null
+        : new StateSamplerInfo(countersByState.get(currentState).getName(),
+            stateTransitionCount, null);
+  }
+
+  /**
    * Sets the current thread state.
    *
    * @param state the new state to transition to
    * @return the previous state
    */
   public int setState(int state) {
+    // Updates to stateTransitionCount are always done by the same
+    // thread, making the non-atomic volatile update below safe. The
+    // count is updated first to avoid incorrectly attributing
+    // stuckness occuring in an old state to the new state.
+    long previousStateTransitionCount = this.stateTransitionCount;
+    this.stateTransitionCount = previousStateTransitionCount + 1;
     int previousState = currentState;
     currentState = state;
     return previousState;

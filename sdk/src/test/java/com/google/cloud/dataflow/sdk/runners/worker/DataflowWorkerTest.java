@@ -28,6 +28,7 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 
 import org.eclipse.jetty.server.LocalConnector;
@@ -43,6 +44,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import java.util.Map;
 
 /** Unit tests for {@link DataflowWorker}. */
 @RunWith(JUnit4.class)
@@ -135,6 +138,23 @@ public class DataflowWorkerTest {
     String response = testStatusServer(
         "GET /missinghandlerz HTTP/1.1\nhost: localhost\n\n");
     assertThat(response, containsString("HTTP/1.1 404 Not Found"));
+  }
+
+  @Test
+  public void testWorkItemStatusWithStateSamplerInfo() throws Exception {
+    WorkItem workItem = new WorkItem()
+        .setId(1L).setJobId("jobid").setInitialReportIndex(4L);
+    WorkItemStatus status = DataflowWorker.buildStatus(workItem, false,
+        null, null, options, null, null, null, null, 0,
+        new StateSampler.StateSamplerInfo("state", 101L, null));
+    assertEquals(1, status.getMetricUpdates().size());
+    assertEquals("internal", status.getMetricUpdates().get(0).getKind());
+    assertEquals("state-sampler", status.getMetricUpdates().get(0).getName().getName());
+    @SuppressWarnings("unchecked")
+    Map<String, Object> metric =
+        (Map<String, Object>) status.getMetricUpdates().get(0).getInternal();
+    assertEquals("state", metric.get("last-state-name"));
+    assertEquals(101L, metric.get("num-transitions"));
   }
 
   private String testStatusServer(String request) throws Exception {

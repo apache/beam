@@ -24,6 +24,7 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.api.services.dataflow.model.Status;
@@ -45,6 +46,7 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.Metric;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.common.cache.Cache;
@@ -61,6 +63,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -280,6 +283,18 @@ public class DataflowWorker {
       @Nullable Reader.DynamicSplitResult dynamicSplitResult,
       @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors,
       long reportIndex) {
+
+    return buildStatus(workItem, completed, counters, metrics, options, progress,
+        dynamicSplitResult, operationResponse, errors, reportIndex, null);
+  }
+
+  static WorkItemStatus buildStatus(WorkItem workItem, boolean completed,
+      @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
+      DataflowWorkerHarnessOptions options, @Nullable Reader.Progress progress,
+      @Nullable Reader.DynamicSplitResult dynamicSplitResult,
+      @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors,
+      long reportIndex,
+      @Nullable StateSampler.StateSamplerInfo stateSamplerInfo) {
     WorkItemStatus status = new WorkItemStatus();
     status.setWorkItemId(Long.toString(workItem.getId()));
     status.setCompleted(completed);
@@ -301,15 +316,32 @@ public class DataflowWorker {
     if (metrics != null) {
       metricUpdates = CloudMetricUtils.extractCloudMetrics(metrics, options.getWorkerId());
     }
-    List<MetricUpdate> updates = null;
-    if (counterUpdates == null) {
-      updates = metricUpdates;
-    } else if (metrics == null) {
-      updates = counterUpdates;
-    } else {
-      updates = new ArrayList<>();
+    List<MetricUpdate> updates = new ArrayList<>();
+    if (counterUpdates != null) {
       updates.addAll(counterUpdates);
+    }
+    if (metricUpdates != null) {
       updates.addAll(metricUpdates);
+    }
+    if (stateSamplerInfo != null) {
+      MetricUpdate update = new MetricUpdate();
+      update.setKind("internal");
+      MetricStructuredName name = new MetricStructuredName();
+      name.setName("state-sampler");
+      update.setName(name);
+      Map<String, Object> metric = new HashMap<String, Object>();
+      if (stateSamplerInfo.state != null) {
+        metric.put("last-state-name", stateSamplerInfo.state);
+      }
+      if (stateSamplerInfo.transitionCount != null) {
+        metric.put("num-transitions", stateSamplerInfo.transitionCount);
+      }
+      if (stateSamplerInfo.stateDurationMillis != null) {
+        metric.put("last-state-duration-ms",
+            stateSamplerInfo.stateDurationMillis);
+      }
+      update.setInternal(metric);
+      updates.add(update);
     }
     status.setMetricUpdates(updates);
 

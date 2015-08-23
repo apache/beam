@@ -85,6 +85,11 @@ public class MapTaskExecutor extends WorkExecutor {
   }
 
   @Override
+  public StateSampler.StateSamplerInfo getWorkerStateSamplerInfo() throws Exception {
+    return stateSampler == null ? null : stateSampler.getInfo();
+  }
+
+  @Override
   public Reader.DynamicSplitResult requestDynamicSplit(
       Reader.DynamicSplitRequest splitRequest) throws Exception {
     return getReadOperation().requestDynamicSplit(splitRequest);

@@ -86,7 +86,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     WorkItemStatus status = buildStatus(workItem, false/*completed*/, worker.getOutputCounters(),
         worker.getOutputMetrics(), options, worker.getWorkerProgress(), dynamicSplitResultToReport,
         null/*sourceOperationResponse*/, null/*errors*/,
-        getNextReportIndex());
+        getNextReportIndex(), worker.getWorkerStateSamplerInfo());
     status.setRequestedLeaseDuration(toCloudDuration(Duration.millis(requestedLeaseDurationMs)));
 
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
