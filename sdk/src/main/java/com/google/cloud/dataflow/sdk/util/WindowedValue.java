@@ -52,19 +52,19 @@ import java.util.Set;
 /**
  * An immutable triple of value, timestamp, and windows.
  *
- * @param <V> the type of the value
+ * @param <T> the type of the value
  */
-public abstract class WindowedValue<V> {
+public abstract class WindowedValue<T> {
 
-  protected final V value;
+  protected final T value;
   protected final PaneInfo pane;
 
   /**
    * Returns a {@code WindowedValue} with the given value, timestamp,
    * and windows.
    */
-  public static <V> WindowedValue<V> of(
-      V value,
+  public static <T> WindowedValue<T> of(
+      T value,
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane) {
@@ -82,8 +82,8 @@ public abstract class WindowedValue<V> {
   /**
    * Returns a {@code WindowedValue} with the given value, timestamp, and window.
    */
-  public static <V> WindowedValue<V> of(
-      V value,
+  public static <T> WindowedValue<T> of(
+      T value,
       Instant timestamp,
       BoundedWindow window,
       PaneInfo pane) {
@@ -103,7 +103,7 @@ public abstract class WindowedValue<V> {
    * Returns a {@code WindowedValue} with the given value in the {@link GlobalWindow} using the
    * default timestamp and pane.
    */
-  public static <V> WindowedValue<V> valueInGlobalWindow(V value) {
+  public static <T> WindowedValue<T> valueInGlobalWindow(T value) {
     return new ValueInGlobalWindow<>(value, PaneInfo.NO_FIRING);
   }
 
@@ -111,7 +111,7 @@ public abstract class WindowedValue<V> {
    * Returns a {@code WindowedValue} with the given value in the {@link GlobalWindow} using the
    * default timestamp and the specified pane.
    */
-  public static <V> WindowedValue<V> valueInGlobalWindow(V value, PaneInfo pane) {
+  public static <T> WindowedValue<T> valueInGlobalWindow(T value, PaneInfo pane) {
     return new ValueInGlobalWindow<>(value, pane);
   }
 
@@ -119,7 +119,7 @@ public abstract class WindowedValue<V> {
    * Returns a {@code WindowedValue} with the given value and timestamp,
    * {@code GlobalWindow} and default pane.
    */
-  public static <V> WindowedValue<V> timestampedValueInGlobalWindow(V value, Instant timestamp) {
+  public static <T> WindowedValue<T> timestampedValueInGlobalWindow(T value, Instant timestamp) {
     if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInGlobalWindow(value);
     } else {
@@ -131,33 +131,33 @@ public abstract class WindowedValue<V> {
    * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
    * and pane.
    */
-  public static <V> WindowedValue<V> valueInEmptyWindows(V value) {
-    return new ValueInEmptyWindows<V>(value, PaneInfo.NO_FIRING);
+  public static <T> WindowedValue<T> valueInEmptyWindows(T value) {
+    return new ValueInEmptyWindows<T>(value, PaneInfo.NO_FIRING);
   }
 
   /**
    * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
    * and the specified pane.
    */
-  public static <V> WindowedValue<V> valueInEmptyWindows(V value, PaneInfo pane) {
-    return new ValueInEmptyWindows<V>(value, pane);
+  public static <T> WindowedValue<T> valueInEmptyWindows(T value, PaneInfo pane) {
+    return new ValueInEmptyWindows<T>(value, pane);
   }
 
-  private WindowedValue(V value, PaneInfo pane) {
+  private WindowedValue(T value, PaneInfo pane) {
     this.value = value;
     this.pane = checkNotNull(pane);
   }
 
   /**
-   * Returns a new {@code WindowedValue} that is a copy of this one,
-   * but with a different value.
+   * Returns a new {@code WindowedValue} that is a copy of this one, but with a different value,
+   * which may have a new type {@code NewT}.
    */
-  public abstract <V> WindowedValue<V> withValue(V value);
+  public abstract <NewT> WindowedValue<NewT> withValue(NewT value);
 
   /**
    * Returns the value of this {@code WindowedValue}.
    */
-  public V getValue() {
+  public T getValue() {
     return value;
   }
 
@@ -194,9 +194,9 @@ public abstract class WindowedValue<V> {
    * The abstract superclass of WindowedValue representations where
    * timestamp == MIN.
    */
-  private abstract static class MinTimestampWindowedValue<V>
-      extends WindowedValue<V> {
-    public MinTimestampWindowedValue(V value, PaneInfo pane) {
+  private abstract static class MinTimestampWindowedValue<T>
+      extends WindowedValue<T> {
+    public MinTimestampWindowedValue(T value, PaneInfo pane) {
       super(value, pane);
     }
 
@@ -210,14 +210,14 @@ public abstract class WindowedValue<V> {
    * The representation of a WindowedValue where timestamp == MIN and
    * windows == {GlobalWindow}.
    */
-  private static class ValueInGlobalWindow<V>
-      extends MinTimestampWindowedValue<V> {
-    public ValueInGlobalWindow(V value, PaneInfo pane) {
+  private static class ValueInGlobalWindow<T>
+      extends MinTimestampWindowedValue<T> {
+    public ValueInGlobalWindow(T value, PaneInfo pane) {
       super(value, pane);
     }
 
     @Override
-    public <V> WindowedValue<V> withValue(V value) {
+    public <NewT> WindowedValue<NewT> withValue(NewT value) {
       return new ValueInGlobalWindow<>(value, pane);
     }
 
@@ -255,14 +255,14 @@ public abstract class WindowedValue<V> {
    * The representation of a WindowedValue where timestamp == MIN and
    * windows == {}.
    */
-  private static class ValueInEmptyWindows<V>
-      extends MinTimestampWindowedValue<V> {
-    public ValueInEmptyWindows(V value, PaneInfo pane) {
+  private static class ValueInEmptyWindows<T>
+      extends MinTimestampWindowedValue<T> {
+    public ValueInEmptyWindows(T value, PaneInfo pane) {
       super(value, pane);
     }
 
     @Override
-    public <V> WindowedValue<V> withValue(V value) {
+    public <NewT> WindowedValue<NewT> withValue(NewT value) {
       return new ValueInEmptyWindows<>(value, pane);
     }
 
@@ -300,11 +300,11 @@ public abstract class WindowedValue<V> {
    * The abstract superclass of WindowedValue representations where
    * timestamp is arbitrary.
    */
-  private abstract static class TimestampedWindowedValue<V>
-      extends WindowedValue<V> {
+  private abstract static class TimestampedWindowedValue<T>
+      extends WindowedValue<T> {
     protected final Instant timestamp;
 
-    public TimestampedWindowedValue(V value,
+    public TimestampedWindowedValue(T value,
                                     Instant timestamp,
                                     PaneInfo pane) {
       super(value, pane);
@@ -321,16 +321,16 @@ public abstract class WindowedValue<V> {
    * The representation of a WindowedValue where timestamp {@code >}
    * MIN and windows == {GlobalWindow}.
    */
-  private static class TimestampedValueInGlobalWindow<V>
-      extends TimestampedWindowedValue<V> {
-    public TimestampedValueInGlobalWindow(V value,
+  private static class TimestampedValueInGlobalWindow<T>
+      extends TimestampedWindowedValue<T> {
+    public TimestampedValueInGlobalWindow(T value,
                                           Instant timestamp,
                                           PaneInfo pane) {
       super(value, timestamp, pane);
     }
 
     @Override
-    public <V> WindowedValue<V> withValue(V value) {
+    public <NewT> WindowedValue<NewT> withValue(NewT value) {
       return new TimestampedValueInGlobalWindow<>(value, timestamp, pane);
     }
 
@@ -371,11 +371,11 @@ public abstract class WindowedValue<V> {
    * The representation of a WindowedValue where timestamp is arbitrary and
    * windows == a single non-Global window.
    */
-  private static class TimestampedValueInSingleWindow<V>
-      extends TimestampedWindowedValue<V> {
+  private static class TimestampedValueInSingleWindow<T>
+      extends TimestampedWindowedValue<T> {
     private final BoundedWindow window;
 
-    public TimestampedValueInSingleWindow(V value,
+    public TimestampedValueInSingleWindow(T value,
                                           Instant timestamp,
                                           BoundedWindow window,
                                           PaneInfo pane) {
@@ -384,7 +384,7 @@ public abstract class WindowedValue<V> {
     }
 
     @Override
-    public <V> WindowedValue<V> withValue(V value) {
+    public <NewT> WindowedValue<NewT> withValue(NewT value) {
       return new TimestampedValueInSingleWindow<>(value, timestamp, window, pane);
     }
 
@@ -427,12 +427,12 @@ public abstract class WindowedValue<V> {
    * The representation of a WindowedValue, excluding the special
    * cases captured above.
    */
-  private static class TimestampedValueInMultipleWindows<V>
-      extends TimestampedWindowedValue<V> {
+  private static class TimestampedValueInMultipleWindows<T>
+      extends TimestampedWindowedValue<T> {
     private Collection<? extends BoundedWindow> windows;
 
     public TimestampedValueInMultipleWindows(
-        V value,
+        T value,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
@@ -441,7 +441,7 @@ public abstract class WindowedValue<V> {
     }
 
     @Override
-    public <V> WindowedValue<V> withValue(V value) {
+    public <NewT> WindowedValue<NewT> withValue(NewT value) {
       return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
     }
 
@@ -533,7 +533,7 @@ public abstract class WindowedValue<V> {
      * Returns a new {@code WindowedValueCoder} that is a copy of this one,
      * but with a different value coder.
      */
-    public abstract <V> WindowedValueCoder<V> withValueCoder(Coder<V> valueCoder);
+    public abstract <NewT> WindowedValueCoder<NewT> withValueCoder(Coder<NewT> valueCoder);
   }
 
   /**
@@ -587,7 +587,7 @@ public abstract class WindowedValue<V> {
     }
 
     @Override
-    public <V> WindowedValueCoder<V> withValueCoder(Coder<V> valueCoder) {
+    public <NewT> WindowedValueCoder<NewT> withValueCoder(Coder<NewT> valueCoder) {
       return new FullWindowedValueCoder<>(valueCoder, windowCoder);
     }
 
@@ -680,7 +680,7 @@ public abstract class WindowedValue<V> {
     }
 
     @Override
-    public <V> WindowedValueCoder<V> withValueCoder(Coder<V> valueCoder) {
+    public <NewT> WindowedValueCoder<NewT> withValueCoder(Coder<NewT> valueCoder) {
       return new ValueOnlyWindowedValueCoder<>(valueCoder);
     }
 
