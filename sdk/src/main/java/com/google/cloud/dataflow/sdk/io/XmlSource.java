@@ -87,8 +87,8 @@ import javax.xml.stream.XMLStreamReader;
  * }
  * </pre>
  *
- * <p>Currently only XML files that use character encoding UTF-8 are supported. Using a file that
- * has a different character encoding may result in loss of data.
+ * <p> Currently only XML files that use single-byte characters are supported. Using a file that
+ * contains multi-byte characters may result in data loss or duplication.
  *
  * <p>To use {@code XmlSource}, explicitly declare dependencies on following two jars from Woodstox
  * StAX XML parser.
@@ -108,7 +108,7 @@ import javax.xml.stream.XMLStreamReader;
  */
 // JAVADOCSTYLE ON
 public class XmlSource<T> extends FileBasedSource<T> {
-  private static final long serialVersionUID = 0L;
+  static final long serialVersionUID = 0L;
 
   private static final String XML_VERSION = "1.1";
   private static final int DEFAULT_MIN_BUNDLE_SIZE = 8 * 1024;
@@ -250,10 +250,9 @@ public class XmlSource<T> extends FileBasedSource<T> {
     // the record boundary) and feed it to the parser. Because of this, the offset reported by the
     // XML parser is not the same as offset in the original file. They differ by a constant amount:
     // offsetInOriginalFile = parser.getLocation().getCharacterOffset() + parserBaseOffset;
-    // Note that parser.getLocation().getCharacterOffset() a byte offset since
-    // we provide a byte stream as the input source to the XML parser.
-    // http://
-    //   docs.oracle.com/javaee/5/api/javax/xml/stream/Location.html#getCharacterOffset()
+    // Note that this is true only for files with single-byte characters.
+    // It appears that, as of writing, there does not exist a Java XML parser capable of correctly
+    // reporting byte offsets of elements in the presence of multi-byte characters.
     private long parserBaseOffset = 0;
     private boolean readingStarted = false;
 
@@ -464,8 +463,9 @@ public class XmlSource<T> extends FileBasedSource<T> {
 
     private void setUpXMLParser(ReadableByteChannel channel, byte[] lookAhead) throws IOException {
       try {
-        // We use Woodstox because the StAX implementation provided by OpenJDK reports locations
-        // incorrectly.
+        // We use Woodstox because the StAX implementation provided by OpenJDK reports
+        // character locations incorrectly. Note that Woodstox still currently reports *byte*
+        // locations incorrectly when parsing documents that contain multi-byte characters.
         XMLInputFactory2 xmlInputFactory = (XMLInputFactory2) XMLInputFactory.newInstance();
         this.parser = xmlInputFactory.createXMLStreamReader(
             new SequenceInputStream(

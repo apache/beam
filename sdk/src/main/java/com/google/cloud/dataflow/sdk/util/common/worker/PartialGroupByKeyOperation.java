@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
+import static com.google.api.client.util.Base64.encodeBase64String;
+
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 
 import java.util.ArrayList;
@@ -96,7 +98,7 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
 
     @Override
     public String toString() {
-      return "Val" + Arrays.toString(value);
+      return "base64:" + encodeBase64String(value);
     }
   }
 

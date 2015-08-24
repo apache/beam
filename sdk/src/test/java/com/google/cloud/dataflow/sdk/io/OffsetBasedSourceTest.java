@@ -14,8 +14,8 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionExhaustive;
-import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.readFromSource;
+import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
+import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.readFromSource;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;

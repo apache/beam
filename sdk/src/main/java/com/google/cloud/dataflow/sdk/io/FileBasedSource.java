@@ -317,6 +317,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       }
       LOG.debug("Creating a reader for file pattern " + fileOrPatternSpec + " took "
           + (System.currentTimeMillis() - startTime) + " ms");
+      if (fileReaders.size() == 1) {
+        return fileReaders.get(0);
+      }
       return new FilePatternReader(this, fileReaders);
     } else {
       return createSingleFileReader(options);

@@ -14,9 +14,9 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionExhaustive;
-import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionFails;
-import static com.google.cloud.dataflow.sdk.io.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
+import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
+import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
+import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -34,6 +34,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -119,7 +120,7 @@ public class XmlSourceTest {
       + "<train>\n<name>Percy</name>   <number>6  </number>   <color>green</color></train>"
       + "</trains>";
 
-  String trainXMLWithAllFeatures =
+  String trainXMLWithAllFeaturesMultiByte =
       "<දුම්රියන්>"
       + "<දුම්රිය/>"
       + "<දුම්රිය size=\"small\"><name> Thomas¥</name><number>1</number><color>blue</color>"
@@ -133,6 +134,21 @@ public class XmlSourceTest {
       + "<දුම්රිය size=\"small\"><name>Percy</name><number>6</number><color>green</color>"
       + "</දුම්රිය>"
       + "</දුම්රියන්>";
+
+  String trainXMLWithAllFeaturesSingleByte =
+      "<trains>"
+      + "<train/>"
+      + "<train size=\"small\"><name> Thomas</name><number>1</number><color>blue</color>"
+      + "</train>"
+      + "<train size=\"big\"><name>He nry</name><number>3</number><color>green</color></train>"
+      + "<train size=\"small\"><name>Toby  </name><number>7</number><color>brown</color>"
+      + "</train>"
+      + "<train/>"
+      + "<train size=\"big\"><name>Gordon</name><number>4</number><color> blue</color></train>"
+      + "<train size=\"small\"><name>Emily</name><number>-1</number><color>red</color></train>"
+      + "<train size=\"small\"><name>Percy</name><number>6</number><color>green</color>"
+      + "</train>"
+      + "</trains>";
 
   @XmlRootElement
   static class Train {
@@ -304,6 +320,9 @@ public class XmlSourceTest {
   }
 
   @Test
+  @Ignore(
+      "Multi-byte characters in XML are not supported because the parser "
+          + "currently does not correctly report byte offsets")
   public void testReadXMLWithMultiByteElementName() throws IOException {
     File file = tempFolder.newFile("trainXMLTiny");
     Files.write(file.toPath(), xmlWithMultiByteElementName.getBytes(StandardCharsets.UTF_8));
@@ -741,17 +760,33 @@ public class XmlSourceTest {
   }
 
   @Test
-  public void testSplitAtFractionExhaustive() throws Exception {
+  public void testSplitAtFractionExhaustiveSingleByte() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     File file = tempFolder.newFile("trainXMLSmall");
-    Files.write(file.toPath(), trainXMLWithAllFeatures.getBytes(StandardCharsets.UTF_8));
+    Files.write(file.toPath(), trainXMLWithAllFeaturesSingleByte.getBytes(StandardCharsets.UTF_8));
 
     XmlSource<Train> source =
         XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
-            .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
+            .withRecordClass(Train.class);
+    assertSplitAtFractionExhaustive(source, options);
+  }
+
+  @Test
+  @Ignore(
+      "Multi-byte characters in XML are not supported because the parser "
+      + "currently does not correctly report byte offsets")
+  public void testSplitAtFractionExhaustiveMultiByte() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    File file = tempFolder.newFile("trainXMLSmall");
+    Files.write(file.toPath(), trainXMLWithAllFeaturesMultiByte.getBytes(StandardCharsets.UTF_8));
+
+    XmlSource<Train> source =
+        XmlSource.<Train>from(file.toPath().toString())
+            .withRootElement("දුම්රියන්")
+            .withRecordElement("දුම්රිය")
+            .withRecordClass(Train.class);
     assertSplitAtFractionExhaustive(source, options);
   }
 
@@ -769,7 +804,7 @@ public class XmlSourceTest {
     Pipeline p = TestPipeline.create();
 
     XmlSource<Train> source = XmlSource.<Train>from(file.getParent() + "/"
-                                           + "temp*.xml")
+        + "temp*.xml")
                                   .withRootElement("trains")
                                   .withRecordElement("train")
                                   .withRecordClass(Train.class)
