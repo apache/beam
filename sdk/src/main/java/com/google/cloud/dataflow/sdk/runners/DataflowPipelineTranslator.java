@@ -959,7 +959,7 @@ public class DataflowPipelineTranslator {
                 transform.getFn(),
                 context.getInput(transform).getWindowingStrategy(),
                 transform.getSideInputs(), context.getInput(transform).getCoder(), context);
-            context.addOutput("out", context.getOutput(transform));
+            context.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
           }
         });
 
