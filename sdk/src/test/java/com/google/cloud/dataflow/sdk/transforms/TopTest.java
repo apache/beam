@@ -228,8 +228,7 @@ public class TopTest {
     assertEquals("Largest.PerKey", Top.<String, Integer>largestPerKey(2).getName());
   }
 
-  // used by ApproximateQuantilesTest
-  static class OrderByLength implements Comparator<String>, Serializable {
+  private static class OrderByLength implements Comparator<String>, Serializable {
     private static final long serialVersionUID = 0L;
 
     @Override

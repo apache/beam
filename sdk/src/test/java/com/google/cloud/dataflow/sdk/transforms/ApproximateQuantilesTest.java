@@ -38,15 +38,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 /**
  * Tests for {@link ApproximateQuantiles}.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"serial", "unchecked"})
 public class ApproximateQuantilesTest {
 
   static final List<KV<String, Integer>> TABLE = Arrays.asList(
@@ -227,7 +228,7 @@ public class ApproximateQuantilesTest {
         inputs,
         Arrays.asList("aa", "b", "zz"));
     checkCombineFn(
-        ApproximateQuantilesCombineFn.create(3, new TopTest.OrderByLength()),
+        ApproximateQuantilesCombineFn.create(3, new OrderByLength()),
         inputs,
         Arrays.asList("b", "aaa", "ccccc"));
   }
@@ -266,11 +267,26 @@ public class ApproximateQuantilesTest {
 
   private static class DescendingIntComparator implements
       SerializableComparator<Integer> {
+    private static final long serialVersionUID = 0L;
     @Override
     public int compare(Integer o1, Integer o2) {
       return o2.compareTo(o1);
     }
   }
+
+  private static class OrderByLength implements Comparator<String>, Serializable {
+    private static final long serialVersionUID = 0L;
+
+    @Override
+    public int compare(String a, String b) {
+      if (a.length() != b.length()) {
+        return a.length() - b.length();
+      } else {
+        return a.compareTo(b);
+      }
+    }
+  }
+
 
   private PCollection<Integer> intRangeCollection(Pipeline p, int size) {
     return p.apply("CreateIntsUpTo(" + size + ")", Create.of(intRange(size)));
