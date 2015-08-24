@@ -419,6 +419,49 @@ public class ViewTest implements Serializable {
   }
 
   @Test
+  @Category(RunnableOnService.class)
+  public void testSideInputWithNestedIterables() {
+    Pipeline pipeline = TestPipeline.create();
+    final PCollectionView<Iterable<Integer>> view1 = pipeline
+        .apply("CreateVoid1", Create.of((Void) null).withCoder(VoidCoder.of()))
+        .apply("OutputOneInteger", ParDo.of(new DoFn<Void, Integer>() {
+          @Override
+          public void processElement(ProcessContext c) {
+            c.output(17);
+          }
+        }))
+        .apply("View1", View.<Integer>asIterable());
+
+    final PCollectionView<Iterable<Iterable<Integer>>> view2 = pipeline
+        .apply("CreateVoid2", Create.of((Void) null).withCoder(VoidCoder.of()))
+        .apply("OutputSideInput",
+            ParDo.withSideInputs(view1).of(new DoFn<Void, Iterable<Integer>>(){
+              @Override
+              public void processElement(ProcessContext c) {
+                c.output(c.sideInput(view1));
+              }
+            }))
+        .apply("View2", View.<Iterable<Integer>>asIterable());
+
+    PCollection<Integer> output = pipeline
+        .apply("CreateVoid3", Create.of((Void) null).withCoder(VoidCoder.of()))
+        .apply("ReadIterableSideInput", ParDo.withSideInputs(view2).of(new DoFn<Void, Integer>() {
+          @Override
+          public void processElement(ProcessContext c) {
+            for (Iterable<Integer> input : c.sideInput(view2)) {
+              for (Integer i : input) {
+                c.output(i);
+              }
+            }
+          }
+        }));
+
+    DataflowAssert.that(output).containsInAnyOrder(17);
+
+    pipeline.run();
+  }
+
+  @Test
   public void testViewGetName() {
     assertEquals("View.AsSingleton", View.<Integer>asSingleton().getName());
     assertEquals("View.AsIterable", View.<Integer>asIterable().getName());

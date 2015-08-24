@@ -40,6 +40,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -67,6 +68,16 @@ public final class CoderUtils {
       = new ThreadLocal<>();
 
   /**
+   * If true, a call to {@code encodeToByteArray} is already on the call stack.
+   */
+  private static ThreadLocal<Boolean> threadLocalOutputStreamInUse = new ThreadLocal<Boolean>() {
+    @Override
+    protected Boolean initialValue() {
+      return false;
+    }
+  };
+
+  /**
    * Encodes the given value using the specified Coder, and returns
    * the encoded bytes.
    *
@@ -79,15 +90,22 @@ public final class CoderUtils {
 
   public static <T> byte[] encodeToByteArray(Coder<T> coder, T value, Coder.Context context)
       throws CoderException {
-    SoftReference<ExposedByteArrayOutputStream> refStream = threadLocalOutputStream.get();
-    ExposedByteArrayOutputStream stream = refStream == null ? null : refStream.get();
-    if (stream == null) {
-      stream = new ExposedByteArrayOutputStream();
-      threadLocalOutputStream.set(new SoftReference<>(stream));
+    if (threadLocalOutputStreamInUse.get()) {
+      // encodeToByteArray() is called recursively and the thread local stream is in use,
+      // allocating a new one.
+      ByteArrayOutputStream stream = new ExposedByteArrayOutputStream();
+      encodeToSafeStream(coder, value, stream, context);
+      return stream.toByteArray();
+    } else {
+      threadLocalOutputStreamInUse.set(true);
+      try {
+        ByteArrayOutputStream stream = getThreadLocalOutputStream();
+        encodeToSafeStream(coder, value, stream, context);
+        return stream.toByteArray();
+      } finally {
+        threadLocalOutputStreamInUse.set(false);
+      }
     }
-    stream.reset();
-    encodeToSafeStream(coder, value, stream, context);
-    return stream.toByteArray();
   }
 
   /**
@@ -141,6 +159,17 @@ public final class CoderUtils {
       throw new IllegalArgumentException(
           "Forbidden IOException when reading from InputStream", exn);
     }
+  }
+
+  private static ByteArrayOutputStream getThreadLocalOutputStream() {
+    SoftReference<ExposedByteArrayOutputStream> refStream = threadLocalOutputStream.get();
+    ExposedByteArrayOutputStream stream = refStream == null ? null : refStream.get();
+    if (stream == null) {
+      stream = new ExposedByteArrayOutputStream();
+      threadLocalOutputStream.set(new SoftReference<>(stream));
+    }
+    stream.reset();
+    return stream;
   }
 
   /**
