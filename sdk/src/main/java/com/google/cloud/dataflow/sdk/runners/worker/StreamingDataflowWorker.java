@@ -17,14 +17,18 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.api.services.dataflow.model.MapTask;
+import com.google.api.services.dataflow.model.ParallelInstruction;
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingInitializer;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.util.BoundedQueueExecutor;
+import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.cloud.dataflow.sdk.util.StateFetcher;
 import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.Transport;
@@ -34,6 +38,7 @@ import com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind;
 import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
+import com.google.cloud.dataflow.sdk.util.common.worker.OutputObjectAndByteCounter;
 import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
 import com.google.cloud.dataflow.sdk.util.state.WindmillStateReader;
 import com.google.common.base.Preconditions;
@@ -182,7 +187,6 @@ public class StreamingDataflowWorker {
   // Map of user state names to system state names.
   private ConcurrentMap<String, String> stateNameMap;
   private ConcurrentMap<String, String> systemNameToComputationIdMap;
-  private ConcurrentMap<String, String> computationIdToSystemNameMap;
 
   private ThreadFactory threadFactory;
   private BoundedQueueExecutor workUnitExecutor;
@@ -209,7 +213,6 @@ public class StreamingDataflowWorker {
     this.commitCallbacks = new ConcurrentHashMap<>();
     this.stateNameMap = new ConcurrentHashMap<>();
     this.systemNameToComputationIdMap = new ConcurrentHashMap<>();
-    this.computationIdToSystemNameMap = new ConcurrentHashMap<>();
     this.threadFactory = new ThreadFactory() {
         @Override
         public Thread newThread(Runnable r) {
@@ -460,8 +463,8 @@ public class StreamingDataflowWorker {
       DataflowWorkerLoggingMDC.setStageName(computation);
       WorkerAndContext workerAndContext = mapTaskExecutors.get(computation).poll();
       if (workerAndContext == null) {
-        context = new StreamingModeExecutionContext(computationIdToSystemNameMap.get(computation),
-            stateFetcher, readerCache.get(computation), stateNameMap);
+        context = new StreamingModeExecutionContext(
+            mapTask.getSystemName(), stateFetcher, readerCache.get(computation), stateNameMap);
         worker = MapTaskExecutorFactory.create(options, mapTask, context);
         ReadOperation readOperation = worker.getReadOperation();
         // Disable progress updates since its results are unused for streaming
@@ -469,6 +472,18 @@ public class StreamingDataflowWorker {
         readOperation.setProgressUpdatePeriodMs(0);
         Preconditions.checkState(
             worker.supportsRestart(), "Streaming runner requires all operations support restart.");
+
+        // If using a custom source, count bytes read for autoscaling.
+        ParallelInstruction read = mapTask.getInstructions().get(0);
+        if (BasicSerializableSourceFormat.class.getName().equals(
+                read.getRead().getSource().getSpec().get("@type"))) {
+          readOperation.receivers[0].addOutputCounter(
+              new OutputObjectAndByteCounter(
+                  new MapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
+                      Serializer.deserialize(read.getOutputs().get(0).getCodec(), Coder.class)),
+                  worker.getOutputCounters().getAddCounterMutator())
+                  .countBytes("dataflow_input_size-" + mapTask.getSystemName()));
+        }
       } else {
         worker = workerAndContext.getWorker();
         context = workerAndContext.getContext();
@@ -626,7 +641,6 @@ public class StreamingDataflowWorker {
     for (Windmill.GetConfigResponse.SystemNameToComputationIdMapEntry entry :
         response.getSystemNameToComputationIdMapList()) {
       systemNameToComputationIdMap.put(entry.getSystemName(), entry.getComputationId());
-      computationIdToSystemNameMap.put(entry.getComputationId(), entry.getSystemName());
     }
     for (String serializedMapTask : response.getCloudWorksList()) {
       try {

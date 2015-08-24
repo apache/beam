@@ -1016,6 +1016,11 @@ public class StreamingDataflowWorkerTest {
                 "} " +
                 "source_watermark: 9223372036854775000")).build()));
 
+    assertEquals(
+        16L,
+        getCounter(result.get(1L).getCounterUpdatesList(), "dataflow_input_size-computation")
+            .getIntScalar());
+
     // Test same key continuing.
     server.addWorkToOffer(buildInput(
         "work {" +
@@ -1047,6 +1052,11 @@ public class StreamingDataflowWorkerTest {
             "source_watermark: 9223372036854775000").build()));
 
     assertThat(finalizeTracker, contains(0));
+
+    assertEquals(
+        0L,
+        getCounter(result.get(2L).getCounterUpdatesList(), "dataflow_input_size-computation")
+            .getIntScalar());
 
     // Test recovery.
     server.addWorkToOffer(buildInput(
@@ -1091,6 +1101,11 @@ public class StreamingDataflowWorkerTest {
                 "  finalize_ids: " + finalizeId +
                 "} " +
                 "source_watermark: 9223372036854775000")).build()));
+
+    assertEquals(
+        16L,
+        getCounter(result.get(3L).getCounterUpdatesList(), "dataflow_input_size-computation")
+            .getIntScalar());
   }
 
   private static class MockWork extends StreamingDataflowWorker.Work {
