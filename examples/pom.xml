@@ -241,12 +241,26 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.apis</groupId>
-      <artifactId>google-api-services-storage</artifactId>
-      <version>v1-rev25-1.19.1</version>
+      <groupId>com.google.api-client</groupId>
+      <artifactId>google-api-client</artifactId>
+      <version>1.20.0</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency google-api-client 1.19.0 -->
+             in by a transitive dependency google-api-client 1.20.0 -->
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-dataflow</artifactId>
+      <version>v1b3-rev8-1.20.0</version>
+      <exclusions>
+        <!-- Exclude an old version of guava that is being pulled
+             in by a transitive dependency google-api-client 1.20.0 -->
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
@@ -260,7 +274,7 @@
       <version>v2-rev187-1.19.1</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency google-api-client 1.19.0 -->
+             in by a transitive dependency google-api-client 1.20.0 -->
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
@@ -270,11 +284,45 @@
 
     <dependency>
       <groupId>com.google.http-client</groupId>
-      <artifactId>google-http-client-jackson2</artifactId>
-      <version>1.19.0</version>
+      <artifactId>google-http-client</artifactId>
+      <version>1.20.0</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency google-api-client 1.19.0 -->
+             in by a transitive dependency google-api-client 1.20.0 -->
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>1.7.7</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-datastore-protobuf</artifactId>
+      <version>v1beta2-rev1-2.1.2</version>
+      <exclusions>
+        <!-- Exclude an old version of guava that is being pulled
+             in by a transitive dependency google-api-client 1.20.0 -->
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-pubsub</artifactId>
+      <version>v1-rev3-1.20.0</version>
+      <exclusions>
+        <!-- Exclude an old version of guava that is being pulled
+             in by a transitive dependency google-api-client 1.20.0 -->
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
@@ -289,15 +337,9 @@
     </dependency>
 
     <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-      <version>2.4.2</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-annotations</artifactId>
-      <version>2.4.2</version>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
+      <version>2.4</version>
     </dependency>
 
     <!-- Add slf4j API frontend binding with JUL backend -->
@@ -311,10 +353,12 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-jdk14</artifactId>
       <version>1.7.7</version>
+      <scope>runtime</scope>
     </dependency>
 
     <!-- Hamcrest and JUnit are required dependencies of DataflowAssert,
          which is used in the main code of DebuggingWordCount example. -->
+
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
