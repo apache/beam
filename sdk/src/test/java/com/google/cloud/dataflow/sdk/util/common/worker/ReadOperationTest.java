@@ -124,7 +124,7 @@ public class ReadOperationTest {
 
     Thread thread = runReadLoopInThread(readOperation);
     for (int i = 0; i < 5; ++i) {
-      Thread.sleep(300); // Wait for the operation to start and block.
+      Thread.sleep(500); // Wait for the operation to start and block.
       // Ensure that getProgress() doesn't block while the next() method is blocked.
       ApproximateProgress progress = readerProgressToCloudProgress(readOperation.getProgress());
       long observedIndex = progress.getPosition().getRecordIndex().longValue();
