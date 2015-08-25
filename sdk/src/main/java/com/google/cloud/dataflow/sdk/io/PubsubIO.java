@@ -302,7 +302,7 @@ public class PubsubIO {
      * a specific Pubsub subscription. Mutually exclusive with
      * PubsubIO.Read.topic().
      * Cloud Pubsub subscription names should be of the form
-     * {@code /subscriptions/<project>/<<subscription>},
+     * {@code projects/<project>/subscriptions/<subscription>},
      * where {@code <project>} is the name of the project the subscription belongs to.
      * The {@code <subscription>} component must comply with the below requirements.
      *
