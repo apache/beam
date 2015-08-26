@@ -269,6 +269,16 @@
             </lifecycleMappingMetadata>
           </configuration>
         </plugin>
+
+        <!-- Ignore runtime-only dependencies in analysis -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <configuration>
+            <ignoreNonCompile>true</ignoreNonCompile>
+          </configuration>
+        </plugin>
+
       </plugins>
     </pluginManagement>
   </build>
