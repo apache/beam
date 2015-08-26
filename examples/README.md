@@ -59,11 +59,11 @@ Platform:
 
     mvn package
 
-    java -cp examples/target/google-cloud-dataflow-java-examples-all-bundled-manual_build.jar \
+    java -cp examples/target/google-cloud-dataflow-java-examples-all-bundled-<VERSION>.jar \
     com.google.cloud.dataflow.examples.WordCount \
     --inputFile=<INPUT FILE PATTERN> --output=<OUTPUT FILE>
 
-    java -cp examples/target/google-cloud-dataflow-java-examples-all-bundled-manual_build.jar \
+    java -cp examples/target/google-cloud-dataflow-java-examples-all-bundled-<VERSION>.jar \
     com.google.cloud.dataflow.examples.WordCount \
     --project=<YOUR CLOUD PLATFORM PROJECT ID> \
     --stagingLocation=<YOUR CLOUD STORAGE LOCATION> \

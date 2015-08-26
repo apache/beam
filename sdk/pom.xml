@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.google.cloud.dataflow</groupId>
     <artifactId>google-cloud-dataflow-java-sdk-parent</artifactId>
-    <version>manual_build</version>
+    <version>1.0.1-SNAPSHOT</version>
   </parent>
 
   <groupId>com.google.cloud.dataflow</groupId>
@@ -32,8 +32,6 @@
     interface for processing virtually any size data using Google cloud
     resources. This artifact includes entire Dataflow Java SDK.</description>
   <url>http://cloud.google.com/dataflow</url>
-
-  <version>manual_build</version>
 
   <packaging>jar</packaging>
 

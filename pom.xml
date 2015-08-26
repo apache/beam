@@ -35,7 +35,7 @@
   <url>http://cloud.google.com/dataflow</url>
   <inceptionYear>2013</inceptionYear>
 
-  <version>manual_build</version>
+  <version>1.0.1-SNAPSHOT</version>
 
   <licenses>
     <license>

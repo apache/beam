@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.google.cloud.dataflow</groupId>
     <artifactId>google-cloud-dataflow-java-sdk-parent</artifactId>
-    <version>manual_build</version>
+    <version>1.0.1-SNAPSHOT</version>
   </parent>
 
   <groupId>com.google.cloud.dataflow</groupId>
@@ -33,8 +33,6 @@
     resources. This artifact includes all Dataflow Java SDK
     examples.</description>
   <url>http://cloud.google.com/dataflow</url>
-
-  <version>manual_build</version>
 
   <packaging>jar</packaging>
 
