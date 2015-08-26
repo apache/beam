@@ -72,6 +72,7 @@
     <module>sdk</module>
     <module>examples</module>
     <module>maven-archetypes/starter</module>
+    <module>maven-archetypes/examples</module>
   </modules>
 
   <profiles>
