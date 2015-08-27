@@ -66,11 +66,11 @@ public class StreamingModeExecutionContextTest {
   @Test
   public void testTimerInternalsSetTimer() {
     StreamingModeExecutionContext executionContext = new StreamingModeExecutionContext(
-        "stageName", stateFetcher, null, new ConcurrentHashMap<String, String>());
+        "stageName", null, new ConcurrentHashMap<String, String>());
 
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
-    executionContext.start(null, new Instant(1000), stateReader, outputBuilder);
+    executionContext.start(null, new Instant(1000), stateReader, stateFetcher, outputBuilder);
     ExecutionContext.StepContext step =
         executionContext.getOrCreateStepContext("step", "transform", null);
 
@@ -94,7 +94,7 @@ public class StreamingModeExecutionContextTest {
   @Test
   public void testSideInputReaderReconstituted() {
     StreamingModeExecutionContext executionContext =
-        new StreamingModeExecutionContext("stageName", stateFetcher, null, null);
+        new StreamingModeExecutionContext("stageName", null, null);
 
     PCollectionView<String> preview1 = PCollectionViewTesting.<String, String>testingView(
         newStringTag(), new ConstantViewFn<String, String>("view1"), StringUtf8Coder.of());

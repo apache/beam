@@ -464,7 +464,7 @@ public class StreamingDataflowWorker {
       WorkerAndContext workerAndContext = mapTaskExecutors.get(computation).poll();
       if (workerAndContext == null) {
         context = new StreamingModeExecutionContext(
-            mapTask.getSystemName(), stateFetcher, readerCache.get(computation), stateNameMap);
+            mapTask.getSystemName(), readerCache.get(computation), stateNameMap);
         worker = MapTaskExecutorFactory.create(options, mapTask, context);
         ReadOperation readOperation = worker.getReadOperation();
         // Disable progress updates since its results are unused for streaming
@@ -492,7 +492,8 @@ public class StreamingDataflowWorker {
 
       WindmillStateReader stateReader = new WindmillStateReader(
           metricTrackingWindmillServer, computation, work.getKey(), work.getWorkToken());
-      context.start(work, inputDataWatermark, stateReader, outputBuilder);
+      StateFetcher localStateFetcher = stateFetcher.byteTrackingView();
+      context.start(work, inputDataWatermark, stateReader, localStateFetcher, outputBuilder);
 
       for (Long callbackId : context.getReadyCommitCallbackIds()) {
         final Runnable callback = commitCallbacks.remove(callbackId);
@@ -513,9 +514,36 @@ public class StreamingDataflowWorker {
       // Blocks while executing work.
       worker.execute();
 
-      buildCounters(worker.getOutputCounters(), outputBuilder);
-
       commitCallbacks.putAll(context.flushState());
+
+      // Compute shuffle and state byte statistics after the work is completely done, but before
+      // counters are added to the outputBuilder.
+      long shuffleBytesRead = 0;
+      for (Windmill.InputMessageBundle bundle : work.getMessageBundlesList()) {
+        for (Windmill.Message message : bundle.getMessagesList()) {
+          shuffleBytesRead += message.getSerializedSize();
+        }
+      }
+      long stateBytesRead = stateReader.getBytesRead() + localStateFetcher.getBytesRead();
+      long stateBytesWritten = Windmill.WorkItemCommitRequest.newBuilder(outputBuilder.build())
+                                   .clearOutputMessages()
+                                   .build()
+                                   .getSerializedSize();
+      CounterSet counters = worker.getOutputCounters();
+      counters
+          .getAddCounterMutator()
+          .addCounter(Counter.longs("WindmillShuffleBytesRead", Counter.AggregationKind.SUM))
+          .addValue(shuffleBytesRead);
+      counters
+          .getAddCounterMutator()
+          .addCounter(Counter.longs("WindmillStateBytesRead", Counter.AggregationKind.SUM))
+          .addValue(stateBytesRead);
+      counters
+          .getAddCounterMutator()
+          .addCounter(Counter.longs("WindmillStateBytesWritten", Counter.AggregationKind.SUM))
+          .addValue(stateBytesWritten);
+
+      buildCounters(counters, outputBuilder);
 
       mapTaskExecutors.get(computation).offer(new WorkerAndContext(worker, context));
       worker = null;

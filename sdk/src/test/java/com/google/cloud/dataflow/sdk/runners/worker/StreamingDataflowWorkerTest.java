@@ -69,6 +69,7 @@ import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.TimerOrElement.TimerOrElementCoder;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
+import com.google.cloud.dataflow.sdk.util.VarInt;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
@@ -819,6 +820,22 @@ public class StreamingDataflowWorkerTest {
             .addTimestamps(0)
             .build())));
 
+    List<Windmill.Counter> counters = actualOutput.getCounterUpdatesList();
+    // No state reads
+    assertEquals(0L, getCounter(counters, "WindmillStateBytesRead").getIntScalar());
+    // Timer + buffer + watermark hold
+    assertEquals(
+        Windmill.WorkItemCommitRequest.newBuilder(actualOutput)
+            .clearCounterUpdates()
+            .clearOutputMessages()
+            .build()
+            .getSerializedSize(),
+        getCounter(counters, "WindmillStateBytesWritten").getIntScalar());
+    // Input messages
+    assertEquals(VarInt.getLength(0L) + dataStringForIndex(0).length()
+            + addPaneTag(PaneInfo.NO_FIRING, windowAtZeroBytes()).size() + 5L /* proto overhead */,
+        getCounter(counters, "WindmillShuffleBytesRead").getIntScalar());
+
     Windmill.GetWorkResponse.Builder getWorkResponse = Windmill.GetWorkResponse.newBuilder();
     getWorkResponse.addWorkBuilder()
         .setComputationId(DEFAULT_COMPUTATION_ID)
@@ -831,6 +848,8 @@ public class StreamingDataflowWorkerTest {
         .setStateFamily(stateFamily)
         .setTimestamp(timerTimestamp);
     server.addWorkToOffer(getWorkResponse.build());
+
+    long expectedBytesRead = 0L;
 
     Windmill.GetDataResponse.Builder dataResponse = Windmill.GetDataResponse.newBuilder();
     Windmill.KeyedGetDataResponse.Builder dataBuilder = dataResponse.addDataBuilder()
@@ -855,11 +874,7 @@ public class StreamingDataflowWorkerTest {
         .setData(ByteString.EMPTY);
     server.addDataToOffer(dataResponse.build());
 
-    // Read from the finished set to prevent blind write
-    dataBuilder.clearLists();
-    dataBuilder.clearWatermarkHolds();
-    dataBuilder.clearValues();
-    server.addDataToOffer(dataResponse.build());
+    expectedBytesRead += dataBuilder.build().getSerializedSize();
 
     result = server.waitForAndGetCommits(1);
 
@@ -909,12 +924,25 @@ public class StreamingDataflowWorkerTest {
                     .setReset(true)
                     .build())));
 
+    counters = actualOutput.getCounterUpdatesList();
+
     Windmill.Counter actualReadCounter =
-        getCounter(
-            actualOutput.getCounterUpdatesList(),
-            "computation-MergeWindows-System-windmill-read-msecs");
+        getCounter(counters, "computation-MergeWindows-System-windmill-read-msecs");
     assertNotNull(actualReadCounter);
     assertThat(actualReadCounter.getIntScalar(), Matchers.greaterThan(0L));
+
+    // State reads for windowing
+    assertEquals(expectedBytesRead, getCounter(counters, "WindmillStateBytesRead").getIntScalar());
+    // State updates to clear state
+    assertEquals(
+        Windmill.WorkItemCommitRequest.newBuilder(actualOutput)
+            .clearCounterUpdates()
+            .clearOutputMessages()
+            .build()
+            .getSerializedSize(),
+        getCounter(counters, "WindmillStateBytesWritten").getIntScalar());
+    // No input messages
+    assertEquals(0L, getCounter(counters, "WindmillShuffleBytesRead").getIntScalar());
   }
 
   private static Windmill.Counter getCounter(List<Windmill.Counter> counters, String name) {

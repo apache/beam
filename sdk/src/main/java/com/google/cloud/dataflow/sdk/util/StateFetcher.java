@@ -42,8 +42,8 @@ public class StateFetcher {
   private static final Logger LOG = LoggerFactory.getLogger(StateFetcher.class);
 
   private Cache<SideInputId, SideInputCacheEntry> sideInputCache;
-
   private MetricTrackingWindmillServerStub server;
+  private long bytesRead = 0L;
 
   public StateFetcher(MetricTrackingWindmillServerStub server) {
     this(server, CacheBuilder
@@ -63,6 +63,17 @@ public class StateFetcher {
       Cache<SideInputId, SideInputCacheEntry> sideInputCache) {
     this.server = server;
     this.sideInputCache = sideInputCache;
+  }
+
+  /**
+   * Returns a view of the underlying cache that keeps track of bytes read separately.
+   */
+  public StateFetcher byteTrackingView() {
+    return new StateFetcher(server, sideInputCache);
+  }
+
+  public long getBytesRead() {
+    return bytesRead;
   }
 
   /**
@@ -116,6 +127,7 @@ public class StateFetcher {
             .build());
 
         Windmill.GlobalData data = response.getGlobalData(0);
+        bytesRead += data.getSerializedSize();
 
         Iterable<WindowedValue<?>> rawData;
         if (data.getIsReady()) {

@@ -105,6 +105,8 @@ public class WindmillStateReader {
 
   private final MetricTrackingWindmillServerStub metrics;
 
+  private long bytesRead = 0L;
+
   public WindmillStateReader(
       MetricTrackingWindmillServerStub metrics,
       String computation, ByteString key, long workToken) {
@@ -217,6 +219,10 @@ public class WindmillStateReader {
     consumeResponse(request, response, toFetch);
   }
 
+  public long getBytesRead() {
+    return bytesRead;
+  }
+
   private Windmill.GetDataRequest createRequest(Iterable<StateTag> toFetch) {
     Windmill.GetDataRequest.Builder request = Windmill.GetDataRequest.newBuilder();
     Windmill.KeyedGetDataRequest.Builder keyedDataBuilder = request
@@ -282,6 +288,7 @@ public class WindmillStateReader {
     }
 
     Windmill.KeyedGetDataResponse response = computationResponse.getData(0);
+    bytesRead += response.getSerializedSize();
 
     if (response.getFailed()) {
       // Set up all the futures for this key to throw an exception:

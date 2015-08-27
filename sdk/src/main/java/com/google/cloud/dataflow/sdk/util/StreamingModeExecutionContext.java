@@ -51,7 +51,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class StreamingModeExecutionContext extends DataflowExecutionContext {
   private final String stageName;
-  private final StateFetcher stateFetcher;
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
   // Per-key cache of active Reader objects in use by this process.
   private final ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache;
@@ -60,16 +59,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   private Windmill.WorkItem work;
   private Instant inputDataWatermark;
   private WindmillStateReader stateReader;
+  private StateFetcher stateFetcher;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
   private UnboundedSource.UnboundedReader<?> activeReader;
 
   public StreamingModeExecutionContext(
       String stageName,
-      StateFetcher stateFetcher,
       ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache,
       ConcurrentMap<String, String> stateNameMap) {
     this.stageName = stageName;
-    this.stateFetcher = stateFetcher;
     this.sideInputCache = new HashMap<>();
     this.readerCache = readerCache;
     this.stateNameMap = stateNameMap;
@@ -79,10 +77,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
       Windmill.WorkItem work,
       Instant inputDataWatermark,
       WindmillStateReader stateReader,
+      StateFetcher stateFetcher,
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.work = work;
     this.inputDataWatermark = inputDataWatermark;
     this.stateReader = stateReader;
+    this.stateFetcher = stateFetcher;
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
 
