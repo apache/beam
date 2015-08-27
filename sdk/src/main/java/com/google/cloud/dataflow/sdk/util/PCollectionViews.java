@@ -304,6 +304,7 @@ public class PCollectionViews {
      * For serialization only. Do not use directly. Subclasses should call from their own
      * protected no-argument constructor.
      */
+    @SuppressWarnings("unused")  // used for serialization
     protected PCollectionViewBase() {
       super();
     }

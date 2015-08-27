@@ -77,6 +77,7 @@ public class PipelineOptionsFactoryTest {
         .put("sdk_pipeline_options", "{\"options\":{\"numWorkers\":999}}")
         .build());
 
+    @SuppressWarnings("deprecation")  // testing deprecated functionality
     DataflowWorkerHarnessOptions options = PipelineOptionsFactory.createFromSystemProperties();
     assertEquals("test_worker_id", options.getWorkerId());
     assertEquals("test_job_id", options.getJobId());

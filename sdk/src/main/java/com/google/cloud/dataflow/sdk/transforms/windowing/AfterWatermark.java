@@ -59,8 +59,6 @@ import java.util.Objects;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterWatermark<W extends BoundedWindow> {
 
-  private static final long serialVersionUID = 0L;
-
   // Static factory class.
   private AfterWatermark() {}
 

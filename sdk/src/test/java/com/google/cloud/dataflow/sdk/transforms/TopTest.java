@@ -202,6 +202,7 @@ public class TopTest {
     input.apply(Top.of(-1, new OrderByLength()));
   }
 
+  @SuppressWarnings("deprecation")  // deprecated for testing
   @Test
   public void testTransformName() {
     Pipeline p = TestPipeline.create();

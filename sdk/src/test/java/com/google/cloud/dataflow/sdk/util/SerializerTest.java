@@ -70,6 +70,7 @@ public class SerializerTest {
     private final String n;
     private final int v;
 
+    @SuppressWarnings("unused")  // used for JSON serialization
     public InjectedTestRecord(
         @JsonProperty("name") String name,
         @JsonProperty("value") int value) {

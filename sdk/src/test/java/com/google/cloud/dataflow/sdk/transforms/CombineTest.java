@@ -311,6 +311,7 @@ public class CombineTest implements Serializable {
 
   // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine),
   // provide their own top-level name.
+  @SuppressWarnings("deprecation")  // deprecated for testing
   @Test
   public void testCombinerNames() {
     Pipeline p = TestPipeline.create();

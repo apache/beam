@@ -246,6 +246,7 @@ public final class CoderUtils {
             TypeFactory.defaultInstance());
       }
 
+      @Deprecated
       @Override
       public JavaType typeFromId(String id) {
         Class<?> clazz = getClassForId(id);
