@@ -482,6 +482,7 @@ public class StreamingDataflowWorker {
                   new MapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
                       Serializer.deserialize(read.getOutputs().get(0).getCodec(), Coder.class)),
                   worker.getOutputCounters().getAddCounterMutator())
+                  .setSamplingPeriod(100)
                   .countBytes("dataflow_input_size-" + mapTask.getSystemName()));
         }
       } else {

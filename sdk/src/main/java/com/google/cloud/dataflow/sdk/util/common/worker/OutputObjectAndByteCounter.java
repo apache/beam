@@ -35,7 +35,7 @@ public class OutputObjectAndByteCounter implements ElementCounter {
   private final ElementByteSizeObservable<Object> elementByteSizeObservable;
   private final CounterSet.AddCounterMutator addCounterMutator;
 
-  private final Random randomGenerator = new Random();
+  private Random randomGenerator = new Random();
 
   // Lowest sampling probability: 0.001%.
   private static final int SAMPLING_TOKEN_UPPER_BOUND = 1000000;
@@ -47,6 +47,7 @@ public class OutputObjectAndByteCounter implements ElementCounter {
   private Counter<Long> meanByteCount = null;
   private ElementByteSizeObserver byteCountObserver = null;
   private ElementByteSizeObserver meanByteCountObserver = null;
+  private int samplingTokenUpperBound = SAMPLING_TOKEN_UPPER_BOUND;
 
   @SuppressWarnings("unchecked")
   public OutputObjectAndByteCounter(
@@ -86,6 +87,14 @@ public class OutputObjectAndByteCounter implements ElementCounter {
     return this;
   }
 
+  /**
+   * Sets the minimum sampling rate to the inverse of the given value.
+   */
+  public OutputObjectAndByteCounter setSamplingPeriod(int period) {
+    this.samplingTokenUpperBound = period * SAMPLING_CUTOFF;
+    return this;
+  }
+
   public Counter<Long> getObjectCount() {
     return objectCount;
   }
@@ -109,6 +118,8 @@ public class OutputObjectAndByteCounter implements ElementCounter {
     if ((byteCountObserver != null || meanByteCountObserver != null)
         && (sampleElement() || elementByteSizeObservable.isRegisterByteSizeObserverCheap(elem))) {
       if (byteCountObserver != null) {
+        byteCountObserver.setScalingFactor(
+            Math.max(samplingToken, SAMPLING_CUTOFF) / (double) SAMPLING_CUTOFF);
         elementByteSizeObservable.registerByteSizeObserver(elem, byteCountObserver);
       }
       if (meanByteCountObserver != null) {
@@ -149,7 +160,12 @@ public class OutputObjectAndByteCounter implements ElementCounter {
     // min(1, samplingCutoff / N), with an additional lower bound of
     // samplingCutoff / samplingTokenUpperBound. This algorithm may be refined
     // later.
-    samplingToken = Math.min(samplingToken + 1, SAMPLING_TOKEN_UPPER_BOUND);
+    samplingToken = Math.min(samplingToken + 1, samplingTokenUpperBound);
     return randomGenerator.nextInt(samplingToken) < SAMPLING_CUTOFF;
+  }
+
+  public OutputObjectAndByteCounter setRandom(Random random) {
+    this.randomGenerator = random;
+    return this;
   }
 }

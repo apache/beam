@@ -29,6 +29,7 @@ public class ElementByteSizeObserver implements Observer {
   private final Counter<Long> counter;
   private boolean isLazy = false;
   private long totalSize = 0;
+  private double scalingFactor = 1.0;
 
   public ElementByteSizeObserver(Counter<Long> counter) {
     this.counter = counter;
@@ -60,12 +61,19 @@ public class ElementByteSizeObserver implements Observer {
     update(null, obj);
   }
 
+  /**
+   * Sets a multiplier to use on observed sizes.
+   */
+  public void setScalingFactor(double scalingFactor) {
+    this.scalingFactor = scalingFactor;
+  }
+
   @Override
   public void update(Observable obs, Object obj) {
     if (obj instanceof Long) {
-      totalSize += (Long) obj;
+      totalSize += scalingFactor * (Long) obj;
     } else if (obj instanceof Integer) {
-      totalSize += (Integer) obj;
+      totalSize += scalingFactor * (Integer) obj;
     } else {
       throw new AssertionError("unexpected parameter object");
     }
