@@ -16,28 +16,50 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.api.services.dataflow.model.SideInputInfo;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.worker.DataflowExecutionContext;
+import com.google.cloud.dataflow.sdk.runners.worker.DataflowSideInputReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
 import java.util.Objects;
 
 /**
  * {@link ExecutionContext} for use in batch mode.
  */
-public class BatchModeExecutionContext extends BaseExecutionContext {
+public class BatchModeExecutionContext extends DataflowExecutionContext {
   private Object key;
 
+  private PipelineOptions options;
+
+  protected BatchModeExecutionContext(PipelineOptions options) {
+    this.options = options;
+  }
+
   /**
-   * Creates a {@code BatchModeExecutionContext}.
+   * Returns a {@link BatchModeExecutionContext} configured according to default
+   * pipeline options.
    */
-  public BatchModeExecutionContext() { }
+  public static BatchModeExecutionContext withDefaultOptions() {
+    return new BatchModeExecutionContext(PipelineOptionsFactory.create());
+  }
+
+  /**
+   * Returns a {@link BatchModeExecutionContext} configured according to the provided options.
+   */
+  public static BatchModeExecutionContext fromOptions(PipelineOptions options) {
+    return new BatchModeExecutionContext(options);
+  }
 
   /**
    * Create a new {@link ExecutionContext.StepContext}.
    */
   @Override
-  public ExecutionContext.StepContext createStepContext(
+  protected ExecutionContext.StepContext createStepContext(
       String stepName, String transformName, StateSampler stateSampler) {
     return new StepContext(stepName, transformName);
   }
@@ -77,6 +99,20 @@ public class BatchModeExecutionContext extends BaseExecutionContext {
   public Object getKey() {
     return key;
   }
+
+  @Override
+  public SideInputReader getSideInputReader(
+      Iterable<? extends SideInputInfo> sideInputInfos) throws Exception {
+    return DataflowSideInputReader.of(sideInputInfos, options, this);
+  }
+
+  @Override
+  public SideInputReader getSideInputReaderForViews(
+      Iterable<? extends PCollectionView<?>> views) throws Exception {
+    throw new UnsupportedOperationException(
+        "BatchModeExecutionContext.withoutSideInputs().getSideInputReaderForViews(...)");
+  }
+
 
   /**
    * {@link ExecutionContext.StepContext} used in batch mode.

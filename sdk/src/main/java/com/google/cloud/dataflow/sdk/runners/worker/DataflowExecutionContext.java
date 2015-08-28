@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
-import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
+import com.google.cloud.dataflow.sdk.util.BaseExecutionContext;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
@@ -25,7 +25,7 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
  * Extensions to {@link com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext} specific to
  * the Dataflow worker.
  */
-public abstract class DataflowExecutionContext extends BatchModeExecutionContext {
+public abstract class DataflowExecutionContext extends BaseExecutionContext {
   /**
    * Returns a {@link SideInputReader} for all the side inputs described in the given
    * {@link SideInputInfo} descriptors. By default, throws {@link UnsupportedOperationException}.
@@ -41,26 +41,4 @@ public abstract class DataflowExecutionContext extends BatchModeExecutionContext
    */
   public abstract SideInputReader getSideInputReaderForViews(
       Iterable<? extends PCollectionView<?>> views) throws Exception;
-
-  /**
-   * Returns a {@link DataflowExecutionContext} that does not support side inputs at all, for
-   * situations when side inputs are not relevant, such as testing.
-   */
-  public static DataflowExecutionContext withoutSideInputs() {
-    return new DataflowExecutionContext() {
-      @Override
-      public SideInputReader getSideInputReader(
-          Iterable<? extends SideInputInfo> sideInputInfos) throws Exception {
-        throw new UnsupportedOperationException(
-            "DataflowExecutionContext.withoutSideInputs().getSideInputReader(...)");
-      }
-
-      @Override
-      public SideInputReader getSideInputReaderForViews(
-          Iterable<? extends PCollectionView<?>> views) throws Exception {
-        throw new UnsupportedOperationException(
-            "DataflowExecutionContext.withoutSideInputs().getSideInputReaderForViews(...)");
-      }
-    };
-  }
 }

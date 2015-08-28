@@ -74,8 +74,13 @@ public class ShuffleReaderFactoryTest {
 
   void runTestCreateUngroupedShuffleReader(byte[] shuffleReaderConfig, @Nullable String start,
       @Nullable String end, CloudObject encoding, Coder<?> coder) throws Exception {
-    UngroupedShuffleReader ungroupedShuffleReader = runTestCreateShuffleReader(shuffleReaderConfig,
-        start, end, encoding, new BatchModeExecutionContext(), UngroupedShuffleReader.class,
+    UngroupedShuffleReader ungroupedShuffleReader = runTestCreateShuffleReader(
+        shuffleReaderConfig,
+        start,
+        end,
+        encoding,
+        BatchModeExecutionContext.fromOptions(PipelineOptionsFactory.create()),
+        UngroupedShuffleReader.class,
         "UngroupedShuffleSource");
     Assert.assertArrayEquals(shuffleReaderConfig, ungroupedShuffleReader.shuffleReaderConfig);
     Assert.assertEquals(start, ungroupedShuffleReader.startShufflePosition);
@@ -87,7 +92,8 @@ public class ShuffleReaderFactoryTest {
   void runTestCreateGroupingShuffleReader(byte[] shuffleReaderConfig, @Nullable String start,
       @Nullable String end, CloudObject encoding, Coder<?> keyCoder, Coder<?> valueCoder)
       throws Exception {
-    BatchModeExecutionContext context = new BatchModeExecutionContext();
+    BatchModeExecutionContext context =
+        BatchModeExecutionContext.fromOptions(PipelineOptionsFactory.create());
     GroupingShuffleReader groupingShuffleReader = runTestCreateShuffleReader(
         shuffleReaderConfig, start, end, encoding, context, GroupingShuffleReader.class,
         "GroupingShuffleSource");
@@ -103,10 +109,14 @@ public class ShuffleReaderFactoryTest {
   void runTestCreatePartitioningShuffleReader(byte[] shuffleReaderConfig, @Nullable String start,
       @Nullable String end, CloudObject encoding, Coder<?> keyCoder, Coder<?> windowedValueCoder)
       throws Exception {
-    PartitioningShuffleReader partitioningShuffleReader =
-        runTestCreateShuffleReader(shuffleReaderConfig, start, end, encoding,
-            new BatchModeExecutionContext(), PartitioningShuffleReader.class,
-            "PartitioningShuffleSource");
+    PartitioningShuffleReader partitioningShuffleReader = runTestCreateShuffleReader(
+        shuffleReaderConfig,
+        start,
+        end,
+        encoding,
+        BatchModeExecutionContext.fromOptions(PipelineOptionsFactory.create()),
+        PartitioningShuffleReader.class,
+        "PartitioningShuffleSource");
     Assert.assertArrayEquals(shuffleReaderConfig, partitioningShuffleReader.shuffleReaderConfig);
     Assert.assertEquals(start, partitioningShuffleReader.startShufflePosition);
     Assert.assertEquals(end, partitioningShuffleReader.stopShufflePosition);

@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.SideInputUtils.createCollectionSideInputInfo;
 import static com.google.cloud.dataflow.sdk.runners.worker.SideInputUtils.createSingletonSideInputInfo;
-
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.hamcrest.core.Is.is;
@@ -29,6 +28,7 @@ import static org.junit.Assert.assertThat;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -64,27 +64,33 @@ public class SideInputUtilsTest {
   public void testReadSingletonSideInput() throws Exception {
     SideInputInfo sideInputInfo = createSingletonSideInputInfo(createSideInputSource(42));
 
+    PipelineOptions options = PipelineOptionsFactory.create();
     assertEquals(
         42,
         SideInputUtils.readSideInput(
-            PipelineOptionsFactory.create(), sideInputInfo, new BatchModeExecutionContext()));
+            options, sideInputInfo,
+            BatchModeExecutionContext.fromOptions(options)));
   }
 
   @Test
   public void testReadEmptyCollectionSideInput() throws Exception {
     SideInputInfo sideInputInfo = createCollectionSideInputInfo(createSideInputSource());
 
+    PipelineOptions options = PipelineOptionsFactory.create();
     assertThatContains(SideInputUtils.readSideInput(
-        PipelineOptionsFactory.create(), sideInputInfo, new BatchModeExecutionContext()));
+        options, sideInputInfo,
+        BatchModeExecutionContext.fromOptions(options)));
   }
 
   @Test
   public void testReadCollectionSideInput() throws Exception {
     SideInputInfo sideInputInfo = createCollectionSideInputInfo(createSideInputSource(3, 4, 5, 6));
 
+    PipelineOptions options = PipelineOptionsFactory.create();
     assertThatContains(
         SideInputUtils.readSideInput(
-            PipelineOptionsFactory.create(), sideInputInfo, new BatchModeExecutionContext()),
+            options, sideInputInfo,
+            BatchModeExecutionContext.fromOptions(options)),
         3, 4, 5, 6);
   }
 
@@ -94,9 +100,11 @@ public class SideInputUtilsTest {
         createCollectionSideInputInfo(createSideInputSource(3), createSideInputSource(),
             createSideInputSource(4, 5), createSideInputSource(6), createSideInputSource());
 
+    PipelineOptions options = PipelineOptionsFactory.create();
     assertThatContains(
         SideInputUtils.readSideInput(
-            PipelineOptionsFactory.create(), sideInputInfo, new BatchModeExecutionContext()),
+            options, sideInputInfo,
+            BatchModeExecutionContext.fromOptions(options)),
         3, 4, 5, 6);
   }
 

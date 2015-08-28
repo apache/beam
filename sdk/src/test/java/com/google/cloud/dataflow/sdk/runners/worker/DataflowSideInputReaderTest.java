@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting;
+import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.Sized;
@@ -99,7 +100,7 @@ public class DataflowSideInputReaderTest {
   @Test
   public void testDataflowSideInputReaderGoodRead() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    ExecutionContext executionContext = DataflowExecutionContext.withoutSideInputs();
+    ExecutionContext executionContext = BatchModeExecutionContext.fromOptions(options);
     TupleTag<Iterable<WindowedValue<Long>>> tag = new TupleTag<>();
     PCollectionView<Long> view = PCollectionViewTesting.<Long, Long>testingView(
         tag, new PCollectionViewTesting.LengthViewFn<Long>(), LONG_CODER);
@@ -139,7 +140,7 @@ public class DataflowSideInputReaderTest {
   @Test
   public void testDataflowSideInputReaderBadRead() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    ExecutionContext executionContext = DataflowExecutionContext.withoutSideInputs();
+    ExecutionContext executionContext = BatchModeExecutionContext.fromOptions(options);
     TupleTag<Iterable<WindowedValue<Long>>> tag = new TupleTag<>();
     PCollectionView<Long> view = PCollectionViewTesting.testingView(
         tag, new PCollectionViewTesting.LengthViewFn<Long>(), LONG_CODER);
@@ -161,7 +162,7 @@ public class DataflowSideInputReaderTest {
   @Test
   public void testDataflowSideInputEmpty() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    ExecutionContext executionContext = DataflowExecutionContext.withoutSideInputs();
+    ExecutionContext executionContext = BatchModeExecutionContext.fromOptions(options);
     DataflowSideInputReader sideInputReader = DataflowSideInputReader.of(
         Collections.<SideInputInfo>emptyList(), options, executionContext);
     assertTrue(sideInputReader.isEmpty());

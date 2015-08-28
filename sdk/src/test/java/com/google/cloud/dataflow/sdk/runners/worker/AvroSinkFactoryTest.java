@@ -21,6 +21,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
@@ -52,8 +53,9 @@ public class AvroSinkFactoryTest {
     cloudSink.setSpec(spec);
     cloudSink.setCodec(encoding);
 
-    Sink<?> sink = SinkFactory.create(PipelineOptionsFactory.create(), cloudSink,
-        new BatchModeExecutionContext(), null);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Sink<?> sink = SinkFactory.create(options, cloudSink,
+        BatchModeExecutionContext.fromOptions(options), null);
     return sink;
   }
 

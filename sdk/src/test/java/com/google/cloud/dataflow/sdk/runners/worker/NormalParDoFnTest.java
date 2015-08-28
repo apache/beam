@@ -29,8 +29,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DirectSideInputReader;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
@@ -43,6 +45,7 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Receiver;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -139,6 +142,13 @@ public class NormalParDoFnTest {
     }
   }
 
+  private PipelineOptions options;
+
+  @Before
+  public void setupDefaultOptions() {
+    options = PipelineOptionsFactory.create();
+  }
+
   @Test
   public void testNormalParDoFn() throws Exception {
     List<String> sideOutputTags = Arrays.asList("tag1", "tag2", "tag3");
@@ -156,13 +166,13 @@ public class NormalParDoFnTest {
     outputTags.add("output");
     outputTags.addAll(sideOutputTags);
     NormalParDoFn normalParDoFn = NormalParDoFn.of(
-        PipelineOptionsFactory.create(),
+        options,
         fnInfo,
         DirectSideInputReader.of(sideInputValues),
         outputTags,
         "doFn",
         "doFn",
-        DataflowExecutionContext.withoutSideInputs(),
+        BatchModeExecutionContext.fromOptions(options),
         (new CounterSet()).getAddCounterMutator(),
         null);
 
@@ -220,13 +230,13 @@ public class NormalParDoFnTest {
     PTuple sideInputValues = PTuple.empty();
     List<String> outputTags = Arrays.asList("output");
     NormalParDoFn normalParDoFn = NormalParDoFn.of(
-        PipelineOptionsFactory.create(),
+        options,
         fnInfo,
         DirectSideInputReader.of(sideInputValues),
         outputTags,
         "doFn",
         "doFn",
-        DataflowExecutionContext.withoutSideInputs(),
+        BatchModeExecutionContext.fromOptions(options),
         (new CounterSet()).getAddCounterMutator(),
         null);
 
@@ -264,13 +274,13 @@ public class NormalParDoFnTest {
     PTuple sideInputValues = PTuple.empty();
     List<String> outputTags = Arrays.asList("output");
     NormalParDoFn normalParDoFn = NormalParDoFn.of(
-        PipelineOptionsFactory.create(),
+        options,
         fnInfo,
         DirectSideInputReader.of(sideInputValues),
         outputTags,
         "doFn",
         "doFn",
-        DataflowExecutionContext.withoutSideInputs(),
+        BatchModeExecutionContext.fromOptions(options),
         (new CounterSet()).getAddCounterMutator(),
         null);
 
@@ -334,13 +344,13 @@ public class NormalParDoFnTest {
     DoFnInfo<?, ?> fnInfo = new DoFnInfo<>(fn, WindowingStrategy.globalDefault());
     CounterSet counters = new CounterSet();
     NormalParDoFn normalParDoFn = NormalParDoFn.of(
-        PipelineOptionsFactory.create(),
+        options,
         fnInfo,
         NullSideInputReader.empty(),
         Arrays.asList("output", "declared"),
         "doFn",
         "doFn",
-        DataflowExecutionContext.withoutSideInputs(),
+        BatchModeExecutionContext.fromOptions(options),
         counters.getAddCounterMutator(),
         null);
 

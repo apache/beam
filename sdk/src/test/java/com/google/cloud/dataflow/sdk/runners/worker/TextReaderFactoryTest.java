@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.TextualIntegerCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO.CompressionType;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -65,10 +66,15 @@ public class TextReaderFactoryTest {
     cloudSource.setSpec(spec);
     cloudSource.setCodec(encoding);
 
+    PipelineOptions options = PipelineOptionsFactory.create();
     Reader<?> reader = ReaderFactory.create(
-        PipelineOptionsFactory.create(), cloudSource, new BatchModeExecutionContext(), null, null);
+        options,
+        cloudSource,
+        BatchModeExecutionContext.fromOptions(options),
+        null,
+        null);
     Assert.assertThat(reader, new IsInstanceOf(TextReader.class));
-    TextReader textReader = (TextReader<?>) reader;
+    TextReader<?> textReader = (TextReader<?>) reader;
     Assert.assertEquals(filename, textReader.filename);
     Assert.assertEquals(
         stripTrailingNewlines == null ? true : stripTrailingNewlines,

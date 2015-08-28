@@ -23,10 +23,12 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.MultiOutputInfo;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
@@ -88,12 +90,13 @@ public class ParDoFnFactoryTest {
     List<MultiOutputInfo> multiOutputInfos =
         Arrays.asList(multiOutputInfo);
 
-    DataflowExecutionContext context = DataflowExecutionContext.withoutSideInputs();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    DataflowExecutionContext context = BatchModeExecutionContext.fromOptions(options);
     CounterSet counters = new CounterSet();
     StateSampler stateSampler = new StateSampler(
         "test", counters.getAddCounterMutator());
     ParDoFn parDoFn = factory.create(
-        PipelineOptionsFactory.create(),
+        options,
         cloudUserFn,
         "name",
         "transformName",
@@ -141,7 +144,7 @@ public class ParDoFnFactoryTest {
           null,
           null,
           1,
-          DataflowExecutionContext.withoutSideInputs(),
+          BatchModeExecutionContext.fromOptions(PipelineOptionsFactory.create()),
           counters.getAddCounterMutator(),
           stateSampler);
       fail("should have thrown an exception");

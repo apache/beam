@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -69,6 +70,13 @@ public class SinkFactoryTest {
     }
   }
 
+  private PipelineOptions options;
+
+  @Before
+  public void setUp() {
+    options = PipelineOptionsFactory.create();
+  }
+
   @Test
   public void testCreatePredefinedSink() throws Exception {
     CloudObject spec = CloudObject.forClassName("TextSink");
@@ -81,9 +89,9 @@ public class SinkFactoryTest {
 
     CounterSet.AddCounterMutator addCounterMutator =
         new CounterSet().getAddCounterMutator();
-    Sink<?> sink = SinkFactory.create(PipelineOptionsFactory.create(),
+    Sink<?> sink = SinkFactory.create(options,
                                       cloudSink,
-                                      new BatchModeExecutionContext(),
+                                      BatchModeExecutionContext.fromOptions(options),
                                       addCounterMutator);
     Assert.assertThat(sink, new IsInstanceOf(TextSink.class));
   }
@@ -99,9 +107,9 @@ public class SinkFactoryTest {
 
     CounterSet.AddCounterMutator addCounterMutator =
         new CounterSet().getAddCounterMutator();
-    Sink<?> sink = SinkFactory.create(PipelineOptionsFactory.create(),
+    Sink<?> sink = SinkFactory.create(options,
                                       cloudSink,
-                                      new BatchModeExecutionContext(),
+                                      BatchModeExecutionContext.fromOptions(options),
                                       addCounterMutator);
     Assert.assertThat(sink, new IsInstanceOf(TestSink.class));
   }
@@ -116,9 +124,9 @@ public class SinkFactoryTest {
     try {
       CounterSet.AddCounterMutator addCounterMutator =
           new CounterSet().getAddCounterMutator();
-      SinkFactory.create(PipelineOptionsFactory.create(),
+      SinkFactory.create(options,
                          cloudSink,
-                         new BatchModeExecutionContext(),
+                         BatchModeExecutionContext.fromOptions(options),
                          addCounterMutator);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {

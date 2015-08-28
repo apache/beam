@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingHandler;
+import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
 import com.google.cloud.dataflow.sdk.util.CloudMetricUtils;
 import com.google.cloud.dataflow.sdk.util.PCollectionViewWindow;
@@ -403,13 +404,14 @@ public class DataflowWorker {
    * A {@link DataflowExecutionContext} that provides a caching side input reader using
    * the worker's shared cache.
    */
-  private static class DataflowWorkerExecutionContext extends DataflowExecutionContext {
+  private static class DataflowWorkerExecutionContext extends BatchModeExecutionContext {
 
     private final Cache<PCollectionViewWindow<?>, Sized<Object>> cache;
     private final PipelineOptions options;
 
     public DataflowWorkerExecutionContext(
         Cache<PCollectionViewWindow<?>, Sized<Object>> cache, PipelineOptions options) {
+      super(options);
       this.cache = cache;
       this.options = options;
     }

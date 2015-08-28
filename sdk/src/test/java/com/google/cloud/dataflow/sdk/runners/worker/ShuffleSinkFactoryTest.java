@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
@@ -59,12 +60,14 @@ public class ShuffleSinkFactoryTest {
     cloudSink.setSpec(spec);
     cloudSink.setCodec(encoding);
 
+    PipelineOptions options = PipelineOptionsFactory.create();
     CounterSet.AddCounterMutator addCounterMutator =
         new CounterSet().getAddCounterMutator();
-    Sink<?> sink = SinkFactory.create(PipelineOptionsFactory.create(),
-                                      cloudSink,
-                                      new BatchModeExecutionContext(),
-                                      addCounterMutator);
+    Sink<?> sink = SinkFactory.create(
+        options,
+        cloudSink,
+        BatchModeExecutionContext.fromOptions(options),
+        addCounterMutator);
     Assert.assertThat(sink, new IsInstanceOf(ShuffleSink.class));
     ShuffleSink shuffleSink = (ShuffleSink) sink;
     Assert.assertArrayEquals(shuffleWriterConfig,

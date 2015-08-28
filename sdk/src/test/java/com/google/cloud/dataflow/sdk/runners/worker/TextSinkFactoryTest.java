@@ -23,6 +23,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.TextualIntegerCoder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -69,10 +70,12 @@ public class TextSinkFactoryTest {
 
     CounterSet.AddCounterMutator addCounterMutator =
         new CounterSet().getAddCounterMutator();
-    Sink<?> sink = SinkFactory.create(PipelineOptionsFactory.create(),
-                                      cloudSink,
-                                      new BatchModeExecutionContext(),
-                                      addCounterMutator);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Sink<?> sink = SinkFactory.create(
+        options,
+        cloudSink,
+        BatchModeExecutionContext.fromOptions(options),
+        addCounterMutator);
     Assert.assertThat(sink, new IsInstanceOf(TextSink.class));
     TextSink<?> textSink = (TextSink<?>) sink;
     Assert.assertEquals(filename, textSink.namePrefix);

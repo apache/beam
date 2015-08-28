@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
@@ -132,10 +133,11 @@ public class GroupingShuffleReaderTest {
     assertEquals(kvCount, records.size());
     assertEquals(shuffleWriter.getSizes(), actualSizes);
 
+    PipelineOptions options = PipelineOptionsFactory.create();
     // Read from shuffle with GroupingShuffleReader.
-    BatchModeExecutionContext context = new BatchModeExecutionContext();
+    BatchModeExecutionContext context = BatchModeExecutionContext.fromOptions(options);
     GroupingShuffleReader<Integer, String> groupingShuffleReader = new GroupingShuffleReader<>(
-        PipelineOptionsFactory.create(), null, null, null, sourceElemCoder, context, null, null);
+        options, null, null, null, sourceElemCoder, context, null, null);
     ExecutorTestUtils.TestReaderObserver observer =
         new ExecutorTestUtils.TestReaderObserver(groupingShuffleReader);
 
@@ -274,7 +276,8 @@ public class GroupingShuffleReaderTest {
 
   @Test
   public void testReadFromShuffleDataAndFailToSplit() throws Exception {
-    BatchModeExecutionContext context = new BatchModeExecutionContext();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BatchModeExecutionContext context = BatchModeExecutionContext.fromOptions(options);
     final int kFirstShard = 0;
 
     TestShuffleReader shuffleReader = new TestShuffleReader();
@@ -289,7 +292,7 @@ public class GroupingShuffleReaderTest {
     // use positions instead).
     String stop = encodeBase64URLSafeString(fabricatePosition(kNumRecords, null));
     GroupingShuffleReader<Integer, Integer> groupingShuffleReader = new GroupingShuffleReader<>(
-        PipelineOptionsFactory.create(), null, null, stop,
+        options, null, null, stop,
         WindowedValue.getFullCoder(
             KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
             IntervalWindow.getCoder()),
@@ -337,9 +340,10 @@ public class GroupingShuffleReaderTest {
 
   @Test
   public void testReadFromShuffleAndDynamicSplit() throws Exception {
-    BatchModeExecutionContext context = new BatchModeExecutionContext();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BatchModeExecutionContext context = BatchModeExecutionContext.fromOptions(options);
     GroupingShuffleReader<Integer, Integer> groupingShuffleReader = new GroupingShuffleReader<>(
-        PipelineOptionsFactory.create(), null, null, null,
+        options, null, null, null,
         WindowedValue.getFullCoder(
             KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
             IntervalWindow.getCoder()),
@@ -421,9 +425,10 @@ public class GroupingShuffleReaderTest {
     // Store the positions of all KVs returned.
     List<byte[]> positionsList = new ArrayList<byte[]>();
 
-    BatchModeExecutionContext context = new BatchModeExecutionContext();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BatchModeExecutionContext context = BatchModeExecutionContext.fromOptions(options);
     GroupingShuffleReader<Integer, Integer> groupingShuffleReader = new GroupingShuffleReader<>(
-        PipelineOptionsFactory.create(), null, null, null,
+        options, null, null, null,
         WindowedValue.getFullCoder(
             KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
             IntervalWindow.getCoder()),

@@ -40,6 +40,7 @@ import com.google.api.services.dataflow.model.ReadInstruction;
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.WriteInstruction;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactoryTest.TestReader;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactoryTest.TestReaderFactory;
@@ -47,6 +48,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSink;
 import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSinkFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -67,6 +69,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.WriteOperation;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -82,6 +85,13 @@ import java.util.List;
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class MapTaskExecutorFactoryTest {
+  private PipelineOptions options;
+
+  @Before
+  public void setUp() {
+    options = PipelineOptionsFactory.create();
+  }
+
   @Test
   public void testCreateMapTaskExecutor() throws Exception {
     List<ParallelInstruction> instructions = Arrays.asList(createReadInstruction("Read"),
@@ -95,9 +105,9 @@ public class MapTaskExecutorFactoryTest {
     CounterSet counterSet = null;
     try (
         MapTaskExecutor executor = MapTaskExecutorFactory.create(
-            PipelineOptionsFactory.create(),
+            options,
             mapTask,
-            DataflowExecutionContext.withoutSideInputs())) {
+            BatchModeExecutionContext.fromOptions(options))) {
       // Safe covariant cast not expressible without rawtypes.
       @SuppressWarnings({"rawtypes", "unchecked"})
       List<Object> operations = (List) executor.operations;
@@ -163,10 +173,10 @@ public class MapTaskExecutorFactoryTest {
     MapTask mapTask = new MapTask();
     mapTask.setInstructions(instructions);
 
-    DataflowExecutionContext context = DataflowExecutionContext.withoutSideInputs();
+    DataflowExecutionContext context = BatchModeExecutionContext.fromOptions(options);
 
     try (MapTaskExecutor executor =
-        MapTaskExecutorFactory.create(PipelineOptionsFactory.create(), mapTask, context)) {
+        MapTaskExecutorFactory.create(options, mapTask, context)) {
       executor.execute();
     }
 
@@ -204,8 +214,8 @@ public class MapTaskExecutorFactoryTest {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
-        createReadInstruction("Read"), DataflowExecutionContext.withoutSideInputs(),
+    Operation operation = MapTaskExecutorFactory.createOperation(options,
+        createReadInstruction("Read"), BatchModeExecutionContext.fromOptions(options),
         Collections.<Operation>emptyList(), counterPrefix, counterSet.getAddCounterMutator(),
         stateSampler);
     assertThat(operation, instanceOf(ReadOperation.class));
@@ -267,8 +277,8 @@ public class MapTaskExecutorFactoryTest {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
-        instruction, DataflowExecutionContext.withoutSideInputs(), priorOperations, counterPrefix,
+    Operation operation = MapTaskExecutorFactory.createOperation(options,
+        instruction, BatchModeExecutionContext.fromOptions(options), priorOperations, counterPrefix,
         counterSet.getAddCounterMutator(), stateSampler);
     assertThat(operation, instanceOf(WriteOperation.class));
     WriteOperation writeOperation = (WriteOperation) operation;
@@ -349,11 +359,11 @@ public class MapTaskExecutorFactoryTest {
     ParallelInstruction instruction =
         createParDoInstruction(producerIndex, producerOutputNum, "DoFn");
 
-    DataflowExecutionContext context = DataflowExecutionContext.withoutSideInputs();
+    DataflowExecutionContext context = BatchModeExecutionContext.fromOptions(options);
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
+    Operation operation = MapTaskExecutorFactory.createOperation(options,
         instruction, context, priorOperations, counterPrefix, counterSet.getAddCounterMutator(),
         stateSampler);
     assertThat(operation, instanceOf(ParDoOperation.class));
@@ -416,8 +426,8 @@ public class MapTaskExecutorFactoryTest {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
-        instruction, DataflowExecutionContext.withoutSideInputs(), priorOperations, counterPrefix,
+    Operation operation = MapTaskExecutorFactory.createOperation(options,
+        instruction, BatchModeExecutionContext.fromOptions(options), priorOperations, counterPrefix,
         counterSet.getAddCounterMutator(), stateSampler);
     assertThat(operation, instanceOf(PartialGroupByKeyOperation.class));
     PartialGroupByKeyOperation pgbkOperation = (PartialGroupByKeyOperation) operation;
@@ -476,8 +486,8 @@ public class MapTaskExecutorFactoryTest {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    Operation operation = MapTaskExecutorFactory.createOperation(PipelineOptionsFactory.create(),
-        instruction, DataflowExecutionContext.withoutSideInputs(), priorOperations, counterPrefix,
+    Operation operation = MapTaskExecutorFactory.createOperation(options,
+        instruction, BatchModeExecutionContext.fromOptions(options), priorOperations, counterPrefix,
         counterSet.getAddCounterMutator(), stateSampler);
     assertThat(operation, instanceOf(FlattenOperation.class));
     FlattenOperation flattenOperation = (FlattenOperation) operation;
