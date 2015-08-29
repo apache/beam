@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util.common.worker;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObservableIterable;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObservableIterator;
 import com.google.cloud.dataflow.sdk.util.common.PeekingReiterator;
@@ -54,12 +55,27 @@ public abstract class GroupingShuffleEntryIterator
   @Nullable private byte[] currentKeyBytes = null;
 
   /**
+   * The size of the shuffle entries read so far for the current key
+   * (if currentKeyBytes is non-null), or the previous key (if currentKeyBytes
+   * is null).
+   */
+  private long totalByteSizeOfEntriesForCurrentKey = 0L;
+
+  /**
+   * Counter to increment with the bytes read from the underlying shuffle
+   * iterator, or null if no counting is needed.
+   */
+  @Nullable private Counter<Long> bytesCounter;
+
+  /**
    * Constructs a GroupingShuffleEntryIterator, given a Reiterator
    * over ungrouped ShuffleEntries, assuming the ungrouped
-   * ShuffleEntries for a given key are consecutive.
+   * ShuffleEntries for a given key are consecutive. The counter given
+   * as argument, if non-null, will be updated with the byte size of the entries
+   * read.
    */
   public GroupingShuffleEntryIterator(
-      Reiterator<ShuffleEntry> shuffleIterator) {
+      Reiterator<ShuffleEntry> shuffleIterator, Counter<Long> bytesCounter) {
     this.shuffleIterator =
         new PeekingReiterator<>(
             new ProgressTrackingReiterator<>(
@@ -70,6 +86,7 @@ public abstract class GroupingShuffleEntryIterator
                     notifyElementRead(entry.length());
                   }
                 }.start()));
+    this.bytesCounter = bytesCounter;
   }
 
   /**
@@ -103,17 +120,23 @@ public abstract class GroupingShuffleEntryIterator
   }
 
   private void advanceIteratorToNextKey() {
-    if (currentKeyBytes == null) {
-      return;
-    }
-    while (shuffleIterator.hasNext()) {
-      ShuffleEntry entry = shuffleIterator.peek();
-      if (!Arrays.equals(entry.getKey(), currentKeyBytes)) {
-        break;
+    if (currentKeyBytes != null) {
+      // We need to advance the iterator to the next key.
+      while (shuffleIterator.hasNext()) {
+        ShuffleEntry entry = shuffleIterator.peek();
+        if (!Arrays.equals(entry.getKey(), currentKeyBytes)) {
+          break;
+        }
+        totalByteSizeOfEntriesForCurrentKey += shuffleIterator.next().length();
       }
-      shuffleIterator.next();
+      currentKeyBytes = null;
     }
-    currentKeyBytes = null;
+    // We are now at key boundary.
+    if (bytesCounter != null) {
+      // Commit the size of the currently read key group.
+      bytesCounter.addValue(totalByteSizeOfEntriesForCurrentKey);
+    }
+    totalByteSizeOfEntriesForCurrentKey = 0L;
   }
 
   private static class ValuesIterable
@@ -146,6 +169,7 @@ public abstract class GroupingShuffleEntryIterator
     private final PeekingReiterator<ShuffleEntry> valueShuffleIterator;
     private final ProgressTracker<ShuffleEntry> tracker;
     private boolean nextKnownValid = false;
+    private long byteSizeRead = 0L;
 
     public ValuesIterator(byte[] valueKeyBytes) {
       this.valueKeyBytes = checkNotNull(valueKeyBytes);
@@ -166,11 +190,12 @@ public abstract class GroupingShuffleEntryIterator
       }.start();
     }
 
-    private ValuesIterator(ValuesIterator it) {
+    private ValuesIterator(ValuesIterator it, long byteSizeRead) {
       this.valueKeyBytes = it.valueKeyBytes;
       this.valueShuffleIterator = it.valueShuffleIterator.copy();
       this.tracker = it.tracker.copy();
       this.nextKnownValid = it.nextKnownValid;
+      this.byteSizeRead = byteSizeRead;
     }
 
     @Override
@@ -190,6 +215,11 @@ public abstract class GroupingShuffleEntryIterator
       if (!nextKnownValid && valueKeyBytes == currentKeyBytes) {
         shuffleIterator = valueShuffleIterator.copy();
         currentKeyBytes = null;
+        // We update the bytes read size for the key as this is the first
+        // ValuesIterator copy to finish reading the values of the
+        // "parent" GroupingShuffleEntryIterator. Setting currentKeyBytes
+        // to null prevents other copies from also recording their bytes read.
+        totalByteSizeOfEntriesForCurrentKey = byteSizeRead;
       }
 
       return nextKnownValid;
@@ -201,6 +231,7 @@ public abstract class GroupingShuffleEntryIterator
         throw new NoSuchElementException();
       }
       ShuffleEntry entry = valueShuffleIterator.next();
+      byteSizeRead += entry.length();
       nextKnownValid = false;
       tracker.saw(entry);
       return entry;
@@ -213,7 +244,7 @@ public abstract class GroupingShuffleEntryIterator
 
     @Override
     public ValuesIterator copy() {
-      return new ValuesIterator(this);
+      return new ValuesIterator(this, byteSizeRead);
     }
   }
 }

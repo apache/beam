@@ -212,7 +212,8 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
       try (StateSampler.ScopedState read = stateSampler.scopedState(readState)) {
         this.groups =
             new GroupingShuffleEntryIterator(
-                reader.read(rangeTracker.getStartPosition(), rangeTracker.getStopPosition())) {
+                reader.read(rangeTracker.getStartPosition(), rangeTracker.getStopPosition()),
+                GroupingShuffleReader.this.perOperationPerDatasetBytesCounter) {
               @Override
               protected void notifyElementRead(long byteSize) {
                 // We accumulate the sum of bytes read in a local variable. This sum will be counted
@@ -381,13 +382,8 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
           ShuffleEntry entry = base.next();
 
           // The shuffle entries are handed over to the consumer of this iterator. Therefore, we can
-          // mark the values are read and increment the bytes read counter.
-          long lastGroupSize = currentGroupSize.getAndSet(0L);
-          notifyValueReturned(lastGroupSize);
-          if (GroupingShuffleReader.this.perOperationPerDatasetBytesCounter != null) {
-            GroupingShuffleReader.this
-                .perOperationPerDatasetBytesCounter.addValue(lastGroupSize);
-          }
+          // notify the bytes that have been read so far.
+          notifyValueReturned(currentGroupSize.getAndSet(0L));
           try {
             return CoderUtils.decodeFromByteArray(valueCoder, entry.getValue());
           } catch (IOException exn) {

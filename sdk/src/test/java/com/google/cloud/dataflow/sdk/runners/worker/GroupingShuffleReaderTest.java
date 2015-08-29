@@ -90,7 +90,9 @@ public class GroupingShuffleReaderTest {
       KV.of(3, Arrays.asList("in 3")), KV.of(4, Arrays.asList("in 4a", "in 4b", "in 4c", "in 4d")),
       KV.of(5, Arrays.asList("in 5")));
 
-  /** How many of the values with each key are to be read. */
+  /** How many of the values with each key are to be read.
+   * Note that the order matters as the conversion to ordinal is used below.
+   */
   private enum ValuesToRead {
     /** Don't even ask for the values iterator. */
     SKIP_VALUES,
@@ -99,7 +101,9 @@ public class GroupingShuffleReaderTest {
     /** Read just the first value. */
     READ_ONE_VALUE,
     /** Read all the values. */
-    READ_ALL_VALUES
+    READ_ALL_VALUES,
+    /** Read all the values twice. */
+    READ_ALL_VALUES_TWICE
   }
 
   private List<ShuffleEntry> writeShuffleEntries(List<KV<Integer, List<String>>> input)
@@ -184,7 +188,7 @@ public class GroupingShuffleReaderTest {
                 break;
               }
             }
-            if (valuesToRead == ValuesToRead.READ_ALL_VALUES) {
+            if (valuesToRead.ordinal() >= ValuesToRead.READ_ALL_VALUES.ordinal()) {
               assertFalse(valuesIterator.hasNext());
               assertFalse(valuesIterator.hasNext());
 
@@ -195,6 +199,25 @@ public class GroupingShuffleReaderTest {
                 // As expected.
               }
               valuesIterable.iterator(); // Verifies that this does not throw.
+            }
+          }
+          if (valuesToRead == ValuesToRead.READ_ALL_VALUES_TWICE) {
+            // Create new iterator;
+            valuesIterator = valuesIterable.iterator();
+
+            while (valuesIterator.hasNext()) {
+              assertTrue(valuesIterator.hasNext());
+              assertTrue(valuesIterator.hasNext());
+              assertEquals("BatchModeExecutionContext key", key, context.getKey());
+              valuesIterator.next();
+            }
+            assertFalse(valuesIterator.hasNext());
+            assertFalse(valuesIterator.hasNext());
+            try {
+              valuesIterator.next();
+              fail("Expected NoSuchElementException");
+            } catch (NoSuchElementException exn) {
+              // As expected.
             }
           }
 
@@ -277,6 +300,11 @@ public class GroupingShuffleReaderTest {
   }
 
   @Test
+  public void testReadNonEmptyShuffleDataTwice() throws Exception {
+    runTestReadFromShuffle(KVS, ValuesToRead.READ_ALL_VALUES_TWICE);
+  }
+
+  @Test
   public void testReadNonEmptyShuffleDataReadingOneValue() throws Exception {
     runTestReadFromShuffle(KVS, ValuesToRead.READ_ONE_VALUE);
   }
@@ -328,13 +356,18 @@ public class GroupingShuffleReaderTest {
   }
 
   @Test
+  public void testBytesReadNonEmptyShuffleDataTwice() throws Exception {
+    runTestBytesReadCounter(KVS, ValuesToRead.READ_ALL_VALUES_TWICE, 168L);
+  }
+
+  @Test
   public void testBytesReadNonEmptyShuffleDataReadingOneValue() throws Exception {
     runTestBytesReadCounter(KVS, ValuesToRead.READ_ONE_VALUE, 168L);
   }
 
   @Test
   public void testBytesReadNonEmptyShuffleDataSkippingValues() throws Exception {
-    runTestBytesReadCounter(KVS, ValuesToRead.SKIP_VALUES, 0L);
+    runTestBytesReadCounter(KVS, ValuesToRead.SKIP_VALUES, 168L);
   }
 
   @Test
