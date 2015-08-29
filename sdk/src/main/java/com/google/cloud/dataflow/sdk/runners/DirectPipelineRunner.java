@@ -783,7 +783,8 @@ public class DirectPipelineRunner
     public <T> void setPCollectionValuesWithMetadata(
         PCollection<T> pc, List<ValueWithMetadata<T>> elements) {
       LOG.debug("Setting {} = {}", pc, elements);
-      setPValue(pc, ensurePCollectionEncodable(pc, elements));
+      ensurePCollectionEncodable(pc, elements);
+      setPValue(pc, elements);
     }
 
     @Override
@@ -795,8 +796,8 @@ public class DirectPipelineRunner
     }
 
     /**
-     * Retrieves the value of the given PCollection.
-     * Throws an exception if the PCollection's value hasn't already been set.
+     * Retrieves the value of the given {@link PCollection}.
+     * Throws an exception if the {@link PCollection}'s value hasn't already been set.
      */
     @Override
     public <T> List<T> getPCollection(PCollection<T> pc) {
@@ -848,9 +849,9 @@ public class DirectPipelineRunner
     }
 
     /**
-     * If testEncodability, ensures that the PCollection's coder and elements
-     * are encodable and decodable by encoding them and decoding them,
-     * and returning the result.  Otherwise returns the argument elements.
+     * If {@code testEncodability}, ensures that the {@link PCollection}'s coder and elements are
+     * encodable and decodable by encoding them and decoding them, and returning the result.
+     * Otherwise returns the argument elements.
      */
     <T> List<ValueWithMetadata<T>> ensurePCollectionEncodable(
         PCollection<T> pc, List<ValueWithMetadata<T>> elements) {

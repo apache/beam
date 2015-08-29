@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
@@ -38,6 +39,7 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -406,8 +408,16 @@ public class DataflowAssert {
 
     @Override
     public PCollectionView<ActualT> apply(PBegin input) {
+      final Coder<T> coder = actual.getCoder();
       return actual
           .apply(Window.<T>into(new GlobalWindows()))
+          .apply(ParDo.of(new DoFn<T, T>() {
+            private static final long serialVersionUID = 0L;
+            @Override
+            public void processElement(ProcessContext context) throws CoderException {
+              context.output(CoderUtils.clone(coder, context.element()));
+            }
+          }))
           .apply(actualView);
     }
   }

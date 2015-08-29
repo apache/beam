@@ -16,6 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -30,10 +34,12 @@ import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -48,14 +54,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
-import java.util.Arrays;
 
 /** Unit tests for bucketing. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({"serial", "unchecked"})
 public class WindowingTest implements Serializable {
   @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private static class WindowedCount extends PTransform<PCollection<String>, PCollection<String>> {
 
@@ -218,9 +223,17 @@ public class WindowingTest implements Serializable {
     PCollection<KV<String, Iterable<String>>> output = b
         .apply(GroupByKey.<String, String>create());
 
-    DataflowAssert.that(output).containsInAnyOrder(
-        KV.of("k",
-            (Iterable<String>) Arrays.asList("i", "h", "g", "f", "a", "e", "c", "b", "d", "j")));
+    DataflowAssert.that(output).satisfies(
+        new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
+          @Override
+          public Void apply(Iterable<KV<String, Iterable<String>>> contents) {
+            KV<String, Iterable<String>> element = Iterables.getOnlyElement(contents);
+            assertThat(element.getKey(), equalTo("k"));
+            assertThat(element.getValue(),
+                contains("i", "h", "g", "f", "a", "e", "c", "b", "d", "j"));
+            return null;
+          }
+        });
 
     p.run();
   }
