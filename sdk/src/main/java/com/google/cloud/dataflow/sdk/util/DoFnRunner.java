@@ -73,7 +73,7 @@ public class DoFnRunner<InputT, OutputT> {
   /** The context used for running the DoFn. */
   public final DoFnContext<InputT, OutputT> context;
 
-  DoFnRunner(
+  protected DoFnRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,

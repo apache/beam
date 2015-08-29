@@ -13,11 +13,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.dataflow.sdk.util.state;
+package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.runners.worker.MetricTrackingWindmillServerStub;
-import com.google.cloud.dataflow.sdk.runners.worker.StreamingDataflowWorker;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagList;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagValue;

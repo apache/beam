@@ -204,7 +204,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
   /**
    * Attempt to merge all of the windows.
    */
-  @VisibleForTesting void merge() throws Exception {
+  public void merge() throws Exception {
     activeWindows.mergeIfAppropriate(null, this);
   }
 

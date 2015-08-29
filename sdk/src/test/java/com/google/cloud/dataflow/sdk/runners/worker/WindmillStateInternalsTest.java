@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.dataflow.sdk.util.state;
+package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -29,6 +29,15 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagList;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagValue;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.cloud.dataflow.sdk.util.state.BagState;
+import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
+import com.google.cloud.dataflow.sdk.util.state.StateContents;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespaceForTest;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.util.state.StateTags;
+import com.google.cloud.dataflow.sdk.util.state.ValueState;
+import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 

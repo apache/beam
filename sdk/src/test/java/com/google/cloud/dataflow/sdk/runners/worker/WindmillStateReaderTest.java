@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.dataflow.sdk.util.state;
+package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -22,8 +22,6 @@ import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
-import com.google.cloud.dataflow.sdk.runners.worker.MetricTrackingWindmillServerStub;
-import com.google.cloud.dataflow.sdk.runners.worker.StreamingDataflowWorker;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.KeyedGetDataRequest;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;

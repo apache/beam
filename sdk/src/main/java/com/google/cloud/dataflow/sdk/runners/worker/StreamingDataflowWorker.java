@@ -29,8 +29,6 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.util.BoundedQueueExecutor;
 import com.google.cloud.dataflow.sdk.util.Serializer;
-import com.google.cloud.dataflow.sdk.util.StateFetcher;
-import com.google.cloud.dataflow.sdk.util.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
@@ -40,7 +38,6 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
 import com.google.cloud.dataflow.sdk.util.common.worker.OutputObjectAndByteCounter;
 import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
-import com.google.cloud.dataflow.sdk.util.state.WindmillStateReader;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 

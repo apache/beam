@@ -36,7 +36,7 @@ import java.io.Serializable;
  * @param <OutputT> The output type that will be produced for each key.
  * @param <W> The type of windows this operates on.
  */
-class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
+public class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     extends ReduceFn<K, InputT, OutputT, W> {
 
   private static final long serialVersionUID = 0L;

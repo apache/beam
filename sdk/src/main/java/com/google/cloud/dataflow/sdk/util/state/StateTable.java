@@ -56,7 +56,7 @@ public abstract class StateTable {
     stateTable.rowKeySet().remove(namespace);
   }
 
-  protected void clear() {
+  public void clear() {
     stateTable.clear();
   }
 

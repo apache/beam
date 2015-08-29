@@ -68,9 +68,9 @@ import com.google.cloud.dataflow.sdk.util.PCollectionViews;
 import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.Reshuffle;
-import com.google.cloud.dataflow.sdk.util.StreamingPCollectionViewWriterFn;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -736,6 +736,39 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     @Override
     protected String getKindString() {
       return "StreamingCreate";
+    }
+  }
+
+  /**
+   * A specialized {@link DoFn} for writing the contents of a {@link PCollection}
+   * to a streaming {@link PCollectionView} backend implementation.
+   */
+  private static class StreamingPCollectionViewWriterFn<T>
+  extends DoFn<Iterable<T>, T> implements DoFn.RequiresWindowAccess {
+    private static final long serialVersionUID = 0;
+
+    private final PCollectionView<?> view;
+    private final Coder<T> dataCoder;
+
+    public static <T> StreamingPCollectionViewWriterFn<T> create(
+        PCollectionView<?> view, Coder<T> dataCoder) {
+      return new StreamingPCollectionViewWriterFn<T>(view, dataCoder);
+    }
+
+    private StreamingPCollectionViewWriterFn(PCollectionView<?> view, Coder<T> dataCoder) {
+      this.view = view;
+      this.dataCoder = dataCoder;
+    }
+
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
+      List<WindowedValue<T>> output = new ArrayList<>();
+      for (T elem : c.element()) {
+        output.add(WindowedValue.of(elem, c.timestamp(), c.window(), c.pane()));
+      }
+
+      c.windowingInternals().writePCollectionViewData(
+          view.getTagInternal(), output, dataCoder);
     }
   }
 
