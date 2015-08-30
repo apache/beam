@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.runners.dataflow;
+package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
