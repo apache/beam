@@ -32,7 +32,7 @@ import java.util.Random;
 
 /**
  * A {@code TupleTag} is a typed tag to use as the key of a
- * heterogeneously typed tuple, like {@link PCollectionTuple} or
+ * heterogeneously typed tuple, like {@link PCollectionTuple}.
  * Its generic type parameter allows tracking
  * the static type of things stored in tuples.
  *
@@ -60,8 +60,7 @@ public class TupleTag<V> implements Serializable {
    * <p>This is the normal way {@code TupleTag}s are constructed.
    */
   public TupleTag() {
-    this.id = genId();
-    this.generated = true;
+    this(genId(), true);
   }
 
   /**
@@ -78,8 +77,7 @@ public class TupleTag<V> implements Serializable {
    * {@link #TupleTag()} should be preferred.
    */
   public TupleTag(String id) {
-    this.id = id;
-    this.generated = false;
+    this(id, false);
   }
 
   /**
@@ -120,7 +118,6 @@ public class TupleTag<V> implements Serializable {
   public TypeDescriptor<V> getTypeDescriptor() {
     return new TypeDescriptor<V>(getClass()) {};
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal details below here.
