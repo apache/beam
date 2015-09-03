@@ -28,7 +28,6 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -55,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -174,8 +174,7 @@ public class DataflowAssert {
     KvCoder<K, V> kvCoder = (KvCoder<K, V>) actual.getCoder();
 
     return new SingletonAssert<>(
-        new CreateActual<KV<K, V>, Map<K, Iterable<V>>>(
-            actual, View.<K, V>asMultimap()), actual.getPipeline())
+        new CreateActual<>(actual, View.<K, V>asMultimap()), actual.getPipeline())
         .setCoder(MapCoder.of(kvCoder.getKeyCoder(), IterableCoder.of(kvCoder.getValueCoder())));
   }
 
@@ -191,18 +190,17 @@ public class DataflowAssert {
     KvCoder<K, V> kvCoder = (KvCoder<K, V>) actual.getCoder();
 
     return new SingletonAssert<>(
-        new CreateActual<KV<K, V>, Map<K, V>>(
-            actual, View.<K, V>asMap().withSingletonValues()), actual.getPipeline())
+        new CreateActual<>(actual, View.<K, V>asMap()), actual.getPipeline())
         .setCoder(MapCoder.of(kvCoder.getKeyCoder(), kvCoder.getValueCoder()));
   }
 
   ////////////////////////////////////////////////////////////
 
   /**
-   * An assertion about the contents of a {@link PCollectionView}.
+   * An assertion about the contents of a {@link PCollectionView} yielding an {@code Iterable<T>}.
    */
-  @SuppressWarnings("serial")
   public static class IterableAssert<T> implements Serializable {
+    private static final long serialVersionUID = 0L;
 
     private final Pipeline pipeline;
     private final PTransform<PBegin, PCollectionView<Iterable<T>>> createActual;
@@ -216,8 +214,7 @@ public class DataflowAssert {
     }
 
     /**
-     * Sets the coder to use for elements of type {@code T}, as needed
-     * for internal purposes.
+     * Sets the coder to use for elements of type {@code T}, as needed for internal purposes.
      *
      * <p>Returns this {@code IterableAssert}.
      */
@@ -270,6 +267,51 @@ public class DataflowAssert {
     }
 
     /**
+     * Applies a {@link SerializableMatcher} to check the elements of the {@code Iterable}.
+     *
+     * <p>Returns this {@code IterableAssert}.
+     */
+    public IterableAssert<T> satisfies(final SerializableMatcher<Iterable<? extends T>> matcher) {
+      // Safe covariant cast. Could be elided by changing a lot of this file to use
+      // more flexible bounds.
+      @SuppressWarnings({"rawtypes", "unchecked"})
+      SerializableFunction<Iterable<T>, Void> checkerFn =
+        (SerializableFunction) new MatcherCheckerFn<>(matcher);
+      pipeline.apply(
+          "DataflowAssert$" + (assertCount++),
+          new OneSideInputAssert<Iterable<T>>(
+              createActual,
+              checkerFn));
+      return this;
+    }
+
+    private static class MatcherCheckerFn<T> implements SerializableFunction<T, Void> {
+      private static final long serialVersionUID = 0L;
+
+      private SerializableMatcher<T> matcher;
+
+      public MatcherCheckerFn(SerializableMatcher<T> matcher) {
+        this.matcher = matcher;
+      }
+
+      @Override
+      public Void apply(T actual) {
+        assertThat(actual, matcher);
+        return null;
+      }
+    }
+
+
+    /**
+     * Checks that the {@code Iterable} is empty.
+     *
+     * <p> Returns this {@code IterableAssert}.
+     */
+    public IterableAssert<T> empty() {
+      return satisfies(new AssertContainsInAnyOrderRelation<T>(), Collections.<T>emptyList());
+    }
+
+    /**
      * Checks that the {@code Iterable} contains the expected elements, in any
      * order.
      *
@@ -291,14 +333,26 @@ public class DataflowAssert {
         new AssertContainsInAnyOrderRelation<T>(),
         Arrays.asList(expectedElements));
     }
+
+    /**
+     * Checks that the {@code Iterable} contains elements that match the provided matchers,
+     * in any order.
+     *
+     * <p> Returns this {@code IterableAssert}.
+     */
+    @SafeVarargs
+    public final IterableAssert<T> containsInAnyOrder(
+        SerializableMatcher<? super T>... elementMatchers) {
+      return satisfies(SerializableMatchers.containsInAnyOrder(elementMatchers));
+    }
   }
 
   /**
    * An assertion about the single value of type {@code T}
    * associated with a {@link PCollectionView}.
    */
-  @SuppressWarnings("serial")
   public static class SingletonAssert<T> implements Serializable {
+    private static final long serialVersionUID = 0L;
 
     private final Pipeline pipeline;
     private final CreateActual<?, T> createActual;
@@ -365,7 +419,6 @@ public class DataflowAssert {
 
       return this;
     }
-
 
     /**
      * Checks that the value of this {@code SingletonAssert}'s view is equal
@@ -502,35 +555,40 @@ public class DataflowAssert {
 
       return PDone.in(input.getPipeline());
     }
+  }
 
-    private static class CheckerDoFn<ActualT> extends DoFn<Void, Void> {
-      private static final long serialVersionUID = 0;
-      private final SerializableFunction<ActualT, Void> checkerFn;
-      private final Aggregator<Integer, Integer> success =
-          createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
-      private final Aggregator<Integer, Integer> failure =
-          createAggregator(FAILURE_COUNTER, new Sum.SumIntegerFn());
-      private final PCollectionView<ActualT> actual;
+  /**
+   * A {@link DoFn} that runs a checking {@link SerializableFunction} on the contents of
+   * a {@link PCollectionView}, and adjusts counters and thrown exceptions for use in testing.
+   */
+  private static class CheckerDoFn<ActualT> extends DoFn<Void, Void> {
+    private static final long serialVersionUID = 0;
+    private final SerializableFunction<ActualT, Void> checkerFn;
+    private final Aggregator<Integer, Integer> success =
+        createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
+    private final Aggregator<Integer, Integer> failure =
+        createAggregator(FAILURE_COUNTER, new Sum.SumIntegerFn());
+    private final PCollectionView<ActualT> actual;
 
-      private CheckerDoFn(final SerializableFunction<ActualT, Void> checkerFn,
-          PCollectionView<ActualT> actual) {
-        this.checkerFn = checkerFn;
-        this.actual = actual;
-      }
+    private CheckerDoFn(
+        SerializableFunction<ActualT, Void> checkerFn,
+        PCollectionView<ActualT> actual) {
+      this.checkerFn = checkerFn;
+      this.actual = actual;
+    }
 
-      @Override
-      public void processElement(ProcessContext c) {
-        try {
-          ActualT actualContents = c.sideInput(actual);
-          checkerFn.apply(actualContents);
-          success.addValue(1);
-        } catch (Throwable t) {
-          LOG.error("DataflowAssert failed expectations.", t);
-          failure.addValue(1);
-          // TODO: allow for metrics to propagate on failure when running a streaming pipeline
-          if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
-            throw t;
-          }
+    @Override
+    public void processElement(ProcessContext c) {
+      try {
+        ActualT actualContents = c.sideInput(actual);
+        checkerFn.apply(actualContents);
+        success.addValue(1);
+      } catch (Throwable t) {
+        LOG.error("DataflowAssert failed expectations.", t);
+        failure.addValue(1);
+        // TODO: allow for metrics to propagate on failure when running a streaming pipeline
+        if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
+          throw t;
         }
       }
     }
@@ -619,8 +677,9 @@ public class DataflowAssert {
    * A {@link SerializableFunction} that verifies that an actual value is equal to an
    * expected value.
    */
-  @SuppressWarnings("serial")
   private static class AssertIsEqualTo<T> implements SerializableFunction<T, Void> {
+    private static final long serialVersionUID = 0L;
+
     private T expected;
 
     public AssertIsEqualTo(T expected) {
@@ -638,9 +697,9 @@ public class DataflowAssert {
    * A {@link SerializableFunction} that verifies that an {@code Iterable} contains
    * expected items in any order.
    */
-  @SuppressWarnings("serial")
   private static class AssertContainsInAnyOrder<T>
       implements SerializableFunction<Iterable<T>, Void> {
+    private static final long serialVersionUID = 0L;
 
     private T[] expected;
 
@@ -674,7 +733,7 @@ public class DataflowAssert {
    * a {@code SerializableFunction<Actual, Void>}
    * that should verify the assertion..
    */
-  public static interface AssertRelation<ActualT, ExpectedT> extends Serializable {
+  private static interface AssertRelation<ActualT, ExpectedT> extends Serializable {
     public SerializableFunction<ActualT, Void> assertFor(ExpectedT input);
   }
 

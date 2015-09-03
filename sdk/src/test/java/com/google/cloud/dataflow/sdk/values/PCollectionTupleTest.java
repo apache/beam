@@ -86,7 +86,7 @@ public final class PCollectionTupleTest implements Serializable {
 
     DataflowAssert.that(outputs.get(mainOutputTag)).containsInAnyOrder(inputs);
     DataflowAssert.that(outputs.get(sideOutputTag)).containsInAnyOrder(inputs);
-    DataflowAssert.that(outputs.get(emptyOutputTag)).containsInAnyOrder();
+    DataflowAssert.that(outputs.get(emptyOutputTag)).empty();
 
     pipeline.run();
   }

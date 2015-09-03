@@ -175,8 +175,7 @@ public class CreateTest {
         .apply(Create.timestamped(new ArrayList<TimestampedValue<String>>())
             .withCoder(StringUtf8Coder.of()));
 
-    DataflowAssert.that(output)
-        .containsInAnyOrder();
+    DataflowAssert.that(output).empty();
     p.run();
   }
 
@@ -212,12 +211,8 @@ public class CreateTest {
   @Category(RunnableOnService.class)
   public void testCreateWithVoidType() throws Exception {
     Pipeline p = TestPipeline.create();
-
     PCollection<Void> output = p.apply(Create.of((Void) null, (Void) null));
-
-    DataflowAssert.that(output)
-      .containsInAnyOrder(null, null);
-
+    DataflowAssert.that(output).containsInAnyOrder((Void) null, (Void) null);
     p.run();
   }
 

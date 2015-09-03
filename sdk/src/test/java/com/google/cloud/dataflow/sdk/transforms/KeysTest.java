@@ -77,9 +77,7 @@ public class KeysTest {
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<String> output = input.apply(Keys.<String>create());
-    DataflowAssert.that(output)
-        .containsInAnyOrder();
-
+    DataflowAssert.that(output).empty();
     p.run();
   }
 }

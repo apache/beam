@@ -79,7 +79,7 @@ public class CountTest {
     PCollection<KV<String, Long>> output =
         input.apply(Count.<String>perElement());
 
-    DataflowAssert.that(output).containsInAnyOrder();
+    DataflowAssert.that(output).empty();
     p.run();
   }
 

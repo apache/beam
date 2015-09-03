@@ -131,11 +131,11 @@ public class TopTest {
     PCollection<KV<String, List<Integer>>> smallestPerKey = inputTable
         .apply(Top.<String, Integer>smallestPerKey(2));
 
-    DataflowAssert.thatSingletonIterable(top1).containsInAnyOrder();
-    DataflowAssert.thatSingletonIterable(top2).containsInAnyOrder();
-    DataflowAssert.thatSingletonIterable(top3).containsInAnyOrder();
-    DataflowAssert.that(largestPerKey).containsInAnyOrder();
-    DataflowAssert.that(smallestPerKey).containsInAnyOrder();
+    DataflowAssert.thatSingletonIterable(top1).empty();
+    DataflowAssert.thatSingletonIterable(top2).empty();
+    DataflowAssert.thatSingletonIterable(top3).empty();
+    DataflowAssert.that(largestPerKey).empty();
+    DataflowAssert.that(smallestPerKey).empty();
 
     p.run();
   }
@@ -159,9 +159,9 @@ public class TopTest {
     PCollection<KV<String, List<Integer>>> smallestPerKey = inputTable
         .apply(Top.<String, Integer>smallestPerKey(0));
 
-    DataflowAssert.thatSingletonIterable(top1).containsInAnyOrder();
-    DataflowAssert.thatSingletonIterable(top2).containsInAnyOrder();
-    DataflowAssert.thatSingletonIterable(top3).containsInAnyOrder();
+    DataflowAssert.thatSingletonIterable(top1).empty();
+    DataflowAssert.thatSingletonIterable(top2).empty();
+    DataflowAssert.thatSingletonIterable(top3).empty();
     DataflowAssert.that(largestPerKey).containsInAnyOrder(
         KV.of("a", Arrays.<Integer>asList()),
         KV.of("b", Arrays.<Integer>asList()));

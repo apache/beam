@@ -291,7 +291,7 @@ public class CombineTest implements Serializable {
         .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(1))))
         .apply(Combine.globally(new MeanInts()).withoutDefaults());
 
-    DataflowAssert.that(mean).containsInAnyOrder();
+    DataflowAssert.that(mean).empty();
 
     p.run();
   }

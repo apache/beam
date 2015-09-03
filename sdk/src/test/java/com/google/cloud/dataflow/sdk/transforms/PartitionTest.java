@@ -82,7 +82,7 @@ public class PartitionTest implements Serializable {
         .apply(Create.of(1, 2, 4, 5))
         .apply(Partition.of(3, new ModFn()));
     assertTrue(outputs.size() == 3);
-    DataflowAssert.that(outputs.get(0)).containsInAnyOrder();
+    DataflowAssert.that(outputs.get(0)).empty();
     DataflowAssert.that(outputs.get(1)).containsInAnyOrder(1, 4);
     DataflowAssert.that(outputs.get(2)).containsInAnyOrder(2, 5);
     p.run();

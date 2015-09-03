@@ -167,8 +167,7 @@ public class GroupByKeyTest {
     PCollection<KV<String, Iterable<Integer>>> output =
         input.apply(GroupByKey.<String, Integer>create());
 
-    DataflowAssert.that(output)
-        .containsInAnyOrder();
+    DataflowAssert.that(output).empty();
 
     p.run();
   }

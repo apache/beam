@@ -82,8 +82,7 @@ public class RemoveDuplicatesTest {
     PCollection<String> output =
         input.apply(RemoveDuplicates.<String>create());
 
-    DataflowAssert.that(output)
-        .containsInAnyOrder();
+    DataflowAssert.that(output).empty();
     p.run();
   }
 

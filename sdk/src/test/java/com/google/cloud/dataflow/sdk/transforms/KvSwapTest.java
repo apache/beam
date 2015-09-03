@@ -85,7 +85,7 @@ public class KvSwapTest {
     PCollection<KV<Integer, String>> output = input.apply(
         KvSwap.<String, Integer>create());
 
-    DataflowAssert.that(output).containsInAnyOrder();
+    DataflowAssert.that(output).empty();
     p.run();
   }
 }

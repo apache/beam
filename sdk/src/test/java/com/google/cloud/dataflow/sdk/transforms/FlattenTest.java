@@ -112,7 +112,7 @@ public class FlattenTest implements Serializable {
         PCollectionList.<String>empty(p)
         .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of());
 
-    DataflowAssert.that(output).containsInAnyOrder();
+    DataflowAssert.that(output).empty();
     p.run();
   }
 
@@ -139,7 +139,7 @@ public class FlattenTest implements Serializable {
                   }
                 }));
 
-    DataflowAssert.that(output).containsInAnyOrder();
+    DataflowAssert.that(output).empty();
     p.run();
   }
 
@@ -154,7 +154,7 @@ public class FlattenTest implements Serializable {
         .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of())
         .apply(ParDo.of(new IdentityFn<String>(){}));
 
-    DataflowAssert.that(output).containsInAnyOrder();
+    DataflowAssert.that(output).empty();
     p.run();
   }
 

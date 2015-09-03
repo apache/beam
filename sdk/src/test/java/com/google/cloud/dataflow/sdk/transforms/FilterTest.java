@@ -76,7 +76,7 @@ public class FilterTest implements Serializable {
         .apply(Create.of(1, 2, 4, 5))
         .apply(Filter.by(new TrivialFn(false)));
 
-    DataflowAssert.that(output).containsInAnyOrder();
+    DataflowAssert.that(output).empty();
     p.run();
   }
 

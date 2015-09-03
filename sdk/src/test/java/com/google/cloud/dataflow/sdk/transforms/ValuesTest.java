@@ -81,8 +81,7 @@ public class ValuesTest {
 
     PCollection<Integer> output = input.apply(Values.<Integer>create());
 
-    DataflowAssert.that(output)
-        .containsInAnyOrder();
+    DataflowAssert.that(output).empty();
 
     p.run();
   }

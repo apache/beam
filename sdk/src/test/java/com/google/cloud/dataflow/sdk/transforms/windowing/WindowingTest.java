@@ -249,7 +249,7 @@ public class WindowingTest implements Serializable {
         input
         .apply(new WindowedCount(FixedWindows.of(new Duration(10))));
 
-    DataflowAssert.that(output).containsInAnyOrder();
+    DataflowAssert.that(output).empty();
 
     p.run();
   }

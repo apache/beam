@@ -410,7 +410,7 @@ public class ParDoTest implements Serializable {
     DataflowAssert.that(outputs.get(sideOutputTag3))
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
                    .fromSideOutput(sideOutputTag3));
-    DataflowAssert.that(outputs.get(sideOutputTagUnwritten)).containsInAnyOrder();
+    DataflowAssert.that(outputs.get(sideOutputTagUnwritten)).empty();
 
     pipeline.run();
   }
@@ -434,7 +434,7 @@ public class ParDoTest implements Serializable {
                   c.sideOutput(sideOutputTag, c.element());
                 }}));
 
-    DataflowAssert.that(outputs.get(mainOutputTag)).containsInAnyOrder();
+    DataflowAssert.that(outputs.get(mainOutputTag)).empty();
     DataflowAssert.that(outputs.get(sideOutputTag)).containsInAnyOrder(inputs);
 
     pipeline.run();

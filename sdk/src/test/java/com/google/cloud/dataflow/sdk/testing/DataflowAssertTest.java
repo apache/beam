@@ -16,7 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
-import static org.hamcrest.core.StringContains.containsString;
+import static com.google.cloud.dataflow.sdk.testing.SerializableMatchers.anything;
+import static com.google.cloud.dataflow.sdk.testing.SerializableMatchers.not;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -44,6 +46,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.regex.Pattern;
+
+import javax.annotation.Nullable;
 
 /**
  * Test case for {@link DataflowAssert}.
@@ -155,33 +159,57 @@ public class DataflowAssertTest implements Serializable {
     pipeline.run();
   }
 
+  /**
+   * Basic test of succeeding {@link DataflowAssert} using a {@link SerializableMatcher}.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBasicMatcherSuccess() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
+    DataflowAssert.that(pcollection).containsInAnyOrder(anything());
+    pipeline.run();
+  }
 
+  /**
+   * Basic test of failing {@link DataflowAssert} using a {@link SerializableMatcher}.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBasicMatcherFailure() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
+    DataflowAssert.that(pcollection).containsInAnyOrder(not(anything()));
+    runExpectingAssertionFailure(pipeline);
+  }
+
+  /**
+   * Basic test for {@code isEqualTo}.
+   */
   @Test
   @Category(RunnableOnService.class)
   public void testIsEqualTo() throws Exception {
     Pipeline pipeline = TestPipeline.create();
-
-    PCollection<Integer> pcollection = pipeline
-        .apply(Create.of(43));
-
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(43));
     DataflowAssert.thatSingleton(pcollection).isEqualTo(43);
-
     pipeline.run();
   }
 
+  /**
+   * Tests that {@code containsInAnyOrder} is actually order-independent.
+   */
   @Test
   @Category(RunnableOnService.class)
   public void testContainsInAnyOrder() throws Exception {
     Pipeline pipeline = TestPipeline.create();
-
-    PCollection<Integer> pcollection = pipeline
-        .apply(Create.of(1, 2, 3, 4));
-
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
     DataflowAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3);
-
     pipeline.run();
   }
 
+  /**
+   * Tests that {@code containsInAnyOrder} fails when and how it should.
+   */
   @Test
   @Category(RunnableOnService.class)
   public void testContainsInAnyOrderFalse() throws Exception {
@@ -192,6 +220,20 @@ public class DataflowAssertTest implements Serializable {
 
     DataflowAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3, 7);
 
+    // The service runner does not give an exception we can usefully inspect.
+    @Nullable
+    Throwable exc = runExpectingAssertionFailure(pipeline);
+    Pattern expectedPattern = Pattern.compile(
+        "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
+    if (exc != null) {
+      // A loose pattern, but should get the job done.
+      assertTrue("Expected error message from DataflowAssert with substring matching "
+          + expectedPattern + " but the message was \"" + exc.getMessage() + "\"",
+          expectedPattern.matcher(exc.getMessage()).find());
+    }
+  }
+
+  private static Throwable runExpectingAssertionFailure(Pipeline pipeline) {
     // Even though this test will succeed or fail adequately whether local or on the service,
     // it results in a different exception depending on the runner.
     if (pipeline.getRunner() instanceof DirectPipelineRunner) {
@@ -200,13 +242,7 @@ public class DataflowAssertTest implements Serializable {
       try {
         pipeline.run();
       } catch (AssertionError exc) {
-        // A loose pattern, but should get the job done.
-        Pattern expectedPattern = Pattern.compile(
-            "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
-        assertTrue("Expected error message from DataflowAssert with substring matching "
-            + expectedPattern + " but the message was \"" + exc.getMessage() + "\"",
-            expectedPattern.matcher(exc.getMessage()).find());
-        return;
+        return exc;
       }
     } else if (pipeline.getRunner() instanceof TestDataflowPipelineRunner) {
       // Separately, if this is run on the service, then the TestDataflowPipelineRunner throws
@@ -214,11 +250,11 @@ public class DataflowAssertTest implements Serializable {
       try {
         pipeline.run();
       } catch (IllegalStateException exc) {
-        assertThat(exc.getMessage(),
-            containsString("The dataflow failed."));
-        return;
+        assertThat(exc.getMessage(), containsString("The dataflow failed."));
+        return null;
       }
     }
     fail("assertion should have failed");
+    throw new RuntimeException("unreachable");
   }
 }
