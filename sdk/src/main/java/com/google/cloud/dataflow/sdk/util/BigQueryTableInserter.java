@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.base.Throwables;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -66,7 +69,8 @@ public class BigQueryTableInserter {
   private final TableReference ref;
   private final long maxRowsPerBatch;
 
-  private static final ExecutorService executor = Executors.newFixedThreadPool(100);
+  private static final ExecutorService executor = MoreExecutors.getExitingExecutorService(
+      (ThreadPoolExecutor) Executors.newFixedThreadPool(100), 10, TimeUnit.SECONDS);
 
   /**
    * Constructs a new row inserter.
