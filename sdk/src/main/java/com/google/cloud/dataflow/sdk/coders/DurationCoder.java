@@ -58,6 +58,9 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   @Override
   public void encode(ReadableDuration value, OutputStream outStream, Context context)
       throws CoderException, IOException {
+    if (value == null) {
+      throw new CoderException("cannot encode a null ReadableDuration");
+    }
     longCoder.encode(toLong(value), outStream, context);
   }
 

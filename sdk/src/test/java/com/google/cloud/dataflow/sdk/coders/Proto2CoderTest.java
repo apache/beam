@@ -20,9 +20,12 @@ import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageB;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageC;
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.common.collect.ImmutableList;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -106,5 +109,16 @@ public class Proto2CoderTest {
     Proto2Coder<MessageC> coder = Proto2Coder.of(MessageC.class)
         .withExtensionsFrom(Proto2CoderTestMessages.class);
     CoderProperties.coderHasEncodingId(coder, MessageC.class.getName());
+  }
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void encodeNullThrowsCoderException() throws Exception {
+    thrown.expect(CoderException.class);
+    thrown.expectMessage("cannot encode a null MessageA");
+
+    CoderUtils.encodeToBase64(Proto2Coder.of(MessageA.class), null);
   }
 }

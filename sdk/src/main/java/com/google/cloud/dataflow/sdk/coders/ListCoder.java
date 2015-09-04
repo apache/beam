@@ -63,7 +63,7 @@ public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
   }
 
   ListCoder(Coder<T> elemCoder) {
-    super(elemCoder);
+    super(elemCoder, "List");
   }
 
   /**

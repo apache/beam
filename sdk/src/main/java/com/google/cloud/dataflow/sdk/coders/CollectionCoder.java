@@ -65,6 +65,6 @@ public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
   }
 
   protected CollectionCoder(Coder<T> elemCoder) {
-    super(elemCoder);
+    super(elemCoder, "Collection");
   }
 }

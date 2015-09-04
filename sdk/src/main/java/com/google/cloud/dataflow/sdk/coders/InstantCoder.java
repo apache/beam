@@ -72,6 +72,9 @@ public class InstantCoder extends AtomicCoder<Instant> {
   @Override
   public void encode(Instant value, OutputStream outStream, Context context)
       throws CoderException, IOException {
+    if (value == null) {
+      throw new CoderException("cannot encode a null Instant");
+    }
     longCoder.encode(ORDER_PRESERVING_CONVERTER.convert(value), outStream, context);
   }
 

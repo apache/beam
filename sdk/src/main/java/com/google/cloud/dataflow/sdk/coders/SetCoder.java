@@ -87,6 +87,6 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
   }
 
   protected SetCoder(Coder<T> elemCoder) {
-    super(elemCoder);
+    super(elemCoder, "Set");
   }
 }

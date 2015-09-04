@@ -17,8 +17,11 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -75,5 +78,16 @@ public class CollectionCoderTest {
   @Test
   public void testWireFormat() throws Exception {
     CoderProperties.coderDecodesBase64ContentsEqual(TEST_CODER, TEST_ENCODINGS, TEST_VALUES);
+  }
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void encodeNullThrowsCoderException() throws Exception {
+    thrown.expect(CoderException.class);
+    thrown.expectMessage("cannot encode a null Collection");
+
+    CoderUtils.encodeToBase64(TEST_CODER, null);
   }
 }

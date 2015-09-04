@@ -96,6 +96,9 @@ public class MapCoder<K, V> extends MapCoderBase<Map<K, V>> {
       OutputStream outStream,
       Context context)
       throws IOException, CoderException  {
+    if (map == null) {
+      throw new CoderException("cannot encode a null Map");
+    }
     DataOutputStream dataOutStream = new DataOutputStream(outStream);
     dataOutStream.writeInt(map.size());
     for (Entry<K, V> entry : map.entrySet()) {

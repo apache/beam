@@ -59,6 +59,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   // Internal operations below here.
 
   private final Coder<T> elementCoder;
+  private final String iterableName;
 
   /**
    * Returns the first element in this iterable-like if it is non-empty,
@@ -72,10 +73,13 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     return null;
   }
 
-  protected IterableLikeCoder(Coder<T> elementCoder) {
+  protected IterableLikeCoder(Coder<T> elementCoder, String  iterableName) {
     Preconditions.checkArgument(elementCoder != null,
         "element Coder for IterableLikeCoder must not be null");
+    Preconditions.checkArgument(iterableName != null,
+        "iterable name for IterableLikeCoder must not be null");
     this.elementCoder = elementCoder;
+    this.iterableName = iterableName;
   }
 
   @Override
@@ -83,7 +87,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
       IterableT iterable, OutputStream outStream, Context context)
       throws IOException, CoderException  {
     if (iterable == null) {
-      throw new CoderException("cannot encode a null Iterable");
+      throw new CoderException("cannot encode a null " + iterableName);
     }
     Context nestedContext = context.nested();
     DataOutputStream dataOutStream = new DataOutputStream(outStream);

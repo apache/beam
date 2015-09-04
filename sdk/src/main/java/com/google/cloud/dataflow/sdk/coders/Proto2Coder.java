@@ -170,6 +170,9 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
 
   @Override
   public void encode(T value, OutputStream outStream, Context context) throws IOException {
+    if (value == null) {
+      throw new CoderException("cannot encode a null " + protoMessageClass.getSimpleName());
+    }
     if (context.isWholeStream) {
       value.writeTo(outStream);
     } else {

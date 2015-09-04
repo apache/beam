@@ -20,8 +20,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -99,4 +102,33 @@ public class ListCoderTest {
   public void testWireFormatEncode() throws Exception {
       CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void encodeNullThrowsCoderException() throws Exception {
+    thrown.expect(CoderException.class);
+    thrown.expectMessage("cannot encode a null List");
+
+    CoderUtils.encodeToBase64(TEST_CODER, null);
+  }
+
+  @Test
+  public void testListWithNullsAndVarIntCoderThrowsException() throws Exception {
+    thrown.expect(CoderException.class);
+    thrown.expectMessage("cannot encode a null Integer");
+
+    List<Integer> list = Arrays.asList(1, 2, 3, null, 4);
+    Coder<List<Integer>> coder = ListCoder.of(VarIntCoder.of());
+    CoderProperties.<List<Integer>>coderDecodeEncodeEqual(coder, list);
+  }
+
+  @Test
+  public void testListWithNullsAndSerializableCoder() throws Exception {
+    List<Integer> list = Arrays.asList(1, 2, 3, null, 4);
+    Coder<List<Integer>> coder = ListCoder.of(SerializableCoder.of(Integer.class));
+    CoderProperties.<List<Integer>>coderDecodeEncodeEqual(coder, list);
+  }
+
 }

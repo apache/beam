@@ -69,7 +69,7 @@ public class IterableCoder<T> extends IterableLikeCoder<T, Iterable<T>> {
   }
 
   protected IterableCoder(Coder<T> elemCoder) {
-    super(elemCoder);
+    super(elemCoder, "Iterable");
   }
 
   @Override
