@@ -39,8 +39,8 @@ import java.util.List;
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
  */
-@SuppressWarnings("serial")
 public class KvCoder<K, V> extends KvCoderBase<KV<K, V>> {
+  private static final long serialVersionUID = 0;
 
   public static <K, V> KvCoder<K, V> of(Coder<K> keyCoder,
                                         Coder<V> valueCoder) {
@@ -73,10 +73,10 @@ public class KvCoder<K, V> extends KvCoderBase<KV<K, V>> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  Coder<K> keyCoder;
-  Coder<V> valueCoder;
+  private final Coder<K> keyCoder;
+  private final Coder<V> valueCoder;
 
-  KvCoder(Coder<K> keyCoder, Coder<V> valueCoder) {
+  private KvCoder(Coder<K> keyCoder, Coder<V> valueCoder) {
     this.keyCoder = keyCoder;
     this.valueCoder = valueCoder;
   }

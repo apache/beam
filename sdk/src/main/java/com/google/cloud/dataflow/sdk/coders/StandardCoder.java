@@ -180,9 +180,9 @@ public abstract class StandardCoder<T> implements Coder<T> {
   }
 
   /**
-   * Notifies ElementByteSizeObserver about the byte size of the
-   * encoded value using this coder.  Calls
-   * getEncodedElementByteSize() and notifies ElementByteSizeObserver.
+   * Notifies {@code observer} about the byte size of the encoded value using this coder.
+   * Calls {@link #getEncodedElementByteSize} and notifies {@code observer} using
+   * {@link ElementByteSizeObserver#update(Object)}.
    */
   @Override
   public void registerByteSizeObserver(
@@ -190,7 +190,6 @@ public abstract class StandardCoder<T> implements Coder<T> {
       throws Exception {
     observer.update(getEncodedElementByteSize(value, context));
   }
-
 
   protected void verifyDeterministic(String message, Iterable<Coder<?>> coders)
       throws NonDeterministicException {
