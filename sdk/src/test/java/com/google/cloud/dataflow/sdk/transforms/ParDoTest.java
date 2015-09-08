@@ -908,7 +908,7 @@ public class ParDoTest implements Serializable {
         .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     thrown.expect(PipelineExecutionException.class);
-    thrown.expectMessage("Unable to infer a default Coder");
+    thrown.expectMessage("Unable to return a default Coder");
     pipeline.run();
   }
 

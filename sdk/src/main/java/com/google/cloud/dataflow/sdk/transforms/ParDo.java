@@ -971,8 +971,11 @@ public class ParDo {
     public <T> Coder<T> getDefaultOutputCoder(
         PCollection<? extends InputT> input, TypedPValue<T> output)
         throws CannotProvideCoderException {
-      throw new CannotProvideCoderException("default coder not provided");
-    }
+      return input.getPipeline().getCoderRegistry().getDefaultCoder(
+          output.getTypeDescriptor(),
+          fn.getInputTypeDescriptor(),
+          ((PCollection<InputT>) input).getCoder());
+      }
 
     @Override
     protected String getKindString() {

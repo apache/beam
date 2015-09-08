@@ -22,17 +22,40 @@ package com.google.cloud.dataflow.sdk.coders;
  */
 public class CannotProvideCoderException extends Exception {
   private static final long serialVersionUID = 0;
+  private final ReasonCode reason;
 
   public CannotProvideCoderException(String message) {
+    this(message, ReasonCode.UNKNOWN);
+  }
+
+  public CannotProvideCoderException(String message, ReasonCode reason) {
     super(message);
+    this.reason = reason;
   }
 
   public CannotProvideCoderException(String message, Throwable cause) {
+    this(message, cause, ReasonCode.UNKNOWN);
+  }
+
+  public CannotProvideCoderException(String message, Throwable cause, ReasonCode reason) {
     super(message, cause);
+    this.reason = reason;
   }
 
   public CannotProvideCoderException(Throwable cause) {
+    this(cause, ReasonCode.UNKNOWN);
+  }
+
+  public CannotProvideCoderException(Throwable cause, ReasonCode reason) {
     super(cause);
+    this.reason = reason;
+  }
+
+  /**
+   * @return the reason that Coder inference failed.
+   */
+  public ReasonCode getReason() {
+    return reason;
   }
 
   /**
@@ -52,5 +75,13 @@ public class CannotProvideCoderException extends Exception {
     } else {
       return ((CannotProvideCoderException) cause).getRootCause();
     }
+  }
+
+  /**
+   * Indicates the reason that {@link Coder} inference failed.
+   */
+  public static enum ReasonCode {
+    UNKNOWN,
+    TYPE_ERASURE
   }
 }

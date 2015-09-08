@@ -21,11 +21,8 @@ import static com.google.cloud.dataflow.sdk.TestUtils.LINES2;
 import static com.google.cloud.dataflow.sdk.TestUtils.LINES_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES_ARRAY;
-import static org.hamcrest.Matchers.isA;
-import static org.hamcrest.core.StringContains.containsString;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -40,9 +37,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -158,41 +152,11 @@ public class FlattenTest implements Serializable {
     p.run();
   }
 
-  private static class HasMessageMatcher extends BaseMatcher<Throwable>
-      implements Matcher<Throwable>{
-
-    private final Matcher<String> messageMatcher;
-
-    public HasMessageMatcher(Matcher<String> messageMatcher) {
-      this.messageMatcher = messageMatcher;
-    }
-
-    @Override
-    public boolean matches(Object item) {
-      return (item instanceof Throwable) && matches((Throwable) item);
-    }
-
-    public boolean matches(Throwable item) {
-      return messageMatcher.matches(item.getMessage());
-    }
-
-    @Override
-    public void describeTo(Description description) {
-      description.appendText("where getMessage() is ");
-      description.appendDescriptionOf(messageMatcher);
-    }
-  }
-
-  private static Matcher<Throwable> hasMessage(Matcher<String> messageMatcher) {
-    return new HasMessageMatcher(messageMatcher);
-  }
-
   @Test
   public void testFlattenNoListsNoCoder() {
     // not RunnableOnService because it should fail at pipeline construction time anyhow.
     thrown.expect(IllegalStateException.class);
-    thrown.expectCause(isA(CannotProvideCoderException.class));
-    thrown.expectCause(hasMessage(containsString("cannot provide a Coder for empty")));
+    thrown.expectMessage("cannot provide a Coder for empty");
 
     Pipeline p = TestPipeline.create();
 

@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException.ReasonCode;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
@@ -169,17 +170,17 @@ public class CoderRegistry implements CoderProvider {
 
   /**
    * Returns the Coder to use by default for values of the given type,
-   * where the given context type uses the given context coder.
+   * where the given input type uses the given Coder.
    *
    * @throws CannotProvideCoderException if there is no default Coder.
    */
   public <InputT, OutputT> Coder<OutputT> getDefaultCoder(
       TypeDescriptor<OutputT> typeDescriptor,
-      TypeDescriptor<InputT> contextTypeDescriptor,
-      Coder<InputT> contextCoder)
+      TypeDescriptor<InputT> inputTypeDescriptor,
+      Coder<InputT> inputCoder)
       throws CannotProvideCoderException {
     return getDefaultCoder(
-        typeDescriptor, getTypeToCoderBindings(contextTypeDescriptor.getType(), contextCoder));
+        typeDescriptor, getTypeToCoderBindings(inputTypeDescriptor.getType(), inputCoder));
   }
 
   /**
@@ -589,12 +590,11 @@ public class CoderRegistry implements CoderProvider {
       return getDefaultCoder(clazz);
     } else if (type instanceof ParameterizedType) {
       return getDefaultCoder((ParameterizedType) type, typeCoderBindings);
-    } else if (type instanceof TypeVariable
-        || type instanceof WildcardType) {
+    } else if (type instanceof TypeVariable || type instanceof WildcardType) {
       // No default coder for an unknown generic type.
-      throw new CannotProvideCoderException(
-          "Cannot provide a Coder for type variable "
-          + type + " because the actual type is unknown due to erasure.");
+      throw new CannotProvideCoderException("Cannot provide a Coder for type variable "
+          + type + " because the actual type is unknown due to erasure.",
+          ReasonCode.TYPE_ERASURE);
     } else {
       throw new RuntimeException(
           "Internal error: unexpected kind of Type: " + type);
