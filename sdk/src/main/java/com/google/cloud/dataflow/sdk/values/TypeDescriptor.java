@@ -21,6 +21,7 @@ import com.google.common.reflect.Invokable;
 import com.google.common.reflect.Parameter;
 import com.google.common.reflect.TypeToken;
 
+import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -42,7 +43,8 @@ import java.util.List;
  *
  * @param <T> the type represented by this {@link TypeDescriptor}
  */
-public abstract class TypeDescriptor<T> {
+@SuppressWarnings("serial")
+public abstract class TypeDescriptor<T> implements Serializable {
 
   // This class is just a wrapper for TypeToken
   private final TypeToken<T> token;

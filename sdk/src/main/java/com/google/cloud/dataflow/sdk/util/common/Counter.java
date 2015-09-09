@@ -42,6 +42,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> the type of values aggregated by this counter
  */
+@SuppressWarnings("serial")
 public abstract class Counter<T> {
   /**
    * Possible kinds of counter aggregation.

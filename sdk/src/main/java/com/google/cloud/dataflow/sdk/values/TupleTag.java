@@ -51,6 +51,7 @@ import java.util.Random;
  * @param <V> the type of the elements or values of the tagged thing,
  * e.g., a {@code PCollection<V>}.
  */
+@SuppressWarnings("serial")
 public class TupleTag<V> implements Serializable {
   private static final long serialVersionUID = 0;
 
@@ -158,6 +159,7 @@ public class TupleTag<V> implements Serializable {
   }
 
   @JsonCreator
+  @SuppressWarnings("unused")
   private static TupleTag<?> fromJson(
       @JsonProperty(PropertyNames.VALUE) String id,
       @JsonProperty(PropertyNames.IS_GENERATED) boolean generated) {

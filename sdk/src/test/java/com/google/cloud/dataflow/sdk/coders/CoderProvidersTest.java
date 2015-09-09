@@ -33,6 +33,7 @@ import java.util.Map;
  * Tests for {@link CoderFactories}.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings("serial")
 public class CoderProvidersTest {
 
   @Rule

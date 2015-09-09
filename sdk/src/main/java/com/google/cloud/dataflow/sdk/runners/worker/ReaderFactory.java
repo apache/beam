@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
  *                                     Coder<T>, ExecutionContext);
  * } </pre>
  */
+@SuppressWarnings("serial")
 public final class ReaderFactory {
   // Do not instantiate.
   private ReaderFactory() {}
