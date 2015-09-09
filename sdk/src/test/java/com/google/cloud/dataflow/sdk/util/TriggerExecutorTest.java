@@ -32,6 +32,7 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterEach;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterFirst;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterProcessingTime;
@@ -606,6 +607,115 @@ public class TriggerExecutorTest {
       result = (T) invocationOnMock.callRealMethod();
       return result;
     }
+  }
+
+  /**
+   * Test that we receive an empty on-time pane when an or-finally waiting for the watermark fires.
+   * Specifically, verify the proper triggerings and pane-info of a typical speculative/on-time/late
+   * when the on-time pane is empty.
+   */
+  @Test
+  public void testEmptyOnTimeFromOrFinally() throws Exception {
+    TriggerTester<Integer, Integer, IntervalWindow> tester = TriggerTester.combining(
+        FixedWindows.of(Duration.millis(10)),
+        AfterEach.<IntervalWindow>inOrder(
+            Repeatedly.<IntervalWindow>forever(
+                AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
+                    .plusDelayOf(new Duration(5)))
+            .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()),
+            Repeatedly.<IntervalWindow>forever(
+                AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
+                    .plusDelayOf(new Duration(25)))),
+        AccumulationMode.ACCUMULATING_FIRED_PANES,
+        new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of(),
+        Duration.millis(100));
+
+    tester.advanceWatermark(new Instant(0));
+    tester.advanceProcessingTime(new Instant(0));
+
+    tester.injectElement(1, new Instant(1));
+    tester.injectElement(1, new Instant(3));
+    tester.injectElement(1, new Instant(7));
+    tester.injectElement(1, new Instant(5));
+
+    tester.advanceProcessingTime(new Instant(5));
+
+    tester.advanceWatermark(new Instant(11));
+    List<WindowedValue<Integer>> output = tester.extractOutput();
+    assertEquals(2, output.size());
+
+    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(4, 9, 0, 10));
+
+    assertThat(output.get(0), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
+        true, false, Timing.EARLY, 0, -1)));
+    assertThat(output.get(1), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
+        false, false, Timing.ON_TIME, 1, 0)));
+  }
+
+  /**
+   * Tests for processing time firings after the watermark passes the end of the window.
+   * Specifically, verify the proper triggerings and pane-info of a typical speculative/on-time/late
+   * when the on-time pane is non-empty.
+   */
+  @Test
+  public void testProcessingTime() throws Exception {
+    TriggerTester<Integer, Integer, IntervalWindow> tester = TriggerTester.combining(
+        FixedWindows.of(Duration.millis(10)),
+        AfterEach.<IntervalWindow>inOrder(
+            Repeatedly.<IntervalWindow>forever(
+                AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
+                    .plusDelayOf(new Duration(5)))
+            .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()),
+            Repeatedly.<IntervalWindow>forever(
+                AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
+                    .plusDelayOf(new Duration(25)))),
+        AccumulationMode.ACCUMULATING_FIRED_PANES,
+        new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of(),
+        Duration.millis(100));
+
+    tester.advanceWatermark(new Instant(0));
+    tester.advanceProcessingTime(new Instant(0));
+
+    tester.injectElement(1, new Instant(1));
+    tester.injectElement(1, new Instant(3));
+    tester.injectElement(1, new Instant(7));
+    tester.injectElement(1, new Instant(5));
+
+    tester.advanceProcessingTime(new Instant(5));
+    tester.injectElement(1, new Instant(8));
+    tester.injectElement(1, new Instant(4));
+
+    tester.advanceWatermark(new Instant(11));
+    tester.injectElement(1, new Instant(8));
+    tester.injectElement(1, new Instant(4));
+    tester.injectElement(1, new Instant(5));
+
+    tester.advanceWatermark(new Instant(12));
+    tester.injectElement(1, new Instant(3));
+    tester.advanceProcessingTime(new Instant(15));
+    tester.injectElement(1, new Instant(5));
+    tester.advanceProcessingTime(new Instant(30));
+
+    tester.injectElement(1, new Instant(3));
+    tester.advanceWatermark(new Instant(125));
+
+    List<WindowedValue<Integer>> output = tester.extractOutput();
+    assertEquals(4, output.size());
+
+    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(6, 4, 0, 10));
+    assertThat(output.get(2), WindowMatchers.isSingleWindowedValue(11, 9, 0, 10));
+    assertThat(output.get(3), WindowMatchers.isSingleWindowedValue(12, 9, 0, 10));
+
+    assertThat(output.get(0), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
+        true, false, Timing.EARLY, 0, -1)));
+    assertThat(output.get(1), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
+        false, false, Timing.ON_TIME, 1, 0)));
+    assertThat(output.get(2), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
+        false, false, Timing.LATE, 2, 1)));
+    assertThat(output.get(3), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
+        false, true, Timing.LATE, 3, 2)));
   }
 
   @Test
