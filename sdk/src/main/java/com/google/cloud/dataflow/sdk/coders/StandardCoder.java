@@ -214,7 +214,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
 
   @Override
   public Object structuralValue(T value) throws Exception {
-    if (value == null || consistentWithEquals()) {
+    if (value != null && consistentWithEquals()) {
       return value;
     } else {
       try {

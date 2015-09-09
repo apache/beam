@@ -141,29 +141,31 @@ public interface Coder<T> extends Serializable {
   public void verifyDeterministic() throws Coder.NonDeterministicException;
 
   /**
-   * Returns true if the encoded bytes of two objects are
-   * equal only when they are also equal according to {@code Object.equals()}.
-   * (and also implements a compatible {@code Object.hasCode()})
+   * Returns true if whenever the encoded bytes of two values are equal, then the original values
+   * are equal according to {@code Objects.equals()} (note that this is well-defined for
+   * {@code null}). In other words, encoding is injective.
    *
-   * <p>This most notably false for arrays. It will generally
-   * be false when {@code Object.equals()} compares object identity,
-   * rather than performing a semantic/structural comparison.
+   * <p>This condition is most notably false for arrays. More generally, this condition is false
+   * whenever {@code equals()} compares object identity, rather than performing a
+   * semantic/structural comparison.
    */
   public boolean consistentWithEquals();
 
   /**
-   * Returns an object with an {@code Object.equals()} method
-   * that represents structural equality on the argument.
-   * (and also implements a compatible {@code Object.hashCode()}).
+   * Returns an object with an {@code Object.equals()} method that represents structural equality
+   * on the argument.
    *
-   * <p>For any two objects of type T, if their encoded bytes
-   * are the same, then their structural values are equal
-   * according to {@code Object.equals()}.
+   * <p>For any two values {@code x} and {@code y} of type {@code T}, if their encoded bytes are the
+   * same, then it must be the case that {@code structuralValue(x).equals(@code structuralValue(y)}.
    *
-   * <p>Most notably, the structural value for an array coder
-   * should perform a structural comparison of the contents of
-   * the arrays, rather than the default behavior of
-   * comparing according to object identity.
+   * <p>Most notably:
+   * <ul>
+   *   <li>The structural value for an array coder should perform a structural comparison of the
+   *   contents of the arrays, rather than the default behavior of comparing according to object
+   *   identity.
+   *   <li>The structural value for a coder accepting {@code null} should be a proper object with
+   *   an {@code equals()} method, even if the input value is {@code null}.
+   * </ul>
    *
    * <p>See also {@link #consistentWithEquals()}.
    */
