@@ -37,7 +37,9 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.common.base.Supplier;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.protobuf.ByteString;
@@ -61,6 +63,9 @@ public class StateFetcherTest {
 
   @Mock
   MetricTrackingWindmillServerStub server;
+
+  @Mock
+  Supplier<StateSampler.ScopedState> readStateSupplier;
 
   @Before
   public void setUp() {
@@ -89,14 +94,14 @@ public class StateFetcherTest {
         buildGlobalDataResponse(tag, ByteString.EMPTY, false, null),
         buildGlobalDataResponse(tag, ByteString.EMPTY, true, encodedIterable));
 
-    assertEquals(null,
-        fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
-    assertEquals(null,
-        fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
+    assertEquals(null, fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, STATE_FAMILY,
+            SideInputState.UNKNOWN, readStateSupplier));
+    assertEquals(null, fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, STATE_FAMILY,
+            SideInputState.UNKNOWN, readStateSupplier));
     assertEquals("data", fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, STATE_FAMILY,
-                             SideInputState.KNOWN_READY));
+            SideInputState.KNOWN_READY, readStateSupplier));
     assertEquals("data", fetcher.fetchSideInput(view, GlobalWindow.INSTANCE, STATE_FAMILY,
-                             SideInputState.KNOWN_READY));
+            SideInputState.KNOWN_READY, readStateSupplier));
 
     verify(server, times(2)).getSideInputData(buildGlobalDataRequest(tag, ByteString.EMPTY));
     verifyNoMoreInteractions(server);
@@ -139,15 +144,15 @@ public class StateFetcherTest {
         buildGlobalDataResponse(tag2, ByteString.EMPTY, true, encodedIterable2),
         buildGlobalDataResponse(tag1, ByteString.EMPTY, true, encodedIterable1));
 
-    assertEquals("data1",
-        fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
-    assertEquals("data2",
-        fetcher.fetchSideInput(view2, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
+    assertEquals("data1", fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, STATE_FAMILY,
+            SideInputState.UNKNOWN, readStateSupplier));
+    assertEquals("data2", fetcher.fetchSideInput(view2, GlobalWindow.INSTANCE, STATE_FAMILY,
+            SideInputState.UNKNOWN, readStateSupplier));
     cache.invalidateAll();
-    assertEquals("data1",
-        fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
-    assertEquals("data1",
-        fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
+    assertEquals("data1", fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, STATE_FAMILY,
+            SideInputState.UNKNOWN, readStateSupplier));
+    assertEquals("data1", fetcher.fetchSideInput(view1, GlobalWindow.INSTANCE, STATE_FAMILY,
+            SideInputState.UNKNOWN, readStateSupplier));
 
     ArgumentCaptor<Windmill.GetDataRequest> captor =
         ArgumentCaptor.forClass(Windmill.GetDataRequest.class);
@@ -179,7 +184,7 @@ public class StateFetcherTest {
         buildGlobalDataResponse(tag, ByteString.EMPTY, true, encodedIterable));
 
     assertEquals(0L, (long) fetcher.fetchSideInput(
-        view, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN));
+        view, GlobalWindow.INSTANCE, STATE_FAMILY, SideInputState.UNKNOWN, readStateSupplier));
 
     verify(server).getSideInputData(buildGlobalDataRequest(tag, ByteString.EMPTY));
     verifyNoMoreInteractions(server);

@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagList;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagValue;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.BagState;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
@@ -38,6 +39,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
+import com.google.common.base.Supplier;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 
@@ -74,6 +76,9 @@ public class WindmillStateInternalsTest {
 
   private WindmillStateInternals underTest;
 
+  @Mock
+  private Supplier<StateSampler.ScopedState> readStateSupplier;
+
   private ByteString key(StateNamespace namespace, String addrId) {
     return key("", namespace, addrId);
   }
@@ -85,7 +90,7 @@ public class WindmillStateInternalsTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    underTest = new WindmillStateInternals(STATE_FAMILY, true, mockReader, null, "StepName");
+    underTest = new WindmillStateInternals(STATE_FAMILY, true, mockReader, readStateSupplier);
   }
 
   private <T> void waitAndSet(
@@ -254,7 +259,7 @@ public class WindmillStateInternalsTest {
 
   @Test
   public void testBagNoStateFamilies() throws Exception {
-    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, null, "StepName");
+    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, readStateSupplier);
 
     StateTag<BagState<String>> addr = StateTags.bag("bag", StringUtf8Coder.of());
     BagState<String> bag = underTest.state(NAMESPACE, addr);
@@ -552,7 +557,7 @@ public class WindmillStateInternalsTest {
 
   @Test
   public void testWatermarkNoStateFamilies() throws Exception {
-    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, null, "StepName");
+    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, readStateSupplier);
 
     StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal("watermark");
     WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
@@ -662,7 +667,7 @@ public class WindmillStateInternalsTest {
 
   @Test
   public void testValueNoStateFamilies() throws Exception {
-    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, null, "StepName");
+    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, readStateSupplier);
 
     StateTag<ValueState<String>> addr = StateTags.value("value", StringUtf8Coder.of());
     ValueState<String> value = underTest.state(NAMESPACE, addr);

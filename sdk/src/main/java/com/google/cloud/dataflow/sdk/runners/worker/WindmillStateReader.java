@@ -49,7 +49,7 @@ import java.util.concurrent.TimeoutException;
  * has been read. Will not initiate a read until {@link Future#get} is called, at which point all
  * the pending futures will be read.
  */
-public class WindmillStateReader {
+class WindmillStateReader {
 
   private static class StateTag {
     private enum Kind {

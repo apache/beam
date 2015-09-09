@@ -50,7 +50,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Implementation of {@link StateInternals} using Windmill to manage the underlying data.
  */
-public class WindmillStateInternals extends MergingStateInternals {
+class WindmillStateInternals extends MergingStateInternals {
 
   private final StateTable inMemoryState =
       new StateTable() {
@@ -96,7 +96,7 @@ public class WindmillStateInternals extends MergingStateInternals {
   private final Supplier<StateSampler.ScopedState> scopedReadStateSupplier;
 
   public WindmillStateInternals(String prefix, boolean useStateFamilies,
-      WindmillStateReader reader, final StateSampler stateSampler, final String stepName) {
+      WindmillStateReader reader, Supplier<StateSampler.ScopedState> scopedReadStateSupplier) {
     this.prefix = prefix;
     if (useStateFamilies) {
       this.stateFamily = prefix;
@@ -105,20 +105,7 @@ public class WindmillStateInternals extends MergingStateInternals {
     }
     this.reader = reader;
     this.useStateFamilies = useStateFamilies;
-    this.scopedReadStateSupplier = new Supplier<StateSampler.ScopedState>() {
-      private int readState = -1;
-
-      @Override
-      public StateSampler.ScopedState get() {
-        if (stateSampler == null) {
-          return null;
-        }
-        if (readState == -1) {
-          readState = stateSampler.stateForName(stepName + "-windmill-read");
-        }
-        return stateSampler.scopedState(readState);
-      }
-    };
+    this.scopedReadStateSupplier = scopedReadStateSupplier;
   }
 
   public void persist(final Windmill.WorkItemCommitRequest.Builder commitBuilder) {

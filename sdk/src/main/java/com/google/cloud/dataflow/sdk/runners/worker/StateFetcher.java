@@ -21,8 +21,10 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.base.Supplier;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.Weigher;
@@ -39,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Class responsible for fetching state from the windmill server.
  */
-public class StateFetcher {
+class StateFetcher {
   private static final Logger LOG = LoggerFactory.getLogger(StateFetcher.class);
 
   private Cache<SideInputId, SideInputCacheEntry> sideInputCache;
@@ -91,7 +93,8 @@ public class StateFetcher {
    * not-ready entry was cached.
    */
   public <T, SideWindowT extends BoundedWindow> T fetchSideInput(final PCollectionView<T> view,
-      final SideWindowT sideWindow, final String stateFamily, SideInputState state) {
+      final SideWindowT sideWindow, final String stateFamily, SideInputState state,
+      final Supplier<StateSampler.ScopedState> scopedReadStateSupplier) {
     final SideInputId id = new SideInputId(view.getTagInternal(), sideWindow);
 
     Callable<SideInputCacheEntry> fetchCallable = new Callable<SideInputCacheEntry>() {
@@ -121,11 +124,14 @@ public class StateFetcher {
                          .getMillis()))
                 .build();
 
-        Windmill.GetDataResponse response = server.getSideInputData(
-            Windmill.GetDataRequest.newBuilder()
-            .addGlobalDataFetchRequests(request)
-            .addGlobalDataToFetch(request.getDataId())
-            .build());
+        Windmill.GetDataResponse response;
+        try (StateSampler.ScopedState scope = scopedReadStateSupplier.get()) {
+            response = server.getSideInputData(
+                Windmill.GetDataRequest.newBuilder()
+                .addGlobalDataFetchRequests(request)
+                .addGlobalDataToFetch(request.getDataId())
+                .build());
+        }
 
         Windmill.GlobalData data = response.getGlobalData(0);
         bytesRead += data.getSerializedSize();

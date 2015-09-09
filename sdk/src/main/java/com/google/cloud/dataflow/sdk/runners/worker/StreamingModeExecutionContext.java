@@ -34,6 +34,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.ByteString;
 
@@ -120,7 +121,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
    * items until the active work item is finished.
    */
   private <T> T fetchSideInput(PCollectionView<T> view, BoundedWindow sideInputWindow,
-      String stateFamily, SideInputState state) {
+      String stateFamily, SideInputState state,
+      Supplier<StateSampler.ScopedState> scopedReadStateSupplier) {
     Map<BoundedWindow, Object> tagCache = sideInputCache.get(view.getTagInternal());
     if (tagCache == null) {
       tagCache = new HashMap<>();
@@ -135,7 +137,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
             "Expected side input to be cached. Tag: "
             + view.getTagInternal().getId());
       }
-      T typed = stateFetcher.fetchSideInput(view, sideInputWindow, stateFamily, state);
+      T typed = stateFetcher.fetchSideInput(
+          view, sideInputWindow, stateFamily, state, scopedReadStateSupplier);
       sideInput = typed;
       if (sideInput != null) {
         tagCache.put(sideInputWindow, sideInput);
@@ -334,9 +337,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     private WindmillTimerInternals timerInternals;
     private final String prefix;
     private final String stateFamily;
-    private final StateSampler stateSampler;
+    private final Supplier<StateSampler.ScopedState> scopedReadStateSupplier;
 
-    public StepContext(String stepName, String transformName, StateSampler stateSampler) {
+    public StepContext(
+        final String stepName, String transformName, final StateSampler stateSampler) {
       super(StreamingModeExecutionContext.this, stepName, transformName);
 
       if (stateNameMap.isEmpty()) {
@@ -347,7 +351,20 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
         this.prefix = mappedName == null ? "" : mappedName;
         this.stateFamily = prefix;
       }
-      this.stateSampler = stateSampler;
+      this.scopedReadStateSupplier = new Supplier<StateSampler.ScopedState>() {
+        private int readState = -1;  // Uninitialized value.
+
+        @Override
+        public StateSampler.ScopedState get() {
+          if (stateSampler == null) {
+            return null;
+          }
+          if (readState == -1) {
+            readState = stateSampler.stateForName(stepName + "-windmill-read");
+          }
+          return stateSampler.scopedState(readState);
+        }
+      };
     }
 
     /**
@@ -357,7 +374,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
       boolean useStateFamilies = !stateNameMap.isEmpty();
       this.stateInternals =
           new WindmillStateInternals(
-              prefix, useStateFamilies, stateReader, stateSampler, getStepName());
+              prefix, useStateFamilies, stateReader, scopedReadStateSupplier);
       this.timerInternals = new WindmillTimerInternals(
           stateFamily, Preconditions.checkNotNull(inputDataWatermark));
     }
@@ -403,7 +420,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
         PCollectionView<?> view, BoundedWindow mainInputWindow, SideInputState state) {
       BoundedWindow sideInputWindow =
           view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
-      return fetchSideInput(view, sideInputWindow, stateFamily, state) != null;
+      return fetchSideInput(view, sideInputWindow, stateFamily, state, scopedReadStateSupplier)
+          != null;
     }
 
     /**
@@ -463,8 +481,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
         throw new RuntimeException("get() called with unknown view");
       }
 
-      return context.fetchSideInput(
-          view, window, null /* unused stateFamily */, SideInputState.CACHED_IN_WORKITEM);
+      // We are only fetching the cached value here, so we don't need stateFamily or
+      // readStateSupplier.
+      return context.fetchSideInput(view, window, null /* unused stateFamily */,
+          SideInputState.CACHED_IN_WORKITEM, null /* unused readStateSupplier */);
     }
 
     @Override
