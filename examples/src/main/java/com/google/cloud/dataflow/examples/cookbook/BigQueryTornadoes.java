@@ -101,8 +101,8 @@ public class BigQueryTornadoes {
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
-          .set("month", c.element().getKey().intValue())
-          .set("tornado_count", c.element().getValue().longValue());
+          .set("month", c.element().getKey())
+          .set("tornado_count", c.element().getValue());
       c.output(row);
     }
   }
