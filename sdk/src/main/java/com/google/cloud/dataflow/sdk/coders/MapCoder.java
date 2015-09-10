@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.coders;
 import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -29,7 +30,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -113,7 +113,7 @@ public class MapCoder<K, V> extends MapCoderBase<Map<K, V>> {
       throws IOException, CoderException {
     DataInputStream dataInStream = new DataInputStream(inStream);
     int size = dataInStream.readInt();
-    Map<K, V> retval = new HashMap<>();
+    Map<K, V> retval = Maps.newHashMapWithExpectedSize(size);
     for (int i = 0; i < size; ++i) {
       K key = keyCoder.decode(inStream, context.nested());
       V value = valueCoder.decode(inStream, context.nested());
