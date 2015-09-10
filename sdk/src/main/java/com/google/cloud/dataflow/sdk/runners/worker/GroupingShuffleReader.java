@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.annotation.Nullable;
 
@@ -177,6 +178,7 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
 
     /** The next group to be consumed, if available. */
     private KeyGroupedShuffleEntries currentGroup = null;
+    private final AtomicLong currentGroupSize = new AtomicLong(0L);
 
     protected StateSampler stateSampler = null;
     protected int readState;
@@ -203,9 +205,9 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
                 reader.read(rangeTracker.getStartPosition(), rangeTracker.getStopPosition())) {
               @Override
               protected void notifyElementRead(long byteSize) {
-                if (GroupingShuffleReader.this.perOperationPerDatasetBytesCounter != null) {
-                  GroupingShuffleReader.this.perOperationPerDatasetBytesCounter.addValue(byteSize);
-                }
+                // We accumulate the sum of bytes read in a local variable. This sum will be counted
+                // when the values are actually read by the consumer of the shuffle reader.
+                currentGroupSize.addAndGet(byteSize);
                 GroupingShuffleReader.this.notifyElementRead(byteSize);
               }
             };
@@ -347,6 +349,12 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
             GroupingShuffleReaderIterator.this.stateSampler.scopedState(
                 GroupingShuffleReaderIterator.this.readState)) {
           ShuffleEntry entry = base.next();
+          // The shuffle entries are handed over to the consumer of this iterator. Therefore, we can
+          // mark the values are read and increment the bytes read counter.
+          if (GroupingShuffleReader.this.perOperationPerDatasetBytesCounter != null) {
+            GroupingShuffleReader.this
+                .perOperationPerDatasetBytesCounter.addValue(currentGroupSize.getAndSet(0L));
+          }
           try {
             return CoderUtils.decodeFromByteArray(valueCoder, entry.getValue());
           } catch (IOException exn) {

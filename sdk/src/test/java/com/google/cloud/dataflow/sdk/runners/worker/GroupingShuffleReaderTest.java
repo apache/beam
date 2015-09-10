@@ -21,6 +21,7 @@ import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.posit
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toDynamicSplitRequest;
+import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -43,6 +44,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
@@ -78,6 +80,9 @@ public class GroupingShuffleReaderTest {
   private static final Instant timestamp = new Instant(123000);
   private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
 
+  // As Shuffle records, {@code KVS} is encoded as 10 records. Each records uses an integer as key
+  // (4 bytes), and a length-prefixed string as value (4 bytes + length of utf8-encoded string).
+  // Overall {@code KVS} has a byte size of 17 + 17 + 17 + 17 + 16 + 17 + 17 + 17 + 17 + 16 = 168.
   private static final List<KV<Integer, List<String>>> KVS = Arrays.asList(
       KV.of(1, Arrays.asList("in 1a", "in 1b")), KV.of(2, Arrays.asList("in 2a", "in 2b")),
       KV.of(3, Arrays.asList("in 3")), KV.of(4, Arrays.asList("in 4a", "in 4b", "in 4c", "in 4d")),
@@ -95,22 +100,15 @@ public class GroupingShuffleReaderTest {
     READ_ALL_VALUES
   }
 
-  private void runTestReadFromShuffle(
-      List<KV<Integer, List<String>>> input, ValuesToRead valuesToRead) throws Exception {
+  private List<ShuffleEntry> writeShuffleEntries(List<KV<Integer, List<String>>> input)
+      throws Exception {
     Coder<WindowedValue<KV<Integer, String>>> sinkElemCoder = WindowedValue.getFullCoder(
         KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()), IntervalWindow.getCoder());
-
-    Coder<WindowedValue<KV<Integer, Iterable<String>>>> sourceElemCoder =
-        WindowedValue.getFullCoder(
-            KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(StringUtf8Coder.of())),
-            IntervalWindow.getCoder());
-
-    CounterSet.AddCounterMutator addCounterMutator =
-        new CounterSet().getAddCounterMutator();
+    CounterSet.AddCounterMutator addCounterMutator = new CounterSet().getAddCounterMutator();
     // Write to shuffle with GROUP_KEYS ShuffleSink.
-    ShuffleSink<KV<Integer, String>> shuffleSink = new ShuffleSink<>(
-        PipelineOptionsFactory.create(), null, ShuffleSink.ShuffleKind.GROUP_KEYS,
-        sinkElemCoder, addCounterMutator);
+    ShuffleSink<KV<Integer, String>> shuffleSink =
+        new ShuffleSink<>(PipelineOptionsFactory.create(), null, ShuffleSink.ShuffleKind.GROUP_KEYS,
+            sinkElemCoder, addCounterMutator);
 
     TestShuffleWriter shuffleWriter = new TestShuffleWriter();
 
@@ -122,32 +120,21 @@ public class GroupingShuffleReaderTest {
         Integer key = kvs.getKey();
         for (String value : kvs.getValue()) {
           ++kvCount;
-          actualSizes.add(shuffleSinkWriter.add(
-              WindowedValue.of(
-                  KV.of(key, value), timestamp, Lists.newArrayList(window),
-                  PaneInfo.NO_FIRING)));
+          actualSizes.add(shuffleSinkWriter.add(WindowedValue.of(
+              KV.of(key, value), timestamp, Lists.newArrayList(window), PaneInfo.NO_FIRING)));
         }
       }
     }
     List<ShuffleEntry> records = shuffleWriter.getRecords();
     assertEquals(kvCount, records.size());
     assertEquals(shuffleWriter.getSizes(), actualSizes);
+    return records;
+  }
 
-    PipelineOptions options = PipelineOptionsFactory.create();
-    // Read from shuffle with GroupingShuffleReader.
-    BatchModeExecutionContext context = BatchModeExecutionContext.fromOptions(options);
-    GroupingShuffleReader<Integer, String> groupingShuffleReader = new GroupingShuffleReader<>(
-        options, null, null, null, sourceElemCoder, context, null, null);
-    ExecutorTestUtils.TestReaderObserver observer =
-        new ExecutorTestUtils.TestReaderObserver(groupingShuffleReader);
-
-    TestShuffleReader shuffleReader = new TestShuffleReader();
-    List<Integer> expectedSizes = new ArrayList<>();
-    for (ShuffleEntry record : records) {
-      expectedSizes.add(record.length());
-      shuffleReader.addEntry(record);
-    }
-
+  private List<KV<Integer, List<String>>> runIterationOverGroupingShuffleReader(
+      BatchModeExecutionContext context, TestShuffleReader shuffleReader,
+      GroupingShuffleReader<Integer, String> groupingShuffleReader, ValuesToRead valuesToRead)
+      throws Exception {
     List<KV<Integer, List<String>>> actual = new ArrayList<>();
     try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<String>>>> iter =
         groupingShuffleReader.iterator(shuffleReader)) {
@@ -215,6 +202,35 @@ public class GroupingShuffleReaderTest {
         // As expected.
       }
     }
+    return actual;
+  }
+
+  private void runTestReadFromShuffle(
+      List<KV<Integer, List<String>>> input, ValuesToRead valuesToRead) throws Exception {
+    Coder<WindowedValue<KV<Integer, Iterable<String>>>> sourceElemCoder =
+        WindowedValue.getFullCoder(
+            KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(StringUtf8Coder.of())),
+            IntervalWindow.getCoder());
+
+    List<ShuffleEntry> records = writeShuffleEntries(input);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    // Read from shuffle with GroupingShuffleReader.
+    BatchModeExecutionContext context = BatchModeExecutionContext.fromOptions(options);
+    GroupingShuffleReader<Integer, String> groupingShuffleReader = new GroupingShuffleReader<>(
+        options, null, null, null, sourceElemCoder, context, null, null);
+    ExecutorTestUtils.TestReaderObserver observer =
+        new ExecutorTestUtils.TestReaderObserver(groupingShuffleReader);
+
+    TestShuffleReader shuffleReader = new TestShuffleReader();
+    List<Integer> expectedSizes = new ArrayList<>();
+    for (ShuffleEntry record : records) {
+      expectedSizes.add(record.length());
+      shuffleReader.addEntry(record);
+    }
+
+    List<KV<Integer, List<String>>> actual = runIterationOverGroupingShuffleReader(
+        context, shuffleReader, groupingShuffleReader, valuesToRead);
 
     List<KV<Integer, List<String>>> expected = new ArrayList<>();
     for (KV<Integer, List<String>> kvs : input) {
@@ -262,6 +278,57 @@ public class GroupingShuffleReaderTest {
   @Test
   public void testReadNonEmptyShuffleDataSkippingValues() throws Exception {
     runTestReadFromShuffle(KVS, ValuesToRead.SKIP_VALUES);
+  }
+
+  private void runTestBytesReadCounter(
+      List<KV<Integer, List<String>>> input, ValuesToRead valuesToRead,
+      long expectedReadBytes) throws Exception {
+    // Create a shuffle reader with the shuffle values provided as input.
+    List<ShuffleEntry> records = writeShuffleEntries(input);
+    TestShuffleReader shuffleReader = new TestShuffleReader();
+    for (ShuffleEntry record : records) {
+      shuffleReader.addEntry(record);
+    }
+
+    Coder<WindowedValue<KV<Integer, Iterable<String>>>> sourceElemCoder =
+        WindowedValue.getFullCoder(
+            KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(StringUtf8Coder.of())),
+            IntervalWindow.getCoder());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    CounterSet.AddCounterMutator addCounterMutator =
+        new CounterSet().getAddCounterMutator();
+    // Read from shuffle with GroupingShuffleReader.
+    BatchModeExecutionContext context = BatchModeExecutionContext.fromOptions(options);
+    GroupingShuffleReader<Integer, String> groupingShuffleReader = new GroupingShuffleReader<>(
+        options, null, null, null, sourceElemCoder, context, null, null);
+    groupingShuffleReader.perOperationPerDatasetBytesCounter =
+        addCounterMutator.addCounter(Counter.longs("dax-shuffle-test-wf-read-bytes", SUM));
+
+    runIterationOverGroupingShuffleReader(
+        context, shuffleReader, groupingShuffleReader, valuesToRead);
+
+    assertEquals(expectedReadBytes,
+                 (long) groupingShuffleReader.perOperationPerDatasetBytesCounter.getAggregate());
+  }
+
+  @Test
+  public void testBytesReadNonEmptyShuffleData() throws Exception {
+    runTestBytesReadCounter(KVS, ValuesToRead.READ_ALL_VALUES, 168L);
+  }
+
+  @Test
+  public void testBytesReadNonEmptyShuffleDataReadingOneValue() throws Exception {
+    runTestBytesReadCounter(KVS, ValuesToRead.READ_ONE_VALUE, 168L);
+  }
+
+  @Test
+  public void testBytesReadNonEmptyShuffleDataSkippingValues() throws Exception {
+    runTestBytesReadCounter(KVS, ValuesToRead.SKIP_VALUES, 0L);
+  }
+
+  @Test
+  public void testBytesReadEmptyShuffleData() throws Exception {
+    runTestBytesReadCounter(NO_KVS, ValuesToRead.READ_ALL_VALUES, 0L);
   }
 
   static byte[] fabricatePosition(int shard, @Nullable byte[] key) throws Exception {
@@ -342,12 +409,16 @@ public class GroupingShuffleReaderTest {
   public void testReadFromShuffleAndDynamicSplit() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     BatchModeExecutionContext context = BatchModeExecutionContext.fromOptions(options);
+    CounterSet.AddCounterMutator addCounterMutator =
+        new CounterSet().getAddCounterMutator();
     GroupingShuffleReader<Integer, Integer> groupingShuffleReader = new GroupingShuffleReader<>(
         options, null, null, null,
         WindowedValue.getFullCoder(
             KvCoder.of(BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
             IntervalWindow.getCoder()),
         context, null, null);
+    groupingShuffleReader.perOperationPerDatasetBytesCounter =
+          addCounterMutator.addCounter(Counter.longs("dax-shuffle-test-wf-read-bytes", SUM));
 
     TestShuffleReader shuffleReader = new TestShuffleReader();
     final int kNumRecords = 10;
@@ -418,6 +489,10 @@ public class GroupingShuffleReaderTest {
       assertFalse(iter.hasNext());
     }
     assertEquals(i, kNumRecords);
+    // There are 10 Shuffle records that each encode an integer key (4 bytes) and integer value (4
+    // bytes). We therefore expect to read 80 bytes.
+    assertEquals(
+        80L, (long) groupingShuffleReader.perOperationPerDatasetBytesCounter.getAggregate());
   }
 
   @Test
