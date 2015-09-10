@@ -40,6 +40,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Tests for CoderRegistry.
@@ -127,7 +129,7 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testParameterizedDefaultCoder() throws Exception {
+  public void testParameterizedDefaultListCoder() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     TypeDescriptor<List<Integer>> listToken = new TypeDescriptor<List<Integer>>() {};
     assertEquals(ListCoder.of(VarIntCoder.of()),
@@ -143,10 +145,41 @@ public class CoderRegistryTest {
   }
 
   @Test
+  public void testParameterizedDefaultMapCoder() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    TypeDescriptor<Map<Integer, String>> mapToken = new TypeDescriptor<Map<Integer, String>>() {};
+    assertEquals(MapCoder.of(VarIntCoder.of(), StringUtf8Coder.of()),
+                 registry.getDefaultCoder(mapToken));
+  }
+
+  @Test
+  public void testParameterizedDefaultNestedMapCoder() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    TypeDescriptor<Map<Integer, Map<String, Double>>> mapToken =
+        new TypeDescriptor<Map<Integer, Map<String, Double>>>() {};
+    assertEquals(
+        MapCoder.of(VarIntCoder.of(), MapCoder.of(StringUtf8Coder.of(), DoubleCoder.of())),
+        registry.getDefaultCoder(mapToken));
+  }
+
+  @Test
+  public void testParameterizedDefaultSetCoder() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    TypeDescriptor<Set<Integer>> setToken = new TypeDescriptor<Set<Integer>>() {};
+    assertEquals(SetCoder.of(VarIntCoder.of()), registry.getDefaultCoder(setToken));
+  }
+
+  @Test
+  public void testParameterizedDefaultNestedSetCoder() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    TypeDescriptor<Set<Set<Integer>>> setToken = new TypeDescriptor<Set<Set<Integer>>>() {};
+    assertEquals(SetCoder.of(SetCoder.of(VarIntCoder.of())), registry.getDefaultCoder(setToken));
+  }
+
+  @Test
   public void testParameterizedDefaultCoderUnknown() throws Exception {
     CoderRegistry registry = getStandardRegistry();
-    TypeDescriptor<List<UnknownType>> listUnknownToken =
-        new TypeDescriptor<List<UnknownType>>() {};
+    TypeDescriptor<List<UnknownType>> listUnknownToken = new TypeDescriptor<List<UnknownType>>() {};
 
     thrown.expect(CannotProvideCoderException.class);
     registry.getDefaultCoder(listUnknownToken);
@@ -295,7 +328,8 @@ public class CoderRegistryTest {
       return INSTANCE;
     }
 
-    public static List<Object> getInstanceComponents(MyValue exampleValue) {
+    public static List<Object> getInstanceComponents(
+        @SuppressWarnings("unused") MyValue exampleValue) {
       return Arrays.asList();
     }
 

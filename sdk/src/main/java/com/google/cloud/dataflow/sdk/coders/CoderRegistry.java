@@ -43,6 +43,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A {@code CoderRegistry} allows registering the
@@ -80,13 +81,14 @@ public class CoderRegistry implements CoderProvider {
     registerCoder(Iterable.class, IterableCoder.class);
     registerCoder(KV.class, KvCoder.class);
     registerCoder(List.class, ListCoder.class);
-    registerCoder(Map.class, MapCoder.class);
     registerCoder(Long.class, VarLongCoder.class);
+    registerCoder(Map.class, MapCoder.class);
+    registerCoder(Set.class, SetCoder.class);
     registerCoder(String.class, StringUtf8Coder.class);
     registerCoder(TableRow.class, TableRowJsonCoder.class);
+    registerCoder(TimestampedValue.class, TimestampedValue.TimestampedValueCoder.class);
     registerCoder(Void.class, VoidCoder.class);
     registerCoder(byte[].class, ByteArrayCoder.class);
-    registerCoder(TimestampedValue.class, TimestampedValue.TimestampedValueCoder.class);
   }
 
   /**
