@@ -22,7 +22,6 @@ import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
-import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -217,7 +216,6 @@ public class CoGbkResult {
 
     private final CoGbkResultSchema schema;
     private final UnionCoder unionCoder;
-    private MapCoder<Integer, List<RawUnionValue>> mapCoder;
 
     /**
      * Returns a CoGbkResultCoder for the given schema and unionCoder.
@@ -296,11 +294,15 @@ public class CoGbkResult {
     }
 
     @Override
-    public boolean equals(Object other) {
-      if (!super.equals(other)) {
+    public boolean equals(Object object) {
+      if (this == object) {
+        return true;
+      }
+      if (!(object instanceof CoGbkResultCoder)) {
         return false;
       }
-      return schema.equals(((CoGbkResultCoder) other).schema);
+      CoGbkResultCoder other = (CoGbkResultCoder) object;
+      return schema.equals(other.schema) && unionCoder.equals(other.unionCoder);
     }
 
     @Override
@@ -311,7 +313,7 @@ public class CoGbkResult {
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
-          "CoGbkResult requires the mapCoder to be deterministic", mapCoder);
+          "CoGbkResult requires the union coder to be deterministic", unionCoder);
     }
   }
 
