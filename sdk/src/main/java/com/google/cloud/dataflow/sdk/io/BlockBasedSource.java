@@ -22,6 +22,8 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
+import javax.annotation.Nullable;
+
 /**
  * A {@code BlockBasedSource} is a {@link FileBasedSource} where a file consists of blocks of
  * records.
@@ -122,7 +124,6 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   protected abstract static class BlockBasedReader<T> extends FileBasedReader<T> {
-    private Block<T> currentBlock;
     private boolean atSplitPoint;
 
     protected BlockBasedReader(BlockBasedSource<T> source) {
@@ -135,10 +136,12 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
     public abstract boolean readNextBlock() throws IOException;
 
     /**
-     * Returns the current block (the block that was read by the previous call to
-     * {@link BlockBasedReader#readNextBlock}).
+     * Returns the current block (the block that was read by the last successful call to
+     * {@link BlockBasedReader#readNextBlock}). May return null initially, or if no block has been
+     * successfully read.
      */
-    public abstract Block<T> getCurrentBlock() throws NoSuchElementException;
+    @Nullable
+    public abstract Block<T> getCurrentBlock();
 
     /**
      * Returns the size of the current block in bytes as it is represented in the underlying file,
@@ -150,7 +153,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
      * (but not correctness) of dynamic work rebalancing.
      *
      * <p>This method and {@link Block#getFractionOfBlockConsumed} are used to provide an estimate
-     * of progress within a block ({@code currentBlock.getFractionOfBlockConsumed() *
+     * of progress within a block ({@code getCurrentBlock().getFractionOfBlockConsumed() *
      * getCurrentBlockSize()}). It is acceptable for the result of this computation to be 0, but
      * progress estimation will be inaccurate.
      */
@@ -164,6 +167,11 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
 
     @Override
     public final T getCurrent() throws NoSuchElementException {
+      Block<T> currentBlock = getCurrentBlock();
+      if (currentBlock == null) {
+        throw new NoSuchElementException(
+            "No block has been successfully read from " + getCurrentSource());
+      }
       return currentBlock.getCurrentRecord();
     }
 
@@ -180,11 +188,12 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
     @Override
     protected final boolean readNextRecord() throws IOException {
       atSplitPoint = false;
-      while (currentBlock == null || !currentBlock.readNextRecord()) {
+
+      while (getCurrentBlock() == null || !getCurrentBlock().readNextRecord()) {
         if (!readNextBlock()) {
           return false;
         }
-        currentBlock = getCurrentBlock();
+        // The first record in a block is a split point.
         atSplitPoint = true;
       }
       return true;
@@ -194,6 +203,11 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
     public Double getFractionConsumed() {
       if (getCurrentSource().getEndOffset() == Long.MAX_VALUE) {
         return null;
+      }
+      Block<T> currentBlock = getCurrentBlock();
+      if (currentBlock == null) {
+        // There is no current block (i.e., the read has not yet begun).
+        return 0.0;
       }
       long currentBlockOffset = getCurrentBlockOffset();
       long startOffset = getCurrentSource().getStartOffset();

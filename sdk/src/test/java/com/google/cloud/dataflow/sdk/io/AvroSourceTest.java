@@ -27,7 +27,6 @@ import com.google.cloud.dataflow.sdk.io.AvroSource.AvroReader;
 import com.google.cloud.dataflow.sdk.io.AvroSource.AvroReader.Seeker;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.testing.SourceTestUtils;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -50,6 +49,7 @@ import java.io.IOException;
 import java.io.PushbackInputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Random;
 
 /**
@@ -161,8 +161,46 @@ public class AvroSourceTest {
   }
 
   @Test
+  public void testGetProgressFromUnstartedReader() throws Exception {
+    List<FixedRecord> records = createFixedRecords(DEFAULT_RECORD_COUNT);
+    String filename = generateTestFile("tmp.avro", records, SyncBehavior.SYNC_DEFAULT, 1000,
+        AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
+    File file = new File(filename);
+
+    AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
+    try (BoundedSource.BoundedReader<FixedRecord> reader = source.createReader(null)) {
+      assertEquals(new Double(0.0), reader.getFractionConsumed());
+    }
+
+    List<? extends BoundedSource<FixedRecord>> splits =
+        source.splitIntoBundles(file.length() / 3, null);
+    for (BoundedSource<FixedRecord> subSource : splits) {
+      try (BoundedSource.BoundedReader<FixedRecord> reader = subSource.createReader(null)) {
+        assertEquals(new Double(0.0), reader.getFractionConsumed());
+      }
+    }
+  }
+
+  @Test
+  public void testGetCurrentFromUnstartedReader() throws Exception {
+    List<FixedRecord> records = createFixedRecords(DEFAULT_RECORD_COUNT);
+    String filename = generateTestFile("tmp.avro", records, SyncBehavior.SYNC_DEFAULT, 1000,
+        AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
+
+    AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
+    try (BlockBasedSource.BlockBasedReader<FixedRecord> reader =
+        (BlockBasedSource.BlockBasedReader<FixedRecord>) source.createReader(null)) {
+      assertEquals(null, reader.getCurrentBlock());
+
+      expectedException.expect(NoSuchElementException.class);
+      expectedException.expectMessage("No block has been successfully read from");
+      reader.getCurrent();
+    }
+  }
+
+  @Test
   public void testSplitAtFractionExhaustive() throws Exception {
-    List<FixedRecord> expected = createFixedRecords(100);
+    List<FixedRecord> expected = createFixedRecords(50);
     String filename = generateTestFile("tmp.avro", expected, SyncBehavior.SYNC_REGULAR, 5,
         AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
 
