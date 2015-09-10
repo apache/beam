@@ -69,16 +69,12 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   // Package-private for testing
   static final int MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT = 100;
 
-  // Size of the thread pool to be used for sending requests to GCS.
+  // Size of the thread pool to be used for performing file operations in parallel.
   // Package-private for testing.
-  static final int SPLITTING_THREAD_POOL_SIZE = 128;
+  static final int THREAD_POOL_SIZE = 128;
 
   private final String fileOrPatternSpec;
   private final Mode mode;
-
-  // Thread pool to be used for parallelizing requests to GCS.
-  private static ListeningExecutorService service =
-      MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(SPLITTING_THREAD_POOL_SIZE));
 
   /**
    * A given {@code FileBasedSource} represents a file resource of one of these types.
@@ -206,13 +202,41 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   }
 
   // Get the exact total size of the given set of files.
+  // Invokes multiple requests for size estimation in parallel using a thread pool.
+  // TODO: replace this with bulk request API when it is available. Will require updates
+  // to IOChannelFactory interface.
   private static long getExactTotalSizeOfFiles(
-      Collection<String> files, IOChannelFactory ioChannelFactory) throws IOException {
+      Collection<String> files, IOChannelFactory ioChannelFactory) throws Exception {
+    List<ListenableFuture<Long>> futures = new ArrayList<>();
+    ListeningExecutorService service =
+        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(THREAD_POOL_SIZE));
     long totalSize = 0;
-    for (String file : files) {
-      totalSize += ioChannelFactory.getSizeBytes(file);
+    try {
+      for (String file : files) {
+        futures.add(createFutureForSizeEstimation(file, ioChannelFactory, service));
+      }
+
+      for (Long val : Futures.allAsList(futures).get()) {
+        totalSize += val;
+      }
+
+      return totalSize;
+    } finally {
+      service.shutdown();
     }
-    return totalSize;
+  }
+
+  private static ListenableFuture<Long> createFutureForSizeEstimation(
+      final String file,
+      final IOChannelFactory ioChannelFactory,
+      ListeningExecutorService service) {
+    return service.submit(
+        new Callable<Long>() {
+          @Override
+          public Long call() throws Exception {
+            return ioChannelFactory.getSizeBytes(file);
+          }
+        });
   }
 
   // Estimate the total size of the given set of files through sampling and extrapolation.
@@ -220,7 +244,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   // estimate.
   // TODO: Implement a more efficient sampling mechanism.
   private static long getEstimatedSizeOfFilesBySampling(
-      Collection<String> files, IOChannelFactory ioChannelFactory) throws IOException {
+      Collection<String> files, IOChannelFactory ioChannelFactory) throws Exception {
     int sampleSize = (int) (FRACTION_OF_FILES_TO_STAT * files.size());
     sampleSize = Math.max(MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT, sampleSize);
 
@@ -232,8 +256,10 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
         / selectedFiles.size();
   }
 
-  private ListenableFuture<List<? extends FileBasedSource<T>>> createFuture(final String file,
-      final long desiredBundleSizeBytes, final PipelineOptions options,
+  private ListenableFuture<List<? extends FileBasedSource<T>>> createFutureForFileSplit(
+      final String file,
+      final long desiredBundleSizeBytes,
+      final PipelineOptions options,
       ListeningExecutorService service) {
     return service.submit(new Callable<List<? extends FileBasedSource<T>>>() {
       @Override
@@ -256,15 +282,24 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       long startTime = System.currentTimeMillis();
       List<ListenableFuture<List<? extends FileBasedSource<T>>>> futures = new ArrayList<>();
 
-      for (final String file : FileBasedSource.expandFilePattern(fileOrPatternSpec)) {
-        futures.add(createFuture(file, desiredBundleSizeBytes, options, service));
+      ListeningExecutorService service =
+          MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(THREAD_POOL_SIZE));
+      try {
+        for (final String file : FileBasedSource.expandFilePattern(fileOrPatternSpec)) {
+          futures.add(createFutureForFileSplit(file, desiredBundleSizeBytes, options, service));
+        }
+        List<? extends FileBasedSource<T>> splitResults =
+            ImmutableList.copyOf(Iterables.concat(Futures.allAsList(futures).get()));
+        LOG.debug(
+            "Splitting the source based on file pattern "
+                + fileOrPatternSpec
+                + " took "
+                + (System.currentTimeMillis() - startTime)
+                + " ms");
+        return splitResults;
+      } finally {
+        service.shutdown();
       }
-      List<? extends FileBasedSource<T>> splitResults =
-          ImmutableList.copyOf(Iterables.concat(Futures.allAsList(futures).get()));
-
-      LOG.debug("Splitting the source based on file pattern " + fileOrPatternSpec + " took "
-          + (System.currentTimeMillis() - startTime) + " ms");
-      return splitResults;
     } else {
       if (isSplittable()) {
         List<FileBasedSource<T>> splitResults = new ArrayList<>();

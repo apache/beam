@@ -399,7 +399,7 @@ public class FileBasedSourceTest {
 
   @Test
   public void testSplittingUsingFullThreadPool() throws Exception {
-    int numFiles = FileBasedSource.SPLITTING_THREAD_POOL_SIZE * 5;
+    int numFiles = FileBasedSource.THREAD_POOL_SIZE * 5;
     File file0 = null;
     for (int i = 0; i < numFiles; i++) {
       List<String> data = createStringDataset(3, 1000);
@@ -781,6 +781,27 @@ public class FileBasedSourceTest {
     // corresponding pattern is expanded into.
     assertEquals(
         file1.length() + file2.length() + file3.length(), source.getEstimatedSizeBytes(null));
+  }
+
+  @Test
+  public void testEstimatedSizeOfFilePatternAllThreads() throws Exception {
+    File file0 = null;
+    int numFiles = FileBasedSource.THREAD_POOL_SIZE * 5;
+    long totalSize = 0;
+    for (int i = 0; i < numFiles; i++) {
+      List<String> data = createStringDataset(3, 20);
+      File file = createFileWithData("file" + i, data);
+      if (i == 0) {
+        file0 = file;
+      }
+      totalSize += file.length();
+    }
+
+    TestFileBasedSource source =
+        new TestFileBasedSource(new File(file0.getParent(), "file*").getPath(), 64, null);
+
+    // Since all files are of equal size, sampling should produce the exact result.
+    assertEquals(totalSize, source.getEstimatedSizeBytes(null));
   }
 
   @Test
