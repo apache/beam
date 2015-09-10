@@ -48,8 +48,6 @@ public interface GoogleApiDebugOptions extends PipelineOptions {
    */
   public static class GoogleApiTracer extends HashMap<String, String>
       implements GoogleClientRequestInitializer {
-    private static final long serialVersionUID = 0;
-
     /**
      * Creates a {@link GoogleApiTracer} that sets the trace destination on all
      * calls that match the given client type.

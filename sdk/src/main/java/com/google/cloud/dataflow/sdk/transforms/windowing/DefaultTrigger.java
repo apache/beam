@@ -32,8 +32,6 @@ import java.util.List;
 @Experimental(Experimental.Kind.TRIGGER)
 public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
 
-  private static final long serialVersionUID = 0L;
-
   private DefaultTrigger() {
     super(null);
   }

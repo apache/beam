@@ -177,8 +177,6 @@ public class CompressedSourceTest {
    * Dummy source for use in tests.
    */
   private static class ByteSource extends FileBasedSource<Byte> {
-    private static final long serialVersionUID = 0;
-
     public ByteSource(String fileOrPatternSpec, long minBundleSize) {
       super(fileOrPatternSpec, minBundleSize);
     }

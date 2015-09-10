@@ -127,7 +127,6 @@ public class WriteTest {
   // TestWriter each verify that the sequence of method calls is consistent with the specification
   // of the Write PTransform.
   private static class TestSink extends Sink<String> {
-    private static final long serialVersionUID = 0;
     private boolean createCalled = false;
     private boolean validateCalled = false;
 
@@ -179,8 +178,6 @@ public class WriteTest {
   }
 
   private static class TestSinkWriteOperation extends WriteOperation<String, TestWriterResult> {
-    private static final long serialVersionUID = 0;
-
     private enum State {
       INITIAL,
       INITIALIZED,
@@ -274,7 +271,6 @@ public class WriteTest {
   }
 
   private static class TestWriterResult implements Serializable {
-    private static final long serialVersionUID = 0;
     String uId;
     List<String> elementsWritten;
 

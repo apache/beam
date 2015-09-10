@@ -41,8 +41,6 @@ import org.joda.time.Duration;
 public class Reshuffle<K, V>
   extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
-  private static final long serialVersionUID = 0L;
-
   private Reshuffle() {
   }
 
@@ -69,7 +67,6 @@ public class Reshuffle<K, V>
         .setWindowingStrategyInternal(originalStrategy)
         .apply(ParDo.named("ExpandIterable").of(
             new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
-              private static final long serialVersionUID = 0;
               @Override
               public void processElement(ProcessContext c) {
                 K key = c.element().getKey();

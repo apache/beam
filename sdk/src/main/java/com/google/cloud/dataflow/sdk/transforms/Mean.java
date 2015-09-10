@@ -99,8 +99,6 @@ public class Mean {
    */
   static class MeanFn<NumT extends Number>
   extends Combine.AccumulatingCombineFn<NumT, CountSum<NumT>, Double> {
-    private static final long serialVersionUID = 0;
-
     /**
      * Constructs a combining function that computes the mean over
      * a collection of values of type {@code N}.
@@ -181,8 +179,6 @@ public class Mean {
 
   static class CountSumCoder<NumT extends Number>
   extends AtomicCoder<CountSum<NumT>> {
-     private static final long serialVersionUID = 0;
-
      private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
      private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
 

@@ -514,8 +514,6 @@ public abstract class WindowedValue<T> {
    */
   public abstract static class WindowedValueCoder<T>
       extends StandardCoder<WindowedValue<T>> {
-    private static final long serialVersionUID = 0;
-
     final Coder<T> valueCoder;
 
     WindowedValueCoder(Coder<T> valueCoder) {
@@ -540,8 +538,6 @@ public abstract class WindowedValue<T> {
    * Coder for {@code WindowedValue}.
    */
   public static class FullWindowedValueCoder<T> extends WindowedValueCoder<T> {
-    private static final long serialVersionUID = 0;
-
     private final Coder<? extends BoundedWindow> windowCoder;
     // Precompute and cache the coder for a list of windows.
     private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
@@ -660,8 +656,6 @@ public abstract class WindowedValue<T> {
    * timestamp and windows for encoding, and uses defaults timestamp, and windows for decoding.
    */
   public static class ValueOnlyWindowedValueCoder<T> extends WindowedValueCoder<T> {
-    private static final long serialVersionUID = 0;
-
     public static <T> ValueOnlyWindowedValueCoder<T> of(
         Coder<T> valueCoder) {
       return new ValueOnlyWindowedValueCoder<>(valueCoder);

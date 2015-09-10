@@ -40,7 +40,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * @param <K> the type of the keys in the input {@code PCollection},
  * and the type of the elements in the output {@code PCollection}
  */
-@SuppressWarnings("serial")
 public class Keys<K> extends PTransform<PCollection<? extends KV<K, ?>>,
                                         PCollection<K>> {
   /**

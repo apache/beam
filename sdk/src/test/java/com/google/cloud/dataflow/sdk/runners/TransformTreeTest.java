@@ -46,7 +46,6 @@ import java.util.EnumSet;
  * Tests for {@link TransformTreeNode} and {@link TransformHierarchy}.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class TransformTreeTest {
 
   enum TransformsSeen {

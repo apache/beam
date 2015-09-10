@@ -230,8 +230,6 @@ public interface Coder<T> extends Serializable {
    * not deterministic.
    */
   public static class NonDeterministicException extends Throwable {
-    private static final long serialVersionUID = 0;
-
     private Coder<?> coder;
     private List<String> reasons;
 

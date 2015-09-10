@@ -36,8 +36,6 @@ import java.util.List;
  */
 public class ExecutableTrigger<W extends BoundedWindow> implements Serializable {
 
-  private static final long serialVersionUID = 0L;
-
   /** Store the index assigned to this trigger. */
   private final int triggerIndex;
   private final int firstIndexAfterSubtree;
@@ -177,8 +175,6 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
    * and never just FIRE.
    */
   private static class ExecutableOnceTrigger<W extends BoundedWindow> extends ExecutableTrigger<W> {
-
-    private static final long serialVersionUID = 0L;
 
     public ExecutableOnceTrigger(OnceTrigger<W> trigger, int nextUnusedIndex) {
       super(trigger, nextUnusedIndex);

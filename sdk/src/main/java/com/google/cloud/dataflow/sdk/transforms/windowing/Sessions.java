@@ -37,8 +37,6 @@ import java.util.Collection;
  * } </pre>
  */
 public class Sessions extends WindowFn<Object, IntervalWindow> {
-  private static final long serialVersionUID = 0;
-
   /**
    * Duration of the gaps between sessions.
    */

@@ -194,8 +194,6 @@ public class DatastoreIO {
    */
   public static class Source extends BoundedSource<Entity> {
     private static final Logger LOG = LoggerFactory.getLogger(Source.class);
-    private static final long serialVersionUID = 0;
-
     String host;
     String datasetId;
     Query query;
@@ -413,8 +411,6 @@ public class DatastoreIO {
    *
    */
   public static class Sink extends com.google.cloud.dataflow.sdk.io.Sink<Entity> {
-    private static final long serialVersionUID = 0;
-
     final String host;
     final String datasetId;
 
@@ -464,7 +460,6 @@ public class DatastoreIO {
    */
   private static class DatastoreWriteOperation
       extends WriteOperation<Entity, DatastoreWriteResult> {
-    private static final long serialVersionUID = 0;
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriteOperation.class);
 
     private final DatastoreIO.Sink sink;
@@ -657,8 +652,6 @@ public class DatastoreIO {
   }
 
   private static class DatastoreWriteResult implements Serializable {
-    private static final long serialVersionUID = 0;
-
     final long entitiesWritten;
 
     public DatastoreWriteResult(long recordsWritten) {

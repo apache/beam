@@ -30,7 +30,6 @@ import java.util.Map;
  * Tests for {@link ReflectHelpers}.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class ReflectHelpersTest {
 
   @Test

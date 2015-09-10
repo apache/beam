@@ -30,8 +30,6 @@ import java.util.BitSet;
 class BitSetCoder extends AtomicCoder<BitSet> {
 
   private static final BitSetCoder INSTANCE = new BitSetCoder();
-  private static final long serialVersionUID = 1L;
-
   private transient ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
 
   private BitSetCoder() {}

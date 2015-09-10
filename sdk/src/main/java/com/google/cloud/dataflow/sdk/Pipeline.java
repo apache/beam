@@ -111,8 +111,6 @@ public class Pipeline {
    * <p>The exception thrown during pipeline execution may be retrieved via {@link #getCause}.
    */
   public static class PipelineExecutionException extends RuntimeException {
-    private static final long serialVersionUID = 0L;
-
     /**
      * Wraps {@code cause} into a {@code PipelineExecutionException}.
      */

@@ -34,8 +34,6 @@ import org.joda.time.Instant;
  * @param <OutputT> unused.
  */
 class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
-  private static final long serialVersionUID = 0L;
-
   @Override
   public void processElement(DoFn<InputT, OutputT>.ProcessContext c) throws Exception {
   }

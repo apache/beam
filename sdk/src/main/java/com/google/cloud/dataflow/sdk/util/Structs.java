@@ -361,16 +361,12 @@ public final class Structs {
   }
 
   private static final class ParameterNotFoundException extends Exception {
-    private static final long serialVersionUID = 0;
-
     public ParameterNotFoundException(String name, Map<String, Object> map) {
       super("didn't find required parameter " + name + " in " + map);
     }
   }
 
   private static final class IncorrectTypeException extends Exception {
-    private static final long serialVersionUID = 0;
-
     public IncorrectTypeException(String name, Map<String, Object> map, String type) {
       super("required parameter " + name + " in " + map + " not " + type);
     }

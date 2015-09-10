@@ -43,7 +43,6 @@ import org.slf4j.LoggerFactory;
  *   --runner=BlockingDataflowPipelineRunner
  * In Eclipse, you can just modify the existing 'SERVICE' run configuration.
  */
-@SuppressWarnings("serial")
 public class StarterPipeline {
   private static final Logger LOG = LoggerFactory.getLogger(StarterPipeline.class);
 

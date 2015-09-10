@@ -55,7 +55,6 @@ import java.util.List;
  * Tests for Flatten.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class FlattenTest implements Serializable {
 
   @Rule
@@ -123,8 +122,6 @@ public class FlattenTest implements Serializable {
     PCollection<String> output = p
         .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
         .apply(ParDo.withSideInputs(view).of(new DoFn<Void, String>() {
-                  private static final long serialVersionUID = 0;
-
                   @Override
                   public void processElement(ProcessContext c) {
                     for (String side : c.sideInput(view)) {

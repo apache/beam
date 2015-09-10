@@ -37,7 +37,6 @@ import java.util.List;
  * Tests of Coder defaults.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class DefaultCoderTest {
 
   @Rule

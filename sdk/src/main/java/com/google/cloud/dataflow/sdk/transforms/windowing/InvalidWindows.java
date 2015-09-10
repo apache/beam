@@ -28,8 +28,6 @@ import java.util.Collection;
  * @param <W> window type
  */
 public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W> {
-  private static final long serialVersionUID = 0;
-
   private String cause;
   private WindowFn<?, W> originalWindowFn;
 

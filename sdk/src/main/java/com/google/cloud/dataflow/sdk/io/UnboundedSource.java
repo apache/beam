@@ -49,8 +49,6 @@ import javax.annotation.Nullable;
  */
 public abstract class UnboundedSource<
         OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark> extends Source<OutputT> {
-  private static final long serialVersionUID = 0L;
-
   /**
    * Returns a list of {@code UnboundedSource} objects representing the instances of this source
    * that should be used when executing the workflow.  Each split should return a separate partition

@@ -169,8 +169,6 @@ import java.io.Serializable;
  */
 public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     implements Serializable /* See the note above */ {
-  private static final long serialVersionUID = 0;
-
   /**
    * Applies this {@code PTransform} on the given {@code InputT}, and returns its
    * {@code Output}.

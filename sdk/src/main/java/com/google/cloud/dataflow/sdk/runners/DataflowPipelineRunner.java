@@ -469,8 +469,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * mode.
    */
   private static class StreamingWrite<T> extends PTransform<PCollection<T>, PDone> {
-    private static final long serialVersionUID = 0L;
-
     /**
      * Builds an instance of this class from the overridden transform.
      */
@@ -498,8 +496,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * can access.
    */
   public static class StreamingPubsubIOWrite<T> extends PTransform<PCollection<T>, PDone> {
-    private static final long serialVersionUID = 0L;
-
     private final PubsubIO.Write.Bound<T> transform;
 
     /**
@@ -532,8 +528,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * are leveraged to do the deduplication.
    */
   private static class StreamingUnboundedRead<T> extends PTransform<PInput, PCollection<T>> {
-    private static final long serialVersionUID = 0L;
-
     private final UnboundedSource<T, ?> source;
 
     /**
@@ -568,7 +562,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
      */
     private static class ReadWithIds<T>
         extends PTransform<PInput, PCollection<ValueWithRecordId<T>>> {
-      private static final long serialVersionUID = 0L;
       private final UnboundedSource<T, ?> source;
 
       private ReadWithIds(UnboundedSource<T, ?> source) {
@@ -617,7 +610,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    */
   private static class Deduplicate<T>
       extends PTransform<PCollection<ValueWithRecordId<T>>, PCollection<T>> {
-    private static final long serialVersionUID = 0L;
     // Use a finite set of keys to improve bundling.  Without this, the key space
     // will be the space of ids which is potentially very large, which results in much
     // more per-key overhead.
@@ -626,8 +618,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     public PCollection<T> apply(PCollection<ValueWithRecordId<T>> input) {
       return input
           .apply(WithKeys.of(new SerializableFunction<ValueWithRecordId<T>, Integer>() {
-                    private static final long serialVersionUID = 0L;
-
                     @Override
                     public Integer apply(ValueWithRecordId<T> value) {
                       return Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS;
@@ -638,8 +628,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())
           .apply(ParDo.named("StripIds").of(
               new DoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
-                private static final long serialVersionUID = 0L;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   c.output(c.element().getValue().getValue());
@@ -652,8 +640,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * Specialized implementation for {@link Create.Values} for the Dataflow runner in streaming mode.
    */
   private static class StreamingCreate<T> extends PTransform<PInput, PCollection<T>> {
-    private static final long serialVersionUID = 0L;
-
     private final Create.Values<T> transform;
 
     /**
@@ -669,8 +655,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
      * in the streaming create implementation.
      */
     private static class OutputNullKv extends DoFn<String, KV<Void, Void>> {
-      private static final long serialVersionUID = 0;
-
       @Override
       public void processElement(DoFn<String, KV<Void, Void>>.ProcessContext c) throws Exception {
         c.output(KV.of((Void) null, (Void) null));
@@ -683,8 +667,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
      * need not implement {@code Serializable}.
      */
     private static class OutputElements<T> extends DoFn<Object, T> {
-      private static final long serialVersionUID = 0;
-
       private final Coder<T> coder;
       private final List<byte[]> encodedElements;
 
@@ -745,8 +727,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    */
   private static class StreamingPCollectionViewWriterFn<T>
   extends DoFn<Iterable<T>, T> implements DoFn.RequiresWindowAccess {
-    private static final long serialVersionUID = 0;
-
     private final PCollectionView<?> view;
     private final Coder<T> dataCoder;
 
@@ -777,8 +757,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    */
   private static class StreamingViewAsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
-    private static final long serialVersionUID = 0L;
-
     @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
     public StreamingViewAsMap(View.AsMap<K, V> transform) { }
 
@@ -807,8 +785,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    */
   private static class StreamingViewAsMultimap<K, V>
     extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
-    private static final long serialVersionUID = 0L;
-
     /**
      * Builds an instance of this class from the overridden transform.
      */
@@ -841,8 +817,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    */
   private static class StreamingViewAsIterable<T>
       extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
-    private static final long serialVersionUID = 0L;
-
     /**
      * Builds an instance of this class from the overridden transform.
      */
@@ -870,8 +844,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   }
 
   private static class WrapAsList<T> extends DoFn<T, List<T>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       c.output(Arrays.asList(c.element()));
@@ -883,8 +855,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    */
   private static class StreamingViewAsSingleton<T>
       extends PTransform<PCollection<T>, PCollectionView<T>> {
-    private static final long serialVersionUID = 0L;
-
     private View.AsSingleton<T> transform;
 
     /**
@@ -911,8 +881,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     }
 
     private static class SingletonCombine<T> extends Combine.BinaryCombineFn<T> {
-      private static final long serialVersionUID = 0L;
-
       private boolean hasDefaultValue;
       private T defaultValue;
 
@@ -943,8 +911,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   private static class StreamingCombineGloballyAsSingletonView<InputT, OutputT>
       extends PTransform<PCollection<InputT>, PCollectionView<OutputT>> {
-    private static final long serialVersionUID = 0L;
-
     Combine.GloballyAsSingletonView<InputT, OutputT> transform;
 
     /**
@@ -987,8 +953,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    */
   private static class StreamingUnsupportedIO<InputT extends PInput, OutputT extends POutput>
       extends PTransform<InputT, OutputT> {
-    private static final long serialVersionUID = 0L;
-
     private PTransform<?, ?> transform;
 
     /**

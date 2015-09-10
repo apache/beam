@@ -76,7 +76,6 @@ import java.util.List;
  * Tests for ParDo.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class ParDoTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
@@ -1101,7 +1100,6 @@ public class ParDoTest implements Serializable {
   }
 
   private static class Checker implements SerializableFunction<Iterable<String>, Void> {
-    private static final long serialVersionUID = 0L;
     @Override
     public Void apply(Iterable<String> input) {
       boolean foundStart = false;
@@ -1203,7 +1201,6 @@ public class ParDoTest implements Serializable {
     pipeline
         .apply(Create.of(42))
         .apply(ParDo.of(new DoFn<Integer, List<Integer>>() {
-          private static final long serialVersionUID = 0L;
           @Override public void processElement(ProcessContext c) {
             List<Integer> outputList = Arrays.asList(1, 2, 3, 4);
             c.output(outputList);
@@ -1230,7 +1227,6 @@ public class ParDoTest implements Serializable {
     pipeline
         .apply(Create.of(42))
         .apply(ParDo.of(new DoFn<Integer, List<Integer>>() {
-          private static final long serialVersionUID = 0L;
           @Override public void processElement(ProcessContext c) {
             List<Integer> outputList = Arrays.asList(1, 2, 3, 4);
             c.output(outputList);
@@ -1255,7 +1251,6 @@ public class ParDoTest implements Serializable {
     pipeline
         .apply(Create.of(42))
         .apply(ParDo.of(new DoFn<Integer, byte[]>() {
-          private static final long serialVersionUID = 0L;
           @Override public void processElement(ProcessContext c) {
             byte[] outputArray = new byte[]{0x1, 0x2, 0x3};
             c.output(outputArray);
@@ -1283,7 +1278,6 @@ public class ParDoTest implements Serializable {
         .apply(Create.of(Arrays.asList(1, 2, 3), Arrays.asList(4, 5, 6))
             .withCoder(ListCoder.of(VarIntCoder.of())))
         .apply(ParDo.of(new DoFn<List<Integer>, Integer>() {
-          private static final long serialVersionUID = 0L;
           @Override public void processElement(ProcessContext c) {
             List<Integer> inputList = c.element();
             inputList.set(0, 37);
@@ -1308,7 +1302,6 @@ public class ParDoTest implements Serializable {
     pipeline
         .apply(Create.of(new byte[]{0x1, 0x2, 0x3}, new byte[]{0x4, 0x5, 0x6}))
         .apply(ParDo.of(new DoFn<byte[], Integer>() {
-          private static final long serialVersionUID = 0L;
           @Override public void processElement(ProcessContext c) {
             byte[] inputArray = c.element();
             inputArray[0] = 0xa;

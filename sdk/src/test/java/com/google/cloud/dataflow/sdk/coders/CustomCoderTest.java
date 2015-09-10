@@ -36,7 +36,6 @@ import java.io.OutputStream;
 
 /** Unit tests for {@link CustomCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class CustomCoderTest {
 
   @Rule

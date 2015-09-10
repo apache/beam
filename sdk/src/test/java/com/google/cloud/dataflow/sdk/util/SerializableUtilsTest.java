@@ -45,8 +45,6 @@ public class SerializableUtilsTest {
 
   /** A class that is serializable by Java. */
   private static class SerializableByJava implements Serializable {
-    private static final long serialVersionUID = 0;
-
     final String stringValue;
     final int intValue;
 
@@ -79,8 +77,6 @@ public class SerializableUtilsTest {
 
   /** A class that is not serializable by Java. */
   private static class UnserializableByJava implements Serializable {
-    private static final long serialVersionUID = 0;
-
     @SuppressWarnings("unused")
     private Object unserializableField = new Object();
   }
@@ -94,8 +90,6 @@ public class SerializableUtilsTest {
 
   /** A {@link Coder} that is not serializable by Java. */
   private static class UnserializableCoderByJava extends DeterministicStandardCoder<Object> {
-    private static final long serialVersionUID = 0;
-
     private final Object unserializableField = new Object();
 
     @Override
@@ -124,8 +118,6 @@ public class SerializableUtilsTest {
 
   /** A {@link Coder} that is not serializable by Jackson. */
   private static class UnserializableCoderByJackson extends DeterministicStandardCoder<Object> {
-    private static final long serialVersionUID = 0;
-
     private final SerializableByJava unserializableField;
 
     public UnserializableCoderByJackson(SerializableByJava unserializableField) {

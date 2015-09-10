@@ -20,8 +20,6 @@ package com.google.cloud.dataflow.sdk.runners;
  * Signals that a job run by a {@link BlockingDataflowPipelineRunner} was updated during execution.
  */
 public class DataflowJobUpdatedException extends DataflowJobException {
-  private static final long serialVersionUID = 0L;
-
   private DataflowPipelineJob replacedByJob;
 
   public DataflowJobUpdatedException(

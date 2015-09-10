@@ -106,7 +106,6 @@ import java.util.regex.Pattern;
 public class DebuggingWordCount {
   /** A DoFn that filters for a specific key based upon a regular expression. */
   public static class FilterTextFn extends DoFn<KV<String, Long>, KV<String, Long>> {
-    private static final long serialVersionUID = 0;
     /**
      * Concept #1: The logger below uses the fully qualified class name of FilterTextFn
      * as the logger. All log statements emitted by this logger will be referenced by this name

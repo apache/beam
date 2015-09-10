@@ -161,7 +161,6 @@ public class TrafficMaxLaneFlow {
    * point comes from.
    */
   static class ExtractFlowInfoFn extends DoFn<String, KV<String, LaneInfo>> {
-    private static final long serialVersionUID = 0;
     private static final DateTimeFormatter dateTimeFormat =
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
 
@@ -215,8 +214,6 @@ public class TrafficMaxLaneFlow {
    * value.
    */
   public static class MaxFlow implements SerializableFunction<Iterable<LaneInfo>, LaneInfo> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public LaneInfo apply(Iterable<LaneInfo> input) {
       Integer max = 0;
@@ -237,8 +234,6 @@ public class TrafficMaxLaneFlow {
    * Add the timestamp from the window context.
    */
   static class FormatMaxesFn extends DoFn<KV<String, LaneInfo>, TableRow> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
 
@@ -281,8 +276,6 @@ public class TrafficMaxLaneFlow {
    */
   static class MaxLaneFlow
       extends PTransform<PCollection<KV<String, LaneInfo>>, PCollection<TableRow>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public PCollection<TableRow> apply(PCollection<KV<String, LaneInfo>> flowInfo) {
       // stationId, LaneInfo => stationId + max lane flow info

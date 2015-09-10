@@ -230,8 +230,6 @@ public class TopTest {
   }
 
   private static class OrderByLength implements Comparator<String>, Serializable {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public int compare(String a, String b) {
       if (a.length() != b.length()) {
@@ -243,8 +241,6 @@ public class TopTest {
   }
 
   private static class IntegerComparator implements Comparator<Integer>, Serializable {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public int compare(Integer o1, Integer o2) {
       return o1.compareTo(o2);
@@ -252,8 +248,6 @@ public class TopTest {
   }
 
   private static class IntegerComparator2 implements Comparator<Integer>, Serializable {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public int compare(Integer o1, Integer o2) {
       return o1.compareTo(o2);

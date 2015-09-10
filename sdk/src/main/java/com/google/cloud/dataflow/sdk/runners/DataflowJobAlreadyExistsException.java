@@ -23,8 +23,6 @@ package com.google.cloud.dataflow.sdk.runners;
  * about the pre-existing job.
  */
 public class DataflowJobAlreadyExistsException extends DataflowJobException {
-  private static final long serialVersionUID = 0L;
-
   public DataflowJobAlreadyExistsException(
       DataflowPipelineJob job, String message) {
     super(job, message, null);

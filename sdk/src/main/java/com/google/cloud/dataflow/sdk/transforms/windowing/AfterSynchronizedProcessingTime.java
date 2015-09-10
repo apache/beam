@@ -30,8 +30,6 @@ import java.util.List;
 
 class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigger<W> {
 
-  private static final long serialVersionUID = 0L;
-
   public AfterSynchronizedProcessingTime() {
     super(null);
   }

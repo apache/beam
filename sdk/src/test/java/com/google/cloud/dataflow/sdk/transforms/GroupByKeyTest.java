@@ -61,7 +61,7 @@ import java.util.Map;
  * Tests for GroupByKey.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"rawtypes", "serial", "unchecked"})
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class GroupByKeyTest {
 
   @Rule

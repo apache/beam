@@ -32,8 +32,6 @@ import java.io.OutputStream;
  */
 public class DurationCoder extends AtomicCoder<ReadableDuration> {
 
-  private static final long serialVersionUID = 0L;
-
   @JsonCreator
   public static DurationCoder of() {
     return INSTANCE;

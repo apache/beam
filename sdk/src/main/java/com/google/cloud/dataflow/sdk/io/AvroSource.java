@@ -113,8 +113,6 @@ import java.util.zip.InflaterInputStream;
 // JAVADOCSTYLE ON
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class AvroSource<T> extends BlockBasedSource<T> {
-  private static final long serialVersionUID = 0;
-
   // Default minimum bundle size (chosen as two default-size Avro blocks to attempt to
   // ensure that every source has at least one block of records).
   // The default sync interval is 64k.

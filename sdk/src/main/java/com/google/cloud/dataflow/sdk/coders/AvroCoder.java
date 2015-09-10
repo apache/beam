@@ -108,8 +108,6 @@ import javax.annotation.Nullable;
  */
 public class AvroCoder<T> extends StandardCoder<T> {
 
-  private static final long serialVersionUID = 0L;
-
   /**
    * Returns an {@code AvroCoder} instance for the provided element class.
    * @param <T> the element type
@@ -295,8 +293,6 @@ public class AvroCoder<T> extends StandardCoder<T> {
    * to remain final.
    */
   private static class SerializedAvroCoderProxy<T> implements Serializable {
-    private static final long serialVersionUID = 0L;
-
     private final Class<T> type;
     private final String schemaStr;
 

@@ -226,8 +226,6 @@ public class View {
    * <p>Instantiate via {@link View#asIterable}.
    */
   public static class AsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
-    private static final long serialVersionUID = 0;
-
     private AsList() { }
 
     @Override
@@ -253,8 +251,6 @@ public class View {
    */
   public static class AsIterable<T>
       extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
-    private static final long serialVersionUID = 0;
-
     private AsIterable() { }
 
     @Override
@@ -280,7 +276,6 @@ public class View {
    * <p>Instantiate via {@link View#asIterable}.
    */
   public static class AsSingleton<T> extends PTransform<PCollection<T>, PCollectionView<T>> {
-    private static final long serialVersionUID = 0;
     private final T defaultValue;
     private final boolean hasDefault;
 
@@ -343,8 +338,6 @@ public class View {
    */
   public static class AsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
-    private static final long serialVersionUID = 0;
-
     private AsMultimap() { }
 
     @Override
@@ -383,8 +376,6 @@ public class View {
    */
   public static class AsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
-    private static final long serialVersionUID = 0;
-
     private AsMap() { }
 
     /**
@@ -427,8 +418,6 @@ public class View {
    */
   public static class CreatePCollectionView<ElemT, ViewT>
       extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
-    private static final long serialVersionUID = 0;
-
     private PCollectionView<ViewT> view;
 
     private CreatePCollectionView(PCollectionView<ViewT> view) {
@@ -479,8 +468,6 @@ public class View {
    * @param <T> the type of elements to concatenate.
    */
   public static class Concatenate<T> extends CombineFn<T, List<T>, List<T>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public List<T> createAccumulator() {
       return new ArrayList<T>();

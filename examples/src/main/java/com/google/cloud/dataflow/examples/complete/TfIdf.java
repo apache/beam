@@ -154,8 +154,6 @@ public class TfIdf {
    */
   public static class ReadDocuments
       extends PTransform<PInput, PCollection<KV<URI, String>>> {
-    private static final long serialVersionUID = 0;
-
     private Iterable<URI> uris;
 
     public ReadDocuments(Iterable<URI> uris) {
@@ -207,8 +205,6 @@ public class TfIdf {
    */
   public static class ComputeTfIdf
       extends PTransform<PCollection<KV<URI, String>>, PCollection<KV<String, KV<URI, Double>>>> {
-    private static final long serialVersionUID = 0;
-
     public ComputeTfIdf() { }
 
     @Override
@@ -230,8 +226,6 @@ public class TfIdf {
       PCollection<KV<URI, String>> uriToWords = uriToContent
           .apply(ParDo.named("SplitWords").of(
               new DoFn<KV<URI, String>, KV<URI, String>>() {
-                private static final long serialVersionUID = 0;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey();
@@ -275,8 +269,6 @@ public class TfIdf {
       PCollection<KV<URI, KV<String, Long>>> uriToWordAndCount = uriAndWordToCount
           .apply(ParDo.named("ShiftKeys").of(
               new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
-                private static final long serialVersionUID = 0;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey().getKey();
@@ -316,8 +308,6 @@ public class TfIdf {
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTf = uriToWordAndCountAndTotal
           .apply(ParDo.named("ComputeTermFrequencies").of(
               new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-                private static final long serialVersionUID = 0;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey();
@@ -344,8 +334,6 @@ public class TfIdf {
               .named("ComputeDocFrequencies")
               .withSideInputs(totalDocuments)
               .of(new DoFn<KV<String, Long>, KV<String, Double>>() {
-                private static final long serialVersionUID = 0;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   String word = c.element().getKey();
@@ -375,8 +363,6 @@ public class TfIdf {
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = wordToUriAndTfAndDf
           .apply(ParDo.named("ComputeTfIdf").of(
               new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-                private static final long serialVersionUID = 0;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   String word = c.element().getKey();
@@ -406,8 +392,6 @@ public class TfIdf {
    */
   public static class WriteTfIdf
       extends PTransform<PCollection<KV<String, KV<URI, Double>>>, PDone> {
-    private static final long serialVersionUID = 0;
-
     private String output;
 
     public WriteTfIdf(String output) {
@@ -418,8 +402,6 @@ public class TfIdf {
     public PDone apply(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
       return wordToUriAndTfIdf
           .apply(ParDo.named("Format").of(new DoFn<KV<String, KV<URI, Double>>, String>() {
-            private static final long serialVersionUID = 0;
-
             @Override
             public void processElement(ProcessContext c) {
               c.output(String.format("%s,\t%s,\t%f",

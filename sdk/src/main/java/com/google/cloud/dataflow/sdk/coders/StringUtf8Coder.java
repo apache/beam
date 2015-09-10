@@ -37,7 +37,6 @@ import java.nio.charset.StandardCharsets;
  * If in a nested context, prefixes the string with an integer length field,
  * encoded via the {@link VarIntCoder}.
  */
-@SuppressWarnings("serial")
 public class StringUtf8Coder extends AtomicCoder<String> {
 
   @JsonCreator

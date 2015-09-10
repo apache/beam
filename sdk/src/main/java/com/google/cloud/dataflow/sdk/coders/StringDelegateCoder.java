@@ -41,8 +41,6 @@ import java.lang.reflect.InvocationTargetException;
  * @param <T> The type of objects coded.
  */
 public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
-  private static final long serialVersionUID = 0;
-
   public static <T> StringDelegateCoder<T> of(Class<T> clazz) {
     return new StringDelegateCoder<T>(clazz);
   }
@@ -57,16 +55,12 @@ public class StringDelegateCoder<T> extends DelegateCoder<T, String> {
   protected StringDelegateCoder(final Class<T> clazz) {
     super(StringUtf8Coder.of(),
       new CodingFunction<T, String>() {
-        private static final long serialVersionUID = 0;
-
         @Override
         public String apply(T input) {
           return input.toString();
         }
       },
       new CodingFunction<String, T>() {
-        private static final long serialVersionUID = 0;
-
         @Override
         public T apply(String input) throws
             NoSuchMethodException,

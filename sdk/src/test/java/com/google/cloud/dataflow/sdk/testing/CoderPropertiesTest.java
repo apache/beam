@@ -47,8 +47,6 @@ public class CoderPropertiesTest {
 
   /** A coder that says it is not deterministic but actually is. */
   private static class NonDeterministicCoder extends CustomCoder<String> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void encode(String value, OutputStream outStream, Context context)
         throws CoderException, IOException {
@@ -86,8 +84,6 @@ public class CoderPropertiesTest {
 
   /** A coder that is non-deterministic because it adds a string to the value. */
   private static class BadDeterminsticCoder extends CustomCoder<String> {
-    private static final long serialVersionUID = 0;
-
     public BadDeterminsticCoder() {
     }
 
@@ -125,8 +121,6 @@ public class CoderPropertiesTest {
 
   /** This coder changes state during encoding/decoding. */
   private static class StateChangingSerializingCoder extends CustomCoder<String> {
-    private static final long serialVersionUID = 0;
-
     private int changedState;
 
     public StateChangingSerializingCoder() {
@@ -160,8 +154,6 @@ public class CoderPropertiesTest {
 
   /** This coder loses information critical to its operation. */
   private static class ForgetfulSerializingCoder extends CustomCoder<String> {
-    private static final long serialVersionUID = 0;
-
     private transient int lostState;
 
     public ForgetfulSerializingCoder(int lostState) {

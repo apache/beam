@@ -32,7 +32,6 @@ import java.io.Serializable;
  * Tests for {@link Filter}.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class FilterTest implements Serializable {
 
   static class TrivialFn implements SerializableFunction<Integer, Boolean> {

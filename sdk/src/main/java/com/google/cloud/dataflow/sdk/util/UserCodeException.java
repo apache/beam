@@ -29,7 +29,6 @@ import java.util.Objects;
  * reached.
  */
 public class UserCodeException extends RuntimeException {
-  private static final long serialVersionUID = 0;
   private static final Logger LOG = LoggerFactory.getLogger(UserCodeException.class);
 
   public UserCodeException(Throwable t) {

@@ -105,8 +105,6 @@ public class DoFnReflectorTest {
   public void testDoFnWithNoExtraContext() throws Exception {
     DoFnReflector reflector = underTest(new DoFnWithContext<String, String>() {
 
-      private static final long serialVersionUID = 0;
-
       @ProcessElement
       public void processElement(ProcessContext c)
           throws Exception {
@@ -131,8 +129,6 @@ public class DoFnReflectorTest {
       extends DoFnWithContext<String, String>
       implements LayersOfInterfaces {
 
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(DoFnWithContext<String, String>.ProcessContext c) {
       wasProcessElementInvoked = true;
@@ -148,8 +144,6 @@ public class DoFnReflectorTest {
   }
 
   private class IdentityParent extends DoFnWithContext<String, String> {
-    private static final long serialVersionUID = 0;
-
     @ProcessElement
     public void process(ProcessContext c) {
       wasProcessElementInvoked = true;
@@ -157,9 +151,7 @@ public class DoFnReflectorTest {
     }
   }
 
-  private class IdentityChild extends IdentityParent {
-    private static final long serialVersionUID = 0;
-  }
+  private class IdentityChild extends IdentityParent {}
 
   @Test
   public void testDoFnWithMethodInSuperclass() throws Exception {
@@ -171,8 +163,6 @@ public class DoFnReflectorTest {
   @Test
   public void testDoFnWithWindow() throws Exception {
     DoFnReflector reflector = underTest(new DoFnWithContext<String, String>() {
-
-      private static final long serialVersionUID = 0;
 
       @ProcessElement
       public void processElement(ProcessContext c, BoundedWindow w)
@@ -192,8 +182,6 @@ public class DoFnReflectorTest {
   public void testDoFnWithWindowingInternals() throws Exception {
     DoFnReflector reflector = underTest(new DoFnWithContext<String, String>() {
 
-      private static final long serialVersionUID = 0;
-
       @ProcessElement
       public void processElement(ProcessContext c, WindowingInternals<String, String> w)
           throws Exception {
@@ -211,8 +199,6 @@ public class DoFnReflectorTest {
   @Test
   public void testDoFnWithStartBundle() throws Exception {
     DoFnReflector reflector = underTest(new DoFnWithContext<String, String>() {
-      private static final long serialVersionUID = 0;
-
       @ProcessElement
       public void processElement(@SuppressWarnings("unused") ProcessContext c) {}
 
@@ -238,9 +224,7 @@ public class DoFnReflectorTest {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("No method annotated with @ProcessElement found");
     thrown.expectMessage(getClass().getName() + "$");
-    underTest(new DoFnWithContext<String, String>() {
-      private static final long serialVersionUID = 0;
-    });
+    underTest(new DoFnWithContext<String, String>() {});
   }
 
   @Test
@@ -251,8 +235,6 @@ public class DoFnReflectorTest {
     thrown.expectMessage("bar()");
     thrown.expectMessage(getClass().getName() + "$");
     underTest(new DoFnWithContext<String, String>() {
-      private static final long serialVersionUID = 0;
-
       @ProcessElement
       public void foo() {}
 
@@ -269,8 +251,6 @@ public class DoFnReflectorTest {
     thrown.expectMessage("baz()");
     thrown.expectMessage(getClass().getName() + "$");
     underTest(new DoFnWithContext<String, String>() {
-      private static final long serialVersionUID = 0;
-
       @ProcessElement
       public void foo() {}
 
@@ -290,8 +270,6 @@ public class DoFnReflectorTest {
     thrown.expectMessage("baz()");
     thrown.expectMessage(getClass().getName() + "$");
     underTest(new DoFnWithContext<String, String>() {
-      private static final long serialVersionUID = 0;
-
       @ProcessElement
       public void foo() {}
 
@@ -309,8 +287,6 @@ public class DoFnReflectorTest {
     thrown.expectMessage("process() must be public");
     thrown.expectMessage(getClass().getName() + "$");
     underTest(new DoFnWithContext<String, String>() {
-      private static final long serialVersionUID = 0;
-
       @ProcessElement
       private void process() {}
     });
@@ -322,8 +298,6 @@ public class DoFnReflectorTest {
     thrown.expectMessage("startBundle() must be public");
     thrown.expectMessage(getClass().getName() + "$");
     underTest(new DoFnWithContext<String, String>() {
-      private static final long serialVersionUID = 0;
-
       @ProcessElement
       public void processElement() {}
 
@@ -338,8 +312,6 @@ public class DoFnReflectorTest {
     thrown.expectMessage("finishBundle() must be public");
     thrown.expectMessage(getClass().getName() + "$");
     underTest(new DoFnWithContext<String, String>() {
-      private static final long serialVersionUID = 0;
-
       @ProcessElement
       public void processElement() {}
 

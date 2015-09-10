@@ -48,8 +48,6 @@ import java.util.List;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
 
-  private static final long serialVersionUID = 0L;
-
   private AfterEach(List<Trigger<W>> subTriggers) {
     super(subTriggers);
     Preconditions.checkArgument(subTriggers.size() > 1);

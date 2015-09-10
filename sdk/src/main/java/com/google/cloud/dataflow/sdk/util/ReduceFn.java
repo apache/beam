@@ -40,8 +40,6 @@ import java.util.Map;
 public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     implements Serializable {
 
-  private static final long serialVersionUID = 0L;
-
   /** Interface for interacting with persistent state. */
   public interface StateContext {
     /** Access the storage for the given {@code address} in the current window. */

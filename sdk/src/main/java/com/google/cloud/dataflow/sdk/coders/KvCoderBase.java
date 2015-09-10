@@ -32,8 +32,6 @@ import java.util.List;
  * @param <T> the type of values being transcoded
  */
 public abstract class KvCoderBase<T> extends StandardCoder<T> {
-  private static final long serialVersionUID = 0;
-
   /**
    * A constructor used only for decoding from JSON.
    *

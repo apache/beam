@@ -81,8 +81,6 @@ public class FileBasedSourceTest {
    */
   class TestFileBasedSource extends FileBasedSource<String> {
 
-    private static final long serialVersionUID = 85539251;
-
     final String splitHeader;
 
     public TestFileBasedSource(String fileOrPattern, long minBundleSize, String splitHeader) {

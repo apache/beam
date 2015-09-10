@@ -390,7 +390,6 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class BlockingFn extends DoFn<String, String> implements TestRule {
-    private static final long serialVersionUID = 0;
     public static CountDownLatch blocker = new CountDownLatch(1);
     public static Semaphore counter = new Semaphore(0);
     public static AtomicInteger callCounter = new AtomicInteger(0);
@@ -525,7 +524,6 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class KeyTokenInvalidFn extends DoFn<KV<String, String>, KV<String, String>> {
-    private static final long serialVersionUID = 0;
     static boolean thrown = false;
 
     @Override
@@ -566,8 +564,6 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class ChangeKeysFn extends DoFn<KV<String, String>, KV<String, String>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       KV<String, String> elem = c.element();
@@ -602,8 +598,6 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class TestExceptionFn extends DoFn<String, String> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) throws Exception {
       try {
@@ -955,8 +949,6 @@ public class StreamingDataflowWorkerTest {
   }
 
   static class PrintFn extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       KV<Integer, Integer> elem = c.element().getValue();

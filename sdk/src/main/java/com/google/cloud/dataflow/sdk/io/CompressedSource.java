@@ -54,8 +54,6 @@ import java.util.NoSuchElementException;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class CompressedSource<T> extends FileBasedSource<T> {
-  private static final long serialVersionUID = 0;
-
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
    *
@@ -217,7 +215,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * @param <T> The type of records read from the source.
    */
   public static class CompressedReader<T> extends FileBasedReader<T> {
-    static final long serialVersionUID = 0;
 
     private final FileBasedReader<T> readerDelegate;
     private final CompressedSource<T> source;

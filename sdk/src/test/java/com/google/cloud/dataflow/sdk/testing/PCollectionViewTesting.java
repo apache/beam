@@ -91,8 +91,6 @@ public final class PCollectionViewTesting {
    * A {@link ViewFn} that returns the provided contents as a fully lazy iterable.
    */
   public static class IdentityViewFn<T> implements ViewFn<T, Iterable<T>> {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public Iterable<T> apply(Iterable<WindowedValue<T>> contents) {
       return Iterables.transform(contents, new Function<WindowedValue<T>, T>() {
@@ -111,8 +109,6 @@ public final class PCollectionViewTesting {
    * provided than {@code Integer.MAX_VALUE} then behavior is unpredictable.
    */
   public static class LengthViewFn<T> implements ViewFn<T, Long> {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public Long apply(Iterable<WindowedValue<T>> contents) {
       return (long) Iterables.size(contents);
@@ -123,8 +119,6 @@ public final class PCollectionViewTesting {
    * A {@link ViewFn} that always returns the value with which it is instantiated.
    */
   public static class ConstantViewFn<ElemT, ViewT> implements ViewFn<ElemT, ViewT> {
-    private static final long serialVersionUID = 0L;
-
     private ViewT value;
 
     public ConstantViewFn(ViewT value) {
@@ -223,8 +217,6 @@ public final class PCollectionViewTesting {
   private static class PCollectionViewFromParts<ElemT, ViewT>
       extends PValueBase
       implements PCollectionView<ViewT> {
-    private static final long serialVersionUID = 0L;
-
     private TupleTag<Iterable<WindowedValue<ElemT>>> tag;
     private ViewFn<ElemT, ViewT> viewFn;
     private WindowingStrategy<?, ?> windowingStrategy;

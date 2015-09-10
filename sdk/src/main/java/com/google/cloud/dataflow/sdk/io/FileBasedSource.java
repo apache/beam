@@ -62,7 +62,6 @@ import java.util.concurrent.Executors;
  * @param <T> Type of records represented by the source.
  */
 public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
-  private static final long serialVersionUID = 0;
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSource.class);
   private static final float FRACTION_OF_FILES_TO_STAT = 0.01f;
 

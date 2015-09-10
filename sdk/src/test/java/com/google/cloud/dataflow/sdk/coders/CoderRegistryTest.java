@@ -47,7 +47,6 @@ import java.util.Set;
  * Tests for CoderRegistry.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class CoderRegistryTest {
 
   @Rule

@@ -39,7 +39,6 @@ import org.junit.runners.JUnit4;
  * Tests for {@link TypedPValue}, primarily focusing on Coder inference.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial") // suppressed because it wants them inside the anonymous TupleTags
 public class TypedPValueTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();

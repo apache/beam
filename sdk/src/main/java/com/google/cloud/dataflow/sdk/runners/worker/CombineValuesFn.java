@@ -178,8 +178,6 @@ class CombineValuesFn extends ParDoFnBase {
    */
   private static class CombineValuesDoFn<K, InputT, OutputT>
       extends DoFn<KV<K, Iterable<InputT>>, KV<K, OutputT>>{
-    private static final long serialVersionUID = 0L;
-
     private final Combine.KeyedCombineFn<K, InputT, ?, OutputT> combineFn;
 
     private CombineValuesDoFn(
@@ -201,8 +199,6 @@ class CombineValuesFn extends ParDoFnBase {
    */
   private static class AddInputsDoFn<K, InputT, AccumT>
       extends DoFn<KV<K, Iterable<InputT>>, KV<K, AccumT>>{
-    private static final long serialVersionUID = 0L;
-
     private final Combine.KeyedCombineFn<K, InputT, AccumT, ?> combineFn;
 
     private AddInputsDoFn(
@@ -228,8 +224,6 @@ class CombineValuesFn extends ParDoFnBase {
    */
   private static class MergeAccumulatorsDoFn<K, AccumT>
       extends DoFn<KV<K, Iterable<AccumT>>, KV<K, AccumT>>{
-    private static final long serialVersionUID = 0L;
-
     private final Combine.KeyedCombineFn<K, ?, AccumT, ?> combineFn;
 
     private MergeAccumulatorsDoFn(
@@ -252,8 +246,6 @@ class CombineValuesFn extends ParDoFnBase {
    */
   private static class ExtractOutputDoFn<K, AccumT, OutputT>
       extends DoFn<KV<K, AccumT>, KV<K, OutputT>>{
-    private static final long serialVersionUID = 0L;
-
     private final Combine.KeyedCombineFn<K, ?, AccumT, OutputT> combineFn;
 
     private ExtractOutputDoFn(

@@ -83,8 +83,6 @@ public class Count {
   public static class PerElement<T>
       extends PTransform<PCollection<T>, PCollection<KV<T, Long>>> {
 
-    private static final long serialVersionUID = 0L;
-
     public PerElement() { }
 
     @Override
@@ -92,8 +90,6 @@ public class Count {
       return
           input
           .apply(ParDo.named("Init").of(new DoFn<T, KV<T, Void>>() {
-            private static final long serialVersionUID = 0L;
-
             @Override
             public void processElement(ProcessContext c) {
               c.output(KV.of(c.element(), (Void) null));
@@ -107,8 +103,6 @@ public class Count {
    * A {@link CombineFn} that counts elements.
    */
   private static class CountFn<T> extends CombineFn<T, Long, Long> {
-
-    private static final long serialVersionUID = 0L;
 
     @Override
     public Long createAccumulator() {

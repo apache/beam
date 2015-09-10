@@ -43,8 +43,6 @@ public abstract class TimeTrigger<W extends BoundedWindow> extends OnceTrigger<W
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder()));
 
-  private static final long serialVersionUID = 0L;
-
   protected static final List<SerializableFunction<Instant, Instant>> IDENTITY;
   static {
     IDENTITY = ImmutableList.<SerializableFunction<Instant, Instant>>of();
@@ -83,8 +81,6 @@ public abstract class TimeTrigger<W extends BoundedWindow> extends OnceTrigger<W
 
   private static SerializableFunction<Instant, Instant> delayFn(final Duration delay) {
     return new SerializableFunction<Instant, Instant>() {
-      private static final long serialVersionUID = 0L;
-
       @Override
       public Instant apply(Instant input) {
         return input.plus(delay);
@@ -106,8 +102,6 @@ public abstract class TimeTrigger<W extends BoundedWindow> extends OnceTrigger<W
   private static SerializableFunction<Instant, Instant> alignFn(
       final Duration size, final Instant offset) {
     return new SerializableFunction<Instant, Instant>() {
-      private static final long serialVersionUID = 0L;
-
       @Override
       public Instant apply(Instant point) {
         long millisSinceStart = new Duration(offset, point).getMillis() % size.getMillis();

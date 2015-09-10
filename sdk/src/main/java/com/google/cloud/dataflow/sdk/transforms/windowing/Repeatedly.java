@@ -37,8 +37,6 @@ import java.util.List;
  */
 public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
 
-  private static final long serialVersionUID = 0L;
-
   private static final int REPEATED = 0;
 
   /**

@@ -59,8 +59,6 @@ import javax.annotation.Nullable;
 public class SerializableMatchers implements Serializable {
 
   // Serializable only because of capture by anonymous inner classes
-  private static final long serialVersionUID = 0L;
-
   private SerializableMatchers() { } // not instantiable
 
   /**
@@ -73,11 +71,10 @@ public class SerializableMatchers implements Serializable {
     final Iterable<Matcher<? super T>> matchers = (Iterable) serializableMatchers;
 
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<T> get() {
-          return Matchers.allOf(matchers);
-        }
+      @Override
+      public Matcher<T> get() {
+        return Matchers.allOf(matchers);
+      }
     });
   }
 
@@ -87,7 +84,6 @@ public class SerializableMatchers implements Serializable {
   @SafeVarargs
   public static <T> SerializableMatcher<T> allOf(final SerializableMatcher<T>... matchers) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.allOf(matchers);
@@ -105,11 +101,10 @@ public class SerializableMatchers implements Serializable {
     final Iterable<Matcher<? super T>> matchers = (Iterable) serializableMatchers;
 
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<T> get() {
-          return Matchers.anyOf(matchers);
-        }
+      @Override
+      public Matcher<T> get() {
+        return Matchers.anyOf(matchers);
+      }
     });
   }
 
@@ -119,7 +114,6 @@ public class SerializableMatchers implements Serializable {
   @SafeVarargs
   public static <T> SerializableMatcher<T> anyOf(final SerializableMatcher<T>... matchers) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.anyOf(matchers);
@@ -132,7 +126,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static SerializableMatcher<Object> anything() {
     return fromSupplier(new SerializableSupplier<Matcher<Object>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Object> get() {
         return Matchers.anything();
@@ -148,11 +141,10 @@ public class SerializableMatchers implements Serializable {
   public static <T extends Serializable> SerializableMatcher<T[]>
   arrayContaining(final T... items) {
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<T[]> get() {
-          return Matchers.arrayContaining(items);
-        }
+      @Override
+      public Matcher<T[]> get() {
+        return Matchers.arrayContaining(items);
+      }
     });
   }
 
@@ -170,11 +162,10 @@ public class SerializableMatchers implements Serializable {
         new SerializableArrayViaCoder<>(coder, items);
 
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<T[]> get() {
-          return Matchers.arrayContaining(itemsSupplier.get());
-        }
+      @Override
+      public Matcher<T[]> get() {
+        return Matchers.arrayContaining(itemsSupplier.get());
+      }
     });
   }
 
@@ -186,11 +177,10 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<T[]>
   arrayContaining(final SerializableMatcher<? super T>... matchers) {
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<T[]> get() {
-          return Matchers.arrayContaining(matchers);
-        }
+      @Override
+      public Matcher<T[]> get() {
+        return Matchers.arrayContaining(matchers);
+      }
     });
   }
 
@@ -205,11 +195,10 @@ public class SerializableMatchers implements Serializable {
     final List<Matcher<? super T>> matchers = (List) serializableMatchers;
 
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<T[]> get() {
-          return Matchers.arrayContaining(matchers);
-        }
+      @Override
+      public Matcher<T[]> get() {
+        return Matchers.arrayContaining(matchers);
+      }
     });
   }
 
@@ -222,11 +211,10 @@ public class SerializableMatchers implements Serializable {
   arrayContainingInAnyOrder(final T... items) {
 
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<T[]> get() {
-          return Matchers.arrayContainingInAnyOrder(items);
-        }
+      @Override
+      public Matcher<T[]> get() {
+        return Matchers.arrayContainingInAnyOrder(items);
+      }
     });
   }
 
@@ -244,11 +232,10 @@ public class SerializableMatchers implements Serializable {
         new SerializableArrayViaCoder<>(coder, items);
 
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<T[]> get() {
-          return Matchers.arrayContaining(itemsSupplier.get());
-        }
+      @Override
+      public Matcher<T[]> get() {
+        return Matchers.arrayContaining(itemsSupplier.get());
+      }
     });
   }
 
@@ -260,11 +247,10 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<T[]> arrayContainingInAnyOrder(
       final SerializableMatcher<? super T>... matchers) {
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<T[]> get() {
-          return Matchers.arrayContainingInAnyOrder(matchers);
-        }
+      @Override
+      public Matcher<T[]> get() {
+        return Matchers.arrayContainingInAnyOrder(matchers);
+      }
     });
   }
 
@@ -279,11 +265,10 @@ public class SerializableMatchers implements Serializable {
     final Collection<Matcher<? super T>> matchers = (Collection) serializableMatchers;
 
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<T[]> get() {
-          return Matchers.arrayContainingInAnyOrder(matchers);
-        }
+      @Override
+      public Matcher<T[]> get() {
+        return Matchers.arrayContainingInAnyOrder(matchers);
+      }
     });
   }
 
@@ -293,7 +278,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static <T> SerializableMatcher<T[]> arrayWithSize(final int size) {
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T[]> get() {
         return Matchers.arrayWithSize(size);
@@ -308,7 +292,6 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<T[]> arrayWithSize(
       final SerializableMatcher<? super Integer> sizeMatcher) {
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T[]> get() {
         return Matchers.arrayWithSize(sizeMatcher);
@@ -322,7 +305,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static SerializableMatcher<Double> closeTo(final double target, final double error) {
     return fromSupplier(new SerializableSupplier<Matcher<Double>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Double> get() {
         return Matchers.closeTo(target, error);
@@ -338,11 +320,10 @@ public class SerializableMatchers implements Serializable {
   public static <T extends Serializable> SerializableMatcher<Iterable<? extends T>> contains(
       final T... items) {
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<Iterable<? extends T>> get() {
-          return Matchers.contains(items);
-        }
+      @Override
+      public Matcher<Iterable<? extends T>> get() {
+        return Matchers.contains(items);
+      }
     });
   }
 
@@ -361,11 +342,10 @@ public class SerializableMatchers implements Serializable {
         new SerializableArrayViaCoder<>(coder, items);
 
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<Iterable<? extends T>> get() {
-          return Matchers.containsInAnyOrder(itemsSupplier.get());
-        }
+      @Override
+      public Matcher<Iterable<? extends T>> get() {
+        return Matchers.containsInAnyOrder(itemsSupplier.get());
+      }
     });
   }
 
@@ -377,11 +357,10 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<Iterable<? extends T>> contains(
       final SerializableMatcher<? super T>... matchers) {
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<Iterable<? extends T>> get() {
-          return Matchers.contains(matchers);
-        }
+      @Override
+      public Matcher<Iterable<? extends T>> get() {
+        return Matchers.contains(matchers);
+      }
     });
   }
 
@@ -396,11 +375,10 @@ public class SerializableMatchers implements Serializable {
     final List<Matcher<? super T>> matchers = (List) serializableMatchers;
 
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<Iterable<? extends T>> get() {
-          return Matchers.contains(matchers);
-        }
+      @Override
+      public Matcher<Iterable<? extends T>> get() {
+        return Matchers.contains(matchers);
+      }
     });
   }
 
@@ -412,11 +390,10 @@ public class SerializableMatchers implements Serializable {
   public static <T extends Serializable> SerializableMatcher<Iterable<? extends T>>
   containsInAnyOrder(final T... items) {
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<Iterable<? extends T>> get() {
-          return Matchers.containsInAnyOrder(items);
-        }
+      @Override
+      public Matcher<Iterable<? extends T>> get() {
+        return Matchers.containsInAnyOrder(items);
+      }
     });
   }
 
@@ -435,11 +412,10 @@ public class SerializableMatchers implements Serializable {
         new SerializableArrayViaCoder<>(coder, items);
 
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<Iterable<? extends T>> get() {
-          return Matchers.containsInAnyOrder(itemsSupplier.get());
-        }
+      @Override
+      public Matcher<Iterable<? extends T>> get() {
+        return Matchers.containsInAnyOrder(itemsSupplier.get());
+      }
     });
   }
 
@@ -451,11 +427,10 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<Iterable<? extends T>> containsInAnyOrder(
       final SerializableMatcher<? super T>... matchers) {
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<Iterable<? extends T>> get() {
-          return Matchers.containsInAnyOrder(matchers);
-        }
+      @Override
+      public Matcher<Iterable<? extends T>> get() {
+        return Matchers.containsInAnyOrder(matchers);
+      }
     });
   }
 
@@ -470,11 +445,10 @@ public class SerializableMatchers implements Serializable {
     final Collection<Matcher<? super T>> matchers = (Collection) serializableMatchers;
 
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
-        @Override
-        public Matcher<Iterable<? extends T>> get() {
-          return Matchers.containsInAnyOrder(matchers);
-        }
+      @Override
+      public Matcher<Iterable<? extends T>> get() {
+        return Matchers.containsInAnyOrder(matchers);
+      }
     });
   }
 
@@ -483,7 +457,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static SerializableMatcher<String> containsString(final String substring) {
     return fromSupplier(new SerializableSupplier<Matcher<String>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<String> get() {
         return Matchers.containsString(substring);
@@ -496,7 +469,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static <T> SerializableMatcher<Collection<? extends T>> empty() {
     return fromSupplier(new SerializableSupplier<Matcher<Collection<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Collection<? extends T>> get() {
         return Matchers.empty();
@@ -509,7 +481,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static <T> SerializableMatcher<T[]> emptyArray() {
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T[]> get() {
         return Matchers.emptyArray();
@@ -522,7 +493,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static <T> SerializableMatcher<Iterable<? extends T>> emptyIterable() {
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Iterable<? extends T>> get() {
         return Matchers.emptyIterable();
@@ -535,7 +505,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static SerializableMatcher<String> endsWith(final String substring) {
     return fromSupplier(new SerializableSupplier<Matcher<String>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<String> get() {
         return Matchers.endsWith(substring);
@@ -548,7 +517,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static <T extends Serializable> SerializableMatcher<T> equalTo(final T expected) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.equalTo(expected);
@@ -567,7 +535,6 @@ public class SerializableMatchers implements Serializable {
     final SerializableSupplier<T> expectedSupplier = new SerializableViaCoder<>(coder, expected);
 
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.equalTo(expectedSupplier.get());
@@ -581,7 +548,6 @@ public class SerializableMatchers implements Serializable {
   public static <T extends Comparable<T> & Serializable> SerializableMatcher<T>
   greaterThan(final T target) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.greaterThan(target);
@@ -599,7 +565,6 @@ public class SerializableMatchers implements Serializable {
   greaterThan(final Coder<T> coder, T target) {
     final SerializableSupplier<T> targetSupplier = new SerializableViaCoder<>(coder, target);
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.greaterThan(targetSupplier.get());
@@ -614,7 +579,6 @@ public class SerializableMatchers implements Serializable {
   public static <T extends Comparable<T>> SerializableMatcher<T> greaterThanOrEqualTo(
       final T target) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.greaterThanOrEqualTo(target);
@@ -633,7 +597,6 @@ public class SerializableMatchers implements Serializable {
   greaterThanOrEqualTo(final Coder<T> coder, T target) {
     final SerializableSupplier<T> targetSupplier = new SerializableViaCoder<>(coder, target);
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.greaterThanOrEqualTo(targetSupplier.get());
@@ -647,7 +610,6 @@ public class SerializableMatchers implements Serializable {
   public static <T extends Serializable> SerializableMatcher<Iterable<? super T>> hasItem(
       final T target) {
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? super T>>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Iterable<? super T>> get() {
         return Matchers.hasItem(target);
@@ -664,7 +626,6 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<Iterable<? super T>> hasItem(Coder<T> coder, T target) {
     final SerializableSupplier<T> targetSupplier = new SerializableViaCoder<>(coder, target);
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? super T>>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Iterable<? super T>> get() {
         return Matchers.hasItem(targetSupplier.get());
@@ -678,7 +639,6 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<Iterable<? super T>> hasItem(
       final SerializableMatcher<? super T> matcher) {
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? super T>>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Iterable<? super T>> get() {
         return Matchers.hasItem(matcher);
@@ -691,7 +651,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static <T> SerializableMatcher<Collection<? extends T>> hasSize(final int size) {
     return fromSupplier(new SerializableSupplier<Matcher<Collection<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Collection<? extends T>> get() {
         return Matchers.hasSize(size);
@@ -705,7 +664,6 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<Collection<? extends T>> hasSize(
       final SerializableMatcher<? super Integer> sizeMatcher) {
     return fromSupplier(new SerializableSupplier<Matcher<Collection<? extends T>>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Collection<? extends T>> get() {
         return Matchers.hasSize(sizeMatcher);
@@ -719,7 +677,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static <T> SerializableMatcher<Iterable<T>> iterableWithSize(final int size) {
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<T>>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Iterable<T>> get() {
         return Matchers.iterableWithSize(size);
@@ -734,7 +691,6 @@ public class SerializableMatchers implements Serializable {
   public static <T> SerializableMatcher<Iterable<T>> iterableWithSize(
       final SerializableMatcher<? super Integer> sizeMatcher) {
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<T>>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Iterable<T>> get() {
         return Matchers.iterableWithSize(sizeMatcher);
@@ -748,7 +704,6 @@ public class SerializableMatchers implements Serializable {
   public static <T extends Serializable> SerializableMatcher<T>
   isIn(final Collection<T> collection) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.isIn(collection);
@@ -768,7 +723,6 @@ public class SerializableMatchers implements Serializable {
     final SerializableSupplier<T[]> itemsSupplier =
         new SerializableArrayViaCoder<>(coder, items);
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.isIn(itemsSupplier.get());
@@ -781,7 +735,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static <T extends Serializable> SerializableMatcher<T> isIn(final T[] items) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.isIn(items);
@@ -799,7 +752,6 @@ public class SerializableMatchers implements Serializable {
     final SerializableSupplier<T[]> itemsSupplier =
         new SerializableArrayViaCoder<>(coder, items);
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.isIn(itemsSupplier.get());
@@ -813,7 +765,6 @@ public class SerializableMatchers implements Serializable {
   @SafeVarargs
   public static <T extends Serializable> SerializableMatcher<T> isOneOf(final T... elems) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.isOneOf(elems);
@@ -832,7 +783,6 @@ public class SerializableMatchers implements Serializable {
     final SerializableSupplier<T[]> itemsSupplier =
         new SerializableArrayViaCoder<>(coder, items);
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.isOneOf(itemsSupplier.get());
@@ -912,7 +862,6 @@ public class SerializableMatchers implements Serializable {
   public static <T extends Comparable<T> & Serializable> SerializableMatcher<T> lessThan(
       final T target) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.lessThan(target);
@@ -930,7 +879,6 @@ public class SerializableMatchers implements Serializable {
   lessThan(Coder<T> coder, T target) {
     final SerializableSupplier<T> targetSupplier = new SerializableViaCoder<>(coder, target);
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.lessThan(targetSupplier.get());
@@ -945,7 +893,6 @@ public class SerializableMatchers implements Serializable {
   public static <T extends Comparable<T> & Serializable> SerializableMatcher<T> lessThanOrEqualTo(
       final T target) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.lessThanOrEqualTo(target);
@@ -964,7 +911,6 @@ public class SerializableMatchers implements Serializable {
       Coder<T> coder, T target) {
     final SerializableSupplier<T> targetSupplier = new SerializableViaCoder<>(coder, target);
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.lessThanOrEqualTo(targetSupplier.get());
@@ -978,7 +924,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static <T> SerializableMatcher<T> not(final SerializableMatcher<T> matcher) {
     return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<T> get() {
         return Matchers.not(matcher);
@@ -992,7 +937,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static SerializableMatcher<Object> nullValue() {
     return fromSupplier(new SerializableSupplier<Matcher<Object>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<Object> get() {
         return Matchers.nullValue();
@@ -1005,7 +949,6 @@ public class SerializableMatchers implements Serializable {
    */
   public static SerializableMatcher<String> startsWith(final String substring) {
     return fromSupplier(new SerializableSupplier<Matcher<String>>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public Matcher<String> get() {
         return Matchers.startsWith(substring);
@@ -1014,10 +957,8 @@ public class SerializableMatchers implements Serializable {
   }
 
   private static class KvKeyMatcher<K, V>
-      extends BaseMatcher<KV<? extends K, ? extends V>>
-      implements SerializableMatcher<KV<? extends K, ? extends V>> {
-    private static final long serialVersionUID = 0L;
-
+  extends BaseMatcher<KV<? extends K, ? extends V>>
+  implements SerializableMatcher<KV<? extends K, ? extends V>> {
     private final SerializableMatcher<? super K> keyMatcher;
 
     public KvKeyMatcher(SerializableMatcher<? super K> keyMatcher) {
@@ -1056,10 +997,8 @@ public class SerializableMatchers implements Serializable {
   }
 
   private static class KvValueMatcher<K, V>
-      extends BaseMatcher<KV<? extends K, ? extends V>>
-      implements SerializableMatcher<KV<? extends K, ? extends V>> {
-    private static final long serialVersionUID = 0L;
-
+  extends BaseMatcher<KV<? extends K, ? extends V>>
+  implements SerializableMatcher<KV<? extends K, ? extends V>> {
     private final SerializableMatcher<? super V> valueMatcher;
 
     public KvValueMatcher(SerializableMatcher<? super V> valueMatcher) {
@@ -1109,8 +1048,7 @@ public class SerializableMatchers implements Serializable {
    *
    * <code>
    * return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-   *   private static final long serialVersionUID = 0L;
-   *     @Override
+   *   *     @Override
    *     public Matcher<T> get() {
    *       return new MyMatcherForT();
    *     }
@@ -1138,9 +1076,7 @@ public class SerializableMatchers implements Serializable {
    * SerializableFunction to return such a matcher.
    */
   private static class SerializableMatcherFromSupplier<T> extends BaseMatcher<T>
-      implements SerializableMatcher<T> {
-
-    private static final long serialVersionUID = 0L;
+  implements SerializableMatcher<T> {
 
     private SerializableSupplier<Matcher<T>> supplier;
 
@@ -1170,8 +1106,6 @@ public class SerializableMatchers implements Serializable {
    * volume is small and minor costs are not critical.
    */
   private static class SerializableViaCoder<T> implements SerializableSupplier<T> {
-    private static final long serialVersionUID = 0L;
-
     /** Cached value that is not serialized. */
     @Nullable
     private transient T value;
@@ -1210,8 +1144,6 @@ public class SerializableMatchers implements Serializable {
    * tests, where data volume is small and minor costs are not critical.
    */
   private static class SerializableArrayViaCoder<T> implements SerializableSupplier<T[]> {
-    private static final long serialVersionUID = 0L;
-
     /** Cached value that is not serialized. */
     @Nullable
     private transient T[] value;

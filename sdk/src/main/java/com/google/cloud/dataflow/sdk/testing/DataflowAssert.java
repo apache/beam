@@ -200,8 +200,6 @@ public class DataflowAssert {
    * An assertion about the contents of a {@link PCollectionView} yielding an {@code Iterable<T>}.
    */
   public static class IterableAssert<T> implements Serializable {
-    private static final long serialVersionUID = 0L;
-
     private final Pipeline pipeline;
     private final PTransform<PBegin, PCollectionView<Iterable<T>>> createActual;
     private Optional<Coder<T>> coder;
@@ -286,8 +284,6 @@ public class DataflowAssert {
     }
 
     private static class MatcherCheckerFn<T> implements SerializableFunction<T, Void> {
-      private static final long serialVersionUID = 0L;
-
       private SerializableMatcher<T> matcher;
 
       public MatcherCheckerFn(SerializableMatcher<T> matcher) {
@@ -352,8 +348,6 @@ public class DataflowAssert {
    * associated with a {@link PCollectionView}.
    */
   public static class SingletonAssert<T> implements Serializable {
-    private static final long serialVersionUID = 0L;
-
     private final Pipeline pipeline;
     private final CreateActual<?, T> createActual;
     private Optional<Coder<T>> coder;
@@ -448,8 +442,6 @@ public class DataflowAssert {
   private static class CreateActual<T, ActualT>
       extends PTransform<PBegin, PCollectionView<ActualT>> {
 
-    private static final long serialVersionUID = 0;
-
     private final transient PCollection<T> actual;
     private final transient PTransform<PCollection<T>, PCollectionView<ActualT>> actualView;
 
@@ -465,7 +457,6 @@ public class DataflowAssert {
       return actual
           .apply(Window.<T>into(new GlobalWindows()))
           .apply(ParDo.of(new DoFn<T, T>() {
-            private static final long serialVersionUID = 0L;
             @Override
             public void processElement(ProcessContext context) throws CoderException {
               context.output(CoderUtils.clone(coder, context.element()));
@@ -477,8 +468,6 @@ public class DataflowAssert {
 
   private static class CreateExpected<T, ExpectedT>
       extends PTransform<PBegin, PCollectionView<ExpectedT>> {
-
-    private static final long serialVersionUID = 0;
 
     private final Iterable<T> elements;
     private final Optional<Coder<T>> coder;
@@ -502,8 +491,6 @@ public class DataflowAssert {
   }
 
   private static class PreExisting<T> extends PTransform<PBegin, PCollectionView<T>> {
-
-    private static final long serialVersionUID = 0;
 
     private final PCollectionView<T> view;
 
@@ -532,8 +519,6 @@ public class DataflowAssert {
    */
   static class OneSideInputAssert<ActualT>
       extends PTransform<PBegin, PDone> implements Serializable {
-    private static final long serialVersionUID = 0;
-
     private final transient PTransform<PBegin, PCollectionView<ActualT>> createActual;
     private final SerializableFunction<ActualT, Void> checkerFn;
 
@@ -562,7 +547,6 @@ public class DataflowAssert {
    * a {@link PCollectionView}, and adjusts counters and thrown exceptions for use in testing.
    */
   private static class CheckerDoFn<ActualT> extends DoFn<Void, Void> {
-    private static final long serialVersionUID = 0;
     private final SerializableFunction<ActualT, Void> checkerFn;
     private final Aggregator<Integer, Integer> success =
         createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
@@ -607,8 +591,6 @@ public class DataflowAssert {
   static class TwoSideInputAssert<ActualT, ExpectedT>
       extends PTransform<PBegin, PDone> implements Serializable {
 
-    private static final long serialVersionUID = 0;
-
     private final transient PTransform<PBegin, PCollectionView<ActualT>> createActual;
     private final transient PTransform<PBegin, PCollectionView<ExpectedT>> createExpected;
     private final AssertRelation<ActualT, ExpectedT> relation;
@@ -636,7 +618,6 @@ public class DataflowAssert {
     }
 
     private static class CheckerDoFn<ActualT, ExpectedT> extends DoFn<Void, Void> {
-      private static final long serialVersionUID = 0;
       private final Aggregator<Integer, Integer> success =
           createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
       private final Aggregator<Integer, Integer> failure =
@@ -678,8 +659,6 @@ public class DataflowAssert {
    * expected value.
    */
   private static class AssertIsEqualTo<T> implements SerializableFunction<T, Void> {
-    private static final long serialVersionUID = 0L;
-
     private T expected;
 
     public AssertIsEqualTo(T expected) {
@@ -699,8 +678,6 @@ public class DataflowAssert {
    */
   private static class AssertContainsInAnyOrder<T>
       implements SerializableFunction<Iterable<T>, Void> {
-    private static final long serialVersionUID = 0L;
-
     private T[] expected;
 
     @SafeVarargs
@@ -742,8 +719,6 @@ public class DataflowAssert {
    */
   private static class AssertIsEqualToRelation<T>
       implements AssertRelation<T, T> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public SerializableFunction<T, Void> assertFor(T expected) {
       return new AssertIsEqualTo<T>(expected);
@@ -756,8 +731,6 @@ public class DataflowAssert {
    */
   private static class AssertContainsInAnyOrderRelation<T>
       implements AssertRelation<Iterable<T>, Iterable<T>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public SerializableFunction<Iterable<T>, Void> assertFor(Iterable<T> expectedElements) {
       return new AssertContainsInAnyOrder<T>(expectedElements);

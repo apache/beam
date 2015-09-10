@@ -37,8 +37,6 @@ import java.io.Serializable;
  */
 public class WatermarkHold<W extends BoundedWindow> implements Serializable {
 
-  private static final long serialVersionUID = 0L;
-
   /** Watermark hold used for the actual data-based hold. */
   @VisibleForTesting static final StateTag<WatermarkStateInternal> DATA_HOLD_TAG =
       StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal("hold"));

@@ -384,8 +384,6 @@ public class FileBasedSinkTest {
    * A simple FileBasedSink that writes String values as lines with header and footer lines.
    */
   private static final class SimpleSink extends FileBasedSink<String> {
-    private static final long serialVersionUID = 0;
-
     public SimpleSink(String baseOutputFilename, String extension) {
       super(baseOutputFilename, extension);
     }
@@ -400,8 +398,6 @@ public class FileBasedSinkTest {
     }
 
     private static final class SimpleWriteOperation extends FileBasedWriteOperation<String> {
-      private static final long serialVersionUID = 0;
-
       public SimpleWriteOperation(
           SimpleSink sink, String tempOutputFilename, TemporaryFileRetention retentionPolicy) {
         super(sink, tempOutputFilename, retentionPolicy);

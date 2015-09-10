@@ -55,7 +55,6 @@ import java.util.List;
  * Unit tests for the {@link Aggregator} API.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class CounterAggregatorTest {
   @Rule
   public final ExpectedException expectedEx = ExpectedException.none();

@@ -22,8 +22,6 @@ import com.google.cloud.dataflow.sdk.transforms.Aggregator;
  * Signals that an exception has occurred while retrieving {@link Aggregator}s.
  */
 public class AggregatorRetrievalException extends Exception {
-  private static final long serialVersionUID = 0L;
-
   public AggregatorRetrievalException(String message, Throwable cause) {
     super(message, cause);
   }

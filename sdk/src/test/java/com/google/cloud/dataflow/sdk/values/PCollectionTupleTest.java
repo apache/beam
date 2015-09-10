@@ -41,7 +41,6 @@ import java.util.List;
 
 /** Unit tests for {@link PCollectionTuple}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public final class PCollectionTupleTest implements Serializable {
   @Test
   public void testOfThenHas() {

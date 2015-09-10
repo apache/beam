@@ -280,8 +280,6 @@ public class StreamingSideInputDoFnRunnerTest {
   }
 
   private static class SideInputFn extends DoFn<String, String> {
-    private static final long serialVersionUID = 0;
-
     private List<PCollectionView<String>> views;
 
     public SideInputFn(List<PCollectionView<String>> views) {

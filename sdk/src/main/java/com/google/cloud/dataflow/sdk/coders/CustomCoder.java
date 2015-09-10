@@ -47,8 +47,6 @@ import java.util.Collection;
  */
 public abstract class CustomCoder<T> extends AtomicCoder<T>
     implements Serializable {
-  private static final long serialVersionUID = 0;
-
   @JsonCreator
   public static CustomCoder<?> of(
       // N.B. typeId is a required parameter here, since a field named "@type"

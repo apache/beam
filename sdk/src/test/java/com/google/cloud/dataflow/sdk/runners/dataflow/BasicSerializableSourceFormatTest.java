@@ -116,8 +116,6 @@ public class BasicSerializableSourceFormatTest {
     }
 
     static class Read extends BoundedSource<Integer> {
-      private static final long serialVersionUID = 0;
-
       final int from;
       final int to;
       final boolean produceTimestamps;
@@ -399,8 +397,6 @@ public class BasicSerializableSourceFormatTest {
    * A source that cannot do anything. Intended to be overridden for testing of individual methods.
    */
   private static class MockSource extends BoundedSource<Integer> {
-    private static final long serialVersionUID = -5041539913488064889L;
-
     @Override
     public List<? extends BoundedSource<Integer>> splitIntoBundles(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
@@ -437,8 +433,6 @@ public class BasicSerializableSourceFormatTest {
   }
 
   private static class SourceProducingInvalidSplits extends MockSource {
-    private static final long serialVersionUID = -1731497848893255523L;
-
     private String description;
     private String errorMessage;
 
@@ -530,8 +524,6 @@ public class BasicSerializableSourceFormatTest {
   }
 
   private static class SourceProducingFailingReader extends MockSource {
-    private static final long serialVersionUID = -1288303253742972653L;
-
     @Override
     public BoundedReader<Integer> createReader(PipelineOptions options) throws IOException {
       return new FailingReader(this);

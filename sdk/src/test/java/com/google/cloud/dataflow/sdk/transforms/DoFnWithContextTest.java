@@ -39,8 +39,6 @@ public class DoFnWithContextTest {
 
   private class NoOpDoFnWithContext extends DoFnWithContext<Void, Void> {
 
-    private static final long serialVersionUID = 0;
-
     /**
      * @param c context
      */

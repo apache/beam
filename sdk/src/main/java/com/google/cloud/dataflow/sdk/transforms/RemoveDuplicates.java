@@ -56,7 +56,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * @param <T> the type of the elements of the input and output
  * {@code PCollection}s
  */
-@SuppressWarnings("serial")
 public class RemoveDuplicates<T> extends PTransform<PCollection<T>,
                                                     PCollection<T>> {
   /**

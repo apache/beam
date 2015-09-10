@@ -144,7 +144,6 @@ public class PipelineTest {
   private static PTransform<PCollection<? extends String>, PCollection<String>> addSuffix(
       final String suffix) {
     return ParDo.of(new DoFn<String, String>() {
-      private static final long serialVersionUID = 0;
       @Override
       public void processElement(DoFn<String, String>.ProcessContext c) {
         c.output(c.element() + suffix);
@@ -211,8 +210,6 @@ public class PipelineTest {
 
   private static class IdentityTransform<T extends PInput & POutput>
       extends PTransform<T, T> {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public T apply(T input) {
       return input;
@@ -242,8 +239,6 @@ public class PipelineTest {
 
   private static class TupleProjectionTransform<T>
       extends PTransform<PCollectionTuple, PCollection<T>> {
-    private static final long serialVersionUID = 0L;
-
     private TupleTag<T> tag;
 
     public TupleProjectionTransform(TupleTag<T> tag) {
@@ -278,8 +273,6 @@ public class PipelineTest {
 
   private static class TupleInjectionTransform<T>
       extends PTransform<PCollection<T>, PCollectionTuple> {
-    private static final long serialVersionUID = 0L;
-
     private TupleTag<T> tag;
 
     public TupleInjectionTransform(TupleTag<T> tag) {

@@ -37,8 +37,6 @@ import javax.xml.bind.Unmarshaller;
  */
 public class JAXBCoder<T> extends AtomicCoder<T> {
 
-  private static final long serialVersionUID = 0L;
-
   private final Class<T> jaxbClass;
   private transient Marshaller jaxbMarshaller = null;
   private transient Unmarshaller jaxbUnmarshaller = null;

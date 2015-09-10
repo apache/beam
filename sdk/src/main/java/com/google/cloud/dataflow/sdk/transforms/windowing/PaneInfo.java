@@ -231,8 +231,6 @@ public final class PaneInfo {
    * A Coder for encoding PaneInfo instances.
    */
   public static class PaneInfoCoder extends AtomicCoder<PaneInfo> {
-    private static final long serialVersionUID = 0;
-
     private static enum Encoding {
       FIRST,
       ONE_INDEX,

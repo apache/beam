@@ -214,8 +214,6 @@ public class ApproximateQuantiles {
       <T, ComparatorT extends Comparator<T> & Serializable>
       extends AccumulatingCombineFn<T, QuantileState<T, ComparatorT>, List<T>> {
 
-    private static final long serialVersionUID = 0L;
-
     /**
      * The cost (in time and space) to compute quantiles to a given
      * accuracy is a function of the total number of elements in the
@@ -656,8 +654,6 @@ public class ApproximateQuantiles {
    */
   private static class QuantileStateCoder<T, ComparatorT extends Comparator<T> & Serializable>
       extends CustomCoder<QuantileState<T, ComparatorT>> {
-    private static final long serialVersionUID = 0L;
-
     private final ComparatorT compareFn;
     private final Coder<T> elementCoder;
     private final Coder<List<T>> elementListCoder;

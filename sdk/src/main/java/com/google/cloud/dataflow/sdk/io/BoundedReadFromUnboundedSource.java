@@ -46,7 +46,6 @@ import java.util.NoSuchElementException;
  * <p>Created by {@link Read}.
  */
 class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T>> {
-  private static final long serialVersionUID = 0L;
   private final UnboundedSource<T, ?> source;
   private final long maxNumRecords;
   private final Duration maxReadTime;
@@ -86,7 +85,6 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
     if (source.requiresDeduping()) {
       read = read.apply(RemoveDuplicates.withRepresentativeValueFn(
           new SerializableFunction<ValueWithRecordId<T>, byte[]>() {
-            private static final long serialVersionUID = 0L;
             @Override
             public byte[] apply(ValueWithRecordId<T> input) {
               return input.getId();
@@ -108,7 +106,6 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
 
   private static class UnboundedToBoundedSourceAdapter<T>
       extends BoundedSource<ValueWithRecordId<T>> {
-    private static final long serialVersionUID = 0L;
     private final UnboundedSource<T, ?> source;
     private final long maxNumRecords;
     private final Duration maxReadTime;

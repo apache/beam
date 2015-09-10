@@ -98,8 +98,6 @@ public class JoinExamples {
     PCollection<KV<String, String>> finalResultCollection =
       kvpCollection.apply(ParDo.named("Process").of(
         new DoFn<KV<String, CoGbkResult>, KV<String, String>>() {
-          private static final long serialVersionUID = 0;
-
           @Override
           public void processElement(ProcessContext c) {
             KV<String, CoGbkResult> e = c.element();
@@ -117,8 +115,6 @@ public class JoinExamples {
     // write to GCS
     PCollection<String> formattedResults = finalResultCollection
         .apply(ParDo.named("Format").of(new DoFn<KV<String, String>, String>() {
-          private static final long serialVersionUID = 0;
-
           @Override
           public void processElement(ProcessContext c) {
             String outputstring = "Country code: " + c.element().getKey()
@@ -134,8 +130,6 @@ public class JoinExamples {
    * code of the event, and the value a string encoding event information.
    */
   static class ExtractEventDataFn extends DoFn<TableRow, KV<String, String>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
@@ -154,8 +148,6 @@ public class JoinExamples {
    * code, and the value the country name.
    */
   static class ExtractCountryInfoFn extends DoFn<TableRow, KV<String, String>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();

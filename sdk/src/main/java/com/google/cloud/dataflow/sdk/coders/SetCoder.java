@@ -36,8 +36,6 @@ import java.util.Set;
  */
 public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
 
-  private static final long serialVersionUID = 0L;
-
   /**
    * Produces a SetCoder with the given elementCoder.
    */

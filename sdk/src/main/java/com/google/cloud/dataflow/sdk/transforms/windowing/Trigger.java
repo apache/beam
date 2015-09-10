@@ -97,8 +97,6 @@ import javax.annotation.Nullable;
 @Experimental(Experimental.Kind.TRIGGER)
 public abstract class Trigger<W extends BoundedWindow> implements Serializable {
 
-  private static final long serialVersionUID = 0L;
-
   /**
    * {@code TriggerResult} enumerates the possible result a trigger can have when it is executed.
    */
@@ -526,8 +524,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    *            {@code AtMostOnceTrigger}
    */
   public abstract static class OnceTrigger<W extends BoundedWindow> extends Trigger<W> {
-    private static final long serialVersionUID = 0L;
-
     protected OnceTrigger(List<Trigger<W>> subTriggers) {
       super(subTriggers);
     }

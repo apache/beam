@@ -82,7 +82,6 @@ import java.util.Set;
  * Tests for Combine transforms.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class CombineTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
@@ -231,7 +230,6 @@ public class CombineTest implements Serializable {
   }
 
   private static class FormatPaneInfo extends DoFn<Integer, String> {
-    private static final long serialVersionUID = 0L;
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element() + ": " + c.pane().isLast());
@@ -395,7 +393,6 @@ public class CombineTest implements Serializable {
   }
 
   private static class GetLast extends DoFn<Integer, Integer> {
-    private static final long serialVersionUID = 0L;
     @Override
     public void processElement(ProcessContext c) {
       if (c.pane().isLast()) {

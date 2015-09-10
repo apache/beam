@@ -46,8 +46,6 @@ import java.util.NoSuchElementException;
  * @param <T> Type of records represented by the source.
  */
 public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
-  private static final long serialVersionUID = 0;
-
   private final long startOffset;
   private final long endOffset;
   private final long minBundleSize;

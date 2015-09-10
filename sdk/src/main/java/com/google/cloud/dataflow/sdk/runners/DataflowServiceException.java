@@ -22,8 +22,6 @@ import javax.annotation.Nullable;
  * Signals there was an error retrieving information about a job from the Cloud Dataflow Service.
  */
 public class DataflowServiceException extends DataflowJobException {
-  private static final long serialVersionUID = 0L;
-
   DataflowServiceException(DataflowPipelineJob job, String message) {
     this(job, message, null);
   }

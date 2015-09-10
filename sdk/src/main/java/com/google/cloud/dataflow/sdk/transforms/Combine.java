@@ -67,7 +67,6 @@ import java.util.concurrent.ThreadLocalRandom;
  * {@code PTransform}s for combining {@code PCollection} elements
  * globally and per-key.
  */
-@SuppressWarnings("serial")
 public class Combine {
 
   /**
@@ -1904,8 +1903,6 @@ public class Combine {
 
       private static class InputOrAccumCoder<InputT, AccumT>
           extends StandardCoder<InputOrAccum<InputT, AccumT>> {
-
-        private static final long serialVersionUID = 0L;
 
         private final Coder<InputT> inputCoder;
         private final Coder<AccumT> accumCoder;

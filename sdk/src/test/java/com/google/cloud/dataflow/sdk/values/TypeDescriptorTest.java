@@ -35,7 +35,6 @@ import java.util.Set;
  * Tests for TypeDescriptor.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class TypeDescriptorTest {
 
   @Rule

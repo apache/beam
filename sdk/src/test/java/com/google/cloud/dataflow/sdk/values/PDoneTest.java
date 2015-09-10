@@ -39,7 +39,6 @@ import java.io.File;
  * Tests for PDone.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class PDoneTest {
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();

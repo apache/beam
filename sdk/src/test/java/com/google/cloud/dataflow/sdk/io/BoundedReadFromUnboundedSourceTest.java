@@ -68,7 +68,6 @@ public class BoundedReadFromUnboundedSourceTest {
 
   private static class Checker
       implements SerializableFunction<Iterable<KV<Integer, Integer>>, Void> {
-    private static final long serialVersionUID = 0L;
     private final boolean dedup;
     private final boolean timeBound;
 

@@ -170,8 +170,6 @@ public class IntervalWindow extends BoundedWindow
    */
   private static class IntervalWindowCoder extends AtomicCoder<IntervalWindow> {
 
-    private static final long serialVersionUID = 0L;
-
     private static final IntervalWindowCoder INSTANCE =
         new IntervalWindowCoder();
 

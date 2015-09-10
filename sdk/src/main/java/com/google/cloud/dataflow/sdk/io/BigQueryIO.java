@@ -330,8 +330,6 @@ public class BigQueryIO {
      * {@link PCollection} of {@link TableRow TableRows}.
      */
     public static class Bound extends PTransform<PInput, PCollection<TableRow>> {
-      private static final long serialVersionUID = 0;
-
       TableReference table;
       final String query;
       final boolean validate;
@@ -662,8 +660,6 @@ public class BigQueryIO {
      * {@link PCollection} of {@link TableRow TableRows} to a BigQuery table.
      */
     public static class Bound extends PTransform<PCollection<TableRow>, PDone> {
-      private static final long serialVersionUID = 0;
-
       final TableReference table;
 
       final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
@@ -684,8 +680,6 @@ public class BigQueryIO {
 
       private static class TranslateTableSpecFunction implements
           SerializableFunction<BoundedWindow, TableReference> {
-        private static final long serialVersionUID = 0;
-
         private SerializableFunction<BoundedWindow, String> tableSpecFunction;
 
         TranslateTableSpecFunction(SerializableFunction<BoundedWindow, String> tableSpecFunction) {
@@ -959,8 +953,6 @@ public class BigQueryIO {
    */
   private static class StreamingWriteFn
       extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
-    private static final long serialVersionUID = 0;
-
     /** TableSchema in JSON.  Use String to make the class Serializable. */
     private final String jsonTableSchema;
 
@@ -1078,8 +1070,6 @@ public class BigQueryIO {
    */
   public static class ShardedKeyCoder<KeyT>
       extends StandardCoder<ShardedKey<KeyT>> {
-    private static final long serialVersionUID = 0;
-
     public static <KeyT> ShardedKeyCoder<KeyT> of(Coder<KeyT> keyCoder) {
       return new ShardedKeyCoder<>(keyCoder);
     }
@@ -1128,7 +1118,6 @@ public class BigQueryIO {
   }
 
   private static class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
-    private static final long serialVersionUID = 0;
     private static final TableRowInfoCoder INSTANCE = new TableRowInfoCoder();
 
     @JsonCreator
@@ -1184,8 +1173,6 @@ public class BigQueryIO {
   private static class TagWithUniqueIdsAndTable
       extends DoFn<TableRow, KV<ShardedKey<String>, TableRowInfo>>
       implements DoFn.RequiresWindowAccess {
-    private static final long serialVersionUID = 0;
-
     /** TableSpec to write to. */
     private final String tableSpec;
 
@@ -1249,8 +1236,6 @@ public class BigQueryIO {
   * it leverages BigQuery best effort de-dup mechanism.
    */
   private static class StreamWithDeDup extends PTransform<PCollection<TableRow>, PDone> {
-    private static final long serialVersionUID = 0;
-
     private final transient TableReference tableReference;
     private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
     private final transient TableSchema tableSchema;

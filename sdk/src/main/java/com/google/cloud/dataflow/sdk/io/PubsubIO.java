@@ -134,7 +134,6 @@ public class PubsubIO {
    * Class representing a Pubsub Subscription.
    */
   public static class PubsubSubscription implements Serializable {
-    private static final long serialVersionUID = 0L;
     private enum Type { NORMAL, FAKE }
 
     private final Type type;
@@ -198,7 +197,6 @@ public class PubsubIO {
    * Class representing a Pubsub Topic.
    */
   public static class PubsubTopic implements Serializable {
-    private static final long serialVersionUID = 0L;
     private enum Type { NORMAL, FAKE }
 
     private final Type type;
@@ -394,7 +392,6 @@ public class PubsubIO {
      * A {@link PTransform} that reads from a PubSub source and returns
      * a unbounded PCollection containing the items from the stream.
      */
-    @SuppressWarnings("serial")
     public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
       /** The Pubsub topic to read from. */
       PubsubTopic topic;
@@ -578,7 +575,6 @@ public class PubsubIO {
       }
 
       private class PubsubReader extends DoFn<Void, T> {
-        private static final long serialVersionUID = 0L;
         private static final int DEFAULT_PULL_SIZE = 100;
 
         @Override
@@ -735,7 +731,6 @@ public class PubsubIO {
      * A {@link PTransform} that writes an unbounded {@code PCollection<String>}
      * to a PubSub stream.
      */
-    @SuppressWarnings("serial")
     public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
       /** The Pubsub topic to publish to. */
       PubsubTopic topic;
@@ -833,7 +828,6 @@ public class PubsubIO {
       }
 
       private class PubsubWriter extends DoFn<T, Void> {
-        private static final long serialVersionUID = 0L;
         private static final int MAX_PUBLISH_BATCH_SIZE = 100;
         private transient List<PubsubMessage> output;
         private transient Pubsub pubsubClient;

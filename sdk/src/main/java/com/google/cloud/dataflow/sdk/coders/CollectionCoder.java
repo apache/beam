@@ -32,8 +32,6 @@ import java.util.List;
  */
 public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
 
-  private static final long serialVersionUID = 0L;
-
   public static <T> CollectionCoder<T> of(Coder<T> elemCoder) {
     return new CollectionCoder<>(elemCoder);
   }

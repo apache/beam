@@ -61,7 +61,6 @@ import java.io.Serializable;
  * @param <T> the type of the elements of the input and output
  * {@code PCollection}s
  */
-@SuppressWarnings("serial")
 public class Partition<T>
     extends PTransform<PCollection<T>, PCollectionList<T>> {
 

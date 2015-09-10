@@ -23,8 +23,6 @@ import java.io.IOException;
  * decoding a value.
  */
 public class CoderException extends IOException {
-  private static final long serialVersionUID = 0;
-
   public CoderException(String message) {
     super(message);
   }

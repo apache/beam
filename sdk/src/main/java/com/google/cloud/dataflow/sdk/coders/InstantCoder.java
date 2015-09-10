@@ -32,8 +32,6 @@ import java.io.OutputStream;
  */
 public class InstantCoder extends AtomicCoder<Instant> {
 
-  private static final long serialVersionUID = 0L;
-
   @JsonCreator
   public static InstantCoder of() {
     return INSTANCE;

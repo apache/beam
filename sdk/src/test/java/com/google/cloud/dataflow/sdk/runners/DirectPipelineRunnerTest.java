@@ -43,8 +43,6 @@ import java.io.Serializable;
 @RunWith(JUnit4.class)
 public class DirectPipelineRunnerTest implements Serializable {
 
-  private static final long serialVersionUID = 0L;
-
   @Rule
   public transient ExpectedException expectedException = ExpectedException.none();
 
@@ -57,8 +55,6 @@ public class DirectPipelineRunnerTest implements Serializable {
   }
 
   private static class CrashingCoder<T> extends AtomicCoder<T> {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public void encode(T value, OutputStream stream, Context context) throws CoderException {
       throw new CoderException("Called CrashingCoder.encode");
@@ -79,8 +75,6 @@ public class DirectPipelineRunnerTest implements Serializable {
     pipeline
         .apply("CreateTestData", Create.of(42))
         .apply("CrashDuringCoding", ParDo.of(new DoFn<Integer, String>() {
-          private static final long serialVersionUID = 0L;
-
           @Override
           public void processElement(ProcessContext context) {
             context.output("hello");

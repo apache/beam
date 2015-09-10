@@ -48,7 +48,6 @@ import java.util.PriorityQueue;
  * @param <OutputT> value output type
  * @param <W> window type
  */
-@SuppressWarnings("serial")
 @SystemDoFnInternal
 class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {

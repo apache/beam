@@ -36,8 +36,6 @@ import java.io.OutputStream;
  */
 public class ByteArrayCoder extends AtomicCoder<byte[]> {
 
-  private static final long serialVersionUID = 0L;
-
   @JsonCreator
   public static ByteArrayCoder of() {
     return INSTANCE;

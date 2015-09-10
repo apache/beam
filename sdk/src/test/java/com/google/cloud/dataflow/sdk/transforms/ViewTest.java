@@ -66,7 +66,6 @@ import java.util.NoSuchElementException;
  * observed via {@link ParDo}.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class ViewTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.

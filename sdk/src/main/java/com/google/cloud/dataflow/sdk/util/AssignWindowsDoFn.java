@@ -31,7 +31,6 @@ import java.util.Collection;
  * @param <T> Type of elements being windowed
  * @param <W> Window type
  */
-@SuppressWarnings("serial")
 @SystemDoFnInternal
 public class AssignWindowsDoFn<T, W extends BoundedWindow> extends DoFn<T, T> {
   private WindowFn<? super T, W> fn;

@@ -29,8 +29,6 @@ import com.google.cloud.dataflow.sdk.values.KV;
 @SystemDoFnInternal
 public class ReifyTimestampAndWindowsDoFn<K, V>
     extends DoFn<KV<K, V>, KV<K, WindowedValue<V>>> {
-  private static final long serialVersionUID = 0;
-
   @Override
   public void processElement(ProcessContext c)
       throws Exception {

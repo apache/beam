@@ -82,8 +82,6 @@ public class AfterWatermark<W extends BoundedWindow> {
    */
   private static class FromFirstElementInPane<W extends BoundedWindow> extends TimeTrigger<W> {
 
-    private static final long serialVersionUID = 0L;
-
     private FromFirstElementInPane(
         List<SerializableFunction<Instant, Instant>> delayFunction) {
       super(delayFunction);
@@ -209,8 +207,6 @@ public class AfterWatermark<W extends BoundedWindow> {
    * A watermark trigger targeted relative to the end of the window.
    */
   private static class FromEndOfWindow<W extends BoundedWindow> extends OnceTrigger<W> {
-
-    private static final long serialVersionUID = 0L;
 
     private FromEndOfWindow() {
       super(null);

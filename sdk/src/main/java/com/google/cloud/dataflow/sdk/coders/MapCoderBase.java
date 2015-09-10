@@ -31,8 +31,6 @@ import java.util.List;
  * @param <T> the type of values being transcoded
  */
 public abstract class MapCoderBase<T> extends StandardCoder<T> {
-  private static final long serialVersionUID = 0;
-
   @JsonCreator
   public static MapCoderBase<?> of(
       // N.B. typeId is a required parameter here, since a field named "@type"

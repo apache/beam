@@ -29,7 +29,6 @@ import java.io.Serializable;
  * @param <OutputT> the type of the (main) output elements of the DoFn
  */
 public class DoFnInfo<InputT, OutputT> implements Serializable {
-  private static final long serialVersionUID = 0;
   private final DoFn<InputT, OutputT> doFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Iterable<PCollectionView<?>> sideInputViews;

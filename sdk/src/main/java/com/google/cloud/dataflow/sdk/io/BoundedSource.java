@@ -47,8 +47,6 @@ import java.util.NoSuchElementException;
  * @param <T> Type of records read by the source.
  */
 public abstract class BoundedSource<T> extends Source<T> {
-  private static final long serialVersionUID = 0L;
-
   /**
    * Splits the source into bundles of approximately given size (in bytes).
    */

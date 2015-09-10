@@ -25,8 +25,6 @@ package com.google.cloud.dataflow.sdk.coders;
  * @param <T> the type of the values being transcoded
  */
 public abstract class DeterministicStandardCoder<T> extends StandardCoder<T> {
-  private static final long serialVersionUID = 0;
-
   protected DeterministicStandardCoder() {}
 
   /**

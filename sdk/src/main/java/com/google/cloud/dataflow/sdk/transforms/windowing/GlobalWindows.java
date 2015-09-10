@@ -26,7 +26,6 @@ import java.util.Collections;
 /**
  * Default {@link WindowFn} where all data is in the same window.
  */
-@SuppressWarnings("serial")
 public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
 
   private static final Collection<GlobalWindow> GLOBAL_WINDOWS =

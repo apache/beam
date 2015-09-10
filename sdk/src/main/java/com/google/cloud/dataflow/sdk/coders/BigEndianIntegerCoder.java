@@ -31,8 +31,6 @@ import java.io.UTFDataFormatException;
  */
 public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
 
-  private static final long serialVersionUID = 0L;
-
   @JsonCreator
   public static BigEndianIntegerCoder of() {
     return INSTANCE;

@@ -316,8 +316,6 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
    */
   public static class Largest<T extends Comparable<? super T>>
       implements Comparator<T>, Serializable {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public int compare(T a, T b) {
       return a.compareTo(b);
@@ -330,8 +328,6 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
    */
   public static class Smallest<T extends Comparable<? super T>>
       implements Comparator<T>, Serializable {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public int compare(T a, T b) {
       return b.compareTo(a);
@@ -349,7 +345,6 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
    *
    * @param <T> type of element being compared
    */
-  @SuppressWarnings("serial")
   public static class TopCombineFn<T, ComparatorT extends Comparator<T> & Serializable>
       extends AccumulatingCombineFn<T, BoundedHeap<T, ComparatorT>, List<T>> {
 
@@ -489,8 +484,6 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
    */
   private static class BoundedHeapCoder<T, ComparatorT extends Comparator<T> & Serializable>
       extends CustomCoder<BoundedHeap<T, ComparatorT>> {
-    private static final long serialVersionUID = 0L;
-
     private final Coder<List<T>> listCoder;
     private final ComparatorT compareFn;
     private final int maximumSize;

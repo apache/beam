@@ -364,7 +364,6 @@ public class Window {
    *
    * @param <T> The type of elements this {@code Window} is applied to
    */
-  @SuppressWarnings("serial")
   public static class Bound<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
     @Nullable private final WindowFn<? super T, ?> windowFn;
@@ -570,8 +569,6 @@ public class Window {
   private static <T> PTransform<PCollection<? extends T>, PCollection<T>> identity() {
     return ParDo.named("Identity").of(new DoFn<T, T>() {
 
-      private static final long serialVersionUID = 0L;
-
       @Override public void processElement(ProcessContext c) {
         c.output(c.element());
       }
@@ -592,7 +589,6 @@ public class Window {
    *  windows to be merged again as part of the next
    * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}.
    */
-  @SuppressWarnings("serial")
   public static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {

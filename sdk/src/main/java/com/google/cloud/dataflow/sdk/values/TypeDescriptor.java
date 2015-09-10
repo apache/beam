@@ -43,7 +43,6 @@ import java.util.List;
  *
  * @param <T> the type represented by this {@link TypeDescriptor}
  */
-@SuppressWarnings("serial")
 public abstract class TypeDescriptor<T> implements Serializable {
 
   // This class is just a wrapper for TypeToken
@@ -64,9 +63,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
    * {@code new TypeDescriptor<List<String>>(){}}.
    */
   protected TypeDescriptor() {
-    token = new TypeToken<T>(getClass()) {
-      private static final long serialVersionUID = 0L;
-    };
+    token = new TypeToken<T>(getClass()) {};
   }
 
   /**
@@ -76,9 +73,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
    */
   @SuppressWarnings("unchecked")
   protected TypeDescriptor(Class<?> clazz) {
-    TypeToken<T> unresolvedToken = new TypeToken<T>(getClass()) {
-      private static final long serialVersionUID = 0L;
-    };
+    TypeToken<T> unresolvedToken = new TypeToken<T>(getClass()) {};
     token = (TypeToken<T>) TypeToken.of(clazz).resolveType(unresolvedToken.getType());
   }
 

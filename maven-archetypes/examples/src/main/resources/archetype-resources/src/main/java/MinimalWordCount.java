@@ -82,7 +82,6 @@ public class MinimalWordCount {
      // The ParDo returns a PCollection<String>, where each element is an individual word in
      // Shakespeare's collected texts.
      .apply(ParDo.named("ExtractWords").of(new DoFn<String, String>() {
-                       private static final long serialVersionUID = 0;
                        @Override
                        public void processElement(ProcessContext c) {
                          for (String word : c.element().split("[^a-zA-Z']+")) {
@@ -99,7 +98,6 @@ public class MinimalWordCount {
      // Apply another ParDo transform that formats our PCollection of word counts into a printable
      // string, suitable for writing to an output file.
      .apply(ParDo.named("FormatResults").of(new DoFn<KV<String, Long>, String>() {
-                       private static final long serialVersionUID = 0;
                        @Override
                        public void processElement(ProcessContext c) {
                          c.output(c.element().getKey() + ": " + c.element().getValue());

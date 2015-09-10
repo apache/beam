@@ -71,7 +71,6 @@ import java.util.List;
  * @param <K> the type of the keys in the input and output
  * {@code PCollection}s
  */
-@SuppressWarnings("serial")
 public class CoGroupByKey<K> extends
     PTransform<KeyedPCollectionTuple<K>,
                PCollection<KV<K, CoGbkResult>>> {

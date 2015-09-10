@@ -24,7 +24,6 @@ import javax.annotation.Nullable;
  * A {@link RuntimeException} that contains information about a {@link DataflowPipelineJob}.
  */
 public abstract class DataflowJobException extends RuntimeException {
-  private static final long serialVersionUID = 0L;
   private final DataflowPipelineJob job;
 
   DataflowJobException(DataflowPipelineJob job, String message, @Nullable Throwable cause) {

@@ -72,7 +72,6 @@ import java.util.TreeSet;
 
 /** Tests for {@link AvroCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class AvroCoderTest {
 
   @DefaultCoder(AvroCoder.class)

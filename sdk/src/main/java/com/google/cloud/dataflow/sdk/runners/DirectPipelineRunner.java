@@ -261,7 +261,6 @@ public class DirectPipelineRunner
    */
   public static class TestCombineDoFn<K, InputT, AccumT, OutputT>
       extends DoFn<KV<K, Iterable<InputT>>, KV<K, OutputT>> {
-    private static final long serialVersionUID = 0L;
     private final KeyedCombineFn<? super K, ? super InputT, AccumT, OutputT> fn;
     private final Coder<AccumT> accumCoder;
     private final boolean testSerializability;

@@ -42,8 +42,6 @@ import java.util.List;
  * @param <IntermediateT> The type of objects a {@code T} will be converted to for coding.
  */
 public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
-  private static final long serialVersionUID = 0;
-
   /**
    * A {@code CodingFunction<InputT, OutputT>} is a serializable function
    * from {@code InputT} to {@code OutputT} that

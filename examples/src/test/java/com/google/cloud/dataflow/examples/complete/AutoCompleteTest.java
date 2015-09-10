@@ -50,8 +50,6 @@ import java.util.List;
  */
 @RunWith(Parameterized.class)
 public class AutoCompleteTest implements Serializable {
-  private static final long serialVersionUID = 0;
-
   private boolean recursive;
 
   public AutoCompleteTest(Boolean recursive) {
@@ -88,8 +86,6 @@ public class AutoCompleteTest implements Serializable {
       input.apply(new ComputeTopCompletions(2, recursive))
            .apply(Filter.by(
                         new SerializableFunction<KV<String, List<CompletionCandidate>>, Boolean>() {
-                          private static final long serialVersionUID = 0;
-
                           @Override
                           public Boolean apply(KV<String, List<CompletionCandidate>> element) {
                             return element.getKey().length() <= 2;
@@ -172,13 +168,9 @@ public class AutoCompleteTest implements Serializable {
 
   private static class ReifyTimestamps<T>
       extends PTransform<PCollection<TimestampedValue<T>>, PCollection<T>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public PCollection<T> apply(PCollection<TimestampedValue<T>> input) {
       return input.apply(ParDo.of(new DoFn<TimestampedValue<T>, T>() {
-        private static final long serialVersionUID = 0;
-
         @Override
         public void processElement(ProcessContext c) {
           c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());

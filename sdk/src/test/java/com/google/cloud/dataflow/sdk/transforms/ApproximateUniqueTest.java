@@ -47,7 +47,6 @@ import java.util.List;
  * Tests for the ApproximateUnique aggregator transform.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class ApproximateUniqueTest implements Serializable {
   // implements Serializable just to make it easy to use anonymous inner DoFn subclasses
 

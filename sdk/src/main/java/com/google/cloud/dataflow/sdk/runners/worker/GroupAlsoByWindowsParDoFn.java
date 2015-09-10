@@ -203,8 +203,6 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
   static class MergingKeyedCombineFn<K, AccumT>
       extends KeyedCombineFn<K, AccumT, List<AccumT>, AccumT> {
 
-    private static final long serialVersionUID = 0;
-
     final AppliedCombineFn<K, ?, AccumT, ?> appliedCombineFn;
 
     MergingKeyedCombineFn(AppliedCombineFn<K, ?, AccumT, ?> keyedCombineFn) {

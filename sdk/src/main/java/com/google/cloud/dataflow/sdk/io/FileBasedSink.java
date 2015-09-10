@@ -76,8 +76,6 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @param <T> the type of values written to the sink.
  */
 public abstract class FileBasedSink<T> extends Sink<T> {
-  private static final long serialVersionUID = 0;
-
   /**
    * Base filename for final output files.
    */
@@ -175,7 +173,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * @param <T> the type of values written to the sink.
    */
   public abstract static class FileBasedWriteOperation<T> extends WriteOperation<T, FileResult> {
-    private static final long serialVersionUID = 0;
     private static final Logger LOG = LoggerFactory.getLogger(FileBasedWriteOperation.class);
 
     /**
@@ -515,8 +512,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * Result of a single bundle write. Contains the filename of the bundle.
    */
   public static final class FileResult implements Serializable {
-    private static final long serialVersionUID = 0;
-
     private final String filename;
 
     public FileResult(String filename) {

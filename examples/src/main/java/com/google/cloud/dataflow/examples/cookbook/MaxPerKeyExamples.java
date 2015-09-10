@@ -81,8 +81,6 @@ public class MaxPerKeyExamples {
    * and the mean_temp.
    */
   static class ExtractTempFn extends DoFn<TableRow, KV<Integer, Double>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
@@ -97,8 +95,6 @@ public class MaxPerKeyExamples {
    *
    */
   static class FormatMaxesFn extends DoFn<KV<Integer, Double>, TableRow> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
@@ -114,8 +110,6 @@ public class MaxPerKeyExamples {
    */
   static class MaxMeanTemp
       extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public PCollection<TableRow> apply(PCollection<TableRow> rows) {
 

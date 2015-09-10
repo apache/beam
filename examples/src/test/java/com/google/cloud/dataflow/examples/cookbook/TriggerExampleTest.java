@@ -119,8 +119,6 @@ public class TriggerExampleTest {
   }
 
   static class FormatResults extends DoFn<TableRow, TableRow> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) throws Exception {
       TableRow element = c.element();

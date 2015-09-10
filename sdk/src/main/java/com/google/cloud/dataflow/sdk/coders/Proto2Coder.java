@@ -72,8 +72,6 @@ import javax.annotation.Nullable;
  */
 public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
 
-  private static final long serialVersionUID = 0;
-
   /** The class of Protobuf message to be encoded. */
   private final Class<T> protoMessageClass;
 

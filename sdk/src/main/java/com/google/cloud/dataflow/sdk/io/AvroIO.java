@@ -198,8 +198,6 @@ public class AvroIO {
      * PCollection
      */
     public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
-      private static final long serialVersionUID = 0;
-
       /** The filepattern to read from. */
       @Nullable
       final String filepattern;
@@ -457,8 +455,6 @@ public class AvroIO {
      * @param <T> the type of each of the elements of the input PCollection
      */
     public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
-      private static final long serialVersionUID = 0;
-
       /** The filename to write to. */
       @Nullable
       final String filenamePrefix;

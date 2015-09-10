@@ -52,8 +52,6 @@ import java.util.NoSuchElementException;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public abstract class Source<T> implements Serializable {
-  private static final long serialVersionUID = 0;
-
   /**
    * Checks that this source is valid, before it can be used in a pipeline.
    *

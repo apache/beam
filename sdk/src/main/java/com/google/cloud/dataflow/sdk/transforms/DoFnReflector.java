@@ -101,8 +101,7 @@ public abstract class DoFnReflector {
         public <InputT, OutputT> TypeToken<?>
             tokenFor(TypeToken<InputT> in, TypeToken<OutputT> out) {
           return new TypeToken<WindowingInternals<InputT, OutputT>>() {
-            private static final long serialVersionUID = 0;
-          }
+            }
           .where(new TypeParameter<InputT>() {}, in)
           .where(new TypeParameter<OutputT>() {}, out);
         }
@@ -196,7 +195,11 @@ public abstract class DoFnReflector {
           @Override
           @Nullable
           public String apply(@Nullable ExtraContextInfo input) {
-            return formatType(input.tokenFor(in, out));
+            if (input == null) {
+              return null;
+            } else {
+              return formatType(input.tokenFor(in, out));
+            }
           }
         })
         .toSortedSet(String.CASE_INSENSITIVE_ORDER);
@@ -207,8 +210,7 @@ public abstract class DoFnReflector {
     return verifyMethodArguments(m,
         EXTRA_PROCESS_CONTEXTS,
         new TypeToken<DoFnWithContext<InputT, OutputT>.ProcessContext>() {
-          private static final long serialVersionUID = 0;
-        },
+          },
         new TypeParameter<InputT>() {},
         new TypeParameter<OutputT>() {});
   }
@@ -218,8 +220,7 @@ public abstract class DoFnReflector {
     return verifyMethodArguments(m,
         EXTRA_CONTEXTS,
         new TypeToken<DoFnWithContext<InputT, OutputT>.Context>() {
-          private static final long serialVersionUID = 0;
-        },
+          },
         new TypeParameter<InputT>() {},
         new TypeParameter<OutputT>() {});
   }
@@ -609,8 +610,6 @@ public abstract class DoFnReflector {
 
   private static class SimpleDoFnAdapter<InputT, OutputT> extends DoFn<InputT, OutputT> {
 
-    private static final long serialVersionUID = 0;
-
     private transient DoFnReflector reflector;
     private DoFnWithContext<InputT, OutputT> fn;
 
@@ -658,7 +657,6 @@ public abstract class DoFnReflector {
   private static class WindowDoFnAdapter<InputT, OutputT>
   extends SimpleDoFnAdapter<InputT, OutputT> implements DoFn.RequiresWindowAccess {
 
-    private static final long serialVersionUID = 0;
     private WindowDoFnAdapter(DoFnReflector reflector, DoFnWithContext<InputT, OutputT> fn) {
       super(reflector, fn);
     }

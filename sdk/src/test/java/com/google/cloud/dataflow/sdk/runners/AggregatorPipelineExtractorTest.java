@@ -209,7 +209,6 @@ public class AggregatorPipelineExtractorTest {
     }
   }
 
-  @SuppressWarnings("serial")
   private static class AggregatorProvidingDoFn<InT, OuT> extends DoFn<InT, OuT> {
     public <InputT, OutT> Aggregator<InputT, OutT> addAggregator(
         CombineFn<InputT, ?, OutT> combiner) {

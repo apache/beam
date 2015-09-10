@@ -36,8 +36,6 @@ import java.util.List;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
 
-  private static final long serialVersionUID = 0L;
-
   AfterFirst(List<Trigger<W>> subTriggers) {
     super(subTriggers);
     Preconditions.checkArgument(subTriggers.size() > 1);

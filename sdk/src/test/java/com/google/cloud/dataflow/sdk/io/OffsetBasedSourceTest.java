@@ -45,7 +45,6 @@ public class OffsetBasedSourceTest {
   // and rounds the start and end offset to the nearest multiple of a given number,
   // e.g. reading [13, 48) with granularity 10 gives records with values [20, 50).
   private static class CoarseRangeSource extends OffsetBasedSource<Integer> {
-    private static final long serialVersionUID = 0L;
     private long granularity;
 
     public CoarseRangeSource(

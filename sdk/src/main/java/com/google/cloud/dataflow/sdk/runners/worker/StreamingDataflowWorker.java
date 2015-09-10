@@ -99,8 +99,6 @@ public class StreamingDataflowWorker {
    * Indicates that the key token was invalid when data was attempted to be fetched.
    */
   public static class KeyTokenInvalidException extends RuntimeException {
-    private static final long serialVersionUID = 0;
-
     public KeyTokenInvalidException(String key) {
       super("Unable to fetch data due to token mismatch for key " + key);
     }

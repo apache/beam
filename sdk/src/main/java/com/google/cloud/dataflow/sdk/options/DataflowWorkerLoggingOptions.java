@@ -85,8 +85,6 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    * takes precedence.
    */
   public static class WorkerLogLevelOverrides extends HashMap<String, Level> {
-    private static final long serialVersionUID = 0;
-
     /**
      * Overrides the default log level for the passed in class.
      *

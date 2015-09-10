@@ -39,7 +39,6 @@ import java.io.Serializable;
 public class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     extends ReduceFn<K, InputT, OutputT, W> {
 
-  private static final long serialVersionUID = 0L;
   private static final String BUFFER_NAME = "buf";
 
   /**
@@ -64,8 +63,6 @@ public class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
         StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_NAME, inputCoder));
     return new Factory<K, T, Iterable<T>, W>() {
 
-      private static final long serialVersionUID = 0L;
-
       @Override
       public ReduceFn<K, T, Iterable<T>, W> create(K key) {
         return new SystemReduceFn<K, T, Iterable<T>, W>(bufferTag);
@@ -81,8 +78,6 @@ public class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   <K, InputT, AccumT, OutputT, W extends BoundedWindow> Factory<K, InputT, OutputT, W> combining(
       final Coder<K> keyCoder, final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     return new Factory<K, InputT, OutputT, W>() {
-
-      private static final long serialVersionUID = 0L;
 
       @Override
       public ReduceFn<K, InputT, OutputT, W> create(K key) {

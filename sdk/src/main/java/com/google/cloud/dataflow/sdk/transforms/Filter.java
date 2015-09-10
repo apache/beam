@@ -26,7 +26,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * @param <T> the type of the values in the input {@code PCollection},
  * and the type of the elements in the output {@code PCollection}
  */
-@SuppressWarnings("serial")
 public class Filter<T> extends PTransform<PCollection<T>,
                                           PCollection<T>> {
   /**

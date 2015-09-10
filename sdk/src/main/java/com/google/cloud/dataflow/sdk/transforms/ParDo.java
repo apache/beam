@@ -667,7 +667,6 @@ public class ParDo {
    * @param <InputT> the type of the (main) input {@code PCollection} elements
    * @param <OutputT> the type of the (main) output {@code PCollection} elements
    */
-  @SuppressWarnings("serial")
   public static class Bound<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     // Inherits name.
@@ -882,8 +881,6 @@ public class ParDo {
    */
   public static class BoundMulti<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
-    private static final long serialVersionUID = 0L;
-
     // Inherits name.
     List<PCollectionView<?>> sideInputs;
     TupleTag<OutputT> mainOutputTag;

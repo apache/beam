@@ -23,8 +23,6 @@ import javax.annotation.Nullable;
  * provides access to the failed job.
  */
 public class DataflowJobExecutionException extends DataflowJobException {
-  private static final long serialVersionUID = 0L;
-
   DataflowJobExecutionException(DataflowPipelineJob job, String message) {
     this(job, message, null);
   }

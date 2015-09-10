@@ -50,8 +50,6 @@ public class GlobalWindow extends BoundedWindow {
    * {@link Coder} for encoding and decoding {@code Window}s.
    */
   public static class Coder extends AtomicCoder<GlobalWindow> {
-    private static final long serialVersionUID = 0;
-
     public static final Coder INSTANCE = new Coder();
 
     @Override

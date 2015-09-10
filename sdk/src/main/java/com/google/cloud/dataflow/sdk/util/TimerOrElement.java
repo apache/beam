@@ -119,7 +119,6 @@ public class TimerOrElement<ElemT> {
    * {@code TimerOrElement} objects never need to be encoded, so this class does not
    * support the {@code encode} and {@code decode} methods.
    */
-  @SuppressWarnings("serial")
   public static class TimerOrElementCoder<T> extends StandardCoder<TimerOrElement<T>> {
     final Coder<T> elemCoder;
 

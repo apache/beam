@@ -54,8 +54,6 @@ import javax.annotation.Nullable;
  */
 @RunWith(JUnit4.class)
 public class DataflowAssertTest implements Serializable {
-  private static final long serialVersionUID = 0;
-
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
@@ -73,8 +71,6 @@ public class DataflowAssertTest implements Serializable {
   }
 
   private static class NotSerializableObjectCoder extends AtomicCoder<NotSerializableObject> {
-    private static final long serialVersionUID = 0;
-
     private NotSerializableObjectCoder() { }
     private static final NotSerializableObjectCoder INSTANCE = new NotSerializableObjectCoder();
 
@@ -148,8 +144,6 @@ public class DataflowAssertTest implements Serializable {
 
     DataflowAssert.that(pcollection).satisfies(
         new SerializableFunction<Iterable<NotSerializableObject>, Void>() {
-          private static final long serialVersionUID = 0;
-
           @Override
           public Void apply(Iterable<NotSerializableObject> contents) {
             return null; // no problem!

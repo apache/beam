@@ -48,8 +48,6 @@ public class TimeTriggerTest {
 
   private static class TestTimeTrigger extends TimeTrigger<IntervalWindow> {
 
-    private static final long serialVersionUID = 0L;
-
     private TestTimeTrigger() {
       this(Collections.<SerializableFunction<Instant, Instant>>emptyList());
     }

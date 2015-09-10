@@ -28,8 +28,6 @@ import java.io.OutputStream;
  */
 public class TextualIntegerCoder extends AtomicCoder<Integer> {
 
-  private static final long serialVersionUID = 0L;
-
   @JsonCreator
   public static TextualIntegerCoder of() {
     return new TextualIntegerCoder();

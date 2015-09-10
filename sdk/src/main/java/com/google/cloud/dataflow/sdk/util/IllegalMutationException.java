@@ -20,8 +20,6 @@ package com.google.cloud.dataflow.sdk.util;
  * Thrown when a value appears to have been mutated, but that mutation is forbidden.
  */
 public class IllegalMutationException extends RuntimeException {
-  private static final long serialVersionUID = 0L;
-
   private Object savedValue;
   private Object newValue;
 

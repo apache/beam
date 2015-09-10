@@ -79,7 +79,6 @@ import java.util.Map;
  * @param <OutputT> the type of the (main) output elements
  */
 @Experimental
-@SuppressWarnings("serial")
 public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
 
   /** Information accessible to all methods in this {@code DoFnWithContext}. */

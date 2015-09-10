@@ -52,8 +52,6 @@ import java.io.Serializable;
  */
 @RunWith(JUnit4.class)
 public class SerializableMatchersTest implements Serializable {
-  private static final long serialVersionUID = 0;
-
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
@@ -155,8 +153,6 @@ public class SerializableMatchersTest implements Serializable {
   }
 
   private static class NotSerializableClassCoder extends AtomicCoder<NotSerializableClass> {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public void encode(NotSerializableClass value, OutputStream outStream, Coder.Context context) {
     }

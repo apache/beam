@@ -119,7 +119,6 @@ public class WindowedWordCount {
    * 2-hour period.
    */
   static class AddTimestampFn extends DoFn<String, String> {
-    private static final long serialVersionUID = 0;
     private static final long RAND_RANGE = 7200000; // 2 hours in ms
 
     @Override
@@ -136,8 +135,6 @@ public class WindowedWordCount {
 
   /** A DoFn that converts a Word and Count into a BigQuery table row. */
   static class FormatAsTableRowFn extends DoFn<KV<String, Long>, TableRow> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()

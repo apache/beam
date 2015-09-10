@@ -80,8 +80,6 @@ public class BigQueryTornadoes {
    * in that sample, the month in which it occurred is output.
    */
   static class ExtractTornadoesFn extends DoFn<TableRow, Integer> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c){
       TableRow row = c.element();
@@ -96,8 +94,6 @@ public class BigQueryTornadoes {
    * integer representation of month and the number of tornadoes that occurred in each month.
    */
   static class FormatCountsFn extends DoFn<KV<Integer, Long>, TableRow> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
@@ -121,8 +117,6 @@ public class BigQueryTornadoes {
    */
   static class CountTornadoes
       extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public PCollection<TableRow> apply(PCollection<TableRow> rows) {
 

@@ -38,7 +38,6 @@ import com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind;
  *     .apply(Sum.<String>integersPerKey());
  * } </pre>
  */
-@SuppressWarnings("serial")
 public class Sum {
 
   /**

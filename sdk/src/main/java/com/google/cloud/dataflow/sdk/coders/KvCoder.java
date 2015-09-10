@@ -40,8 +40,6 @@ import java.util.List;
  * @param <V> the type of the values of the KVs being transcoded
  */
 public class KvCoder<K, V> extends KvCoderBase<KV<K, V>> {
-  private static final long serialVersionUID = 0;
-
   public static <K, V> KvCoder<K, V> of(Coder<K> keyCoder,
                                         Coder<V> valueCoder) {
     return new KvCoder<>(keyCoder, valueCoder);

@@ -32,7 +32,6 @@ import org.junit.runners.JUnit4;
 public final class PTupleTest {
   @Test
   public void accessingNullVoidValuesShouldNotCauseExceptions() {
-    @SuppressWarnings("serial")
     TupleTag<Void> tag = new TupleTag<Void>() {};
     PTuple tuple = PTuple.of(tag, null);
     assertTrue(tuple.has(tag));

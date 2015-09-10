@@ -73,8 +73,6 @@ public class DatastoreWordCount {
    * Shakespeare play) and converts it to a string.
    */
   static class GetContentFn extends DoFn<Entity, String> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       Map<String, Value> props = DatastoreHelper.getPropertyMap(c.element());
@@ -89,8 +87,6 @@ public class DatastoreWordCount {
    * A DoFn that creates entity for every line in Shakespeare.
    */
   static class CreateEntityFn extends DoFn<String, Entity> {
-    private static final long serialVersionUID = 0;
-
     private String kind;
 
     CreateEntityFn(String kind) {

@@ -83,7 +83,6 @@ import java.util.List;
  * Tests for MapTaskExecutorFactory.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class MapTaskExecutorFactoryTest {
   private PipelineOptions options;
 

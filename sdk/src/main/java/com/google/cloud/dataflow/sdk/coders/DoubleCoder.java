@@ -31,8 +31,6 @@ import java.io.UTFDataFormatException;
  */
 public class DoubleCoder extends AtomicCoder<Double> {
 
-  private static final long serialVersionUID = 0L;
-
   @JsonCreator
   public static DoubleCoder of() {
     return INSTANCE;

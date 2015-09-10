@@ -163,7 +163,6 @@ public class TrafficRoutes {
    * (station, speed info) keyed on route.
    */
   static class ExtractStationSpeedFn extends DoFn<String, KV<String, StationSpeed>> {
-    private static final long serialVersionUID = 0;
     private static final DateTimeFormatter dateTimeFormat =
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
 
@@ -211,8 +210,6 @@ public class TrafficRoutes {
    */
   static class GatherStats
       extends DoFn<KV<String, Iterable<StationSpeed>>, KV<String, RouteInfo>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) throws IOException {
       String route = c.element().getKey();
@@ -256,8 +253,6 @@ public class TrafficRoutes {
    * Format the results of the slowdown calculations to a TableRow, to save to BigQuery.
    */
   static class FormatStatsFn extends DoFn<KV<String, RouteInfo>, TableRow> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       RouteInfo routeInfo = c.element().getValue();
@@ -290,8 +285,6 @@ public class TrafficRoutes {
    */
   static class TrackSpeed extends
       PTransform<PCollection<KV<String, StationSpeed>>, PCollection<TableRow>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public PCollection<TableRow> apply(PCollection<KV<String, StationSpeed>> stationSpeed) {
       // Apply a GroupByKey transform to collect a list of all station

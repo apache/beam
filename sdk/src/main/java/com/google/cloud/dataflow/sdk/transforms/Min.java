@@ -163,8 +163,6 @@ public class Min {
    */
   public static class MinFn<T> extends BinaryCombineFn<T> {
 
-    private static final long serialVersionUID = 0;
-
     private final T identity;
     private final Comparator<? super T> comparator;
 
@@ -209,8 +207,6 @@ public class Min {
    */
   public static class MinIntegerFn extends MinFn<Integer> implements
       CounterProvider<Integer> {
-    private static final long serialVersionUID = 0;
-
     public MinIntegerFn() {
       super(Integer.MAX_VALUE, new Top.Largest<Integer>());
     }
@@ -227,8 +223,6 @@ public class Min {
    */
   public static class MinLongFn extends MinFn<Long> implements
       CounterProvider<Long> {
-    private static final long serialVersionUID = 0;
-
     public MinLongFn() {
       super(Long.MAX_VALUE, new Top.Largest<Long>());
     }
@@ -245,8 +239,6 @@ public class Min {
    */
   public static class MinDoubleFn extends MinFn<Double> implements
       CounterProvider<Double> {
-    private static final long serialVersionUID = 0;
-
     public MinDoubleFn() {
       super(Double.POSITIVE_INFINITY, new Top.Largest<Double>());
     }

@@ -41,8 +41,6 @@ import java.util.Objects;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
 
-  private static final long serialVersionUID = 0L;
-
   private static final StateTag<CombiningValueState<Long, Long>> ELEMENTS_IN_PANE_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "count", VarLongCoder.of(), new Sum.SumLongFn()));

@@ -180,8 +180,6 @@ public class TriggerExample {
    */
   static class CalculateTotalFlow
   extends PTransform <PCollection<KV<String, Integer>>, PCollectionList<TableRow>> {
-    private static final long serialVersionUID = 0;
-
     private int windowDuration;
 
     CalculateTotalFlow(int windowDuration) {
@@ -343,7 +341,6 @@ public class TriggerExample {
    */
   static class TotalFlow extends
   PTransform <PCollection<KV<String, Integer>>, PCollection<TableRow>> {
-    private static final long serialVersionUID = 0;
     private String triggerType;
 
     public TotalFlow(String triggerType) {
@@ -358,7 +355,6 @@ public class TriggerExample {
       PCollection<KV<String, String>> results = flowPerFreeway.apply(ParDo.of(
           new DoFn <KV<String, Iterable<Integer>>, KV<String, String>>() {
 
-            private static final long serialVersionUID = 0;
             @Override
             public void processElement(ProcessContext c) throws Exception {
               Iterable<Integer> flows = c.element().getValue();
@@ -382,7 +378,6 @@ public class TriggerExample {
    * */
   static class FormatTotalFlow extends DoFn<KV<String, String>, TableRow>
   implements  RequiresWindowAccess {
-    private static final long serialVersionUID = 0;
     private String triggerType;
 
     public FormatTotalFlow(String triggerType) {
@@ -411,8 +406,6 @@ public class TriggerExample {
    * Freeway is used as key since we are calculating the total flow for each freeway.
    */
   static class ExtractFlowInfo extends DoFn<String, KV<String, Integer>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) throws Exception {
       String[] laneInfo = c.element().split(",");
@@ -516,8 +509,6 @@ public class TriggerExample {
    * Also insert a delay at random to demo the triggers.
    */
   public static class InsertDelays extends DoFn<String, String> {
-    private static final long serialVersionUID = 0;
-
     private static final double THRESHOLD = 0.001;
     // MIN_DELAY and MAX_DELAY in minutes.
     private static final int MIN_DELAY = 1;

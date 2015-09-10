@@ -61,7 +61,6 @@ import java.util.Objects;
  * Tests for CombineValuesFn.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class CombineValuesFnTest {
   /** Example AccumulatingCombineFn. */
   public static class MeanInts extends

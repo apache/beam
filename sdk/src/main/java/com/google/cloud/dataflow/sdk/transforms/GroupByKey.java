@@ -128,7 +128,6 @@ import java.util.Map;
  * and the elements of the {@code Iterable}s in the output
  * {@code PCollection}
  */
-@SuppressWarnings("serial")
 public class GroupByKey<K, V>
     extends PTransform<PCollection<KV<K, V>>,
                        PCollection<KV<K, Iterable<V>>>> {

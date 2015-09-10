@@ -95,8 +95,6 @@ public class WordCount {
    * pipeline.
    */
   static class ExtractWordsFn extends DoFn<String, String> {
-    private static final long serialVersionUID = 0;
-
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
 
@@ -120,8 +118,6 @@ public class WordCount {
 
   /** A DoFn that converts a Word and Count into a printable string. */
   public static class FormatAsTextFn extends DoFn<KV<String, Long>, String> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element().getKey() + ": " + c.element().getValue());
@@ -138,8 +134,6 @@ public class WordCount {
    */
   public static class CountWords extends PTransform<PCollection<String>,
       PCollection<KV<String, Long>>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public PCollection<KV<String, Long>> apply(PCollection<String> lines) {
 

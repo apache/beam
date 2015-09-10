@@ -51,9 +51,7 @@ import java.util.Map;
 @RunWith(JUnit4.class)
 public class DataflowWorkerTest {
 
-  private class WorkerException extends Exception {
-    static final long serialVersionUID = 0L;
-  }
+  private class WorkerException extends Exception { }
 
   @Rule
   public FastNanoClockAndSleeper clockAndSleeper = new FastNanoClockAndSleeper();

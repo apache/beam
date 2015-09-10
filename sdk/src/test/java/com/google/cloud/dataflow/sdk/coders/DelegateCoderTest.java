@@ -38,8 +38,6 @@ import java.util.Set;
 @RunWith(JUnit4.class)
 public class DelegateCoderTest implements Serializable {
 
-  private static final long serialVersionUID = 0L;
-
   private static final List<Set<Integer>> TEST_VALUES = Arrays.<Set<Integer>>asList(
       Collections.<Integer>emptySet(),
       Collections.singleton(13),
@@ -48,16 +46,12 @@ public class DelegateCoderTest implements Serializable {
   private static final DelegateCoder<Set<Integer>, List<Integer>> TEST_CODER = DelegateCoder.of(
       ListCoder.of(VarIntCoder.of()),
       new DelegateCoder.CodingFunction<Set<Integer>, List<Integer>>() {
-        private static final long serialVersionUID = 0;
-
         @Override
         public List<Integer> apply(Set<Integer> input) {
           return Lists.newArrayList(input);
         }
       },
       new DelegateCoder.CodingFunction<List<Integer>, Set<Integer>>() {
-        private static final long serialVersionUID = 0;
-
         @Override
         public Set<Integer> apply(List<Integer> input) {
           return Sets.newHashSet(input);
@@ -88,8 +82,6 @@ public class DelegateCoderTest implements Serializable {
   private static final String TEST_ALLOWED_ENCODING = "test-allowed-encoding";
 
   private static class TestAllowedEncodingsCoder extends StandardCoder<Integer> {
-
-    private static final long serialVersionUID = 0L;
 
     @Override
     public void encode(Integer value, OutputStream outstream, Context context) {
@@ -129,14 +121,12 @@ public class DelegateCoderTest implements Serializable {
     Coder<Integer> trivialDelegateCoder = DelegateCoder.of(
       underlyingCoder,
       new DelegateCoder.CodingFunction<Integer, Integer>() {
-        private static final long serialVersionUID = 0;
         @Override
         public Integer apply(Integer input) {
           return input;
         }
       },
       new DelegateCoder.CodingFunction<Integer, Integer>() {
-        private static final long serialVersionUID = 0;
         @Override
         public Integer apply(Integer input) {
           return input;

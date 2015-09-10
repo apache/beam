@@ -60,7 +60,7 @@ public class StringUtilsTest {
    */
   private class EmbeddedDoFn {
 
-private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
+    private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
 
     private EmbeddedDoFn getEmbedded() {
       return new DeeperEmbeddedDoFn();
@@ -68,11 +68,7 @@ private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
   }
 
   private class EmbeddedPTransform extends PTransform<PBegin, PDone> {
-    private static final long serialVersionUID = 0;
-
-    private class Bound extends PTransform<PBegin, PDone> {
-      private static final long serialVersionUID = 0;
-    }
+    private class Bound extends PTransform<PBegin, PDone> {}
 
     private Bound getBound() {
       return new Bound();
@@ -121,9 +117,7 @@ private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
   @Test
   public void testPTransformNameWithAnonOuterClass() throws Exception {
     AnonymousClass anonymousClassObj = new AnonymousClass() {
-      class NamedInnerClass extends PTransform<PBegin, PDone> {
-        private static final long serialVersionUID = 0;
-      }
+      class NamedInnerClass extends PTransform<PBegin, PDone> {}
 
       @Override
       public Object getInnerClassInstance() {

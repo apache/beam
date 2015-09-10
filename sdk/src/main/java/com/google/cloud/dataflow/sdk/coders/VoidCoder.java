@@ -24,7 +24,6 @@ import java.io.OutputStream;
 /**
  * A {@code VoidCoder} encodes {@code Void}s. Uses zero bytes per {@code Void}.
  */
-@SuppressWarnings("serial")
 public class VoidCoder extends AtomicCoder<Void> {
 
   @JsonCreator

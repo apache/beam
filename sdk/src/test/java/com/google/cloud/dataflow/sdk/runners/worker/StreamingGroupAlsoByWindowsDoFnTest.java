@@ -314,8 +314,6 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
    * to ensure that we are using the CombineFn API properly.
    */
   private static class SumLongs extends CombineFn<Long, Long, Long> {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public Long createAccumulator() {
       return 0L;

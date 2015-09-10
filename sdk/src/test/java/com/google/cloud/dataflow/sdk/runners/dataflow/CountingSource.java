@@ -47,7 +47,6 @@ import javax.annotation.Nullable;
  */
 public class CountingSource
     extends UnboundedSource<KV<Integer, Integer>, CountingSource.CounterMark> {
-  private static final long serialVersionUID = 0L;
   private static List<Integer> finalizeTracker;
   private final int numMessagesPerShard;
   private final int shardNumber;
@@ -108,16 +107,12 @@ public class CountingSource
     return DelegateCoder.of(
         VarIntCoder.of(),
         new DelegateCoder.CodingFunction<CounterMark, Integer>() {
-          private static final long serialVersionUID = 0L;
-
           @Override
           public Integer apply(CounterMark input) {
             return input.current;
           }
         },
         new DelegateCoder.CodingFunction<Integer, CounterMark>() {
-          private static final long serialVersionUID = 0L;
-
           @Override
           public CounterMark apply(Integer input) {
             return new CounterMark(input);

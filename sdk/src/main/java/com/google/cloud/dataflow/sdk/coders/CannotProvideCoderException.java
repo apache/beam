@@ -21,7 +21,6 @@ package com.google.cloud.dataflow.sdk.coders;
  * provide a {@link Coder} that has been requested.
  */
 public class CannotProvideCoderException extends Exception {
-  private static final long serialVersionUID = 0;
   private final ReasonCode reason;
 
   public CannotProvideCoderException(String message) {

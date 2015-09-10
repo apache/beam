@@ -44,8 +44,6 @@ import java.util.List;
  * @param <T> the type of the values being transcoded
  */
 public abstract class StandardCoder<T> implements Coder<T> {
-  private static final long serialVersionUID = 0;
-
   protected StandardCoder() {}
 
   /**

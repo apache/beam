@@ -97,8 +97,6 @@ public class TextReaderTest {
    * trying to decode partial lines, in the tests where this coder is used.
    */
   private static class WholeLineVerifyingCoder extends AtomicCoder<String> {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public void encode(String value, OutputStream outStream, Context context)
         throws CoderException, IOException {

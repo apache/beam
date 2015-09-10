@@ -37,7 +37,6 @@ import java.util.List;
  *   Window.<Integer>into(SlidingWindows.of(Duration.standardMinutes(10))));
  * } </pre>
  */
-@SuppressWarnings("serial")
 public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
 
   /**

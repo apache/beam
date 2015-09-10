@@ -91,8 +91,6 @@ public class CalendarWindows {
    * is overridden with the {@link #withTimeZone} method.
    */
   public static class DaysWindows extends PartitioningWindowFn<Object, IntervalWindow> {
-    private static final long serialVersionUID = 0;
-
     public DaysWindows withStartingDay(int year, int month, int day) {
       return new DaysWindows(
           number, new DateTime(year, month, day, 0, 0, timeZone), timeZone);
@@ -170,8 +168,6 @@ public class CalendarWindows {
    * is overridden with the {@link #withTimeZone} method.
    */
   public static class MonthsWindows extends PartitioningWindowFn<Object, IntervalWindow> {
-    private static final long serialVersionUID = 0;
-
     public MonthsWindows beginningOnDay(int dayOfMonth) {
       return new MonthsWindows(
           number, dayOfMonth, startDate, timeZone);
@@ -263,8 +259,6 @@ public class CalendarWindows {
    * is overridden with the {@link #withTimeZone} method.
    */
   public static class YearsWindows extends PartitioningWindowFn<Object, IntervalWindow> {
-    private static final long serialVersionUID = 0;
-
     public YearsWindows beginningOnDay(int monthOfYear, int dayOfMonth) {
       return new YearsWindows(
           number, monthOfYear, dayOfMonth, startDate, timeZone);

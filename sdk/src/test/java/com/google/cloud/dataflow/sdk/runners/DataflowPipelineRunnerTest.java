@@ -92,7 +92,6 @@ import java.util.List;
  * Tests for DataflowPipelineRunner.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class DataflowPipelineRunnerTest {
 
   private static final String PROJECT_ID = "some-project";

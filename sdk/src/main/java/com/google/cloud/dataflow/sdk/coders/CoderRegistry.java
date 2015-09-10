@@ -420,7 +420,6 @@ public class CoderRegistry implements CoderProvider {
    * for that type.
    */
   static class IncompatibleCoderException extends RuntimeException {
-    private static final long serialVersionUID = 0L;
     private Coder<?> coder;
     private Type type;
 

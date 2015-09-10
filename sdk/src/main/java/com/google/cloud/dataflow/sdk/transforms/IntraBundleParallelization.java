@@ -136,7 +136,6 @@ public class IntraBundleParallelization {
    */
   public static class Bound<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-    private static final long serialVersionUID = 0;
     private final DoFn<InputT, OutputT> doFn;
     private final int maxParallelism;
 
@@ -182,8 +181,6 @@ public class IntraBundleParallelization {
    */
   public static class MultiThreadedIntraBundleProcessingDoFn<InputT, OutputT>
       extends DoFn<InputT, OutputT> {
-
-    private static final long serialVersionUID = 0;
 
     public MultiThreadedIntraBundleProcessingDoFn(DoFn<InputT, OutputT> doFn, int maxParallelism) {
       Preconditions.checkArgument(maxParallelism > 0,

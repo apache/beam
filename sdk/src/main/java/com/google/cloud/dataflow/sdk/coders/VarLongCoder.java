@@ -33,8 +33,6 @@ import java.io.UTFDataFormatException;
  */
 public class VarLongCoder extends AtomicCoder<Long> {
 
-  private static final long serialVersionUID = 0L;
-
   @JsonCreator
   public static VarLongCoder of() {
     return INSTANCE;

@@ -87,7 +87,6 @@ public class RemoveDuplicatesTest {
   }
 
   private static class Keys implements SerializableFunction<KV<String, String>, String> {
-    private static final long serialVersionUID = 0L;
     @Override
     public String apply(KV<String, String> input) {
       return input.getKey();
@@ -95,8 +94,6 @@ public class RemoveDuplicatesTest {
   }
 
   private static class Checker implements SerializableFunction<Iterable<KV<String, String>>, Void> {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public Void apply(Iterable<KV<String, String>> input) {
       Map<String, String> values = new HashMap<>();

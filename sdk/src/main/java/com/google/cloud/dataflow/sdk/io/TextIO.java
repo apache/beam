@@ -191,8 +191,6 @@ public class TextIO {
      * PCollection, decoded from the lines of the text file
      */
     public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
-      private static final long serialVersionUID = 0;
-
       /** The filepattern to read from. */
       @Nullable
       final String filepattern;
@@ -433,8 +431,6 @@ public class TextIO {
      * @param <T> the type of the elements of the input PCollection
      */
     public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
-      private static final long serialVersionUID = 0;
-
       /** The filename to write to. */
       @Nullable
       final String filenamePrefix;

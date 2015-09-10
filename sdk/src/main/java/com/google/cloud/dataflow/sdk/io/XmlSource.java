@@ -108,7 +108,6 @@ import javax.xml.stream.XMLStreamReader;
  */
 // JAVADOCSTYLE ON
 public class XmlSource<T> extends FileBasedSource<T> {
-  static final long serialVersionUID = 0L;
 
   private static final String XML_VERSION = "1.1";
   private static final int DEFAULT_MIN_BUNDLE_SIZE = 8 * 1024;

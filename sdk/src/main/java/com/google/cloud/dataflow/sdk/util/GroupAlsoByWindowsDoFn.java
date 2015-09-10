@@ -36,7 +36,6 @@ import org.joda.time.Instant;
  * @param <W> window type
  */
 @SystemDoFnInternal
-@SuppressWarnings("serial")
 public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends BoundedWindow>
     extends DoFn<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> {
 

@@ -68,7 +68,6 @@ import java.util.UUID;
  * @see #processElement for details on implementing the transformation
  * from {@code InputT} to {@code OutputT}.
  */
-@SuppressWarnings("serial")
 public abstract class DoFn<InputT, OutputT> implements Serializable {
 
   /** Information accessible to all methods in this {@code DoFn}. */
@@ -444,8 +443,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
    */
   static class DelegatingAggregator<AggInputT, AggOutputT> implements
       Aggregator<AggInputT, AggOutputT>, Serializable {
-    private static final long serialVersionUID = 0L;
-
     private final UUID id;
 
     private final String name;

@@ -211,7 +211,6 @@ public class CoGbkResult {
   /**
    * A {@link Coder} for {@link CoGbkResult}s.
    */
-  @SuppressWarnings("serial")
   public static class CoGbkResultCoder extends StandardCoder<CoGbkResult> {
 
     private final CoGbkResultSchema schema;

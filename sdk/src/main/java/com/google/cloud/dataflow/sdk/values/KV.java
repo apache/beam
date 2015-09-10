@@ -36,8 +36,6 @@ import java.util.Objects;
  * @param <V> the type of the value
  */
 public class KV<K, V> implements Serializable {
-  private static final long serialVersionUID = 0;
-
   /** Returns a KV with the given key and value. */
   public static <K, V> KV<K, V> of(K key, V value) {
     return new KV<>(key, value);
@@ -79,7 +77,6 @@ public class KV<K, V> implements Serializable {
   }
 
   /** Orders the {@link KV} by the key. A null key is less than any non-null key. */
-  @SuppressWarnings("serial")
   public static class OrderByKey<K extends Comparable<? super K>, V> implements
       SerializableComparator<KV<K, V>> {
     @Override
@@ -95,7 +92,6 @@ public class KV<K, V> implements Serializable {
   }
 
   /** Orders the {@link KV} by the value. A null value is less than any non-null value. */
-  @SuppressWarnings("serial")
   public static class OrderByValue<K, V extends Comparable<? super V>>
       implements SerializableComparator<KV<K, V>> {
     @Override

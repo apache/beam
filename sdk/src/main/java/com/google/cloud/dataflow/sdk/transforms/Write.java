@@ -58,8 +58,6 @@ public class Write {
    * documentation about writing to Sinks.
    */
   public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
-    private static final long serialVersionUID = 0;
-
     private final Sink<T> sink;
 
     private Bound(Sink<T> sink) {
@@ -129,8 +127,6 @@ public class Write {
       operationCollection = operationCollection
           .apply("Initialize", ParDo.of(
               new DoFn<WriteOperation<T, WriteT>, WriteOperation<T, WriteT>>() {
-            private static final long serialVersionUID = 0;
-
             @Override
             public void processElement(ProcessContext c) throws Exception {
               WriteOperation<T, WriteT> writeOperation = c.element();
@@ -152,8 +148,6 @@ public class Write {
       // as a side input), so this will happen after the initial ParDo.
       PCollection<WriteT> results = input
           .apply("WriteBundles", ParDo.of(new DoFn<T, WriteT>() {
-            private static final long serialVersionUID = 0;
-
             // Writer that will write the records in this bundle. Lazily
             // initialized in processElement.
             private Writer<T, WriteT> writer = null;
@@ -202,8 +196,6 @@ public class Write {
       @SuppressWarnings("unused")
       final PCollection<Integer> done = operationCollection
           .apply("Finalize", ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
-            private static final long serialVersionUID = 0;
-
             @Override
             public void processElement(ProcessContext c) throws Exception {
               Iterable<WriteT> results = c.sideInput(resultsView);

@@ -58,8 +58,6 @@ import javax.annotation.Nullable;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
-  private static final long serialVersionUID = 0;
-
   /**
    * Creates a {@code BlockBasedSource} based on a file name or pattern. Subclasses must call this
    * constructor when creating a {@code BlockBasedSource} for a file pattern. See

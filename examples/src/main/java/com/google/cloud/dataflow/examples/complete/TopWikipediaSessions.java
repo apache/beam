@@ -85,8 +85,6 @@ public class TopWikipediaSessions {
    * Extracts user and timestamp from a TableRow representing a Wikipedia edit.
    */
   static class ExtractUserAndTimestamp extends DoFn<TableRow, String> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       TableRow row = c.element();
@@ -105,8 +103,6 @@ public class TopWikipediaSessions {
    */
   static class ComputeSessions
       extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public PCollection<KV<String, Long>> apply(PCollection<String> actions) {
       return actions
@@ -121,16 +117,12 @@ public class TopWikipediaSessions {
    */
   private static class TopPerMonth
       extends PTransform<PCollection<KV<String, Long>>, PCollection<List<KV<String, Long>>>> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public PCollection<List<KV<String, Long>>> apply(PCollection<KV<String, Long>> sessions) {
       return sessions
         .apply(Window.<KV<String, Long>>into(CalendarWindows.months(1)))
 
           .apply(Top.of(1, new SerializableComparator<KV<String, Long>>() {
-                    private static final long serialVersionUID = 0;
-
                     @Override
                     public int compare(KV<String, Long> o1, KV<String, Long> o2) {
                       return Long.compare(o1.getValue(), o2.getValue());
@@ -142,8 +134,6 @@ public class TopWikipediaSessions {
   static class SessionsToStringsDoFn extends DoFn<KV<String, Long>, KV<String, Long>>
       implements RequiresWindowAccess {
 
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       c.output(KV.of(
@@ -153,8 +143,6 @@ public class TopWikipediaSessions {
 
   static class FormatOutputDoFn extends DoFn<List<KV<String, Long>>, String>
       implements RequiresWindowAccess {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       for (KV<String, Long> item : c.element()) {
@@ -166,8 +154,6 @@ public class TopWikipediaSessions {
   }
 
   static class ComputeTopSessions extends PTransform<PCollection<TableRow>, PCollection<String>> {
-
-    private static final long serialVersionUID = 0;
 
     private final double samplingThreshold;
 
@@ -182,8 +168,6 @@ public class TopWikipediaSessions {
 
           .apply(ParDo.named("SampleUsers").of(
               new DoFn<String, String>() {
-                private static final long serialVersionUID = 0;
-
                 @Override
                 public void processElement(ProcessContext c) {
                   if (Math.abs(c.element().hashCode()) <= Integer.MAX_VALUE * samplingThreshold) {

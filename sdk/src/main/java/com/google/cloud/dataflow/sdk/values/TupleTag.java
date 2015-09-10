@@ -51,10 +51,7 @@ import java.util.Random;
  * @param <V> the type of the elements or values of the tagged thing,
  * e.g., a {@code PCollection<V>}.
  */
-@SuppressWarnings("serial")
 public class TupleTag<V> implements Serializable {
-  private static final long serialVersionUID = 0;
-
   /**
    * Constructs a new {@code TupleTag}, with a fresh unique id.
    *

@@ -96,8 +96,6 @@ public class Read {
    * {@link PTransform} that reads from a {@link BoundedSource}.
    */
   public static class Bounded<T> extends PTransform<PInput, PCollection<T>> {
-    private static final long serialVersionUID = 0;
-
     private final BoundedSource<T> source;
 
     private Bounded(@Nullable String name, BoundedSource<T> source) {
@@ -163,8 +161,6 @@ public class Read {
    * {@link PTransform} that reads from a {@link UnboundedSource}.
    */
   public static class Unbounded<T> extends PTransform<PInput, PCollection<T>> {
-    private static final long serialVersionUID = 0;
-
     private final UnboundedSource<T, ?> source;
 
     private Unbounded(@Nullable String name, UnboundedSource<T, ?> source) {

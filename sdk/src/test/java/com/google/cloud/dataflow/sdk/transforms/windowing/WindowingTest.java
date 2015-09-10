@@ -57,7 +57,7 @@ import java.io.Serializable;
 
 /** Unit tests for bucketing. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"serial", "unchecked"})
+@SuppressWarnings("unchecked")
 public class WindowingTest implements Serializable {
   @Rule
   public transient TemporaryFolder tmpFolder = new TemporaryFolder();

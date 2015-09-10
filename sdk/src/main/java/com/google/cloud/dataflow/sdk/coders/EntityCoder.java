@@ -29,8 +29,6 @@ import java.io.OutputStream;
  */
 public class EntityCoder extends AtomicCoder<Entity> {
 
-  private static final long serialVersionUID = 0L;
-
   @JsonCreator
   public static EntityCoder of() {
     return INSTANCE;

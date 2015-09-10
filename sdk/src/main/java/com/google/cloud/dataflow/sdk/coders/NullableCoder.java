@@ -41,8 +41,6 @@ import javax.annotation.Nullable;
  * @param <T> the type of the values being transcoded
  */
 public class NullableCoder<T> extends StandardCoder<T> {
-  private static final long serialVersionUID = 0;
-
   public static <T> NullableCoder<T> of(Coder<T> valueCoder) {
     return new NullableCoder<>(valueCoder);
   }

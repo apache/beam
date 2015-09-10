@@ -37,8 +37,6 @@ import java.io.Serializable;
  */
 public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializable {
 
-  private static final long serialVersionUID = 0L;
-
   private final KeyedCombineFn<K, InputT, AccumT, OutputT> fn;
   private final Coder<AccumT> accumulatorCoder;
 

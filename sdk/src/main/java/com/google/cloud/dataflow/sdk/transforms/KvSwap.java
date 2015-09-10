@@ -42,7 +42,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * @param <V> the type of the values in the input {@code PCollection}
  * and the keys in the output {@code PCollection}
  */
-@SuppressWarnings("serial")
 public class KvSwap<K, V> extends PTransform<PCollection<KV<K, V>>,
                                              PCollection<KV<V, K>>> {
   /**

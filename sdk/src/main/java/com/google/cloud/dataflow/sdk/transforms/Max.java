@@ -163,8 +163,6 @@ public class Max {
    */
   public static class MaxFn<T> extends BinaryCombineFn<T> {
 
-    private static final long serialVersionUID = 0;
-
     private final T identity;
     private final Comparator<? super T> comparator;
 
@@ -209,8 +207,6 @@ public class Max {
    */
   public static class MaxIntegerFn extends MaxFn<Integer> implements
       CounterProvider<Integer> {
-    private static final long serialVersionUID = 0L;
-
     public MaxIntegerFn() {
       super(Integer.MIN_VALUE, new Top.Largest<Integer>());
     }
@@ -227,8 +223,6 @@ public class Max {
    */
   public static class MaxLongFn extends MaxFn<Long> implements
       CounterProvider<Long> {
-    private static final long serialVersionUID = 0L;
-
     public MaxLongFn() {
       super(Long.MIN_VALUE, new Top.Largest<Long>());
     }
@@ -245,8 +239,6 @@ public class Max {
    */
   public static class MaxDoubleFn extends MaxFn<Double> implements
       CounterProvider<Double> {
-    private static final long serialVersionUID = 0L;
-
     public MaxDoubleFn() {
       super(Double.NEGATIVE_INFINITY, new Top.Largest<Double>());
     }

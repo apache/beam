@@ -37,8 +37,6 @@ import java.util.Objects;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W> {
 
-  private static final long serialVersionUID = 0L;
-
   private AfterProcessingTime(List<SerializableFunction<Instant, Instant>> transforms) {
     super(transforms);
   }

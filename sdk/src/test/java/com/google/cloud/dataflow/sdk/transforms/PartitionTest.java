@@ -41,7 +41,6 @@ import java.util.List;
  * Tests for {@link Partition}.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class PartitionTest implements Serializable {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 

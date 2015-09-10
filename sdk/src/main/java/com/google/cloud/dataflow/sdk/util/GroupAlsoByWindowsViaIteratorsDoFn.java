@@ -47,7 +47,6 @@ import java.util.NoSuchElementException;
  * @param <W> window type
  */
 @SystemDoFnInternal
-@SuppressWarnings("serial")
 class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
     extends GroupAlsoByWindowsDoFn<K, V, Iterable<V>, W> {
   private final WindowingStrategy<?, W> strategy;

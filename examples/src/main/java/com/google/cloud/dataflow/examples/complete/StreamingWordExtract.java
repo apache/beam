@@ -63,8 +63,6 @@ public class StreamingWordExtract {
 
   /** A DoFn that tokenizes lines of text into individual words. */
   static class ExtractWords extends DoFn<String, String> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       String[] words = c.element().split("[^a-zA-Z']+");
@@ -78,8 +76,6 @@ public class StreamingWordExtract {
 
   /** A DoFn that uppercases a word. */
   static class Uppercase extends DoFn<String, String> {
-    private static final long serialVersionUID = 0;
-
     @Override
     public void processElement(ProcessContext c) {
       c.output(c.element().toUpperCase());
@@ -90,8 +86,6 @@ public class StreamingWordExtract {
    * Converts strings into BigQuery rows.
    */
   static class StringToRowConverter extends DoFn<String, TableRow> {
-    private static final long serialVersionUID = 0;
-
     /**
      * In this example, put the whole string into single BigQuery field.
      */
@@ -102,8 +96,6 @@ public class StreamingWordExtract {
 
     static TableSchema getSchema() {
       return new TableSchema().setFields(new ArrayList<TableFieldSchema>() {
-            private static final long serialVersionUID = 0;
-
             // Compose the list of TableFieldSchema from tableSchema.
             {
               add(new TableFieldSchema().setName("string_field").setType("STRING"));

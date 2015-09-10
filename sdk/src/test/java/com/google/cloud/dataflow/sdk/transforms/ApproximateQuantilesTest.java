@@ -267,7 +267,6 @@ public class ApproximateQuantilesTest {
 
   private static class DescendingIntComparator implements
       SerializableComparator<Integer> {
-    private static final long serialVersionUID = 0L;
     @Override
     public int compare(Integer o1, Integer o2) {
       return o2.compareTo(o1);
@@ -275,8 +274,6 @@ public class ApproximateQuantilesTest {
   }
 
   private static class OrderByLength implements Comparator<String>, Serializable {
-    private static final long serialVersionUID = 0L;
-
     @Override
     public int compare(String a, String b) {
       if (a.length() != b.length()) {

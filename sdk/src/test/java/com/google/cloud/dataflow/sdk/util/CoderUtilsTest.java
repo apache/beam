@@ -46,7 +46,6 @@ import java.io.OutputStream;
  * Tests for CoderUtils.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class CoderUtilsTest {
 
   @Rule

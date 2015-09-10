@@ -161,8 +161,6 @@ public class XmlSink {
    * A {@link FileBasedSink} that writes objects as XML elements.
    */
   public static class Bound<T> extends FileBasedSink<T> {
-    private static final long serialVersionUID = 0;
-
     final Class<T> classToBind;
     final String rootElementName;
 
@@ -228,8 +226,6 @@ public class XmlSink {
    * {@link Sink.WriteOperation} for XML {@link Sink}s.
    */
   protected static final class XmlWriteOperation<T> extends FileBasedWriteOperation<T> {
-    private static final long serialVersionUID = 0;
-
     public XmlWriteOperation(XmlSink.Bound<T> sink) {
       super(sink);
     }

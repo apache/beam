@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Tests for RateLimiter.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("serial")
 public class IntraBundleParallelizationTest {
   private static final int PARALLELISM_FACTOR = 16;
   private static final AtomicInteger numSuccesses = new AtomicInteger();

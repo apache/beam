@@ -81,7 +81,6 @@ import java.util.Objects;
  *
  * @param <T> the type of the elements of the resulting {@code PCollection}
  */
-@SuppressWarnings("serial")
 public class Create<T> {
   /**
    * Returns a new {@code Create.Values} transform that produces a

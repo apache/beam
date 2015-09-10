@@ -106,7 +106,6 @@ public class PCollectionViews {
    */
   private static class SingletonPCollectionView<T, W extends BoundedWindow>
      extends PCollectionViewBase<T, T, W> {
-    private static final long serialVersionUID = 0;
     private byte[] encodedDefaultValue;
     private transient T defaultValue;
     private Coder<T> valueCoder;
@@ -162,8 +161,6 @@ public class PCollectionViews {
    */
   private static class IterablePCollectionView<T, W extends BoundedWindow>
       extends PCollectionViewBase<T, Iterable<T>, W> {
-    private static final long serialVersionUID = 0;
-
     public IterablePCollectionView(
         Pipeline pipeline, WindowingStrategy<?, W> windowingStrategy, Coder<T> valueCoder) {
       super(pipeline, windowingStrategy, valueCoder);
@@ -189,8 +186,6 @@ public class PCollectionViews {
    */
   private static class MultimapPCollectionView<K, V, W extends BoundedWindow>
       extends PCollectionViewBase<KV<K, V>, Map<K, Iterable<V>>, W> {
-    private static final long serialVersionUID = 0;
-
     public MultimapPCollectionView(
         Pipeline pipeline,
         WindowingStrategy<KV<K, V>, W> windowingStrategy,
@@ -220,8 +215,6 @@ public class PCollectionViews {
    */
   private static class MapPCollectionView<K, V, W extends BoundedWindow>
       extends PCollectionViewBase<KV<K, V>, Map<K, V>, W> {
-    private static final long serialVersionUID = 0;
-
     public MapPCollectionView(
         Pipeline pipeline,
         WindowingStrategy<KV<K, V>, W> windowingStrategy,
@@ -252,8 +245,6 @@ public class PCollectionViews {
   private abstract static class PCollectionViewBase<ElemT, ViewT, W extends BoundedWindow>
       extends PValueBase
       implements PCollectionView<ViewT> {
-    private static final long serialVersionUID = 0L;
-
     /** A unique tag for the view, typed according to the elements underlying the view. */
     private TupleTag<Iterable<WindowedValue<ElemT>>> tag;
 

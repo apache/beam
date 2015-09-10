@@ -93,8 +93,6 @@ public class ExecutableTriggerTest {
       super(Arrays.asList(subTriggers));
     }
 
-    private static final long serialVersionUID = 0L;
-
     @Override
     public TriggerResult onElement(
         OnElementContext c) throws Exception {

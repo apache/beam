@@ -50,8 +50,6 @@ import java.io.Serializable;
  */
 public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
 
-  private static final long serialVersionUID = 0L;
-
   /**
    * Returns a {@code SerializableCoder} instance for the provided element class.
    * @param <T> the element type

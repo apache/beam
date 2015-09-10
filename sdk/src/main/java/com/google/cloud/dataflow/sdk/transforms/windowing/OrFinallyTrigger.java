@@ -30,8 +30,6 @@ class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
   private static final int ACTUAL = 0;
   private static final int UNTIL = 1;
 
-  private static final long serialVersionUID = 0L;
-
   @VisibleForTesting OrFinallyTrigger(Trigger<W> actual, Trigger.OnceTrigger<W> until) {
     super(Arrays.asList(actual, until));
   }

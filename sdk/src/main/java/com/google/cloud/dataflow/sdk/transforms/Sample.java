@@ -128,7 +128,6 @@ public class Sample {
    * elements of the input {@code PCollection}.
    */
   public static class SampleAny<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    private static final long serialVersionUID = 0;
     private final long limit;
 
     /**
@@ -158,8 +157,6 @@ public class Sample {
    * A {@link DoFn} that returns up to limit elements from the side input PCollection.
    */
   private static class SampleAnyDoFn<T> extends DoFn<Void, T> {
-    private static final long serialVersionUID = 0;
-
     long limit;
     final PCollectionView<Iterable<T>> iterableView;
 
@@ -189,8 +186,6 @@ public class Sample {
       extends CombineFn<T,
           Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>,
           Iterable<T>> {
-    private static final long serialVersionUID = 0;
-
     private final Top.TopCombineFn<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>
         topCombineFn;
     private final Random rand = new Random();

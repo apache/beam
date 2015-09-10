@@ -130,8 +130,6 @@ public class StateTags {
 
   private abstract static class StateTagBase<StateT extends State> implements StateTag<StateT> {
 
-    private static final long serialVersionUID = 0;
-
     private final StateKind kind;
     protected final String id;
 
@@ -162,8 +160,6 @@ public class StateTags {
    * @param <T> the type of value being stored
    */
   private static class ValueStateTag<T> extends StateTagBase<ValueState<T>> {
-
-    private static final long serialVersionUID = 0;
 
     private final Coder<T> coder;
 
@@ -212,8 +208,6 @@ public class StateTags {
    */
   private static class CombiningValueStateTag<InputT, AccumT, OutputT>
       extends StateTagBase<CombiningValueStateInternal<InputT, AccumT, OutputT>> {
-
-    private static final long serialVersionUID = 0;
 
     private final Coder<AccumT> accumCoder;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
@@ -266,8 +260,6 @@ public class StateTags {
    */
   private static class BagStateTag<T> extends StateTagBase<BagState<T>> {
 
-    private static final long serialVersionUID = 0;
-
     private final Coder<T> elemCoder;
 
     private BagStateTag(StateKind kind, String id, Coder<T> elemCoder) {
@@ -307,8 +299,6 @@ public class StateTags {
   }
 
   private static class WatermarkStateTagInternal extends StateTagBase<WatermarkStateInternal> {
-
-    private static final long serialVersionUID = 0;
 
     private WatermarkStateTagInternal(StateKind kind, String id) {
       super(kind, id);

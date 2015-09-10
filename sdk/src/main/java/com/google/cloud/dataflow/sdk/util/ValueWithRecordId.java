@@ -89,8 +89,6 @@ public class ValueWithRecordId<ValueT> {
    */
   public static class ValueWithRecordIdCoder<ValueT>
       extends StandardCoder<ValueWithRecordId<ValueT>> {
-    private static final long serialVersionUID = 0;
-
     public static <ValueT> ValueWithRecordIdCoder<ValueT> of(Coder<ValueT> valueCoder) {
       return new ValueWithRecordIdCoder<>(valueCoder);
     }
@@ -147,8 +145,6 @@ public class ValueWithRecordId<ValueT> {
     return ParDo.named("StripIds")
         .of(
             new DoFn<ValueWithRecordId<T>, T>() {
-              private static final long serialVersionUID = 0L;
-
               @Override
               public void processElement(ProcessContext c) {
                 c.output(c.element().getValue());

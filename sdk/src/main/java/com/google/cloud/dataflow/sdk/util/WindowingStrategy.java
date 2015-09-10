@@ -50,8 +50,6 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   private static final Duration DEFAULT_ALLOWED_LATENESS = Duration.ZERO;
   private static final WindowingStrategy<Object, GlobalWindow> DEFAULT = of(new GlobalWindows());
 
-  private static final long serialVersionUID = 0L;
-
   private final WindowFn<T, W> windowFn;
   private final ExecutableTrigger<W> trigger;
   private final AccumulationMode mode;

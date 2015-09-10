@@ -40,7 +40,6 @@ import com.google.common.base.Preconditions;
  * @param <OutputT> output value element type
  * @param <W> window type
  */
-@SuppressWarnings("serial")
 @SystemDoFnInternal
 public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends BoundedWindow>
     extends DoFn<TimerOrElement<KV<K, InputT>>, KV<K, OutputT>> {

@@ -71,8 +71,6 @@ public class PubsubFileInjector {
 
   /** A DoFn that publishes non-empty lines to Google Cloud PubSub. */
   public static class Bound extends DoFn<String, Void> {
-    private static final long serialVersionUID = 0;
-
     private final String outputTopic;
     private final String timestampLabelKey;
     public transient Pubsub pubsub;
