@@ -269,7 +269,7 @@ public class DataflowAssert {
      *
      * <p>Returns this {@code IterableAssert}.
      */
-    public IterableAssert<T> satisfies(final SerializableMatcher<Iterable<? extends T>> matcher) {
+    IterableAssert<T> satisfies(final SerializableMatcher<Iterable<? extends T>> matcher) {
       // Safe covariant cast. Could be elided by changing a lot of this file to use
       // more flexible bounds.
       @SuppressWarnings({"rawtypes", "unchecked"})
@@ -337,7 +337,7 @@ public class DataflowAssert {
      * <p> Returns this {@code IterableAssert}.
      */
     @SafeVarargs
-    public final IterableAssert<T> containsInAnyOrder(
+    final IterableAssert<T> containsInAnyOrder(
         SerializableMatcher<? super T>... elementMatchers) {
       return satisfies(SerializableMatchers.containsInAnyOrder(elementMatchers));
     }

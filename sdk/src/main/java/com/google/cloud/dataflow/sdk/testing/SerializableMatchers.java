@@ -56,7 +56,7 @@ import javax.annotation.Nullable;
  * is undefined, use a matcher like
  * {@code kv(equalTo("some key"), containsInAnyOrder(1, 2, 3))}.
  */
-public class SerializableMatchers implements Serializable {
+class SerializableMatchers implements Serializable {
 
   // Serializable only because of capture by anonymous inner classes
   private SerializableMatchers() { } // not instantiable

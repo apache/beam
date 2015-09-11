@@ -31,6 +31,6 @@ import java.io.Serializable;
  *
  * @param <T> The type of value matched.
  */
-public interface SerializableMatcher<T> extends Matcher<T>, Serializable {
+interface SerializableMatcher<T> extends Matcher<T>, Serializable {
 }
 
