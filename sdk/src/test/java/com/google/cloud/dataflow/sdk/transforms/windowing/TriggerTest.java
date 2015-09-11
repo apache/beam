@@ -16,10 +16,16 @@
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Tests for {@link Trigger}.
@@ -32,5 +38,82 @@ public class TriggerTest {
     assertEquals("AfterWatermark.pastEndOfWindow()", AfterWatermark.pastEndOfWindow().toString());
     assertEquals("Repeatedly(AfterWatermark.pastEndOfWindow())",
         Repeatedly.forever(AfterWatermark.pastEndOfWindow()).toString());
+  }
+
+  @Test
+  public void testIsCompatible() throws Exception {
+    assertTrue(new Trigger1(null).isCompatible(new Trigger1(null)));
+    assertTrue(new Trigger1(Arrays.<Trigger<IntervalWindow>>asList(new Trigger2(null)))
+        .isCompatible(new Trigger1(Arrays.<Trigger<IntervalWindow>>asList(new Trigger2(null)))));
+
+    assertFalse(new Trigger1(null).isCompatible(new Trigger2(null)));
+    assertFalse(new Trigger1(Arrays.<Trigger<IntervalWindow>>asList(new Trigger1(null)))
+        .isCompatible(new Trigger1(Arrays.<Trigger<IntervalWindow>>asList(new Trigger2(null)))));
+  }
+
+  private static class Trigger1 extends Trigger<IntervalWindow> {
+
+    private Trigger1(List<Trigger<IntervalWindow>> subTriggers) {
+      super(subTriggers);
+    }
+
+    @Override
+    public Trigger.TriggerResult onElement(Trigger<IntervalWindow>.OnElementContext c) {
+      return null;
+    }
+
+    @Override
+    public Trigger.MergeResult onMerge(Trigger<IntervalWindow>.OnMergeContext c) {
+      return null;
+    }
+
+    @Override
+    public Trigger.TriggerResult onTimer(Trigger<IntervalWindow>.OnTimerContext c) {
+      return null;
+    }
+
+    @Override
+    protected Trigger<IntervalWindow> getContinuationTrigger(
+        List<Trigger<IntervalWindow>> continuationTriggers) {
+      return null;
+    }
+
+    @Override
+    public Instant getWatermarkThatGuaranteesFiring(IntervalWindow window) {
+      return null;
+    }
+  }
+
+  private static class Trigger2 extends Trigger<IntervalWindow> {
+
+    private Trigger2(List<Trigger<IntervalWindow>> subTriggers) {
+      super(subTriggers);
+    }
+
+    @Override
+    public Trigger.TriggerResult onElement(Trigger<IntervalWindow>.OnElementContext c) {
+      return null;
+    }
+
+    @Override
+    public Trigger.MergeResult onMerge(Trigger<IntervalWindow>.OnMergeContext c) {
+      return null;
+    }
+
+    @Override
+    public Trigger.TriggerResult onTimer(Trigger<IntervalWindow>.OnTimerContext c) {
+      return null;
+    }
+
+    @Override
+    protected Trigger<IntervalWindow> getContinuationTrigger(
+        List<Trigger<IntervalWindow>> continuationTriggers) {
+      return null;
+    }
+
+    @Override
+    public Instant getWatermarkThatGuaranteesFiring(IntervalWindow window) {
+      return null;
+    }
   }
 }
