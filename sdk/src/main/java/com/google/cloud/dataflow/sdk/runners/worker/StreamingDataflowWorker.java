@@ -166,6 +166,19 @@ public class StreamingDataflowWorker {
     worker.runStatusServer(statusPort);
   }
 
+  /**
+   * Entry in a per-key {@link UnboundedSource.UnboundedReader} cache.
+   */
+  public static class ReaderCacheEntry {
+    UnboundedSource.UnboundedReader<?> reader;
+    long token;
+
+    public ReaderCacheEntry(UnboundedSource.UnboundedReader<?> reader, long token) {
+      this.reader = reader;
+      this.token = token;
+    }
+  }
+
   // Maps from computation ids to per-computation state.
   private final ConcurrentMap<String, MapTask> instructionMap;
   private final ConcurrentMap<String, ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>>
@@ -173,8 +186,7 @@ public class StreamingDataflowWorker {
   private final ConcurrentMap<String, ConcurrentLinkedQueue<WorkerAndContext>> mapTaskExecutors;
   private final ConcurrentMap<String, ActiveWorkForComputation> activeWorkMap;
   // Per computation cache of active readers, keyed by split ID.
-  private final ConcurrentMap<String, ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>>>
-      readerCache;
+  private final ConcurrentMap<String, ConcurrentMap<ByteString, ReaderCacheEntry>> readerCache;
 
   // Map of tokens to commit callbacks.
   private ConcurrentMap<Long, Runnable> commitCallbacks;
@@ -338,7 +350,7 @@ public class StreamingDataflowWorker {
       mapTaskExecutors.put(computationId, new ConcurrentLinkedQueue<WorkerAndContext>());
       activeWorkMap.put(computationId, new ActiveWorkForComputation(workUnitExecutor));
       readerCache.put(
-          computationId, new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>());
+          computationId, new ConcurrentHashMap<ByteString, ReaderCacheEntry>());
     }
   }
 

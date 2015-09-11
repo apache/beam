@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
 import com.google.cloud.dataflow.sdk.runners.worker.StateFetcher.SideInputState;
+import com.google.cloud.dataflow.sdk.runners.worker.StreamingDataflowWorker.ReaderCacheEntry;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.BaseExecutionContext;
@@ -57,7 +58,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   private final String stageName;
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
   // Per-key cache of active Reader objects in use by this process.
-  private final ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache;
+  private final ConcurrentMap<ByteString, ReaderCacheEntry> readerCache;
   private final ConcurrentMap<String, String> stateNameMap;
 
   private Windmill.WorkItem work;
@@ -69,7 +70,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
 
   public StreamingModeExecutionContext(
       String stageName,
-      ConcurrentMap<ByteString, UnboundedSource.UnboundedReader<?>> readerCache,
+      ConcurrentMap<ByteString, ReaderCacheEntry> readerCache,
       ConcurrentMap<String, String> stateNameMap) {
     this.stageName = stageName;
     this.sideInputCache = new HashMap<>();
@@ -172,7 +173,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   }
 
   public UnboundedSource.UnboundedReader<?> getCachedReader() {
-    return readerCache.get(getSerializedKey());
+    ReaderCacheEntry entry = readerCache.get(getSerializedKey());
+    if (entry == null) {
+      return null;
+    } else if (entry.token != getWork().getCacheToken()) {
+      readerCache.remove(getSerializedKey());
+      return null;
+    } else {
+      return entry.reader;
+    }
   }
 
   public void setActiveReader(UnboundedSource.UnboundedReader<?> reader) {
@@ -250,7 +259,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
             .build());
       }
 
-      readerCache.put(getSerializedKey(), activeReader);
+      readerCache.put(
+          getSerializedKey(), new ReaderCacheEntry(activeReader, getWork().getCacheToken()));
     }
     return callbacks;
   }

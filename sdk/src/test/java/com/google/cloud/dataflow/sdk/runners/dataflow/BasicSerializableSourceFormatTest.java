@@ -57,12 +57,12 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
-import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
+import com.google.cloud.dataflow.sdk.runners.worker.StreamingDataflowWorker.ReaderCacheEntry;
 import com.google.cloud.dataflow.sdk.runners.worker.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -618,7 +618,7 @@ public class BasicSerializableSourceFormatTest {
   @Test
   public void testReadUnboundedReader() throws Exception {
     StreamingModeExecutionContext context = new StreamingModeExecutionContext(
-        "stageName", new ConcurrentHashMap<ByteString, UnboundedSource.UnboundedReader<?>>(), null);
+        "stageName", new ConcurrentHashMap<ByteString, ReaderCacheEntry>(), null);
 
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
@@ -678,6 +678,8 @@ public class BasicSerializableSourceFormatTest {
               .getSourceStateUpdates()
               .getFinalizeIdsList()
               .size());
+
+      assertNotNull(context.getCachedReader());
 
       Windmill.Counter backlog = getCounter(context, "dataflow_backlog_size-stageName");
       assertEquals(7L, backlog.getIntScalar());

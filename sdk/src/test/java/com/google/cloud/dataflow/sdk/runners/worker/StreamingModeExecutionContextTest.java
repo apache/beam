@@ -21,6 +21,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.io.UnboundedSource;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.dataflow.CountingSource;
+import com.google.cloud.dataflow.sdk.runners.worker.StreamingDataflowWorker.ReaderCacheEntry;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting.ConstantViewFn;
@@ -34,6 +39,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaceForTest;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.protobuf.ByteString;
 
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -122,5 +128,54 @@ public class StreamingModeExecutionContextTest {
     assertTrue(sideInputReader.contains(view1));
     assertTrue(sideInputReader.contains(view2));
     assertFalse(sideInputReader.contains(view3));
+  }
+
+  private void startContext(
+      StreamingModeExecutionContext context, String key, long cacheToken) {
+    context.start(
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8(key)) // key is zero-padded index.
+            .setWorkToken(0) // Required proto field, unused.
+            .setCacheToken(cacheToken)
+            .setSourceState(Windmill.SourceState.newBuilder()
+                                .setState(ByteString.EMPTY)
+                                .build()) // Source state.
+            .build(),
+        new Instant(0),
+        null, // StateReader
+        null, // StateFetcher
+        Windmill.WorkItemCommitRequest.newBuilder());
+  }
+
+  @Test
+  public void testReaderCache() throws Exception {
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    options.setNumWorkers(5);
+
+    ConcurrentHashMap<ByteString, ReaderCacheEntry> readerCache =
+        new ConcurrentHashMap<ByteString, ReaderCacheEntry>();
+    StreamingModeExecutionContext context =
+        new StreamingModeExecutionContext("stageName", readerCache, null);
+
+    UnboundedSource.UnboundedReader<?> reader1 =
+        new CountingSource(Integer.MAX_VALUE).createReader(options, null);
+    UnboundedSource.UnboundedReader<?> reader2 =
+        new CountingSource(Integer.MAX_VALUE).createReader(options, null);
+
+    readerCache.put(ByteString.copyFromUtf8("0000000000000001"), new ReaderCacheEntry(reader1, 1L));
+    readerCache.put(ByteString.copyFromUtf8("0000000000000002"), new ReaderCacheEntry(reader2, 2L));
+
+    startContext(context, "0000000000000001", 1L);
+    assertEquals(reader1, context.getCachedReader());
+
+    startContext(context, "0000000000000001", 1L);
+    assertEquals(reader1, context.getCachedReader());
+
+    startContext(context, "0000000000000002", 1L);
+    assertEquals(null, context.getCachedReader());
+
+    startContext(context, "0000000000000003", 3L);
+    assertEquals(null, context.getCachedReader());
   }
 }
