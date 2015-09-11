@@ -179,7 +179,7 @@ class SerializableMatchers implements Serializable {
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
       @Override
       public Matcher<T[]> get() {
-        return Matchers.arrayContaining(matchers);
+        return Matchers.<T>arrayContaining(matchers);
       }
     });
   }
@@ -249,7 +249,7 @@ class SerializableMatchers implements Serializable {
     return fromSupplier(new SerializableSupplier<Matcher<T[]>>() {
       @Override
       public Matcher<T[]> get() {
-        return Matchers.arrayContainingInAnyOrder(matchers);
+        return Matchers.<T>arrayContainingInAnyOrder(matchers);
       }
     });
   }
@@ -359,7 +359,7 @@ class SerializableMatchers implements Serializable {
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
       @Override
       public Matcher<Iterable<? extends T>> get() {
-        return Matchers.contains(matchers);
+        return Matchers.<T>contains(matchers);
       }
     });
   }
@@ -429,7 +429,7 @@ class SerializableMatchers implements Serializable {
     return fromSupplier(new SerializableSupplier<Matcher<Iterable<? extends T>>>() {
       @Override
       public Matcher<Iterable<? extends T>> get() {
-        return Matchers.containsInAnyOrder(matchers);
+        return Matchers.<T>containsInAnyOrder(matchers);
       }
     });
   }

@@ -339,7 +339,7 @@ public class DataflowAssert {
     @SafeVarargs
     final IterableAssert<T> containsInAnyOrder(
         SerializableMatcher<? super T>... elementMatchers) {
-      return satisfies(SerializableMatchers.containsInAnyOrder(elementMatchers));
+      return satisfies(SerializableMatchers.<T>containsInAnyOrder(elementMatchers));
     }
   }
 
