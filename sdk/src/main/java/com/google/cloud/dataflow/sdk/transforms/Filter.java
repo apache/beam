@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 /**
@@ -26,8 +27,8 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * @param <T> the type of the values in the input {@code PCollection},
  * and the type of the elements in the output {@code PCollection}
  */
-public class Filter<T> extends PTransform<PCollection<T>,
-                                          PCollection<T>> {
+public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
+
   /**
    * Returns a {@code PTransform} that takes an input
    * {@code PCollection<T>} and returns a {@code PCollection<T>} with
@@ -38,7 +39,7 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * <pre> {@code
    * PCollection<String> wordList = ...;
    * PCollection<String> longWords =
-   *     wordList.apply(Filter.by(new MatchIfWordLengthGT(6)));
+   *     wordList.apply(Filter.byPredicate(new MatchIfWordLengthGT(6)));
    * } </pre>
    *
    * <p>See also {@link #lessThan}, {@link #lessThanEq},
@@ -46,21 +47,31 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * satisfying various inequalities with the specified value based on
    * the elements' natural ordering.
    */
-  public static <T, PredicateT extends SerializableFunction<T, Boolean>>
-      ParDo.Bound<T, T> by(final PredicateT filterPred) {
+  public static <T, PredicateT extends SerializableFunction<T, Boolean>> Filter<T>
+  byPredicate(PredicateT predicate) {
+    return new Filter<T>("Filter", predicate);
+  }
+
+  /**
+   * @deprecated use {@link byPredicate}, which returns a {@link Filter} transform instead of
+   * a {@link ParDo.Bound}.
+   */
+  @Deprecated
+  public static <T, PredicateT extends SerializableFunction<T, Boolean>> ParDo.Bound<T, T>
+  by(final PredicateT filterPred) {
     return ParDo.named("Filter").of(new DoFn<T, T>() {
-            @Override
-            public void processElement(ProcessContext c) {
-              if (filterPred.apply(c.element()) == true) {
-                c.output(c.element());
-              }
-            }
-        });
+      @Override
+      public void processElement(ProcessContext c) {
+        if (filterPred.apply(c.element()) == true) {
+          c.output(c.element());
+        }
+      }
+    });
   }
 
   /**
    * Returns a {@code PTransform} that takes an input
-   * {@code PCollection<T>} and returns a {@code PCollection<T>} with
+   * {@link PCollection} and returns a {@link PCollection} with
    * elements that are less than a given value, based on the
    * elements' natural ordering. Elements must be {@code Comparable}.
    *
@@ -76,19 +87,18 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *
-   * <p>See also {@link #by}, which returns elements
+   * <p>See also {@link #byPredicate}, which returns elements
    * that satisfy the given predicate.
    */
-  public static <T extends Comparable<T>>
-      ParDo.Bound<T, T> lessThan(final T value) {
+  public static <T extends Comparable<T>> ParDo.Bound<T, T> lessThan(final T value) {
     return ParDo.named("Filter.lessThan").of(new DoFn<T, T>() {
-            @Override
-            public void processElement(ProcessContext c) {
-              if (c.element().compareTo(value) < 0) {
-                c.output(c.element());
-              }
-            }
-        });
+      @Override
+      public void processElement(ProcessContext c) {
+        if (c.element().compareTo(value) < 0) {
+          c.output(c.element());
+        }
+      }
+    });
   }
 
   /**
@@ -109,19 +119,18 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *
-   * <p>See also {@link #by}, which returns elements
+   * <p>See also {@link #byPredicate}, which returns elements
    * that satisfy the given predicate.
    */
-  public static <T extends Comparable<T>>
-      ParDo.Bound<T, T> greaterThan(final T value) {
+  public static <T extends Comparable<T>> ParDo.Bound<T, T> greaterThan(final T value) {
     return ParDo.named("Filter.greaterThan").of(new DoFn<T, T>() {
-            @Override
-            public void processElement(ProcessContext c) {
-              if (c.element().compareTo(value) > 0) {
-                c.output(c.element());
-              }
-            }
-        });
+      @Override
+      public void processElement(ProcessContext c) {
+        if (c.element().compareTo(value) > 0) {
+          c.output(c.element());
+        }
+      }
+    });
   }
 
   /**
@@ -142,19 +151,18 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *
-   * <p>See also {@link #by}, which returns elements
+   * <p>See also {@link #byPredicate}, which returns elements
    * that satisfy the given predicate.
    */
-  public static <T extends Comparable<T>>
-      ParDo.Bound<T, T> lessThanEq(final T value) {
+  public static <T extends Comparable<T>> ParDo.Bound<T, T> lessThanEq(final T value) {
     return ParDo.named("Filter.lessThanEq").of(new DoFn<T, T>() {
-            @Override
-            public void processElement(ProcessContext c) {
-              if (c.element().compareTo(value) <= 0) {
-                c.output(c.element());
-              }
-            }
-        });
+      @Override
+      public void processElement(ProcessContext c) {
+        if (c.element().compareTo(value) <= 0) {
+          c.output(c.element());
+        }
+      }
+    });
   }
 
   /**
@@ -175,18 +183,52 @@ public class Filter<T> extends PTransform<PCollection<T>,
    * inequalities with the specified value based on the elements'
    * natural ordering.
    *
-   * <p>See also {@link #by}, which returns elements
+   * <p>See also {@link #byPredicate}, which returns elements
    * that satisfy the given predicate.
    */
-  public static <T extends Comparable<T>>
-      ParDo.Bound<T, T> greaterThanEq(final T value) {
+  public static <T extends Comparable<T>> ParDo.Bound<T, T> greaterThanEq(final T value) {
     return ParDo.named("Filter.greaterThanEq").of(new DoFn<T, T>() {
-            @Override
-            public void processElement(ProcessContext c) {
-              if (c.element().compareTo(value) >= 0) {
-                c.output(c.element());
-              }
-            }
-        });
+      @Override
+      public void processElement(ProcessContext c) {
+        if (c.element().compareTo(value) >= 0) {
+          c.output(c.element());
+        }
+      }
+    });
+  }
+
+  ///////////////////////////////////////////////////////////////////////////////
+
+  private SerializableFunction<T, Boolean> predicate;
+
+  private Filter(SerializableFunction<T, Boolean> predicate) {
+    this.predicate = predicate;
+  }
+
+  private Filter(String name, SerializableFunction<T, Boolean> predicate) {
+    super(name);
+    this.predicate = predicate;
+  }
+
+  public Filter<T> named(String name) {
+    return new Filter<>(name, predicate);
+  }
+
+  @Override
+  public PCollection<T> apply(PCollection<T> input) {
+    PCollection<T> output = input.apply(ParDo.named("Filter").of(new DoFn<T, T>() {
+      @Override
+      public void processElement(ProcessContext c) {
+        if (predicate.apply(c.element()) == true) {
+          c.output(c.element());
+        }
+      }
+    }));
+    return output;
+  }
+
+  @Override
+  protected Coder<T> getDefaultOutputCoder(PCollection<T> input) {
+    return input.getCoder();
   }
 }

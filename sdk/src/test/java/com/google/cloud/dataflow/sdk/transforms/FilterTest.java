@@ -54,6 +54,7 @@ public class FilterTest implements Serializable {
     }
   }
 
+  @Deprecated
   @Test
   @Category(RunnableOnService.class)
   public void testIdentityFilterBy() {
@@ -67,6 +68,7 @@ public class FilterTest implements Serializable {
     p.run();
   }
 
+  @Deprecated
   @Test
   public void testNoFilter() {
     TestPipeline p = TestPipeline.create();
@@ -79,6 +81,7 @@ public class FilterTest implements Serializable {
     p.run();
   }
 
+  @Deprecated
   @Test
   @Category(RunnableOnService.class)
   public void testFilterBy() {
@@ -87,6 +90,44 @@ public class FilterTest implements Serializable {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.by(new EvenFn()));
+
+    DataflowAssert.that(output).containsInAnyOrder(2, 4, 6);
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testIdentityFilterByPredicate() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<Integer> output = p
+        .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
+        .apply(Filter.byPredicate(new TrivialFn(true)));
+
+    DataflowAssert.that(output).containsInAnyOrder(591, 11789, 1257, 24578, 24799, 307);
+    p.run();
+  }
+
+  @Test
+  public void testNoFilterByPredicate() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 4, 5))
+        .apply(Filter.byPredicate(new TrivialFn(false)));
+
+    DataflowAssert.that(output).empty();
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFilterByPredicate() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<Integer> output = p
+        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
+        .apply(Filter.byPredicate(new EvenFn()));
 
     DataflowAssert.that(output).containsInAnyOrder(2, 4, 6);
     p.run();
