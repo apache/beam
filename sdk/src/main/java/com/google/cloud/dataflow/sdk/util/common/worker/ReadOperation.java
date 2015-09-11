@@ -77,7 +77,8 @@ public class ReadOperation extends Operation {
   public ReadOperation(String operationName, Reader<?> reader, OutputReceiver[] receivers,
       String counterPrefix, CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler) {
-    super(operationName, receivers, counterPrefix, addCounterMutator, stateSampler);
+    super(operationName, receivers, counterPrefix, addCounterMutator,
+          stateSampler, reader.getStateSamplerStateKind());
     this.reader = reader;
     this.byteCount = addCounterMutator.addCounter(
         Counter.longs(bytesCounterName(counterPrefix, operationName), SUM));
@@ -89,7 +90,7 @@ public class ReadOperation extends Operation {
   ReadOperation(Reader<?> reader, OutputReceiver outputReceiver, String counterPrefix,
       CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) {
     this("ReadOperation", reader, new OutputReceiver[] {outputReceiver}, counterPrefix,
-        addCounterMutator, stateSampler);
+         addCounterMutator, stateSampler);
   }
 
   /**

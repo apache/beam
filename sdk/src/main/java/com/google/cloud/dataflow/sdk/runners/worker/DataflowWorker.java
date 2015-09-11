@@ -107,6 +107,11 @@ public class DataflowWorker {
   private Server statusServer;
 
   /**
+   * Tracker for user code time.
+   */
+  private final UserCodeTimeTracker userCodeTimeTracker = new UserCodeTimeTracker();
+
+  /**
    * A weight in "bytes" for the overhead of a {@link Sized} wrapper in the cache. It is just an
    * approximation so it is OK for it to be fairly arbitrary as long as it is nonzero.
    */
@@ -159,19 +164,30 @@ public class DataflowWorker {
       DataflowExecutionContext executionContext =
           new DataflowWorkerExecutionContext(sideInputCache, options);
 
+      CounterSet counters = new CounterSet();
+      StateSampler sampler = null;
+
       if (workItem.getMapTask() != null) {
-        worker = MapTaskExecutorFactory.create(options, workItem.getMapTask(), executionContext);
-
+        sampler = new StateSampler(
+            workItem.getMapTask().getStageName() + "-", counters.getAddCounterMutator());
+        worker = MapTaskExecutorFactory.create(
+            options, workItem.getMapTask(), executionContext, counters, sampler);
       } else if (workItem.getSourceOperationTask() != null) {
+        sampler = new StateSampler(
+            "source-operation-", counters.getAddCounterMutator());
         worker = SourceOperationExecutorFactory.create(options, workItem.getSourceOperationTask());
-
       } else {
         throw new RuntimeException("Unknown kind of work item: " + workItem.toString());
       }
 
+      sampler.addSamplingCallback(
+          new UserCodeTimeTracker.StateSamplerCallback(
+              userCodeTimeTracker, workItem.getId()));
+
       DataflowWorkProgressUpdater progressUpdater =
           new DataflowWorkProgressUpdater(workItem, worker, workUnitClient, options);
-      try {
+      try (AutoCloseable scope = userCodeTimeTracker.scopedWork(
+              sampler.getPrefix(), workItem.getId(), counters.getAddCounterMutator())) {
         executeWork(worker, progressUpdater);
       } finally {
         // Grab nextReportIndex so we can use it in handleWorkError if there is an exception.
@@ -179,7 +195,6 @@ public class DataflowWorker {
       }
 
       // Log all counter values for debugging purposes.
-      CounterSet counters = worker.getOutputCounters();
       for (Counter<?> counter : counters) {
         LOG.trace("COUNTER {}.", counter);
       }

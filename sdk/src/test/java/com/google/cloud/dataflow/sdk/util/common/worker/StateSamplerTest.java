@@ -43,8 +43,8 @@ public class StateSamplerTest {
     try (StateSampler stateSampler =
         new StateSampler("test-", counters.getAddCounterMutator(), periodMs)) {
 
-      int state1 = stateSampler.stateForName("1");
-      int state2 = stateSampler.stateForName("2");
+      int state1 = stateSampler.stateForName("1", StateSampler.StateKind.USER);
+      int state2 = stateSampler.stateForName("2", StateSampler.StateKind.USER);
 
       try (StateSampler.ScopedState s1 =
           stateSampler.scopedState(state1)) {
@@ -74,9 +74,9 @@ public class StateSamplerTest {
     try (StateSampler stateSampler =
         new StateSampler("test-", counters.getAddCounterMutator(), periodMs)) {
 
-      int state1 = stateSampler.stateForName("1");
-      int state2 = stateSampler.stateForName("2");
-      int state3 = stateSampler.stateForName("3");
+      int state1 = stateSampler.stateForName("1", StateSampler.StateKind.USER);
+      int state2 = stateSampler.stateForName("2", StateSampler.StateKind.USER);
+      int state3 = stateSampler.stateForName("3", StateSampler.StateKind.USER);
 
       try (StateSampler.ScopedState s1 =
           stateSampler.scopedState(state1)) {
@@ -115,7 +115,7 @@ public class StateSamplerTest {
     try (StateSampler stateSampler = new StateSampler("test-",
         counters.getAddCounterMutator(), periodMs)) {
 
-      int state1 = stateSampler.stateForName("1");
+      int state1 = stateSampler.stateForName("1", StateSampler.StateKind.USER);
       int previousState = stateSampler.setState(state1);
       Thread.sleep(2 * periodMs);
       stateSampler.setState(previousState);

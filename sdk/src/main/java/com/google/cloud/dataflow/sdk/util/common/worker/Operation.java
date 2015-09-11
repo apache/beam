@@ -79,13 +79,26 @@ public abstract class Operation {
                    OutputReceiver[] receivers,
                    String counterPrefix,
                    CounterSet.AddCounterMutator addCounterMutator,
-                   StateSampler stateSampler) {
+                   StateSampler stateSampler,
+                   StateSampler.StateKind stateKind) {
     this.operationName = operationName;
     this.receivers = receivers;
     this.stateSampler = stateSampler;
-    startState = stateSampler.stateForName(operationName + "-start");
-    processState = stateSampler.stateForName(operationName + "-process");
-    finishState = stateSampler.stateForName(operationName + "-finish");
+    startState = stateSampler.stateForName(operationName + "-start", stateKind);
+    processState = stateSampler.stateForName(operationName + "-process", stateKind);
+    finishState = stateSampler.stateForName(operationName + "-finish", stateKind);
+  }
+
+  /**
+   * Constructs an operation in the USER state kind.
+   */
+  public Operation(String operationName,
+                   OutputReceiver[] receivers,
+                   String counterPrefix,
+                   CounterSet.AddCounterMutator addCounterMutator,
+                   StateSampler stateSampler) {
+    this(operationName, receivers, counterPrefix, addCounterMutator,
+        stateSampler, StateSampler.StateKind.USER);
   }
 
   /**

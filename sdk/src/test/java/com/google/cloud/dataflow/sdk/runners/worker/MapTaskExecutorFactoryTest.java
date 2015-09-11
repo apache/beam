@@ -26,6 +26,7 @@ import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 
@@ -101,12 +102,16 @@ public class MapTaskExecutorFactoryTest {
     mapTask.setStageName("test");
     mapTask.setInstructions(instructions);
 
-    CounterSet counterSet = null;
+    CounterSet counterSet = new CounterSet();
+    StateSampler sampler =
+        new StateSampler(mapTask.getStageName() + "-", counterSet.getAddCounterMutator());
     try (
         MapTaskExecutor executor = MapTaskExecutorFactory.create(
             options,
             mapTask,
-            BatchModeExecutionContext.fromOptions(options))) {
+            BatchModeExecutionContext.fromOptions(options),
+            counterSet,
+            sampler)) {
       // Safe covariant cast not expressible without rawtypes.
       @SuppressWarnings({"rawtypes", "unchecked"})
       List<Object> operations = (List) executor.operations;
@@ -124,6 +129,9 @@ public class MapTaskExecutorFactoryTest {
     @SuppressWarnings("unchecked")
     Counter<Long> otherMsecCounter =
         (Counter<Long>) counterSet.getExistingCounter("test-other-msecs");
+
+    // "other" state only got created upon MapTaskExecutor.execute().
+    assertNull(otherMsecCounter);
 
     assertEquals(
         new CounterSet(
@@ -157,8 +165,7 @@ public class MapTaskExecutorFactoryTest {
             Counter.longs("Write-ByteCount", SUM).resetToValue(0L),
             Counter.longs("test-Write-start-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Write-process-msecs", SUM).resetToValue(0L),
-            Counter.longs("test-Write-finish-msecs", SUM).resetToValue(0L),
-            Counter.longs("test-other-msecs", SUM).resetToValue(otherMsecCounter.getAggregate())),
+            Counter.longs("test-Write-finish-msecs", SUM).resetToValue(0L)),
         counterSet);
   }
 
@@ -170,12 +177,15 @@ public class MapTaskExecutorFactoryTest {
         createWriteInstruction(2, 0, "Write"));
 
     MapTask mapTask = new MapTask();
+    mapTask.setStageName("test");
     mapTask.setInstructions(instructions);
 
     DataflowExecutionContext context = BatchModeExecutionContext.fromOptions(options);
 
+    CounterSet counters = new CounterSet();
     try (MapTaskExecutor executor =
-        MapTaskExecutorFactory.create(options, mapTask, context)) {
+        MapTaskExecutorFactory.create(options, mapTask, context, counters,
+            new StateSampler(mapTask.getStageName() + "-", counters.getAddCounterMutator()))) {
       executor.execute();
     }
 
