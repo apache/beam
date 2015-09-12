@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
-import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
-
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Observable;
@@ -236,13 +234,5 @@ public abstract class Reader<T> extends Observable {
    */
   public boolean supportsRestart() {
     return false;
-  }
-
-  /**
-   * The default state kind of all the states reported in this reader.
-   * Defaults to {@link StateKind#USER}.
-   */
-  protected StateKind getStateSamplerStateKind() {
-    return StateKind.USER;
   }
 }

@@ -33,7 +33,6 @@ import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
-import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import java.io.IOException;
@@ -280,10 +279,5 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
         shuffleWriterConfig, SHUFFLE_WRITER_BUFFER_SIZE);
     String datasetId = applianceWriter.getDatasetId();
     return writer(new ChunkingShuffleEntryWriter(applianceWriter), datasetId);
-  }
-
-  @Override
-  protected StateKind getStateSamplerStateKind() {
-    return StateKind.FRAMEWORK;
   }
 }

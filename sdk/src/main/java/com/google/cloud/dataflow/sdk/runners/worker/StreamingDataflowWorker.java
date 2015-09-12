@@ -38,7 +38,6 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
 import com.google.cloud.dataflow.sdk.util.common.worker.OutputObjectAndByteCounter;
 import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
-import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 
@@ -70,7 +69,6 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.servlet.ServletException;
@@ -210,9 +208,6 @@ public class StreamingDataflowWorker {
   private final AtomicReference<Throwable> lastException;
   private final MetricTrackingWindmillServerStub metricTrackingWindmillServer;
   private Timer globalCountersUpdatesTimer;
-
-  private final UserCodeTimeTracker userCodeTimeTracker = new UserCodeTimeTracker();
-  private final AtomicInteger nextStateSamplerId = new AtomicInteger();
 
   public StreamingDataflowWorker(
       List<MapTask> mapTasks, WindmillServerStub server, DataflowWorkerHarnessOptions options) {
@@ -475,21 +470,9 @@ public class StreamingDataflowWorker {
       DataflowWorkerLoggingMDC.setStageName(computation);
       WorkerAndContext workerAndContext = mapTaskExecutors.get(computation).poll();
       if (workerAndContext == null) {
-        CounterSet counters = new CounterSet();
         context = new StreamingModeExecutionContext(
             mapTask.getSystemName(), readerCache.get(computation), stateNameMap);
-        StateSampler sampler =
-            new StateSampler(mapTask.getStageName() + "-", counters.getAddCounterMutator());
-        // In streaming mode, state samplers are long lived. So here a unique id is generated as
-        // the item_id for the userCodeTimeTracker.
-        int stateSamplerId = nextStateSamplerId.incrementAndGet();
-        sampler.addSamplingCallback(
-            new UserCodeTimeTracker.StateSamplerCallback(
-                userCodeTimeTracker, stateSamplerId));
-        // "work" will never finish here.
-        userCodeTimeTracker.workStarted(
-            sampler.getPrefix(), stateSamplerId, counters.getAddCounterMutator());
-        worker = MapTaskExecutorFactory.create(options, mapTask, context, counters, sampler);
+        worker = MapTaskExecutorFactory.create(options, mapTask, context);
         ReadOperation readOperation = worker.getReadOperation();
         // Disable progress updates since its results are unused for streaming
         // and involves starting a thread.

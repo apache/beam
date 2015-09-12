@@ -76,10 +76,13 @@ public class MapTaskExecutorFactory {
    * Creates a new MapTaskExecutor from the given MapTask definition.
    */
   public static MapTaskExecutor create(
-      PipelineOptions options, MapTask mapTask, DataflowExecutionContext context,
-      CounterSet counters, StateSampler stateSampler) throws Exception {
+      PipelineOptions options, MapTask mapTask, DataflowExecutionContext context) throws Exception {
     List<Operation> operations = new ArrayList<>();
-    String counterPrefix = stateSampler.getPrefix();
+    CounterSet counters = new CounterSet();
+    String counterPrefix = mapTask.getStageName() + "-";
+    StateSampler stateSampler = new StateSampler(counterPrefix, counters.getAddCounterMutator());
+    // Open-ended state.
+    stateSampler.setState("other");
 
     // Instantiate operations for each instruction in the graph.
     for (ParallelInstruction instruction : mapTask.getInstructions()) {

@@ -28,19 +28,9 @@ public abstract class ReceivingOperation extends Operation implements Receiver {
                             OutputReceiver[] receivers,
                             String counterPrefix,
                             CounterSet.AddCounterMutator addCounterMutator,
-                            StateSampler stateSampler,
-                            StateSampler.StateKind stateKind) {
-    super(operationName, receivers,
-          counterPrefix, addCounterMutator, stateSampler, stateKind);
-  }
-
-  public ReceivingOperation(String operationName,
-                            OutputReceiver[] receivers,
-                            String counterPrefix,
-                            CounterSet.AddCounterMutator addCounterMutator,
                             StateSampler stateSampler) {
     super(operationName, receivers,
-        counterPrefix, addCounterMutator, stateSampler);
+          counterPrefix, addCounterMutator, stateSampler);
   }
 
   /**

@@ -31,7 +31,6 @@ import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TimerInternals;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
-import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -371,7 +370,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
             return null;
           }
           if (readState == -1) {
-            readState = stateSampler.stateForName(stepName + "-windmill-read", StateKind.FRAMEWORK);
+            readState = stateSampler.stateForName(stepName + "-windmill-read");
           }
           return stateSampler.scopedState(readState);
         }

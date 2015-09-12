@@ -47,7 +47,7 @@ public class WriteOperation extends ReceivingOperation {
                         CounterSet.AddCounterMutator addCounterMutator,
                         StateSampler stateSampler) {
     super(operationName, receivers,
-          counterPrefix, addCounterMutator, stateSampler, sink.getStateSamplerStateKind());
+          counterPrefix, addCounterMutator, stateSampler);
     this.sink = sink;
     this.byteCount = addCounterMutator.addCounter(
         Counter.longs(bytesCounterName(counterPrefix, operationName), SUM));
