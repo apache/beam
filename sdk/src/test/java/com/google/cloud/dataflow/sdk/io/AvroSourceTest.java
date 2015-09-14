@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.io.AvroSource.AvroReader;
 import com.google.cloud.dataflow.sdk.io.AvroSource.AvroReader.Seeker;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.testing.SourceTestUtils;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
