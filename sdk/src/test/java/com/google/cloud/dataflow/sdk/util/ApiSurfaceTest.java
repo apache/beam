@@ -46,7 +46,9 @@ public class ApiSurfaceTest {
   public void testOurApiSurface() throws Exception {
     ApiSurface checkedApiSurface = ApiSurface.getSdkApiSurface()
       .pruningClassName("com.google.cloud.dataflow.sdk.runners.worker.StateFetcher")
-      .pruningClassName("com.google.cloud.dataflow.sdk.util.common.ReflectHelpers");
+      .pruningClassName("com.google.cloud.dataflow.sdk.util.common.ReflectHelpers")
+      .pruningClassName("com.google.cloud.dataflow.sdk.TestUtils")
+      .pruningClassName("com.google.cloud.dataflow.sdk.WindowMatchers");
 
     checkedApiSurface.getExposedClasses();
 

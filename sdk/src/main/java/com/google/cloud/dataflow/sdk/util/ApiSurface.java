@@ -552,7 +552,6 @@ public class ApiSurface {
         .pruningPrefix("org.joda.time")
         .pruningPrefix("org.apache.avro")
         .pruningPrefix("org.junit")
-        .pruningPrefix("org.hamcrest")
         .pruningPrefix("com.fasterxml.jackson.annotation");
   }
 
