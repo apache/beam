@@ -1,7 +1,7 @@
 {
   "namespace": "com.google.cloud.dataflow.sdk.io",
   "type": "record",
-  "name": "User",
+  "name": "AvroGeneratedUser",
   "fields": [
     { "name": "name", "type": "string"},
     { "name": "favorite_number", "type": ["int", "null"]},
