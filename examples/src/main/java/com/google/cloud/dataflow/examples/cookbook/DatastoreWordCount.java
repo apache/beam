@@ -50,10 +50,6 @@ import java.util.UUID;
  * $ gcloud auth login
  * }</pre>
  *
- * <p>Note that the environment variable CLOUDSDK_EXTRA_SCOPES must be set
- * to the same value when executing a Datastore pipeline, as the local auth
- * cache is keyed by the requested scopes.
- *
  * <p>To run this pipeline locally, the following options must be provided:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID

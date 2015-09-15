@@ -85,10 +85,6 @@ import java.util.NoSuchElementException;
   * $ gcloud auth login
  * </pre>
  *
- * <p>Note that the environment variable CLOUDSDK_EXTRA_SCOPES must be set
- * to the same value when executing a Datastore pipeline, as the local auth
- * cache is keyed by the requested scopes.
- *
  * <p>To read a {@link PCollection} from a query to Datastore, use
  * {@link DatastoreIO#read} and its methods {#link DatastoreIO.Read#withDataset}
  * and {#link DatastoreIO.Read#withQuery} to specify dataset to read, the query
