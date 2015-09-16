@@ -16,14 +16,19 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readFully;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtConcatPosition;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -31,6 +36,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader.DynamicSplitResult;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator;
 
 import org.junit.Before;
@@ -197,15 +203,21 @@ public class ConcatReaderTest {
     return source;
   }
 
-  private void testReadersOfSizes(int... recordsPerReader) throws Exception {
+  private ConcatReader<String> createConcatReadersOfSizes(
+      List<String> expected, int... recordsPerReader) throws Exception {
     List<Source> sourceList = new ArrayList<>();
-    List<String> expected = new ArrayList<>();
+
     for (int items : recordsPerReader) {
       sourceList.add(createSourceForTestReader(createTestReader(items/* recordsPerReader */,
           -1/* recordToFailAt */, false/* failWhenClosing */, expected)));
     }
-    ConcatReader<String> concatReader = new ConcatReader<>(null, null, null, null, sourceList);
+    return new ConcatReader<String>(null /* options */, null /* executionContext */,
+        null /* addCounterMutator */, null /* operationName */, sourceList);
+  }
 
+  private void testReadersOfSizes(int... recordsPerReader) throws Exception {
+    List<String> expected = new ArrayList<>();
+    ConcatReader<String> concatReader = createConcatReadersOfSizes(expected, recordsPerReader);
     List<String> actual = new ArrayList<>();
     readFully(concatReader, actual);
     assertThat(actual, containsInAnyOrder(expected.toArray()));
@@ -216,12 +228,14 @@ public class ConcatReaderTest {
   @Test
   public void testCreateFromNull() throws Exception {
     expectedException.expect(NullPointerException.class);
-    new ConcatReader<String>(null, null, null, null, null);
+    new ConcatReader<String>(null /* options */, null /* executionContext */,
+        null /* addCounterMutator */, null /* operationName */, null /* sources */);
   }
 
   @Test
   public void testReadEmptyList() throws Exception {
-    ConcatReader<String> concat = new ConcatReader<>(null, null, null, null,
+    ConcatReader<String> concat = new ConcatReader<>(null /* options */,
+        null /* executionContext */, null /* addCounterMutator */, null /* operationName */,
         new ArrayList<Source>());
     ReaderIterator<String> iterator = concat.iterator();
     assertNotNull(iterator);
@@ -272,7 +286,9 @@ public class ConcatReaderTest {
         createSourceForTestReader(createTestReader(10/* recordsPerReader */, -1/* recordToFailAt */,
             false/* failWhenClosing */, new ArrayList<String>())));
 
-    ConcatReader<String> concatReader = new ConcatReader<>(null, null, null, null, sources);
+    ConcatReader<String> concatReader = new ConcatReader<>(null /* options */,
+        null /* executionContext */, null /* addCounterMutator */,
+        null /* operationName */, sources);
     List<String> actual = new ArrayList<>();
     try {
       readFully(concatReader, actual);
@@ -297,7 +313,9 @@ public class ConcatReaderTest {
     expected = expected.subList(0, 16);
     assertEquals(16, expected.size());
 
-    ConcatReader<String> concatReader = new ConcatReader<>(null, null, null, null, sources);
+    ConcatReader<String> concatReader = new ConcatReader<>(null  /* options */,
+        null  /* executionContext */, null  /* addCounterMutator */,
+        null  /* operationName */, sources);
     List<String> actual = new ArrayList<>();
     try {
       readFully(concatReader, actual);
@@ -308,5 +326,100 @@ public class ConcatReaderTest {
       assertEquals(3, recordedReaders.size());
       assertAllOpenReadersClosed(recordedReaders);
     }
+  }
+
+  private void runProgressTest(int... sizes) throws Exception {
+    ConcatReader<String> concatReader = createConcatReadersOfSizes(new ArrayList<String>(), sizes);
+    try (Reader.ReaderIterator<String> iterator = concatReader.iterator()) {
+      for (int readerIndex = 0; readerIndex < sizes.length; readerIndex++) {
+        for (int recordIndex = 0; recordIndex < sizes[readerIndex]; recordIndex++) {
+          iterator.next();
+          ApproximateProgress progress = readerProgressToCloudProgress(iterator.getProgress());
+          assertEquals(
+              readerIndex, progress.getPosition().getConcatPosition().getIndex().intValue());
+        }
+      }
+    }
+  }
+
+  @Test
+  public void testGetProgressSingle() throws Exception {
+    runProgressTest(10);
+  }
+
+  @Test
+  public void testGetProgressSameSize() throws Exception {
+    runProgressTest(10, 10, 10);
+  }
+
+  @Test
+  public void testGetProgressDifferentSizes() throws Exception {
+    runProgressTest(10, 30, 20, 15, 7);
+  }
+
+  // This is an exhaustive test for method ConcatIterator#splitAtPosition.
+  // Given an array of reader sizes of length 's' this method exhaustively create ConcatReaders that
+  // have read up to every possible position. For each position 'p', this method creates a set of
+  // ConcatReaders of size 's+1' that have read up to position 'p' and tests splitting those
+  // ConcatReaders for index positions in the range [0, s].
+  public void runUpdateStopPositionTest(int... readerSizes) throws Exception {
+    ConcatReader<String> concatReader =
+        createConcatReadersOfSizes(new ArrayList<String>(), readerSizes);
+
+    // This includes indexToSplit == sizes.length case to test out of range split requests.
+    for (int indexToSplit = 0; indexToSplit <= readerSizes.length; indexToSplit++) {
+      int recordsToRead = -1; // Number of records to read from the ConcatReader before splitting.
+      for (int readerIndex = 0; readerIndex < readerSizes.length; readerIndex++) {
+        for (int recordIndex = 0; recordIndex <= readerSizes[readerIndex]; recordIndex++) {
+          if (readerIndex > 0 && recordIndex == 0) {
+            // This is an invalid state as far as ConcatReader is concerned.
+            // When we have not read any records from the reader at 'readerIndex', current reader
+            // should be the reader at 'readerIndex - 1'.
+            continue;
+          }
+
+          recordsToRead++;
+
+          ReaderIterator<String> iterator = concatReader.iterator();
+          for (int i = 0; i < recordsToRead; i++) {
+            iterator.next();
+          }
+
+          DynamicSplitResult splitResult =
+              iterator.requestDynamicSplit(splitRequestAtConcatPosition(indexToSplit, null));
+
+          // We will not be able to successfully perform the request to dynamically split (and hence
+          // splitResult will be null) in following cases.
+          // * recordsToRead == 0 - ConcatReader has not started reading
+          // * readerIndex >= indexToSplit - ConcatReader has already read at least one record from
+          //   reader proposed in the split request.
+          // * indexToSplit < 0 || indexToSplit >= sizes.length - split position is out of range
+
+          if ((recordsToRead == 0) || (readerIndex >= indexToSplit)
+              || (indexToSplit < 0 || indexToSplit >= readerSizes.length)) {
+            assertNull(splitResult);
+          } else {
+            assertEquals(
+                indexToSplit,
+                positionFromSplitResult(splitResult).getConcatPosition().getIndex().intValue());
+          }
+        }
+      }
+    }
+  }
+
+  @Test
+  public void testUpdateStopPositionSingle() throws Exception {
+    runUpdateStopPositionTest(10);
+  }
+
+  @Test
+  public void testUpdateStopPositionSameSize() throws Exception {
+    runUpdateStopPositionTest(10, 10, 10);
+  }
+
+  @Test
+  public void testUpdateStopPositionDifferentSizes() throws Exception {
+    runUpdateStopPositionTest(10, 30, 20, 15, 7);
   }
 }

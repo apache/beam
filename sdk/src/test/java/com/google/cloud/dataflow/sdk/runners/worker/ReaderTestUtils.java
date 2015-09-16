@@ -20,6 +20,7 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toDynamicSplitRequest;
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ConcatPosition;
 import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator;
@@ -42,6 +43,12 @@ public class ReaderTestUtils {
     return new Position().setByteOffset(byteOffset);
   }
 
+  public static Position positionAtConcatPosition(
+      @Nullable Integer index, @Nullable Position innerPosition) {
+    return new Position().setConcatPosition(
+        new ConcatPosition().setIndex(index).setPosition(innerPosition));
+  }
+
   public static ApproximateProgress approximateProgressAtPosition(@Nullable Position position) {
     return new ApproximateProgress().setPosition(position);
   }
@@ -52,6 +59,11 @@ public class ReaderTestUtils {
 
   public static ApproximateProgress approximateProgressAtByteOffset(@Nullable Long byteOffset) {
     return approximateProgressAtPosition(positionAtByteOffset(byteOffset));
+  }
+
+  public static ApproximateProgress approximateProgressAtConcatPosition(
+      @Nullable Integer index, @Nullable Position innerPosition) {
+    return approximateProgressAtPosition(positionAtConcatPosition(index, innerPosition));
   }
 
   public static ApproximateProgress approximateProgressAtFraction(@Nullable Float fraction) {
@@ -68,6 +80,11 @@ public class ReaderTestUtils {
 
   public static Reader.DynamicSplitRequest splitRequestAtByteOffset(@Nullable Long byteOffset) {
     return toDynamicSplitRequest(approximateProgressAtByteOffset(byteOffset));
+  }
+
+  public static Reader.DynamicSplitRequest splitRequestAtConcatPosition(
+      @Nullable Integer index, @Nullable Position innerPosition) {
+    return toDynamicSplitRequest(approximateProgressAtConcatPosition(index, innerPosition));
   }
 
   public static Position positionFromSplitResult(Reader.DynamicSplitResult dynamicSplitResult) {
