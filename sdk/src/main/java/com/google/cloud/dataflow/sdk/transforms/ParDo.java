@@ -43,6 +43,7 @@ import com.google.cloud.dataflow.sdk.values.TypedPValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -567,13 +568,14 @@ public class ParDo {
    * bind the input/output types of this {@code PTransform}.
    */
   public static class Unbound {
-    String name;
-    List<PCollectionView<?>> sideInputs = Collections.emptyList();
+    private final String name;
+    private final List<PCollectionView<?>> sideInputs;
 
-    Unbound() {}
+    Unbound() {
+      this(null, ImmutableList.<PCollectionView<?>>of());
+    }
 
-    Unbound(String name,
-            List<PCollectionView<?>> sideInputs) {
+    Unbound(String name, List<PCollectionView<?>> sideInputs) {
       this.name = name;
       this.sideInputs = sideInputs;
     }
@@ -599,7 +601,7 @@ public class ParDo {
      * {@link ParDo#withSideInputs} for more explanation.
      */
     public Unbound withSideInputs(PCollectionView<?>... sideInputs) {
-      return new Unbound(name, ImmutableList.copyOf(sideInputs));
+      return withSideInputs(Arrays.asList(sideInputs));
     }
 
     /**
@@ -670,8 +672,8 @@ public class ParDo {
   public static class Bound<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     // Inherits name.
-    List<PCollectionView<?>> sideInputs;
-    DoFn<InputT, OutputT> fn;
+    private final List<PCollectionView<?>> sideInputs;
+    private final DoFn<InputT, OutputT> fn;
 
     Bound(String name,
           List<PCollectionView<?>> sideInputs,
@@ -701,7 +703,7 @@ public class ParDo {
      * {@link ParDo#withSideInputs} for more explanation.
      */
     public Bound<InputT, OutputT> withSideInputs(PCollectionView<?>... sideInputs) {
-      return new Bound<>(name, ImmutableList.copyOf(sideInputs), fn);
+      return withSideInputs(Arrays.asList(sideInputs));
     }
 
     /**
@@ -733,9 +735,6 @@ public class ParDo {
 
     @Override
     public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
-      if (sideInputs == null) {
-        sideInputs = Collections.emptyList();
-      }
       return PCollection.<OutputT>createPrimitiveOutputInternal(
               input.getPipeline(),
               input.getWindowingStrategy(),
@@ -783,10 +782,10 @@ public class ParDo {
    * @param <OutputT> the type of the main output {@code PCollection} elements
    */
   public static class UnboundMulti<OutputT> {
-    String name;
-    List<PCollectionView<?>> sideInputs;
-    TupleTag<OutputT> mainOutputTag;
-    TupleTagList sideOutputTags;
+    private final String name;
+    private final List<PCollectionView<?>> sideInputs;
+    private final TupleTag<OutputT> mainOutputTag;
+    private final TupleTagList sideOutputTags;
 
     UnboundMulti(String name,
                  List<PCollectionView<?>> sideInputs,
@@ -821,9 +820,7 @@ public class ParDo {
      */
     public UnboundMulti<OutputT> withSideInputs(
         PCollectionView<?>... sideInputs) {
-      return new UnboundMulti<>(
-          name, ImmutableList.copyOf(sideInputs),
-          mainOutputTag, sideOutputTags);
+      return withSideInputs(Arrays.asList(sideInputs));
     }
 
     /**
@@ -882,10 +879,10 @@ public class ParDo {
   public static class BoundMulti<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
     // Inherits name.
-    List<PCollectionView<?>> sideInputs;
-    TupleTag<OutputT> mainOutputTag;
-    TupleTagList sideOutputTags;
-    DoFn<InputT, OutputT> fn;
+    private final List<PCollectionView<?>> sideInputs;
+    private final TupleTag<OutputT> mainOutputTag;
+    private final TupleTagList sideOutputTags;
+    private final DoFn<InputT, OutputT> fn;
 
     BoundMulti(String name,
                List<PCollectionView<?>> sideInputs,
@@ -921,9 +918,7 @@ public class ParDo {
      */
     public BoundMulti<InputT, OutputT> withSideInputs(
         PCollectionView<?>... sideInputs) {
-      return new BoundMulti<>(
-          name, ImmutableList.copyOf(sideInputs),
-          mainOutputTag, sideOutputTags, fn);
+      return withSideInputs(Arrays.asList(sideInputs));
     }
 
     /**
@@ -968,10 +963,12 @@ public class ParDo {
     public <T> Coder<T> getDefaultOutputCoder(
         PCollection<? extends InputT> input, TypedPValue<T> output)
         throws CannotProvideCoderException {
+      @SuppressWarnings("unchecked")
+      Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
       return input.getPipeline().getCoderRegistry().getDefaultCoder(
           output.getTypeDescriptor(),
           fn.getInputTypeDescriptor(),
-          ((PCollection<InputT>) input).getCoder());
+          inputCoder);
       }
 
     @Override
