@@ -20,12 +20,26 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.coders.AvroCoder;
+import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
+import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
+import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
+
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.reflect.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.io.File;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * Tests for AvroIO Read and Write transforms.
@@ -57,6 +71,122 @@ public class AvroIOTest {
         AvroIO.Read.named("ReadMyFile").from("gs://bucket/foo*/baz").getName());
     assertEquals("WriteMyFile",
         AvroIO.Write.named("WriteMyFile").to("gs://bucket/foo/baz").getName());
+  }
+
+  @DefaultCoder(AvroCoder.class)
+  static class GenericClass {
+    int intField;
+    String stringField;
+    public GenericClass() {}
+    public GenericClass(int intValue, String stringValue) {
+      this.intField = intValue;
+      this.stringField = stringValue;
+    }
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("intField", intField)
+          .add("stringField", stringField)
+          .toString();
+    }
+    @Override
+    public int hashCode() {
+      return Objects.hash(intField, stringField);
+    }
+    @Override
+    public boolean equals(Object other) {
+      if (other == null || !(other instanceof GenericClass)) {
+        return false;
+      }
+      GenericClass o = (GenericClass) other;
+      return Objects.equals(intField, o.intField) && Objects.equals(stringField, o.stringField);
+    }
+  }
+
+  @Test
+  public void testAvroIOWriteAndRead() throws Throwable {
+    DirectPipeline p = DirectPipeline.createForTest();
+    List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
+        new GenericClass(5, "bar"));
+    File outputFile = tmpFolder.newFile("output.avro");
+
+    p.apply(Create.of(values))
+      .apply(AvroIO.Write.to(outputFile.getAbsolutePath())
+          .withoutSharding()
+          .withSchema(GenericClass.class));
+    p.run();
+
+    p = DirectPipeline.createForTest();
+    PCollection<GenericClass> input = p
+        .apply(AvroIO.Read.from(outputFile.getAbsolutePath()).withSchema(GenericClass.class));
+
+    DataflowAssert.that(input).containsInAnyOrder(values);
+    p.run();
+  }
+
+  @DefaultCoder(AvroCoder.class)
+  static class GenericClassV2 {
+    int intField;
+    String stringField;
+    @Nullable String nullableField;
+    public GenericClassV2() {}
+    public GenericClassV2(int intValue, String stringValue, String nullableValue) {
+      this.intField = intValue;
+      this.stringField = stringValue;
+      this.nullableField = nullableValue;
+    }
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("intField", intField)
+          .add("stringField", stringField)
+          .add("nullableField", nullableField)
+          .toString();
+    }
+    @Override
+    public int hashCode() {
+      return Objects.hash(intField, stringField, nullableField);
+    }
+    @Override
+    public boolean equals(Object other) {
+      if (other == null || !(other instanceof GenericClassV2)) {
+        return false;
+      }
+      GenericClassV2 o = (GenericClassV2) other;
+      return Objects.equals(intField, o.intField)
+          && Objects.equals(stringField, o.stringField)
+          && Objects.equals(nullableField, o.nullableField);
+    }
+  }
+
+  /**
+   * Tests that {@code AvroIO} can read an upgraded version of an old class, as long as the
+   * schema resolution process succeeds. This test covers the case when a new, {@code @Nullable}
+   * field has been added.
+   *
+   * <p>For more information, see http://avro.apache.org/docs/1.7.7/spec.html#Schema+Resolution
+   */
+  @Test
+  public void testAvroIOWriteAndReadSchemaUpgrade() throws Throwable {
+    DirectPipeline p = DirectPipeline.createForTest();
+    List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
+        new GenericClass(5, "bar"));
+    File outputFile = tmpFolder.newFile("output.avro");
+
+    p.apply(Create.of(values))
+      .apply(AvroIO.Write.to(outputFile.getAbsolutePath())
+          .withoutSharding()
+          .withSchema(GenericClass.class));
+    p.run();
+
+    List<GenericClassV2> expected = ImmutableList.of(new GenericClassV2(3, "hi", null),
+        new GenericClassV2(5, "bar", null));
+    p = DirectPipeline.createForTest();
+    PCollection<GenericClassV2> input = p
+        .apply(AvroIO.Read.from(outputFile.getAbsolutePath()).withSchema(GenericClassV2.class));
+
+    DataflowAssert.that(input).containsInAnyOrder(expected);
+    p.run();
   }
 
   // TODO: for Write only, test withSuffix, withNumShards,
