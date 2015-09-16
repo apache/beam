@@ -61,8 +61,7 @@ import java.io.Serializable;
  * @param <T> the type of the elements of the input and output
  * {@code PCollection}s
  */
-public class Partition<T>
-    extends PTransform<PCollection<T>, PCollectionList<T>> {
+public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>> {
 
   /**
    * A function object that chooses an output partition for an element.
@@ -97,6 +96,8 @@ public class Partition<T>
     return new Partition<>(new PartitionDoFn<T>(numPartitions, partitionFn));
   }
 
+  /////////////////////////////////////////////////////////////////////////////
+
   @Override
   public PCollectionList<T> apply(PCollection<T> in) {
     final TupleTagList outputTags = partitionDoFn.getOutputTags();
@@ -119,8 +120,6 @@ public class Partition<T>
     return pcs;
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-
   private final transient PartitionDoFn<T> partitionDoFn;
 
   private Partition(PartitionDoFn<T> partitionDoFn) {
@@ -137,8 +136,7 @@ public class Partition<T>
      *
      * @throws IllegalArgumentException if {@code numPartitions <= 0}
      */
-    public PartitionDoFn(
-        int numPartitions, PartitionFn<? super X> partitionFn) {
+    public PartitionDoFn(int numPartitions, PartitionFn<? super X> partitionFn) {
       if (numPartitions <= 0) {
         throw new IllegalArgumentException("numPartitions must be > 0");
       }
