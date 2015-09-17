@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import com.google.common.base.Joiner;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -221,12 +222,19 @@ public class InstanceBuilder<T> {
       return type.cast(method.invoke(null, args));
 
     } catch (NoSuchMethodException e) {
-      throw new RuntimeException("Unable to find factory method "
-          + factoryClass.getName() + "#" + methodName);
+      throw new RuntimeException(
+          String.format("Unable to find factory method %s#%s(%s)",
+              factoryClass.getSimpleName(),
+              methodName,
+              Joiner.on(", ").join(types)));
 
     } catch (IllegalAccessException | InvocationTargetException e) {
-      throw new RuntimeException("Failed to construct instance from "
-          + "factory method " + factoryClass.getName() + "#" + methodName, e);
+      throw new RuntimeException(
+          String.format("Failed to construct instance from factory method %s#%s(%s)",
+              factoryClass.getSimpleName(),
+              methodName,
+              Joiner.on(", ").join(types)),
+          e);
     }
   }
 
