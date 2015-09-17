@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -45,23 +46,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 /**
- * A {@code CoderRegistry} allows registering the
- * default {@link Coder} to use for a Java class,
- * and looking up and instantiating the default
- * {@link Coder} for a Java type.
+ * A {@code CoderRegistry} allows registering the default {@link Coder} to use for a Java class,
+ * and looking up and instantiating the default {@link Coder} for a Java type.
  *
- * <p>{@code CoderRegistry} uses the following mechanisms to determine a
- * default {@link Coder} for a Java class, in order of precedence:
- * <ul>
- *   <li> Registration: coders can be registered explicitly via
- *        {@link #registerCoder}.  Built-in types are registered via
- *        {@link #registerStandardCoders()}.
- *   <li> Annotations: {@link DefaultCoder} can be used to annotate a type with
- *        the default {@code Coder} type.
- *   <li> Inheritance: {@code Serializable} objects are given a default
- *        {@code Coder} of {@link SerializableCoder}.
- * </ul>
+ * <p>{@code CoderRegistry} uses the following mechanisms to determine a default {@link Coder} for a
+ * Java class, in order of precedence:
+ * <ol>
+ *   <li>Registration: A {@link Coder} class can be registered explicitly via
+ *       {@link #registerCoder}.  Built-in types are registered via
+ *       {@link #registerStandardCoders()}.
+ *   <li>Annotations: {@link DefaultCoder} can be used to annotate a type with
+ *       the default {@code Coder} type.
+ *   <li>Inheritance: {@code Serializable} objects are given a default
+ *       {@code Coder} of {@link SerializableCoder}.
+ * </ol>
  */
 public class CoderRegistry implements CoderProvider {
 
@@ -107,18 +108,18 @@ public class CoderRegistry implements CoderProvider {
    * takes no generic type parameters, then the {@code of()} factory method should have no
    * arguments.
    *
-   * <p>If {@code T} is a parameterized type, then it should additionally
-   * have a method with the following signature:
+   * <p>If {@code T} is a parameterized type, then it should additionally have a method with the
+   * following signature:
    *
    * <pre> {@code
    * public static List<Object> getInstanceComponents(T exampleValue);
    * } </pre>
    *
-   * <p>This method will be called to decompose a value during the coder
-   * inference process, to automatically choose coders for the components.
+   * <p>This method will be called to decompose a value during the {@link Coder} inference process,
+   * to automatically choose {@link Coder Coders} for the components.
    *
    * @param clazz the class of objects to be encoded
-   * @param coderClazz a class with static factory methods to provide coders
+   * @param coderClazz a class with static factory methods to provide {@link Coder Coders}
    */
   public void registerCoder(Class<?> clazz, Class<?> coderClazz) {
     registerCoder(clazz, CoderFactories.fromStaticMethods(coderClazz));
@@ -152,7 +153,7 @@ public class CoderRegistry implements CoderProvider {
   }
 
   /**
-   * Returns the Coder to use by default for values of the given type.
+   * Returns the {@link Coder} to use by default for values of the given type.
    *
    * @throws CannotProvideCoderException if there is no default Coder.
    */
@@ -171,8 +172,8 @@ public class CoderRegistry implements CoderProvider {
   }
 
   /**
-   * Returns the Coder to use by default for values of the given type,
-   * where the given input type uses the given Coder.
+   * Returns the {@link Coder} to use by default for values of the given type, where the given input
+   * type uses the given {@link Coder}.
    *
    * @throws CannotProvideCoderException if there is no default Coder.
    */
@@ -186,8 +187,8 @@ public class CoderRegistry implements CoderProvider {
   }
 
   /**
-   * Returns the Coder to use on elements produced by this function, given
-   * the coder used for its input elements.
+   * Returns the {@link Coder} to use on elements produced by this function, given the {@link Coder}
+   * used for its input elements.
    */
   public <InputT, OutputT> Coder<OutputT> getDefaultOutputCoder(
       SerializableFunction<InputT, OutputT> fn, Coder<InputT> inputCoder)
@@ -204,9 +205,8 @@ public class CoderRegistry implements CoderProvider {
   }
 
   /**
-   * Returns the Coder to use for the specified type parameter specialization
-   * of the subclass, given Coders to use for all other type parameters
-   * (if any).
+   * Returns the {@link Coder} to use for the specified type parameter specialization of the
+   * subclass, given {@link Coder Coders} to use for all other type parameters (if any).
    *
    * @throws CannotProvideCoderException if there is no default Coder.
    */
@@ -230,11 +230,10 @@ public class CoderRegistry implements CoderProvider {
   }
 
   /**
-   * Returns the Coder to use for the provided example value, if it can
-   * be determined.
+   * Returns the {@link Coder} to use for the provided example value, if it can be determined.
    *
-   * @throws CannotProvideCoderException if there is no default Coder or
-   * more than one coder matches
+   * @throws CannotProvideCoderException if there is no default {@link Coder} or
+   * more than one {@link Coder} matches
    */
   public <T> Coder<T> getDefaultCoder(T exampleValue) throws CannotProvideCoderException {
     Class<?> clazz = exampleValue == null ? Void.class : exampleValue.getClass();
@@ -254,7 +253,7 @@ public class CoderRegistry implements CoderProvider {
             "Cannot provide coder based on value with class "
             + clazz + ": The registered CoderFactory with class "
             + factory.getClass() + " failed to decompose the value, "
-            + "which is required in order to provide coders for the components.");
+            + "which is required in order to provide Coders for the components.");
       }
 
       // componentcoders = components.map(this.getDefaultCoder)
@@ -269,7 +268,7 @@ public class CoderRegistry implements CoderProvider {
         }
       }
 
-      // Trust that factory.create maps from valid component coders
+      // Trust that factory.create maps from valid component Coders
       // to a valid Coder<T>.
       @SuppressWarnings("unchecked")
       Coder<T> coder = (Coder<T>) factory.create(componentCoders);
@@ -278,33 +277,126 @@ public class CoderRegistry implements CoderProvider {
   }
 
   /**
-   * Returns a Map from each of baseClass's type parameters to the Coder to
-   * use by default for it, in the context of subClass's specialization of
-   * baseClass.
+   * Returns the {@link Coder} to use by default for values of the given class. The following three
+   * sources for a {@link Coder} will be attempted, in order:
    *
-   * <p>If no coder can be inferred for a particular type parameter,
-   * then that type variable will be absent from the returned map.
+   * <ol>
+   *   <li>A {@link Coder} class registered explicitly via a call to {@link #registerCoder},
+   *   <li>A {@link DefaultCoder} annotation on the class,
+   *   <li>This registry's fallback {@link CoderProvider}, which may be able to generate a
+   *   {@link Coder} for an arbitrary class.
+   * </ol>
    *
-   * <p>For example, if baseClass is Map.class and subClass extends
-   * {@code Map<String, Integer>} then this will return the registered Coders
-   * to use for String and Integer as a {"K": stringCoder, "V": intCoder} Map.
-   * The knownCoders parameter can be used to provide known coders for any of
-   * the parameters that will be used to infer the others.
+   * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
+   */
+  public <T> Coder<T> getDefaultCoder(Class<T> clazz) throws CannotProvideCoderException {
+    if (clazz.getTypeParameters().length > 0) {
+      throw new IllegalArgumentException(
+          "CoderRegistry.getDefaultCoder(Class) cannot be used with parameterized types due to "
+              + "erasure. Instead of getDefaultCoder(" + clazz.getSimpleName() + ") "
+              + "use getDefaultCoder(new TypeDescriptor<" + clazz.getSimpleName() + "<...>>(){}).");
+    }
+
+    try {
+      CoderFactory coderFactory = getDefaultCoderFactory(clazz);
+      LOG.debug("Default coder for {} found by factory", clazz);
+      @SuppressWarnings("unchecked")
+      Coder<T> coder = (Coder<T>) coderFactory.create(Collections.<Coder<?>>emptyList());
+      return coder;
+    } catch (CannotProvideCoderException exc) {
+      // try other ways of finding one
+    }
+
+    DefaultCoder defaultAnnotation = clazz.getAnnotation(
+        DefaultCoder.class);
+    if (defaultAnnotation != null) {
+      LOG.debug("Default coder for {} found by DefaultCoder annotation", clazz);
+      @SuppressWarnings("unchecked")
+      Coder<T> coder = InstanceBuilder.ofType(Coder.class)
+          .fromClass(defaultAnnotation.value())
+          .fromFactoryMethod("of")
+          .withArg(Class.class, clazz)
+          .build();
+      return coder;
+    }
+
+    if (getFallbackCoderProvider() != null) {
+      try {
+        return getFallbackCoderProvider().getCoder(TypeDescriptor.<T>of(clazz));
+      } catch (CannotProvideCoderException exc) {
+        throw new CannotProvideCoderException(
+            "Cannot provide coder for class " + clazz + " because "
+            + "it has no " + CoderFactory.class.getSimpleName() + " registered, "
+            + "it has no " + DefaultCoder.class.getSimpleName() + " annotation, "
+            + "and the fallback " + CoderProvider.class.getSimpleName()
+            + " could not automatically create a Coder.",
+            exc);
+      }
+    } else {
+      throw new CannotProvideCoderException(
+            "Cannot provide coder for class " + clazz + " because "
+            + "it has no " + CoderFactory.class.getSimpleName() + " registered, "
+            + "it has no " + DefaultCoder.class.getSimpleName() + " annotation, "
+            + "and there is no fallback CoderProvider configured.");
+    }
+  }
+
+  /**
+   * Sets the fallback {@link CoderProvider} for this registry. If no other method succeeds in
+   * providing a {@code Coder<T>} for a type {@code T}, then the registry will attempt to create
+   * a {@link Coder} using this {@link CoderProvider}.
    *
-   * <p>Note that inference is attempted for every type variable.
-   * For a type {@code MyType<One, Two, Three>} inference will will be
-   * attempted for all of {@code One}, {@code Two}, {@code Three},
-   * even if the requester only wants a coder for {@code Two}.
+   * <p>By default, this is set to {@link SerializableCoder#PROVIDER}.
    *
-   * <p>For this reason, {@code getDefaultCoders} (plural) does not throw
-   * an exception if a coder for a particular type variable cannot be
-   * desired coder or throw a {@link CannotProvideCoderException} when appropriate.
+   * <p>See {@link #getFallbackCoderProvider}.
+   */
+  public void setFallbackCoderProvider(CoderProvider coderProvider) {
+    fallbackCoderProvider = coderProvider;
+  }
+
+  /**
+   * Returns the fallback {@link CoderProvider} for this registry.
+   *
+   * <p>See {@link #setFallbackCoderProvider}.
+   */
+  public CoderProvider getFallbackCoderProvider() {
+    return fallbackCoderProvider;
+  }
+
+  /**
+   * Returns a {@code Map} from each of {@code baseClass}'s type parameters to the {@link Coder} to
+   * use by default for it, in the context of {@code subClass}'s specialization of
+   * {@code baseClass}.
+   *
+   * <p>If no {@link Coder} can be inferred for a particular type parameter, then that type variable
+   * will be absent from the returned {@code Map}.
+   *
+   * <p>For example, if {@code baseClass} is {@code Map.class}, where {@code Map<K, V>} has type
+   * parameters {@code K} and {@code V}, and {@code subClass} extends {@code Map<String, Integer>}
+   * then the result will map the type variable {@code K} to a {@code Coder<String>} and the
+   * type variable {@code V} to a {@code Coder<Integer>}.
+   *
+   * <p>The {@code knownCoders} parameter can be used to provide known {@link Coder Coders} for any
+   * of the parameters; these will be used to infer the others.
+   *
+   * <p>Note that inference is attempted for every type variable. For a type
+   * {@code MyType<One, Two, Three>} inference will be attempted for all of {@code One},
+   * {@code Two}, {@code Three}, even if the requester only wants a {@link Coder} for {@code Two}.
+   *
+   * <p>For this reason {@code getDefaultCoders} (plural) does not throw an exception if a
+   * {@link Coder} for a particular type variable cannot be inferred, but merely omits the entry
+   * from the returned {@code Map}. It is the responsibility of the caller (usually
+   * {@link #getDefaultCoder} to extract the desired coder or throw a
+   * {@link CannotProvideCoderException} when appropriate.
    *
    * @param subClass the concrete type whose specializations are being inferred
    * @param baseClass the base type, a parameterized class
-   * @param knownCoders a map corresponding to the set of known coders indexed
-   *        by parameter name
+   * @param knownCoders a map corresponding to the set of known {@link Coder Coders} indexed by
+   * parameter name
+   *
+   * @deprecated this method is not part of the public interface and will be made private
    */
+  @Deprecated
   public <T> Map<Type, Coder<?>> getDefaultCoders(
       Class<? extends T> subClass,
       Class<T> baseClass,
@@ -326,46 +418,46 @@ public class CoderRegistry implements CoderProvider {
   }
 
   /**
-   * Returns an array listing, for each of {@code baseClass}'s type parameters, the
-   * Coder to use by default for it, in the context of {@code subClass}'s specialization
-   * of {@code baseClass}.
+   * Returns an array listing, for each of {@code baseClass}'s type parameters, the {@link Coder} to
+   * use by default for it, in the context of {@code subClass}'s specialization of
+   * {@code baseClass}.
    *
-   * <p>If a coder cannot be inferred for a type variable, its slot in the
-   * resulting array will be {@code null}.
+   * <p>If a {@link Coder} cannot be inferred for a type variable, its slot in the resulting array
+   * will be {@code null}.
    *
-   * <p>For example, if {@code baseClass} is {@code Map.class} and {@code subClass}
-   * extends {@code Map<String, Integer>} then this will return the registered Coders
-   * to use for {@code String} and {@code Integer}, in that order.
-   * The {@code knownCoders} parameter can be used to provide known coders
-   * for any of the parameters that will be used to infer the others.
+   * <p>For example, if {@code baseClass} is {@code Map.class}, where {@code Map<K, V>} has type
+   * parameters {@code K} and {@code V} in that order, and {@code subClass} extends
+   * {@code Map<String, Integer>} then the result will contain a {@code Coder<String>} and a
+   * {@code Coder<Integer>}, in that order.
    *
-   * <p>Note that inference is attempted for every type variable.
-   * For a type {@code MyType<One, Two, Three>} inference will will be
-   * attempted for all of {@code One}, {@code Two}, {@code Three},
-   * even if the requester only wants a coder for {@code Two}.
+   * <p>The {@code knownCoders} parameter can be used to provide known {@link Coder Coders} for any
+   * of the type parameters. These will be used to infer the others. If non-null, the length of this
+   * array must match the number of type parameters of {@code baseClass}, and simply be filled with
+   * {@code null} values for each type parameters without a known {@link Coder}.
    *
-   * <p>For this reason {@code getDefaultCoders} (plural) does not throw
-   * an exception if a coder for a particular type variable cannot be
-   * inferred. Instead, it results in a {@code null} in the array.
-   * It is the responsibility of the caller (usually {@link #getDefaultCoder}
-   * to extract the desired coder or throw a {@link CannotProvideCoderException}
-   * when appropriate.
+   * <p>Note that inference is attempted for every type variable. For a type
+   * {@code MyType<One, Two, Three>} inference will will be attempted for all of {@code One},
+   * {@code Two}, {@code Three}, even if the requester only wants a {@link Coder} for {@code Two}.
+   *
+   * <p>For this reason {@code getDefaultCoders} (plural) does not throw an exception if a
+   * {@link Coder} for a particular type variable cannot be inferred. Instead, it results in a
+   * {@code null} in the array. It is the responsibility of the caller (usually
+   * {@link #getDefaultCoder} to extract the desired coder or throw a
+   * {@link CannotProvideCoderException} when appropriate.
    *
    * @param subClass the concrete type whose specializations are being inferred
    * @param baseClass the base type, a parameterized class
-   * @param knownCoders an array corresponding to the set of base class
-   *        type parameters.  Each entry is can be either a Coder (in which
-   *        case it will be used for inference) or null (in which case it
-   *        will be inferred).  May be null to indicate the entire set of
-   *        parameters should be inferred.
-   * @throws IllegalArgumentException if baseClass doesn't have type parameters
-   *         or if the length of knownCoders is not equal to the number of type
-   *         parameters
+   * @param knownCoders an array corresponding to the set of base class type parameters. Each entry
+   *        can be either a {@link Coder} (in which case it will be used for inference) or
+   *        {@code null} (in which case it will be inferred). May be {@code null} to indicate the
+   *        entire set of parameters should be inferred.
+   * @throws IllegalArgumentException if baseClass doesn't have type parameters or if the length of
+   *         {@code knownCoders} is not equal to the number of type parameters of {@code baseClass}.
    */
   private <T> Coder<?>[] getDefaultCoders(
       Class<? extends T> subClass,
       Class<T> baseClass,
-      Coder<?>[] knownCoders) {
+      @Nullable Coder<?>[] knownCoders) {
     Type type = TypeDescriptor.of(subClass).getSupertype(baseClass).getType();
     if (!(type instanceof ParameterizedType)) {
       throw new IllegalArgumentException(type + " is not a ParameterizedType");
@@ -416,10 +508,10 @@ public class CoderRegistry implements CoderProvider {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Thrown when a coder cannot possibly encode a type, yet has been proposed as a coder
-   * for that type.
+   * Thrown when a {@link Coder} cannot possibly encode a type, yet has been proposed as a
+   * {@link Coder} for that type.
    */
-  static class IncompatibleCoderException extends RuntimeException {
+  @VisibleForTesting static class IncompatibleCoderException extends RuntimeException {
     private Coder<?> coder;
     private Type type;
 
@@ -445,11 +537,11 @@ public class CoderRegistry implements CoderProvider {
   }
 
   /**
-   * Returns {@code true} if the given coder can possibly encode elements
+   * Returns {@code true} if the given {@link Coder} can possibly encode elements
    * of the given type.
    */
-  static <T, CoderT extends Coder<T>, CandidateT>
-      void verifyCompatible(CoderT coder, Type candidateType) throws IncompatibleCoderException {
+  @VisibleForTesting static <T, CoderT extends Coder<T>, CandidateT>
+  void verifyCompatible(CoderT coder, Type candidateType) throws IncompatibleCoderException {
 
     // Various representations of the coder's class
     @SuppressWarnings("unchecked")
@@ -532,19 +624,19 @@ public class CoderRegistry implements CoderProvider {
    * The map of classes to the CoderFactories to use to create their
    * default Coders.
    */
-  Map<Class<?>, CoderFactory> coderFactoryMap = new HashMap<>();
+  private Map<Class<?>, CoderFactory> coderFactoryMap = new HashMap<>();
 
-   /**
-    * A provider of coders for types where no coder is registered.
-    */
-   private CoderProvider fallbackCoderProvider;
+  /**
+   * A provider of coders for types where no coder is registered.
+   */
+  private CoderProvider fallbackCoderProvider;
 
   /**
    * Returns the CoderFactory to use to create default Coders for
    * instances of the given class, or null if there is no default
    * CoderFactory registered.
    */
-  CoderFactory getDefaultCoderFactory(Class<?> clazz) throws CannotProvideCoderException {
+  private CoderFactory getDefaultCoderFactory(Class<?> clazz) throws CannotProvideCoderException {
     CoderFactory coderFactoryOrNull = coderFactoryMap.get(clazz);
     if (coderFactoryOrNull != null) {
       return coderFactoryOrNull;
@@ -561,14 +653,13 @@ public class CoderRegistry implements CoderProvider {
    *
    * @throws CannotProvideCoderException if a coder cannot be provided
    */
-  <T> Coder<T> getDefaultCoder(
+  private <T> Coder<T> getDefaultCoder(
       TypeDescriptor<T> typeDescriptor,
       Map<Type, Coder<?>> typeCoderBindings)
       throws CannotProvideCoderException {
 
-    Coder<?> defaultCoder = getDefaultCoder(typeDescriptor.getType(),
-                                            typeCoderBindings);
-    LOG.debug("Default Coder for {}: {}", typeDescriptor, defaultCoder);
+    Coder<?> defaultCoder = getDefaultCoder(typeDescriptor.getType(), typeCoderBindings);
+    LOG.debug("Default coder for {}: {}", typeDescriptor, defaultCoder);
     @SuppressWarnings("unchecked")
     Coder<T> result = (Coder<T>) defaultCoder;
     return result;
@@ -580,7 +671,7 @@ public class CoderRegistry implements CoderProvider {
    *
    * @throws CannotProvideCoderException if a coder cannot be provided
    */
-  Coder<?> getDefaultCoder(Type type, Map<Type, Coder<?>> typeCoderBindings)
+  private Coder<?> getDefaultCoder(Type type, Map<Type, Coder<?>> typeCoderBindings)
       throws CannotProvideCoderException {
     Coder<?> coder = typeCoderBindings.get(type);
     if (coder != null) {
@@ -593,7 +684,7 @@ public class CoderRegistry implements CoderProvider {
       return getDefaultCoder((ParameterizedType) type, typeCoderBindings);
     } else if (type instanceof TypeVariable || type instanceof WildcardType) {
       // No default coder for an unknown generic type.
-      throw new CannotProvideCoderException("Cannot provide a Coder for type variable "
+      throw new CannotProvideCoderException("Cannot provide a coder for type variable "
           + type + " because the actual type is unknown due to erasure.",
           ReasonCode.TYPE_ERASURE);
     } else {
@@ -604,86 +695,12 @@ public class CoderRegistry implements CoderProvider {
 
   /**
    * Returns the {@link Coder} to use by default for values of the given
-   * class.
-   *
-   * <ol>
-   * <li>A {@link Coder} class registered explicitly via
-   * a call to {@link #registerCoder},
-   * <li>A {@link DefaultCoder} annotation on the class,
-   * <li>This registry's fallback {@link CoderProvider}, which
-   * may be able to generate a coder for an arbitrary class.
-   * </ol>
-   *
-   * @throws CannotProvideCoderException if a coder cannot be provided
-   */
-  public <T> Coder<T> getDefaultCoder(Class<T> clazz) throws CannotProvideCoderException {
-    if (clazz.getTypeParameters().length > 0) {
-      throw new IllegalArgumentException(
-          "CoderRegistry.getDefaultCoder(Class) cannot be used with parameterized types due to "
-              + "erasure. Instead of getDefaultCoder(" + clazz.getSimpleName() + ") "
-              + "use getDefaultCoder(new TypeDescriptor<" + clazz.getSimpleName() + "<...>>(){}).");
-    }
-
-    try {
-      CoderFactory coderFactory = getDefaultCoderFactory(clazz);
-      LOG.debug("Default Coder for {} found by factory", clazz);
-      @SuppressWarnings("unchecked")
-      Coder<T> coder = (Coder<T>) coderFactory.create(Collections.<Coder<?>>emptyList());
-      return coder;
-    } catch (CannotProvideCoderException exc) {
-      // try other ways of finding one
-    }
-
-    DefaultCoder defaultAnnotation = clazz.getAnnotation(
-        DefaultCoder.class);
-    if (defaultAnnotation != null) {
-      LOG.debug("Default Coder for {} found by DefaultCoder annotation", clazz);
-      @SuppressWarnings("unchecked")
-      Coder<T> coder = InstanceBuilder.ofType(Coder.class)
-          .fromClass(defaultAnnotation.value())
-          .fromFactoryMethod("of")
-          .withArg(Class.class, clazz)
-          .build();
-      return coder;
-    }
-
-    if (getFallbackCoderProvider() != null) {
-      try {
-        return getFallbackCoderProvider().getCoder(TypeDescriptor.<T>of(clazz));
-      } catch (CannotProvideCoderException exc) {
-        throw new CannotProvideCoderException(
-            "Cannot provide coder for class " + clazz + " because "
-            + "it has no " + CoderFactory.class.getSimpleName() + " registered, "
-            + "it has no " + DefaultCoder.class.getSimpleName() + " annotation, "
-            + "and the fallback " + CoderProvider.class.getSimpleName()
-            + " could not automatically create a Coder.",
-            exc);
-      }
-    } else {
-      throw new CannotProvideCoderException(
-            "Cannot provide coder for class " + clazz + " because "
-            + "it has no " + CoderFactory.class.getSimpleName() + " registered, "
-            + "it has no " + DefaultCoder.class.getSimpleName() + " annotation, "
-            + "and there is no fallback CoderProvider configured.");
-    }
-  }
-
-  public void setFallbackCoderProvider(CoderProvider coderProvider) {
-    fallbackCoderProvider = coderProvider;
-  }
-
-  public CoderProvider getFallbackCoderProvider() {
-    return fallbackCoderProvider;
-  }
-
-  /**
-   * Returns the Coder to use by default for values of the given
    * parameterized type, in a context where the given types use the
-   * given coders.
+   * given {@link Coder Coders}.
    *
    * @throws CannotProvideCoderException if no coder can be provided
    */
-  Coder<?> getDefaultCoder(
+  private Coder<?> getDefaultCoder(
       ParameterizedType type,
       Map<Type, Coder<?>> typeCoderBindings)
       throws CannotProvideCoderException {
@@ -707,7 +724,7 @@ public class CoderRegistry implements CoderProvider {
   /**
    * Returns an immutable {@code Map} from each of the type variables
    * embedded in the given type to the corresponding types
-   * in the given coder.
+   * in the given {@link Coder}.
    */
   private Map<Type, Coder<?>> getTypeToCoderBindings(Type type, Coder<?> coder) {
     if (type instanceof TypeVariable || type instanceof Class) {
@@ -720,9 +737,8 @@ public class CoderRegistry implements CoderProvider {
   }
 
   /**
-   * Returns an immutable {@code Map} from the type arguments of the
-   * parameterized type to their corresponding coders, and so on recursively
-   * for their type parameters.
+   * Returns an immutable {@code Map} from the type arguments of the parameterized type to their
+   * corresponding {@link Coder Coders}, and so on recursively for their type parameters.
    *
    * <p>This method is simply a specialization to break out the most
    * elaborate case of {@link #getTypeToCoderBindings(Type, Coder)}.
