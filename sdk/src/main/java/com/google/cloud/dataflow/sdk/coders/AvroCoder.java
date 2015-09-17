@@ -109,6 +109,16 @@ import javax.annotation.Nullable;
 public class AvroCoder<T> extends StandardCoder<T> {
 
   /**
+   * Returns an {@code AvroCoder} instance for the provided element type.
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(TypeDescriptor<T> type) {
+    @SuppressWarnings("unchecked")
+    Class<T> clazz = (Class<T>) type.getRawType();
+    return of(clazz);
+  }
+
+  /**
    * Returns an {@code AvroCoder} instance for the provided element class.
    * @param <T> the element type
    */

@@ -16,11 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import org.junit.Before;
@@ -64,20 +64,37 @@ public class DefaultCoderTest {
   private static class CustomRecord extends SerializableBase {
   }
 
+  @DefaultCoder(OldCustomSerializableCoder.class)
+  private static class OldCustomRecord extends SerializableBase {
+  }
+
   private static class Unknown {
   }
 
   private static class CustomSerializableCoder extends SerializableCoder<CustomRecord> {
     // Extending SerializableCoder isn't trivial, but it can be done.
     @SuppressWarnings("unchecked")
-    public static <T extends Serializable> SerializableCoder<T> of(Class<T> recordType) {
-       Preconditions.checkArgument(
-           CustomRecord.class.isAssignableFrom(recordType));
+    public static <T extends Serializable> SerializableCoder<T> of(TypeDescriptor<T> recordType) {
+       checkArgument(recordType.isSupertypeOf(new TypeDescriptor<CustomRecord>() {}));
        return (SerializableCoder<T>) new CustomSerializableCoder();
     }
 
     protected CustomSerializableCoder() {
       super(CustomRecord.class);
+    }
+  }
+
+  private static class OldCustomSerializableCoder extends SerializableCoder<OldCustomRecord> {
+    // Extending SerializableCoder isn't trivial, but it can be done.
+    @Deprecated // old form using a Class
+    @SuppressWarnings("unchecked")
+    public static <T extends Serializable> SerializableCoder<T> of(Class<T> recordType) {
+       checkArgument(OldCustomRecord.class.isAssignableFrom(recordType));
+       return (SerializableCoder<T>) new OldCustomSerializableCoder();
+    }
+
+    protected OldCustomSerializableCoder() {
+      super(OldCustomRecord.class);
     }
   }
 
@@ -90,6 +107,8 @@ public class DefaultCoderTest {
         instanceOf(SerializableCoder.class));
     assertThat(registry.getDefaultCoder(CustomRecord.class),
         instanceOf(CustomSerializableCoder.class));
+    assertThat(registry.getDefaultCoder(OldCustomRecord.class),
+        instanceOf(OldCustomSerializableCoder.class));
   }
 
   @Test

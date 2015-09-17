@@ -51,6 +51,16 @@ import java.io.Serializable;
 public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
 
   /**
+   * Returns a {@code SerializableCoder} instance for the provided element type.
+   * @param <T> the element type
+   */
+  public static <T extends Serializable> SerializableCoder<T> of(TypeDescriptor<T> type) {
+    @SuppressWarnings("unchecked")
+    Class<T> clazz = (Class<T>) type.getRawType();
+    return of(clazz);
+  }
+
+  /**
    * Returns a {@code SerializableCoder} instance for the provided element class.
    * @param <T> the element type
    */

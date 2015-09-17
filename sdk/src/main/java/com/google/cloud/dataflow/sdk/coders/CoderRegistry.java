@@ -20,7 +20,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException.ReasonCode;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
@@ -307,17 +306,10 @@ public class CoderRegistry implements CoderProvider {
       // try other ways of finding one
     }
 
-    DefaultCoder defaultAnnotation = clazz.getAnnotation(
-        DefaultCoder.class);
-    if (defaultAnnotation != null) {
-      LOG.debug("Default coder for {} found by DefaultCoder annotation", clazz);
-      @SuppressWarnings("unchecked")
-      Coder<T> coder = InstanceBuilder.ofType(Coder.class)
-          .fromClass(defaultAnnotation.value())
-          .fromFactoryMethod("of")
-          .withArg(Class.class, clazz)
-          .build();
-      return coder;
+    try {
+      return getDefaultCoderFromAnnotation(clazz);
+    } catch (CannotProvideCoderException exc) {
+      // try other ways
     }
 
     if (getFallbackCoderProvider() != null) {
@@ -645,6 +637,24 @@ public class CoderRegistry implements CoderProvider {
           "Cannot provide coder based on value with class "
           + clazz + ": No CoderFactory has been registered for the class.");
     }
+  }
+
+  /**
+   * Returns the {@link Coder} returned according to the {@link CoderProvider} from any
+   * {@link DefaultCoder} annotation on the given class.
+   */
+  private <T> Coder<T> getDefaultCoderFromAnnotation(Class<T> clazz)
+      throws CannotProvideCoderException {
+    DefaultCoder defaultAnnotation = clazz.getAnnotation(DefaultCoder.class);
+    if (defaultAnnotation == null) {
+      throw new CannotProvideCoderException(
+          String.format("Class %s does not have a @DefaultCoder annotation.",
+              clazz.getCanonicalName()));
+    }
+
+    LOG.debug("DefaultCoder annotation found for {}", clazz);
+    CoderProvider coderProvider = CoderProviders.fromStaticMethods(defaultAnnotation.value());
+    return coderProvider.getCoder(TypeDescriptor.of(clazz));
   }
 
   /**
