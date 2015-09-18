@@ -44,6 +44,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import org.slf4j.Logger;
@@ -108,6 +109,11 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
                   "dax-shuffle-" + datasetId + "-wf-" + operationName + "-read-bytes",
                   SUM));
     }
+  }
+
+  @Override
+  protected StateKind getStateSamplerStateKind() {
+    return StateKind.FRAMEWORK;
   }
 
   @Override
@@ -185,14 +191,16 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
 
     public GroupingShuffleReaderIterator(ShuffleEntryReader reader) {
       if (GroupingShuffleReader.this.stateSampler == null) {
+        // This code path is only used in tests.
         CounterSet counterSet = new CounterSet();
         this.stateSampler = new StateSampler("local", counterSet.getAddCounterMutator());
-        this.readState = stateSampler.stateForName("shuffle");
+        this.readState = stateSampler.stateForName("shuffle", StateSampler.StateKind.FRAMEWORK);
       } else {
         checkNotNull(GroupingShuffleReader.this.stateSamplerOperationName);
         this.stateSampler = GroupingShuffleReader.this.stateSampler;
         this.readState = stateSampler.stateForName(
-            GroupingShuffleReader.this.stateSamplerOperationName + "-process");
+            GroupingShuffleReader.this.stateSamplerOperationName + "-process",
+            StateSampler.StateKind.FRAMEWORK);
       }
 
       this.rangeTracker =

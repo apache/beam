@@ -20,10 +20,14 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.SamplingCallback;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Unit tests for the {@link Counter} API.
@@ -43,8 +47,8 @@ public class StateSamplerTest {
     try (StateSampler stateSampler =
         new StateSampler("test-", counters.getAddCounterMutator(), periodMs)) {
 
-      int state1 = stateSampler.stateForName("1");
-      int state2 = stateSampler.stateForName("2");
+      int state1 = stateSampler.stateForName("1", StateSampler.StateKind.USER);
+      int state2 = stateSampler.stateForName("2", StateSampler.StateKind.USER);
 
       try (StateSampler.ScopedState s1 =
           stateSampler.scopedState(state1)) {
@@ -74,9 +78,9 @@ public class StateSamplerTest {
     try (StateSampler stateSampler =
         new StateSampler("test-", counters.getAddCounterMutator(), periodMs)) {
 
-      int state1 = stateSampler.stateForName("1");
-      int state2 = stateSampler.stateForName("2");
-      int state3 = stateSampler.stateForName("3");
+      int state1 = stateSampler.stateForName("1", StateSampler.StateKind.USER);
+      int state2 = stateSampler.stateForName("2", StateSampler.StateKind.USER);
+      int state3 = stateSampler.stateForName("3", StateSampler.StateKind.USER);
 
       try (StateSampler.ScopedState s1 =
           stateSampler.scopedState(state1)) {
@@ -115,7 +119,7 @@ public class StateSamplerTest {
     try (StateSampler stateSampler = new StateSampler("test-",
         counters.getAddCounterMutator(), periodMs)) {
 
-      int state1 = stateSampler.stateForName("1");
+      int state1 = stateSampler.stateForName("1", StateSampler.StateKind.USER);
       int previousState = stateSampler.setState(state1);
       Thread.sleep(2 * periodMs);
       stateSampler.setState(previousState);
@@ -125,5 +129,28 @@ public class StateSamplerTest {
       assertTrue(s >= periodMs - tolerance);
       assertTrue(s <= 4 * periodMs + tolerance);
     }
+  }
+
+  @Test
+  public void noSamplingAfterCloseTest() throws Exception {
+    CounterSet counters = new CounterSet();
+    long periodMs = 50;
+
+    final AtomicLong lastSampledTimeStamp = new AtomicLong();
+    try (StateSampler stateSampler = new StateSampler("test-",
+        counters.getAddCounterMutator(), periodMs)) {
+      stateSampler.setState("test", StateKind.USER);
+      stateSampler.addSamplingCallback(new SamplingCallback(){
+        @Override
+        public void run(int state, StateKind kind, long elapsedMs) {
+          lastSampledTimeStamp.set(System.currentTimeMillis());
+        }
+      });
+      Thread.sleep(3 * periodMs);
+    }
+    long cancelledTimeStamp = System.currentTimeMillis();
+    Thread.sleep(2 * periodMs);
+    assertTrue(lastSampledTimeStamp.get() > 0);
+    assertTrue(lastSampledTimeStamp.get() <= cancelledTimeStamp);
   }
 }

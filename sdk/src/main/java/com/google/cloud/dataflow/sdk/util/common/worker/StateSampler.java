@@ -18,13 +18,16 @@ package com.google.cloud.dataflow.sdk.util.common.worker;
 
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
-
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -36,7 +39,16 @@ import javax.annotation.concurrent.ThreadSafe;
  * regular intervals, with adjustment for scheduling delay.
  */
 @ThreadSafe
-public class StateSampler extends TimerTask implements AutoCloseable {
+public class StateSampler implements AutoCloseable {
+
+  /** Different kinds of states. */
+  public enum StateKind {
+    /** IO, user code, etc. */
+    USER,
+    /** Reading/writing from/to shuffle service, etc. */
+    FRAMEWORK
+  }
+
   public static final long DEFAULT_SAMPLING_PERIOD_MS = 200;
 
   private final String prefix;
@@ -46,7 +58,10 @@ public class StateSampler extends TimerTask implements AutoCloseable {
   private ArrayList<Counter<Long>> countersByState = new ArrayList<>();
 
   /** Map of state name to state. */
-  private HashMap<String, Integer> statesByName = new HashMap<>();
+  private Map<String, Integer> statesByName = new HashMap<>();
+
+  /** Map of state id to kind. */
+  private Map<Integer, StateKind> kindsByState = new HashMap<>();
 
   /** The current state. */
   private volatile int currentState;
@@ -68,15 +83,19 @@ public class StateSampler extends TimerTask implements AutoCloseable {
   private long stateTimestampNs = 0;
 
   /** Using a fixed number of timers for all StateSampler objects. */
-  private static final int NUM_TIMER_THREADS = 16;
+  private static final int NUM_EXECUTOR_THREADS = 16;
 
-  /** The timers are used for periodically sampling the states. */
-  private static Timer[] timers = new Timer[NUM_TIMER_THREADS];
-  static {
-    for (int i = 0; i < timers.length; ++i) {
-      timers[i] = new Timer("StateSampler_" + i, true /* is daemon */);
-    }
-  }
+  private static final ScheduledExecutorService executorService =
+      Executors.newScheduledThreadPool(NUM_EXECUTOR_THREADS,
+          new ThreadFactoryBuilder().setDaemon(true).build());
+
+  private Random rand = new Random();
+
+  private List<SamplingCallback> callbacks = new ArrayList<>();
+
+  private ScheduledFuture<?> invocationTriggerFuture = null;
+
+  private ScheduledFuture<?> invocationFuture = null;
 
   /**
    * Constructs a new {@link StateSampler} that can be used to obtain
@@ -90,14 +109,31 @@ public class StateSampler extends TimerTask implements AutoCloseable {
    */
   public StateSampler(String prefix,
                       CounterSet.AddCounterMutator counterSetMutator,
-                      long samplingPeriodMs) {
+                      final long samplingPeriodMs) {
     this.prefix = prefix;
     this.counterSetMutator = counterSetMutator;
     currentState = DO_NOT_SAMPLE;
-    Random rand = new Random();
-    int initialDelay = rand.nextInt((int) samplingPeriodMs);
-    timers[rand.nextInt(NUM_TIMER_THREADS)].scheduleAtFixedRate(
-        this, initialDelay, samplingPeriodMs);
+    // Here "stratified sampling" is used, which makes sure that there's 1 uniformly chosen sampled
+    // point in every bucket of samplingPeriodMs, to prevent pathological behavior in case some
+    // states happen to occur at a similar period.
+    // The current implementation uses a fixed-rate timer with a period samplingPeriodMs as a
+    // trampoline to a one-shot random timer which fires with a random delay within
+    // samplingPeriodMs.
+    invocationTriggerFuture = executorService.scheduleAtFixedRate(new Runnable(){
+      @Override
+      public void run() {
+        long delay = rand.nextInt((int) samplingPeriodMs);
+        if (invocationFuture != null) {
+          invocationFuture.cancel(false);
+        }
+        invocationFuture = executorService.schedule(new Runnable(){
+          @Override
+          public void run() {
+            StateSampler.this.run();
+          }
+        }, delay, TimeUnit.MILLISECONDS);
+      }
+    }, 0, samplingPeriodMs, TimeUnit.MILLISECONDS);
     stateTimestampNs = System.nanoTime();
   }
 
@@ -115,14 +151,25 @@ public class StateSampler extends TimerTask implements AutoCloseable {
     this(prefix, counterSetMutator, DEFAULT_SAMPLING_PERIOD_MS);
   }
 
-  @Override
   public void run() {
     long startTimestampNs = System.nanoTime();
     int state = currentState;
     if (state != DO_NOT_SAMPLE) {
+      long elapsedMs = 0;
+      StateKind kind = null;
+      List<SamplingCallback> copyOfCallbacks = new ArrayList<>();
       synchronized (this) {
-        countersByState.get(state).addValue(
-            TimeUnit.NANOSECONDS.toMillis(startTimestampNs - stateTimestampNs));
+        elapsedMs =
+          TimeUnit.NANOSECONDS.toMillis(startTimestampNs - stateTimestampNs);
+        kind = kindsByState.get(state);
+        countersByState.get(state).addValue(elapsedMs);
+        for (SamplingCallback c : callbacks) {
+          copyOfCallbacks.add(c);
+        }
+      }
+      // Invoke all callbacks.
+      for (SamplingCallback c : copyOfCallbacks) {
+        c.run(state, kind, elapsedMs);
       }
     }
     stateTimestampNs = startTimestampNs;
@@ -130,7 +177,12 @@ public class StateSampler extends TimerTask implements AutoCloseable {
 
   @Override
   public void close() {
-    this.cancel();  // cancel the TimerTask
+    if (invocationTriggerFuture != null) {
+      invocationTriggerFuture.cancel(false);
+    }
+    if (invocationFuture != null) {
+      invocationFuture.cancel(false);
+    }
   }
 
   /**
@@ -139,9 +191,10 @@ public class StateSampler extends TimerTask implements AutoCloseable {
    * transitions is done for efficiency.
    *
    * @name the name for the state
+   * @kind kind of the state, see {#code StateKind}
    * @return the state associated with the state name
    */
-  public int stateForName(String name) {
+  public int stateForName(String name, StateKind kind) {
     if (name.isEmpty()) {
       return DO_NOT_SAMPLE;
     }
@@ -155,6 +208,13 @@ public class StateSampler extends TimerTask implements AutoCloseable {
         state = countersByState.size();
         statesByName.put(name, state);
         countersByState.add(counter);
+        kindsByState.put(state, kind);
+      }
+      StateKind originalKind = kindsByState.get(state);
+      if (originalKind != kind) {
+        throw new IllegalArgumentException(
+            "for state named " + name
+            + ", requested kind " + kind + " different from the original kind " + originalKind);
       }
       return state;
     }
@@ -212,10 +272,11 @@ public class StateSampler extends TimerTask implements AutoCloseable {
    * Sets the current thread state.
    *
    * @param name the name of the new state to transition to
+   * @param kind kind of the new state
    * @return the previous state
    */
-  public int setState(String name) {
-    return setState(stateForName(name));
+  public int setState(String name, StateKind kind) {
+    return setState(stateForName(name, kind));
   }
 
   /**
@@ -229,6 +290,19 @@ public class StateSampler extends TimerTask implements AutoCloseable {
    */
   public ScopedState scopedState(int state) {
     return new ScopedState(this, setState(state));
+  }
+
+  /**
+   * Add a callback to the sampler.
+   * The callbacks will be executed sequentially upon {@link StateSampler#run}.
+   */
+  public synchronized void addSamplingCallback(SamplingCallback callback) {
+    callbacks.add(callback);
+  }
+
+  /** Get the counter prefix associated with this sampler. */
+  public String getPrefix() {
+    return prefix;
   }
 
   /**
@@ -250,5 +324,21 @@ public class StateSampler extends TimerTask implements AutoCloseable {
     public void close() {
       sampler.setState(previousState);
     }
+  }
+
+  /**
+   * Callbacks which supposed to be called sequentially upon {@link StateSampler#run}.
+   * They should be registered via {@link #addSamplingCallback}.
+   */
+  public static interface SamplingCallback {
+    /**
+     * The entrance method of the callback, it is called in {@link StateSampler#run},
+     * once per sample. This method should be thread safe.
+     *
+     * @param state The state of the StateSampler at the time of sample.
+     * @param kind The kind associated with the state, see {@link StateKind}.
+     * @param elapsedMs Milliseconds since last sample.
+     */
+    public void run(int state, StateKind kind, long elapsedMs);
   }
 }

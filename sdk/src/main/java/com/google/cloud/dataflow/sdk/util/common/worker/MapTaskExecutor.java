@@ -55,23 +55,27 @@ public class MapTaskExecutor extends WorkExecutor {
   public void execute() throws Exception {
     LOG.debug("Executing map task");
 
-    // Start operations, in reverse-execution-order, so that a
-    // consumer is started before a producer might output to it.
-    // Starting a root operation such as a ReadOperation does the work
-    // of processing the input dataset.
-    LOG.debug("Starting operations");
-    ListIterator<Operation> iterator = operations.listIterator(operations.size());
-    while (iterator.hasPrevious()) {
-      Operation op = iterator.previous();
-      op.start();
-    }
+    try (StateSampler.ScopedState state
+        = stateSampler.scopedState(
+            stateSampler.stateForName("other", StateSampler.StateKind.FRAMEWORK))) {
+      // Start operations, in reverse-execution-order, so that a
+      // consumer is started before a producer might output to it.
+      // Starting a root operation such as a ReadOperation does the work
+      // of processing the input dataset.
+      LOG.debug("Starting operations");
+      ListIterator<Operation> iterator = operations.listIterator(operations.size());
+      while (iterator.hasPrevious()) {
+        Operation op = iterator.previous();
+        op.start();
+      }
 
-    // Finish operations, in forward-execution-order, so that a
-    // producer finishes outputting to its consumers before those
-    // consumers are themselves finished.
-    LOG.debug("Finishing operations");
-    for (Operation op : operations) {
-      op.finish();
+      // Finish operations, in forward-execution-order, so that a
+      // producer finishes outputting to its consumers before those
+      // consumers are themselves finished.
+      LOG.debug("Finishing operations");
+      for (Operation op : operations) {
+        op.finish();
+      }
     }
 
     LOG.debug("Map task execution complete");
