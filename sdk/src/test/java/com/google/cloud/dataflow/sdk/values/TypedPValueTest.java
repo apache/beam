@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
@@ -135,17 +136,24 @@ public class TypedPValueTest {
         .apply(Create.of(1, 2, 3))
         .apply(ParDo.of(new EmptyClassDoFn()));
 
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("No Coder has been manually specified");
-    // Output specific to ParDo TupleTag side outputs should not be present.
-    thrown.expectMessage(not(containsString("erasure")));
-    thrown.expect(not(containsString("see TupleTag Javadoc")));
-    // Instead, expect output suggesting other possible fixes.
-    thrown.expectMessage("has no DefaultCoder annotation");
-    thrown.expectMessage("has no CoderFactory registered");
-    thrown.expectMessage("could not automatically create a Coder");
+    try {
+      input.getCoder();
+    } catch (IllegalStateException exc) {
+      String message = exc.getMessage();
 
-    input.getCoder();
+      // Output specific to ParDo TupleTag side outputs should not be present.
+      assertThat(message, not(containsString("erasure")));
+      assertThat(message, not(containsString("see TupleTag Javadoc")));
+      // Instead, expect output suggesting other possible fixes.
+      assertThat(message,
+          containsString("Building a Coder using a registered CoderFactory failed"));
+      assertThat(message,
+          containsString("Building a Coder from the @DefaultCoder annotation failed"));
+      assertThat(message,
+          containsString("Building a Coder from the fallback CoderProvider failed"));
+      return;
+    }
+    fail("Should have thrown IllegalStateException due to failure to infer a coder.");
   }
 }
 

@@ -18,10 +18,17 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry.IncompatibleCoderException;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.collect.ImmutableList;
 
@@ -185,14 +192,6 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testParameterizedDefaultCoderWrongMethod() throws Exception {
-    CoderRegistry registry = getStandardRegistry();
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("new TypeDescriptor<List<...>>(){}");
-    registry.getDefaultCoder(List.class);
-  }
-
-  @Test
   public void testTypeParameterInferenceForward() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     MyGenericClass<MyValue, List<MyValue>> instance =
@@ -315,11 +314,87 @@ public class CoderRegistryTest {
         new TypeDescriptor<List<String>>() {}.getType());
   }
 
-  static class MyGenericClass<FooT, BazT> { }
+  @Test
+  public void testDefaultCoderAnnotationGenericRawtype() throws Exception {
+    CoderRegistry registry = new CoderRegistry();
+    registry.registerStandardCoders();
+    assertEquals(
+        registry.getDefaultCoder(MySerializableGeneric.class),
+        SerializableCoder.of(MySerializableGeneric.class));
+  }
 
-  static class MyValue { }
+  @Test
+  public void testDefaultCoderAnnotationGeneric() throws Exception {
+    CoderRegistry registry = new CoderRegistry();
+    registry.registerStandardCoders();
+    assertEquals(
+        registry.getDefaultCoder(new TypeDescriptor<MySerializableGeneric<String>>() {}),
+        SerializableCoder.of(MySerializableGeneric.class));
+  }
 
-  static class MyValueCoder implements Coder<MyValue> {
+  private static class PTransformOutputingMySerializableGeneric
+  extends PTransform<PCollection<String>, PCollection<KV<String, MySerializableGeneric<String>>>> {
+
+    private class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<String>>> {
+      @Override
+      public void processElement(ProcessContext c) { }
+    }
+
+    @Override
+    public PCollection<KV<String, MySerializableGeneric<String>>>
+    apply(PCollection<String> input) {
+      return input.apply(ParDo.of(new OutputDoFn()));
+    }
+  }
+
+  /**
+   * In-context test that assures the functionality tested in
+   * {@link #testDefaultCoderAnnotationGeneric} is invoked in the right ways.
+   */
+  @Test
+  public void testSpecializedButIgnoredGenericInPipeline() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    pipeline
+        .apply(Create.of("hello", "goodbye"))
+        .apply(new PTransformOutputingMySerializableGeneric());
+
+    pipeline.run();
+  }
+
+  private static class GenericOutputMySerializedGeneric<T extends Serializable>
+  extends PTransform<
+      PCollection<String>,
+      PCollection<KV<String, MySerializableGeneric<T>>>> {
+
+    private class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<T>>> {
+      @Override
+      public void processElement(ProcessContext c) { }
+    }
+
+    @Override
+    public PCollection<KV<String, MySerializableGeneric<T>>>
+    apply(PCollection<String> input) {
+      return input.apply(ParDo.of(new OutputDoFn()));
+    }
+  }
+
+  @Test
+  public void testIgnoredGenericInPipeline() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    pipeline
+        .apply(Create.of("hello", "goodbye"))
+        .apply(new GenericOutputMySerializedGeneric<String>());
+
+    pipeline.run();
+  }
+
+  private static class MyGenericClass<FooT, BazT> { }
+
+  private static class MyValue { }
+
+  private static class MyValueCoder implements Coder<MyValue> {
 
     private static final MyValueCoder INSTANCE = new MyValueCoder();
 
@@ -389,5 +464,12 @@ public class CoderRegistryTest {
     }
   }
 
-  static class UnknownType { }
+  private static class UnknownType { }
+
+  @DefaultCoder(SerializableCoder.class)
+  private static class MySerializableGeneric<T extends Serializable> implements Serializable {
+    @SuppressWarnings("unused")
+    private T foo;
+  }
+
 }

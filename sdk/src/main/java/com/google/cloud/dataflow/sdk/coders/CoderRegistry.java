@@ -289,13 +289,8 @@ public class CoderRegistry implements CoderProvider {
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
   public <T> Coder<T> getDefaultCoder(Class<T> clazz) throws CannotProvideCoderException {
-    if (clazz.getTypeParameters().length > 0) {
-      throw new IllegalArgumentException(
-          "CoderRegistry.getDefaultCoder(Class) cannot be used with parameterized types due to "
-              + "erasure. Instead of getDefaultCoder(" + clazz.getSimpleName() + ") "
-              + "use getDefaultCoder(new TypeDescriptor<" + clazz.getSimpleName() + "<...>>(){}).");
-    }
 
+    CannotProvideCoderException factoryException;
     try {
       CoderFactory coderFactory = getDefaultCoderFactory(clazz);
       LOG.debug("Default coder for {} found by factory", clazz);
@@ -303,34 +298,45 @@ public class CoderRegistry implements CoderProvider {
       Coder<T> coder = (Coder<T>) coderFactory.create(Collections.<Coder<?>>emptyList());
       return coder;
     } catch (CannotProvideCoderException exc) {
-      // try other ways of finding one
+      factoryException = exc;
     }
 
+    CannotProvideCoderException annotationException;
     try {
       return getDefaultCoderFromAnnotation(clazz);
     } catch (CannotProvideCoderException exc) {
-      // try other ways
+      annotationException = exc;
     }
 
+    CannotProvideCoderException fallbackException;
     if (getFallbackCoderProvider() != null) {
       try {
         return getFallbackCoderProvider().getCoder(TypeDescriptor.<T>of(clazz));
       } catch (CannotProvideCoderException exc) {
-        throw new CannotProvideCoderException(
-            "Cannot provide coder for class " + clazz + " because "
-            + "it has no " + CoderFactory.class.getSimpleName() + " registered, "
-            + "it has no " + DefaultCoder.class.getSimpleName() + " annotation, "
-            + "and the fallback " + CoderProvider.class.getSimpleName()
-            + " could not automatically create a Coder.",
-            exc);
+        fallbackException = exc;
       }
     } else {
-      throw new CannotProvideCoderException(
-            "Cannot provide coder for class " + clazz + " because "
-            + "it has no " + CoderFactory.class.getSimpleName() + " registered, "
-            + "it has no " + DefaultCoder.class.getSimpleName() + " annotation, "
-            + "and there is no fallback CoderProvider configured.");
+      fallbackException = new CannotProvideCoderException("no fallback CoderProvider configured");
     }
+
+    // Build up the error message and list of causes.
+    StringBuilder messageBuilder = new StringBuilder()
+        .append("Unable to provide a default Coder for ").append(clazz.getCanonicalName())
+        .append(". Correct one of the following root causes:");
+
+    messageBuilder
+        .append("\n  Building a Coder using a registered CoderFactory failed: ")
+        .append(factoryException.getMessage());
+
+    messageBuilder
+        .append("\n  Building a Coder from the @DefaultCoder annotation failed: ")
+        .append(annotationException.getMessage());
+
+    messageBuilder
+        .append("\n  Building a Coder from the fallback CoderProvider failed: ")
+        .append(fallbackException.getMessage());
+
+    throw new CannotProvideCoderException(messageBuilder.toString());
   }
 
   /**
@@ -624,9 +630,8 @@ public class CoderRegistry implements CoderProvider {
   private CoderProvider fallbackCoderProvider;
 
   /**
-   * Returns the CoderFactory to use to create default Coders for
-   * instances of the given class, or null if there is no default
-   * CoderFactory registered.
+   * Returns the {@link CoderFactory} to use to create default {@link Coder Coders} for instances of
+   * the given class, or {@code null} if there is no default {@link CoderFactory} registered.
    */
   private CoderFactory getDefaultCoderFactory(Class<?> clazz) throws CannotProvideCoderException {
     CoderFactory coderFactoryOrNull = coderFactoryMap.get(clazz);
@@ -652,7 +657,8 @@ public class CoderRegistry implements CoderProvider {
               clazz.getCanonicalName()));
     }
 
-    LOG.debug("DefaultCoder annotation found for {}", clazz);
+    LOG.debug("DefaultCoder annotation found for {} with value {}",
+        clazz, defaultAnnotation.value());
     CoderProvider coderProvider = CoderProviders.fromStaticMethods(defaultAnnotation.value());
     return coderProvider.getCoder(TypeDescriptor.of(clazz));
   }
@@ -713,7 +719,43 @@ public class CoderRegistry implements CoderProvider {
   private Coder<?> getDefaultCoder(
       ParameterizedType type,
       Map<Type, Coder<?>> typeCoderBindings)
-      throws CannotProvideCoderException {
+          throws CannotProvideCoderException {
+
+    CannotProvideCoderException factoryException;
+    try {
+      return getDefaultCoderFromFactory(type, typeCoderBindings);
+    } catch (CannotProvideCoderException exc) {
+      factoryException = exc;
+    }
+
+    CannotProvideCoderException annotationException;
+    try {
+      Class<?> rawClazz = (Class<?>) type.getRawType();
+      return getDefaultCoderFromAnnotation(rawClazz);
+    } catch (CannotProvideCoderException exc) {
+      annotationException = exc;
+    }
+
+    // Build up the error message and list of causes.
+    StringBuilder messageBuilder = new StringBuilder()
+        .append("Unable to provide a default Coder for ").append(type)
+        .append(". Correct one of the following root causes:");
+
+    messageBuilder
+        .append("\n  Building a Coder using a registered CoderFactory failed: ")
+        .append(factoryException.getMessage());
+
+    messageBuilder
+        .append("\n  Building a Coder from the @DefaultCoder annotation failed: ")
+        .append(annotationException.getMessage());
+
+    throw new CannotProvideCoderException(messageBuilder.toString());
+  }
+
+  private Coder<?> getDefaultCoderFromFactory(
+      ParameterizedType type,
+      Map<Type, Coder<?>> typeCoderBindings)
+          throws CannotProvideCoderException {
     Class<?> rawClazz = (Class<?>) type.getRawType();
     CoderFactory coderFactory = getDefaultCoderFactory(rawClazz);
     List<Coder<?>> typeArgumentCoders = new ArrayList<>();
