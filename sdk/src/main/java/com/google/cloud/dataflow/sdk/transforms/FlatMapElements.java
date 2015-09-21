@@ -35,10 +35,8 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    *
    * <p>Example of use in Java 8:
    * <pre>{@code
-   * import static com.google.cloud.dataflow.sdk.values.TypeDescriptors.strings;
-   *
    * PCollection<String> words = lines.apply(
-   *     FlatMap.via((String line) -> line.split(...))
+   *     FlatMapElements.via((String line) -> Arrays.asList(line.split(" ")))
    *         .withOutputType(new TypeDescriptor<String>(){});
    * }</pre>
    *
@@ -62,10 +60,10 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    * <p>Example of use in Java 7:
    * <pre>{@code
    * PCollection<String> lines = ...;
-   * PCollection<String> words = lines.apply(FlatMap.via(
-   *     new SimpleFunction<String, Integer>() {
+   * PCollection<String> words = lines.apply(FlatMapElements.via(
+   *     new SimpleFunction<String, List<String>>() {
    *       public Integer apply(String line) {
-   *         return line.split(...).length;
+   *         return Arrays.asList(line.split(" "));
    *       }
    *     });
    * }</pre>
