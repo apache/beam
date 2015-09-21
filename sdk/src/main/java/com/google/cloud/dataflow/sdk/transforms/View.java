@@ -45,7 +45,7 @@ import java.util.Map;
  * {@code
  * PCollectionView<T> output = someOtherPCollection
  *     .apply(Combine.globally(...))
- *     .apply(View.asSingleton());
+ *     .apply(View.<T>asSingleton());
  * }
  * </pre>
  *
@@ -56,7 +56,7 @@ import java.util.Map;
  * <pre>
  * {@code
  * PCollectionView<List<T>> output =
- *    smallPCollection.apply(View.asList());
+ *    smallPCollection.apply(View.<T>asList());
  * }
  * </pre>
  *
@@ -67,7 +67,7 @@ import java.util.Map;
  * <pre>
  * {@code
  * PCollectionView<Map<K, V> output =
- *     somePCollection.apply(View.asMap());
+ *     somePCollection.apply(View.<K, V>asMap());
  * }
  * </pre>
  *
@@ -77,7 +77,7 @@ import java.util.Map;
  * <pre>
  * {@code
  * PCollectionView<Map<K, Iterable<V>> output =
- *     somePCollection.apply(View.asMap());
+ *     somePCollection.apply(View.<K, Iterable<V>>asMap());
  * }
  * </pre>
  *
@@ -87,7 +87,7 @@ import java.util.Map;
  * <pre>
  * {@code
  * PCollectionView<Iterable<T>> output =
- *     somePCollection.apply(View.asIterable());
+ *     somePCollection.apply(View.<T>asIterable());
  * }
  * </pre>
  *
@@ -107,7 +107,7 @@ import java.util.Map;
  * PCollection<UrlVisit> urlVisits = ... // very large collection
  * final PCollectionView<Map<URL, Page>> = urlToPage
  *     .apply(WithKeys.of( ... )) // extract the URL from the page
- *     .apply(View.asMap());
+ *     .apply(View.<URL, Page>asMap());
  *
  * PCollection PageVisits = urlVisits
  *     .apply(ParDo.withSideInputs(urlToPage)
@@ -141,7 +141,7 @@ public class View {
    * CombineFn<InputT, OutputT> yourCombineFn = ...
    * PCollectionView<OutputT> output = input
    *     .apply(Combine.globally(yourCombineFn))
-   *     .apply(View.asSingleton());
+   *     .apply(View.<OutputT>asSingleton());
    * }</pre>
    *
    * <p>If the input {@link PCollection} is empty,
@@ -191,7 +191,7 @@ public class View {
    * CombineFn<V, OutputT> yourCombineFn = ...
    * PCollectionView<Map<K, OutputT>> output = input
    *     .apply(Combine.perKey(yourCombineFn.<K>asKeyedFn()))
-   *     .apply(View.asMap());
+   *     .apply(View.<K, OutputT>asMap());
    * }</pre>
    *
    * <p>Currently, the resulting map is required to fit into memory.
@@ -210,7 +210,7 @@ public class View {
    * <pre>
    * {@code
    * PCollection<KV<K, V>> input = ... // maybe more than one occurrence of a some keys
-   * PCollectionView<Map<K, V>> output = input.apply(View.asMultimap());
+   * PCollectionView<Map<K, V>> output = input.apply(View.<K, V>asMultimap());
    * }</pre>
    *
    * <p>Currently, the resulting map is required to fit into memory.
@@ -369,7 +369,7 @@ public class View {
    * {@code
    * PCollectionView<Map<K, OutputT>> input
    *     .apply(Combine.perKey(myCombineFunction))
-   *     .apply(View.asMap());
+   *     .apply(View.<K, OutputT>asMap());
    * }</pre>
    *
    * <p>Instantiate via {@link View#asMap}.
