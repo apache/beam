@@ -23,8 +23,11 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
+
+import java.util.List;
 
 /**
  * DoFn that merges windows and groups elements in those windows, optionally
@@ -109,15 +112,17 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
           key, strategy, timerInternals, c.windowingInternals(),
           droppedDueToClosedWindow, droppedDueToLateness, reduceFnFactory.create(key));
 
-      for (WindowedValue<InputT> e : c.element().getValue()) {
-        // First, handle anything that needs to happen for this element
-        runner.processElement(e);
+      Iterable<List<WindowedValue<InputT>>> chunks =
+          Iterables.partition(c.element().getValue(), 1000);
+      for (Iterable<WindowedValue<InputT>> chunk : chunks) {
+        // Process the chunk of elements.
+        runner.processElements(chunk);
 
-        // Then, since elements are sorted by their timestamp, advance the watermark and fire any
-        // timers that need to be fired.
-        timerInternals.advanceWatermark(runner, e.getTimestamp());
+        // Then, since elements are sorted by their timestamp, advance the watermark to the first
+        // element, and fire any timers that may have been scheduled.
+        timerInternals.advanceWatermark(runner, chunk.iterator().next().getTimestamp());
 
-        // Also, fire any processing timers that need to fire
+        // Fire any processing timers that need to fire
         timerInternals.advanceProcessingTime(runner, Instant.now());
       }
 

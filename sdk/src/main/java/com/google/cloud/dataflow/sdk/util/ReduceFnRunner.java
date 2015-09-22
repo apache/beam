@@ -137,6 +137,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     return triggerRunner.isClosed(contextFactory.base(window).state());
   }
 
+  public void processElements(Iterable<WindowedValue<InputT>> values) {
+    for (WindowedValue<InputT> value : values) {
+      processElement(value);
+    }
+  }
+
   public void processElement(WindowedValue<InputT> value) {
     Lateness lateness = getLateness(value);
     if (lateness.isPastAllowedLateness) {
