@@ -27,31 +27,46 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.values.KV;
+
+import javax.annotation.Nullable;
 
 /**
  * Creates a GroupingShuffleReader from a CloudObject spec.
  */
-public class GroupingShuffleReaderFactory {
-  // Do not instantiate.
-  private GroupingShuffleReaderFactory() {}
+public class GroupingShuffleReaderFactory implements ReaderFactory {
 
-  public static <K, V> GroupingShuffleReader<K, V> create(PipelineOptions options, CloudObject spec,
-      Coder<WindowedValue<KV<K, Iterable<V>>>> coder, ExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator, String operationName)
-      throws Exception {
-    return create(options, spec, coder, (BatchModeExecutionContext) executionContext,
-                  addCounterMutator, operationName);
+  @Override
+  public Reader<?> create(
+      CloudObject spec,
+      @Nullable Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator,
+      @Nullable String operationName)
+          throws Exception {
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    Coder<WindowedValue<KV<Object, Iterable<Object>>>> typedCoder = (Coder) coder;
+    return createTyped(
+        spec, typedCoder, options, executionContext, addCounterMutator, operationName);
   }
 
-  static <K, V> GroupingShuffleReader<K, V> create(PipelineOptions options, CloudObject spec,
-      Coder<WindowedValue<KV<K, Iterable<V>>>> coder, BatchModeExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator, String operationName)
-      throws Exception {
-    return new GroupingShuffleReader<>(options,
+  public <K, V> GroupingShuffleReader<K, V> createTyped(
+      CloudObject spec,
+      @Nullable Coder<WindowedValue<KV<K, Iterable<V>>>> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator,
+      @Nullable String operationName)
+          throws Exception {
+    return new GroupingShuffleReader<K, V>(options,
         decodeBase64(getString(spec, PropertyNames.SHUFFLE_READER_CONFIG)),
         getString(spec, PropertyNames.START_SHUFFLE_POSITION, null),
-        getString(spec, PropertyNames.END_SHUFFLE_POSITION, null), coder, executionContext,
+        getString(spec, PropertyNames.END_SHUFFLE_POSITION, null),
+        coder,
+        (BatchModeExecutionContext) executionContext,
         addCounterMutator, operationName);
   }
 }

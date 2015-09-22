@@ -24,22 +24,31 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import java.util.Collections;
+
+import javax.annotation.Nullable;
 
 /**
  * Creates an InMemoryReader from a CloudObject spec.
  */
-public class InMemoryReaderFactory {
-  // Do not instantiate.
-  private InMemoryReaderFactory() {}
+public class InMemoryReaderFactory implements ReaderFactory {
 
-  public static <T> InMemoryReader<T> create(PipelineOptions options, CloudObject spec,
-      Coder<T> coder, ExecutionContext executionContext) throws Exception {
+  @Override
+  public Reader<?> create(
+      CloudObject spec,
+      @Nullable Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator,
+      @Nullable String operationName)
+          throws Exception {
     return create(spec, coder);
   }
 
-  static <T> InMemoryReader<T> create(CloudObject spec, Coder<T> coder) throws Exception {
+  <T> InMemoryReader<T> create(CloudObject spec, Coder<T> coder) throws Exception {
     return new InMemoryReader<>(
         getStrings(spec, PropertyNames.ELEMENTS, Collections.<String>emptyList()),
         getLong(spec, PropertyNames.START_INDEX, null),

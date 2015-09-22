@@ -85,18 +85,27 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 public class MapTaskExecutorFactoryTest {
+
   private PipelineOptions options;
+  private ReaderFactory.Registry readerFactoryRegistry;
 
   @Before
   public void setUp() {
     options = PipelineOptionsFactory.create();
+    readerFactoryRegistry = ReaderFactory.Registry.defaultRegistry()
+        .register(
+            TestReaderFactory.class.getName(),
+            new TestReaderFactory());
   }
 
   @Test
   public void testCreateMapTaskExecutor() throws Exception {
-    List<ParallelInstruction> instructions = Arrays.asList(createReadInstruction("Read"),
-        createParDoInstruction(0, 0, "DoFn1"), createParDoInstruction(0, 0, "DoFnWithContext"),
-        createFlattenInstruction(1, 0, 2, 0, "Flatten"), createWriteInstruction(3, 0, "Write"));
+    List<ParallelInstruction> instructions = Arrays.asList(
+        createReadInstruction("Read"),
+        createParDoInstruction(0, 0, "DoFn1"),
+        createParDoInstruction(0, 0, "DoFnWithContext"),
+        createFlattenInstruction(1, 0, 2, 0, "Flatten"),
+        createWriteInstruction(3, 0, "Write"));
 
     MapTask mapTask = new MapTask();
     mapTask.setStageName("test");
@@ -109,6 +118,7 @@ public class MapTaskExecutorFactoryTest {
         MapTaskExecutor executor = MapTaskExecutorFactory.create(
             options,
             mapTask,
+            readerFactoryRegistry,
             BatchModeExecutionContext.fromOptions(options),
             counterSet,
             sampler)) {
@@ -171,7 +181,8 @@ public class MapTaskExecutorFactoryTest {
 
   @Test
   public void testExecutionContextPlumbing() throws Exception {
-    List<ParallelInstruction> instructions = Arrays.asList(createReadInstruction("Read"),
+    List<ParallelInstruction> instructions = Arrays.asList(
+        createReadInstruction("Read"),
         createParDoInstruction(0, 0, "DoFn1", "DoFnUserName"),
         createParDoInstruction(1, 0, "DoFnWithContext", "DoFnWithContextUserName"),
         createWriteInstruction(2, 0, "Write"));
@@ -184,7 +195,12 @@ public class MapTaskExecutorFactoryTest {
 
     CounterSet counters = new CounterSet();
     try (MapTaskExecutor executor =
-        MapTaskExecutorFactory.create(options, mapTask, context, counters,
+        MapTaskExecutorFactory.create(
+            options,
+            mapTask,
+            readerFactoryRegistry,
+            context,
+            counters,
             new StateSampler(mapTask.getStageName() + "-", counters.getAddCounterMutator()))) {
       executor.execute();
     }
@@ -223,9 +239,14 @@ public class MapTaskExecutorFactoryTest {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    Operation operation = MapTaskExecutorFactory.createOperation(options,
-        createReadInstruction("Read"), BatchModeExecutionContext.fromOptions(options),
-        Collections.<Operation>emptyList(), counterPrefix, counterSet.getAddCounterMutator(),
+    Operation operation = MapTaskExecutorFactory.createOperation(
+        PipelineOptionsFactory.create(),
+        createReadInstruction("Read"),
+        readerFactoryRegistry,
+        BatchModeExecutionContext.fromOptions(options),
+        Collections.<Operation>emptyList(),
+        counterPrefix,
+        counterSet.getAddCounterMutator(),
         stateSampler);
     assertThat(operation, instanceOf(ReadOperation.class));
     ReadOperation readOperation = (ReadOperation) operation;
@@ -372,8 +393,14 @@ public class MapTaskExecutorFactoryTest {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    Operation operation = MapTaskExecutorFactory.createOperation(options,
-        instruction, context, priorOperations, counterPrefix, counterSet.getAddCounterMutator(),
+    Operation operation = MapTaskExecutorFactory.createOperation(
+        options,
+        instruction,
+        readerFactoryRegistry,
+        context,
+        priorOperations,
+        counterPrefix,
+        counterSet.getAddCounterMutator(),
         stateSampler);
     assertThat(operation, instanceOf(ParDoOperation.class));
     ParDoOperation parDoOperation = (ParDoOperation) operation;
@@ -435,9 +462,15 @@ public class MapTaskExecutorFactoryTest {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    Operation operation = MapTaskExecutorFactory.createOperation(options,
-        instruction, BatchModeExecutionContext.fromOptions(options), priorOperations, counterPrefix,
-        counterSet.getAddCounterMutator(), stateSampler);
+    Operation operation = MapTaskExecutorFactory.createOperation(
+        options,
+        instruction,
+        readerFactoryRegistry,
+        BatchModeExecutionContext.fromOptions(options),
+        priorOperations,
+        counterPrefix,
+        counterSet.getAddCounterMutator(),
+        stateSampler);
     assertThat(operation, instanceOf(PartialGroupByKeyOperation.class));
     PartialGroupByKeyOperation pgbkOperation = (PartialGroupByKeyOperation) operation;
 
@@ -495,9 +528,15 @@ public class MapTaskExecutorFactoryTest {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
-    Operation operation = MapTaskExecutorFactory.createOperation(options,
-        instruction, BatchModeExecutionContext.fromOptions(options), priorOperations, counterPrefix,
-        counterSet.getAddCounterMutator(), stateSampler);
+    Operation operation = MapTaskExecutorFactory.createOperation(
+        options,
+        instruction,
+        readerFactoryRegistry,
+        BatchModeExecutionContext.fromOptions(options),
+        priorOperations,
+        counterPrefix,
+        counterSet.getAddCounterMutator(),
+        stateSampler);
     assertThat(operation, instanceOf(FlattenOperation.class));
     FlattenOperation flattenOperation = (FlattenOperation) operation;
 

@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import org.hamcrest.CoreMatchers;
@@ -37,14 +38,23 @@ import org.junit.runners.JUnit4;
 
 import java.util.NoSuchElementException;
 
+import javax.annotation.Nullable;
+
 /**
  * Tests for ReaderFactory.
  */
 @RunWith(JUnit4.class)
 public class ReaderFactoryTest {
-  static class TestReaderFactory {
-    public static TestReader create(PipelineOptions options, CloudObject o, Coder<Integer> coder,
-        ExecutionContext executionContext) {
+
+  static class TestReaderFactory implements ReaderFactory {
+    @Override
+    public Reader<?> create(
+        CloudObject spec,
+        @Nullable Coder<?> coder,
+        @Nullable PipelineOptions options,
+        @Nullable ExecutionContext executionContext,
+        @Nullable CounterSet.AddCounterMutator addCounterMutator,
+        @Nullable String operationName) {
       return new TestReader();
     }
   }
@@ -81,10 +91,13 @@ public class ReaderFactoryTest {
     cloudSource.setSpec(spec);
     cloudSource.setCodec(makeCloudEncoding("StringUtf8Coder"));
 
-    Reader<?> reader = ReaderFactory.create(
-        PipelineOptionsFactory.create(), cloudSource,
-        BatchModeExecutionContext.fromOptions(PipelineOptionsFactory.create()),
-        null, null);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
+        cloudSource,
+        options,
+        BatchModeExecutionContext.fromOptions(options),
+        null,
+        null);
     Assert.assertThat(reader, new IsInstanceOf(TextReader.class));
   }
 
@@ -96,10 +109,15 @@ public class ReaderFactoryTest {
     cloudSource.setSpec(spec);
     cloudSource.setCodec(makeCloudEncoding("BigEndianIntegerCoder"));
 
-    Reader<?> reader = ReaderFactory.create(
-        PipelineOptionsFactory.create(), cloudSource,
-        BatchModeExecutionContext.fromOptions(PipelineOptionsFactory.create()),
-        null, null);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    ReaderFactory.Registry registry = ReaderFactory.Registry.defaultRegistry()
+        .register(TestReaderFactory.class.getName(), new TestReaderFactory());
+    Reader<?> reader = registry.create(
+        cloudSource,
+        PipelineOptionsFactory.create(),
+        BatchModeExecutionContext.fromOptions(options),
+        null,
+        null);
     Assert.assertThat(reader, new IsInstanceOf(TestReader.class));
   }
 
@@ -110,13 +128,16 @@ public class ReaderFactoryTest {
     cloudSource.setSpec(spec);
     cloudSource.setCodec(makeCloudEncoding("StringUtf8Coder"));
     try {
-      ReaderFactory.create(
-          PipelineOptionsFactory.create(), cloudSource,
-          BatchModeExecutionContext.fromOptions(PipelineOptionsFactory.create()),
-          null, null);
+      PipelineOptions options = PipelineOptionsFactory.create();
+      ReaderFactory.Registry.defaultRegistry().create(
+          cloudSource,
+          options,
+          BatchModeExecutionContext.fromOptions(options),
+          null,
+          null);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(), CoreMatchers.containsString("unable to create a source"));
+      Assert.assertThat(exn.toString(), CoreMatchers.containsString("Unable to create a Reader"));
     }
   }
 }

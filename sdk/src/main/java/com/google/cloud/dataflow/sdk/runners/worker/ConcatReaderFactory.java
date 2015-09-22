@@ -35,17 +35,61 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 /**
  * Creates an {@link ConcatReader} from a {@link CloudObject} spec.
  */
-public class ConcatReaderFactory {
-  public static <T> Reader<T> create(PipelineOptions options, CloudObject spec,
-      @SuppressWarnings("unused") Coder<T> coder, ExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator, String operationName)
-      throws Exception {
+public class ConcatReaderFactory implements ReaderFactory {
+
+  private final ReaderFactory.Registry registry;
+
+  private ConcatReaderFactory(ReaderFactory.Registry registry) {
+    this.registry = registry;
+  }
+
+  /**
+   * Returns a new {@link ConcatReaderFactory} that will use the default
+   * {@link ReaderFactory.Registry} to create sub-{@link Reader} instances.
+   */
+  public static ConcatReaderFactory withDefaultRegistry() {
+    return withRegistry(ReaderFactory.Registry.defaultRegistry());
+  }
+
+  /**
+   * Returns a new {@link ConcatReaderFactory} that will use the provided
+   * {@link ReaderFactory.Registry} to create sub-{@link Reader} instances.
+   */
+  public static ConcatReaderFactory withRegistry(ReaderFactory.Registry registry) {
+    return new ConcatReaderFactory(registry);
+  }
+
+  @Override
+  public Reader<?> create(
+      CloudObject spec,
+      @Nullable Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator,
+      @Nullable String operationName)
+          throws Exception {
+    @SuppressWarnings("unchecked")
+    Coder<Object> typedCoder = (Coder<Object>) coder;
+    return createTyped(
+        spec, typedCoder, options, executionContext, addCounterMutator, operationName);
+  }
+
+  public <T> Reader<T> createTyped(
+      CloudObject spec,
+      @Nullable Coder<T> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator,
+      @Nullable String operationName)
+          throws Exception {
     List<Source> sources = getSubSources(spec);
-    return new ConcatReader<T>(options, executionContext, addCounterMutator,
-                               operationName, sources);
+    return new ConcatReader<T>(
+        registry, options, executionContext, addCounterMutator, operationName, sources);
   }
 
   private static List<Source> getSubSources(CloudObject spec) throws Exception {

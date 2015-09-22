@@ -72,26 +72,62 @@ import javax.annotation.Nullable;
  * Creates a MapTaskExecutor from a MapTask definition.
  */
 public class MapTaskExecutorFactory {
+
   /**
-   * Creates a new MapTaskExecutor from the given MapTask definition.
+   * Creates a new MapTaskExecutor from the given MapTask definition using the default
+   * {@link ReaderFactory.Registry}.
    */
   public static MapTaskExecutor create(
-      PipelineOptions options, MapTask mapTask, DataflowExecutionContext context,
-      CounterSet counters, StateSampler stateSampler) throws Exception {
+      PipelineOptions options,
+      MapTask mapTask,
+      DataflowExecutionContext context,
+      CounterSet counters,
+      StateSampler stateSampler) throws Exception {
+    return create(
+        options,
+        mapTask,
+        ReaderFactory.Registry.defaultRegistry(),
+        context,
+        counters,
+        stateSampler);
+  }
+
+  /**
+   * Creates a new MapTaskExecutor from the given MapTask definition using the provided
+   * {@link ReaderFactory.Registry}.
+   */
+  public static MapTaskExecutor create(
+      PipelineOptions options,
+      MapTask mapTask,
+      ReaderFactory.Registry registry,
+      DataflowExecutionContext context,
+      CounterSet counters,
+      StateSampler stateSampler)
+          throws Exception {
+
     List<Operation> operations = new ArrayList<>();
     String counterPrefix = stateSampler.getPrefix();
 
     // Instantiate operations for each instruction in the graph.
     for (ParallelInstruction instruction : mapTask.getInstructions()) {
-      operations.add(createOperation(options, instruction, context, operations, counterPrefix,
-          counters.getAddCounterMutator(), stateSampler));
+      operations.add(createOperation(
+          options,
+          instruction,
+          registry,
+          context,
+          operations,
+          counterPrefix,
+          counters.getAddCounterMutator(),
+          stateSampler));
     }
 
     return new MapTaskExecutor(operations, counters, stateSampler);
+
   }
 
   /**
-   * Creates an Operation from the given ParallelInstruction definition.
+   * Creates an Operation from the given ParallelInstruction definition using the provided
+   * {@link ReaderFactory.Registry}.
    */
   static Operation createOperation(
       PipelineOptions options,
@@ -101,10 +137,42 @@ public class MapTaskExecutorFactory {
       String counterPrefix,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler)
-      throws Exception {
+          throws Exception {
+    return createOperation(
+        options,
+        instruction,
+        ReaderFactory.Registry.defaultRegistry(),
+        executionContext,
+        priorOperations,
+        counterPrefix,
+        addCounterMutator,
+        stateSampler);
+  }
+
+  /**
+   * Creates an Operation from the given ParallelInstruction definition using the provided
+   * {@link ReaderFactory.Registry}.
+   */
+  static Operation createOperation(
+      PipelineOptions options,
+      ParallelInstruction instruction,
+      ReaderFactory.Registry registry,
+      DataflowExecutionContext executionContext,
+      List<Operation> priorOperations,
+      String counterPrefix,
+      CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler)
+          throws Exception {
     if (instruction.getRead() != null) {
-      return createReadOperation(options, instruction, executionContext, priorOperations,
-          counterPrefix, addCounterMutator, stateSampler);
+      return createReadOperation(
+          options,
+          instruction,
+          registry,
+          executionContext,
+          priorOperations,
+          counterPrefix,
+          addCounterMutator,
+          stateSampler);
     } else if (instruction.getWrite() != null) {
       return createWriteOperation(options, instruction, executionContext, priorOperations,
           counterPrefix, addCounterMutator, stateSampler);
@@ -125,6 +193,7 @@ public class MapTaskExecutorFactory {
   static ReadOperation createReadOperation(
       PipelineOptions options,
       ParallelInstruction instruction,
+      ReaderFactory.Registry registry,
       DataflowExecutionContext executionContext,
       @SuppressWarnings("unused") List<Operation> priorOperations,
       String counterPrefix,
@@ -134,8 +203,8 @@ public class MapTaskExecutorFactory {
     ReadInstruction read = instruction.getRead();
 
     String operationName = instruction.getSystemName();
-    Reader<?> reader = ReaderFactory.create(options, read.getSource(), executionContext,
-        addCounterMutator, operationName);
+    Reader<?> reader = registry.create(
+        read.getSource(), options, executionContext, addCounterMutator, operationName);
 
     OutputReceiver[] receivers =
         createOutputReceivers(instruction, counterPrefix, addCounterMutator, stateSampler, 1);

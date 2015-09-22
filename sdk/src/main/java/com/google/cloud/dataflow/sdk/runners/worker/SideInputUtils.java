@@ -95,10 +95,10 @@ public class SideInputUtils {
       Observer observer,
       ExecutionContext executionContext)
       throws Exception {
-    Reader<Object> reader = ReaderFactory.create(options, sideInputSource, executionContext,
-                                                 // We don't do shuffle sanity check on side inputs,
-                                                 // as they don't have to be read completely.
-                                                 null, null);
+    // We don't do shuffle sanity check on side inputs, as they don't have to be read completely.
+    @SuppressWarnings("unchecked")
+    Reader<Object> reader = (Reader<Object>) ReaderFactory.Registry.defaultRegistry().create(
+        sideInputSource, options, executionContext, null, null);
     if (observer != null) {
       reader.addObserver(observer);
     }

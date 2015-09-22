@@ -20,38 +20,43 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getBoolean;
 import static com.google.cloud.dataflow.sdk.util.Structs.getLong;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
-import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.Serializer;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+
+import javax.annotation.Nullable;
 
 /**
  * Creates a TextReader from a CloudObject spec.
  */
-public class TextReaderFactory {
-  // Do not instantiate.
+public class TextReaderFactory implements ReaderFactory {
+
+  private static final TextReaderFactory INSTANCE = new TextReaderFactory();
+
+  public static TextReaderFactory getInstance() {
+    return INSTANCE;
+  }
+
   private TextReaderFactory() {}
 
-  public static <T> TextReader<T> create(PipelineOptions options, CloudObject spec, Coder<T> coder,
-      ExecutionContext executionContext) throws Exception {
+  @Override
+  public Reader<?> create(
+      CloudObject spec,
+      @Nullable Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator,
+      @Nullable String operationName)
+          throws Exception {
     return create(spec, coder);
   }
 
-  static <T> TextReader<T> create(CloudObject spec, Coder<T> coder) throws Exception {
-    return create(spec, coder, true);
-  }
-
-  public static <T> TextReader<T> create(Source spec) throws Exception {
-    return create(
-        CloudObject.fromSpec(spec.getSpec()), Serializer.deserialize(spec.getCodec(), Coder.class));
-  }
-
-  static <T> TextReader<T> create(CloudObject spec, Coder<T> coder, boolean useDefaultBufferSize)
-      throws Exception {
+  public <T> TextReader<T> create(CloudObject spec, Coder<T> coder) throws Exception {
     String filenameOrPattern = getString(spec, PropertyNames.FILENAME, null);
     if (filenameOrPattern == null) {
       filenameOrPattern = getString(spec, PropertyNames.FILEPATTERN, null);
@@ -60,7 +65,7 @@ public class TextReaderFactory {
         getBoolean(spec, PropertyNames.STRIP_TRAILING_NEWLINES, true),
         getLong(spec, PropertyNames.START_OFFSET, null),
         getLong(spec, PropertyNames.END_OFFSET, null), coder,
-        useDefaultBufferSize,
+        true /* useDefaultBufferSize */,
         Enum.valueOf(TextIO.CompressionType.class,
             getString(spec, PropertyNames.COMPRESSION_TYPE, "AUTO")));
   }

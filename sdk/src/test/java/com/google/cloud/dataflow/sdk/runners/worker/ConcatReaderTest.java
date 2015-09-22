@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader.DynamicSplitResult;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator;
@@ -52,6 +53,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import javax.annotation.Nullable;
+
 /**
  * Tests for {@code ConcatReader}.
  */
@@ -64,9 +67,13 @@ public class ConcatReaderTest {
 
   private List<TestReader<?>> recordedReaders = new ArrayList<>();
 
+  private ReaderFactory.Registry registry;
+
   @Before
   public void setUp() {
     recordedReaders.clear();
+    registry = ReaderFactory.Registry.defaultRegistry()
+        .register(TestReader.class.getName(), new TestReaderFactory());
   }
 
   /**
@@ -162,15 +169,19 @@ public class ConcatReaderTest {
     }
   }
 
-  // This create method was defined outside "TestReader" since a static method has to be in a static
-  // or a top level class. "TestReader" was not defined static since it needs to have access to the
-  // "recordedReaders" instance variable.
-  static <T> TestReader<T> create(@SuppressWarnings("unused") PipelineOptions options,
-      CloudObject spec, @SuppressWarnings("unused") Coder<T> coder,
-      @SuppressWarnings("unused") ExecutionContext executionContext) throws Exception {
-    @SuppressWarnings("unchecked")
-    TestReader<T> reader = (TestReader<T>) spec.get(READER_OBJECT);
-    return reader;
+  private static class TestReaderFactory implements ReaderFactory {
+    @Override
+    public Reader<?> create(
+        CloudObject spec,
+        @Nullable Coder<?> coder,
+        @Nullable PipelineOptions options,
+        @Nullable ExecutionContext executionContext,
+        @Nullable CounterSet.AddCounterMutator addCounterMutator,
+        @Nullable String operationName)
+            throws Exception {
+      Reader<?> reader = (Reader<?>) spec.get(READER_OBJECT);
+      return reader;
+    }
   }
 
   private TestReader<String> createTestReader(long recordsPerReader, long recordToFailAt,
@@ -197,7 +208,7 @@ public class ConcatReaderTest {
 
   private Source createSourceForTestReader(TestReader<String> testReader) {
     Source source = new Source();
-    CloudObject specObj = CloudObject.forClass(ConcatReaderTest.class);
+    CloudObject specObj = CloudObject.forClass(TestReader.class);
     specObj.put(READER_OBJECT, testReader);
     source.setSpec(specObj);
     return source;
@@ -208,11 +219,19 @@ public class ConcatReaderTest {
     List<Source> sourceList = new ArrayList<>();
 
     for (int items : recordsPerReader) {
-      sourceList.add(createSourceForTestReader(createTestReader(items/* recordsPerReader */,
-          -1/* recordToFailAt */, false/* failWhenClosing */, expected)));
+      sourceList.add(createSourceForTestReader(createTestReader(
+          items /* recordsPerReader */,
+          -1 /* recordToFailAt */,
+          false /* failWhenClosing */,
+          expected)));
     }
-    return new ConcatReader<String>(null /* options */, null /* executionContext */,
-        null /* addCounterMutator */, null /* operationName */, sourceList);
+    return new ConcatReader<>(
+        registry,
+        null /* options */,
+        null /* executionContext */,
+        null /* addCounterMutator */,
+        null /* operationName */,
+        sourceList);
   }
 
   private void testReadersOfSizes(int... recordsPerReader) throws Exception {
@@ -228,15 +247,25 @@ public class ConcatReaderTest {
   @Test
   public void testCreateFromNull() throws Exception {
     expectedException.expect(NullPointerException.class);
-    new ConcatReader<String>(null /* options */, null /* executionContext */,
-        null /* addCounterMutator */, null /* operationName */, null /* sources */);
+    new ConcatReader<String>(
+        registry,
+        null /* options */,
+        null /* executionContext */,
+        null /* addCounterMutator */,
+        null /* operationName */,
+        null /* sources */);
   }
 
   @Test
   public void testReadEmptyList() throws Exception {
-    ConcatReader<String> concat = new ConcatReader<>(null /* options */,
-        null /* executionContext */, null /* addCounterMutator */, null /* operationName */,
-        new ArrayList<Source>());
+    ConcatReader<String> concat =
+        new ConcatReader<>(
+            registry,
+            null /* options */,
+            null /* executionContext */,
+            null /* addCounterMutator */,
+            null /* operationName */,
+            new ArrayList<Source>());
     ReaderIterator<String> iterator = concat.iterator();
     assertNotNull(iterator);
     assertFalse(concat.iterator().hasNext());
@@ -286,9 +315,13 @@ public class ConcatReaderTest {
         createSourceForTestReader(createTestReader(10/* recordsPerReader */, -1/* recordToFailAt */,
             false/* failWhenClosing */, new ArrayList<String>())));
 
-    ConcatReader<String> concatReader = new ConcatReader<>(null /* options */,
-        null /* executionContext */, null /* addCounterMutator */,
-        null /* operationName */, sources);
+    ConcatReader<String> concatReader = new ConcatReader<>(
+        registry,
+        null /* options */,
+        null /* executionContext */,
+        null /* addCounterMutator */,
+        null /* operationName */,
+        sources);
     List<String> actual = new ArrayList<>();
     try {
       readFully(concatReader, actual);
@@ -313,9 +346,13 @@ public class ConcatReaderTest {
     expected = expected.subList(0, 16);
     assertEquals(16, expected.size());
 
-    ConcatReader<String> concatReader = new ConcatReader<>(null  /* options */,
-        null  /* executionContext */, null  /* addCounterMutator */,
-        null  /* operationName */, sources);
+    ConcatReader<String> concatReader = new ConcatReader<>(
+        registry,
+        null  /* options */,
+        null  /* executionContext */,
+        null  /* addCounterMutator */,
+        null  /* operationName */,
+        sources);
     List<String> actual = new ArrayList<>();
     try {
       readFully(concatReader, actual);

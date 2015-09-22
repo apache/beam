@@ -38,7 +38,6 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.protobuf.ByteString;
 
 import org.joda.time.Instant;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -90,9 +89,10 @@ public class WindowingWindmillReaderTest {
                 KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())),
             GlobalWindow.Coder.INSTANCE);
 
-    ReaderIterator<WindowedValue<TimerOrElement<KV<String, String>>>> iterator =
-        WindowingWindmillReader.<KV<String, String>>create(null, null, coder, mockContext)
-            .iterator();
+    WindowingWindmillReader<KV<String, String>> reader =
+        WindowingWindmillReader.create(coder, mockContext);
+
+    ReaderIterator<WindowedValue<TimerOrElement<KV<String, String>>>> iterator = reader.iterator();
     List<WindowedValue<TimerOrElement<KV<String, String>>>> result = new ArrayList<>();
     while (iterator.hasNext()) {
       result.add(iterator.next());

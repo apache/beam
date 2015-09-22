@@ -50,6 +50,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils;
 import com.google.cloud.dataflow.sdk.runners.worker.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -59,6 +60,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 import com.google.cloud.dataflow.sdk.values.PValue;
@@ -76,6 +78,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+
+import javax.annotation.Nullable;
 
 /**
  * A helper class for supporting sources defined as {@code Source}.
@@ -168,27 +172,47 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   }
 
   /**
-   * Factory method allowing this class to satisfy the implicit contract of
-   * {@link com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory}.
+   * Factory to create a {@link BasicSerializableSourceFormat} from a Dataflow API
+   * source specification.
    */
-  public static <T> Reader<WindowedValue<T>> create(
-      final PipelineOptions options, final CloudObject spec, Coder<WindowedValue<T>> coder,
+  public static class Factory implements ReaderFactory {
+    @Override
+    public Reader<?> create(
+        CloudObject spec,
+        @Nullable Coder<?> coder,
+        @Nullable PipelineOptions options,
+        @Nullable ExecutionContext executionContext,
+        @Nullable CounterSet.AddCounterMutator addCounterMutator,
+        @Nullable String operationName)
+            throws Exception {
+      // The parameter "coder" is deliberately never used. It is an artifact of ReaderFactory:
+      // some readers need a coder, some don't (i.e. for some it doesn't even make sense),
+      // but ReaderFactory passes it to all readers anyway.
+      return BasicSerializableSourceFormat.create(spec, options, executionContext);
+    }
+  }
+
+  public static Reader<WindowedValue<?>> create(
+      final CloudObject spec,
+      final PipelineOptions options,
       ExecutionContext executionContext) throws Exception {
-    // The parameter "coder" is deliberately never used. It is an artifact of ReaderFactory:
-    // some readers need a coder, some don't (i.e. for some it doesn't even make sense),
-    // but ReaderFactory passes it to all readers anyway.
-    final Source<T> source = (Source<T>) deserializeFromCloudSource(spec);
+
+    @SuppressWarnings("unchecked")
+    final Source<Object> source = (Source<Object>) deserializeFromCloudSource(spec);
+
     if (source instanceof BoundedSource) {
-      return new Reader<WindowedValue<T>>() {
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Reader<WindowedValue<?>> reader = (Reader) new Reader<WindowedValue<Object>>() {
         @Override
-        public Reader.ReaderIterator<WindowedValue<T>> iterator() throws IOException {
+        public Reader.ReaderIterator<WindowedValue<Object>> iterator() throws IOException {
           return new BoundedReaderIterator<>(
-              ((BoundedSource<T>) source).createReader(options));
+              ((BoundedSource<Object>) source).createReader(options));
         }
       };
+      return reader;
     } else if (source instanceof UnboundedSource) {
       @SuppressWarnings({"unchecked", "rawtypes"})
-      Reader<WindowedValue<T>> reader = new UnboundedReader(
+      Reader<WindowedValue<?>> reader = (Reader) new UnboundedReader<Object>(
           options, spec, (StreamingModeExecutionContext) executionContext);
       return reader;
     } else {

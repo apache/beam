@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.util.TimerOrElement;
 import com.google.cloud.dataflow.sdk.util.TimerOrElement.TimerOrElementCoder;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
@@ -43,6 +44,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nullable;
 
 /**
  * A Reader that receives input data from a Windmill server, and returns it as
@@ -64,11 +67,31 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
     this.context = context;
   }
 
-  public static <T> WindowingWindmillReader<T> create(PipelineOptions options,
-                                             CloudObject spec,
-                                             Coder coder,
-                                             ExecutionContext context) {
-    return new WindowingWindmillReader<>(coder, (StreamingModeExecutionContext) context);
+  static class Factory implements ReaderFactory {
+    @Override
+    public Reader<?> create(
+        CloudObject spec,
+        @Nullable Coder<?> coder,
+        @Nullable PipelineOptions options,
+        @Nullable ExecutionContext context,
+        @Nullable CounterSet.AddCounterMutator addCounterMutator,
+        @Nullable String operationName)
+            throws Exception {
+      @SuppressWarnings({"rawtypes", "unchecked"})
+      Coder<WindowedValue<TimerOrElement<Object>>> typedCoder =
+          (Coder<WindowedValue<TimerOrElement<Object>>>) coder;
+      return WindowingWindmillReader.create(typedCoder, (StreamingModeExecutionContext) context);
+    }
+  }
+
+  /**
+   * Creates a {@link WindowingWindmillReader} from the provided {@link Coder}
+   * and {@link StreamingModeExecutionContext}.
+   */
+  public static <T> WindowingWindmillReader<T> create(
+      Coder<WindowedValue<TimerOrElement<T>>> coder,
+      StreamingModeExecutionContext context) {
+    return new WindowingWindmillReader<T>(coder, context);
   }
 
   @Override
@@ -88,7 +111,8 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
 
     private WindowingWindmillReaderIterator() throws IOException {
       if (valueCoder instanceof KvCoder) {
-        key = ((KvCoder) valueCoder).getKeyCoder().decode(
+        KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;
+        key = kvCoder.getKeyCoder().decode(
             context.getSerializedKey().newInput(), Coder.Context.OUTER);
       }
 
@@ -185,12 +209,12 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
             windowsCoder, message.getMetadata());
         PaneInfo pane = WindmillSink.decodeMetadataPane(message.getMetadata());
         if (valueCoder instanceof KvCoder) {
-          KvCoder kvCoder = (KvCoder) valueCoder;
+          KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;
           notifyElementRead(
               context.getSerializedKey().size() + data.available() + metadata.available());
-          return WindowedValue.of(
-              TimerOrElement.element((T) KV.of(key, decode(kvCoder.getValueCoder(), data))),
-              timestampMillis, windows, pane);
+          @SuppressWarnings("unchecked")
+          T result = (T) KV.of(key, decode(kvCoder.getValueCoder(), data));
+          return WindowedValue.of(TimerOrElement.element(result), timestampMillis, windows, pane);
         } else {
           notifyElementRead(data.available() + metadata.available());
           return WindowedValue.of(TimerOrElement.element(decode(valueCoder, data)),
@@ -201,7 +225,7 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<TimerOrElement<T>>
       }
     }
 
-    private <T> T decode(Coder<T> coder, InputStream input) throws IOException {
+    private <X> X decode(Coder<X> coder, InputStream input) throws IOException {
       return coder.decode(input, Coder.Context.OUTER);
     }
   }

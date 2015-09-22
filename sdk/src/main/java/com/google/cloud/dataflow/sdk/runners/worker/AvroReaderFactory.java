@@ -25,28 +25,37 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.ValueOnlyWindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+
+import javax.annotation.Nullable;
 
 /**
  * Creates an AvroReader from a CloudObject spec.
  */
-@SuppressWarnings("rawtypes")
-public class AvroReaderFactory {
-  // Do not instantiate.
-  private AvroReaderFactory() {}
+public class AvroReaderFactory implements ReaderFactory {
 
-  public static <T> Reader<T> create(PipelineOptions options, CloudObject spec, Coder<T> coder,
-      ExecutionContext executionContext) throws Exception {
+  public AvroReaderFactory() {}
+
+  @Override
+  public Reader<?> create(
+      CloudObject spec,
+      @Nullable Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator,
+      @Nullable String operationName)
+          throws Exception {
     return create(spec, coder);
   }
 
-  static <T> Reader<T> create(CloudObject spec, Coder<T> coder) throws Exception {
+  Reader<?> create(CloudObject spec, Coder<?> coder) throws Exception {
     String filename = getString(spec, PropertyNames.FILENAME);
     Long startOffset = getLong(spec, PropertyNames.START_OFFSET, null);
     Long endOffset = getLong(spec, PropertyNames.END_OFFSET, null);
 
     if (coder instanceof ValueOnlyWindowedValueCoder) {
-      return (Reader<T>) new AvroReader(
+      return new AvroReader<>(
           filename, startOffset, endOffset, (ValueOnlyWindowedValueCoder<?>) coder);
     } else {
       return new AvroByteReader<>(filename, startOffset, endOffset, coder);

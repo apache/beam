@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.ValueOnlyWindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import org.joda.time.Instant;
@@ -31,24 +32,36 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nullable;
+
 /**
  * A Reader that receives elements from Pubsub, via a Windmill server.
  */
 class PubsubReader<T> extends Reader<WindowedValue<T>> {
-  private final ValueOnlyWindowedValueCoder coder;
+  private final ValueOnlyWindowedValueCoder<?> coder;
   private StreamingModeExecutionContext context;
 
   PubsubReader(Coder<WindowedValue<T>> coder, StreamingModeExecutionContext context) {
-    this.coder = (ValueOnlyWindowedValueCoder) coder;
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    ValueOnlyWindowedValueCoder<?> typedCoder = (ValueOnlyWindowedValueCoder) coder;
+    this.coder = typedCoder;
     this.context = context;
   }
 
-  public static <T> PubsubReader<T> create(
-      PipelineOptions options,
-      CloudObject spec,
-      Coder<WindowedValue<T>> coder,
-      ExecutionContext context) {
-    return new PubsubReader<>(coder, (StreamingModeExecutionContext) context);
+  static class Factory implements ReaderFactory {
+    @Override
+    public Reader<?> create(
+        CloudObject cloudSourceSpec,
+        @Nullable Coder<?> coder,
+        @Nullable PipelineOptions options,
+        @Nullable ExecutionContext executionContext,
+        @Nullable CounterSet.AddCounterMutator addCounterMutator,
+        @Nullable String operationName)
+        throws Exception {
+      @SuppressWarnings("unchecked")
+      Coder<WindowedValue<Object>> typedCoder = (Coder<WindowedValue<Object>>) coder;
+      return new PubsubReader<>(typedCoder, (StreamingModeExecutionContext) executionContext);
+    }
   }
 
   @Override
@@ -81,6 +94,7 @@ class PubsubReader<T> extends Reader<WindowedValue<T>> {
       long timestampMillis = TimeUnit.MICROSECONDS.toMillis(message.getTimestamp());
       InputStream data = message.getData().newInput();
       notifyElementRead(data.available());
+      @SuppressWarnings("unchecked")
       T value = (T) coder.getValueCoder().decode(data, Coder.Context.OUTER);
       return WindowedValue.timestampedValueInGlobalWindow(value, new Instant(timestampMillis));
     }

@@ -353,8 +353,13 @@ public class BasicSerializableSourceFormatTest {
     // now check that we are wrapping it correctly.
     DataflowPipelineOptions options = PipelineOptionsFactory.create()
         .as(DataflowPipelineOptions.class);
-    Reader<WindowedValue<Integer>> reader = ReaderFactory.create(
-        options, translateIOToCloudSource(TestIO.fromRange(10, 20), options), null, null, null);
+    Reader<WindowedValue<Integer>> reader =
+        (Reader<WindowedValue<Integer>>) ReaderFactory.Registry.defaultRegistry().create(
+            translateIOToCloudSource(TestIO.fromRange(10, 20), options),
+            options,
+            null, // executionContext
+            null, // addCounterMutator
+            null); // operationName
     try (Reader.ReaderIterator<WindowedValue<Integer>> iterator = reader.iterator()) {
       assertTrue(iterator.hasNext());
       assertEquals(
@@ -641,20 +646,21 @@ public class BasicSerializableSourceFormatTest {
           null, // StateFetcher
           Windmill.WorkItemCommitRequest.newBuilder());
 
-      Reader.ReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
-          BasicSerializableSourceFormat.<ValueWithRecordId<KV<Integer, Integer>>>create(
-                  options,
-                  (CloudObject)
-                      BasicSerializableSourceFormat.serializeToCloudSource(
-                              new CountingSource(Integer.MAX_VALUE), options)
-                          .getSpec(),
-                  null,
-                  context)
-              .iterator();
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Reader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader = (Reader)
+          BasicSerializableSourceFormat.create(
+              (CloudObject) BasicSerializableSourceFormat.serializeToCloudSource(
+                  new CountingSource(Integer.MAX_VALUE), options)
+              .getSpec(),
+              options,
+              context);
+
+      Reader.ReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> iterator =
+          reader.iterator();
 
       // Verify data.
-      while (reader.hasNext()) {
-        value = reader.next();
+      while (iterator.hasNext()) {
+        value = iterator.next();
         assertEquals(KV.of(0, i), value.getValue().getValue());
         assertArrayEquals(
             encodeToByteArray(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()), KV.of(0, i)),

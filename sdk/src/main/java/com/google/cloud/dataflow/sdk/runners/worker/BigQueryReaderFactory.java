@@ -26,15 +26,32 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+
+import javax.annotation.Nullable;
 
 /**
  * Creates a BigQueryReader from a {@link CloudObject} spec.
  */
-public class BigQueryReaderFactory {
-  // Do not instantiate.
-  private BigQueryReaderFactory() {}
+public class BigQueryReaderFactory implements ReaderFactory {
 
-  public static BigQueryReader create(PipelineOptions options, CloudObject spec, Coder<?> coder,
+  @Override
+  public Reader<?> create(
+      CloudObject spec,
+      @Nullable Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator,
+      @Nullable String operationName)
+          throws Exception {
+    return createTyped(spec, coder, options, executionContext);
+  }
+
+  public BigQueryReader createTyped(
+      CloudObject spec,
+      Coder<?> coder,
+      PipelineOptions options,
       ExecutionContext executionContext) throws Exception {
     String query = getString(spec, PropertyNames.BIGQUERY_QUERY, null);
     if (query != null) {

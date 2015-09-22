@@ -69,10 +69,12 @@ public class InMemoryReaderFactoryTest {
       int expectedEnd, Coder<T> coder) throws Exception {
     Source cloudSource = createInMemoryCloudSource(elements, start, end, coder);
 
-    Reader<?> reader = ReaderFactory.create(
-        PipelineOptionsFactory.create(), cloudSource,
+    Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
+        cloudSource,
+        PipelineOptionsFactory.create(),
         BatchModeExecutionContext.fromOptions(PipelineOptionsFactory.create()),
-        null, null);
+        null,
+        null);
     Assert.assertThat(reader, new IsInstanceOf(InMemoryReader.class));
     InMemoryReader<?> inMemoryReader = (InMemoryReader<?>) reader;
     Assert.assertEquals(encodedElements(elements, coder), inMemoryReader.encodedElements);

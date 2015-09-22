@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.api.client.util.Base64.decodeBase64;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -25,21 +26,43 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.values.KV;
+
+import javax.annotation.Nullable;
 
 /**
  * Creates a PartitioningShuffleReader from a CloudObject spec.
  */
-public class PartitioningShuffleReaderFactory {
-  // Do not instantiate.
-  private PartitioningShuffleReaderFactory() {}
+public class PartitioningShuffleReaderFactory implements ReaderFactory {
 
-  public static <K, V> PartitioningShuffleReader<K, V> create(PipelineOptions options,
-      CloudObject spec, Coder<WindowedValue<KV<K, V>>> coder, ExecutionContext executionContext)
+  @Override
+  public Reader<?> create(
+      CloudObject spec,
+      @Nullable Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator,
+      @Nullable String operationName)
+          throws Exception {
+    checkNotNull(options, "PipelineOptions must not be null in PartitioningShuffleReaderFactory");
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    Coder<WindowedValue<KV<Object, Object>>> typedCoder =
+        (Coder<WindowedValue<KV<Object, Object>>>) coder;
+    return createTyped(spec, options, typedCoder);
+  }
+
+  public <K, V> PartitioningShuffleReader<K, V> createTyped(
+      CloudObject spec,
+      PipelineOptions options,
+      Coder<WindowedValue<KV<K, V>>> coder)
       throws Exception {
-    return new PartitioningShuffleReader<K, V>(options,
+    return new PartitioningShuffleReader<K, V>(
+        options,
         decodeBase64(getString(spec, PropertyNames.SHUFFLE_READER_CONFIG)),
         getString(spec, PropertyNames.START_SHUFFLE_POSITION, null),
-        getString(spec, PropertyNames.END_SHUFFLE_POSITION, null), coder);
+        getString(spec, PropertyNames.END_SHUFFLE_POSITION, null),
+        coder);
   }
 }

@@ -67,9 +67,9 @@ public class TextReaderFactoryTest {
     cloudSource.setCodec(encoding);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    Reader<?> reader = ReaderFactory.create(
-        options,
+    Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
         cloudSource,
+        options,
         BatchModeExecutionContext.fromOptions(options),
         null,
         null);

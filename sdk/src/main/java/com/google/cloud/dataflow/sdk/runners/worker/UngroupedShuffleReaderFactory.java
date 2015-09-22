@@ -24,20 +24,34 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+
+import javax.annotation.Nullable;
 
 /**
  * Creates an UngroupedShuffleReader from a CloudObject spec.
  */
-public class UngroupedShuffleReaderFactory {
-  // Do not instantiate.
-  private UngroupedShuffleReaderFactory() {}
+public class UngroupedShuffleReaderFactory implements ReaderFactory {
 
-  public static <T> UngroupedShuffleReader<T> create(PipelineOptions options, CloudObject spec,
-      Coder<T> coder, ExecutionContext executionContext) throws Exception {
+  @Override
+  public Reader<?> create(
+      CloudObject spec,
+      @Nullable Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator,
+      @Nullable String operationName)
+          throws Exception {
+    return create(spec, coder, options);
+  }
+
+  public <T> UngroupedShuffleReader<T> create(
+      CloudObject spec, Coder<T> coder, PipelineOptions options) throws Exception {
     return create(options, spec, coder);
   }
 
-  static <T> UngroupedShuffleReader<T> create(
+  <T> UngroupedShuffleReader<T> create(
       PipelineOptions options, CloudObject spec, Coder<T> coder) throws Exception {
     return new UngroupedShuffleReader<>(options,
         decodeBase64(getString(spec, PropertyNames.SHUFFLE_READER_CONFIG)),

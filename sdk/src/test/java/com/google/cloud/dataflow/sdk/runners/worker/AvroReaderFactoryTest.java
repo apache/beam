@@ -61,9 +61,12 @@ public class AvroReaderFactoryTest {
     cloudSource.setSpec(spec);
     cloudSource.setCodec(encoding);
 
-    Reader<?> reader = ReaderFactory.create(
-        PipelineOptionsFactory.create(), cloudSource, DirectModeExecutionContext.create(),
-        null, null);
+    Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
+        cloudSource,
+        PipelineOptionsFactory.create(),
+        DirectModeExecutionContext.create(),
+        null,
+        null);
     return reader;
   }
 

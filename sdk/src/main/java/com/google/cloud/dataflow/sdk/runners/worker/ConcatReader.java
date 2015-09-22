@@ -67,15 +67,20 @@ public class ConcatReader<T> extends Reader<T> {
   private final ExecutionContext executionContext;
   private final CounterSet.AddCounterMutator addCounterMutator;
   private final String operationName;
+  private final ReaderFactory.Registry registry;
 
   /**
    * Create a {@code ConcatReader} using a given list of encoded {@code Source}s.
    */
   public ConcatReader(
-      PipelineOptions options, ExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator, String operationName,
+      ReaderFactory.Registry registry,
+      PipelineOptions options,
+      ExecutionContext executionContext,
+      CounterSet.AddCounterMutator addCounterMutator,
+      String operationName,
       List<Source> sources) {
     Preconditions.checkNotNull(sources);
+    this.registry = registry;
     this.sources = sources;
     this.options = options;
     this.executionContext = executionContext;
@@ -89,8 +94,13 @@ public class ConcatReader<T> extends Reader<T> {
 
   @Override
   public ReaderIterator<T> iterator() throws IOException {
-    return new ConcatIterator<T>(options, executionContext, addCounterMutator,
-        operationName, sources);
+    return new ConcatIterator<T>(
+        registry,
+        options,
+        executionContext,
+        addCounterMutator,
+        operationName,
+        sources);
   }
 
   private static class ConcatIterator<T> extends AbstractBoundedReaderIterator<T> {
@@ -103,11 +113,16 @@ public class ConcatReader<T> extends Reader<T> {
     private final String operationName;
     private final OffsetRangeTracker rangeTracker;
     private boolean isAtFirstRecordInCurrentSource = true;
+    private final ReaderFactory.Registry registry;
 
     public ConcatIterator(
-        PipelineOptions options, ExecutionContext executionContext,
-        CounterSet.AddCounterMutator addCounterMutator, String operationName,
+        ReaderFactory.Registry registry,
+        PipelineOptions options,
+        ExecutionContext executionContext,
+        CounterSet.AddCounterMutator addCounterMutator,
+        String operationName,
         List<Source> sources) {
+      this.registry = registry;
       this.sources = sources;
       this.options = options;
       this.executionContext = executionContext;
@@ -137,8 +152,8 @@ public class ConcatReader<T> extends Reader<T> {
         try {
           @SuppressWarnings("unchecked")
           Reader<T> currentReader =
-              (Reader<T>) ReaderFactory.create(options, currentSource, executionContext,
-                  addCounterMutator, operationName);
+              (Reader<T>) registry.create(
+                  currentSource, options, executionContext, addCounterMutator, operationName);
           currentIterator = currentReader.iterator();
           isAtFirstRecordInCurrentSource = true;
         } catch (Exception e) {
