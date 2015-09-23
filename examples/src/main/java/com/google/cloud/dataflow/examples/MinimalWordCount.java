@@ -23,7 +23,9 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.MapElements;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.SimpleFunction;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 
@@ -95,12 +97,12 @@ public class MinimalWordCount {
      // transform returns a new PCollection of key/value pairs, where each key represents a unique
      // word in the text. The associated value is the occurrence count for that word.
      .apply(Count.<String>perElement())
-     // Apply another ParDo transform that formats our PCollection of word counts into a printable
+     // Apply a MapElements transform that formats our PCollection of word counts into a printable
      // string, suitable for writing to an output file.
-     .apply(ParDo.named("FormatResults").of(new DoFn<KV<String, Long>, String>() {
+     .apply("FormatResults", MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
                        @Override
-                       public void processElement(ProcessContext c) {
-                         c.output(c.element().getKey() + ": " + c.element().getValue());
+                       public String apply(KV<String, Long> input) {
+                         return input.getKey() + ": " + input.getValue();
                        }
                      }))
      // Concept #4: Apply a write transform, TextIO.Write, at the end of the pipeline.
