@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.FinishBundle;
 import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ProcessElement;
 import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.StartBundle;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
@@ -587,6 +588,11 @@ public abstract class DoFnReflector {
     @Override
     public Instant timestamp() {
       return context.timestamp();
+    }
+
+    @Override
+    public PaneInfo pane() {
+      return context.pane();
     }
 
     @Override
